@@ -347,7 +347,7 @@ DEFINE FUNCTION OVERWRITE fn::mt120_loom_receipt($resource: option<record<protec
         AND (($event = 'KNOWLEDGE_LOOM_BLOCK_INDEXED'
               AND $source = 'loom_block_knowledge_bridge' AND $aggregate = 'knowledge_loom_block'
               AND $aggregate_id = $payload.entity_id AND $payload.type = 'knowledge_loom_block_indexed'
-              AND $payload.block_id != NONE AND $payload.content_type IN ['note', 'canvas']
+              AND $payload.block_id != NONE AND $payload.content_type IN ['note', 'file', 'annotated_file', 'tag_hub', 'journal', 'canvas']
               AND type::record('loom_blocks', $payload.block_id).workspace_id = type::record('workspaces', $wsids[0])
               AND type::record('loom_blocks', $payload.block_id).created_in_session_id = $session)
              OR ($event = 'KNOWLEDGE_LOOM_CANVAS_BOARD_RECORDED'
@@ -1129,7 +1129,7 @@ DEFINE FUNCTION OVERWRITE fn::mt120_resource_create($row: object) {
     IF $row.resource_kind = 'loom_block' {
         LET $block = type::record('loom_blocks', $row.external_resource_id);
         RETURN $block.created_in_session_id = $auth.id AND $block.source_rich_document_id = NONE
-            AND $block.content_type IN ['note', 'canvas']
+            AND $block.content_type IN ['note', 'file', 'annotated_file', 'tag_hub', 'journal', 'canvas']
             AND $row.parent_resource_id.resource_kind = 'workspace'
             AND $row.parent_resource_id.external_resource_id = record::id($block.workspace_id)
             AND $row.parent_resource_id.owner_account_id = $auth.account_id
@@ -1886,7 +1886,7 @@ fn restore_pre_mt120_loom_bundle(mut source: String) -> String {
                     "",
                 )
                 .replace(
-                    " OR (source_rich_document_id = NONE AND content_type IN ['note','canvas'] AND $auth != NONE AND created_in_session_id = $auth.id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write'))",
+                    " OR (source_rich_document_id = NONE AND content_type IN ['note','file','annotated_file','tag_hub','journal','canvas'] AND $auth != NONE AND created_in_session_id = $auth.id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write'))",
                     "",
                 )
                 .replace(
@@ -1965,7 +1965,7 @@ fn restore_pre_mt120_loom_bundle(mut source: String) -> String {
 #[cfg(test)]
 fn restore_pre_standalone_loom_update_schema(mut source: String) -> String {
     source = source.replace(
-        "FOR update WHERE (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')) OR (source_rich_document_id = NONE AND content_type IN ['note','canvas'] AND fn::mt120_loom_block_access(block_id, record::id(workspace_id), 'update', 'fs.write'))",
+        "FOR update WHERE (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')) OR (source_rich_document_id = NONE AND content_type IN ['note','file','annotated_file','tag_hub','journal','canvas'] AND fn::mt120_loom_block_access(block_id, record::id(workspace_id), 'update', 'fs.write'))",
         "FOR update WHERE source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')",
     );
     source = source.replace(
@@ -2074,8 +2074,11 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-109 C1V-WS-CREATE-403 re-pin: mt109_workspace_reconciliation_queue now fires only for
 // record-user creates (`$auth != NONE`), so privileged/system workspace creation no longer throws
 // (previous value 7544939ae1b81363773e6eb050797c81ce9aa3926ba7ba32109c940e0dd06b36).
+// MT-109 round-4 re-pin (Master Spec LM-RLS-001 / §2.3.13.12.4): record-user Loom creation of all
+// spec content types, rich-document projection placements, and writer access to a same-id
+// projection across a save (previous value 01a3f6068b040794f3c670b919a46324d283da1374f09a72c3a98bf24bfe2653).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "01a3f6068b040794f3c670b919a46324d283da1374f09a72c3a98bf24bfe2653";
+    "79444332fefc2fe7cf5950152bb7d29ddbbd0452f30a17f4abb277b6cbb6504a";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -2133,15 +2136,19 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // `mt139_current_schema_info_pin_matches_fresh_mem_catalog` (kb-c1 run 42).
 // MT-109 C1V-WS-CREATE-403 re-pin: record-user-only workspace reconciliation event (previous value
 // 8955551a907913596f6751ac4a96ad4686b9c98889c293310900874cc06a1ca8); kb-c1 run 54.
+// MT-109 round-4 re-pin (previous d06f44fd00b2525e93d55d4884a81d092a26c4e08b486da3b03b4671a035d3eb);
+// kb-c1 run 76.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "d06f44fd00b2525e93d55d4884a81d092a26c4e08b486da3b03b4671a035d3eb";
+    "a99410f0c48491e110068e2d10d3ab0fc526073b6af749ce17afb85fe7e549f6";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
 // (previous value 4d3f739296e5b59bd3962c0fab23180dd5e3363b8fc7ad277dc6ba17da9f1c63, the asset_id-only
 // MT-141 pin; before that 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
+// MT-109 round-4 re-pin: fn::mt120_resource_create / fn::mt120_loom_receipt admit all spec Loom
+// content types (previous ad696e28be444fd68b39f4c280400ae4914c17234ed0888794df75ed1de6483c).
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
-    "ad696e28be444fd68b39f4c280400ae4914c17234ed0888794df75ed1de6483c";
+    "ed84249709a9ab9c3c7d4304859732fac8373d0001a27aa84685c319e6a6a04a";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 /// Second allowlisted lineage (MT-142): every store bootstrapped at schema revision 157 before
@@ -2992,7 +2999,7 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // run 30, HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH / MT109_LOOM_CATALOG_SHA256
     // observed).
     const EXPECTED_CATALOG_SHA256: &str =
-        "2a5a35f78b6cac1c1a3c0454726f98f61463a20180dd8d2b544358ce0f02570c";
+        "dd12fac9516131c6b962fef8ed7bfb23d20f38c0b10d4756ac6eae9b987a2127";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -7420,7 +7427,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "2a5a35f78b6cac1c1a3c0454726f98f61463a20180dd8d2b544358ce0f02570c"
+            "dd12fac9516131c6b962fef8ed7bfb23d20f38c0b10d4756ac6eae9b987a2127"
         );
     }
 
