@@ -100,6 +100,7 @@ C3 lands → C4 (MT-154/155/156) in the worktree while the validator checks the 
 3. Summing `C:\.target` file sizes (hardlinks) triggered a false cap alarm; measure free space instead.
 4. Handing the Operator a raw delete command instead of the listed-targets → `approved` → execute flow; and a bash-quoted `$_` that silently did nothing.
 5. A bare `git commit` swept a staged rename into an MT snapshot (§2 defect).
+6. Lane scripts that wait on ANY host cargo deadlock two-disk parallelism (C3 gates never ran). Busy checks must be per disk (the target path in the cargo command line).
 
 ## 11. First actions
 
