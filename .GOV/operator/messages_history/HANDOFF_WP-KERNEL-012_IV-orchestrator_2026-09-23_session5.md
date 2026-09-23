@@ -14,7 +14,7 @@ Close WP-KERNEL-012: every MT at validator-proven `PASS_Vn`, then the whole-WP I
 - Governance: `gov_kernel` pushed. The lean `roles/coder/CODER_PROTOCOL.md` is committed (`0d48d398`); the old one is in `roles/coder/archive/`. MT-153..157, packet.json and all MT records are committed with this handoff. The Operator-approved authority changes (Codex CX-EXEC-003A/005, CX-SAFE-002, CX-984-014; IV/KB/WPV protocol updates; HANDSHAKE_BUILD_RULES.json; the two `*_CONTRACT_TEMPLATE.json`) are committed too, and the tree is clean. Commits need no Operator approval (Operator, 2026-09-23); just use explicit paths.
 - `handshake_main` local `main` is 2 commits ahead of `origin/main` (the Operator's docs commit and `71298891d` `.claude/settings.local.json` allowlist). Both go out with the WP merge.
 - MT tally: 115 PASS; 29 FAIL (008 023 027 033 034 036 046 064 065 066 067 068 074 079 088 098 108 113 116 117 120 121 122 127 128 130 140 141 143); 3 BLOCKED_ON_DEPENDENCY (026 070 111); 4 PARTIAL (045 124 125 142); 1 READY_FOR_VALIDATION (131). Plus MT-153 IN_PROGRESS (C3 scope, gates pending) and MT-154..157 READY (§4, §7).
-- C: free 338.5 GB after the approved cleanup of `C:\.target\WP-KERNEL-012\*` (2026-09-23).
+- C: free 333 GB at handoff (after the approved cleanup; includes V2's stale export and partial target-v2, which the next validator removes). The C: stop line for WP builds stays at 248 GB free.
 
 ## 3. What happened (sessions of 2026-09-22/23)
 
