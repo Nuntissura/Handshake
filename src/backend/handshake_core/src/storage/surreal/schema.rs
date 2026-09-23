@@ -2561,8 +2561,12 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-109 C3 re-pin: record-user permissions for the account-scoped Loom routes, the Loom endpoint
 // helper and workspace/block Loom receipts (previous value
 // dcb91130af87c675f199db0afa9483fbbc60dc40b925870dfd0bcf1b340e1049); kb-c3 run 04.
+// MT-154 C4 re-pin (batch MT-153..MT-157): record-user permissions for the account-scoped
+// non-Loom surfaces, owner_account_id on account-global tables, job/workflow predicates, the Loom
+// identity guard and the MT154_AUTHORITY block (previous value
+// 41bbb694d0b7c45a5fcd95eb71f0010d1b28ca09440b9593f6f769bac8b55121); kb-c4 runs 26/28.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "41bbb694d0b7c45a5fcd95eb71f0010d1b28ca09440b9593f6f769bac8b55121";
+    "ba67f200ef98758d62b2b307efae4efdc220d1ef07bf6ef44551ce389d57d271";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -2580,7 +2584,7 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // MT-109 C3 re-pin: Loom record-user permissions and fn::mt120_loom_endpoint_access (previous
 // 01e4c14cc6e3d75239c053974c5de2c4168c2ae50d76d3f418819ce7d7e993fd); kb-c3 run 04.
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "b01b56c12094750e4873f51cb48e51fc377d8277f06b86b92b9a5a7856d547a0";
+    "c6a1846bd23c9706a61feac9f267b6f32c77fb8f1b5faa2358d88b2d83a42436";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -2627,7 +2631,7 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT-109 C2 re-pin (previous a99410f0c48491e110068e2d10d3ab0fc526073b6af749ce17afb85fe7e549f6); kb-c2 runs 03/18.
 // MT-109 C3 re-pin (previous 13be68fc1edba9476e4cdd2db98f51b02ee33190683472fca3bb4cf57ee7225c); kb-c3 run 04.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "13363cebf7dadb03fb394abfbfc61e1561dee246075d359f26a0b6e210cf0693";
+    "ad5ff085fc07966c351da7cd56e2e423577d8ff58240d97a25ee5107048eb363";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
