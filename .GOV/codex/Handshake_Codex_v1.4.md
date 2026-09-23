@@ -106,6 +106,8 @@
 
 [CX-EXEC-011] Handoff step lists and agent plans are input, not authority over the approach. Each dispatch states the commit or verdict it will produce and by when, derived from the assigned outcome.
 
+[CX-EXEC-012] A remediation pass fixes failures already recorded in an MT/WP (validator findings, failing tests, named blockers); the recorded failure and its stated remediation are the specification. Flow: read the failure, inspect the named code, fix, commit and push, run that MT's proof commands, record the result. Verification against the failure, current code and proof output still applies; broad research, refinements/red-team, risk/ROI listing and new audits or analysis runs do not, unless the same fix has failed twice (CX-EXEC-003).
+
 ## Artifact isolation
 
 [CX-PATH-001] The Operator does not insert backslashes before underscores. Treat any such sequence encountered in an Operator-provided path as a text-processing artifact, never an Operator mistake or intended directory separator. Reason: formatting escapes can be mistaken by the assistant for filesystem separators, splitting one folder name into two and causing incorrect resolution or unwanted folder creation.
