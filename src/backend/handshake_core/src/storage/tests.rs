@@ -418,7 +418,8 @@ async fn open_embedded_test_backend(
         ))
     })?;
     let config = SurrealStorageConfig::for_data_dir(&data_dir)
-        .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?;
+        .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?
+        .with_test_sync_from_env();
     let storage = open_test_storage_on_engine_runtime(config)
         .await
         .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?;
@@ -2922,6 +2923,48 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         .await?;
 
     db.delete_workspace(&ctx, &workspace.id).await?;
+    Ok(())
+}
+
+/// TEST-ONLY sync switch (IV 2026-09-23): a store opened with `?sync=never` on the endpoint opens
+/// at the configured directory (the query string is engine config, never part of the path), and
+/// a write commits and reads back. Unset, the config keeps the engine default.
+#[tokio::test]
+async fn test_datastore_sync_never_reaches_the_engine_endpoint(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let root = test_store_root()?.join(format!("sync-never-{}", Uuid::now_v7().simple()));
+    std::fs::create_dir_all(&root)?;
+    let store_dir = root.join("store");
+    let default_config = SurrealStorageConfig::with_path(&store_dir)?;
+    assert!(!default_config.test_datastore_sync_never());
+    let config = default_config.with_test_datastore_sync_never();
+    assert!(config.test_datastore_sync_never());
+    let storage = SurrealStorage::open(config).await?;
+    storage
+        .test_admin_query("CREATE sync_probe:one SET value = 7;".to_owned())
+        .await?
+        .check()?;
+    let mut response = storage
+        .test_admin_query("RETURN sync_probe:one.value;".to_owned())
+        .await?;
+    let value: Option<i64> = response.take(0)?;
+    assert_eq!(
+        value,
+        Some(7),
+        "a write under sync=never commits and reads back"
+    );
+    storage.shutdown().await?;
+    assert!(store_dir.is_dir(), "the store lives at the configured path");
+    let stray = std::fs::read_dir(&root)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| name.contains('?') || name.contains("sync"))
+        .collect::<Vec<_>>();
+    assert!(
+        stray.is_empty(),
+        "the query string never becomes a path: {stray:?}"
+    );
+    let _ = std::fs::remove_dir_all(&root);
     Ok(())
 }
 

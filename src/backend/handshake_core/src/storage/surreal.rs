@@ -306,7 +306,16 @@ pub struct SurrealStorageConfig {
     statement_timeout: Duration,
     engine_query_timeout: Option<Duration>,
     engine_transaction_timeout: Option<Duration>,
+    /// TEST-ONLY (IV 2026-09-23): open RocksDB with `?sync=never`. Always false outside test
+    /// support; see [`Self::with_test_sync_from_env`].
+    test_datastore_sync_never: bool,
 }
+
+/// TEST-ONLY switch read by the test-support store openers: `never` disables the per-commit WAL
+/// fsync for that store. Unset (the default) keeps the engine default (`Every`), so durability,
+/// crash and restart proofs keep real fsync.
+#[cfg(any(test, feature = "surreal-test-support"))]
+pub const HANDSHAKE_TEST_SURREAL_SYNC_ENV: &str = "HANDSHAKE_TEST_SURREAL_SYNC";
 
 impl SurrealStorageConfig {
     pub fn from_env() -> Result<Self, SurrealStorageError> {
@@ -348,7 +357,32 @@ impl SurrealStorageConfig {
             // Off by default; see DEFAULT_ENGINE_QUERY_TIMEOUT for the evidence.
             engine_query_timeout: None,
             engine_transaction_timeout: None,
+            test_datastore_sync_never: false,
         })
+    }
+
+    /// TEST-ONLY: the embedded engine never reads `SURREAL_DATASTORE_SYNC` (surrealdb-3.2.0
+    /// `engine/local/native.rs:131` builds from an empty `ConfigMap`); its only sync input is the
+    /// endpoint query string (`surrealdb-core-3.2.0 kvs/ds.rs:582-590`, `?sync=never` ->
+    /// `datastore_sync`). With [`HANDSHAKE_TEST_SURREAL_SYNC_ENV`]`=never` the store opens with that
+    /// query string; otherwise nothing changes.
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    pub fn with_test_sync_from_env(mut self) -> Self {
+        if env::var(HANDSHAKE_TEST_SURREAL_SYNC_ENV).as_deref() == Ok("never") {
+            self.test_datastore_sync_never = true;
+        }
+        self
+    }
+
+    /// TEST-ONLY: force `?sync=never` for this store (unit proofs of the switch).
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    pub fn with_test_datastore_sync_never(mut self) -> Self {
+        self.test_datastore_sync_never = true;
+        self
+    }
+
+    pub fn test_datastore_sync_never(&self) -> bool {
+        self.test_datastore_sync_never
     }
 
     /// Sets how long each caller waits for the shared background close.
@@ -1017,7 +1051,14 @@ impl SurrealStorage {
         let engine_config = EngineConfig::new()
             .query_timeout(config.engine_query_timeout())
             .transaction_timeout(config.engine_transaction_timeout());
-        let client = Surreal::new::<RocksDb>((config.path().to_path_buf(), engine_config)).await?;
+        let client = if config.test_datastore_sync_never() {
+            // TEST-ONLY: the SDK keeps the query string (surrealdb-3.2.0 `opt/endpoint/mod.rs`
+            // path_to_string) and the datastore maps `sync=never` to `datastore_sync`.
+            let endpoint = format!("{}?sync=never", config.path().display());
+            Surreal::new::<RocksDb>((endpoint, engine_config)).await?
+        } else {
+            Surreal::new::<RocksDb>((config.path().to_path_buf(), engine_config)).await?
+        };
         client
             .use_ns(config.namespace())
             .use_db(config.database())
