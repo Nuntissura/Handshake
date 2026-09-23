@@ -19,10 +19,6 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `.GOV/co
 - `scripts/create-task-packet.mjs`
 - `scripts/create-task-packet-stub.mjs`
 - `scripts/orchestrator-next.mjs`
-- `scripts/launch-cli-session.mjs`
-- `scripts/session-control-broker.mjs`
-- `scripts/session-control-command.mjs`
-- `scripts/session-control-cancel.mjs`
 - `scripts/session-registry-status.mjs`
 - implementation host for the canonical operator viewport:
   - `../../operator/scripts/operator-viewport-tui.mjs`
@@ -67,10 +63,6 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `.GOV/co
 - `just record-signature WP-{ID} ...`
 - `just record-prepare WP-{ID} ...`
 - `just orchestrator-prepare-and-packet WP-{ID}`
-- `just launch-activation-manager-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
-- `just launch-coder-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
-- `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
-- `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
 - `just manual-relay-next WP-{ID} [--debug]`
 - `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
-- `AUTO` is the ordinary headless/direct ACP path; `CURRENT` is disabled; `SYSTEM_TERMINAL` is hidden-process repair; `VSCODE_PLUGIN` is disabled
+- `CURRENT` and `VSCODE_PLUGIN` launch hosts are disabled

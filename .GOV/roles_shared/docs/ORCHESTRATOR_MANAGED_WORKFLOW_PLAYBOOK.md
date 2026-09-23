@@ -2,11 +2,11 @@
 
 Status: projection/reference
 Scope: `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`
-Authority: navigational projection only. The machine-readable contract is `.GOV/roles_shared/workflow_contracts/orchestrator_managed.workflow.json`; ACP/session-control consumes that contract through `workflow_contract` request envelopes and `WORKFLOW_CONTRACT_CAPSULE` prompts. If this playbook conflicts with the workflow contract, role protocols, Codex law, packet truth, receipts, runtime status, or command output, those sources win.
+Authority: navigational projection only. The machine-readable contract is `.GOV/roles_shared/workflow_contracts/orchestrator_managed.workflow.json`. If this playbook conflicts with the workflow contract, role protocols, Codex law, packet truth, MT JSON status, runtime status, or command output, those sources win.
 
 ## Purpose
 
-This file is a human-readable projection of the machine workflow contract. It exists for audits and maintenance, not routine role context injection. Roles should receive compact `WORKFLOW_CONTRACT_CAPSULE` state from ACP/session-control rather than rereading this whole document. The machine contract exists to make `ORCHESTRATOR_MANAGED` workflows more mechanical because current governance/workflow can still be brittle, reduce Orchestrator babysitting, and harden autonomous parallel WP runs.
+This file is a human-readable projection of the machine workflow contract. It exists for audits and maintenance, not routine role context injection. Roles should not need to reread this whole document. The machine contract exists to make `ORCHESTRATOR_MANAGED` workflows more mechanical because current governance/workflow can still be brittle, reduce Orchestrator babysitting, and harden autonomous parallel WP runs.
 
 ## Authority Boundaries
 
@@ -15,8 +15,8 @@ This file is a human-readable projection of the machine workflow contract. It ex
 - Coder owns product implementation in the packet-declared WP worktree.
 - WP Validator owns per-MT advisory technical review and early intent checkpoint clearance.
 - Integration Validator owns final whole-WP technical verdict and merge authority.
-- Packet truth wins over runtime and session projections. `RECEIPTS.jsonl` and `RUNTIME_STATUS.json` are the primary communication runtime. `THREAD.md` is coordination prose only.
-- All non-Coder roles share `CX-218L` governance paperwork/workflow stabilization duty within their authority and must actively strive to make brittle handoffs, receipts, projections, and documentation transitions mechanical. Coder is excluded and reports governance blockers instead of patching `.GOV/` or workflow tooling from the product-code lane.
+- Packet truth wins over runtime and session projections. MT JSON status and verdict fields are the primary communication surface; `RUNTIME_STATUS.json` is runtime projection. `THREAD.md` is coordination prose only.
+- All non-Coder roles share `CX-218L` governance paperwork/workflow stabilization duty within their authority and must actively strive to make brittle handoffs, projections, and documentation transitions mechanical. Coder is excluded and reports governance blockers instead of patching `.GOV/` or workflow tooling from the product-code lane.
 - Governance refactor or stabilization work must be declared in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` with a stable item and current status, then updated as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
 - HBR-PRIV is a permanent launch and handoff boundary. Product WPs must separate LocalAccount, Principal, AccountRole, MembershipRole, AccessSpace, ResourceGrant, and Persona; inventory every primary and derived resource; and name the authenticated SurrealDB record-user table/field permissions, ResourceBroker/filesystem, API, search/index, model/tool, UI, export, diagnostic, and remote-service enforcement paths they touch. A project membership or visible UI filter is never blanket authorization.
 
@@ -26,10 +26,8 @@ This file is a human-readable projection of the machine workflow contract. It ex
    - `just orchestrator-startup`
    - `just orchestrator-next [WP-{ID}] [--debug]`
    - `just operator-viewport`
-   - Open Orchestrator repomem with `--role ORCHESTRATOR --wp WP-{ID}` before governed mutation.
 
 2. Activation Manager pre-launch
-   - Launch: `just launch-activation-manager-session WP-{ID}`
    - Activation Manager returns `REFINEMENT_HANDOFF_SUMMARY`.
    - Orchestrator reviews, gets operator approval/signature, and steers the bundle back.
    - Activation Manager writes packet, microtasks, worktree/backups, health evidence, and `ACTIVATION_READINESS`.
@@ -46,36 +44,27 @@ This file is a human-readable projection of the machine workflow contract. It ex
 
 3. Downstream launch
    - HBR matrix gate: run `just hbr-matrix-check` before any Coder handoff. Do not wake Coder into implementation or handoff while required HBR rows remain `PENDING`, `STEER`, or `BLOCKED`.
-   - `just phase-check STARTUP WP-{ID} CODER`
-   - `just launch-wp-validator-session WP-{ID}`
-   - `just launch-coder-session WP-{ID}`
    - WP Validator should be READY before Coder starts MT work.
 
-4. Bootstrap direct-review route
-   - WP Validator publishes `VALIDATOR_KICKOFF`.
-   - Coder publishes `CODER_INTENT`.
-   - Runtime waits on `WP_VALIDATOR_INTENT_CHECKPOINT`.
-   - WP Validator clears or rejects this checkpoint with `just wp-validator-response` / `just wp-spec-gap`.
-   - `just wp-review-response` is for actual open `REVIEW_REQUEST` or `CODER_HANDOFF` review items, not for clearing `CODER_INTENT`.
+4. Bootstrap intent checkpoint
+   - WP Validator clears or rejects the Coder's intent/skeleton plan before MT implementation hardens.
 
 5. Per-MT loop
-   - Coder implements exactly one MT, commits, and emits `wp-review-request` or `CODER_HANDOFF` as required by the packet route.
-   - WP Validator checks notifications, reviews, and emits `wp-review-response` / MT verdict.
+   - Coder implements exactly one MT, commits and pushes, and sets the MT JSON status to `READY_FOR_VALIDATION`.
+   - WP Validator reviews and writes the MT JSON verdict.
    - Runtime alternates between Coder and WP Validator. Orchestrator watches route truth and wakes stalled projected actors; it does not broker ordinary technical content.
    - Runtime-proof gate projection: Coder or Kernel Builder may move an MT only to `READY_FOR_VALIDATION`, and only when proof exercises the executable product runtime or named Handshake-managed resource boundary. Scaffold-only work — schemas, descriptors, traits, projections, placeholder branches, implementer-authored mocks, fixture-only tests, or tests against fake resources authored with the implementation — is not enough even when compile/type/unit checks pass. WP Validator rejects per-MT scaffold/runtime mismatches; Integration Validator reapplies the same gate before whole-WP PASS or merge readiness.
 
 6. Whole-WP closeout prep
-   - Confirm all MTs have WP Validator PASS receipts.
+   - Confirm all MTs carry WP Validator PASS verdicts in MT JSON.
    - HBR closeout smoke gate: run `just hbr-visual-smoke`, `just hbr-swarm-n8`, and `just hbr-inspector-smoke` before Integration Validator closeout; preserve their reports as HBR evidence.
    - Require HBR-PRIV closure for every touched resource boundary. Whole-WP evidence must demonstrate authorized access and fail-closed denial through the executable backend—not only hidden UI rows—and must show that logs, traces, indexes, previews, derivatives, exports, backups, and future SaaS/MCP links do not widen source visibility.
-   - If no whole-WP `CODER_HANDOFF` exists and no `committed_handoff_head_sha` is recorded, steer Coder to publish the final handoff first. Per-MT PASS receipts are not a committed target for Integration Validator closeout.
-   - After final `CODER_HANDOFF`, run `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>` to write durable committed validation evidence for the exact final range.
-   - `just closeout-repair WP-{ID}` may repair deterministic prep drift, but terminal `phase-check CLOSEOUT` waits until the Integration Validator has written its final review/verdict.
+   - If no whole-WP handoff with pushed commits exists, steer Coder to publish the final handoff first. Per-MT PASS verdicts are not a committed target for Integration Validator closeout.
+   - `just closeout-repair WP-{ID}` may repair deterministic prep drift, but terminal closeout waits until the Integration Validator has written its final verdict.
    - Do not launch/steer Integration Validator while committed handoff evidence is missing.
 
 7. Final validation
-   - `just launch-integration-validator-session WP-{ID}`
-   - Integration Validator runs `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR <session>` for the open final handoff, then performs fresh-context whole-WP judgment and emits the review/verdict receipt that resolves the handoff correlation.
+   - Integration Validator performs fresh-context whole-WP judgment and writes the typed verdict that resolves the final handoff.
    - PASS proceeds through governed closeout/merge path. FAIL returns to same-WP remediation unless scope expansion or operator choice requires a new WP.
 
 8. Main containment after Integration Validator PASS
@@ -83,7 +72,7 @@ This file is a human-readable projection of the machine workflow contract. It ex
    - Treat merge as Integration Validator-owned authority. Orchestrator may babysit the mechanical sequence, but does not create a product verdict.
    - Before `git merge`, preserve committed branch states: push the approved WP feature branch to its remote backup and push current `main` to `origin/main`.
    - Merge only from `../handshake_main` on local `main`, then verify the approved target head is an ancestor of the new local-main HEAD.
-   - Run `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why containment is now valid>"`.
+   - Record `CONTAINED_IN_MAIN <MERGED_MAIN_SHA>` in the typed closeout record with why containment is now valid.
    - Run `just gov-check`, then push `origin/main` only after contained-main closeout and governance checks pass.
 
 ## Deterministic Contract Migration Red-Team
@@ -94,7 +83,7 @@ Red-team stance before launch or repair:
 
 - Assume projections are stale until source hash/provenance proves they were generated from the authoritative contract.
 - Assume sidecars drift when two manually maintained files claim the same authority; prefer one primary typed file per atomic lifecycle object instead.
-- Assume prose hides shadow authority; migrate lifecycle, scope, status, assignment, refinement, MT identity, and receipt-routing fields into typed contract keys.
+- Assume prose hides shadow authority; migrate lifecycle, scope, status, assignment, refinement, MT identity, and routing fields into typed contract keys.
 - Assume schema omissions create unsafe fallback behavior; unsupported fields must become explicit migration debt rather than silent Markdown parsing.
 - Assume Activation Manager and Classic Orchestrator diverge on prelaunch duties unless refinement, hydration, signature, worktree, backup, and MT preparation are encoded in the packet/refinement contracts.
 ## Key Artifacts
@@ -107,23 +96,20 @@ Red-team stance before launch or repair:
 - Flat legacy/stub inventory: `just flat-packet-legacy-inventory` writes `.GOV/roles_shared/records/FLAT_PACKET_LEGACY_INVENTORY.json`; `--check` detects drift. Flat official packets are imported non-destructively into folder authority by `just wp-contract-import --all`; old flat Markdown remains a frozen legacy reference, not co-authority. Packet stubs use adjacent `.contract.json` files generated by `just task-packet-stub-contracts --all`; these contracts are machine-readable planning authority only and carry `execution_authority=NON_EXECUTION_STUB`.
 - Stub consumers: build-order sync, Phase 1 ADD coverage, packet truth, and activation traceability must consume `.GOV/task_packets/stubs/WP-*.contract.json` first. Stub Markdown remains a projection/fallback and must not become execution authority.
 - Communication consumers: provisioning, health, and communications drift checks read packet communication fields through the contract-first packet communication view. Markdown packet fields are legacy fallback only when the primary contract lacks a field.
-- Diagnostic/audit consumers: lane health, active-lane briefs, registry status, manual relay, activation readiness, closeout repair/format, rescue, timeline, dossier, and post-run audit skeleton paths must resolve packet/refinement truth through contract-first helpers before using Markdown projections.
+- Diagnostic/audit consumers: lane health, active-lane briefs, registry status, manual relay, activation readiness, closeout repair/format, rescue, and timeline paths must resolve packet/refinement truth through contract-first helpers before using Markdown projections.
 - Communications: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/`
 - Runtime: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/RUNTIME_STATUS.json`
-- Receipts: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/RECEIPTS.jsonl`
 - Session registry: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
-- ACP ledgers: `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`, `SESSION_CONTROL_RESULTS.jsonl`, and `SESSION_CONTROL_OUTPUTS/`
-- Dossier: diagnostic history only; not product-outcome authority.
 
 ## Intervention Rule
 
-Before every non-Coder role patch, steer, relay repair, validation blocker, activation repair, closeout settlement, or Memory Manager proposal, classify 3-5 plausible causes and pick the cheapest mechanical action that proves or removes them. Record the durable part in repomem and governance records when it changes future behavior.
+Before every non-Coder role patch, steer, relay repair, validation blocker, activation repair, or closeout settlement, classify 3-5 plausible causes and pick the cheapest mechanical action that proves or removes them. Record the durable part in governance records when it changes future behavior.
 
 Common cause set:
 
-- Runtime route drift: `RUNTIME_STATUS.json` points at an actor or receipt kind that no longer matches the latest receipt.
+- Runtime route drift: `RUNTIME_STATUS.json` points at an actor that no longer matches the latest MT JSON status.
 - Notification drift: target actor has unacknowledged notifications or stale ack cursor.
-- Session drift: registry says READY/RUNNING but the output file, nudge queue, or broker state disagrees.
+- Session drift: registry says READY/RUNNING but the output file or session state disagrees.
 - Documentation/protocol drift: startup prompts tell a role to use the wrong helper or omit the expected helper.
 - Clock drift: old `heartbeat_due_at` / `stale_after` values make a fresh route look escalated.
 - Scope drift: role memory, worktree, or actor-session lookup inherits another role's state.
@@ -142,7 +128,7 @@ First actions:
 
 ### Projected Lane Idle
 
-Symptom: runtime waits on Coder/WP Validator, but no receipt progress appears.
+Symptom: runtime waits on Coder/WP Validator, but no MT status progress appears.
 
 First actions:
 
@@ -161,19 +147,6 @@ First actions:
 - If the projected target session is `READY`, has no pending control request, and relay status is `ESCALATED`, `just orchestrator-steer-next WP-{ID} "<context>"` should drain queued nudges into one direct safe-boundary `SEND_PROMPT`.
 - Avoid duplicate steering while queue depth is nonzero unless the previous nudge is stale and the target run is idle.
 - Patch prompt/route bugs if the same role repeatedly completes without consuming the queued route.
-
-### Post-Commit Auto-Relay Does Not Fire
-
-Symptom: Coder commits an MT, but no `REVIEW_REQUEST` notification appears for `WP_VALIDATOR`.
-
-First actions:
-
-- Think through 3-5 causes: effective Git hook path mismatch in linked worktrees, commit subject missing `feat: MT-NNN`, compile gate failed before review emission, mechanical MT review failed, or `wp-review-exchange` path/runtime lock failed.
-- Inspect `git -C <coder_worktree> rev-parse --git-path hooks/post-commit`; the hook must be installed at that effective path, not guessed from the `.git` file.
-- Inspect the latest commit subject and require `feat: MT-NNN <description>` for hook-driven auto-relay.
-- Inspect `COMPILE_GATE_LOG.jsonl`: real compile failures block auto-relay, but host-load timeouts should relay with `HOOK_COMPILE_GATE=TIMEOUT_INCONCLUSIVE` so the Validator sees the proof gap instead of the route going silent.
-- If the commit is already valid and the hook missed it, send exactly one manual `just wp-review-request ...` with the route sessions from `active-lane-brief`, then reinstall/fix the hook before the next MT.
-- Keep manual review-request summaries shell-safe and short. If a stray summary word lands in `correlation_id` or `spec_anchor`, the helper must fail closed instead of writing a corrupted receipt.
 
 ### Active Run With No Output
 
@@ -196,80 +169,31 @@ First actions:
 - Treat `git restore` / `git checkout --` as destructive/state-hiding worktree rewrites. If cleanup is needed, stop and route a typed blocker/repair note instead of silently discarding spillover.
 - Future-proof the workflow by preferring file-targeted formatters (`rustfmt <files>`, prettier/eslint on explicit files) during scoped MTs.
 
-### Wrong Review Helper
-
-Symptom: WP Validator tries `wp-review-response` while runtime waits on `WP_VALIDATOR_INTENT_CHECKPOINT`.
-
-First actions:
-
-- Inspect `route_anchor_kind`. If it is `VALIDATOR_RESPONSE`, use `just wp-validator-response`.
-- Reserve `wp-review-response` for open `REVIEW_REQUEST` or `CODER_HANDOFF` review items.
-- If the wrong-helper path is unclear, patch the fail message or role prompt so the next session does not spend model turns rediscovering it.
-
 ### Final Handoff Missing Before Closeout
 
-Symptom: all declared MTs have WP Validator PASS, `wp-communication-health-check` reports direct review complete, but `phase-check CLOSEOUT --sync-mode MERGE_PENDING` fails with missing governed Integration Validator identity or `candidate target validation requires committed target_head_sha`.
+Symptom: all declared MTs have WP Validator PASS, but closeout sync (`MERGE_PENDING`) fails with missing governed Integration Validator identity or `candidate target validation requires committed target_head_sha`.
 
 Likely causes:
 
 - Per-MT review completion was mistaken for whole-WP handoff.
-- `CODER_HANDOFF` was never emitted after the overlap review queue drained.
+- The final whole-WP handoff was never recorded after the last MT verdict.
 - Runtime route handed back to Orchestrator with `VERDICT_PROGRESSION` but no committed handoff base/head.
-- `orchestrator-next` tried closeout sync before `phase-check HANDOFF WP_VALIDATOR --range` wrote durable validator-gate evidence.
-- Integration Validator was asked to run `phase-check CLOSEOUT` before it answered the final handoff.
+- Integration Validator was asked to run closeout before it answered the final handoff.
 
 First actions:
 
 - Check `just wp-communication-health-check WP-{ID} STATUS --verbose` for `coder_handoffs=0` and `open_review_items=0`.
 - Check `RUNTIME_STATUS.json` for null `committed_handoff_head_sha`.
-- Send `just session-send CODER WP-{ID} "<final handoff request>"` asking Coder to record `CODER_HANDOFF` with base/head/range, rubric self-audit, proofs, and carry-over risks.
-- After handoff, run `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>` before steering Integration Validator.
-- Do not run closeout sync again until the Integration Validator has resolved the final handoff with a typed review/verdict receipt.
-
-### Final Handoff Closeout Inversion
-
-Symptom: Integration Validator receives a final `CODER_HANDOFF`, acknowledges the notification, runs `phase-check CLOSEOUT`, then records `WORKFLOW_INVALIDITY` because the handoff is still open or committed validation evidence is missing.
-
-Likely causes:
-
-- Closeout was treated as the action that answers the handoff instead of terminal proof after the review response.
-- `phase-check VERDICT` was not passed the Integration Validator role/session, so the expected inbox item looked like generic open review debt.
-- `phase-check HANDOFF WP_VALIDATOR --range` was skipped, leaving `validator_gates/<WP>.json` without `committed_validation_evidence`.
-- The ACP relay prompt allowed acknowledgement/status text to stand in for a correlation-preserving review receipt.
-- Protocol docs still said `phase-check CLOSEOUT` before launch after the workflow had shifted to final handoff review.
-
-First actions:
-
-- Patch the prompt/protocol so final handoff routes use `phase-check VERDICT ... INTEGRATION_VALIDATOR <session>` first.
-- Run the missing committed handoff validation command from the Orchestrator lane.
-- Repair any workflow-invalidity receipt caused by the tooling inversion with a typed `REPAIR`, then steer Integration Validator to emit the review response or product blocker against the original handoff correlation.
-
-### Final Review Response Route Regression
-
-Symptom: Integration Validator records PASS against the final `CODER_HANDOFF`, but runtime/communication health routes back to Coder or an old MT instead of showing final direct review resolved.
-
-Likely causes:
-
-- Final `wp-review-response` fell through to microtask fallback contract derivation.
-- Receipt notification logic treated final Integration Validator review response like an ordinary Coder-facing review reply.
-- Runtime still had a stale `route_anchor_kind=CODER_HANDOFF` or older MT `REVIEW_REQUEST`.
-- Communication health required a direct-authority flag that old packet formats do not carry.
-- Orchestrator checkpoint routing was confused with Coder ack routing.
-
-First actions:
-
-- Check `just wp-communication-health-check WP-{ID} STATUS --verbose` for `integration_final_open` and `integration_final_resolution`.
-- If both are present, final review is resolved; patch route projection rather than waking Coder.
-- Final Integration Validator review responses should notify Orchestrator for checkpoint/routing truth, not Coder for ack debt.
-- Record a typed Orchestrator `REPAIR` when stale runtime route truth was corrected after the final PASS receipt.
+- Route the final handoff request to Coder: record the final handoff with base/head/range, rubric self-audit, proofs, and carry-over risks.
+- Do not run closeout sync again until the Integration Validator has resolved the final handoff with a typed verdict.
 
 ### Closeout Report Materialization Drift
 
-Symptom: `phase-check CLOSEOUT --sync-mode MERGE_PENDING` has final PASS and communication `COMM_OK`, but `validator-packet-complete` rejects `VALIDATION_REPORTS` or computed policy inputs.
+Symptom: closeout sync (`MERGE_PENDING`) has final PASS and communication `COMM_OK`, but `validator-packet-complete` rejects `VALIDATION_REPORTS` or computed policy inputs.
 
 Likely causes:
 
-- Closeout sync tried to materialize a report from a final review receipt but emitted bullet-shaped scalar fields.
+- Closeout sync tried to materialize a report from the final verdict but emitted bullet-shaped scalar fields.
 - `CLAUSES_REVIEWED` paraphrased closure rows instead of reusing exact `CLAUSE_CLOSURE_MATRIX` labels.
 - A list parser swallowed the report instructions after an inline scalar field such as `MECHANICAL_REPORT_SOURCE: ...`.
 - Negative proof, counterfactuals, or current-main checks lacked concrete product code references.
@@ -277,7 +201,7 @@ Likely causes:
 
 First actions:
 
-- Run direct packet-complete evaluation or `phase-check CLOSEOUT --verbose` and fix the first deterministic report-shape failure.
+- Run direct packet-complete evaluation and fix the first deterministic report-shape failure.
 - Keep scalar report fields top-level (`VALIDATION_CONTEXT: OK`), list labels top-level (`CLAUSES_REVIEWED:`), and list items indented below them.
 - Use exact closure-row names in `CLAUSES_REVIEWED`.
 - Make `NEGATIVE_PROOF`, `COUNTERFACTUAL_CHECKS`, and `CURRENT_MAIN_INTERACTION_CHECKS` cite product files or symbols.
@@ -285,7 +209,7 @@ First actions:
 
 ### Merge-Pending Terminal Projection
 
-Symptom: terminal packet/task-board truth is `Done` / `MERGE_PENDING`, but `orchestrator-next` says ready to delegate to Coder, `wp-lane-health` reports closed-role/stale-receipt stall issues, or runtime drift says `current_milestone` should still be `VERDICT`.
+Symptom: terminal packet/task-board truth is `Done` / `MERGE_PENDING`, but `orchestrator-next` says ready to delegate to Coder, `wp-lane-health` reports closed-role/stale-status stall issues, or runtime drift says `current_milestone` should still be `VERDICT`.
 
 Likely causes:
 
@@ -295,13 +219,13 @@ Likely causes:
 - Closeout projection uses containment milestone while older guidance expected verdict milestone.
 - Session registry rows are closed but stale prelaunch state still appears in packet/readiness artifacts.
 - Diagnostic code reads a packet resolver object as a string, misses the packet-declared runtime file, and silently loses terminal projection truth.
-- Lane-health checks evaluate closed role sessions, stale receipts, or old auto-relay readiness without first fencing terminal packet/task-board state.
+- Lane-health checks evaluate closed role sessions or stale status without first fencing terminal packet/task-board state.
 
 First actions:
 
 - Treat `MERGE_PENDING` and `DONE_MERGE_PENDING` as terminal Orchestrator history, not Coder delegation.
 - `orchestrator-next` should show `wp-truth-bundle`, packet read, and contained-main closeout command after actual local-main containment.
-- `wp-lane-health` should print `Terminal WP` and suppress closed-session, stale-receipt, notification, hook, and auto-relay issues that are only terminal history.
+- `wp-lane-health` should print `Terminal WP` and suppress closed-session, stale-status, and notification issues that are only terminal history.
 - `wp-relay-watchdog --observe-only` should return `TERMINAL_HISTORY_HIDDEN`, and `wp-autonomous-monitor --once` should log `terminal=YES publication=...` without waking any role.
 - Do not wake Coder, WP Validator, or Integration Validator just because old Activation readiness still says ready.
 - Keep runtime projection in containment for merge-pending closeout; only active direct-review lanes require `VERDICT`.
@@ -324,26 +248,16 @@ First actions:
 - Prove non-containment with `git -C ../handshake_main merge-base --is-ancestor <target_head> HEAD`.
 - Push current committed `main` and WP feature branch state before any `git merge`.
 - Merge the approved feature branch from `../handshake_main`, then rerun the ancestor check.
-- Run contained-main `phase-check CLOSEOUT` with the merged-main SHA before pushing `origin/main`.
-
-### Repomem Scope Drift
-
-Symptom: Orchestrator mutation context writes under Coder/WP Validator memory session.
-
-First actions:
-
-- Run Orchestrator-owned wrappers with `--role ORCHESTRATOR --wp WP-{ID}`.
-- Keep Coder/WP Validator/Integration Validator memory lanes open concurrently.
-- Patch wrappers that call `repomem-gate` or `repomem context` without explicit role/WP scope.
+- Record contained-main closeout with the merged-main SHA before pushing `origin/main`.
 
 ### Closeout Mechanical Failure
 
-Symptom: `closeout-repair` or `phase-check CLOSEOUT` fails.
+Symptom: `closeout-repair` or closeout sync fails.
 
 First actions:
 
 - Fix exactly the deterministic diagnostic first.
-- Rerun `closeout-repair` and `phase-check CLOSEOUT`.
+- Rerun `closeout-repair` and closeout sync.
 - Do not launch Integration Validator with broken mechanical truth.
 
 ## Primary Cross-Links
@@ -357,5 +271,4 @@ First actions:
 - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
 - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
 - `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md`
-- `.GOV/docs_repo/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md`
 

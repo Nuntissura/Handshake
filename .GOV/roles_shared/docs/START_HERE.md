@@ -12,17 +12,16 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 ## Canonical sources
 - **Spec:** `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON entrypoint for the current indexed Handshake master spec).
 - **Product Reference (navigation only):** `.GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md` — quick-ref summary of tech stack, pillars, engines, primitives, and force multipliers. **Reference only** — all decisions and implementation guidance MUST come from the Master Spec, not from this summary [CX-403].
-- **Folder-placement law:** `.GOV/codex/Handshake_Codex_v1.4.md` + `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md` + `.GOV/roles/coder/CODER_PROTOCOL.md` + `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md` + `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md` + `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` + `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`.
+- **Folder-placement law:** `.GOV/codex/Handshake_Codex_v1.4.md` + `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md` + `.GOV/roles/coder/CODER_PROTOCOL.md` + `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md` + `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md` + `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`.
 - **Spec EOF appendices:** Master Spec Section 12 (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance, Interaction Matrix). These blocks are spec-internal and kept at end-of-file; `just gov-check` enforces presence + parseability.
 - **WP Traceability:** `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `.GOV/roles_shared/records/TASK_BOARD.md` + work packets. Handshake logger is for milestones/hard bugs when requested.
 - **Shared tooling guardrails:** `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` (shared tooling memory: short append-only `Do` / `Don't` / `Why` / `Context` notes for all roles).
-- **Startup briefs:** `.GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md`, `.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md`, and each role's `docs/*_STARTUP_BRIEF.md` (Memory-Manager-curated operational memory; not protocol authority).
+- **Startup briefs:** `.GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md`, `.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md`, and each role's `docs/*_STARTUP_BRIEF.md` (operational memory; not protocol authority).
 - **Architecture & debug:** `.GOV/roles_shared/docs/ARCHITECTURE.md` and `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`.
-- **Root governance docs/logs:** `.GOV/docs_repo/` — repo-level governance docs, bridge notes, restart notes, and the running consolidation log.
+- **Root governance docs/logs:** `.GOV/docs_repo/` — repo-level governance docs, restart notes, and the running consolidation log.
 - **Current consolidation log:** `.GOV/docs_repo/GOVERNANCE_PHASE_CONSOLIDATION_LOG_2026-04-08.md`
 - **Session/runtime law:** `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md` plus the packet-declared external `WP_COMMUNICATION_DIR`.
-- **Governance memory system:** `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md` — fail log, cross-session knowledge, memory types, lifecycle, pre-task snapshots (`just memory-debug-snapshot`), and `just memory-*` commands [CX-503K, RGF-144-147].
 - **Parallel ownership/worktree law:** `.GOV/roles_shared/docs/ROLE_WORKTREES.md`
 - **Canonical command surface:** `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
 - **Golden governed workflow examples:** `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md`
@@ -37,7 +36,6 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 3. **Activation Manager** - mandatory governed pre-launch governance authoring for `ORCHESTRATOR_MANAGED`; owns refinement, approved spec enrichment, packet hydration, worktree/backup-branch preparation, and activation readiness
 4. **Coder/Debugger** - Implements work per work packet scope
 5. **Validators** - `WP_VALIDATOR` for WP-scoped technical steering and `INTEGRATION_VALIDATOR` for final technical verdict / merge authority
-6. **Memory Manager** - bounded memory-hygiene role that orders governance-memory evidence, maintains verified startup brief cards, and proposes broader governance changes for coordinator review
 
 **Mandatory protocols:**
 - **Orchestrators (`ORCHESTRATOR_MANAGED`):** Read `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` before delegating
@@ -47,12 +45,11 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 - **WP Validators:** Read `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md` before per-MT review or scope enforcement
 - **Integration Validators:** Read `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md` before whole-WP judgment, merge, or closeout
 - **Classical / External Validators:** Read `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` before external/manual validation
-- **Memory Managers:** Read `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md` before memory hygiene runs
 
 **Operator-facing scope split (required in chat):**
 - Always separate `Handshake (Product)` from `Repo Governance`.
 - `Handshake (Product)` includes product code, product tests, Master Spec requirements, and product WPs, even when the topic is governed actions, workflow semantics, queue law, or other product-governance contracts.
-- `Repo Governance` includes `/.GOV/**`, ACP/session/runtime ledgers, role protocols, governance task-board/changelog/audits, and root control-file maintenance.
+- `Repo Governance` includes `/.GOV/**`, session/runtime ledgers, role protocols, governance task-board/changelog/audits, and root control-file maintenance.
 - If only one lane applies, still name both lanes and state `NONE` for the other lane.
 - Do not use the word `governance` by itself when the actual work is product code; say `Handshake (Product)` explicitly.
 
@@ -71,16 +68,8 @@ just create-task-packet WP-{phase}-{name}
 # If DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1, keep DATA_CONTRACT_MONITORING honest now and
 # expect validator closeout to require concrete DATA_CONTRACT_PROOF plus DATA_CONTRACT_GAPS.
 
-# Orchestrator/Coder: Verify startup gate before implementation
-just phase-check STARTUP WP-{ID} CODER
-
-# Coder: Verify work complete before commit
-just phase-check HANDOFF WP-{ID} CODER
-
 # Full governed workflow closure
-just phase-check STARTUP WP-{ID} CODER
 # run the packet TEST_PLAN product commands here
-just phase-check HANDOFF WP-{ID} CODER
 
 # Governance-only health check (no product scan)
 just gov-check
@@ -89,21 +78,19 @@ just gov-check
 **Governance-only maintenance (no WP required) [CX-111]:**
 - Allowed scope (planned diff must be strictly limited to these governance surfaces): `/.GOV/**`, `/.github/**`, `/justfile`, `/.GOV/codex/Handshake_Codex_v1.4.md`, `/AGENTS.md`
 - Verification: `just gov-check`
-- If any product path is touched (`/src/`, `/app/`, `/tests/`): STOP and require a WP + Gate 0/1 (`just phase-check STARTUP WP-{ID} CODER` / `just phase-check HANDOFF WP-{ID} CODER`)
+- If any product path is touched (`/src/`, `/app/`, `/tests/`): STOP and require a WP (Gate 0/1)
 - Use `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md` for the no-WP recordkeeping flow.
 - Governance-maintenance records:
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
-  - `.GOV/Audits/**` with stable `AUDIT_ID` and, for smoketest reviews, `SMOKETEST_REVIEW_ID`
+  - `.GOV/Audits/**` with stable `AUDIT_ID`
 - Governance-maintenance templates:
   - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
   - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
-  - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
-  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md` (compatibility)
 
-**Gate 0 (Startup):** work packet MUST exist and pass `just phase-check STARTUP WP-{ID} CODER` before implementation starts. If blocked, STOP and request help.
+**Gate 0 (Startup):** work packet MUST exist and be ready (`just coder-startup`) before implementation starts. If blocked, STOP and request help.
 
-**Gate 1 (Handoff):** All validation MUST pass `just phase-check HANDOFF WP-{ID} CODER` before commit. If blocked, fix issues and re-run.
+**Gate 1 (Handoff):** All packet `TEST_PLAN` validation MUST pass before the handoff commit is pushed; the MT JSON status field records the handoff. If blocked, fix issues and re-run.
 
 **Gate visibility (chat UX):** when a gate runs (or blocks), paste the verbatim output and immediately follow with a short phase/status + copy/paste next commands (see role protocols).
 
@@ -131,7 +118,7 @@ Quick reference:
 - `log_archive/` - historical logger drops.
 - `.GOV/roles_shared/docs/OWNERSHIP.md` - path/area owners for routing reviews.
 - Spec/governance files: `.GOV/spec/SPEC_CURRENT.md`, `.GOV/spec/indexed_spec/`, `.GOV/spec/Handshake_Master_Spec_v*.md` source baselines, `.GOV/codex/Handshake_Codex_v1.4.md`, `Handshake_logger_*`, phase/plan docs.
-- `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`, `.GOV/roles/coder/CODER_PROTOCOL.md`, `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`, `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`, `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`, and `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md` - AI role workflow protocols.
+- `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`, `.GOV/roles/coder/CODER_PROTOCOL.md`, `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`, `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`, and `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` - AI role workflow protocols.
 
 ## How to run
 > **WARNING for AI Agents:** Commands like `pnpm -C app tauri dev` or `just dev` start a long-running development server. They MUST NOT be executed with a blocking tool (like `run_shell_command`). These commands should be run in a separate, dedicated terminal by the user or as a true background process.

@@ -1,13 +1,13 @@
 ﻿# INTEGRATION_VALIDATOR_PROTOCOL [RGF-191]
 ## Deterministic Atomic Governance Files [CX-908]
-- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
+- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
-- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
-- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Roles MUST consume typed JSON, JSONL, or declared contract fields before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
 - Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
 ## Governance Kernel Product-Governance Testbed [CX-911]
 - The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
-- ACP, external apps/tools, and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, receipt, runtime, and session-control artifacts.
+- External apps/tools and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, and runtime artifacts.
 - Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
 - Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
@@ -20,11 +20,7 @@
 
 ## WP Dossier Runtime Archive [CX-218J1]
 
-- Per-WP raw diagnostic dossiers live under the external repo-governance runtime root: default `../gov_runtime/roles_shared/WP_DOSSIERS/WP-{ID}/`, overridable via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`.
-- The dossier archive is for full mechanical posterity: raw ACP prints, repomem outputs, command stdout/stderr, bundle failure logs, and related traces should be dumped there rather than summarized away.
-- `index.json` is the first model/tool lookup surface; `artifact_manifest.json` lists raw artifacts; `events.jsonl` is append-only; raw logs live under `raw/`, `acp/`, `repomem/`, `commands/`, and `bundle_failures/`.
-- `workflow_postmortem.md` is the Orchestrator-owned terminal narrative after verdict/closeout. Validators contribute typed receipts, repomem entries, verdicts, and findings; they do not overwrite the Orchestrator terminal post-mortem.
-- Do not store runtime dossier payloads in git. Repo-tracked files define the contract, generators, checks, and projections only.
+Retired under CX-AUTH-003.
 
 ## Output-First Final Lane [IV-OUT] (HARD)
 
@@ -100,13 +96,12 @@ Write sequence:
 ## Multi-Provider Model Awareness
 
 - The packet-declared `INTEGRATION_VALIDATOR_MODEL_PROFILE` is authoritative.
-- The ACP broker is a mechanical session-control relay. All sessions dispatch through the broker regardless of provider.
 
 ## Validator-Executed Proof [VPX] (HARD)
 
 - [VPX-001] A PASS requires independently executed proof for every required command at that level on the reviewed product inputs and a clean product tree. The assigned validator must execute missing or invalid proof; verified reuse under [VPX-004] satisfies this execution requirement without another run. Record dirty product state and withhold PASS. Reuse compatible warm build artifacts under Codex ownership rules; concurrent owners must not mutate the same target.
 - [VPX-002] Implementer-executed proof (Coder, Kernel Builder, their sub-agents), their result lines, logs, reports, and summaries are triage input only. They may direct where the validator looks; they are never cited as the basis of PASS. Reading them is not verification.
-- [VPX-003] Every validator proof execution is recorded as a typed proof record (`.GOV/roles_shared/schemas/PROOF_RECORD.schema.json`) in the packet's typed validation surface: MT JSON `validation.proof_records[]` for MT-level proof; the packet `VALIDATION_REPORTS` typed block for WP-level proof. The verdict receipt cites the proof record ids. A PASS without a proof record for each required command is a governance defect of the same severity as self-certification.
+- [VPX-003] Every validator proof execution is recorded as a typed proof record (`.GOV/roles_shared/schemas/PROOF_RECORD.schema.json`) in the packet's typed validation surface: MT JSON `validation.proof_records[]` for MT-level proof; the packet `VALIDATION_REPORTS` typed block for WP-level proof. The verdict record cites the proof record ids. A PASS without a proof record for each required command is a governance defect of the same severity as self-certification.
 - [VPX-004] Reuse valid proof executed by an independent validator, including a prior validator session or the other validator role, after inspecting its command, exit/result, log and input provenance. Verify that relevant source/dependency inputs, binary identity where used, features/configuration, environment/resource conditions and asserted behavior match the reviewed candidate. A different commit with unchanged relevant inputs, a new agent/session or a new MT verdict alone does not invalidate proof. Missing, unverifiable or changed inputs require affected proof again. Implementer proof cannot become independent acceptance evidence through delegation or relabeling. Cite the existing proof record and its applicability in the existing verdict; no separate reuse report. This governs reuse under [WPV-ART-003], [IV-ART-003] and [CX-503I1].
 - [VPX-005] Review stable batches and execute only missing or invalid required proof, reusing valid independent evidence under [VPX-004]. Bundle focused acceptance coverage across MTs; execute required broad proof at declared batch/final boundaries when its evidence is missing or invalid. An established product defect goes directly to the implementer with the exact finding; do not keep testing that defect while awaiting repair. Apply Codex CX-EXEC-003/004 to retries and escalation. Deferral never permits PASS with missing required proof.
 - [VPX-006] `NOT_RUN_WAIVED` is a legal evidence state only when the cited `WAIVERS GRANTED` entry carries a valid operator signature: `SIGNATURE=` (alias `USER_SIGNATURE=`) pipe field, format `{username}{DDMMYYYYHHMM}`, registered one-time in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md` (ledger entry `status=ACTIVE`, `signatureValid=true` per `parsePolicyWaiverLedger`). The verdict must cite the waiver id AND the signature. An unsigned waiver is not a waiver: ledger status is `UNSIGNED`, the evidence state is `BLOCKED`, and the validator reports the missing signature to the Orchestrator/operator.
@@ -116,14 +111,14 @@ Write sequence:
 
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
-Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate schemas. Closeout provenance is recorded as a typed governed-action envelope (`INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`) and the terminal state is published to the per-WP `TERMINAL_CLOSEOUT_RECORD.json`. Concerns, blockers, and merge-condition status MUST be in schema fields the Orchestrator and downstream readers consume directly. Narrative validator-report sections exist for operator readability â€” they project from the typed verdict, they are NOT the verdict. RGF-248 named verbs are now the preferred receipt wire: emit `INTEGRATION_VERDICT` for final PASS/FAIL and `CONCERN` for integration risks when the helper surface supports `--verb`. The validator MUST NOT author governance documents in lieu of emitting the typed verdict and closeout receipt. See Codex `[CX-130]` for the full rule.
+Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate schemas. Closeout provenance is recorded as a typed governed-action envelope (`INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`) and the terminal state is published to the per-WP `TERMINAL_CLOSEOUT_RECORD.json`. Concerns, blockers, and merge-condition status MUST be in schema fields the Orchestrator and downstream readers consume directly. Narrative validator-report sections exist for operator readability — they project from the typed verdict, they are NOT the verdict. The validator MUST NOT author governance documents in lieu of emitting the typed verdict and closeout record. See Codex `[CX-130]` for the full rule.
 
 ## Mechanical Intervention Discipline [CX-218K]
 
-- Before treating a closeout or merge path as blocked, classify 3-5 plausible causes: product proof failure, closeout artifact drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift.
-- Choose the cheapest deterministic read, repair, or typed helper first: final handoff notification, `phase-check VERDICT`, integration-validator context brief, contained-main proof, and closeout sync output before mutating verdict or merge truth.
+- Before treating a closeout or merge path as blocked, classify 3-5 plausible causes: product proof failure, closeout artifact drift, notification/cursor drift, session drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift.
+- Choose the cheapest deterministic read, repair, or typed helper first: the final handoff MT JSON status, integration-validator context brief, contained-main proof, and closeout sync output before mutating verdict or merge truth.
 - Distinguish product-outcome blockers from deterministic governance settlement debt. If deterministic closeout truth is broken, report the exact failing command/artifact to Orchestrator instead of repairing governance tooling from the Integration Validator lane.
-- Do not manually relay ordinary final-review content when typed verdict/concern fields, `wp-review-response`, `phase-check`, or contained-main closeout can carry or prove the state transition.
+- Do not manually relay ordinary final-review content when typed verdict/concern fields or contained-main closeout can carry or prove the state transition.
 - Use typed verdict/concern fields for blocker truth. Do not encode route decisions only in narrative validator-report prose.
 - Use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` only as lane context; Integration Validator authority remains final product judgment and merge authority.
 
@@ -140,7 +135,7 @@ Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate sch
 When the Integration Validator launches, the Orchestrator has already:
 1. Verified all MTs are complete (WP_VALIDATOR PASS on each)
 2. Run `just closeout-repair WP-{ID}` to fix all mechanical closeout issues
-3. Verified the committed final handoff range with `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>` so durable `committed_validation_evidence` exists for the candidate under review
+3. Verified the final handoff commits are pushed (base/head/range) for the candidate under review
 4. Prepared the signed scope artifact and compatibility truth that can be finalized during terminal closeout
 
 The Integration Validator receives:
@@ -151,10 +146,7 @@ The Integration Validator receives:
 
 ## Final Handoff Route Discipline
 
-- When the active route is a final `CODER_HANDOFF`, first run `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR <your-session>`. This proves the final handoff is actually addressed to your governed session while allowing the handoff item to remain open for your review.
-- Do not run `just phase-check CLOSEOUT WP-{ID}` as the first response to an open final handoff. `CLOSEOUT` is terminal merge/closeout readiness proof after the final review response or verdict path, not the action that resolves the handoff.
-- If `phase-check VERDICT` fails because committed handoff validation evidence is missing, report `BLOCKER_CLASS=GOVERNANCE_BLOCKER` to the Orchestrator with the required command (`just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>`). Do not emit `WORKFLOW_INVALIDITY` for this ordinary prep gap unless the route/correlation is malformed or authority is impossible.
-- After the product/spec review is complete, emit the typed review response that preserves the final handoff `correlation_id` and `ack_for`. A blocker or FAIL review still resolves the handoff correlation; narrative status alone does not.
+- After the product/spec review is complete, write the typed verdict into the verdict fields. A blocker or FAIL review still resolves the final handoff; narrative status alone does not.
 
 ## Six Responsibilities
 
@@ -201,9 +193,8 @@ After judgment, write the verdict:
 **On PASS:**
 - Append `Verdict: PASS` to the packet's `VALIDATION_REPORTS` section
 - Record the validation evidence: which clauses were checked, what proof was verified
-- Run `just validator-gate-append WP-{ID} PASS` and `just validator-gate-commit WP-{ID}`
 - Update the task board: move WP from In Progress to Done with `[VALIDATED]` status
-- Record closeout truth via `just phase-check CLOSEOUT WP-{ID} --sync-mode MERGE_PENDING --context "..."`
+- Record closeout truth (`MERGE_PENDING`) in the typed closeout record (`TERMINAL_CLOSEOUT_RECORD.json`)
 
 **On FAIL:**
 - Append `Verdict: FAIL` with specific findings to the packet
@@ -215,8 +206,8 @@ After judgment, write the verdict:
   - The Orchestrator then relaunches the coder session with the remediation context
 - **If the failure is spec ambiguity or governance issue:**
   - Report to Orchestrator with findings for operator escalation
-- Do not request a new remediation WP unless the failure proves real scope expansion or the Operator explicitly chooses a split; if a split is required, the old WP dossier must receive its terminal WP-bound repomem snapshot first.
-- The Integration Validator does NOT steer the coder directly. A final handoff review receipt may target the coder session only to resolve the open handoff correlation mechanically; remediation instructions and relaunch decisions route through the Orchestrator.
+- Do not request a new remediation WP unless the failure proves real scope expansion or the Operator explicitly chooses a split.
+- The Integration Validator does NOT steer the coder directly; remediation instructions and relaunch decisions route through the Orchestrator.
 
 ### 5. Artifact Hygiene Pre-Merge Check (HARD)
 
@@ -227,7 +218,7 @@ After judgment, write the verdict:
 - [IV-ART-005] Legacy root-hygiene helpers do not establish WP/MT hierarchy compliance. Apply newer Operator path-shape precedence in [CX-984-010], retain other HBR obligations, and report helper/HBR drift with verified scoped overrides.
 
 Before merge, verify no build/test/tool artifacts have leaked into the repo:
-- Run `just artifact-root-preflight WP-{ID}` or confirm the current `phase-check VERDICT/CLOSEOUT` artifact already ran it. If it fails, classify the result as `ENVIRONMENT_BLOCKER`, preserve product proof, and do not route coder revalidation unless the blocker proves an actual product boundary violation.
+- Run `just artifact-root-preflight WP-{ID}`. If it fails, classify the result as `ENVIRONMENT_BLOCKER`, preserve product proof, and do not route coder revalidation unless the blocker proves an actual product boundary violation.
 - Run `just validator-git-hygiene` â€” FAIL if `target/`, `node_modules/`, `.gemini/`, or other build outputs are tracked.
 - All build/test/tool outputs MUST live at `../Handshake_Artifacts/` [CX-205F], not inside the repo tree.
 - Run a worktree-bound artifact-location check for the assigned WP before merge: runtime/build output inside the worktree or outside its required external WP/MT/owner directory is a blocking hygiene failure. Preserve product proof and classify/remediate the placement defect.
@@ -238,7 +229,7 @@ Before merge, verify no build/test/tool artifacts have leaked into the repo:
 After PASS verdict, artifact hygiene check, and closeout truth sync:
 - Perform the merge/containment of the approved commit range into local `main`
 - Verify the merge is clean (no conflicts, no unrelated changes)
-- Run `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <SHA> --context "..."`
+- Record `CONTAINED_IN_MAIN <MERGED_MAIN_SHA>` in the typed closeout record (`TERMINAL_CLOSEOUT_RECORD.json`)
 - Run `just sync-gov-to-main` to synchronize governance kernel to main branch [CX-212D]
 - Push to `origin/main` after sync-gov-to-main succeeds
 - This is the Integration Validator's default responsibility. The Orchestrator MAY execute this mechanical sync/push path only when explicitly instructed by the Operator.
@@ -249,7 +240,6 @@ After verdict and merge:
 - Note any process improvements discovered during validation
 - Flag governance gaps or tooling issues for the Orchestrator to record as RGFs
 - Assess whether the packet's risk tier was appropriate
-- Record findings in the workflow dossier via receipts
 
 ## What The Integration Validator MUST NOT Do
 
@@ -273,14 +263,14 @@ After verdict and merge:
 ## Communication Contract
 
 - Receives from Orchestrator: launch prompt with WP context, spec reference, work product location
-- Sends to Orchestrator: verdict receipt (`STATUS` with PASS/FAIL), findings, post-mortem observations
-- Does NOT steer Coder or WP Validator directly; final handoff review receipts may mechanically resolve the open coder handoff correlation, but on FAIL the Integration Validator writes remediation in the packet and reports to Orchestrator for routing
-- All communication is through structured receipts in the packet's WP_COMMUNICATIONS folder
+- Sends to Orchestrator: the typed verdict (PASS/FAIL), findings, post-mortem observations
+- Does NOT steer Coder or WP Validator directly; on FAIL the Integration Validator writes remediation in the packet and reports to Orchestrator for routing
+- All communication is through typed verdict and status fields
 
 ## Context Discipline
 
 - The Integration Validator launches with a **fresh context window** every time.
-- It should complete its judgment in **1-2 ACP commands** (launch + optional follow-up).
+- It should complete its judgment in **1-2 prompts** (launch + optional follow-up).
 - If more than 2 commands are needed, something is wrong â€” likely mechanical truth wasn't prepared properly.
 - If mechanical truth breaks after a verdict, do not repair it in the Integration Validator lane. Report the failure class (`PRODUCT_BLOCKER`, `ENVIRONMENT_BLOCKER`, or `GOVERNANCE_BLOCKER`) and route back to Orchestrator for the minimal deterministic command.
 - Do NOT accumulate session history across multiple WPs or launches.
@@ -288,8 +278,7 @@ After verdict and merge:
 ## Session Policy
 
 - Launch authority: `ORCHESTRATOR_ONLY`
-- Control mode: `STEERABLE` via Orchestrator ACP session control
-- Preferred host: `HANDSHAKE_ACP_BROKER`
+- Control mode: `STEERABLE` by the Orchestrator
 - Local branch: `main` (operates from `handshake_main`)
 - Local worktree: `../handshake_main`
 - Validators MUST NOT create or switch to a new worktree unless explicit Operator authorization for worktree creation is present in the current turn.
@@ -331,21 +320,21 @@ After verdict and merge:
 
 ## Phase bundle and leaf-surface rule [CX-913]
 
-Use `just gov-check` or `just phase-check` as the canonical checkpoint bundle surfaces before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`. Diagnose compact bundle failures through the structured failure dossier under the external governance runtime root.
+Use `just gov-check` as the canonical checkpoint bundle surface before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`.
 
 ## Spec-Realism Gate (mandatory enforcement before COMPLETED)
 
-This role enforces the Spec-Realism Gate. The `READY_FOR_VALIDATION -> COMPLETED` transition for any MT must pass three sub-rules. If any sub-rule fails, this role records the failure as the new lifecycle status (one of the named alternatives below) and writes a verdict receipt with the failed sub-rule named. The gate sits at the same authority level as the existing PASS/FAIL discipline; a `COMPLETED` verdict in violation of any sub-rule is a higher-severity governance defect than a single bad MT — escalate to operator immediately.
+This role enforces the Spec-Realism Gate. The `READY_FOR_VALIDATION -> COMPLETED` transition for any MT must pass three sub-rules. If any sub-rule fails, this role records the failure as the new lifecycle status (one of the named alternatives below) and writes the MT verdict record with the failed sub-rule named. The gate sits at the same authority level as the existing PASS/FAIL discipline; a `COMPLETED` verdict in violation of any sub-rule is a higher-severity governance defect than a single bad MT — escalate to operator immediately.
 
 For the default `INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1` topology this role applies the gate to every MT in the batch BEFORE the WP-scoped Master Spec verdict; an MT that fails the gate sends the batch back to the implementer per the existing per-MT mitigation flow.
 
 Runtime-proof anti-scaffold interpretation: whole-WP PASS or merge readiness is illegal when any claimed behavior is scaffold-only. Declarations, traits, schemas, contracts, descriptors, projections, generated types, placeholder branches, mock or in-memory adapters, fixture-only tests, and tests that assert behavior only against code or fake resources authored by the implementer do not prove runtime behavior. At least one proof command must exercise the executable product runtime or the named Handshake-managed resource boundary for every claimed behavior. Compile/type/unit proof is build health only unless it drives that real runtime path. Reject descriptor/runtime mismatches even when tests pass.
 
-**Sub-rule 1 — No deferred-live escape.** Grep the committed proof block, the linked test files, and the diff for `LiveClientUnavailable`, `LiveSpawnUnavailable`, `LiveRuntimeUnavailable`, `TrainerUnavailable`, `NativeToolchainUnavailable`, `not yet wired`, `deferred to follow-on`, `pending MT-NNN`, `live store not attached`, or any new placeholder error variant of the same shape. Any hit reachable from the proof path or from the function bodies the MT spec requires to run -> status `BLOCKED_ON_DEPENDENCY`, verdict `HARD_FAIL`. Name the missing dep in the verdict receipt.
+**Sub-rule 1 — No deferred-live escape.** Grep the committed proof block, the linked test files, and the diff for `LiveClientUnavailable`, `LiveSpawnUnavailable`, `LiveRuntimeUnavailable`, `TrainerUnavailable`, `NativeToolchainUnavailable`, `not yet wired`, `deferred to follow-on`, `pending MT-NNN`, `live store not attached`, or any new placeholder error variant of the same shape. Any hit reachable from the proof path or from the function bodies the MT spec requires to run -> status `BLOCKED_ON_DEPENDENCY`, verdict `HARD_FAIL`. Name the missing dep in the MT verdict record.
 
-**Sub-rule 2 — Handshake-owned resource touch.** Read the MT contract's `owned_files` + `spec_anchors` + `implementation_notes`. For every Handshake-owned managed resource or explicitly required integration surface named — model artifact, SurrealDB/EventLedger table/record/field, adapter boundary, receipt, ArtifactStore manifest, file-format round-trip, OS-level surface, or IPC channel actually routed through Handshake-managed lifecycle — confirm at least one proof command touches the real Handshake-native implementation, managed integration record, rejection gate, adapter contract, or executable consumer of a generated contract. Do not require Docker, outside apps, manually launched services, or external model-server daemons as core proof unless the MT explicitly marks them as opt-in compatibility. If proof only touches mocks, fixtures, generated descriptors, schema validation, or other artifacts the implementer authored alongside the impl and does not exercise the Handshake-owned contract, status `NEEDS_MANAGED_RESOURCE_PROOF`, verdict `HARD_FAIL`. Name the resource in the verdict receipt.
+**Sub-rule 2 — Handshake-owned resource touch.** Read the MT contract's `owned_files` + `spec_anchors` + `implementation_notes`. For every Handshake-owned managed resource or explicitly required integration surface named — model artifact, SurrealDB/EventLedger table/record/field, adapter boundary, receipt, ArtifactStore manifest, file-format round-trip, OS-level surface, or IPC channel actually routed through Handshake-managed lifecycle — confirm at least one proof command touches the real Handshake-native implementation, managed integration record, rejection gate, adapter contract, or executable consumer of a generated contract. Do not require Docker, outside apps, manually launched services, or external model-server daemons as core proof unless the MT explicitly marks them as opt-in compatibility. If proof only touches mocks, fixtures, generated descriptors, schema validation, or other artifacts the implementer authored alongside the impl and does not exercise the Handshake-owned contract, status `NEEDS_MANAGED_RESOURCE_PROOF`, verdict `HARD_FAIL`. Name the resource in the MT verdict record.
 
-**Sub-rule 3 — Implementer did not self-certify.** Read `lifecycle.claimed_by` and the proposed `completed_by`. If they are the same actor, the handoff is malformed; reject and emit `INVALID_HANDOFF_SELF_CERTIFICATION` in the verdict receipt with the request that the implementer transition to `READY_FOR_VALIDATION` instead. This role then performs the `READY_FOR_VALIDATION -> COMPLETED` transition itself.
+**Sub-rule 3 — Implementer did not self-certify.** Read `lifecycle.claimed_by` and the proposed `completed_by`. If they are the same actor, the handoff is malformed; reject and emit `INVALID_HANDOFF_SELF_CERTIFICATION` in the MT verdict record with the request that the implementer transition to `READY_FOR_VALIDATION` instead. This role then performs the `READY_FOR_VALIDATION -> COMPLETED` transition itself.
 
 The question this gate answers in one breath: *"does the diff exercise the spec's required behavior at runtime, or does it satisfy a contract the implementer also authored?"* A passing answer is the first form. Anything in the second form is a sub-rule-1 or sub-rule-2 failure.
 

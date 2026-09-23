@@ -81,24 +81,17 @@ Rules:
   - <short tool failure or state pattern>
 
 ### TG-007
-- Do:
-  - Wire every new script or check into `fail-capture-lib.mjs`. Add `import { registerFailCaptureHook, failWithMemory } from "<relative-path>/fail-capture-lib.mjs";` and call `registerFailCaptureHook("filename.mjs", { role: "ROLE" });` after imports. Replace or delegate `fail()` to `failWithMemory()`.
-- Don't:
-  - Do not create scripts with standalone `function fail() { console.error(...); process.exit(1); }` that silently discard the error context.
-- Why:
-  - Script failures are written to the governance memory DB and surfaced via `memory-recall` before future actions. Without the wiring, the same failure repeats across sessions with no memory of the fix.
-- Context:
-  - `fail-capture-lib.mjs` is at `.GOV/roles_shared/scripts/lib/fail-capture-lib.mjs`. All 67 existing scripts are already wired. New scripts must follow the same pattern.
+- Retired under CX-AUTH-002.
 
 ### TG-008
 - Do:
   - Route variadic governance `just` wrappers through `node-argv-proxy.mjs` when free-text flags may contain PowerShell metacharacters such as parentheses, braces, quotes, commas, or JSON.
 - Don't:
-  - Do not forward raw `*FLAGS` straight into Node for wrappers like `repomem`, `memory-capture`, or similar commands that accept arbitrary operator text.
+  - Do not forward raw `*FLAGS` straight into Node for wrappers that accept arbitrary operator text.
 - Why:
   - PowerShell can misparse the arguments before Node receives them, which makes the failure look like a downstream script bug even when the wrapper is the real problem.
 - Context:
-  - Recurring on `just repomem close ... --decisions "..."` and structured memory-capture flows. The safe pattern is `.GOV/roles_shared/scripts/lib/node-argv-proxy.mjs`.
+  - The safe pattern is `.GOV/roles_shared/scripts/lib/node-argv-proxy.mjs`.
 
 ### TG-009
 - Do:
@@ -121,14 +114,7 @@ Rules:
   - Recurring on packet-baseline worktree creation and repair where `MERGE_BASE_SHA` is displayed with extra context after the SHA.
 
 ### TG-011
-- Do:
-  - When `wp-receipt-append` for `REPAIR` or other repair-class receipts times out, inspect receipts, runtime projection, and session-registry truth before retrying.
-- Don't:
-  - Do not treat the shell timeout as proof that the receipt failed to land or that the governed auto-relay did not already fire.
-- Why:
-  - Receipt append can finish the write and trigger inline runtime re-projection or session wake-up before the shell tool times out.
-- Context:
-  - Recurring on governed repair flows where one command both writes evidence and performs the immediate next mechanical wake.
+- Retired under CX-AUTH-003.
 
 ### TG-012
 - Do:
@@ -147,7 +133,7 @@ Rules:
   - Emit repo-relative or workspace-relative paths on operator-facing governance surfaces, for example `.GOV/...`, `../wtc-...`, `../handshake_main`, or `../gov_runtime/...`.
   - Keep absolute paths as internal script resolution detail only.
 - Don't:
-  - Do not print drive-specific or host-specific absolute paths in orchestrator diagnostics, monitor output, protocol examples, packet guidance, or workflow-dossier narration.
+  - Do not print drive-specific or host-specific absolute paths in orchestrator diagnostics, monitor output, protocol examples, or packet guidance.
 - Why:
   - Absolute paths are host-specific noise. They leak workstation topology into governance truth, make logs harder to compare across machines, and directly violate drive-agnostic governance rules.
 - Context:
@@ -165,16 +151,7 @@ Rules:
   - Recurring when product worktrees drift away from the canonical `Handshake_Artifacts/handshake-cargo-target` root and the mismatch only becomes visible during late `gov-flush` cleanup.
 
 ### TG-015
-- Do:
-  - Treat Workflow Dossier sections, imports, and generated telemetry as diagnostic evidence.
-  - Preserve write-lane separation: Orchestrator notes near the top, ACP/session-control traces at EOF, terminal repomem snapshots at EOF after ACP settles.
-- Don't:
-  - Do not turn malformed dossier markdown, missing placeholders, duplicate live sections, or failed dossier imports into product outcome blockers.
-  - Do not use mid-run manual dossier narration as a substitute for role-bound `just repomem ... --wp WP-{ID}` checkpoints.
-- Why:
-  - The dossier is allowed to be partial or malformed so it can preserve diagnostic evidence during live WP pressure without blocking the workflow it is observing.
-- Context:
-  - Recurring on closeout flows where support-surface debt was mistaken for validator authority or where ACP EOF appends conflicted with manually maintained live sections.
+- Retired under CX-AUTH-003.
 
 ### TG-016
 - Do:

@@ -46,9 +46,7 @@ Authoritative folder-placement law for the Coder bundle lives in `.GOV/codex/Han
 
 - `just coder-startup`
 - `just coder-next [WP-{ID}]`
-- `just phase-check STARTUP WP-{ID} CODER`
 - `just coder-skeleton-checkpoint WP-{ID}`
-- `just phase-check HANDOFF WP-{ID} CODER --range <MERGE_BASE_SHA>..HEAD`
 - `just spec-debt-open WP-{ID} "<clause>" "<notes>" <YES|NO>`
 - `just spec-debt-sync WP-{ID}`
 

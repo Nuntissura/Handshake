@@ -1,13 +1,13 @@
 ﻿# WP_VALIDATOR_PROTOCOL [RGF-190]
 ## Deterministic Atomic Governance Files [CX-908]
-- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
+- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
-- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
-- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Roles MUST consume typed JSON, JSONL, or declared contract fields before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
 - Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
 ## Governance Kernel Product-Governance Testbed [CX-911]
 - The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
-- ACP, external apps/tools, and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, receipt, runtime, and session-control artifacts.
+- External apps/tools and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, and runtime artifacts.
 - Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
 - Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
@@ -20,11 +20,7 @@
 
 ## WP Dossier Runtime Archive [CX-218J1]
 
-- Per-WP raw diagnostic dossiers live under the external repo-governance runtime root: default `../gov_runtime/roles_shared/WP_DOSSIERS/WP-{ID}/`, overridable via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`.
-- The dossier archive is for full mechanical posterity: raw ACP prints, repomem outputs, command stdout/stderr, bundle failure logs, and related traces should be dumped there rather than summarized away.
-- `index.json` is the first model/tool lookup surface; `artifact_manifest.json` lists raw artifacts; `events.jsonl` is append-only; raw logs live under `raw/`, `acp/`, `repomem/`, `commands/`, and `bundle_failures/`.
-- `workflow_postmortem.md` is the Orchestrator-owned terminal narrative after verdict/closeout. Validators contribute typed receipts, repomem entries, verdicts, and findings; they do not overwrite the Orchestrator terminal post-mortem.
-- Do not store runtime dossier payloads in git. Repo-tracked files define the contract, generators, checks, and projections only.
+Retired under CX-AUTH-003.
 
 ## Role Ecosystem
 
@@ -49,7 +45,7 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 - UserManual duty: every implementation MT is subject to HBR-MAN by default unless the MT is pure repo governance and records a concrete `NOT_APPLICABLE` reason. PASS requires same-MT/same-commit internal UserManual update evidence when product behavior changed, `MANUAL_VERSION` handling when applicable, code-truth self-consistency evidence, a no-context/manual operation or inspection test, and HBR-INT-009 diagnostic-posture linkage. Missing, stale, untested, uninspected, or code-untruthful manual content fails the MT. Current HBR-MAN registry anchors may still use the legacy `ModelManual` identifier until that authority rename is performed.
 - Role-relevant sub-agent duty: WP Validator may use read-only sub-agents as independent review lenses for bounded per-MT questions such as Argus evidence, UserManual evidence, scope containment, proof quality, and regression-risk review. Sub-agents must not edit files, issue the verdict, advance runtime state, approve acceptance rows, or replace the WP Validator's own inspection of the final evidence.
 - Quiet/process duty: require proof that tests, agent activity, sandboxes, and background processes are non-intrusive and reclaim owned processes.
-- Verdict duty: a per-MT approval is illegal while an applicable required HBR row lacks evidence, is only prose-supported, or remains `PENDING`, `STEER`, or `BLOCKED`. Emit remediation through typed review receipts.
+- Verdict duty: a per-MT approval is illegal while an applicable required HBR row lacks evidence, is only prose-supported, or remains `PENDING`, `STEER`, or `BLOCKED`. Emit remediation through the MT JSON verdict fields.
 
 ## Master Spec Resolver Discipline (Read-Only)
 
@@ -69,7 +65,6 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 ## Multi-Provider Model Awareness
 
 - The packet-declared `WP_VALIDATOR_MODEL_PROFILE` is authoritative.
-- The ACP broker is a mechanical session-control relay, not a model. All WP Validator sessions dispatch through the broker regardless of provider.
 
 ## Host Load and Waived Heavy Checks
 
@@ -97,7 +92,7 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 
 - [VPX-001] A PASS requires independently executed proof for every required command at that level on the reviewed product inputs and a clean product tree. The assigned validator must execute missing or invalid proof; verified reuse under [VPX-004] satisfies this execution requirement without another run. Record dirty product state and withhold PASS. Reuse compatible warm build artifacts under Codex ownership rules; concurrent owners must not mutate the same target.
 - [VPX-002] Implementer-executed proof (Coder, Kernel Builder, their sub-agents), their result lines, logs, reports, and summaries are triage input only. They may direct where the validator looks; they are never cited as the basis of PASS. Reading them is not verification.
-- [VPX-003] Every validator proof execution is recorded as a typed proof record (`.GOV/roles_shared/schemas/PROOF_RECORD.schema.json`) in the packet's typed validation surface: MT JSON `validation.proof_records[]` for MT-level proof; the packet `VALIDATION_REPORTS` typed block for WP-level proof. The verdict receipt cites the proof record ids. A PASS without a proof record for each required command is a governance defect of the same severity as self-certification.
+- [VPX-003] Every validator proof execution is recorded as a typed proof record (`.GOV/roles_shared/schemas/PROOF_RECORD.schema.json`) in the packet's typed validation surface: MT JSON `validation.proof_records[]` for MT-level proof; the packet `VALIDATION_REPORTS` typed block for WP-level proof. The verdict record cites the proof record ids. A PASS without a proof record for each required command is a governance defect of the same severity as self-certification.
 - [VPX-004] Reuse valid proof executed by an independent validator, including a prior validator session or the other validator role, after inspecting its command, exit/result, log and input provenance. Verify that relevant source/dependency inputs, binary identity where used, features/configuration, environment/resource conditions and asserted behavior match the reviewed candidate. A different commit with unchanged relevant inputs, a new agent/session or a new MT verdict alone does not invalidate proof. Missing, unverifiable or changed inputs require affected proof again. Implementer proof cannot become independent acceptance evidence through delegation or relabeling. Cite the existing proof record and its applicability in the existing verdict; no separate reuse report. This governs reuse under [WPV-ART-003], [IV-ART-003] and [CX-503I1].
 - [VPX-005] Review stable batches and execute only missing or invalid required proof, reusing valid independent evidence under [VPX-004]. Bundle focused acceptance coverage across MTs; execute required broad proof at declared batch/final boundaries when its evidence is missing or invalid. An established product defect goes directly to the implementer with the exact finding; do not keep testing that defect while awaiting repair. Apply Codex CX-EXEC-003/003A/004/005 to retries, timeouts and escalation, and CX-SAFE-002 to tool use. Deferral never permits PASS with missing required proof.
 - [VPX-006] `NOT_RUN_WAIVED` is a legal evidence state only when the cited `WAIVERS GRANTED` entry carries a valid operator signature: `SIGNATURE=` (alias `USER_SIGNATURE=`) pipe field, format `{username}{DDMMYYYYHHMM}`, registered one-time in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md` (ledger entry `status=ACTIVE`, `signatureValid=true` per `parsePolicyWaiverLedger`). The verdict must cite the waiver id AND the signature. An unsigned waiver is not a waiver: ledger status is `UNSIGNED`, the evidence state is `BLOCKED`, and the validator reports the missing signature to the Orchestrator/operator.
@@ -111,23 +106,23 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
 RGF-247 split the per-MT transport into two tracks:
-- Mechanical track: deterministic helper `just wp-validator-mechanical-review WP-{ID} MT-NNN [range]` writes `MT_VERDICT_MECHANICAL` inline from the coder hook/session. It checks worktree confinement, file-list/boundary, packet scope, and compile-gate evidence.
-- Judgment track: WP Validator ACP review remains responsible for code quality, MT satisfaction, and product/repo conceptual boundary. A mechanical PASS is input evidence only; it never authorizes closeout or replaces `REVIEW_RESPONSE`/judgment `MT_VERDICT`.
+- Mechanical track: deterministic helper `just wp-validator-mechanical-review WP-{ID} MT-NNN [range]` writes `MT_VERDICT_MECHANICAL`. It checks worktree confinement, file-list/boundary, packet scope, and compile-gate evidence.
+- Judgment track: WP Validator review remains responsible for code quality, MT satisfaction, and product/repo conceptual boundary. A mechanical PASS is input evidence only; it never authorizes closeout or replaces the judgment verdict.
 
-Per-MT verdicts and concerns flow back to the Coder and Orchestrator through typed receipt schemas, never free-form prose. Verdict (PASS/FAIL), MT identity, range, and concern objects MUST be in schema fields the receiving role can read directly. Narrative `notes` is for operator readability and is NOT the wire â€” routing-decisive content lives in fields. RGF-248 named verbs are now the preferred wire: emit `MT_VERDICT` for PASS/FAIL, `MT_REMEDIATION_REQUIRED` for coder repair, and `CONCERN` for non-verdict risk flags when the helper surface supports `--verb`. See Codex `[CX-130]` for the full rule.
+Per-MT verdicts and concerns flow back to the Coder and Orchestrator through the MT JSON verdict fields, never free-form prose. Verdict (PASS/FAIL), MT identity, range, and concern objects MUST be in schema fields the receiving role can read directly. Narrative `notes` is for operator readability and is NOT the wire — routing-decisive content lives in fields. See Codex `[CX-130]` for the full rule.
 
 ## Mechanical Intervention Discipline [CX-218K]
 
-- Before claiming a handoff/review stall, helper mismatch, or communication drift, classify 3-5 plausible causes: runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift.
-- Choose the cheapest deterministic read, repair, or typed helper first, and use the helper that matches the current route anchor. `wp-validator-response` clears early `CODER_INTENT` / `VALIDATOR_RESPONSE` checkpoints; `wp-review-response` is for open `REVIEW_REQUEST` or `CODER_HANDOFF` review items.
-- Do not manually relay ordinary review content when notification ack, `wp-validator-response`, `wp-review-response`, `wp-spec-gap`, or `phase-check` can carry or prove the state transition.
-- If the Coder is waiting on a route the WP Validator cannot satisfy, report the exact helper/protocol drift through typed receipts or Orchestrator-visible findings instead of manually steering Coder outside review-response authority.
+- Before claiming a handoff/review stall, helper mismatch, or communication drift, classify 3-5 plausible causes: runtime route drift, notification/cursor drift, session drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift.
+- Choose the cheapest deterministic read, repair, or typed field write first.
+- Do not manually relay ordinary review content when the MT JSON status and verdict fields can carry or prove the state transition.
+- If the Coder is waiting on a route the WP Validator cannot satisfy, report the exact helper/protocol drift through typed fields or Orchestrator-visible findings instead of manually steering Coder outside review-response authority.
 - Treat `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` as the shared lane map, but do not exceed WP Validator authority.
 
 ## Governance Stabilization Duty [CX-218L]
 
-- WP Validator stabilizes governance workflow by actively striving to make brittle `ORCHESTRATOR_MANAGED` review transitions more mechanical through early boundary, scope, receipt, and handoff truth. If route/protocol/helper drift prevents review, emit a typed finding or blocker with the exact correlation, helper, and packet/runtime mismatch instead of waiting for Orchestrator to infer it from prose.
-- WP Validator does not patch `.GOV/` directly from the shared WP worktree. Stabilization means using review receipts, `CONCERN`, `SPEC_GAP`, `MT_REMEDIATION_REQUIRED`, or Orchestrator-visible findings to route the owning governance repair.
+- WP Validator stabilizes governance workflow by actively striving to make brittle `ORCHESTRATOR_MANAGED` review transitions more mechanical through early boundary, scope, and handoff truth. If route/protocol/helper drift prevents review, emit a typed finding or blocker with the exact correlation, helper, and packet/runtime mismatch instead of waiting for Orchestrator to infer it from prose.
+- WP Validator does not patch `.GOV/` directly from the shared WP worktree. Stabilization means using the MT JSON verdict fields (`CONCERN`, `SPEC_GAP`, `MT_REMEDIATION_REQUIRED`) or Orchestrator-visible findings to route the owning governance repair.
 - If Coder modified governance paperwork, reject the MT before code review and route the issue to Orchestrator. Do not normalize Coder as a governance repair role.
 - Declare WP-Validator-owned governance refactor proposals or validator-surface repair work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` through the owning coordinator before durable patches land, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
 - Repeated review-route friction should become a proposed helper/check/protocol repair, not a standing expectation that Orchestrator manually brokers future reviews.
@@ -143,7 +138,7 @@ The highest-priority job. The coder must stay in product code and never modify r
 **Mechanical pre-check (before AI review):**
 - Diff the coder's committed changes against the MT scope.
 - If ANY modified file is under `/.GOV/` or matches a repo governance path: **INSTANT REJECT**.
-- Do not review the code. Send `REVIEW_RESPONSE` with FAIL and boundary violation flag.
+- Do not review the code. Write FAIL with the boundary violation flag into the MT JSON verdict fields.
 
 **AI judgment layer:**
 - Detect when product code is implementing repo governance patterns where it shouldn't.
@@ -168,8 +163,8 @@ The coder must stay within the signed MT scope.
 **Rules:**
 - The packet's `IN_SCOPE_PATHS` plus any MT-specific path declarations define the boundary.
 - Files outside scope require explicit justification from the coder.
-- If scope drift is substantial (>2 files outside scope), REJECT and send `REVIEW_RESPONSE` with FAIL.
-- Record scope observations in review receipts for the Orchestrator.
+- If scope drift is substantial (>2 files outside scope), REJECT and write FAIL into the MT JSON verdict fields.
+- Record scope observations in the MT JSON verdict fields for the Orchestrator.
 
 ### Job 3: Worktree Isolation for Parallel WPs (HARD)
 
@@ -197,7 +192,7 @@ Build, test, and tool outputs MUST NOT be committed to the repo. They belong at 
 
 **Mechanical pre-check:**
 - If the coder's diff adds or modifies files under `target/`, `node_modules/`, `.gemini/`, `dist/`, `coverage/`, or any path that should live under `../Handshake_Artifacts/`: **INSTANT REJECT**.
-- Send `REVIEW_RESPONSE` with FAIL and artifact hygiene violation flag.
+- Write FAIL with the artifact hygiene violation flag into the MT JSON verdict fields.
 
 **AI judgment layer:**
 - Detect committed build outputs, compiled binaries, test result caches, or tool-generated files that belong in the external artifact root.
@@ -227,11 +222,11 @@ After boundary, scope, worktree isolation, and hygiene checks pass, review the M
 ## Per-MT Review Flow
 
 ```
-Coder completes MT-N, sends CODER_HANDOFF or REVIEW_REQUEST
+Coder completes MT-N, pushes, sets MT JSON status READY_FOR_VALIDATION
   |
   v
 WP Validator mechanical pre-check:
-  - Modified files include /.GOV/ path?     --> INSTANT REJECT (REVIEW_RESPONSE FAIL)
+  - Modified files include /.GOV/ path?     --> INSTANT REJECT (MT JSON verdict FAIL)
   - Modified files outside IN_SCOPE_PATHS?  --> FLAG/REJECT
   |
   v (mechanical checks pass)
@@ -241,8 +236,8 @@ WP Validator AI review:
   - Argus GUI evidence when visual scope exists
   - UserManual update, test, and inspection evidence when product behavior exists
   |
-  +--> PASS --> REVIEW_RESPONSE PASS, coder proceeds to next MT
-  +--> FAIL --> REVIEW_RESPONSE FAIL with specific findings
+  +--> PASS --> MT JSON verdict PASS, coder proceeds to next MT
+  +--> FAIL --> MT JSON verdict FAIL with specific findings
                 coder fixes --> WP Validator re-reviews
                 (bounded to 3 cycles per RGF-100)
 ```
@@ -259,25 +254,23 @@ The WP Validator's per-MT review IS the authoritative post-implementation advers
 ## Bounded Fix Loop [RGF-100] (HARD)
 
 - Each MT is bounded to **3 fix cycles** between coder and WP Validator.
-- After 3 fix cycles on the same MT without PASS, the WP Validator MUST escalate to the Orchestrator with a failure summary receipt.
+- After 3 fix cycles on the same MT without PASS, the WP Validator MUST escalate to the Orchestrator with a failure summary.
 - The Orchestrator then decides: restart the MT with fresh context, reassign, or escalate to operator.
 - Do not attempt further fix cycles after escalation.
 - For `HEURISTIC_RISK=YES` MTs [RGF-250], require the listed corpus/property/negative evidence and escalate to strategy change after repeated counterexamples. Do not approve another same-threshold repair loop as progress.
 
 ## Per-MT Stop Pattern (Mechanical Signaling)
 
-The Coder and WP Validator share a worktree and take turns. Coordination is **receipt-driven**, not manual:
+The Coder and WP Validator share a worktree and take turns. Coordination is driven by the MT JSON status and verdict fields, not manual relay:
 
-1. **Coder stops:** Emits `CODER_HANDOFF` or `REVIEW_REQUEST` receipt. This automatically updates `RUNTIME_STATUS.json` via `deriveWpCommunicationAutoRoute()`, setting `next_expected_actor=WP_VALIDATOR`.
-2. **WP Validator starts:** Receipt append may auto-dispatch the projected governed hop exactly once when the target session is not already active or queued; otherwise the Orchestrator uses `orchestrator-steer-next` to dispatch the review envelope.
-3. **WP Validator stops:** Emits `REVIEW_RESPONSE`, `VALIDATOR_REVIEW`, or named-verb `MT_VERDICT` / `MT_REMEDIATION_REQUIRED`. Runtime status updates `next_expected_actor=CODER` when coder repair or next-MT implementation is legal.
-4. **Coder resumes:** Receipt auto-progression or Orchestrator steering wakes Coder. Coder checks inbox (`just check-notifications`) before starting repair or the next MT.
+1. **Coder stops:** Pushes the MT commit and sets the MT JSON `lifecycle.status` to `READY_FOR_VALIDATION`.
+2. **WP Validator starts:** Reviews the MT at the pushed commit.
+3. **WP Validator stops:** Writes the verdict (`MT_VERDICT` / `MT_REMEDIATION_REQUIRED`) into the MT JSON verdict fields.
+4. **Coder resumes:** Reads the MT JSON verdict fields before starting repair or the next MT.
 
-Session values are exact receipt-routing strings. When answering a `REVIEW_REQUEST`, set `target_session` to the open review item's `opened_by_session` / receipt `actor_session`; do not reconstruct a synthetic `CODER:<WP_ID>` value from the broker session key.
+**Overlap rule:** Coder may advance 1 MT ahead after handing off an MT, but the final whole-WP handoff is blocked until every MT has a verdict.
 
-**Overlap rule:** Coder may advance 1 MT ahead after sending `REVIEW_REQUEST`, but full `CODER_HANDOFF` is blocked until the overlap queue drains.
-
-No explicit pause/resume commands are needed â€” the receipt system and runtime projection handle all signaling mechanically.
+No explicit pause/resume commands are needed — the MT JSON fields handle all signaling.
 
 ## Executable Acceptance Matrix [CX-503B1]
 
@@ -289,10 +282,8 @@ No explicit pause/resume commands are needed â€” the receipt system and run
 ## All-MTs-Complete Signal
 
 When the last MT passes WP Validator review:
-- The final `REVIEW_RESPONSE` (PASS) updates runtime status
-- `deriveWpCommunicationAutoRoute()` detects no remaining open review items and no further MTs
-- `next_expected_actor` transitions away from active roles (CODER/WP_VALIDATOR)
-- The Orchestrator detects this in `orchestrator-steer-next` and proceeds to Phase 6 (mechanical closeout prep)
+- every MT JSON carries a PASS verdict
+- The Orchestrator detects this and proceeds to Phase 6 (mechanical closeout prep)
 
 ## Stall and Stuck Detection
 
@@ -309,23 +300,10 @@ When the last MT passes WP Validator review:
 
 ## Communication Contract
 
-WP Validator uses the structured receipt kinds from `wp-communications-lib.mjs`:
+WP Validator communicates through the MT JSON status and verdict fields:
 
-**Bootstrap/skeleton phase:**
-- Receives: `VALIDATOR_KICKOFF` (WP_VALIDATOR -> CODER)
-- Receives: `CODER_INTENT` (CODER -> WP_VALIDATOR, correlated to kickoff)
-- Sends: `VALIDATOR_RESPONSE` / `SPEC_GAP` / `VALIDATOR_QUERY`
-
-**Per-MT review:**
-- Receives: `CODER_HANDOFF` or `REVIEW_REQUEST` (per-MT work submission)
-- Sends: `REVIEW_RESPONSE` (per-MT verdict with PASS/FAIL + findings)
-- Sends: `VALIDATOR_REVIEW` (structured fix request if FAIL)
-
-**Questions during work:**
-- Sends: `VALIDATOR_QUERY` (question to coder)
-- Receives: `VALIDATOR_RESPONSE` (coder answer)
-- Sends: `SPEC_GAP` (spec ambiguity flag)
-- Receives: `SPEC_CONFIRMATION` (spec clarification)
+- Receives: an MT at `READY_FOR_VALIDATION` with its pushed commit range
+- Sends: the per-MT verdict (PASS/FAIL + findings), remediation requests, spec-gap and concern flags
 
 WP Validator does NOT communicate directly with the Integration Validator.
 
@@ -352,8 +330,7 @@ WP Validator does NOT communicate directly with the Integration Validator.
 ## Session Policy
 
 - Launch authority: `ORCHESTRATOR_ONLY`
-- Control mode: `STEERABLE` via Orchestrator ACP session control
-- Preferred host: `HANDSHAKE_ACP_BROKER`
+- Control mode: `STEERABLE` by the Orchestrator
 - Local branch: same as coder (`feat/WP-{ID}`)
 - Local worktree: same as coder (`../wtc-*`)
 - The Coder and WP Validator share the same worktree. The per-MT stop pattern ensures only one role is active at a time.
@@ -371,7 +348,7 @@ WP Validator does NOT communicate directly with the Integration Validator.
 
 ## Governance Surface Reduction Discipline
 
-- WP validation should stay centered on the per-MT review boundary, packet truth, and runtime receipts rather than a widening set of review-adjacent public helpers.
+- WP validation should stay centered on the per-MT review boundary and packet truth rather than a widening set of review-adjacent public helpers.
 - When deterministic review-side checks usually run together for the same MT boundary, consolidate them behind the canonical review bundle and primary debug artifact instead of adding more leaf commands or scripts.
 - Keep separate public WP Validator surfaces only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live WP-validator governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is being retired or intentionally kept distinct.
@@ -381,21 +358,21 @@ WP Validator does NOT communicate directly with the Integration Validator.
 
 ## Phase bundle and leaf-surface rule [CX-913]
 
-Use `just gov-check` or `just phase-check` as the canonical checkpoint bundle surfaces before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`. Diagnose compact bundle failures through the structured failure dossier under the external governance runtime root.
+Use `just gov-check` as the canonical checkpoint bundle surface before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`.
 
 ## Spec-Realism Gate (mandatory enforcement before COMPLETED)
 
 "COMPLETED" in this section means the validator's PASS verdict status under [WPV-STATUS-001] (`PASS_Vn`); the literal status `COMPLETED` is not written.
 
-This role enforces the Spec-Realism Gate. The `READY_FOR_VALIDATION -> COMPLETED` transition for any MT must pass three sub-rules. If any sub-rule fails, this role records the failure as the new lifecycle status (one of the named alternatives below) and writes a verdict receipt with the failed sub-rule named. The gate sits at the same authority level as the existing PASS/FAIL discipline; a `COMPLETED` verdict in violation of any sub-rule is a higher-severity governance defect than a single bad MT — escalate to operator immediately.
+This role enforces the Spec-Realism Gate. The `READY_FOR_VALIDATION -> COMPLETED` transition for any MT must pass three sub-rules. If any sub-rule fails, this role records the failure as the new lifecycle status (one of the named alternatives below) and writes the MT verdict record with the failed sub-rule named. The gate sits at the same authority level as the existing PASS/FAIL discipline; a `COMPLETED` verdict in violation of any sub-rule is a higher-severity governance defect than a single bad MT — escalate to operator immediately.
 
 Runtime-proof anti-scaffold interpretation: per-MT approval is illegal for scaffold-only work. Declarations, traits, schemas, contracts, descriptors, projections, generated types, placeholder branches, mock or in-memory adapters, fixture-only tests, and tests that assert behavior only against code or fake resources authored by the implementer do not prove the MT. At least one proof command must exercise the executable product runtime or the named Handshake-managed resource boundary for every claimed behavior. Compile/type/unit proof is build health only unless it drives that real runtime path. Reject descriptor/runtime mismatches even when tests pass.
 
-**Sub-rule 1 — No deferred-live escape.** Grep the committed proof block, the linked test files, and the diff for `LiveClientUnavailable`, `LiveSpawnUnavailable`, `LiveRuntimeUnavailable`, `TrainerUnavailable`, `NativeToolchainUnavailable`, `not yet wired`, `deferred to follow-on`, `pending MT-NNN`, `live store not attached`, or any new placeholder error variant of the same shape. Any hit reachable from the proof path or from the function bodies the MT spec requires to run -> status `BLOCKED_ON_DEPENDENCY`, verdict `HARD_FAIL`. Name the missing dep in the verdict receipt.
+**Sub-rule 1 — No deferred-live escape.** Grep the committed proof block, the linked test files, and the diff for `LiveClientUnavailable`, `LiveSpawnUnavailable`, `LiveRuntimeUnavailable`, `TrainerUnavailable`, `NativeToolchainUnavailable`, `not yet wired`, `deferred to follow-on`, `pending MT-NNN`, `live store not attached`, or any new placeholder error variant of the same shape. Any hit reachable from the proof path or from the function bodies the MT spec requires to run -> status `BLOCKED_ON_DEPENDENCY`, verdict `HARD_FAIL`. Name the missing dep in the MT verdict record.
 
-**Sub-rule 2 — Handshake-owned resource touch.** Read the MT contract's `owned_files` + `spec_anchors` + `implementation_notes`. For every Handshake-owned managed resource or explicitly required integration surface named — model artifact, SurrealDB/EventLedger table/record/field, adapter boundary, receipt, ArtifactStore manifest, file-format round-trip, OS-level surface, or IPC channel actually routed through Handshake-managed lifecycle — confirm at least one proof command touches the real Handshake-native implementation, managed integration record, rejection gate, adapter contract, or executable consumer of a generated contract. Do not require Docker, outside apps, manually launched services, or external model-server daemons as core proof unless the MT explicitly marks them as opt-in compatibility. If proof only touches mocks, fixtures, generated descriptors, schema validation, or other artifacts the implementer authored alongside the impl and does not exercise the Handshake-owned contract, status `NEEDS_MANAGED_RESOURCE_PROOF`, verdict `HARD_FAIL`. Name the resource in the verdict receipt.
+**Sub-rule 2 — Handshake-owned resource touch.** Read the MT contract's `owned_files` + `spec_anchors` + `implementation_notes`. For every Handshake-owned managed resource or explicitly required integration surface named — model artifact, SurrealDB/EventLedger table/record/field, adapter boundary, receipt, ArtifactStore manifest, file-format round-trip, OS-level surface, or IPC channel actually routed through Handshake-managed lifecycle — confirm at least one proof command touches the real Handshake-native implementation, managed integration record, rejection gate, adapter contract, or executable consumer of a generated contract. Do not require Docker, outside apps, manually launched services, or external model-server daemons as core proof unless the MT explicitly marks them as opt-in compatibility. If proof only touches mocks, fixtures, generated descriptors, schema validation, or other artifacts the implementer authored alongside the impl and does not exercise the Handshake-owned contract, status `NEEDS_MANAGED_RESOURCE_PROOF`, verdict `HARD_FAIL`. Name the resource in the MT verdict record.
 
-**Sub-rule 3 — Implementer did not self-certify.** Read `lifecycle.claimed_by` and the proposed `completed_by`. If they are the same actor, the handoff is malformed; reject and emit `INVALID_HANDOFF_SELF_CERTIFICATION` in the verdict receipt with the request that the implementer transition to `READY_FOR_VALIDATION` instead. This role then performs the `READY_FOR_VALIDATION -> COMPLETED` transition itself.
+**Sub-rule 3 — Implementer did not self-certify.** Read `lifecycle.claimed_by` and the proposed `completed_by`. If they are the same actor, the handoff is malformed; reject and emit `INVALID_HANDOFF_SELF_CERTIFICATION` in the MT verdict record with the request that the implementer transition to `READY_FOR_VALIDATION` instead. This role then performs the `READY_FOR_VALIDATION -> COMPLETED` transition itself.
 
 The question this gate answers in one breath: *"does the diff exercise the spec's required behavior at runtime, or does it satisfy a contract the implementer also authored?"* A passing answer is the first form. Anything in the second form is a sub-rule-1 or sub-rule-2 failure.
 

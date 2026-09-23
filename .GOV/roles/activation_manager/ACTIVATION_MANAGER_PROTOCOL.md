@@ -1,13 +1,13 @@
 ﻿# ACTIVATION_MANAGER_PROTOCOL
 ## Deterministic Atomic Governance Files [CX-908]
-- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
+- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
-- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
-- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Roles MUST consume typed JSON, JSONL, or declared contract fields before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
 - Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
 ## Governance Kernel Product-Governance Testbed [CX-911]
 - The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
-- ACP, external apps/tools, and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, receipt, runtime, and session-control artifacts.
+- External apps/tools and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, and runtime artifacts.
 - Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
 - Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
@@ -44,7 +44,7 @@
 
 ## Workflow Lane Split
 
-- For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the Activation Manager is the mandatory governed pre-launch authoring lane and temporary worker. The Orchestrator must launch, steer, cancel, and close this role through the governed ACP/session-control surface before downstream governed product lanes begin.
+- For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the Activation Manager is the mandatory governed pre-launch authoring lane and temporary worker. The Orchestrator launches, steers, and closes this role before downstream governed product lanes begin.
 - For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch belongs to `CLASSIC_ORCHESTRATOR`. Do not replace the Classic Orchestrator with a second manual Activation Manager authority lane.
 - The manual `just activation-manager <startup|prompt|next|readiness>` command family remains a bounded role-local repair/reference surface. It does not redefine manual workflow ownership.
 
@@ -82,12 +82,12 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
-Refinement signature, packet creation, and pre-launch handback to the Orchestrator/Coder pipeline emit typed receipts and notifications. Pre-launch state (signature, scope, MT contract, model profiles, worktree assignment) crosses into orchestrator-managed via schema fields, never through prose summaries the next role must parse. Operator-facing refinement narrative belongs in the refinement artifact for human review and is NOT the wire to the Orchestrator. See Codex `[CX-130]` for the full rule.
+Refinement signature, packet creation, and pre-launch handback to the Orchestrator/Coder pipeline use typed fields. Pre-launch state (signature, scope, MT contract, model profiles, worktree assignment) crosses into orchestrator-managed via schema fields, never through prose summaries the next role must parse. Operator-facing refinement narrative belongs in the refinement artifact for human review and is NOT the wire to the Orchestrator. See Codex `[CX-130]` for the full rule.
 
 ## Mechanical Intervention Discipline [CX-218K]
 
-- Before repairing activation, readiness, spec enrichment, or packet hydration drift, classify 3-5 plausible causes: stale readiness projection, signature/scope mismatch, packet/spec pointer drift, worktree/backup drift, documentation/protocol drift, session/ACP drift, and clock/staleness drift.
-- Choose the cheapest deterministic read, repair, or typed helper first: readiness refresh, target artifact checks, packet/refinement checks, bounded activation repair, and typed handoff receipts before asking for a model continuation.
+- Before repairing activation, readiness, spec enrichment, or packet hydration drift, classify 3-5 plausible causes: stale readiness projection, signature/scope mismatch, packet/spec pointer drift, worktree/backup drift, documentation/protocol drift, session drift, and clock/staleness drift.
+- Choose the cheapest deterministic read, repair, or typed helper first: readiness refresh, target artifact checks, packet/refinement checks, bounded activation repair, and typed handoff fields before asking for a model continuation.
 - Do not manually relay ordinary activation content when the refinement, packet, readiness helper, or typed `REFINEMENT_HANDOFF_SUMMARY` can write the authority artifact.
 - If a stale readiness artifact disagrees with live packet/worktree truth, regenerate `ACTIVATION_READINESS` and report the exact launch blocker or `READY_FOR_DOWNSTREAM_LAUNCH` state.
 - Do not launch Coder, WP Validator, or Integration Validator. If downstream routing is blocked, hand the exact mechanical blocker back to Orchestrator.
@@ -108,7 +108,7 @@ Refinement signature, packet creation, and pre-launch handback to the Orchestrat
 - Do not compress microtasks to reduce paperwork. Split again when one MT would mix unrelated authority boundaries, broad code-surface families, independent proof commands, or unrelated failure modes.
 - Each official MT file must carry a narrow `MT_ID`, `CLAUSE`, `CODE_SURFACES`, `EXPECTED_TESTS`, `DEPENDS_ON`, `RISK_IF_MISSED`, `gui_obligation`, `user_manual_obligation`, and heuristic-risk fields. Shared schema/helper work belongs in the earliest MT that needs it, with later MTs depending on that row instead of reimplementing it.
 - `ACTIVATION_READINESS` must report the declared MT count. If a broad bundled packet activates with a low MT count, readiness must either mark `READY_FOR_DOWNSTREAM_LAUNCH: NO` or include a specific rationale proving each MT is still independently trackable, reviewable, recoverable, and small-model manageable.
-- For folded-stub bundles, preserve the source-stub fold map and ensure every folded intent lands in at least one concrete MT. Source stubs are history; executable recovery resumes from MT files, receipts, and packet state.
+- For folded-stub bundles, preserve the source-stub fold map and ensure every folded intent lands in at least one concrete MT. Source stubs are history; executable recovery resumes from MT files and packet state.
 
 ## Pre-MT Adversarial Review at Activation (Different Lenses)
 
@@ -172,7 +172,7 @@ Write sequence:
 5. Only if the Orchestrator explicitly requests excerpts should the Activation Manager paste refinement/spec text back into chat. In that fallback path, send only the requested sections or anchors in bounded chunks. Safe default: 4 chunks.
 6. Stop and wait for the Orchestrator to return operator approval evidence, the one-time signature, and the selected `Coder-A..Coder-Z` execution owner.
 7. Record the returned signature/workflow tuple/execution owner and continue packet, microtask, worktree, backup-branch, and readiness preparation.
-8. Emit one truthful `ACTIVATION_READINESS` block and self-close. The readiness block MUST include machine-readable freshness and launch fields (`GENERATED_AT_UTC`, `STATE_SOURCE`, `READY_FOR_DOWNSTREAM_LAUNCH`) so Orchestrator recovery can distinguish stale projection files from live readiness truth without waking an ACP session.
+8. Emit one truthful `ACTIVATION_READINESS` block and self-close. The readiness block MUST include machine-readable freshness and launch fields (`GENERATED_AT_UTC`, `STATE_SOURCE`, `READY_FOR_DOWNSTREAM_LAUNCH`) so Orchestrator recovery can distinguish stale projection files from live readiness truth without waking a model session.
 
 ## Repair Return And Relaunch
 
@@ -190,21 +190,7 @@ Write sequence:
 - If a candidate script shares the same owner, inputs, primary readiness artifact, and usual invocation path as the canonical activation path, extend that path instead of adding a sibling.
 - Keep separate public activation scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live activation surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is retired or intentionally kept distinct.
-- **Fail capture wiring (HARD - CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall`. See TG-007.
-
-## Conversation Memory (MUST - `just repomem`)
-
-Cross-session conversational memory captures what was refined, decided, and flagged during activation. All Activation Manager sessions MUST use repomem:
-- **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this activation session covers>" --role ACTIVATION_MANAGER --wp WP-{ID}`. Blocked from mutation commands until done.
-- **PRE_TASK before activation execution (SHOULD):** Before packet hydration, readiness mutation, worktree preparation, or signature/readiness repair, run `just repomem pre "<what activation step is about to run and why>" --wp WP-{ID}` unless the helper already captures context mechanically.
-- **INSIGHT after discoveries (MUST):** When refinement or research reveals non-obvious constraints - spec gaps, dependency conflicts, scope ambiguity: `just repomem insight "<what was found>"`. Min 80 chars.
-- **DECISION when making activation choices (MUST):** Every meaningful activation choice - MT breakdown, scope boundaries, build order, spec enrichment strategy, signature/readiness repair direction - MUST be paired with `just repomem decision "<what was chosen and why>" --wp WP-{ID}` before the choice is committed to the packet or runtime. Min 80 chars. A session that closes after activation work without a paired DECISION (or other durable checkpoint) is governance debt and emits `REPOMEM_GOVERNANCE_DEBT` at close.
-- **ERROR when activation tooling breaks (SHOULD):** When phase-check fails, signature validation breaks, or readiness checks return unexpected results: `just repomem error "<what went wrong>" --wp WP-{ID}`. Fast capture (min 40 chars).
-- **ABANDON when dropping a refinement path (SHOULD):** When a refinement direction is abandoned - scope too large, dependencies missing, operator redirect: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Min 80 chars.
-- **CONCERN when flagging activation risks (SHOULD):** When you spot a scope risk, missing prerequisite, or spec ambiguity that may affect downstream work: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars.
-- **ESCALATION when needing operator/orchestrator input (SHOULD):** When activation decisions exceed your authority - scope questions, spec conflicts, build-order ambiguity: `just repomem escalation "<what needs resolution>" --wp WP-{ID}`. Fast capture (min 40 chars).
-- **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what was activated, outcome>" --decisions "<key choices made>"`.
-- WP-bound repomem checkpoints are appended to the Workflow Dossier as a terminal diagnostic snapshot during closeout; import debt is diagnostic only, so do not maintain a parallel live dossier narrative for the same findings.
+- **Fail capture wiring (CX-205N):** Retired under CX-AUTH-002.
 
 ## Worktree And Branch
 
@@ -292,13 +278,6 @@ ACTIVATION_READINESS
 
 ## Transitional Execution Note
 
-- Governed session-control support now exists for orchestrator-managed pre-launch work through:
-  - `just launch-activation-manager-session WP-{ID}`
-  - `just session-start ACTIVATION_MANAGER WP-{ID}`
-  - `just session-send ACTIVATION_MANAGER WP-{ID} "<prompt>"`
-  - `just session-cancel ACTIVATION_MANAGER WP-{ID}`
-  - `just session-close ACTIVATION_MANAGER WP-{ID}`
-  - role-specific Activation Manager session recipes remain compatibility aliases for the canonical `session-*` controls
 - Manual/prompt role-local action surface now exists through one canonical dispatcher:
   - `just activation-manager <startup|prompt|next|readiness> [WP-{ID}] [--write|--json]`
   - `just activation-manager record-refinement WP-{ID} [detail]`
@@ -319,4 +298,4 @@ ACTIVATION_READINESS
 
 ## Phase bundle and leaf-surface rule [CX-913]
 
-Use `just gov-check` or `just phase-check` as the canonical checkpoint bundle surfaces before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`. Diagnose compact bundle failures through the structured failure dossier under the external governance runtime root.
+Use `just gov-check` as the canonical checkpoint bundle surface before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`.

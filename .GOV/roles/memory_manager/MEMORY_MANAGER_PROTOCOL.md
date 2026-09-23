@@ -1,4 +1,7 @@
 ﻿# MEMORY_MANAGER_PROTOCOL
+
+RETIRED under CX-AUTH-002 on 2026-09-23. This role is not launched and none of its commands are required. Kept for posterity and for the 38 files that still reference it.
+
 ## Deterministic Atomic Governance Files [CX-908]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
