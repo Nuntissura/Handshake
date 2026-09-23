@@ -18,7 +18,6 @@ use serde_json::{json, Value};
 use std::str::FromStr;
 
 type ApiError = (StatusCode, Json<ErrorResponse>);
-type ApiResult<T> = Result<T, ApiError>;
 
 const FEMS_PROTOCOL_MEMORY_EXTRACT_V0_1: &str = "memory_extract_v0.1";
 const FEMS_PROTOCOL_MEMORY_CONSOLIDATE_V0_1: &str = "memory_consolidate_v0.1";
@@ -107,39 +106,6 @@ fn job_not_awaiting_user_consent() -> ApiError {
     )
 }
 
-fn storage_error(err: crate::storage::StorageError) -> ApiError {
-    match err {
-        crate::storage::StorageError::NotFound(_) => (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                error: "HSK-404-JOB-NOT-FOUND",
-            }),
-        ),
-        crate::storage::StorageError::Conflict(_)
-        | crate::storage::StorageError::ConflictDetails { .. } => (
-            StatusCode::CONFLICT,
-            Json(ErrorResponse {
-                error: "HSK-409-STORAGE-CONFLICT",
-            }),
-        ),
-        crate::storage::StorageError::Validation(_) => (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "HSK-400-STORAGE-VALIDATION",
-            }),
-        ),
-        other => {
-            tracing::error!(target: "handshake_core", error = %other, "jobs_api_storage_error");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "HSK-500-DB",
-                }),
-            )
-        }
-    }
-}
-
 fn workflow_error(err: WorkflowError) -> ApiError {
     tracing::error!(target: "handshake_core", error = %err, "jobs_api_workflow_error");
     (
@@ -158,16 +124,16 @@ pub struct CreateJobRequest {
     pub doc_id: Option<String>,
     #[serde(default)]
     pub job_inputs: Option<Value>,
-    /// MT-158: the workspace a Locus job is authorized against (falls back to
+    /// MT-158/MT-159: the workspace the job is authorized against (falls back to
     /// `job_inputs.workspace_id` / `job_inputs.wsid`).
     #[serde(default)]
     pub workspace_id: Option<String>,
 }
 
-/// MT-158 (Master Spec 02-system-architecture.md:2758/:2773; Operator decision 2026-09-23, option A):
-/// the constant denial for every Locus job request that is anonymous, names no workspace, or is not
-/// authorized on the named workspace.
-fn locus_job_denied() -> JobRouteError {
+/// MT-158/MT-159 (Master Spec 02-system-architecture.md:2758/:2759/:2773): the constant denial for
+/// every job request that is anonymous, names no workspace, is not authorized on it, or names a job
+/// the account cannot see (indistinguishable from an unknown id).
+fn job_denied() -> JobRouteError {
     JobRouteError::Denied
 }
 
@@ -199,7 +165,7 @@ impl IntoResponse for JobRouteError {
     }
 }
 
-fn locus_request_workspace(payload: &CreateJobRequest) -> Option<String> {
+fn request_workspace(payload: &CreateJobRequest) -> Option<String> {
     payload
         .workspace_id
         .clone()
@@ -216,9 +182,9 @@ fn locus_request_workspace(payload: &CreateJobRequest) -> Option<String> {
         .filter(|workspace| !workspace.is_empty())
 }
 
-/// Authorizes a Locus job on its workspace (fs.write) BEFORE any table access and returns the
-/// workspace id plus the account's record-user scope the job must be created and run under.
-async fn locus_job_authority(
+/// MT-158/MT-159: authorizes a job on its workspace (fs.write) BEFORE any table access and returns
+/// the workspace id plus the account's record-user scope the job must be created and run under.
+async fn job_workspace_authority(
     state: &AppState,
     headers: &HeaderMap,
     workspace_id: Option<String>,
@@ -230,7 +196,7 @@ async fn locus_job_authority(
     ),
     JobRouteError,
 > {
-    let workspace_id = workspace_id.ok_or_else(locus_job_denied)?;
+    let workspace_id = workspace_id.ok_or_else(job_denied)?;
     let authority = crate::api::authority::authorize_request(
         state,
         headers,
@@ -240,11 +206,43 @@ async fn locus_job_authority(
         action,
     )
     .await
-    .map_err(|_| locus_job_denied())?;
+    .map_err(|_| job_denied())?;
     Ok((workspace_id, authority.record_user_scope))
 }
 
-fn locus_job_workspace(job: &AiJob) -> Option<String> {
+/// MT-159: the account session's record-user scope (no workspace) for reading jobs. The `ai_jobs`
+/// select predicate (`fn::mt154_job_access`) then admits only jobs of workspaces the session reads.
+async fn job_session_scope(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<crate::storage::surreal::resource_authority::RecordUserScope, JobRouteError> {
+    crate::api::authority::authorize_account_session(
+        state,
+        headers,
+        "fs.read",
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await
+    .map(|authority| authority.record_user_scope)
+    .map_err(|_| job_denied())
+}
+
+/// MT-159 (02:2759): resolves a job as the account record user. An unknown id, another account's
+/// job and any read failure are the same constant denial.
+async fn visible_job(
+    state: &AppState,
+    headers: &HeaderMap,
+    id: &str,
+) -> Result<AiJob, JobRouteError> {
+    let scope = job_session_scope(state, headers).await?;
+    state
+        .surreal
+        .with_record_user_scope(scope, state.storage.get_ai_job(id))
+        .await
+        .map_err(|_| job_denied())
+}
+
+fn job_workspace(job: &AiJob) -> Option<String> {
     let mut workspaces = job
         .entity_refs
         .iter()
@@ -298,30 +296,27 @@ pub fn routes(state: AppState) -> Router {
 
 /// This is the API handler. It receives a request, calls the jobs and
 /// workflows modules, and returns a response.
+///
+/// MT-158/MT-159 (02:2758/:2773): every job kind requires the account session and the named
+/// workspace's write grant, checked before any table access; the job row and its run are written
+/// by that account's record user (the spawned run re-enters the captured account authority,
+/// workflows.rs start_workflow_for_job). Non-denial error bodies keep their previous plain-text
+/// shape.
 async fn create_new_job(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<CreateJobRequest>,
 ) -> Result<Json<WorkflowRun>, JobRouteError> {
-    // Non-Locus error bodies keep their previous shape (a plain-text `String` response).
     let job_kind = parse_job_kind_request(payload.job_kind.as_str(), payload.protocol_id.as_str())
         .map_err(|e| JobRouteError::Message(e.to_string()))?;
 
-    // MT-158: a Locus job requires the account session and the workspace's write grant, checked
-    // before any table access; the job is then created and run as that account's record user.
-    let locus_authority = if matches!(job_kind, JobKind::LocusOperation) {
-        Some(
-            locus_job_authority(
-                &state,
-                &headers,
-                locus_request_workspace(&payload),
-                crate::storage::surreal::resource_authority::ResourceAction::Create,
-            )
-            .await?,
-        )
-    } else {
-        None
-    };
+    let (workspace_id, record_user_scope) = job_workspace_authority(
+        &state,
+        &headers,
+        request_workspace(&payload),
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+    )
+    .await?;
 
     let capability_job_kind = if matches!(job_kind, JobKind::ModelRun) {
         JobKind::WorkflowRun
@@ -339,86 +334,60 @@ async fn create_new_job(
         .clone()
         .or_else(|| payload.doc_id.as_ref().map(|id| json!({ "doc_id": id })));
 
-    let mut entity_refs: Vec<EntityRef> = Vec::new();
-    if let Some((workspace_id, record_user_scope)) = locus_authority {
-        // MT-158: the job carries its authorized workspace (fn::mt154_job_access), and both the
-        // job row and its run are written by the account record user; the spawned run re-enters
-        // the captured account authority (workflows.rs start_workflow_for_job).
-        entity_refs.push(EntityRef {
-            entity_id: workspace_id,
-            entity_kind: "workspace".to_string(),
-        });
-        let workflow_run = state
-            .surreal
-            .with_record_user_scope(record_user_scope, async {
-                let job = create_job(
-                    &state,
-                    job_kind,
-                    &payload.protocol_id,
-                    capability_profile_id.id.as_str(),
-                    job_inputs,
-                    entity_refs,
-                )
-                .await
-                .map_err(|error| match error {
-                    JobError::Storage(crate::storage::StorageError::Guard(
-                        "HSK-403-PROTECTED-RESOURCE",
-                    )) => locus_job_denied(),
-                    other => JobRouteError::Message(other.to_string()),
-                })?;
-                start_workflow_for_job(&state, job)
+    let workflow_run = state
+        .surreal
+        .with_record_user_scope(record_user_scope, async {
+            let mut entity_refs = vec![EntityRef {
+                entity_id: workspace_id.clone(),
+                entity_kind: "workspace".to_string(),
+            }];
+            if let Some(doc_id) = payload.doc_id.as_deref() {
+                // Resolved as the record user; a document the account cannot read, or one of
+                // another workspace, is the constant denial.
+                let doc = state
+                    .storage
+                    .get_document(doc_id)
                     .await
-                    .map_err(|e| JobRouteError::Message(e.to_string()))
-            })
-            .await?;
-        return Ok(Json(workflow_run));
-    }
-    if let Some(doc_id) = payload.doc_id.as_deref() {
-        let doc = state
-            .storage
-            .get_document(doc_id)
+                    .map_err(|_| job_denied())?;
+                if doc.workspace_id != workspace_id {
+                    return Err(job_denied());
+                }
+                entity_refs.push(EntityRef {
+                    entity_id: doc.id,
+                    entity_kind: "document".to_string(),
+                });
+            }
+            let job = create_job(
+                &state,
+                job_kind,
+                &payload.protocol_id,
+                // Server-enforced capability profile to prevent client-side escalation.
+                capability_profile_id.id.as_str(),
+                job_inputs,
+                entity_refs,
+            )
             .await
-            .map_err(|e| JobRouteError::Message(e.to_string()))?;
-        entity_refs.push(EntityRef {
-            entity_id: doc.workspace_id,
-            entity_kind: "workspace".to_string(),
-        });
-        entity_refs.push(EntityRef {
-            entity_id: doc.id,
-            entity_kind: "document".to_string(),
-        });
-    }
-
-    let job = create_job(
-        &state,
-        job_kind,
-        &payload.protocol_id,
-        // Server-enforced capability profile to prevent client-side escalation.
-        capability_profile_id.id.as_str(),
-        job_inputs,
-        entity_refs,
-    )
-    .await
-    .map_err(|e| JobRouteError::Message(e.to_string()))?;
-
-    let workflow_run = start_workflow_for_job(&state, job)
-        .await
-        .map_err(|e| JobRouteError::Message(e.to_string()))?;
+            .map_err(|error| match error {
+                JobError::Storage(crate::storage::StorageError::Guard(
+                    "HSK-403-PROTECTED-RESOURCE",
+                )) => job_denied(),
+                other => JobRouteError::Message(other.to_string()),
+            })?;
+            start_workflow_for_job(&state, job)
+                .await
+                .map_err(|e| JobRouteError::Message(e.to_string()))
+        })
+        .await?;
 
     Ok(Json(workflow_run))
 }
 
 async fn get_job(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Path(id): Path<String>,
-) -> Result<Json<AiJob>, String> {
-    let job = state
-        .storage
-        .get_ai_job(&id)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(Json(job))
+) -> Result<Json<AiJob>, JobRouteError> {
+    Ok(Json(visible_job(&state, &headers, &id).await?))
 }
 
 async fn resume_job(
@@ -426,28 +395,19 @@ async fn resume_job(
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> Result<Json<WorkflowRun>, Response> {
-    let job = state
-        .storage
-        .get_ai_job(&id)
+    // MT-159: resolved as the record user (unknown and foreign ids answer alike), then the job's
+    // workspace write grant is re-checked and the resume runs as that account's record user.
+    let job = visible_job(&state, &headers, &id)
         .await
-        .map_err(|error| storage_error(error).into_response())?;
-    // MT-158: a Locus job resumes only for a session holding its workspace write grant, and runs
-    // as that account record user (never as root).
-    let locus_scope = if matches!(job.job_kind, JobKind::LocusOperation) {
-        Some(
-            locus_job_authority(
-                &state,
-                &headers,
-                locus_job_workspace(&job),
-                crate::storage::surreal::resource_authority::ResourceAction::Update,
-            )
-            .await
-            .map_err(IntoResponse::into_response)?
-            .1,
-        )
-    } else {
-        None
-    };
+        .map_err(IntoResponse::into_response)?;
+    let (_, record_user_scope) = job_workspace_authority(
+        &state,
+        &headers,
+        job_workspace(&job),
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await
+    .map_err(IntoResponse::into_response)?;
 
     match job.state {
         JobState::AwaitingUser | JobState::Stalled => {}
@@ -462,25 +422,33 @@ async fn resume_job(
         }
     }
 
-    let workflow_run = match locus_scope {
-        Some(record_user_scope) => {
-            state
-                .surreal
-                .with_record_user_scope(record_user_scope, start_workflow_for_job(&state, job))
-                .await
-        }
-        None => start_workflow_for_job(&state, job).await,
-    }
-    .map_err(|error| workflow_error(error).into_response())?;
+    let workflow_run = state
+        .surreal
+        .with_record_user_scope(record_user_scope, start_workflow_for_job(&state, job))
+        .await
+        .map_err(|error| workflow_error(error).into_response())?;
     Ok(Json(workflow_run))
 }
 
 async fn record_cloud_escalation_consent(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Path(id): Path<String>,
     Json(payload): Json<CloudEscalationConsentRequest>,
-) -> ApiResult<Json<Value>> {
-    let job = state.storage.get_ai_job(&id).await.map_err(storage_error)?;
+) -> Result<Json<Value>, Response> {
+    // MT-159: same resolution and re-authorization as resume; the consent is written by the
+    // account record user.
+    let job = visible_job(&state, &headers, &id)
+        .await
+        .map_err(IntoResponse::into_response)?;
+    let (_, record_user_scope) = job_workspace_authority(
+        &state,
+        &headers,
+        job_workspace(&job),
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await
+    .map_err(IntoResponse::into_response)?;
 
     if !matches!(job.state, JobState::AwaitingUser) {
         tracing::warn!(
@@ -489,20 +457,25 @@ async fn record_cloud_escalation_consent(
             state = job.state.as_str(),
             "job_not_awaiting_user_consent"
         );
-        return Err(job_not_awaiting_user_consent());
+        return Err(job_not_awaiting_user_consent().into_response());
     }
 
-    record_cloud_escalation_consent_v0_4(
-        &state,
-        &job,
-        payload.request_id,
-        payload.approved,
-        payload.user_id,
-        payload.ui_surface,
-        payload.notes,
-    )
-    .await
-    .map_err(workflow_error)?;
+    state
+        .surreal
+        .with_record_user_scope(
+            record_user_scope,
+            record_cloud_escalation_consent_v0_4(
+                &state,
+                &job,
+                payload.request_id,
+                payload.approved,
+                payload.user_id,
+                payload.ui_surface,
+                payload.notes,
+            ),
+        )
+        .await
+        .map_err(|error| workflow_error(error).into_response())?;
 
     Ok(Json(json!({ "status": "recorded" })))
 }
@@ -516,34 +489,40 @@ struct JobListFilters {
     to: Option<DateTime<Utc>>,
 }
 
+/// MT-159: lists only the jobs the account session can read (record-user `ai_jobs` predicate).
 async fn list_jobs(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Query(filters): Query<JobListFilters>,
-) -> Result<Json<Vec<AiJob>>, String> {
+) -> Result<Json<Vec<AiJob>>, JobRouteError> {
+    let scope = job_session_scope(&state, &headers).await?;
     let status = filters
         .status
         .as_deref()
         .map(JobState::try_from)
         .transpose()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| JobRouteError::Message(e.to_string()))?;
     let job_kind = filters
         .job_kind
         .as_deref()
         .map(parse_job_kind_filter)
         .transpose()
-        .map_err(|e| e.to_string())?;
+        .map_err(JobRouteError::Message)?;
 
     let items = state
-        .storage
-        .list_ai_jobs(crate::storage::AiJobListFilter {
-            status,
-            job_kind,
-            wsid: filters.wsid,
-            from: filters.from,
-            to: filters.to,
-        })
+        .surreal
+        .with_record_user_scope(
+            scope,
+            state.storage.list_ai_jobs(crate::storage::AiJobListFilter {
+                status,
+                job_kind,
+                wsid: filters.wsid,
+                from: filters.from,
+                to: filters.to,
+            }),
+        )
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| JobRouteError::Message(e.to_string()))?;
 
     Ok(Json(items))
 }
@@ -589,6 +568,31 @@ mod tests {
             )),
         };
         Ok((state, backend))
+    }
+
+    /// MT-159: every /jobs route requires the account session; the in-crate route tests
+    /// authenticate as an Owner and name an owned workspace. The returned fixture holds the
+    /// native binding for the lifetime of the test.
+    async fn authenticated_workspace(
+        state: &AppState,
+    ) -> Result<
+        (
+            crate::api::workspaces::tests::WorkspaceBindingFixture,
+            HeaderMap,
+            String,
+        ),
+        Box<dyn std::error::Error>,
+    > {
+        let binding = crate::api::workspaces::tests::WorkspaceBindingFixture::new()?;
+        let (_principal, headers) = crate::api::workspaces::tests::workspace_test_principal(
+            state,
+            &binding,
+            "jobs-route-owner",
+        )
+        .await?;
+        let workspace =
+            crate::api::workspaces::tests::create_owned_test_workspace(state, &headers).await?;
+        Ok((binding, headers, workspace.id))
     }
 
     async fn require_mt101_runtime_state(
@@ -670,6 +674,7 @@ mod tests {
     async fn create_job_allows_terminal_when_authorized() -> Result<(), Box<dyn std::error::Error>>
     {
         let (state, _store) = setup_state().await?;
+        let (_binding, headers, workspace_id) = authenticated_workspace(&state).await?;
         let (program, args) = terminal_command();
 
         let request = CreateJobRequest {
@@ -677,11 +682,10 @@ mod tests {
             protocol_id: "protocol-default".to_string(),
             doc_id: None,
             job_inputs: Some(json!({ "program": program, "args": args })),
-            workspace_id: None,
+            workspace_id: Some(workspace_id.clone()),
         };
 
-        let response =
-            create_new_job(State(state.clone()), HeaderMap::new(), Json(request)).await?;
+        let response = create_new_job(State(state.clone()), headers.clone(), Json(request)).await?;
         let workflow_run = response.0;
 
         let job = state
@@ -777,6 +781,7 @@ mod tests {
             "create_model_run_job_launches_runtime_session_and_preserves_native_binding",
         )
         .await?;
+        let (_binding, headers, workspace_id) = authenticated_workspace(&state).await?;
         let session_id = format!("native-mt101-{}", uuid::Uuid::now_v7());
         let workspace_folder = "D:/Projects/Handshake/repo";
         let wrapper = "repo-folder-wrapper-v1";
@@ -814,13 +819,13 @@ mod tests {
                 "session_messages": [],
                 "simulate_duration_ms": 0
             })),
-            workspace_id: None,
+            workspace_id: Some(workspace_id.clone()),
         };
 
         eprintln!("MT-101 local runtime proof: create_new_job begin");
         let response = timeout(
             Duration::from_secs(30),
-            create_new_job(State(state.clone()), HeaderMap::new(), Json(request)),
+            create_new_job(State(state.clone()), headers.clone(), Json(request)),
         )
         .await
         .map_err(|_| "MT-101 local model_run proof timed out before create_new_job returned")??;
@@ -878,6 +883,7 @@ mod tests {
             "create_cloud_model_run_without_consent_blocks_runtime_session",
         )
         .await?;
+        let (_binding, headers, workspace_id) = authenticated_workspace(&state).await?;
         let session_id = format!("native-mt101-cloud-{}", uuid::Uuid::now_v7());
 
         let request = CreateJobRequest {
@@ -910,13 +916,13 @@ mod tests {
                 "memory_policy": "EPHEMERAL",
                 "session_messages": []
             })),
-            workspace_id: None,
+            workspace_id: Some(workspace_id.clone()),
         };
 
         eprintln!("MT-101 cloud runtime proof: create_new_job begin");
         let response = timeout(
             Duration::from_secs(30),
-            create_new_job(State(state.clone()), HeaderMap::new(), Json(request)),
+            create_new_job(State(state.clone()), headers.clone(), Json(request)),
         )
         .await
         .map_err(|_| "MT-101 cloud model_run proof timed out before create_new_job returned")??;
@@ -954,6 +960,7 @@ mod tests {
     #[tokio::test]
     async fn create_job_accepts_fems_job_kind_alias() -> Result<(), Box<dyn std::error::Error>> {
         let (state, _store) = setup_state().await?;
+        let (_binding, headers, workspace_id) = authenticated_workspace(&state).await?;
         let request = CreateJobRequest {
             job_kind: "memory_extract_v0.1".to_string(),
             protocol_id: "memory_extract_v0.1".to_string(),
@@ -962,11 +969,10 @@ mod tests {
                 "memory_policy": "EPHEMERAL",
                 "memory_ids": ["mem_001"]
             })),
-            workspace_id: None,
+            workspace_id: Some(workspace_id.clone()),
         };
 
-        let response =
-            create_new_job(State(state.clone()), HeaderMap::new(), Json(request)).await?;
+        let response = create_new_job(State(state.clone()), headers.clone(), Json(request)).await?;
         let job = state
             .storage
             .get_ai_job(&response.0.job_id.to_string())

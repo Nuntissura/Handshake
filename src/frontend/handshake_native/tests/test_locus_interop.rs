@@ -673,14 +673,17 @@ fn run_locus_job(
     protocol_id: &str,
     job_inputs: serde_json::Value,
 ) -> serde_json::Value {
-    let submitted = backend.post_json(
-        "/jobs",
-        &serde_json::json!({
-            "job_kind": "locus_operation",
-            "protocol_id": protocol_id,
-            "job_inputs": job_inputs,
-        }),
-    );
+    // MT-158/MT-159: every job names a workspace the account session can write; Locus rows are
+    // account-owned, so any owned workspace authorizes the job.
+    let mut body = serde_json::json!({
+        "job_kind": "locus_operation",
+        "protocol_id": protocol_id,
+        "job_inputs": job_inputs,
+    });
+    if body["job_inputs"].get("workspace_id").is_none() {
+        body["workspace_id"] = backend.create_workspace("mt159-job-workspace")["id"].clone();
+    }
+    let submitted = backend.post_json("/jobs", &body);
     let job_id = submitted["job_id"]
         .as_str()
         .unwrap_or_else(|| panic!("{protocol_id} response lacks job_id: {submitted}"));

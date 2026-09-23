@@ -798,6 +798,33 @@ fn page_permissions_and_safety() -> NewUserManualPage {
             ),
             section_with_json(
                 "safety",
+                "Every job route runs as the requesting account (MT-159)",
+                "All `/jobs` routes require the account session:\n\n\
+                 - `POST /jobs` (every job kind) names its workspace (`workspace_id`, or \
+                 `job_inputs.workspace_id` / `job_inputs.wsid`) and needs that workspace's \
+                 `fs.write` grant; the job and its run are written as the account's record user. \
+                 A `doc_id` must belong to the named workspace.\n\
+                 - `GET /jobs` lists only jobs of workspaces the caller can read; `GET /jobs/:id`, \
+                 `POST /jobs/:id/resume` and `POST /jobs/:id/cloud_escalation/consent` answer a job \
+                 the caller cannot see exactly like an unknown id (constant 403). Resume and consent \
+                 re-check the job's workspace write grant.\n\
+                 - Locus ids are per account: two accounts may use the same work packet, microtask \
+                 or dependency id; each sees only its own row, and a create never reveals that \
+                 another account uses an id.\n\
+                 - The schema bootstrap has a 900 s watchdog: a bootstrap that never returns (for \
+                 example an operating-system file flush that stalls) fails with \"schema bootstrap \
+                 stalled\" instead of hanging.",
+                json!({
+                    "routes": ["POST /jobs", "GET /jobs", "GET /jobs/:id", "POST /jobs/:id/resume", "POST /jobs/:id/cloud_escalation/consent"],
+                    "authority": {"create": ["Workspace", "Create", "fs.write"], "read": ["account session", "fs.read"], "resume_consent": ["Workspace", "Update", "fs.write"]},
+                    "denial": {"status": 403, "body": {"error": "HSK-403-PROTECTED-RESOURCE"}},
+                    "owner_scoped_ids": ["work_packets.wp_id", "micro_tasks.mt_id", "mt_iterations.iteration_id", "dependencies.dependency_id"],
+                    "bootstrap_watchdog_s": 900,
+                    "proof_tests": "tests/mt154_non_loom_route_authority_tests.rs (mt159_*)"
+                }),
+            ),
+            section_with_json(
+                "safety",
                 "Debugger breakpoints per document (MT-157)",
                 "Debugger breakpoints are stored per rich document in the local embedded store \
                  (`knowledge_debug_breakpoints`) and survive a backend restart. \

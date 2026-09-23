@@ -1473,7 +1473,7 @@ async fn dcc_control_plane_snapshot(
 }
 
 #[cfg(all(test, feature = "duckdb-flight-recorder"))]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::api::MountedRequestExt;
     use crate::capabilities::CapabilityRegistry;
@@ -1531,14 +1531,15 @@ mod tests {
         }
     }
 
-    struct WorkspaceBindingFixture {
+    /// MT-159: shared with the api::jobs tests (account-session fixtures).
+    pub(crate) struct WorkspaceBindingFixture {
         _lock: std::sync::MutexGuard<'static, ()>,
         _directory: tempfile::TempDir,
         previous: Option<std::ffi::OsString>,
         token: String,
     }
     impl WorkspaceBindingFixture {
-        fn new() -> Result<Self, Box<dyn std::error::Error>> {
+        pub(crate) fn new() -> Result<Self, Box<dyn std::error::Error>> {
             let lock = crate::api::stage::NATIVE_BINDING_ENV_LOCK
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
@@ -1568,7 +1569,7 @@ mod tests {
             }
         }
     }
-    async fn workspace_test_principal(
+    pub(crate) async fn workspace_test_principal(
         state: &AppState,
         binding: &WorkspaceBindingFixture,
         key: &str,
@@ -1619,7 +1620,7 @@ mod tests {
         headers.insert("x-hsk-channel-binding-token", binding.token.parse()?);
         Ok((principal, headers))
     }
-    async fn create_owned_test_workspace(
+    pub(crate) async fn create_owned_test_workspace(
         state: &AppState,
         headers: &HeaderMap,
     ) -> Result<WorkspaceResponse, String> {

@@ -2640,3 +2640,220 @@ async fn mt158_locus_job_rows_are_private_to_the_creating_account() {
         "another account's work packet is indistinguishable from a missing id"
     );
 }
+
+// ---------------------------------------------------------------------------------------------
+// MT-159: every /jobs route and job kind runs under the account session; Locus ids are per account
+// ---------------------------------------------------------------------------------------------
+
+/// AC-159-1..3 (02:2758/:2759/:2773): every /jobs route requires the account session. A job the
+/// caller cannot see answers exactly like an unknown id, lists hold only visible jobs, and a
+/// non-Locus job kind needs a named, authorized workspace too.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt159_job_routes_require_account_session() {
+    let m = Matrix::start().await;
+    let ws = m.workspace_id.clone();
+    let owner = m.owner.client();
+    let other = m.other.client();
+
+    let (status, run) = status_and_json(
+        owner
+            .post(m.url("/jobs"))
+            .json(&mt158_create_wp_request(Some(&ws), "WP-MT159-JOB"))
+            .send()
+            .await
+            .expect("owner job"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "owner job accepted: {run}");
+    let job_id = run["job_id"].as_str().expect("job id").to_owned();
+    let unknown = uuid::Uuid::now_v7().to_string();
+
+    let (status, body) = status_and_json(
+        owner
+            .get(m.url(&format!("/jobs/{job_id}")))
+            .send()
+            .await
+            .expect("owner reads its job"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["job_id"], json!(job_id));
+    let (status, list) =
+        status_and_json(owner.get(m.url("/jobs")).send().await.expect("owner lists")).await;
+    assert_eq!(status, StatusCode::OK, "{list}");
+    assert!(
+        list.to_string().contains(&job_id),
+        "owner list holds its job: {list}"
+    );
+
+    // Anonymous: every route is the constant denial.
+    for (what, request) in [
+        ("anonymous GET /jobs", anonymous().get(m.url("/jobs"))),
+        (
+            "anonymous GET /jobs/:id",
+            anonymous().get(m.url(&format!("/jobs/{job_id}"))),
+        ),
+        (
+            "anonymous resume",
+            anonymous().post(m.url(&format!("/jobs/{job_id}/resume"))),
+        ),
+        (
+            "anonymous consent",
+            anonymous()
+                .post(m.url(&format!("/jobs/{job_id}/cloud_escalation/consent")))
+                .json(&json!({"request_id": "r", "approved": true, "user_id": "u"})),
+        ),
+        (
+            "anonymous POST /jobs",
+            anonymous()
+                .post(m.url("/jobs"))
+                .json(&json!({"job_kind": "terminal_exec", "protocol_id": "protocol-default", "workspace_id": ws})),
+        ),
+    ] {
+        let (status, body) = status_and_json(request.send().await.expect(what)).await;
+        assert_constant_denial(status, &body, what);
+    }
+
+    // Another account: the owner's job is indistinguishable from an unknown id on every route.
+    for (what, path, unknown_path) in [
+        (
+            "other GET /jobs/:id",
+            format!("/jobs/{job_id}"),
+            format!("/jobs/{unknown}"),
+        ),
+        (
+            "other resume",
+            format!("/jobs/{job_id}/resume"),
+            format!("/jobs/{unknown}/resume"),
+        ),
+        (
+            "other consent",
+            format!("/jobs/{job_id}/cloud_escalation/consent"),
+            format!("/jobs/{unknown}/cloud_escalation/consent"),
+        ),
+    ] {
+        let send = |path: String| {
+            let request = if what == "other GET /jobs/:id" {
+                other.get(m.url(&path))
+            } else {
+                other
+                    .post(m.url(&path))
+                    .json(&json!({"request_id": "r", "approved": true, "user_id": "u"}))
+            };
+            async move { status_and_json(request.send().await.expect("other request")).await }
+        };
+        let (status, foreign) = send(path).await;
+        assert_constant_denial(status, &foreign, what);
+        let (status, missing) = send(unknown_path).await;
+        assert_constant_denial(status, &missing, what);
+        assert_eq!(
+            foreign, missing,
+            "{what}: foreign and unknown ids answer alike"
+        );
+    }
+    let (status, list) =
+        status_and_json(other.get(m.url("/jobs")).send().await.expect("other lists")).await;
+    assert_eq!(status, StatusCode::OK, "{list}");
+    assert!(
+        !list.to_string().contains(&job_id),
+        "another account's list never holds the owner's job: {list}"
+    );
+
+    // A non-Locus job kind without a workspace, or on the owner's workspace from another account,
+    // is denied before any table access.
+    for (what, client, body) in [
+        (
+            "owner terminal job without a workspace",
+            owner.clone(),
+            json!({"job_kind": "terminal_exec", "protocol_id": "protocol-default"}),
+        ),
+        (
+            "other terminal job on the owner's workspace",
+            other.clone(),
+            json!({"job_kind": "terminal_exec", "protocol_id": "protocol-default", "workspace_id": ws}),
+        ),
+    ] {
+        let (status, body) = status_and_json(
+            client
+                .post(m.url("/jobs"))
+                .json(&body)
+                .send()
+                .await
+                .expect(what),
+        )
+        .await;
+        assert_constant_denial(status, &body, what);
+    }
+}
+
+/// Polls the Locus resolve route as `client` until the work packet is visible (200) or 300 s pass.
+async fn mt159_wait_for_work_packet(
+    m: &Matrix,
+    client: &reqwest::Client,
+    workspace_id: &str,
+    wp_id: &str,
+) -> Value {
+    let url = m.url(&format!(
+        "/workspaces/{workspace_id}/locus/work-packets/{wp_id}"
+    ));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(300);
+    loop {
+        let (status, body) = status_and_json(
+            client
+                .get(url.clone())
+                .send()
+                .await
+                .expect("read work packet"),
+        )
+        .await;
+        if status == StatusCode::OK {
+            return body;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "work packet {wp_id} never became visible: last {status} {body}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
+}
+
+/// AC-159-4/5 (02:2752/:2759, LM-RLS-001): Locus ids are owner-scoped. Two accounts create the
+/// same wp_id through POST /jobs; both creates succeed, each account reads only its own row, and
+/// neither create reveals the other account's id.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt159_locus_ids_do_not_reveal_existence_across_accounts() {
+    let m = Matrix::start().await;
+    let ws = m.workspace_id.clone();
+    let other_ws = m.other.create_workspace(&m.state).await;
+    let owner = m.owner.client();
+    let other = m.other.client();
+    let shared = "WP-MT159-SHARED";
+
+    let mut owner_request = mt158_create_wp_request(Some(&ws), shared);
+    owner_request["job_inputs"]["title"] = json!("owner's packet");
+    let mut other_request = mt158_create_wp_request(Some(&other_ws), shared);
+    other_request["job_inputs"]["title"] = json!("other's packet");
+    for (what, client, request) in [
+        ("owner create", &owner, &owner_request),
+        ("other create of the same id", &other, &other_request),
+    ] {
+        let (status, run) = status_and_json(
+            client
+                .post(m.url("/jobs"))
+                .json(request)
+                .send()
+                .await
+                .expect(what),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{what}: {run}");
+    }
+
+    let owner_row = mt159_wait_for_work_packet(&m, &owner, &ws, shared).await;
+    let other_row = mt159_wait_for_work_packet(&m, &other, &other_ws, shared).await;
+    assert_eq!(owner_row["title"], "owner's packet", "{owner_row}");
+    assert_eq!(
+        other_row["title"], "other's packet",
+        "the second account's create succeeded with its own row: {other_row}"
+    );
+}

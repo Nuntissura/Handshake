@@ -479,6 +479,7 @@ pub struct ModelSessionLaunchClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
 }
 
 impl ModelSessionLaunchClient {
@@ -487,7 +488,17 @@ impl ModelSessionLaunchClient {
             client: build_model_session_backend_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-159: `POST /jobs` requires the account session and the launch workspace's write grant
+    /// (the request names it in `job_inputs.workspace_id`). With a bound account context the request
+    /// carries the session headers; without one it is sent as before and the backend answers the
+    /// constant 403, which the launch surfaces as a failure.
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     pub fn production(runtime: tokio::runtime::Handle) -> Self {
@@ -527,15 +538,25 @@ impl ModelSessionLaunchClient {
         let body = spec.body.clone().unwrap_or_else(|| serde_json::json!({}));
         let client = self.client.clone();
         let url = spec.url.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = match post_json_expect_value(
-                &client,
-                &url,
-                &body,
-                MODEL_SESSION_JOBS_REQUEST_TIMEOUT,
-            )
-            .await
-            {
+            let sent = match account {
+                Some(context) => {
+                    post_json_expect_value_authenticated(
+                        &client,
+                        Some(context),
+                        &url,
+                        &body,
+                        MODEL_SESSION_JOBS_REQUEST_TIMEOUT,
+                    )
+                    .await
+                }
+                None => {
+                    post_json_expect_value(&client, &url, &body, MODEL_SESSION_JOBS_REQUEST_TIMEOUT)
+                        .await
+                }
+            };
+            let result = match sent {
                 Ok(raw) => ModelSessionJobResult::from_json(raw),
                 Err(e) => Err(e.to_string()),
             };
