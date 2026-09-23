@@ -2255,8 +2255,17 @@ fn reqwest_clients_carry_connect_and_request_timeouts() {
             "{client} must not fork timeout policy with a private ClientBuilder"
         );
     }
-    let code_nav = extract_fn_body(&client_src, "pub async fn code_nav_get(")
+    // The UI-mounted code-nav path (`code_editor/code_nav.rs`) calls `code_nav_get_authenticated`;
+    // the legacy `code_nav_get` wrapper must delegate to it so no second transport exists.
+    let code_nav_wrapper = extract_fn_body(&client_src, "pub async fn code_nav_get(")
         .expect("code_nav_get production helper exists");
+    assert!(
+        code_nav_wrapper.contains("code_nav_get_authenticated(")
+            && !code_nav_wrapper.contains("reqwest::Client"),
+        "code_nav_get must delegate to the authenticated shared-pool helper"
+    );
+    let code_nav = extract_fn_body(&client_src, "pub async fn code_nav_get_authenticated(")
+        .expect("code_nav_get_authenticated production helper exists");
     assert!(
         code_nav.contains("shared_http_client"),
         "the UI-mounted code-nav helper must use the shared canonical pool"
@@ -2291,16 +2300,14 @@ fn reqwest_clients_carry_connect_and_request_timeouts() {
     let expected_raw_new_counts = std::collections::BTreeMap::from([
         ("backend/knowledge_code_nav.rs".to_owned(), 1),
         ("backend/knowledge_crdt.rs".to_owned(), 1),
-        ("backend/knowledge_documents.rs".to_owned(), 1),
         ("backend/loom.rs".to_owned(), 1),
         ("backend_client.rs".to_owned(), 1),
-        ("event_emitter.rs".to_owned(), 1),
-        ("fems/memory_client.rs".to_owned(), 1),
         ("fems/memory_proposal.rs".to_owned(), 1),
         ("interop/calendar_interop.rs".to_owned(), 1),
         ("interop/locus_interop.rs".to_owned(), 1),
+        // #[cfg(test)]-only seam inside local_account::tests (cross-origin redirect proof).
+        ("local_account.rs".to_owned(), 1),
         ("loom_address.rs".to_owned(), 1),
-        ("rich_editor/daily_notes/journal_store.rs".to_owned(), 1),
     ]);
     assert_eq!(
         raw_new_counts, expected_raw_new_counts,
@@ -2326,8 +2333,14 @@ fn reqwest_clients_carry_connect_and_request_timeouts() {
 
     for (path, function) in [
         ("app.rs", "fn drive_flight_recorder_pane(&mut self"),
-        ("project_tabs.rs", "pub async fn fetch_workspaces("),
-        ("project_tree.rs", "pub async fn load_project_content("),
+        (
+            "project_tabs.rs",
+            "pub async fn fetch_workspaces_authenticated(",
+        ),
+        (
+            "project_tree.rs",
+            "pub async fn load_project_content_authenticated(",
+        ),
         ("interop/stage_interop.rs", "pub fn with_base_url("),
     ] {
         let source = frontend_sources
@@ -2422,6 +2435,10 @@ fn silent_half_open_peer_is_bounded_without_freezing_frames() {
     let base_url = server.base_url();
     let mut harness: Harness<HandshakeApp> =
         Harness::builder().build_eframe(|cc| HandshakeApp::new(cc));
+    harness
+        .state_mut()
+        .bind_initial_account(mock_account_context(&base_url))
+        .expect("bind the silent-peer origin account before protected layout I/O");
     harness
         .state_mut()
         .set_backend_unreachable_for_test(&base_url);
@@ -3620,7 +3637,11 @@ fn split_health_and_layout_sources_do_not_compete_for_reachability() {
         Harness::builder().build_eframe(|cc| HandshakeApp::new(cc));
     harness
         .state_mut()
-        .set_backend_endpoints_for_test(&health_live.base_url(), &layout_silent.base_url());
+        .set_backend_endpoints_with_layout_account_for_test(
+            &health_live.base_url(),
+            &layout_silent.base_url(),
+            Some(mock_account_context(&layout_silent.base_url())),
+        );
     step_until(
         &mut harness,
         CLIENT_REQUEST_TIMEOUT + Duration::from_secs(3),
@@ -3643,7 +3664,11 @@ fn split_health_and_layout_sources_do_not_compete_for_reachability() {
     let layout_live = TestBackend::start(BackendMode::Live);
     harness
         .state_mut()
-        .set_backend_endpoints_for_test(&format!("http://{dead_health}"), &layout_live.base_url());
+        .set_backend_endpoints_with_layout_account_for_test(
+            &format!("http://{dead_health}"),
+            &layout_live.base_url(),
+            Some(mock_account_context(&layout_live.base_url())),
+        );
     step_until(&mut harness, Duration::from_secs(8), |app| {
         app.backend_is_down()
             && app.layout_workers_in_flight_for_test() == 0
@@ -3694,7 +3719,11 @@ fn stale_layout_generation_cannot_publish_or_clear_replacement_ownership() {
         .pause_next_layout_load_before_publication_for_test();
     harness
         .state_mut()
-        .set_backend_endpoints_for_test(&health_live.base_url(), &old_layout.base_url());
+        .set_backend_endpoints_with_layout_account_for_test(
+            &health_live.base_url(),
+            &old_layout.base_url(),
+            Some(mock_account_context(&old_layout.base_url())),
+        );
     step_until_phase_with_details(
         &mut harness,
         "old layout worker accepted and paused before publication",
@@ -3740,7 +3769,11 @@ fn stale_layout_generation_cannot_publish_or_clear_replacement_ownership() {
     ));
     harness
         .state_mut()
-        .set_backend_endpoints_for_test(&health_live.base_url(), &replacement_layout.base_url());
+        .set_backend_endpoints_with_layout_account_for_test(
+            &health_live.base_url(),
+            &replacement_layout.base_url(),
+            Some(mock_account_context(&replacement_layout.base_url())),
+        );
     step_until_phase(
         &mut harness,
         "replacement layout worker publishes while old generation remains paused",
@@ -3859,7 +3892,11 @@ fn app_drop_reclaims_two_active_layout_generations_within_bound() {
     ));
     harness
         .state_mut()
-        .set_backend_endpoints_for_test(&health_live.base_url(), &first_layout.base_url());
+        .set_backend_endpoints_with_layout_account_for_test(
+            &health_live.base_url(),
+            &first_layout.base_url(),
+            Some(mock_account_context(&first_layout.base_url())),
+        );
     step_until_phase(
         &mut harness,
         "first controlled layout worker accepted and held",
@@ -3881,7 +3918,11 @@ fn app_drop_reclaims_two_active_layout_generations_within_bound() {
     ));
     harness
         .state_mut()
-        .set_backend_endpoints_for_test(&health_live.base_url(), &second_layout.base_url());
+        .set_backend_endpoints_with_layout_account_for_test(
+            &health_live.base_url(),
+            &second_layout.base_url(),
+            Some(mock_account_context(&second_layout.base_url())),
+        );
     step_until_phase(
         &mut harness,
         "second controlled layout worker overlaps the first",
@@ -3951,6 +3992,10 @@ fn app_drop_reclaims_layout_workers_within_bound() {
     let server = TestBackend::start(BackendMode::Silent);
     let mut harness: Harness<HandshakeApp> =
         Harness::builder().build_eframe(|cc| HandshakeApp::new(cc));
+    harness
+        .state_mut()
+        .bind_initial_account(mock_account_context(&server.base_url()))
+        .expect("bind the silent-peer origin account before protected layout I/O");
     harness
         .state_mut()
         .set_backend_unreachable_for_test(&server.base_url());

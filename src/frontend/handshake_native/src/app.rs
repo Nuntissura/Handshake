@@ -34190,6 +34190,26 @@ impl HandshakeApp {
     /// injected layout endpoint; `/health` remains the sole global reachability authority.
     #[doc(hidden)]
     pub fn set_backend_endpoints_for_test(&mut self, health_base_url: &str, layout_base_url: &str) {
+        let layout_account = self.local_account.context.clone();
+        self.set_backend_endpoints_with_layout_account_for_test(
+            health_base_url,
+            layout_base_url,
+            layout_account,
+        );
+    }
+
+    /// Same MT-088 seam, but the injected layout transport is authorized by an explicit account
+    /// context bound to `layout_base_url`'s origin. Protected layout requests are refused before any
+    /// socket is opened without an origin-matching account, so proofs that rebind the layout endpoint
+    /// to a DIFFERENT origin must supply a context bound to that origin. The app's own account binding
+    /// is not changed.
+    #[doc(hidden)]
+    pub fn set_backend_endpoints_with_layout_account_for_test(
+        &mut self,
+        health_base_url: &str,
+        layout_base_url: &str,
+        layout_account: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    ) {
         let handle = self
             .runtime_handle
             .clone()
@@ -34198,7 +34218,7 @@ impl HandshakeApp {
             layout_base_url.to_owned(),
             handle.clone(),
         )
-        .with_authenticated_context(self.local_account.context.clone());
+        .with_authenticated_context(layout_account);
         self.layout_manager = Arc::new(Mutex::new(LayoutPersistenceManager::new(
             Box::new(transport),
             LAYOUT_SAVE_DEBOUNCE,
