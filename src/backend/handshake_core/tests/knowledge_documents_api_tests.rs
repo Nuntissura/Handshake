@@ -22,9 +22,15 @@
 #[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: every protected document/Loom route runs as an authenticated
+// record user (persisted account session + live native-MCP channel binding).
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
 use std::sync::Arc;
 use std::time::Duration;
 
+use account_session_support::{AccountFixture, OwnerSession};
 use async_trait::async_trait;
 use embedded_knowledge_support::{open_embedded_store, EmbeddedKnowledgeStore};
 use handshake_core::api::knowledge_documents as docs_api;
@@ -164,7 +170,12 @@ async fn test_state(store: &EmbeddedKnowledgeStore) -> AppState {
     }
 }
 
-async fn route_server(app: axum::Router) -> (String, reqwest::Client, DocServerGuard) {
+/// Serve `app` over loopback. `http` is the caller's client: an Owner's
+/// `OwnerSession::client()` for authenticated record-user requests.
+async fn route_server(
+    app: axum::Router,
+    http: reqwest::Client,
+) -> (String, reqwest::Client, DocServerGuard) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind loopback listener");
@@ -172,19 +183,33 @@ async fn route_server(app: axum::Router) -> (String, reqwest::Client, DocServerG
     let handle = tokio::spawn(async move {
         axum::serve(listener, app).await.expect("docs api server");
     });
-    (
-        format!("http://{addr}"),
-        reqwest::Client::new(),
-        DocServerGuard(Some(handle)),
+    (format!("http://{addr}"), http, DocServerGuard(Some(handle)))
+}
+
+/// Document routes whose client carries `owner`'s account-session credentials on every request.
+async fn doc_server(
+    store: &EmbeddedKnowledgeStore,
+    owner: &OwnerSession,
+) -> (String, reqwest::Client, DocServerGuard) {
+    route_server(docs_api::routes(test_state(store).await), owner.client()).await
+}
+
+/// Loom routes whose client carries `owner`'s account-session credentials on every request.
+async fn loom_server(
+    store: &EmbeddedKnowledgeStore,
+    owner: &OwnerSession,
+) -> (String, reqwest::Client, DocServerGuard) {
+    route_server(
+        handshake_core::api::loom::routes(test_state(store).await),
+        owner.client(),
     )
+    .await
 }
 
-async fn doc_server(store: &EmbeddedKnowledgeStore) -> (String, reqwest::Client, DocServerGuard) {
-    route_server(docs_api::routes(test_state(store).await)).await
-}
-
-async fn loom_server(store: &EmbeddedKnowledgeStore) -> (String, reqwest::Client, DocServerGuard) {
-    route_server(handshake_core::api::loom::routes(test_state(store).await)).await
+/// A workspace created through the real `POST /workspaces` route as `owner`, so it carries the
+/// account-owned protected resource and grant every protected route authorizes against.
+async fn owned_workspace(store: &EmbeddedKnowledgeStore, owner: &OwnerSession) -> String {
+    owner.create_workspace(&test_state(store).await).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -282,8 +307,9 @@ async fn explorer_document_rename_rejects_stale_token_without_overwrite() {
     let store = open_embedded_store()
         .await
         .expect("isolated embedded store is required for stale-rename proof");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let created = create_doc(&base, &http, &workspace_id, "Original title").await;
     let document_id = created["document"]["rich_document_id"]
         .as_str()
@@ -357,29 +383,29 @@ async fn explorer_bookmark_rename_returns_409_and_preserves_first_writer() {
     let store = open_embedded_store()
         .await
         .expect("isolated embedded store is required for bookmark stale-rename proof");
-    let workspace_id = store.create_workspace().await;
-    let created = store
-        .db
-        .create_loom_block(
-            &WriteContext::human(None),
-            NewLoomBlock {
-                block_id: None,
-                workspace_id: workspace_id.clone(),
-                content_type: LoomBlockContentType::Note,
-                document_id: None,
-                asset_id: None,
-                title: Some("Pinned original".to_owned()),
-                original_filename: None,
-                content_hash: None,
-                pinned: true,
-                journal_date: None,
-                imported_at: None,
-                derived: LoomBlockDerived::default(),
-            },
-        )
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = loom_server(&store, &account).await;
+    // MT-109: the block is created through the real record-user create route as the Owner, so it
+    // carries the account-owned protected resource the block routes authorize against (a root
+    // `Database::create_loom_block` row has no grant and every block route would deny it).
+    let created = http
+        .post(format!("{base}/workspaces/{workspace_id}/loom/blocks"))
+        .json(&json!({
+            "content_type": LoomBlockContentType::Note,
+            "title": "Pinned original",
+            "pinned": true,
+        }))
+        .send()
         .await
-        .expect("create pinned Loom block");
-    let (base, http, server) = loom_server(&store).await;
+        .expect("create pinned Loom block through the Loom route");
+    assert_eq!(
+        created.status(),
+        200,
+        "owner Loom block create must succeed"
+    );
+    let created: handshake_core::storage::LoomBlock =
+        created.json().await.expect("created Loom block body");
     let url = format!(
         "{base}/workspaces/{workspace_id}/loom/blocks/{}",
         created.block_id
@@ -421,8 +447,9 @@ async fn concurrent_create_if_title_absent_returns_one_canonical_document() {
     let store = open_embedded_store()
         .await
         .expect("isolated embedded store is required for concurrent-create proof");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let title = "Concurrent   Design Note";
     let mut body = doc_body(&workspace_id, title);
     body["create_if_title_absent"] = Value::Bool(true);
@@ -485,8 +512,9 @@ async fn create_if_title_absent_rejects_preexisting_normalized_title_ambiguity()
     let store = open_embedded_store()
         .await
         .expect("isolated embedded store is required for ambiguity proof");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     create_doc(&base, &http, &workspace_id, "Ambiguous   Design Note").await;
     create_doc(&base, &http, &workspace_id, "ambiguous design note").await;
 
@@ -541,8 +569,9 @@ async fn mt032_rich_documents_are_addressable_and_target_backlinks_are_inbound()
     let store = open_embedded_store()
         .await
         .expect("MT-032 requires isolated embedded-store proof");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
 
     let b = create_doc(&base, &http, &workspace_id, "MT032 Target B").await;
     let b_id = b["document"]["rich_document_id"]
@@ -931,8 +960,9 @@ async fn mt032_loom_projection_failure_rolls_back_document_create() {
     let store = open_embedded_store()
         .await
         .expect("MT-032 requires isolated embedded-store proof");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let tables = [
         "knowledge_rich_documents",
         "knowledge_rich_document_versions",
@@ -1003,8 +1033,9 @@ async fn mt032_save_rejects_same_workspace_wrong_type_projection_collision() {
     let store = open_embedded_store()
         .await
         .expect("MT-032 requires isolated embedded-store proof");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let created = create_doc(&base, &http, &workspace_id, "MT032 Loom collision").await;
     let document_id = created["document"]["rich_document_id"]
         .as_str()
@@ -1061,9 +1092,10 @@ async fn mt032_save_and_rename_reject_search_projection_identity_collisions() {
     let store = open_embedded_store()
         .await
         .expect("MT-032 requires isolated embedded-store proof");
-    let workspace_id = store.create_workspace().await;
-    let foreign_workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let foreign_workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let created = create_doc(&base, &http, &workspace_id, "MT032 search collision").await;
     let document_id = created["document"]["rich_document_id"]
         .as_str()
@@ -1136,9 +1168,10 @@ async fn mt032_delete_rejects_search_projection_identity_collisions_atomically()
     let store = open_embedded_store()
         .await
         .expect("MT-032 requires isolated embedded-store proof");
-    let workspace_id = store.create_workspace().await;
-    let foreign_workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let foreign_workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let created = create_doc(&base, &http, &workspace_id, "MT032 delete collision").await;
     let document_id = created["document"]["rich_document_id"]
         .as_str()
@@ -1208,8 +1241,9 @@ async fn mt032_idempotent_save_projects_body_once_and_replays_without_writes() {
     let store = open_embedded_store()
         .await
         .expect("MT-032 requires isolated embedded-store proof");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let created = create_doc(&base, &http, &workspace_id, "MT032 Idempotent").await;
     let document_id = created["document"]["rich_document_id"]
         .as_str()
@@ -1287,8 +1321,9 @@ async fn mt032_markdown_import_bridge_failure_rolls_back_and_retry_creates_one()
     let store = open_embedded_store()
         .await
         .expect("MT-032 requires isolated embedded-store proof");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let tables = [
         "knowledge_rich_documents",
         "knowledge_rich_document_versions",
@@ -1363,8 +1398,9 @@ async fn mt032_save_delete_and_backlink_rebuild_delete_races_do_not_resurrect() 
     let store = open_embedded_store()
         .await
         .expect("MT-032 requires isolated embedded-store proof");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let updated_content = json!({"type": "doc", "content": [{
         "type": "paragraph", "content": [{"type": "text", "text": "race update"}]
     }]});
@@ -1572,8 +1608,9 @@ async fn mt032_delete_is_atomic_and_removes_canvas_references() {
     let store = open_embedded_store()
         .await
         .expect("MT-032 requires an isolated embedded store");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let target = create_doc(&base, &http, &workspace_id, "MT032 Delete Target").await;
     let document_id = target["document"]["rich_document_id"]
         .as_str()
@@ -1918,8 +1955,9 @@ async fn mt158_missing_actor_kind_is_least_privileged_never_system() {
         eprintln!("SKIP mt158_missing_actor_kind...: embedded store unavailable");
         return;
     };
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
 
     let created = create_doc(&base, &http, &workspace_id, "Boundary").await;
     let doc_id = created["document"]["rich_document_id"]
@@ -2014,8 +2052,9 @@ async fn mt158_cloud_model_cannot_write_and_bogus_kind_is_rejected() {
         eprintln!("SKIP mt158_cloud_model...: embedded store unavailable");
         return;
     };
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let created = create_doc(&base, &http, &workspace_id, "CloudBoundary").await;
     let doc_id = created["document"]["rich_document_id"]
         .as_str()
@@ -2200,8 +2239,9 @@ async fn mt151_imported_html_document_roundtrips_load_save_export() {
         eprintln!("SKIP mt151_imported_html...: embedded store unavailable");
         return;
     };
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
 
     let html = "<h1>Doc</h1><table><tr><td>cell</td></tr></table>";
     let (doc_id, loaded) =
@@ -2263,8 +2303,9 @@ async fn mt152_save_path_validates_and_persists_content_embeds() {
         eprintln!("SKIP mt152_save_path...: embedded store unavailable");
         return;
     };
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
 
     // CREATE with a valid typed embed target -> the side table is synced.
     let resp = headers_with_kind(
@@ -2422,8 +2463,9 @@ async fn mt246_save_rejects_cross_document_crdt_id() {
         eprintln!("SKIP mt246_save_rejects_cross_document_crdt_id: embedded store unavailable");
         return;
     };
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let created = create_doc(&base, &http, &workspace_id, "CRDT Boundary").await;
     let doc_id = created["document"]["rich_document_id"]
         .as_str()
@@ -2483,8 +2525,9 @@ async fn mt156_history_is_paginated_and_omits_version_bodies() {
         eprintln!("SKIP mt156_history...: embedded store unavailable");
         return;
     };
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let created = create_doc(&base, &http, &workspace_id, "History").await;
     let doc_id = created["document"]["rich_document_id"]
         .as_str()
@@ -2600,8 +2643,9 @@ async fn mt154_save_indexes_document_into_project_knowledge_index() {
         eprintln!("SKIP mt154_save_indexes...: embedded store unavailable");
         return;
     };
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
 
     // CREATE indexes the document: a rich_document SOURCE row + title ENTITY.
     let created = create_doc(&base, &http, &workspace_id, "Indexed Doc").await;
@@ -2704,8 +2748,9 @@ async fn mt157_move_empty_body_preserves_membership_and_batch_reports_per_item()
         eprintln!("SKIP mt157_move...: embedded store unavailable");
         return;
     };
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
 
     // A document WITH project + folder membership.
     let resp = headers_with_kind(
@@ -2839,8 +2884,9 @@ async fn mt149_committed_save_never_errors_when_post_commit_steps_fail() {
     let store = open_embedded_store()
         .await
         .expect("MT-149 requires isolated embedded-store proof");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let target = create_doc(&base, &http, &workspace_id, "MT149 link target").await;
     let target_id = target["document"]["rich_document_id"]
         .as_str()
@@ -2940,8 +2986,9 @@ async fn mt151_imported_markdown_table_document_roundtrips_load_save_export() {
         eprintln!("SKIP mt151_imported_markdown_table...: embedded store unavailable");
         return;
     };
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
 
     let md = "# Title\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\ntail paragraph";
     let (_doc_id, loaded) =
@@ -2964,8 +3011,9 @@ async fn mt255_backend_draft_recovery_roundtrips_and_clears_on_save_or_discard()
         eprintln!("SKIP mt255_backend_draft_recovery...: embedded store unavailable");
         return;
     };
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
 
     let created = create_doc(&base, &http, &workspace_id, "Draft Recovery").await;
     let doc_id = created["document"]["rich_document_id"]
@@ -3143,8 +3191,10 @@ use sha2::{Digest, Sha256};
 /// `x-hsk-session-token` check) and is process-wide env state. Every test in
 /// this binary that installs a native-MCP binding MUST hold this while it
 /// runs, or two `#[tokio::test]` bodies executing concurrently in the same
-/// process would race each other's binding file.
-static MT120_NATIVE_BINDING_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+/// process would race each other's binding file. It is the SAME per-binary lock
+/// `account_session_support::AccountFixture` takes, so file-local and shared
+/// binding installs can never interleave.
+use account_session_support::NATIVE_BINDING_ENV_LOCK as MT120_NATIVE_BINDING_LOCK;
 
 /// A live `handshake-native:` session binding for THIS test process. Mirrors
 /// `api::stage::capture_context`'s on-disk contract (`token`/`pid`/
@@ -3181,10 +3231,6 @@ impl Mt120NativeBinding {
             previous,
             token,
         }
-    }
-
-    fn headers(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-        request.header("x-hsk-session-token", &self.token)
     }
 }
 
@@ -3431,15 +3477,18 @@ async fn mt120_unauthenticated_caller_cannot_forge_the_reserved_native_principal
     let store = open_embedded_store()
         .await
         .expect("MT-120 forgery-denial proof requires an isolated embedded store");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let (doc_id, doc_version) =
         mt120_seed_document(&base, &http, &workspace_id, "MT120 Forgery Denial").await;
 
     let forged = "handshake-native:1:deadbeef";
     // NO session token at all — the exact positive control from the original MT-120 contract: an
-    // unauthenticated caller declares an actor id inside the reserved namespace.
-    let response = http
+    // unauthenticated caller declares an actor id inside the reserved namespace. The forged
+    // requests use a credential-free client (the Owner client above seeded the document only).
+    let unauthenticated = reqwest::Client::new();
+    let response = unauthenticated
         .put(format!("{base}/knowledge/documents/{doc_id}/save"))
         .header("x-hsk-actor-id", forged)
         .header("x-hsk-kernel-task-run-id", "KTR-MT120-FORGE")
@@ -3454,7 +3503,7 @@ async fn mt120_unauthenticated_caller_cannot_forge_the_reserved_native_principal
     assert_eq!(body["error"], "HSK-403-DOC-ACTOR-SPOOF");
 
     // The guard sits on the shared identity path, so a READ route forges nothing either.
-    let read = http
+    let read = unauthenticated
         .get(format!("{base}/knowledge/documents/{doc_id}"))
         .header("x-hsk-actor-id", forged)
         .header("x-hsk-kernel-task-run-id", "KTR-MT120-FORGE")
@@ -3495,12 +3544,14 @@ async fn mt120_unauthenticated_caller_cannot_forge_the_reserved_native_principal
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt120_invalid_session_token_is_401_and_never_downgrades_to_the_header_identity() {
     let _binding_test_guard = MT120_NATIVE_BINDING_LOCK.lock().await;
-    let _binding = Mt120NativeBinding::install();
+    let binding = Mt120NativeBinding::install();
     let store = open_embedded_store()
         .await
         .expect("MT-120 invalid-session proof requires an isolated embedded store");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    // The lock is already held: bind the Owner to THIS test's independently written binding.
+    let account = OwnerSession::provision(&store.storage, &binding.token).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let (doc_id, doc_version) =
         mt120_seed_document(&base, &http, &workspace_id, "MT120 Invalid Session").await;
 
@@ -3556,15 +3607,17 @@ async fn mt120_authenticated_save_stamps_derived_principal_without_rebinding_act
     let store = open_embedded_store()
         .await
         .expect("MT-120 authenticated-save proof requires an isolated embedded store");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    // The lock is already held: bind the Owner to THIS test's independently written binding.
+    let account = OwnerSession::provision(&store.storage, &binding.token).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) = doc_server(&store, &account).await;
     let (doc_id, doc_version) =
         mt120_seed_document(&base, &http, &workspace_id, "MT120 Save Attribution").await;
 
     // A per-agent save actor that is NOT the derived principal — exactly what the product sends.
     let agent_actor = "mt120-agent-a";
-    let saved = binding
-        .headers(http.put(format!("{base}/knowledge/documents/{doc_id}/save")))
+    let saved = account
+        .apply(http.put(format!("{base}/knowledge/documents/{doc_id}/save")))
         .header("x-hsk-actor-id", agent_actor)
         .header("x-hsk-kernel-task-run-id", "KTR-MT120-A")
         .header("x-hsk-session-run-id", "SR-MT120-A")
@@ -3601,8 +3654,8 @@ async fn mt120_authenticated_save_stamps_derived_principal_without_rebinding_act
     );
 
     // The owner of the reserved namespace may declare its own id; the guard permits exactly that.
-    let owner_save = binding
-        .headers(http.put(format!("{base}/knowledge/documents/{doc_id}/save")))
+    let owner_save = account
+        .apply(http.put(format!("{base}/knowledge/documents/{doc_id}/save")))
         .header("x-hsk-actor-id", &derived)
         .header("x-hsk-kernel-task-run-id", "KTR-MT120-OWNER")
         .header("x-hsk-session-run-id", "SR-MT120-OWNER")

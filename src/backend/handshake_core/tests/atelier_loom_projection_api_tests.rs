@@ -8,8 +8,14 @@
 
 mod atelier_surreal_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the proof executes as an authenticated record user (persisted
+// account session + live native-MCP channel binding) in an Owner-created workspace.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
 use std::sync::Arc;
 
+use account_session_support::OwnerSession;
 use async_trait::async_trait;
 use atelier_surreal_support::AtelierSurrealHarness;
 use handshake_core::api::atelier as atelier_api;
@@ -24,8 +30,7 @@ use handshake_core::llm::{
 };
 use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::{
-    Database, LoomBlockContentType, LoomBlockDerived, NewDocument, NewLoomBlock, NewWorkspace,
-    WriteContext,
+    Database, LoomBlockContentType, LoomBlockDerived, NewDocument, NewLoomBlock, WriteContext,
 };
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
@@ -34,8 +39,9 @@ use uuid::Uuid;
 
 /// `api::stage::capture_context` reads the native session binding through
 /// `HANDSHAKE_STAGE_BINDING_FILE` (process-wide env); every test in this binary that installs
-/// one holds this lock while it runs.
-static NATIVE_BINDING_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+/// one holds this lock while it runs. It is the shared per-binary lock of
+/// `account_session_support`.
+use account_session_support::NATIVE_BINDING_ENV_LOCK;
 
 /// A live `handshake-native:` session binding for THIS process, written through the product's
 /// own `current_process_native_session_binding`, so `x-hsk-session-token` genuinely
@@ -233,16 +239,10 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
     let state = app_state(&harness).await;
     let store = harness.atelier.clone();
     let storage = SurrealDatabase::new(harness.storage.clone());
-    let workspace_id = storage
-        .create_workspace(
-            &WriteContext::human(None),
-            NewWorkspace {
-                name: format!("MT-033 Atelier Loom {}", Uuid::new_v4()),
-            },
-        )
-        .await
-        .expect("create isolated workspace")
-        .id;
+    // The lock is already held: the Owner is bound to THIS test's native binding, and the
+    // workspace is created through the real `POST /workspaces` route as that Owner.
+    let owner = OwnerSession::provision(&harness.storage, &binding.token).await;
+    let workspace_id = owner.create_workspace(&state).await;
 
     let (base, http, server) = serve(state).await;
     let batch_response = http
@@ -274,7 +274,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
     });
     let item_response = http
         .post(&item_url)
-        .header("x-hsk-session-token", &binding.token)
+        .headers(owner.headers())
         .header("x-hsk-actor-id", "mt140-api-test")
         .json(&item_body)
         .send()
@@ -293,7 +293,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
 
     let replay = http
         .post(&item_url)
-        .header("x-hsk-session-token", &binding.token)
+        .headers(owner.headers())
         .header("x-hsk-actor-id", "mt140-api-test-retry")
         .json(&item_body)
         .send()
@@ -320,7 +320,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
         .post(format!(
             "{base}/atelier/intake/batches/{unknown_batch}/items"
         ))
-        .header("x-hsk-session-token", &binding.token)
+        .headers(owner.headers())
         .header("x-hsk-actor-id", "mt140-api-test")
         .json(&item_body)
         .send()
@@ -348,7 +348,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
     let link_url = format!("{base}/atelier/intake/items/{}/loom-projection", item_id);
     let linked = http
         .put(&link_url)
-        .header("x-hsk-session-token", &binding.token)
+        .headers(owner.headers())
         .header("x-hsk-actor-id", "mt033-api-test")
         .json(&json!({"loom_block_id": block_id}))
         .send()
@@ -377,7 +377,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
 
     let idempotent = http
         .put(&link_url)
-        .header("x-hsk-session-token", &binding.token)
+        .headers(owner.headers())
         .header("x-hsk-actor-id", "mt033-api-test-retry")
         .json(&json!({"loom_block_id": block_id}))
         .send()
@@ -401,7 +401,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
         source_backed_block(&storage, &workspace_id, "MT-033 conflicting block").await;
     let conflict = http
         .put(&link_url)
-        .header("x-hsk-session-token", &binding.token)
+        .headers(owner.headers())
         .header("x-hsk-actor-id", "mt033-api-test")
         .json(&json!({"loom_block_id": different_block}))
         .send()

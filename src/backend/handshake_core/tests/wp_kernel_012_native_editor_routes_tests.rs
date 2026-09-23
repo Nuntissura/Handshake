@@ -31,12 +31,19 @@
 #[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: protected document routes run as an authenticated record
+// user (persisted account session + live native-MCP channel binding); workspaces are created
+// through the real `POST /workspaces` route as that Owner.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
 use std::collections::BTreeMap;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc, Mutex as StdMutex,
 };
 
+use account_session_support::{AccountFixture, OwnerSession};
 use async_trait::async_trait;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use chrono::{NaiveDate, TimeZone, Utc};
@@ -262,6 +269,15 @@ impl Drop for ServerGuard {
 }
 
 async fn route_server(app: axum::Router) -> (String, reqwest::Client, ServerGuard) {
+    route_server_with_client(app, reqwest::Client::new()).await
+}
+
+/// Serve `app` over loopback and hand back `http` (for example an Owner's
+/// `OwnerSession::client()`, which sends the account-session credentials on every request).
+async fn route_server_with_client(
+    app: axum::Router,
+    http: reqwest::Client,
+) -> (String, reqwest::Client, ServerGuard) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind loopback listener");
@@ -271,11 +287,7 @@ async fn route_server(app: axum::Router) -> (String, reqwest::Client, ServerGuar
             .await
             .expect("wpk012 routes test server");
     });
-    (
-        format!("http://{addr}"),
-        reqwest::Client::new(),
-        ServerGuard(Some(handle)),
-    )
+    (format!("http://{addr}"), http, ServerGuard(Some(handle)))
 }
 
 /// Identity headers WITHOUT an actor kind (MT-158 least-privilege absence case).
@@ -708,7 +720,18 @@ async fn seed_calendar_event(
 // whole body.
 // ---------------------------------------------------------------------------
 
-static WPK012_STAGE_BINDING_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+// The SAME per-binary lock `account_session_support::AccountFixture` takes, so file-local Stage
+// bindings and shared account-session bindings can never interleave.
+use account_session_support::NATIVE_BINDING_ENV_LOCK as WPK012_STAGE_BINDING_LOCK;
+
+/// A workspace created through the real `POST /workspaces` route as `owner`. It uses a
+/// NoopRecorder state over the same store so the create leaves no Flight Recorder evidence in a
+/// test's collecting recorder.
+async fn owned_workspace(store: &EmbeddedKnowledgeStore, owner: &OwnerSession) -> String {
+    owner
+        .create_workspace(&default_test_state(store).await)
+        .await
+}
 
 #[cfg(target_os = "windows")]
 fn test_process_birth_identity(pid: u32) -> Option<Value> {
@@ -1186,8 +1209,10 @@ async fn stage_capture_rejects_crash_stale_binding_without_residue() {
         .expect("crash-stale Stage binding proof requires an isolated embedded store");
     let recorder = Arc::new(CollectingRecorder::default());
     let state = test_state(&store, recorder.clone()).await;
-    let workspace_id = store.create_workspace().await;
     let mut stage_binding = StageBindingEnv::install();
+    // The lock is already held: the Owner is bound to THIS test's Stage binding.
+    let owner = OwnerSession::provision(&store.storage, &stage_binding.token).await;
+    let workspace_id = owned_workspace(&store, &owner).await;
     let mut crashed_native_process = OwnedBindingProcess::spawn();
     let crashed_pid = crashed_native_process.pid();
     stage_binding.set_pid(crashed_pid);
@@ -1336,12 +1361,23 @@ async fn document_save_authenticates_same_native_principal_as_independent_stage_
         .expect("cross-route native principal proof requires an isolated embedded store");
     let recorder = Arc::new(CollectingRecorder::default());
     let state = test_state(&store, recorder.clone()).await;
-    let workspace_id = store.create_workspace().await;
     let stage_binding = StageBindingEnv::install();
+    // The lock is already held: the Owner is bound to THIS test's Stage binding.
+    let owner = OwnerSession::provision(&store.storage, &stage_binding.token).await;
+    let workspace_id = owned_workspace(&store, &owner).await;
     let (base, http, server) =
         route_server(docs_api::routes(state.clone()).merge(stage_api::routes(state.clone()))).await;
 
-    let created = create_doc(&base, &http, &workspace_id, "WPK012 Cross-Route Principal").await;
+    // Document routes require the Owner's account session; the Stage probe below keeps the bare
+    // client and the binding-only credential form it is proving.
+    let owner_http = owner.client();
+    let created = create_doc(
+        &base,
+        &owner_http,
+        &workspace_id,
+        "WPK012 Cross-Route Principal",
+    )
+    .await;
     let doc_id = created["document"]["rich_document_id"]
         .as_str()
         .expect("rich_document_id")
@@ -1364,8 +1400,8 @@ async fn document_save_authenticates_same_native_principal_as_independent_stage_
     // The document save is authenticated with the SAME binding but a DIFFERENT client-declared
     // per-agent actor id.
     let agent_actor = "wpk012-cross-route-agent";
-    let saved = stage_binding
-        .headers(http.put(format!("{base}/knowledge/documents/{doc_id}/save")))
+    let saved = owner
+        .apply(http.put(format!("{base}/knowledge/documents/{doc_id}/save")))
         .header("x-hsk-actor-id", agent_actor)
         .header("x-hsk-kernel-task-run-id", "KTR-WPK012-CROSS-ROUTE")
         .header("x-hsk-session-run-id", "SR-WPK012-CROSS-ROUTE")
@@ -1418,8 +1454,9 @@ async fn activity_span_write_is_event_and_workspace_scoped() {
         .await
         .expect("activity-span scoping proof requires an isolated embedded store");
     let state = default_test_state(&store).await;
-    let workspace_a = store.create_workspace().await;
-    let workspace_b = store.create_workspace().await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_a = owned_workspace(&store, &account).await;
+    let workspace_b = owned_workspace(&store, &account).await;
     let ctx = WriteContext::human(None);
 
     for (workspace_id, source_id, event_id) in [
@@ -1599,7 +1636,8 @@ async fn route1_locus_work_packet_resolve() {
         .await
         .expect("locus work-packet resolve proof requires an isolated embedded store");
     let state = default_test_state(&store).await;
-    let workspace_id = store.create_workspace().await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
     seed_ready_work_packet(&store, "WP-KERNEL-999", "Native Editors WP").await;
 
     let (base, http, server) = route_server(locus_api::routes(state)).await;
@@ -1646,7 +1684,8 @@ async fn route1_locus_micro_task_resolve() {
         .await
         .expect("locus microtask resolve proof requires an isolated embedded store");
     let state = default_test_state(&store).await;
-    let workspace_id = store.create_workspace().await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
     seed_running_micro_task(&store, "WP-KERNEL-998", "MT-777", "Wire calendar route").await;
 
     let (base, http, server) = route_server(locus_api::routes(state)).await;
@@ -1682,8 +1721,10 @@ async fn route2_stage_artifact_create_and_resolve() {
         .await
         .expect("stage artifact create/resolve proof requires an isolated embedded store");
     let state = default_test_state(&store).await;
-    let workspace_id = store.create_workspace().await;
     let mut stage_binding = StageBindingEnv::install();
+    // The lock is already held: the Owner is bound to THIS test's Stage binding.
+    let owner = OwnerSession::provision(&store.storage, &stage_binding.token).await;
+    let workspace_id = owned_workspace(&store, &owner).await;
 
     let (base, http, server) = route_server(stage_api::routes(state.clone())).await;
 
@@ -2046,8 +2087,10 @@ async fn stage_flight_projection_failure_returns_500_and_retry_heals_once() {
         .expect("Stage flight-projection heal proof requires an isolated embedded store");
     let recorder = Arc::new(FailSecondRecordOnceRecorder::default());
     let state = test_state(&store, recorder.clone()).await;
-    let workspace_id = store.create_workspace().await;
     let mut stage_binding = StageBindingEnv::install();
+    // The lock is already held: the Owner is bound to THIS test's Stage binding.
+    let owner = OwnerSession::provision(&store.storage, &stage_binding.token).await;
+    let workspace_id = owned_workspace(&store, &owner).await;
     let (base, http, server) = route_server(stage_api::routes(state.clone())).await;
     let path = format!("{base}/workspaces/{workspace_id}/stage/artifacts");
     let request = json!({
@@ -2232,7 +2275,8 @@ async fn mt067_calendar_event_populates_daily_note_doc_id() {
         .await
         .expect("mt067 daily-note linkage proof requires an isolated embedded store");
     let state = default_test_state(&store).await;
-    let workspace_id = store.create_workspace().await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
     let start = Utc.with_ymd_and_hms(2026, 7, 4, 9, 0, 0).unwrap();
     seed_calendar_event(&state, &workspace_id, "cal-evt-dn", start).await;
 
@@ -2277,7 +2321,8 @@ async fn mt067_activity_span_create_and_query_round_trip() {
         .await
         .expect("mt067 activity-span round-trip proof requires an isolated embedded store");
     let state = default_test_state(&store).await;
-    let workspace_id = store.create_workspace().await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
     let start = Utc.with_ymd_and_hms(2026, 7, 3, 9, 0, 0).unwrap();
     seed_calendar_event(&state, &workspace_id, "cal-evt-mt067", start).await;
 
@@ -2378,7 +2423,8 @@ async fn mt067_storage_boundary_rejects_invalid_temporal_rows_without_authority_
         .await
         .expect("mt067 temporal rejection proof requires an isolated embedded store");
     let state = default_test_state(&store).await;
-    let workspace_id = store.create_workspace().await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
     let ctx = WriteContext::human(Some("mt067-temporal-rejection".to_owned()));
 
     let invalid_source = state
@@ -2551,8 +2597,10 @@ async fn stage_denial_limits_and_attribution_apply_at_the_authentication_boundar
         .expect("Stage denial-boundary proof requires an isolated embedded store");
     let recorder = Arc::new(CollectingRecorder::default());
     let state = test_state(&store, recorder.clone()).await;
-    let workspace_id = store.create_workspace().await;
     let stage_binding = StageBindingEnv::install();
+    // The lock is already held: the Owner is bound to THIS test's Stage binding.
+    let owner = OwnerSession::provision(&store.storage, &stage_binding.token).await;
+    let workspace_id = owned_workspace(&store, &owner).await;
     let (base, http, server) = route_server(stage_api::routes(state.clone())).await;
 
     let invalid_token = format!("raw-invalid-stage-token-{}", uuid::Uuid::now_v7());
@@ -2725,7 +2773,8 @@ async fn route3_calendar_events_returns_events_in_window() {
         .await
         .expect("calendar window route proof requires an isolated embedded store");
     let state = default_test_state(&store).await;
-    let workspace_id = store.create_workspace().await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
     let ctx = WriteContext::human(None);
 
     state
@@ -2938,8 +2987,10 @@ async fn route6_document_soft_delete_tombstones_and_receipts() {
         .await
         .expect("document soft-delete proof requires an isolated embedded store");
     let state = default_test_state(&store).await;
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = route_server(docs_api::routes(state.clone())).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let (base, http, server) =
+        route_server_with_client(docs_api::routes(state.clone()), account.client()).await;
 
     let created = create_doc(&base, &http, &workspace_id, "Doomed Doc").await;
     let doc_id = created["document"]["rich_document_id"]

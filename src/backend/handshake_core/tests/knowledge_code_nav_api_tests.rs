@@ -16,9 +16,15 @@
 #[allow(dead_code)]
 mod user_manual_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the code-navigation routes authorize the workspace for an
+// authenticated record user (persisted account session + live native-MCP channel binding).
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
 use std::sync::Arc;
 use std::time::Instant;
 
+use account_session_support::{AccountFixture, OwnerSession};
 use handshake_core::api::code_nav_index as index_api;
 use handshake_core::api::knowledge_code_nav as nav_api;
 use handshake_core::kernel::KernelActor;
@@ -60,8 +66,12 @@ mod tests {
 }
 "#;
 
-async fn index_fixture(backend: &ManualTestBackend) -> String {
-    let workspace_id = backend.create_workspace().await;
+/// Index the fixture into a workspace created through the real `POST /workspaces` route as
+/// `owner` (so the workspace carries its account-owned protected resource and grant).
+async fn index_fixture(backend: &ManualTestBackend, owner: &OwnerSession) -> String {
+    let workspace_id = owner
+        .create_workspace(&app_state_for(&backend.db).await)
+        .await;
     let eng = CodeIndexEngine::new(Arc::new(backend.db.clone()));
     let context = CodeIndexContext {
         actor: KernelActor::System("code-nav-fixture".to_string()),
@@ -111,7 +121,10 @@ async fn mt045_lc06_500_file_code_nav_index_is_embedded_surrealdb_bounded() {
     let backend = manual_test_backend()
         .await
         .expect("open embedded backend for MT-045 LC-06");
-    let workspace_id = backend.create_workspace().await;
+    let account = AccountFixture::install(backend.db.storage()).await;
+    let workspace_id = account
+        .create_workspace(&app_state_for(&backend.db).await)
+        .await;
     let fixture_root = std::env::var("HANDSHAKE_TEST_STAGE_BINDING_ROOT")
         .expect(
             "MT-045 LC-06 requires HANDSHAKE_TEST_STAGE_BINDING_ROOT=<absolute dir below the              external Handshake_Artifacts root> for its 500-file fixture tree (see              tests/user_manual_support/mod.rs); the fixture is never written into the repo",
@@ -139,6 +152,7 @@ async fn mt045_lc06_500_file_code_nav_index_is_embedded_surrealdb_bounded() {
     let state = app_state_for(&backend.db).await;
     let (base, server) = start_server(index_api::routes(state)).await;
     let http = reqwest::Client::builder()
+        .default_headers(account.headers())
         .timeout(std::time::Duration::from_secs(45))
         .build()
         .expect("LC-06 request client");
@@ -264,10 +278,11 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     let backend = manual_test_backend()
         .await
         .expect("open embedded backend for MT-106");
-    let workspace_id = index_fixture(&backend).await;
+    let account = AccountFixture::install(backend.db.storage()).await;
+    let workspace_id = index_fixture(&backend, &account).await;
     let state = app_state_for(&backend.db).await;
     let (base, server) = start_server(nav_api::routes(state)).await;
-    let http = reqwest::Client::new();
+    let http = account.client();
 
     // --- Missing identity headers -> 400 (receipt law) ------------------------
     let no_hdr = http
@@ -516,7 +531,8 @@ async fn mt106_nav_api_flags_stale_symbols_on_every_route() {
     let backend = manual_test_backend()
         .await
         .expect("open embedded backend for MT-106 stale proof");
-    let workspace_id = index_fixture(&backend).await;
+    let account = AccountFixture::install(backend.db.storage()).await;
+    let workspace_id = index_fixture(&backend, &account).await;
 
     // Mark the indexed file stale directly in the code-file index state (this is
     // what MT-107 / the ingestion lifecycle does when the source changes).
@@ -534,7 +550,7 @@ async fn mt106_nav_api_flags_stale_symbols_on_every_route() {
 
     let state = app_state_for(&backend.db).await;
     let (base, server) = start_server(nav_api::routes(state)).await;
-    let http = reqwest::Client::new();
+    let http = account.client();
 
     // Look up `add` -> it must now be flagged marked_stale, not served as fresh.
     let lookup = nav_headers(
