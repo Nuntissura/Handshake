@@ -1,0 +1,312 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "_notes": [
+    "V1 (hsk.microtask_contract@1) stays the contract for WP-KERNEL-012's @1 MT files; V2 applies from the next WP on.",
+    "This MT JSON is the status and recovery surface; paperwork is handwritten; parent.wp_contract_digest and context_digest are optional (null) until Handshake exists.",
+    "Policy prose lives in rule_refs (Codex CX ids), never in instance fields; keys starting with '_' are author comments and are ignored by readers.",
+    "execution.depends_on is the only depends_on; lifecycle.depends_on and dependencies.depends_on are removed.",
+    "Versioned validation_vN / remediation_vN blocks become verdicts[] and submissions[]; verdicts[].payload keeps the existing hsk.mt_validation_verdict@1 write-up.",
+    "Value mapping from V1 labels: PASS_Vn -> phase passed / decision pass; FAIL_Vn -> needs_remediation / fail; PARTIAL -> validating / inconclusive plus a blockers[] entry.",
+    "lifecycle.phase is authoritative; lifecycle.status is the derived label <DECISION>_V<n> kept for old readers.",
+    "execution.lane: repo values PRODUCT_CODE_BACKEND and PRODUCT_CODE_BACKEND_PLUS_NATIVE map to implementation; operator decision pending (see _repo_lane_values)."
+  ],
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-GIT-002",
+    "CX-VAL-002",
+    "CX-VAL-003",
+    "CX-VAL-004",
+    "CX-EXEC-009"
+  ],
+  "_rule_refs_replaces": [
+    "contract_authority",
+    "artifact_policy",
+    "markdown_projection",
+    "handoff (policy fields: model_reports, report_fields_required, worker_final_status, commit_policy)",
+    "attempt_budget policy booleans",
+    "proof.duplicate_parent_proof_forbidden",
+    "execution.foreground_or_interactive_tools_forbidden",
+    "gui_obligation / resource_privacy_obligation expected_evidence lists"
+  ],
+  "_rule_refs_candidates_seen_in_live_012_files": [
+    "CX-EXEC-003",
+    "CX-EXEC-003A",
+    "CX-503R",
+    "CX-984-001",
+    "CX-984-002",
+    "CX-SAFE-001"
+  ],
+  "identity": {
+    "mt_id": "REPLACE_ME",
+    "wp_id": "REPLACE_ME",
+    "title": "REPLACE_ME",
+    "group": null,
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": 1,
+    "wp_contract_digest": null
+  },
+  "context_capsule": {
+    "specification_anchor_refs": [],
+    "_specification_anchor_refs_entry_shape": {
+      "id": "REPLACE_ME",
+      "anchor": "REPLACE_ME",
+      "verbatim": "REPLACE_ME"
+    },
+    "read_context": [],
+    "pillar_refs": [],
+    "runtime_lane_refs": [],
+    "inspection_route_refs": [],
+    "account_bound_resource_refs": [],
+    "consumed_capability_refs": [],
+    "context_digest": null
+  },
+  "closure_unit": {
+    "outcome": "REPLACE_ME",
+    "requirement_refs": [],
+    "acceptance_refs": [],
+    "materialized_acceptance": [],
+    "_materialized_acceptance_entry_shape": {
+      "id": "REPLACE_ME",
+      "text": "REPLACE_ME"
+    },
+    "spec_basis_refs": [],
+    "operator_decision_refs": []
+  },
+  "model_routing": {
+    "model_tier": "REPLACE_ME",
+    "_model_tier_enum": [
+      "small",
+      "medium",
+      "strong"
+    ],
+    "tier_reason": "REPLACE_ME",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": []
+  },
+  "execution": {
+    "lane": "implementation",
+    "_lane_enum": [
+      "implementation",
+      "gui",
+      "diagnostics",
+      "documentation",
+      "validation",
+      "migration"
+    ],
+    "_repo_lane_values": {
+      "PRODUCT_CODE_BACKEND": "implementation",
+      "PRODUCT_CODE_BACKEND_PLUS_NATIVE": "implementation",
+      "_status": "OPERATOR_DECISION_PENDING: confirm this mapping, or keep the repo values as lane and record the vault value separately"
+    },
+    "module_ref": null,
+    "build_unit_ref": null,
+    "write_scope_source": "allowed_write_paths",
+    "_write_scope_source_enum": [
+      "module_roots",
+      "allowed_write_paths"
+    ],
+    "depends_on": [],
+    "start_precondition": null,
+    "allowed_write_paths": [],
+    "forbidden_write_paths": [],
+    "shared_resource_locks": [],
+    "inputs": [],
+    "implementation_steps": [],
+    "_implementation_steps_entry_shape": {
+      "n": 1,
+      "step": "REPLACE_ME"
+    },
+    "expected_outputs": [],
+    "stop_conditions": [],
+    "may_create_canonical_capability": false,
+    "backend_mt_ref": null,
+    "contract_dependency_kind": null,
+    "_contract_dependency_kind_enum": [
+      "consumes_published_contract",
+      "depends_on_completion"
+    ],
+    "artifact_isolation": {
+      "artifact_root": "REPLACE_ME",
+      "owner_dir": "REPLACE_ME",
+      "env": {},
+      "native_test_env_additions": {},
+      "flags": null,
+      "reference_runner": null
+    },
+    "git_rules": []
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "REPLACE_ME",
+        "kind": "REPLACE_ME",
+        "claim_refs": [],
+        "command_or_method": "REPLACE_ME",
+        "expected": "REPLACE_ME",
+        "timeout_seconds": "REPLACE_ME",
+        "on_timeout": "record_timeout",
+        "evidence_required": []
+      }
+    ],
+    "_kind_enum": [
+      "inspection",
+      "test",
+      "benchmark",
+      "runtime",
+      "independent_review",
+      "measurement_not_attempt"
+    ],
+    "independent_review_required": false,
+    "relevant_input_paths": []
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "REPLACE_ME",
+    "manual_version_bump_required": "REPLACE_ME",
+    "target_entries": [],
+    "expected_evidence": [],
+    "location": null,
+    "reason": null,
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "REPLACE_ME",
+    "risks": [],
+    "minimum_controls": []
+  },
+  "lifecycle": {
+    "phase": "ready",
+    "_phase_enum": [
+      "ready",
+      "in_progress",
+      "ready_for_validation",
+      "validating",
+      "needs_remediation",
+      "passed",
+      "blocked_on_dependency",
+      "needs_managed_resource_proof"
+    ],
+    "status": "READY",
+    "claim_ref": null,
+    "last_submission_ref": null,
+    "last_verdict_ref": null,
+    "updated_at_utc": null
+  },
+  "_v1_alias": {
+    "lifecycle": {
+      "claim_ref": "claimed_by + claimed_at_utc",
+      "last_verdict_ref": "validator_verdict + validated_by + validated_at_utc",
+      "phase": "status (label)"
+    },
+    "execution.depends_on": [
+      "lifecycle.depends_on",
+      "dependencies.depends_on"
+    ],
+    "execution.allowed_write_paths": [
+      "scope.allowed_paths",
+      "owned_files"
+    ],
+    "execution.implementation_steps": "implementation_steps",
+    "context_capsule.pillar_refs": "hbr_obligations",
+    "context_capsule.inspection_route_refs": "gui_obligation.surfaces + gui_obligation.argus_targets",
+    "context_capsule.account_bound_resource_refs": "resource_privacy_obligation.resources_touched",
+    "closure_unit.operator_decision_refs": "operator_decision + operator_decision_requests_prefiled",
+    "submissions": "remediation_vN",
+    "verdicts": "validation_vN"
+  },
+  "submissions": [],
+  "_submissions_entry_shape": {
+    "submission_id": "REPLACE_ME",
+    "submission_revision": 1,
+    "immutable_source_ref": "REPLACE_ME",
+    "source_digest": null,
+    "evidence_refs": [],
+    "submitted_by": "REPLACE_ME",
+    "submitted_at_utc": "REPLACE_ME",
+    "relevant_input_paths": [],
+    "payload": {}
+  },
+  "verdicts": [],
+  "_verdicts_entry_shape": {
+    "verdict_id": "REPLACE_ME",
+    "submission_id": "REPLACE_ME",
+    "submission_revision": 1,
+    "validator_actor_id": "REPLACE_ME",
+    "validated_at_utc": "REPLACE_ME",
+    "decision": "REPLACE_ME",
+    "_decision_enum": [
+      "pass",
+      "fail",
+      "inconclusive"
+    ],
+    "acceptance_refs": [],
+    "evidence_refs": [],
+    "remediation": null,
+    "blocked_on_mt_ref": null,
+    "batch_commit_ref": null,
+    "proof_commit_ref": null,
+    "payload": {
+      "schema_id": "hsk.mt_validation_verdict@1"
+    }
+  },
+  "blockers": [],
+  "_blockers_entry_shape": {
+    "blocker_id": "REPLACE_ME",
+    "kind": "REPLACE_ME",
+    "_kind_enum": [
+      "dependency",
+      "managed_resource_proof",
+      "operator_decision",
+      "attempt_budget_exhausted",
+      "scope",
+      "environment"
+    ],
+    "ref": null,
+    "reason": "REPLACE_ME",
+    "diagnosis": null,
+    "raised_by": "REPLACE_ME",
+    "raised_at_utc": "REPLACE_ME",
+    "resolved_at_utc": null
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/{{WP_ID}}/{{MT_ID}}.json",
+    "packet_contract": ".GOV/task_packets/{{WP_ID}}/packet.json",
+    "refinement_contract": ".GOV/task_packets/{{WP_ID}}/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
+  },
+  "created_at_utc": "REPLACE_ME",
+  "updated_at_utc": null
+}

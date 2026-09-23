@@ -1,0 +1,198 @@
+{
+  "schema_id": "hsk.refinement_contract@2",
+  "_notes": [
+    "V1 (hsk.refinement_contract@1) stays the contract for WP-KERNEL-012's refinement.json; V2 applies from the next WP on.",
+    "Paperwork is handwritten in this repo; universe/context digests, planning_transaction_id and activation_manager binding are optional until Handshake exists.",
+    "Policy prose lives in rule_refs (Codex CX ids), never in instance fields; keys starting with '_' are author comments and are ignored by readers.",
+    "This artifact owns the WP origin; the WP contract points here through refinement_ref and does not repeat origin.",
+    "applicability.not_triggered_by includes remediation: a remediation round reuses the existing refinement and does not open a new one.",
+    "hbr_pillar_review keeps the V1 pillar review inside matrix_resolution; red_team and reusable_solution_discovery live under refinement.reality_check.",
+    "Value mapping for MT labels referenced here: PASS_Vn -> passed/pass; FAIL_Vn -> needs_remediation/fail; PARTIAL -> validating/inconclusive plus a blockers[] entry on the MT.",
+    "Placeholders are REPLACE_ME or empty arrays."
+  ],
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-CAP-001",
+    "CX-UNIT-001"
+  ],
+  "_rule_refs_replaces": [
+    "contract_authority",
+    "artifact_policy",
+    "markdown_projection",
+    "activation_manager (required/status policy)",
+    "refinement.microtask_plan_item_defaults",
+    "refinement.resource_privacy_review required-field and required-row lists"
+  ],
+  "_rule_refs_candidates_seen_in_live_012_files": [
+    "CX-503B1",
+    "CX-131",
+    "CX-503R"
+  ],
+  "identity": {
+    "artifact_id": "REPLACE_ME",
+    "wp_id": "REPLACE_ME",
+    "revision": 1
+  },
+  "origin": {
+    "kind": "REPLACE_ME",
+    "_kind_enum": [
+      "operator",
+      "specification",
+      "mixed"
+    ],
+    "operator_request_ids": [],
+    "operator_request_verbatim": "REPLACE_ME",
+    "initiating_spec_anchors": [],
+    "parent_wp_ids": []
+  },
+  "applicability": {
+    "applies_to_work_types": [
+      "planning",
+      "new_feature",
+      "activation",
+      "scope_change"
+    ],
+    "not_triggered_by": [
+      "remediation"
+    ]
+  },
+  "refinement": {
+    "why_now": "REPLACE_ME",
+    "base_spec_extraction": {
+      "excerpts": [],
+      "_excerpts_entry_shape": {
+        "anchor_id": "REPLACE_ME",
+        "document_ref": "REPLACE_ME",
+        "topic": "REPLACE_ME",
+        "statement": "REPLACE_ME",
+        "dependency_reason": "REPLACE_ME"
+      }
+    },
+    "reality_check": {
+      "checked_at": "REPLACE_ME",
+      "current_behavior": "REPLACE_ME",
+      "intended_behavior": "REPLACE_ME",
+      "code_and_runtime_reality": [],
+      "affected_modules": [],
+      "scope_edges": [],
+      "assumptions": [],
+      "non_goals": [],
+      "acceptance_needs": [],
+      "preliminary_microtask_graph": [],
+      "_preliminary_microtask_graph_entry_shape": {
+        "mt_id": "REPLACE_ME",
+        "depends_on": [],
+        "lane": "implementation",
+        "summary": "REPLACE_ME"
+      },
+      "failure_modes": [],
+      "red_team": {
+        "risks": [],
+        "plausible_failure_scenarios": [],
+        "minimum_controls": []
+      },
+      "research_refs": [],
+      "reusable_solution_discovery": {
+        "searched_project_topology": false,
+        "searched_project_bindings": false,
+        "searched_project_module_library": false,
+        "matched_capability_refs": [],
+        "owner_module_refs": [],
+        "selected_strategy": "REPLACE_ME",
+        "_selected_strategy_enum": [
+          "reuse",
+          "compose",
+          "extend",
+          "fork",
+          "new",
+          "prototype"
+        ],
+        "decision_reason": "REPLACE_ME"
+      }
+    }
+  },
+  "matrix_resolution": {
+    "assessed_entry_ids": [],
+    "hbr_pillar_review": {
+      "INT": {
+        "applicable": null,
+        "evidence_path": null
+      },
+      "SWARM": {
+        "applicable": null,
+        "evidence_path": null
+      },
+      "VIS": {
+        "applicable": null,
+        "evidence_path": null
+      },
+      "QUIET": {
+        "applicable": null,
+        "evidence_path": null
+      },
+      "MAN": {
+        "applicable": null,
+        "evidence_path": null
+      },
+      "PRIV": {
+        "applicable": null,
+        "evidence_path": null
+      }
+    }
+  },
+  "spec_enrichment": {
+    "disposition": "REPLACE_ME",
+    "_disposition_enum": [
+      "unchanged",
+      "update_required"
+    ],
+    "spec_is_sole_truth": "research_prototypes_and_findings_become_truth_only_when_written_into_the_specification_by_this_enrichment",
+    "proposed_delta": {
+      "unchanged_constraints": [],
+      "migration_implications": [],
+      "research_proposal_refs": []
+    },
+    "decision_refs": [],
+    "sync": {
+      "required": false,
+      "base_revision": "REPLACE_ME",
+      "applied_revision": null,
+      "changed_anchors": [],
+      "validated": false
+    }
+  },
+  "resolved_context": {
+    "anchors": [],
+    "_anchors_entry_shape": {
+      "anchor_id": "REPLACE_ME",
+      "document_ref": "REPLACE_ME",
+      "topic": "REPLACE_ME",
+      "statement": "REPLACE_ME",
+      "dependency_reason": "REPLACE_ME"
+    },
+    "implementation_relevant_truth": [],
+    "constraints": [],
+    "ready_for_wp_derivation": false
+  },
+  "authority_files": {
+    "refinement_contract": ".GOV/task_packets/{{WP_ID}}/refinement.json",
+    "packet_contract": ".GOV/task_packets/{{WP_ID}}/packet.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md"
+  },
+  "created_at_utc": "REPLACE_ME",
+  "updated_at_utc": null
+}

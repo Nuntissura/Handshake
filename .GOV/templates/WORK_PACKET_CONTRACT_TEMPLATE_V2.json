@@ -1,0 +1,473 @@
+{
+  "schema_id": "hsk.work_packet_contract@2",
+  "_notes": [
+    "V1 (hsk.work_packet_contract@1) stays the contract for WP-KERNEL-012 and its @1 files; V2 applies from the next WP on.",
+    "Paperwork is handwritten in this repo; digests, activation_id and controller-derived refs are optional (null) until Handshake exists.",
+    "Policy prose lives in rule_refs (Codex CX ids), never in instance fields; keys starting with '_' are author comments and are ignored by readers.",
+    "mt_state is the single MT projection; mt_plan.mt_status, tracker.mt_status and microtasks.authored_count are removed.",
+    "Value mapping from V1 labels: PASS_Vn -> phase passed / decision pass; FAIL_Vn -> needs_remediation / fail; PARTIAL -> validating / inconclusive plus a blockers[] entry on the MT.",
+    "lifecycle.phase is authoritative; lifecycle.status is the derived label <DECISION>_V<n> kept for old readers.",
+    "mt_plan.clusters fold into microtask_graph.parallel_groups; build_target stays inside architecture_binding for the single-crate reality.",
+    "Placeholders are REPLACE_ME or empty arrays; scope_waivers keep 012's waivers_granted names as aliases under _v1_alias."
+  ],
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-VAL-001",
+    "CX-HOST-001"
+  ],
+  "_rule_refs_replaces": [
+    "contract_authority",
+    "artifact_policy",
+    "markdown_projection",
+    "change_control",
+    "role_profiles",
+    "microtask_graph.policy",
+    "proof_contract.policy",
+    "gui_obligations.*_required",
+    "user_manual_obligations.*_required"
+  ],
+  "_rule_refs_candidates_seen_in_live_012_files": [
+    "CX-503B1",
+    "CX-131",
+    "CX-503R",
+    "CX-EXEC-003",
+    "CX-EXEC-003A",
+    "CX-984-001",
+    "CX-984-002",
+    "CX-SAFE-001",
+    "CX-003-VIS"
+  ],
+  "identity": {
+    "wp_id": "REPLACE_ME",
+    "title": "REPLACE_ME",
+    "version": 1,
+    "contract_revision": 1,
+    "lifecycle_profile": "REPLACE_ME",
+    "activation_id": null
+  },
+  "refinement_ref": {
+    "artifact_id": "REPLACE_ME",
+    "revision": 1,
+    "digest": null,
+    "path": ".GOV/task_packets/{{WP_ID}}/refinement.json"
+  },
+  "authority_snapshot": {
+    "governance_pin": {
+      "commit": "REPLACE_ME",
+      "pinned_at_utc": "REPLACE_ME",
+      "pinned_by": "REPLACE_ME",
+      "rule_refs": [],
+      "exceptions": [],
+      "_exceptions_entry_shape": {
+        "kind": "REPLACE_ME",
+        "ref": "REPLACE_ME"
+      },
+      "schema_ids": [
+        "hsk.work_packet_contract@2",
+        "hsk.microtask_contract@2",
+        "hsk.refinement_contract@2"
+      ]
+    },
+    "specification": {
+      "revision": "REPLACE_ME",
+      "digest": null,
+      "anchors": [],
+      "roadmap_digest": null
+    },
+    "build_rules": {
+      "revision": "REPLACE_ME",
+      "digest": null,
+      "applicable_rule_ids": []
+    },
+    "build_matrix": {
+      "matrix_id": "REPLACE_ME",
+      "revision": "REPLACE_ME",
+      "digest": null,
+      "entry_ids": []
+    },
+    "product_topology": {
+      "revision": "REPLACE_ME",
+      "digest": null
+    },
+    "governance_topology": {
+      "revision": "REPLACE_ME",
+      "digest": null
+    },
+    "solution_bindings": {
+      "version": "REPLACE_ME",
+      "digest": null
+    },
+    "solution_lock": {
+      "generation": "REPLACE_ME",
+      "digest": null
+    }
+  },
+  "outcome": {
+    "problem": "REPLACE_ME",
+    "operator_value": "REPLACE_ME",
+    "expected_behavior": "REPLACE_ME",
+    "completion_statement": "REPLACE_ME"
+  },
+  "reuse": {
+    "strategy": "REPLACE_ME",
+    "_strategy_enum": [
+      "reuse",
+      "compose",
+      "extend",
+      "fork",
+      "new",
+      "prototype"
+    ],
+    "solution_refs": [],
+    "reason": "REPLACE_ME",
+    "consumed_capability_refs": [],
+    "owner_module_refs": [],
+    "new_capability_refs": []
+  },
+  "scope": {
+    "summary": "REPLACE_ME",
+    "included": [],
+    "excluded": [],
+    "assumptions": [],
+    "non_goals": [],
+    "allowed_paths": [],
+    "forbidden_paths": []
+  },
+  "scope_waivers": [],
+  "_scope_waivers_entry_shape": {
+    "waiver_id": "REPLACE_ME",
+    "granted_by": "REPLACE_ME",
+    "scope_paths": [],
+    "reason": "REPLACE_ME",
+    "granted_at": "REPLACE_ME",
+    "expires": "REPLACE_ME",
+    "status": "ACTIVE",
+    "covers": [],
+    "signature": null
+  },
+  "_v1_alias": {
+    "scope_waivers": {
+      "_v1_key": "waivers_granted",
+      "waiver_id": "waiver_id",
+      "granted_by": "approver",
+      "scope_paths": "scope",
+      "reason": "justification",
+      "granted_at": "(absent in V1; record at migration)",
+      "expires": "expires",
+      "status": "status",
+      "covers": "covers",
+      "signature": "signature"
+    },
+    "authority_snapshot.governance_pin": {
+      "commit": "gov_kernel_commit",
+      "rule_refs": "rule (prose)",
+      "exceptions": "exceptions (prose)"
+    },
+    "microtask_graph.parallel_groups": {
+      "_v1_key": "mt_plan.clusters",
+      "group_id": "id"
+    },
+    "mt_state": {
+      "_v1_keys": [
+        "mt_plan.mt_status",
+        "tracker.mt_status",
+        "microtasks.declared_ids",
+        "microtasks.active_id",
+        "microtasks.next_id"
+      ]
+    },
+    "architecture_binding.build_target": {
+      "_v1_key": "build_target"
+    },
+    "auth_binding": {
+      "_v1_key": "resource_privacy_contract"
+    },
+    "impact_assessment.rows": {
+      "_v1_key": "packet_acceptance_matrix.hbr"
+    }
+  },
+  "dependencies": {
+    "wp_ids": [],
+    "external_systems": [],
+    "data_or_migration_preconditions": []
+  },
+  "architecture_binding": {
+    "boundary_change": "none",
+    "_boundary_change_enum": [
+      "none",
+      "split",
+      "merge",
+      "extract",
+      "new_module"
+    ],
+    "touched_module_refs": [],
+    "created_module_refs": [],
+    "touched_build_unit_refs": [],
+    "target_build_unit_graph_ref": null,
+    "build_target": {
+      "crate_package": "REPLACE_ME",
+      "crate_lib": "REPLACE_ME",
+      "code_root": "REPLACE_ME",
+      "test_root": "REPLACE_ME",
+      "cargo_flag": "REPLACE_ME",
+      "note": "REPLACE_ME"
+    }
+  },
+  "runtime_lanes": {
+    "applicability": "REPLACE_ME",
+    "_applicability_enum": [
+      "change",
+      "verify_only",
+      "not_applicable"
+    ],
+    "lanes": [],
+    "_lanes_entry_shape": {
+      "lane_id": "REPLACE_ME",
+      "purpose": "REPLACE_ME",
+      "ordering": "REPLACE_ME",
+      "cancellation": "REPLACE_ME",
+      "backpressure": "REPLACE_ME",
+      "isolation": "REPLACE_ME"
+    },
+    "shared_resource_refs": [],
+    "concurrency_proof_refs": []
+  },
+  "gui_surface": {
+    "applicability": "REPLACE_ME",
+    "_applicability_enum": [
+      "change",
+      "verify_only",
+      "not_applicable",
+      "headless_project"
+    ],
+    "surface_profile_refs": [],
+    "inspection_route_refs": [],
+    "headless_route_refs": [],
+    "expected_visual_evidence": [],
+    "_expected_visual_evidence_enum": [
+      "screenshot",
+      "structured_state_snapshot",
+      "rendered_inspection"
+    ],
+    "argus_targets": [],
+    "not_applicable_reason": null
+  },
+  "auth_binding": {
+    "applicability": "REPLACE_ME",
+    "_applicability_enum": [
+      "change",
+      "verify_only",
+      "not_applicable"
+    ],
+    "account_bound_resource_refs": [],
+    "subprofile_visibility": null,
+    "_subprofile_visibility_enum": [
+      "inherits",
+      "restricted",
+      "explicit"
+    ],
+    "authorization_boundary_refs": [],
+    "default_deny_negative_proof_ref": null,
+    "resource_inventory": [],
+    "identity_and_scope_contexts": [],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "runtime_enforcement_boundaries": [],
+    "not_applicable_reason": null
+  },
+  "implementation_contract": {
+    "required_when": "proof_contract.risk_tier in [P2, P3]",
+    "architecture_decisions": [],
+    "module_boundaries": [],
+    "public_interfaces": [],
+    "data_flows": [],
+    "concurrency_model": [],
+    "compatibility_constraints": [],
+    "migration_plan": [],
+    "rollout_plan": [],
+    "rollback_plan": []
+  },
+  "impact_assessment": {
+    "mandatory_pillar_entry_ids": [],
+    "rows": [],
+    "_row_shape": {
+      "id": "REPLACE_ME",
+      "hbr": "REPLACE_ME",
+      "owner": "REPLACE_ME",
+      "required": true,
+      "evidence_kind": "REPLACE_ME",
+      "status": "PENDING",
+      "note": "REPLACE_ME",
+      "disposition": "REPLACE_ME"
+    },
+    "_disposition_enum": [
+      "change",
+      "verify_only",
+      "not_applicable"
+    ]
+  },
+  "requirements": [
+    {
+      "requirement_id": "REPLACE_ME",
+      "statement": "REPLACE_ME",
+      "rationale": "REPLACE_ME",
+      "source_refs": [],
+      "matrix_entry_refs": [],
+      "acceptance_refs": []
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "acceptance_id": "REPLACE_ME",
+      "requirement_refs": [],
+      "matrix_entry_refs": [],
+      "given": "REPLACE_ME",
+      "when": "REPLACE_ME",
+      "then": "REPLACE_ME",
+      "proof_refs": []
+    }
+  ],
+  "microtask_graph": {
+    "rule_refs": [],
+    "parallel_groups": [],
+    "_parallel_groups_entry_shape": {
+      "group_id": "REPLACE_ME",
+      "name": "REPLACE_ME",
+      "mt_ids": [],
+      "summary": "REPLACE_ME"
+    },
+    "nodes": [],
+    "_nodes_entry_shape": {
+      "mt_id": "REPLACE_ME",
+      "depends_on": [],
+      "lane": "implementation",
+      "surface_profile_refs": []
+    }
+  },
+  "proof_contract": {
+    "risk_tier": "REPLACE_ME",
+    "_risk_tier_enum": [
+      "P0",
+      "P1",
+      "P2",
+      "P3"
+    ],
+    "checks": [
+      {
+        "proof_id": "REPLACE_ME",
+        "kind": "REPLACE_ME",
+        "claim_refs": [],
+        "command_or_method": "REPLACE_ME",
+        "expected": "REPLACE_ME",
+        "timeout_seconds": "REPLACE_ME",
+        "relevant_input_paths": [],
+        "evidence_required": [],
+        "independent": false
+      }
+    ],
+    "_kind_enum": [
+      "inspection",
+      "test",
+      "benchmark",
+      "runtime",
+      "independent_review"
+    ]
+  },
+  "risks": [
+    {
+      "risk_id": "REPLACE_ME",
+      "scenario": "REPLACE_ME",
+      "impact": "REPLACE_ME",
+      "control": "REPLACE_ME",
+      "acceptance_refs": [],
+      "mt_refs": []
+    }
+  ],
+  "hbr": {
+    "tags_declared": [],
+    "not_applicable_overrides": []
+  },
+  "red_team": {
+    "required": true,
+    "profile": "REPLACE_ME",
+    "assumptions_to_attack": [],
+    "minimum_controls": []
+  },
+  "source_control": {
+    "merge_base_sha": "REPLACE_ME",
+    "base_commit": "REPLACE_ME",
+    "canonical_branch": "main",
+    "work_branch": "REPLACE_ME",
+    "worktree_dir": "REPLACE_ME",
+    "remote_backup_branch": "REPLACE_ME"
+  },
+  "workflow": {
+    "lane": "REPLACE_ME",
+    "authority": "REPLACE_ME",
+    "validation_topology": "REPLACE_ME",
+    "session_start_authority": "REPLACE_ME",
+    "host_preference": "REPLACE_ME",
+    "communication_dir": "REPLACE_ME",
+    "communication_contract": "DIRECT_REVIEW_V1",
+    "depends_on_wp": null
+  },
+  "authority_files": {
+    "packet_contract": ".GOV/task_packets/{{WP_ID}}/packet.json",
+    "refinement_contract": ".GOV/task_packets/{{WP_ID}}/refinement.json",
+    "microtask_contract_glob": ".GOV/task_packets/{{WP_ID}}/MT-*.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md"
+  },
+  "created_at_utc": "REPLACE_ME",
+  "updated_at_utc": null,
+  "lifecycle": {
+    "phase": "ready",
+    "_phase_enum": [
+      "stub_drafting",
+      "planning_transaction",
+      "planned",
+      "activating",
+      "active",
+      "validating",
+      "merge_pending",
+      "completed",
+      "cancelled",
+      "superseded"
+    ],
+    "status": "Ready for Dev",
+    "risk_tier": "REPLACE_ME",
+    "user_signature": "REPLACE_ME",
+    "main_containment_status": "NOT_STARTED",
+    "current_main_compatibility_status": "NOT_RUN",
+    "workflow_lane": "REPLACE_ME",
+    "execution_owner": "REPLACE_ME",
+    "activation_status": "NOT_ACTIVATED"
+  },
+  "mt_state": {},
+  "_mt_state_entry_shape": {
+    "<mt_id>": {
+      "phase": "ready",
+      "last_verdict_ref": null
+    }
+  }
+}
