@@ -4509,9 +4509,9 @@ async fn ensure_knowledge_schema_registry(
 struct FreshBootstrapScript {
     /// `BEGIN` ... every table, field, event, function and access definition ... `COMMIT`.
     definitions: String,
-    /// `BEGIN` ... every `DEFINE INDEX` of the first transaction, then the `schema_applied`
-    /// receipt ... `COMMIT`, followed by the statements [`SCHEMA`] already runs after its
-    /// transaction.
+    /// Every `DEFINE INDEX` of the first transaction as its own statement (no explicit
+    /// transaction), then the statements [`SCHEMA`] already runs after its transaction, then
+    /// `BEGIN` ... the `schema_applied` receipt ... `COMMIT`.
     indexes_and_rest: String,
 }
 
@@ -4519,12 +4519,15 @@ struct FreshBootstrapScript {
 /// cause): SurrealDB 3.2.0 runs an index builder per `DEFINE INDEX`
 /// (surrealdb-core-3.2.0 `expr/statements/define/index.rs:229-235`), and the builder retries a
 /// retryable transaction conflict every 100 ms without a bound (`kvs/index/builder.rs:822-832`)
-/// while ~4,500 other definitions share its transaction. Every index therefore runs in a second
-/// transaction right after the definitions transaction, on the same still-empty tables (blocking,
-/// no `CONCURRENTLY`). The `schema_applied` receipt moves into that second transaction, so it only
-/// commits together with every index. The compiled text, its hash and the declarative catalog are
-/// unchanged; only execution is split. Statements are moved whole (continuation lines until `;`)
-/// and in source order.
+/// while ~4,500 other definitions share its transaction (IV dump evidence: the builder's
+/// `mark_durable_online` commit keeps retrying while an outer transaction holds its snapshot).
+/// Every index therefore runs after the definitions transaction committed, each as its own
+/// statement outside any explicit transaction (one implicit transaction and one build at a time),
+/// on the still-empty tables (blocking, no `CONCURRENTLY`). The `schema_applied` receipt moves
+/// into a final short transaction after every index is online and every post-transaction
+/// statement ran. The compiled text, its hash and the declarative catalog are unchanged; only
+/// execution is split. Statements are moved whole (continuation lines until `;`) and in source
+/// order.
 fn fresh_bootstrap_script(schema: &str) -> Result<FreshBootstrapScript, String> {
     const RECEIPT_START: &str = "UPSERT handshake_schema_state:primary SET";
     let lines = schema.lines().collect::<Vec<_>>();
@@ -4578,13 +4581,12 @@ fn fresh_bootstrap_script(schema: &str) -> Result<FreshBootstrapScript, String> 
     }
     let mut definitions = kept.join("\n");
     definitions.push_str("\nCOMMIT TRANSACTION;\n");
-    let mut indexes_and_rest = String::from("BEGIN TRANSACTION;\n");
-    indexes_and_rest.push_str(&indexes.join("\n"));
+    let mut indexes_and_rest = indexes.join("\n");
     indexes_and_rest.push('\n');
+    indexes_and_rest.push_str(&lines[commit + 1..].join("\n"));
+    indexes_and_rest.push_str("\nBEGIN TRANSACTION;\n");
     indexes_and_rest.push_str(&receipt.join("\n"));
     indexes_and_rest.push_str("\nCOMMIT TRANSACTION;\n");
-    indexes_and_rest.push_str(&lines[commit + 1..].join("\n"));
-    indexes_and_rest.push('\n');
     Ok(FreshBootstrapScript {
         definitions,
         indexes_and_rest,
@@ -4620,10 +4622,12 @@ async fn definitions_committed_without_receipt(
 /// predecessor is upgraded transactionally from its retired registry field to the declarative
 /// `schema_source` field; no deleted migration file is read or executed. The sole resumable
 /// incomplete state is the exact-current `schema_applied` receipt written after committed DDL or
-/// predecessor upgrade (on a fresh store it commits with the index transaction; an interrupted
-/// fresh bootstrap resumes through [`definitions_committed_without_receipt`]). It is finalized
-/// only after complete live INFO matches the compiled fingerprint. A process-wide mutex serializes callers; each transaction rechecks durable state
-/// before mutation. Exact-current restarts return before executing any `OVERWRITE` statement.
+/// predecessor upgrade (on a fresh store it commits in a final short transaction after every
+/// index; an interrupted fresh bootstrap resumes through
+/// [`definitions_committed_without_receipt`]). It is finalized only after complete live INFO
+/// matches the compiled fingerprint. A process-wide mutex serializes callers; each transaction
+/// rechecks durable state before mutation. Exact-current restarts return before executing any
+/// `OVERWRITE` statement.
 pub async fn bootstrap_schema(
     storage: &SurrealStorage,
 ) -> Result<SchemaBootstrapReport, SurrealStorageError> {
@@ -4645,11 +4649,11 @@ pub async fn bootstrap_schema(
                         "HANDSHAKE_SURREAL_BOOTSTRAP_SCRIPT_INVALID: {reason}"
                     ))
                 })?;
-                // A crash after the definitions transaction committed but before the index
+                // A crash after the definitions transaction committed but before the receipt
                 // transaction did leaves the exact compiled table set with no receipt row. Only
-                // that state resumes: the index transaction and the post-transaction statements
-                // (all OVERWRITE) re-run, then the schema_applied resume path below verifies the
-                // complete live INFO fingerprint before finalizing.
+                // that state resumes: the index statements, the post-transaction statements (all
+                // OVERWRITE) and the receipt re-run, then the schema_applied resume path below
+                // verifies the complete live INFO fingerprint before finalizing.
                 if definitions_committed_without_receipt(&database).await? {
                     database
                         .query_bound(script.indexes_and_rest.clone(), bindings())
@@ -4661,7 +4665,7 @@ pub async fn bootstrap_schema(
                     None => {
                         // The table/field/function transaction must commit before any index is
                         // defined: a failed first transaction (e.g. the not-empty guard) never
-                        // reaches the index transaction.
+                        // reaches an index statement.
                         database
                             .query_bound(script.definitions, bindings())
                             .await?;
@@ -9615,11 +9619,24 @@ mod tests {
             .expect("close restarted Canvas receipt store");
     }
 
-    /// The fresh bootstrap runs every `DEFINE INDEX` of the schema transaction in a second
-    /// transaction after the definitions commit, with the `schema_applied` receipt last; no line is
-    /// lost, duplicated or reordered within its group.
+    /// The fresh bootstrap runs every `DEFINE INDEX` of the schema transaction after the
+    /// definitions transaction commits, each outside any explicit transaction, and writes the
+    /// `schema_applied` receipt in a final short transaction; no line is lost or duplicated.
     #[test]
-    fn fresh_bootstrap_script_moves_every_index_into_a_second_transaction() {
+    fn fresh_bootstrap_script_runs_every_index_outside_an_explicit_transaction() {
+        fn index_statements_inside_transactions(script: &str) -> usize {
+            let mut inside = false;
+            let mut count = 0;
+            for line in script.lines() {
+                match line {
+                    "BEGIN TRANSACTION;" => inside = true,
+                    "COMMIT TRANSACTION;" => inside = false,
+                    _ if inside && line.starts_with("DEFINE INDEX ") => count += 1,
+                    _ => {}
+                }
+            }
+            count
+        }
         let script = fresh_bootstrap_script(SCHEMA).expect("split compiled schema");
         assert!(
             !script.definitions.contains("\nDEFINE INDEX "),
@@ -9633,55 +9650,59 @@ mod tests {
             1,
             "the definitions query is exactly one transaction"
         );
-        let (index_transaction, rest) = script
-            .indexes_and_rest
-            .split_once("COMMIT TRANSACTION;\n")
-            .expect("second transaction commits");
-        assert!(index_transaction.starts_with("BEGIN TRANSACTION;\n"));
         assert_eq!(
-            index_transaction.matches("\nDEFINE INDEX ").count(),
-            INDEX_DEFINITION_COUNT,
-            "every index moves into the second transaction"
+            index_statements_inside_transactions(&script.indexes_and_rest),
+            0,
+            "no index DDL runs inside BEGIN..COMMIT"
         );
-        let receipt = index_transaction
-            .find("UPSERT handshake_schema_state:primary SET")
-            .expect("receipt in the index transaction");
+        assert_eq!(
+            script
+                .indexes_and_rest
+                .lines()
+                .filter(|line| line.starts_with("DEFINE INDEX "))
+                .count(),
+            INDEX_DEFINITION_COUNT,
+            "every index runs after the definitions transaction"
+        );
+        let (before_receipt, receipt_transaction) = script
+            .indexes_and_rest
+            .rsplit_once("BEGIN TRANSACTION;\n")
+            .expect("final receipt transaction");
         assert!(
-            index_transaction[..receipt]
-                .rfind("DEFINE INDEX ")
-                .is_some()
-                && !index_transaction[receipt..].contains("DEFINE INDEX "),
-            "the receipt commits after every index"
+            receipt_transaction.starts_with("UPSERT handshake_schema_state:primary SET")
+                && receipt_transaction
+                    .trim_end()
+                    .ends_with("COMMIT TRANSACTION;")
+                && !receipt_transaction.contains("DEFINE "),
+            "the final short transaction holds only the receipt: {receipt_transaction}"
         );
         let original_rest = SCHEMA
             .split_once("\nCOMMIT TRANSACTION;\n")
             .expect("schema transaction")
             .1;
-        assert_eq!(rest.trim_end(), original_rest.trim_end());
+        assert!(
+            before_receipt
+                .trim_end()
+                .ends_with(original_rest.trim_end()),
+            "the post-transaction statements run unchanged, before the receipt"
+        );
         let mut before = SCHEMA.lines().collect::<Vec<_>>();
         let mut after = script
             .definitions
             .lines()
             .chain(script.indexes_and_rest.lines())
             .collect::<Vec<_>>();
-        after.remove(
-            after
-                .iter()
-                .position(|line| *line == "BEGIN TRANSACTION;")
-                .and_then(|first| {
-                    after[first + 1..]
-                        .iter()
-                        .position(|line| *line == "BEGIN TRANSACTION;")
-                        .map(|second| first + 1 + second)
-                })
-                .expect("second BEGIN"),
-        );
-        after.remove(
-            after
-                .iter()
-                .position(|line| *line == "COMMIT TRANSACTION;")
-                .expect("added COMMIT"),
-        );
+        // The split adds exactly one BEGIN and one COMMIT (the receipt transaction).
+        let added_begin = after
+            .iter()
+            .rposition(|line| *line == "BEGIN TRANSACTION;")
+            .expect("receipt BEGIN");
+        after.remove(added_begin);
+        let added_commit = after
+            .iter()
+            .rposition(|line| *line == "COMMIT TRANSACTION;")
+            .expect("receipt COMMIT");
+        after.remove(added_commit);
         before.sort_unstable();
         after.sort_unstable();
         assert_eq!(
