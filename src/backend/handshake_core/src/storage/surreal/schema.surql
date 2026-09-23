@@ -77,7 +77,7 @@ DEFINE EVENT OVERWRITE enforce_actor_job_consistency ON TABLE workspaces
       AND $after.last_actor_kind = 'AI' AND $after.last_job_id = NONE
     THEN { THROW 'workspaces.last_job_id is required when last_actor_kind is AI'; };
 DEFINE EVENT OVERWRITE mt109_workspace_reconciliation_queue ON TABLE workspaces
-    WHEN $event = 'CREATE'
+    WHEN $event = 'CREATE' AND $auth != NONE
     THEN {
         IF !fn::mt120_workspace_create($after.created_in_session_id) { THROW 'HSK-403-PROTECTED-RESOURCE'; };
         LET $service_principal = (SELECT * FROM ONLY principals WHERE principal_key = 'mt109-reconciliation-service-principal' AND principal_kind = 'service_identity' AND status = 'enabled' LIMIT 1);
