@@ -11,6 +11,7 @@ const WORKSPACES_TABLE: &str = "workspaces";
 
 macro_rules! workspace_delete_body { () => { r#"UPSERT type::record('fems_workspace_write_anchors', $anchor.key) SET anchor_key = $anchor.key, workspace_key = $anchor.key, claim_nonce = $anchor.nonce, updated_at = time::now() RETURN NONE;
 DELETE type::record('fems_workspace_write_anchors', $anchor.key) RETURN NONE;
+DELETE kernel_crdt_updates WHERE workspace_id = record::id($workspace);
 DELETE atelier_intake_item_loom_projection WHERE workspace_id = $workspace;
 DELETE loom_canvas_visual_edges WHERE workspace_id = $workspace;
 DELETE loom_canvas_placements WHERE workspace_id = $workspace;
