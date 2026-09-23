@@ -14,7 +14,7 @@
   "title": "E5-MT-034-CodeNoteCrossRefs",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-22T20:51:09.293Z",
+  "updated_at_utc": "2026-09-23T02:45:56.642Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-034.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V6",
+    "status": "FAIL_V6",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -37,7 +37,7 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "FAIL_V5",
+    "validator_verdict": "FAIL_V6",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
     "validated_at_utc": "2026-09-16T23:19:49.151Z",
@@ -1477,5 +1477,107 @@
       "test_code_note_cross_ref live_backend::v2_self_seeded_surrealdb_code_ref_round_trip_navigation_and_note_refs"
     ],
     "recorded_at_utc": "2026-09-22T20:51:09.293Z"
+  },
+  "validation_v6": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V6",
+    "verdict_label": "FAIL V6",
+    "session": "WP_VALIDATOR-C1",
+    "validated_by": "WP_VALIDATOR-C1",
+    "role": "WP_VALIDATOR",
+    "validated_at_utc": "2026-09-23T02:45:56.642Z",
+    "candidate_sha": "c792b8a28f0e21b6e7ecb6b2c917643c98cfa200",
+    "validated_commit": "c792b8a28f0e21b6e7ecb6b2c917643c98cfa200",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [],
+      "clean": true,
+      "remote_check": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 == c792b8a2"
+    },
+    "spec_version": "v02.206",
+    "spec_clauses": [
+      "Master Spec v02.206 module 10 (10.2 Monaco/code editor experience, 10.20 Project Knowledge Index and Rich Editor Surface, 10.15.2 Native action and handler surface)"
+    ],
+    "authority_read": [
+      "wt-gov-kernel/.GOV/codex/Handshake_Codex_v1.4.md (compact v1.5)",
+      "wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      "wtc-native-editors-v1/CLAUDE.md + AGENTS.md (mirrors; older artifact-root rule superseded by CX-984)",
+      "HANDSHAKE_BUILD_RULES.json v1.11.0",
+      "SPEC_CURRENT -> master-spec-v02.206 INDEX.json (modules 05, 10)",
+      "HANDOFF_WP-KERNEL-012_IV-orchestrator_2026-09-17_session4.md sections 5, 8"
+    ],
+    "method": "Lean mode: static review of latest remediation + diff, then ONE shared union batch (owning MT-109, covers[] per row) executed pool 1 from sha-verified D: copies under wpv-c1/target (proof harness requires current_exe under CARGO_TARGET_DIR=<Artifacts>/WP/MT/owner/target); one solo --exact --test-threads=1 rerun per failure class on an idle host; native live binaries stopped after the class was established (Orchestrator steer). Builder logs used as triage only (VPX-002).",
+    "shared_proof_batch": {
+      "owning_mt": "MT-109",
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1",
+      "results": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1/results.jsonl",
+      "union_plan": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1/logs/01-union-plan.tsv",
+      "live_classification": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1/logs/02-live-classification.tsv",
+      "mt_evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1/logs/03-mt-evidence.json",
+      "invalid_rows": "102-110 (exe outside CARGO_TARGET_DIR runner defect), 112/125 (aborted), 113/115/116 (stray driver, concurrent) - superseded by rows 114, 117-124, 126+",
+      "covers_this_mt": "MT-034"
+    },
+    "proof_records": [
+      {
+        "row": 141,
+        "target": "test_manual_pane_editors",
+        "exe_sha256": "b172a6a9ec1631a4467e66a4b42fce8819fc8804d7db1359ab690f9688cc29e9",
+        "exit_code": 0,
+        "result_line": "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.05s",
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1/logs/141-test_manual_pane_editors.log",
+        "log_sha256": "b4c9a9f028796232b38b723e523dca2ea4f72f869dce279ebea53db5e497425d",
+        "rerun_alone": false,
+        "gpu": true,
+        "started_at_utc": "2026-09-23T02:28:58Z"
+      }
+    ],
+    "gates": [],
+    "backend_binary": {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1/target/debug/handshake_core.exe",
+      "sha256": "8fb7f8400bc5ad710a5a3a172ed2a082affa73340178495930a9a0a4f3d0ff84",
+      "built": "validator log 02-core-bins (cargo build --locked --features app-runtime at c792b8a2), cp -p to lane"
+    },
+    "target_reuse_note": "Reused the warm C:/.target/WP-KERNEL-012/target built sequentially by KERNEL_BUILDER-C1 at ce1e8769/c792b8a2 (VPX-008, sequential owner, CARGO_PROFILE_DEV_DEBUG=line-tables-only, --locked). Validator rebuilt handshake_core bins, palmistry, all linked test exes; clippy forced to re-check (not replayed) by bumping native lib.rs mtime. Set-A backend targets linked under set-B features (superset) to reuse the compiled lib.",
+    "static_findings": {},
+    "spec_realism_gate": {
+      "sub_rule_1_no_deferred_live_escape": "PASS: 0 hits for the placeholder set in git diff a8bf221b..HEAD and in the MT proof files",
+      "sub_rule_2_handshake_owned_resource": "NOT_SATISFIED at this candidate: the proofs that touch the Handshake-owned resource (embedded SurrealDB via the real handshake_core.exe / backend test store) fail or were not run (see remediation_required)",
+      "sub_rule_3_no_self_certification": "claimed_by=KERNEL_BUILDER-20260728-221208; validator=WP_VALIDATOR-C1; no completed_by written"
+    },
+    "screenshots_inspected": [],
+    "remediation_required": [
+      {
+        "failure_class": "NOT-RUN-MASKED",
+        "owner": "ORCHESTRATOR (rerun after class fixes)",
+        "signature": "native live binary not executed in this pass (Orchestrator steer 2026-09-23): every native live fixture starts at owned-backend Owner setup / workspace creation, which failed deterministically (C1V-NATIVE-AUTH-OWNER, C1V-WS-CREATE-403)",
+        "first_failing": [],
+        "suspected_owner_area": "shared native fixture prerequisites",
+        "action": "After the classes above are fixed, run the listed live binaries.",
+        "evidence_rows": [],
+        "binaries_to_run_after_fix": [
+          "test_code_note_cross_ref (LIVE)",
+          "test_e7_swarm_edit_proof (LIVE)",
+          "test_find_in_files (LIVE)",
+          "test_locus_interop (LIVE)",
+          "test_loom_search_v2 (LIVE)",
+          "test_manual_content (LIVE)",
+          "test_other_pillar_interop_proofs (LIVE)"
+        ]
+      }
+    ],
+    "hbr_notes": "HBR-QUIET finding C1V-QUIET-LEAK recorded (owned backends surviving failed native proofs). No TRACKED_FIXTURE_WRITE in any valid row.",
+    "next_actor": "KERNEL_BUILDER (fix classes) -> WP_VALIDATOR rerun"
+  },
+  "validation_v6_transition": {
+    "from_status": "READY_FOR_VALIDATION_V6",
+    "to_status": "FAIL_V6",
+    "validator_verdict": "FAIL_V6",
+    "at_utc": "2026-09-23T02:45:56.642Z",
+    "by": "WP_VALIDATOR-C1",
+    "candidate_sha": "c792b8a28f0e21b6e7ecb6b2c917643c98cfa200",
+    "failure_classes": [
+      "NOT-RUN-MASKED"
+    ],
+    "reason": "FAIL by class: NOT-RUN-MASKED"
   }
 }

@@ -22,7 +22,7 @@
   "title": "E13-MT-124-Make-The-Wikilink-Chip-Label-Wrap-With-Its-Galley-So-A-Long-Chip-Cannot-Paint-Outside-The-Reading-Column",
   "group": "E13-RichEditor",
   "created_at_utc": "2026-08-12T13:05:00Z",
-  "updated_at_utc": "2026-09-22T20:51:09.293Z",
+  "updated_at_utc": "2026-09-23T02:45:56.642Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-124.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -37,7 +37,7 @@
       "MT-116"
     ],
     "blocks": [],
-    "validator_verdict": "PARTIAL_V1",
+    "validator_verdict": "PARTIAL_V2",
     "claimed_by": "KERNEL_BUILDER-20260818-130753",
     "claimed_at_utc": "2026-08-18T15:40:00Z",
     "claim_note_2026_08_18": "Claimed by KERNEL_BUILDER-20260818-130753. The rate-limited prior session had already implemented the recorded correct-fix direction (per-row chip_row_spans in inline_view.rs + per-row pill/label painting in rich_editor_widget.rs, union rect preserved for pointer/AccessKit activation) and hardened the measurement harness; that work was preserved in checkpoint commit b1c9ae72. GREEN GPU proof run 2026-08-18: all 3 scenarios WRAPPED_LABEL_MATCHES_PILL_INSIDE_COLUMN (log Handshake_Artifacts/handshake-test/wp012-mt124-green-run.log), frames opened and described. RED-with-fix-disabled guard proof and pinned-toolchain rerun pending before READY_FOR_VALIDATION_V4.",
@@ -392,5 +392,97 @@
     "status": "VERIFIED_NO_CODE_GAP",
     "static_verification": "No remediation_required; only the RED-half proof remains, which needs same-turn Operator authorization for the tree rewrite.",
     "recorded_at_utc": "2026-09-22T20:51:09.293Z"
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PARTIAL_V2",
+    "verdict_label": "PARTIAL V2",
+    "session": "WP_VALIDATOR-C1",
+    "validated_by": "WP_VALIDATOR-C1",
+    "role": "WP_VALIDATOR",
+    "validated_at_utc": "2026-09-23T02:45:56.642Z",
+    "candidate_sha": "c792b8a28f0e21b6e7ecb6b2c917643c98cfa200",
+    "validated_commit": "c792b8a28f0e21b6e7ecb6b2c917643c98cfa200",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [],
+      "clean": true,
+      "remote_check": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 == c792b8a2"
+    },
+    "spec_version": "v02.206",
+    "spec_clauses": [
+      "Master Spec v02.206 module 10 (10.2 Monaco/code editor experience, 10.20 Project Knowledge Index and Rich Editor Surface, 10.15.2 Native action and handler surface)",
+      "Master Spec 5.6 + HANDSHAKE_BUILD_RULES v1.11.0 (HBR-VIS, HBR-MAN, HBR-INT-009, HBR-PRIV, HBR-QUIET)"
+    ],
+    "authority_read": [
+      "wt-gov-kernel/.GOV/codex/Handshake_Codex_v1.4.md (compact v1.5)",
+      "wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      "wtc-native-editors-v1/CLAUDE.md + AGENTS.md (mirrors; older artifact-root rule superseded by CX-984)",
+      "HANDSHAKE_BUILD_RULES.json v1.11.0",
+      "SPEC_CURRENT -> master-spec-v02.206 INDEX.json (modules 05, 10)",
+      "HANDOFF_WP-KERNEL-012_IV-orchestrator_2026-09-17_session4.md sections 5, 8"
+    ],
+    "method": "Lean mode: static review of latest remediation + diff, then ONE shared union batch (owning MT-109, covers[] per row) executed pool 1 from sha-verified D: copies under wpv-c1/target (proof harness requires current_exe under CARGO_TARGET_DIR=<Artifacts>/WP/MT/owner/target); one solo --exact --test-threads=1 rerun per failure class on an idle host; native live binaries stopped after the class was established (Orchestrator steer). Builder logs used as triage only (VPX-002).",
+    "shared_proof_batch": {
+      "owning_mt": "MT-109",
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1",
+      "results": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1/results.jsonl",
+      "union_plan": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1/logs/01-union-plan.tsv",
+      "live_classification": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1/logs/02-live-classification.tsv",
+      "mt_evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1/logs/03-mt-evidence.json",
+      "invalid_rows": "102-110 (exe outside CARGO_TARGET_DIR runner defect), 112/125 (aborted), 113/115/116 (stray driver, concurrent) - superseded by rows 114, 117-124, 126+",
+      "covers_this_mt": "MT-124"
+    },
+    "proof_records": [
+      {
+        "row": 143,
+        "target": "test_mt124_chip_label_wrap",
+        "exe_sha256": "65eb9a119af074cfc0e1ef335da92c01078b12444f88ef6f763d07e3bfff3876",
+        "exit_code": 0,
+        "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.44s",
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1/logs/143-test_mt124_chip_label_wrap.log",
+        "log_sha256": "d6e9cb4ad80a377870b25cc3e464e5ad27a9fe25a3767c30a909502f56b02ce6",
+        "rerun_alone": false,
+        "gpu": true,
+        "started_at_utc": "2026-09-23T02:29:28Z"
+      }
+    ],
+    "gates": [],
+    "backend_binary": {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1/target/debug/handshake_core.exe",
+      "sha256": "8fb7f8400bc5ad710a5a3a172ed2a082affa73340178495930a9a0a4f3d0ff84",
+      "built": "validator log 02-core-bins (cargo build --locked --features app-runtime at c792b8a2), cp -p to lane"
+    },
+    "target_reuse_note": "Reused the warm C:/.target/WP-KERNEL-012/target built sequentially by KERNEL_BUILDER-C1 at ce1e8769/c792b8a2 (VPX-008, sequential owner, CARGO_PROFILE_DEV_DEBUG=line-tables-only, --locked). Validator rebuilt handshake_core bins, palmistry, all linked test exes; clippy forced to re-check (not replayed) by bumping native lib.rs mtime. Set-A backend targets linked under set-B features (superset) to reuse the compiled lib.",
+    "static_findings": {},
+    "spec_realism_gate": {
+      "sub_rule_1_no_deferred_live_escape": "PASS: 0 hits for the placeholder set in git diff a8bf221b..HEAD and in the MT proof files",
+      "sub_rule_2_handshake_owned_resource": "PASS: proofs drive the real native egui/AccessKit runtime of handshake_native (kittest harness on product widgets), no implementer-authored mock resource",
+      "sub_rule_3_no_self_certification": "claimed_by=KERNEL_BUILDER-20260818-130753; validator=WP_VALIDATOR-C1; no completed_by written"
+    },
+    "screenshots_inspected": [
+      "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-124/mt124-h1-editor-20-contract-case-wrapped-chip-full-frame.png (sha256 32985c41e848c8da..., 2026-09-23T02:29:49Z): label wraps onto 2 rows, pill drawn tightly behind each row, no text outside the column",
+      "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-124/mt124-h1-editor-20-contract-case-column-right-edge-2x.png (sha256 b7d5b73c7b534e97...): row end and pill end well inside the column right edge"
+    ],
+    "red_half": {
+      "outcome": "NOT_OBTAINED_REVERSE_NOT_CLEAN",
+      "fix_commit": "b1c9ae72 (wip checkpoint; MT-124 product files rich_editor_widget.rs + inline_view.rs)",
+      "detail": "git apply -R --check of b1c9ae72's native src diff fails at rich_editor_widget.rs:6194; later f3525bbb/4583475a fix/style(MT-079) and 1236078e/83c05ecf (MT-111) touched the same files. Stopped per brief; no hand edit.",
+      "patch": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c1 (scratch, not applied)"
+    },
+    "remediation_required": [],
+    "partial_reason": "Green half proven at c792b8a2; RED half could not be obtained under the brief's rule (reverse-apply only the fix commit's product diff, no hand edits). Needs an Operator/Orchestrator decision on how the RED half is to be shown.",
+    "hbr_notes": "HBR-QUIET finding C1V-QUIET-LEAK recorded (owned backends surviving failed native proofs). No TRACKED_FIXTURE_WRITE in any valid row.",
+    "next_actor": "ORCHESTRATOR (decision on RED half)"
+  },
+  "validation_v2_transition": {
+    "from_status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "to_status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "validator_verdict": "PARTIAL_V2",
+    "at_utc": "2026-09-23T02:45:56.642Z",
+    "by": "WP_VALIDATOR-C1",
+    "candidate_sha": "c792b8a28f0e21b6e7ecb6b2c917643c98cfa200",
+    "failure_classes": [],
+    "reason": "Green half green; RED half not obtainable under the reverse-apply rule"
   }
 }
