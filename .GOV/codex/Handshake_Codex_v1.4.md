@@ -92,6 +92,20 @@
 
 [CX-EXEC-004] Batch related repairs within approved scope before expensive validation. During implementation, run focused proof when it determines the next edit; run required acceptance proof on stable batch inputs before readiness or PASS. A rerun requires changed relevant inputs, invalid/missing evidence, or a distinct evidence-based hypothesis. A new agent/session, MT boundary or report alone does not justify a rerun; reuse valid independent evidence under the assigned validator protocol.
 
+[CX-EXEC-003B] CX-EXEC-003 also applies to a steering role's own rounds: a round that produces no pushed commit or verdict forces a changed approach in the next round.
+
+[CX-EXEC-006] Deliverable progress is only pushed product commits and MT status/verdict changes. A report where neither changed says `no direct progress`. Process liveness, gate exits, compiles and reports are not progress.
+
+[CX-EXEC-007] Implementers commit and push per MT as soon as the changed code compiles. Proof and validation always name a pushed commit, never a dirty tree. Holding compiled work uncommitted until a batch is fully proven is forbidden.
+
+[CX-EXEC-008] Validation is per MT from its named proof commands, with each verdict recorded as soon as its evidence is complete. Broad or full suites run only at the WP boundary, after the MTs pass.
+
+[CX-EXEC-009] Any agent or command expected to run over 2 minutes runs in the background, polled at least every 60 s, so steering takes effect within a minute. A long foreground wait is a brief defect.
+
+[CX-EXEC-010] A role that steers agents gives each one a required output (commit or verdict) per 20–30 minutes. It checks outputs every 10 minutes, demands output after 20 minutes without any, and after 30 minutes replaces the agent with a fresh one that resumes from the ledger.
+
+[CX-EXEC-011] Handoff step lists and agent plans are input, not authority over the approach. Each dispatch states the commit or verdict it will produce and by when, derived from the assigned outcome.
+
 ## Artifact isolation
 
 [CX-PATH-001] The Operator does not insert backslashes before underscores. Treat any such sequence encountered in an Operator-provided path as a text-processing artifact, never an Operator mistake or intended directory separator. Reason: formatting escapes can be mistaken by the assistant for filesystem separators, splitting one folder name into two and causing incorrect resolution or unwanted folder creation.

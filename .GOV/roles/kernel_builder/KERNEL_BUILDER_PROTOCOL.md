@@ -119,6 +119,22 @@
 - `KERNEL_BUILDER` remains responsible for every sub-agent action and for cleaning each lane's
   scoped artifact dir after it completes.
 
+## Output-First Execution [KB-OUT] (HARD)
+
+[KB-OUT-001] Commit and push per MT as soon as the changed code compiles (Codex CX-EXEC-007). Record the SHA in the MT before running proof. Never hold compiled work uncommitted until a batch is fully proven.
+
+[KB-OUT-002] Run builds, tests and sub-agent waits in the background and poll at least every 60 s, so steering is read within a minute (Codex CX-EXEC-009).
+
+[KB-OUT-003] A proof run that executes 0 tests or matches no test names is a defect, not a result. Fix the filter before counting an attempt.
+
+[KB-OUT-004] When steering sub-agents, give each one a required output (commit or verdict) per 20–30 minutes. Check outputs every 10 minutes, demand output after 20 minutes without any, and after 30 minutes replace the agent with a fresh one that resumes from its ledger (Codex CX-EXEC-010). The KB-STEER-002 tick covers liveness only.
+
+[KB-OUT-005] Do not accept a sub-agent plan that delays commits or verdicts. Set the deadline in the brief and enforce it.
+
+[KB-OUT-006] Reports to the Operator give only: MTs moved, pushed commits, blockers. If none changed, the report says `no direct progress`.
+
+[KB-OUT-007] Every MT this role hydrates names its blocking test or proof command and feature set.
+
 ## Handoff and validation
 
 [KB-HANDOFF-001] Emit one typed handoff in the existing packet-declared surface with WP/MT scope, branch/worktree, commit/tree, changed files, proof/acceptance references, relevant Argus/UserManual evidence, delegated-review results, blockers and next actor. Link existing evidence rather than re-authoring matrices, questionnaires or parallel reports. Preparation handoff records readiness or the exact approval/spec/worktree blocker using the same existing state surfaces.

@@ -117,6 +117,6 @@ C3 lands → C4 (MT-154/155/156) in the worktree while the validator checks the 
 1. `git ls-remote` + status for `feat/WP-KERNEL-012` (expect `0cfbff64`) and `gov_kernel`; process scan (cargo/rustc/link/test_); C: free.
 2. Two lanes at once:
    - Lane A (D: HDD, warm `kb-c3/target`): builder C4 = C3's gates first (fix `gates.sh` to check per disk), then C3 open items 2–4, then MT-154 + MT-155 + MT-156, then MT-157. Fresh Opus builder, briefed per §6.
-   - Lane B (C: SSD): validator = new clean export of `0cfbff64`, clean up the old export and target-v2, run the backend suites + non-live native binaries, write verdicts, and group failures by area for C4.
+   - Lane B (C: SSD): validator = new clean export of `0cfbff64`, clean up the old export and target-v2, validate per MT per Codex [CX-EXEC-008] (queue of MTs with named blocking tests; each verdict written immediately; no broad suites before the WP boundary), and group failures by area for C4. (Amended 2026-09-23 by Operator-approved [CX-EXEC-006..011] / [ORC-OUT].)
 3. Resolve MT-154's D-154-1..3 from the Master Spec with a read-only sub-agent while the lanes run.
 4. Re-arm the two-lane tick. Snapshot every round by explicit path.

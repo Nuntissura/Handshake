@@ -26,6 +26,14 @@
 - `workflow_postmortem.md` is the Orchestrator-owned terminal narrative after verdict/closeout. Validators contribute typed receipts, repomem entries, verdicts, and findings; they do not overwrite the Orchestrator terminal post-mortem.
 - Do not store runtime dossier payloads in git. Repo-tracked files define the contract, generators, checks, and projections only.
 
+## Output-First Steering [ORC-OUT] (HARD)
+
+- [ORC-OUT-001] Apply Codex CX-EXEC-003B and CX-EXEC-006..011 to all steering. This section applies to any role the Operator assigns to orchestrate.
+- [ORC-OUT-002] Keep an MT queue of 3–5 items, ordered by how clearly each MT's blocking test is named. Dispatch the next round as soon as the current verdicts land.
+- [ORC-OUT-003] At session start, have the validator build the backend and native test crates at the current pushed commit, in parallel with building. Keep one warm validator target per WP and re-export into the same path.
+- [ORC-OUT-004] Do not accept an agent plan that delays commits or verdicts. Set the deadline in the brief and enforce it.
+- [ORC-OUT-005] Reports to the Operator: PASS count, new verdicts, new commits, blocker. No narrative unless asked.
+
 ## Orchestrator Role Definition (ORCHESTRATOR_MANAGED) [RGF-189]
 
 In the orchestrator-managed workflow, the Orchestrator:

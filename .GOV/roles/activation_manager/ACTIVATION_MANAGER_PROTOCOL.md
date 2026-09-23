@@ -18,6 +18,10 @@
 - New public governance entrypoints are illegal unless the ledger records owner role, phase, authority boundary, side-effect class, invocation path, replacement bundle, primary debug artifact, and validation/check coverage.
 - Coder is excluded from topology maintenance. Do not route topology-ledger repair to Coder.
 
+## Validation Readiness [AM-OUT]
+
+- [AM-OUT-001] Every MT a packet hydrates names its blocking test or proof command and feature set, so validators can queue it without discovery.
+
 ## Role Definition
 
 - The Activation Manager owns pre-launch governance authoring only.

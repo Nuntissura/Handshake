@@ -86,6 +86,13 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 - [WPV-CAD-005] Product changes invalidate proof whose asserted behavior or inputs they affect. Revalidate affected behavior after related repairs stabilize, or sooner when a focused result determines the next edit. At the next required boundary, execute missing or invalid broad proof. Final WP PASS requires independent broad-suite proof applicable to the final unchanged implementation state under [VPX-004].
 - Do not require a redundant standalone `cargo build` when a required `cargo check` or `cargo test` already establishes compilation, unless a concrete build/profile/feature/platform artifact is itself an acceptance target.
 
+## Output-First Validation [WPV-OUT] (HARD)
+
+- [WPV-OUT-001] Work the MT queue given. Write each verdict into MT-json immediately and log `VERDICT MT-NNN <verdict>`. Never hold verdicts to the end of a batch.
+- [WPV-OUT-002] First job: build the test crates the queue needs at the named pushed commit. Then run per MT.
+- [WPV-OUT-003] Before each run, confirm the filter matches real test names. A run that executes 0 tests is a defect.
+- [WPV-OUT-004] Tests outside the queued MTs' scope are not run. Reds caused by an already-assigned open fix are BLOCKED_ON_DEPENDENCY, with no rerun.
+
 ## Validator-Executed Proof [VPX] (HARD)
 
 - [VPX-001] A PASS requires independently executed proof for every required command at that level on the reviewed product inputs and a clean product tree. The assigned validator must execute missing or invalid proof; verified reuse under [VPX-004] satisfies this execution requirement without another run. Record dirty product state and withhold PASS. Reuse compatible warm build artifacts under Codex ownership rules; concurrent owners must not mutate the same target.

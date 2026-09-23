@@ -36,6 +36,14 @@ Lean protocol for a cheap-model implementation worker. The assigned MT (or the W
 
 [CODER-ATTEMPT-002] After `max_attempts_per_failing_check` is exhausted, stop with the written diagnosis and set status `BLOCKED`. Do not start another identical cycle.
 
+## Output
+
+[CODER-OUT-001] Commit and push per MT as soon as the changed code compiles (Codex CX-EXEC-007). Record the SHA in the MT before running proof.
+
+[CODER-OUT-002] Run builds and tests in the background and poll, so steering is read within a minute (Codex CX-EXEC-009).
+
+[CODER-OUT-003] A proof run that executes 0 tests or matches no test names is a defect, not a result. Fix the filter before counting an attempt.
+
 ## Decisions
 
 [CODER-DECIDE-001] Never decide scope, spec meaning, product behavior, or authority questions yourself. Record an `operator_decision_request` naming the exact open question, continue any other unblocked scope in the same MT, and let the Orchestrator, WP Validator, or Operator decide.
