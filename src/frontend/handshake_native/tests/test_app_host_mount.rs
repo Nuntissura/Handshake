@@ -80,6 +80,26 @@ fn assert_no_local_artifact_dir() {
 /// and returned alongside the app so it OUTLIVES the harness (a dropped runtime would unbind the editors
 /// mid-test). The active project id (`DEFAULT_PROJECT_ID`) is the non-empty workspace the session push
 /// uses, so the editors thread real session context once the runtime is injected.
+// Explicit identity for this file's isolated loopback peers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext =
+        serde_json::from_value(serde_json::json!({
+            "account_id": "mock-account",
+            "principal_id": "mock-principal",
+            "session_id": "mock-session",
+            "access_space_id": "mock-space",
+            "session_token": "a".repeat(64)
+        }))
+        .expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
+}
+
 fn editor_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
@@ -443,7 +463,21 @@ fn mounted_tag_event_resolves_canonical_name_to_real_hub_id() {
 fn code_pane_create_note_from_link_routes_through_host_drain() {
     use handshake_native::code_editor::panel::CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID;
 
-    let (app, _rt) = editor_shell();
+    let (mut app, rt) = editor_shell();
+    // MT-111: the create POST is a protected product call; without an AuthenticatedContext it fails
+    // with "Account login required" before any socket, and the host's same-frame create delivery can
+    // consume that instant failure before the in-flight guard is observable. Bind an account to an
+    // isolated loopback peer that completes the TCP handshake but never answers (never accepted), so
+    // the real authorized POST stays genuinely in flight. The production default endpoint is never hit.
+    let silent_peer =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("bind isolated silent create peer");
+    let silent_base = format!(
+        "http://{}",
+        silent_peer.local_addr().expect("silent peer address")
+    );
+    app.set_backend_base_url_for_test(&silent_base, rt.handle().clone());
+    app.bind_initial_account(mock_account_context(&silent_base))
+        .expect("bind isolated mock account");
     let code_panel = app.mounted_code_panel();
     let rich_state = app.mounted_rich_state();
     let mut harness = Harness::builder()
@@ -524,7 +558,10 @@ fn code_pane_create_note_from_link_routes_through_host_drain() {
     assert!(
         create_in_flight,
         "W3/R2: the HOST drain routed the staged title into WikilinkRuntime::dispatch_create_note \
-         (the create for '[[Design Notes]]' went in flight on the SAME runtime the rich chip-click uses)"
+         (the create for '[[Design Notes]]' went in flight on the SAME runtime the rich chip-click uses); \
+         status={:?}, resolver_ready={}",
+        harness.state().quick_switcher_nav_status(),
+        rich_state.lock().unwrap().wikilinks.is_resolver_index_ready()
     );
     // The staged intent is GONE from the panel — the HOST consumed it, not this test.
     assert_eq!(
@@ -669,6 +706,11 @@ fn managed_surrealdb_code_create_note_opens_exact_durable_rich_document() {
 
     let backend = backend_proof_support::require_live_backend();
     let (mut app, runtime) = editor_shell();
+    // MT-111: protected native product calls (resolver seed search, create POST) refuse with
+    // "Account login required" before any socket when no AuthenticatedContext is bound. Bind the
+    // fixture's authority-issued account exactly as the other managed mounted-app proofs do.
+    app.bind_initial_account(backend.account_context.clone())
+        .expect("bind explicit fixture account");
     app.bind_active_project_for_integration_test(backend.workspace_id.clone());
     app.set_backend_base_url_for_test(&backend.base, runtime.handle().clone());
 
@@ -686,10 +728,13 @@ fn managed_surrealdb_code_create_note_opens_exact_durable_rich_document() {
         .lock()
         .unwrap()
         .wikilinks
-        .set_create_backend(Arc::new(KnowledgeCreateNoteBackend::with_base_url(
-            backend.base.clone(),
-            "mt079-managed-host-create-note",
-        )));
+        .set_create_backend(Arc::new(
+            KnowledgeCreateNoteBackend::with_base_url(
+                backend.base.clone(),
+                "mt079-managed-host-create-note",
+            )
+            .with_authenticated_context(Some(backend.account_context.clone())),
+        ));
     {
         let mut state = rich_state.lock().unwrap();
         state.wikilinks.stage_resolver_seed(Vec::new());
