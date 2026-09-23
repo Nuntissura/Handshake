@@ -56,7 +56,9 @@ Every MT at validator-proven `PASS_Vn` → whole-WP IV verdict (full suite + HBR
 
 Verified by audit in the SDK source: `ConfigMap::from_env()` has no caller in the embedded path (surrealdb-3.2.0 `engine/local/native.rs:131` → `kvs/ds/builder.rs:82` starts from `ConfigMap::empty()`); the only route is a `?sync=never` query string on the store path (`kvs/ds.rs:582-590`), which Handshake does not set (`src/storage/surreal.rs:1020`). So EVERY test run today used fsync-per-commit, and the "sync=never" results (including the index-builder hang B diagnosis from run 19) must be re-checked. Hang A (OS `NtFlushBuffersFile` never returning, kernel/filter side) reproduces on the HDD AND the SSD: hang-run15/18/21/22/24/25. Fix in flight: a builder-added TEST-ONLY switch, env `HANDSHAKE_TEST_SURREAL_SYNC=never` → store path `?sync=never` in the test-support openers only (production keeps `Every`), plus a 900 s bootstrap watchdog (typed `BootstrapStalled`). The rules below that name `SURREAL_DATASTORE_SYNC` mean this switch. Operator action pending: as admin, run `fltmc filters` and `(Get-MpPreference).ExclusionPath` to find the filter stalling the flush.
 
-## 5. Build, disk and test-env rules (HARD; supersede session-5 §5)
+## 5. Build, disk and test-env rules
+
+- **Operator decision 2026-09-23 23:20: C: grant raised from 100 GB to 150 GB.** Stop cargo below **192 GB** free on C: (baseline 341.9 GB minus 150 GB), still measured by free space. This supersedes the 248 GB stop line below. Purpose: one full union build + nextest run of all open MTs without chunking. (HARD; supersede session-5 §5)
 
 - One cargo per physical disk. C: grant `C:\.target\WP-KERNEL-012\` for build targets (100 GB cap, stop below 248 GB free, measured by free space). D: HDD: builder target `Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target` (warm). The builder links no test binaries on D: except its single pin-measure.
 - Test runtime roots on D: under the lane; `HANDSHAKE_ARTIFACTS_ROOT = D:/…/Handshake_Artifacts`; `SURREAL_DATASTORE_SYNC=never` (durability tests: default); `--test-threads=2`; every run under a wall-clock timeout.
