@@ -2640,7 +2640,7 @@ pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
 // MT-109 C3 re-pin: fn::mt120_loom_endpoint_access and the Loom receipt branches (previous
 // f8909f93910491ac4c95bb8f4b567dd2c572b6e08b5ca899fb0b223dbb2ca411); kb-c3 run 04.
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
-    "ae20eceb86b7d6390b00f7de61a856885a0ec1347f09ed1349b1e0a35832e65b";
+    "469a5fce3f0aac78dbc65638a6459da04877e0148ab9f2472524b5c6a9130e03";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 /// Second allowlisted lineage (MT-142): every store bootstrapped at schema revision 157 before
@@ -3007,7 +3007,7 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
 const TABLE_DEFINITION_COUNT: usize = 294;
 // MT-141 V2-R2 re-pin: +2 fields (knowledge_crdt_ai_edit_proposals.applied_update_id /
 // applied_update_sha256); pin_order and the quick-switcher kind unions changed in place.
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3227;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3356;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 239;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 175;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
@@ -3027,7 +3027,7 @@ const EVENT_DEFINITION_COUNT: usize = 42;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
 const ACCESS_DEFINITION_COUNT: usize = 1;
-const FUNCTION_DEFINITION_COUNT: usize = 32;
+const FUNCTION_DEFINITION_COUNT: usize = 52;
 const SOURCE_TABLE_COUNT: usize = 291;
 const SOURCE_VIEW_COUNT: usize = 2;
 const SOURCE_NAMED_INDEX_COUNT: usize = 555;
@@ -3491,7 +3491,7 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // run 30, HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH / MT109_LOOM_CATALOG_SHA256
     // observed).
     const EXPECTED_CATALOG_SHA256: &str =
-        "0be3894b60c45b45bc828891f003292a12c5cd67f1bf4a24dcdbe02323837619";
+        "8adc1dddc98f2fce6119e38f1689a617a84c6602e8909dd01be60641a8b49164";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -7924,7 +7924,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "0be3894b60c45b45bc828891f003292a12c5cd67f1bf4a24dcdbe02323837619"
+            "8adc1dddc98f2fce6119e38f1689a617a84c6602e8909dd01be60641a8b49164"
         );
     }
 
