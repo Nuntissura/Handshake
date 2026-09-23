@@ -10,6 +10,8 @@
 
 [CX-020] Product architecture, implementation and acceptance must follow the governing Master Spec clauses, applicable HBR rules and approved WP/MT contracts. Contracts define assigned scope; neither a roadmap nor a task-board row authorizes implementation by itself.
 
+[CX-SPEC-TRUTH-001] The Master Spec is the sole product truth. Research, prototypes, refinement findings and Operator ideas become truth only when enrichment writes them into it; a WP stub records the idea and its enrichment disposition. Activation is refused until every requirement the packet binds resolves to a spec anchor or a quoted `spec_basis`. Remediation MTs never pass through this gate.
+
 [CX-021] Explicit Operator instructions govern repo scope and supersede conflicting repo procedures. Role protocols, scripts, startup text and legacy documents must not override this Codex's shared rules or revive obligations expressly retired here.
 
 [CX-012] `.GOV/operator/` is private Operator material, binding only when explicitly designated for the task.
@@ -36,6 +38,16 @@
 
 [CX-503B1] Required acceptance/HBR rows must resolve to proven evidence or a justified NOT_APPLICABLE. PENDING, STEER, BLOCKED, or deferred required behavior cannot count as acceptance.
 
+[CX-TPL-001] Every build rule is enforced through the WP contract: a rule declares the contract fields it requires. A rulebook change that adds, changes or removes contract fields regenerates the WP and MT templates and marks open work for reassessment; activation refuses a contract missing a required field. Models submit field values and never edit template shapes.
+
+[CX-PILLAR-001] Mandatory pillars are assessed on every WP with an explicit disposition and their declared contract fields, from the first WP and never as an afterthought: product-internal parallel runtime lanes, GUI surface with model-navigable and headless routes, user auth with accounts and sub-profiles, compartmentalised build units, canonical component mechanics, UserManual, diagnostics, Flight Recorder, and security/privacy.
+
+[CX-UNIT-001] Every WP names its touched and created modules and a boundary change; every MT binds exactly one owning module and its write scope derives from that module. Build units are logical module paths until the compartment refactor lands crates. Activation rejects dependency-direction violations and unsettled build-budget reviews.
+
+[CX-CAP-001] Before adding any component, find the mechanic it presents (scroll, selection, popup, focus and the like) at the lowest layer that owns it, then consume, configure or extend that owner. One active owner per capability; no MT reimplements a capability owned by another active module. A new mechanic requires a spec primitive and no existing owner.
+
+[CX-LANE-001] A WP whose impact assessment marks change on a GUI matrix entry carries a gui-lane MT naming its backend MT and the shared surface. The GUI MT consumes only the backend's published contract and runs in parallel when write paths are disjoint.
+
 ## Repo ownership and safety
 
 [CX-211] Handshake product code and runtime must not read or write `.GOV/`; repo governance and the shipped product are separate systems.
@@ -61,6 +73,10 @@
 [CX-118] Broad cleanup/sync requests do not authorize deletion or branch movement beyond the approved assignment or the owned-artifact cleanup in [CX-984-006]. For other targets, present exact object types and consequences and obtain explicit approval; changed targets require fresh approval.
 
 [CX-122] Never run raw `git worktree remove` or recursive filesystem deletion on worktree directories. Use the verified governed deletion path, which safely detaches `.GOV/` junctions; a failed helper is not permission for manual deletion.
+
+[CX-GIT-001] No agent, test or tool creates a worktree or branch, directly or indirectly. Compare the worktree and branch inventory before and after every run; a new entry is a defect of that run, the verdict names the offending test, and the stray ref is removed by native Git after the preservation check.
+
+[CX-GIT-002] Every commit names explicit paths; a bare commit over previously staged content is forbidden. A push targets an existing declared branch and never force-pushes. A clean tree is reported as clean, never committed.
 
 [CX-SAFE-001] Do not stop, kill, restart, suspend or otherwise disrupt a process this session did not start without identifying its exact PID and consequences and receiving `PROCESS_STOP_APPROVED:<comma-separated-PIDs>` for that unchanged target list.
 
@@ -108,6 +124,16 @@
 
 [CX-EXEC-012] A remediation pass fixes failures already recorded in an MT/WP (validator findings, failing tests, named blockers); the recorded failure and its stated remediation are the specification. Flow: read the failure, inspect the named code, fix, commit and push, run that MT's proof commands, record the result. Verification against the failure, current code and proof output still applies; broad research, refinements/red-team, risk/ROI listing and new audits or analysis runs do not, unless the same fix has failed twice (CX-EXEC-003).
 
+[CX-VAL-001] A validation round freezes one pushed candidate commit at round start; later commits queue for the next round and never restart a running build. A batch holds at most five MTs, ordered by exactness of their named tests. PASS requires that every required check's result line in the hashed log reads pass.
+
+[CX-VAL-002] Proof reuse across commits requires the original proof's recorded relevant input paths and an empty intersection between those paths and the diff from the proof commit to the candidate commit; the reused verdict names both commits.
+
+[CX-VAL-003] Verdicts are recorded in a declared order: accepted event with the verdict payload and idempotency key, state written once, completed event. An accepted event without its completed event is a half-written verdict; on resume, complete it under the same key, never as a new verdict.
+
+[CX-VAL-004] Process identity is PID plus start time plus command line, recorded at launch; a bare PID is never an identity. A command expected to run over 2 minutes appends a running record before launch naming the command, commit, target path and expected outputs. On resume, read the host restart evidence before attributing a stopped job to a crash; a host restart triggers resume, not remediation.
+
+[CX-HOST-001] Every project declares its test environment in a machine-local host profile outside Codex law: runtime roots, database sync mode, default check timeouts, the hang procedure of dump and stack walk before any kill, and a tools manifest. A check run outside the declared environment is a defect, not a result.
+
 ## Artifact isolation
 
 [CX-PATH-001] The Operator does not insert backslashes before underscores. Treat any such sequence encountered in an Operator-provided path as a text-processing artifact, never an Operator mistake or intended directory separator. Reason: formatting escapes can be mistaken by the assistant for filesystem separators, splitting one folder name into two and causing incorrect resolution or unwanted folder creation.
@@ -137,6 +163,8 @@
 ## Authority maintenance
 
 [CX-105] Change Codex, build rules or Master Spec only on explicit Operator instruction and within the assigned role's authority; the owning role protocol defines the publishing procedure. Present material changes for review; an approved concrete edit needs no repeated approval.
+
+[CX-GOV-PIN-001] Every in-flight WP is pinned to the governance commit it was activated under and is judged under that pin. Later Codex, HBR or template changes apply from the next WP; an open WP is re-pinned only through reassessment and renewed activation.
 
 [CX-MAINT-001] Keep this Codex small. Give each durable obligation a stable ID; preserve surviving IDs and record folds/retirements without reusing an ID for unrelated law. Put detailed product gates in HBR and execution steps in the owning role protocol.
 

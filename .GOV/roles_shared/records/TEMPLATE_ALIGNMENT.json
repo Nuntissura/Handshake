@@ -1,0 +1,176 @@
+{
+  "schema": "hsk.template_alignment@1",
+  "template_pack": {
+    "source": "Obsidian vault Handshake Creation Template",
+    "pack_id": "HANDSHAKE-PROJECT-BASE-v1",
+    "pack_version": 19,
+    "template_files": [
+      "templates/authority/CODEX.template.md",
+      "templates/authority/BUILD-RULES.template.md",
+      "templates/TEMPLATE-PACK.template.md"
+    ]
+  },
+  "repo_targets": {
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "build_rules": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json@1.12.0",
+    "activation_manager": ".GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md"
+  },
+  "mappings": [
+    {
+      "repo_id": "CX-SPEC-TRUTH-001",
+      "template_id": "CODEX-SPEC-001",
+      "kind": "codex",
+      "note": "spec sole truth, stub enrichment disposition, activation refusal until anchors resolve; remediation exemption from CODEX-DECIDE-002"
+    },
+    {
+      "repo_id": "CX-TPL-001",
+      "template_id": "CODEX-RULE-SYNC-001",
+      "kind": "codex",
+      "note": "rules enforced through WP contract; also BR-CONTRACT-SYNC-001 and enforcement.contract_field_propagation"
+    },
+    {
+      "repo_id": "CX-PILLAR-001",
+      "template_id": "CODEX-PILLAR-001",
+      "kind": "codex",
+      "note": "mandatory pillars from the first WP; pillar list from build_matrix.pillars.mandatory_entry_ids and BR-PILLAR-001"
+    },
+    {
+      "repo_id": "CX-UNIT-001",
+      "template_id": "CODEX-UNIT-001",
+      "kind": "codex",
+      "note": "modules, boundary change, one module per MT; logical module paths until crates exist (Handshake-local transition clause)"
+    },
+    {
+      "repo_id": "CX-CAP-001",
+      "template_id": "CODEX-CAP-001",
+      "kind": "codex",
+      "note": "canonical component mechanics, one owner per capability"
+    },
+    {
+      "repo_id": "CX-LANE-001",
+      "template_id": "CODEX-LANE-001",
+      "kind": "codex",
+      "note": "gui-lane MT naming backend MT and shared surface; headless-project sentence omitted (Handshake has a GUI)"
+    },
+    {
+      "repo_id": "CX-GIT-001",
+      "template_id": "CODEX-GIT-001",
+      "kind": "codex",
+      "note": "no agent-created worktrees or branches; inventory compared before and after each run"
+    },
+    {
+      "repo_id": "CX-GIT-002",
+      "template_id": "CODEX-GIT-003",
+      "kind": "codex",
+      "note": "explicit paths per commit, no bare commit, no force-push, clean tree reported; CODEX-GIT-002 skipped as duplicate of CX-108/CX-118"
+    },
+    {
+      "repo_id": "CX-VAL-001",
+      "template_id": "CODEX-VAL-006",
+      "kind": "codex",
+      "note": "frozen candidate commit per round, batch of at most five MTs ordered by exactness; PASS pass-line clause from CODEX-VAL-001"
+    },
+    {
+      "repo_id": "CX-VAL-002",
+      "template_id": "CODEX-VAL-007",
+      "kind": "codex",
+      "note": "proof reuse requires recorded relevant_input_paths and empty diff intersection"
+    },
+    {
+      "repo_id": "CX-VAL-003",
+      "template_id": "CODEX-VAL-008",
+      "kind": "codex",
+      "note": "declared verdict recording order; half-written verdict completion"
+    },
+    {
+      "repo_id": "CX-VAL-004",
+      "template_id": "CODEX-STEER-005",
+      "kind": "codex",
+      "note": "process identity triple; running record before long commands from CODEX-STEER-006; host restart evidence on resume from CODEX-FLOW-008"
+    },
+    {
+      "repo_id": "CX-HOST-001",
+      "template_id": "BR-TEST-ENV-001",
+      "kind": "codex",
+      "note": "machine-local host profile with runtime roots, sync mode, timeouts, hang procedure, tools manifest; BR-HOST-001..003 device classification stays in the host profile, not Codex law"
+    },
+    {
+      "repo_id": "CX-GOV-PIN-001",
+      "template_id": "BUILD-RULES.build_matrix.on_rule_change",
+      "kind": "codex",
+      "note": "governance pin: in-flight WPs judged under their activation commit; changes apply from the next WP"
+    },
+    {
+      "repo_id": "COMPART",
+      "template_id": "BM-BASE-COMPARTMENTALISATION-001",
+      "kind": "pillar",
+      "note": "pillar row from build_matrix.pillars.mandatory_entry_ids"
+    },
+    {
+      "repo_id": "COMPONENT",
+      "template_id": "BM-BASE-COMPONENT-MECHANICS-001",
+      "kind": "pillar",
+      "note": "pillar row from build_matrix.pillars.mandatory_entry_ids"
+    },
+    {
+      "repo_id": "HBR-COMPART-001",
+      "template_id": "BR-BUILD-UNIT-001",
+      "kind": "build_rule",
+      "note": "module and boundary declaration, one module per MT, write scope; contract_fields architecture_binding / execution.module_ref (execution.build_unit_ref deferred until crates exist)"
+    },
+    {
+      "repo_id": "HBR-COMPART-002",
+      "template_id": "BR-BUILD-UNIT-001",
+      "kind": "build_rule",
+      "note": "single-module change must not rebuild the product; per-round rebuild and relinked test-binary measurement against build_budgets; breach opens BR-ARCH-GROWTH-001 style boundary review"
+    },
+    {
+      "repo_id": "HBR-COMPONENT-001",
+      "template_id": "CODEX-CAP-001",
+      "kind": "build_rule",
+      "note": "mechanic under the widget, one owner, consume/configure/extend; contract_fields reuse.consumed_capability_refs, reuse.new_capability_refs, context_capsule.consumed_capability_refs"
+    },
+    {
+      "repo_id": "HBR-COMPONENT-002",
+      "template_id": "CODEX-CAP-001",
+      "kind": "build_rule",
+      "note": "new mechanic requires spec primitive and no existing owner"
+    },
+    {
+      "repo_id": "HBR-VIS-001.contract_fields",
+      "template_id": "BR-UI-VIS-001",
+      "kind": "build_rule",
+      "note": "gui_surface (template: gui_surface.inspection_route_refs, gui_surface.headless_route_refs); existing rule text unchanged"
+    },
+    {
+      "repo_id": "HBR-PRIV-001.contract_fields",
+      "template_id": "BR-IDENTITY-001",
+      "kind": "build_rule",
+      "note": "auth_binding; existing rule text unchanged"
+    },
+    {
+      "repo_id": "HBR-INT-001.contract_fields",
+      "template_id": "BR-PAR-RUNTIME-001",
+      "kind": "build_rule",
+      "note": "runtime_lanes; existing rule text unchanged"
+    },
+    {
+      "repo_id": "ACTIVATION_MANAGER_PROTOCOL readiness gate",
+      "template_id": "CODEX-PILLAR-001",
+      "kind": "codex",
+      "note": "readiness names hbr-matrix-check, spec anchors or spec_basis, pillar rows and fields; remediation MTs bypass refinement/enrichment/activation per CODEX-DECIDE-002"
+    }
+  ],
+  "skipped_as_duplicate": [
+    {
+      "template_id": "CODEX-GIT-002",
+      "covered_by": [
+        "CX-108",
+        "CX-118"
+      ],
+      "note": "destructive git actions already require same-turn authorization for the exact targets and consequences"
+    }
+  ],
+  "governance_pin_semantics": "in-flight WPs judged under their pinned commit; template changes apply from the next WP",
+  "generated_at_utc": "2026-09-23T16:53:03.000Z"
+}

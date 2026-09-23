@@ -1,10 +1,10 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
-  "updated_at": "2026-09-20T13:24:08.204Z",
+  "updated_at": "2026-09-23T16:53:03.000Z",
   "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, Argus visual + operator-GUI verification, quiet/non-intrusive operation, in-product UserManual currency, UserManual diagnostic linkage, and account-bound ownership/visibility/privacy for every product resource. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
   "scope": {
     "trigger_phase": "build_time_and_handoff_time",
@@ -91,6 +91,16 @@
       "id": "PRIV",
       "name": "Account-Bound Resource Privacy",
       "intent": "Every Handshake resource is owned, scoped, and enforced as private by default across local accounts, operators inside the same project, model/agent lanes, shared workspaces, and future network/SaaS/MCP boundaries. A feature is not integrated until its primary and derived resources carry stable account/Principal/AccessSpace linkage and negative cross-scope proof."
+    },
+    {
+      "id": "COMPART",
+      "name": "Compartmentalised Build Units",
+      "intent": "Handshake is built as bounded modules that become separate crates when the compartment refactor lands. Every WP names the modules it touches or creates and its boundary change; every MT binds one owning module; a single-module change must not rebuild the whole product once build units exist."
+    },
+    {
+      "id": "COMPONENT",
+      "name": "Canonical Component Mechanics",
+      "intent": "Every component is a presentation of a mechanic (scroll, selection, popup, focus and the like) owned once at the lowest owning layer. WPs consume, configure or extend the owner; parallel implementations of an owned capability are a build-rule fail."
     }
   ],
   "rules": [
@@ -111,6 +121,14 @@
       },
       "required_action": "The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope.",
       "evidence_kind": "runtime_resource_lineage_and_scope_round_trip",
+      "contract_fields": {
+        "wp": [
+          "auth_binding"
+        ],
+        "mt": [
+          "context_capsule.pillar_refs"
+        ]
+      },
       "citations": [
         {
           "kind": "codex",
@@ -362,6 +380,14 @@
       },
       "required_action": "Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior.",
       "evidence_kind": "test_run_with_ledger_replay",
+      "contract_fields": {
+        "wp": [
+          "runtime_lanes"
+        ],
+        "mt": [
+          "context_capsule.pillar_refs"
+        ]
+      },
       "citations": [
         {
           "kind": "reset_brief",
@@ -862,6 +888,14 @@
       },
       "required_action": "Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
       "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
+      "contract_fields": {
+        "wp": [
+          "gui_surface"
+        ],
+        "mt": [
+          "context_capsule.pillar_refs"
+        ]
+      },
       "citations": [
         {
           "kind": "global",
@@ -1475,6 +1509,184 @@
         "authored_at_utc": "2026-05-20",
         "origin_incident": "27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004"
       }
+    },
+    {
+      "id": "HBR-COMPART-001",
+      "pillar": "COMPART",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches or creates more than one product module, or any MT is scaffolded for a product WP",
+      "applicability": {
+        "predicate_text": "WP modifies code in more than one logical module path under src/, app/, or product runtime, or creates a new module; every implementation MT of a product WP",
+        "tags": [
+          "compartmentalisation",
+          "module_boundary",
+          "build_unit",
+          "write_scope"
+        ]
+      },
+      "required_action": "The WP contract declares every touched and created module and a boundary_change disposition. Every MT binds exactly one owning module in execution.module_ref and its write scope derives from that module's declared roots. Until the compartment refactor lands crates, module refs are logical module paths; when crates exist they resolve to build units. Activation rejects dependency-direction violations and unsettled build-budget reviews.",
+      "evidence_kind": "module_binding_and_boundary_change_declaration_with_write_scope_check",
+      "contract_fields": {
+        "wp": [
+          "architecture_binding"
+        ],
+        "mt": [
+          "execution.module_ref"
+        ]
+      },
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-UNIT-001"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-PILLAR-001"
+        }
+      ],
+      "not_applicable_when": [
+        "WP is pure repo-governance and touches no product module"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR_INSTRUCTION_2026-09-23",
+        "authored_at_utc": "2026-09-23T16:53:03Z",
+        "origin_incident": "Handshake Creation Template pack v19 alignment (operator instruction 2026-09-23): compartmentalised build units and canonical component mechanics adopted as permanent pillars; contract_fields propagation adopted per BR-CONTRACT-SYNC-001."
+      }
+    },
+    {
+      "id": "HBR-COMPART-002",
+      "pillar": "COMPART",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Any validation round of a product WP once build units exist",
+      "applicability": {
+        "predicate_text": "Compartment build units (crates) exist and the WP changes code confined to one module",
+        "tags": [
+          "compartmentalisation",
+          "incremental_rebuild",
+          "build_budget",
+          "test_binaries"
+        ]
+      },
+      "required_action": "A change confined to one module must not rebuild the whole product. Each validation round measures warm incremental rebuild time and the count of relinked test binaries for the candidate commit and records them against the project build budgets; a budget breach opens a boundary review before the next activation touching that module.",
+      "evidence_kind": "per_round_rebuild_time_and_relinked_test_binary_measurement_against_budget",
+      "contract_fields": {
+        "wp": [
+          "architecture_binding"
+        ],
+        "mt": [
+          "execution.module_ref"
+        ]
+      },
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-UNIT-001"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-COMPART-001"
+        }
+      ],
+      "not_applicable_when": [
+        "Compartment build units do not yet exist (single-crate build); record DEFERRED-with-reason until the compartment refactor WP lands"
+      ],
+      "deferred_until": "compartment refactor WP lands separate crates",
+      "provenance": {
+        "authored_by": "OPERATOR_INSTRUCTION_2026-09-23",
+        "authored_at_utc": "2026-09-23T16:53:03Z",
+        "origin_incident": "Handshake Creation Template pack v19 alignment (operator instruction 2026-09-23): compartmentalised build units and canonical component mechanics adopted as permanent pillars; contract_fields propagation adopted per BR-CONTRACT-SYNC-001."
+      }
+    },
+    {
+      "id": "HBR-COMPONENT-001",
+      "pillar": "COMPONENT",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
+      "applicability": {
+        "predicate_text": "WP introduces or changes a component that presents a mechanic such as scroll, selection, popup, focus, drag, layout, navigation, or editing",
+        "tags": [
+          "component_mechanics",
+          "canonical_owner",
+          "reuse",
+          "no_parallel_implementation"
+        ]
+      },
+      "required_action": "Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail.",
+      "evidence_kind": "consumed_capability_refs_resolve_to_single_active_owner",
+      "contract_fields": {
+        "wp": [
+          "reuse.consumed_capability_refs",
+          "reuse.new_capability_refs"
+        ],
+        "mt": [
+          "context_capsule.consumed_capability_refs"
+        ]
+      },
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-CAP-001"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-PILLAR-001"
+        }
+      ],
+      "not_applicable_when": [
+        "WP adds or changes no component, control, or reusable behavior"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR_INSTRUCTION_2026-09-23",
+        "authored_at_utc": "2026-09-23T16:53:03Z",
+        "origin_incident": "Handshake Creation Template pack v19 alignment (operator instruction 2026-09-23): compartmentalised build units and canonical component mechanics adopted as permanent pillars; contract_fields propagation adopted per BR-CONTRACT-SYNC-001."
+      }
+    },
+    {
+      "id": "HBR-COMPONENT-002",
+      "pillar": "COMPONENT",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP declares a new canonical mechanic or capability owner",
+      "applicability": {
+        "predicate_text": "WP lists any entry in reuse.new_capability_refs",
+        "tags": [
+          "component_mechanics",
+          "new_mechanic",
+          "spec_primitive"
+        ]
+      },
+      "required_action": "A new canonical mechanic is allowed only when no existing owner exists and the mechanic has a Master Spec primitive id; activation refuses a new capability that lacks its spec primitive or duplicates an existing owner.",
+      "evidence_kind": "new_capability_ref_bound_to_spec_primitive_and_owner_search_result",
+      "contract_fields": {
+        "wp": [
+          "reuse.new_capability_refs"
+        ],
+        "mt": []
+      },
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-CAP-001"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-COMPONENT-001"
+        }
+      ],
+      "not_applicable_when": [
+        "WP declares no new capability owner"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR_INSTRUCTION_2026-09-23",
+        "authored_at_utc": "2026-09-23T16:53:03Z",
+        "origin_incident": "Handshake Creation Template pack v19 alignment (operator instruction 2026-09-23): compartmentalised build units and canonical component mechanics adopted as permanent pillars; contract_fields propagation adopted per BR-CONTRACT-SYNC-001."
+      }
     }
   ],
   "deferred_pillars": [
@@ -1580,6 +1792,11 @@
       "version": "1.11.0",
       "at_utc": "2026-08-15T15:43:08.415Z",
       "change": "Aligned current build gates with Master Spec v02.205: SurrealDB is the exclusive database authority; EventLedger persistence fully transfers to SurrealDB; PostgreSQL and SQLite provide no connectivity, import, reconciliation, fallback, fixture, cache or proof path. The current authority initializes from a clean SurrealDB genesis. Historical change entries remain unchanged."
+    },
+    {
+      "version": "1.12.0",
+      "at_utc": "2026-09-23T16:53:03.000Z",
+      "change": "Aligned with the operator's Handshake Creation Template pack v19 (OPERATOR instruction 2026-09-23). Added COMPART (Compartmentalised Build Units) and COMPONENT (Canonical Component Mechanics) as permanent pillars with HBR-COMPART-001/002 and HBR-COMPONENT-001/002. Adopted the optional contract_fields {wp, mt} rule field per template BR-CONTRACT-SYNC-001 and populated it on the four new rules plus HBR-VIS-001 (gui_surface), HBR-PRIV-001 (auth_binding) and HBR-INT-001 (runtime_lanes); no existing rule text was otherwise changed. Codex anchors: CX-UNIT-001, CX-CAP-001, CX-PILLAR-001, CX-TPL-001. Build units are logical module paths until the compartment refactor WP lands crates; HBR-COMPART-002 stays DEFERRED until then. Mapping recorded in .GOV/roles_shared/records/TEMPLATE_ALIGNMENT.json."
     }
   ]
 }
