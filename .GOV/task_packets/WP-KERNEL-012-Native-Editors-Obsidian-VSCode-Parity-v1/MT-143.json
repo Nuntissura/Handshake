@@ -31,13 +31,13 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-117"
     ],
     "active": false,
-    "validator_verdict": "BLOCKED_ON_DEPENDENCY",
+    "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260903-170735",
     "origin": "Created 2026-09-03 by KERNEL_BUILDER-20260903-170735 under the Operator instruction to open a lane for the Calendar navigation defect found while closing the MT-117/121/122/135 readiness batch. MT-117 PT-117-2 requires the MT-067 Calendar suite green; test_calendar_interop::mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue fails deterministically (30/31) and is NOT an MT-117 defect: MT-117 owns completion observers, this is the navigation dispatch path. Recorded per the standing rule that a gap outside the current MT becomes a new MT in the same work packet rather than being lost or silently absorbed.",
@@ -778,7 +778,7 @@
     "next_actor": "KERNEL_BUILDER",
     "no_context_instruction": "FAIL_V1 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V2."
   },
-  "updated_at_utc": "2026-09-23T23:38:21.613Z",
+  "updated_at_utc": "2026-09-23T23:40:44.783Z",
   "remediation_v2": {
     "session": "KERNEL_BUILDER-C1",
     "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
@@ -1135,6 +1135,7 @@
         "result_line": "995 tests run: 854 passed, 141 failed, 4 skipped (nextest Summary line, independently verified against junit tests=995 failures=141)",
         "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
       }
-    ]
+    ],
+    "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
   }
 }

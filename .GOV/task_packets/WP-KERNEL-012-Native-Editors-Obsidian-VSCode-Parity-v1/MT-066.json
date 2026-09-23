@@ -14,7 +14,7 @@
   "title": "E10-MT-066-StageRouteAndCaptureInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:38:21.613Z",
+  "updated_at_utc": "2026-09-23T23:40:44.783Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-066.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-014",
@@ -35,7 +35,7 @@
     "blocks": [
       "MT-073"
     ],
-    "validator_verdict": "BLOCKED_ON_DEPENDENCY",
+    "validator_verdict": null,
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
     "validated_at_utc": "2026-09-23T23:38:21.613Z",
@@ -1702,6 +1702,7 @@
         "result_line": "995 tests run: 854 passed, 141 failed, 4 skipped (nextest Summary line, independently verified against junit tests=995 failures=141)",
         "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
       }
-    ]
+    ],
+    "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
   }
 }

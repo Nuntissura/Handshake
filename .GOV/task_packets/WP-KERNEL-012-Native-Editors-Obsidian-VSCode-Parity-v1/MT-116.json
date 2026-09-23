@@ -22,7 +22,7 @@
   "title": "E6-MT-116-Fix-Cross-Reference-Chip-Pill-Width-So-Long-Ids-Render-Inside-Their-Pill",
   "group": "E6-Interop",
   "created_at_utc": "2026-08-06T12:50:39.525Z",
-  "updated_at_utc": "2026-09-23T23:38:21.613Z",
+  "updated_at_utc": "2026-09-23T23:40:44.783Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,13 +31,13 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-068"
     ],
     "blocks": [],
-    "validator_verdict": "BLOCKED_ON_DEPENDENCY",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260805-054937",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
@@ -1204,6 +1204,7 @@
         "result_line": "995 tests run: 854 passed, 141 failed, 4 skipped (nextest Summary line, independently verified against junit tests=995 failures=141)",
         "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
       }
-    ]
+    ],
+    "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
   }
 }
