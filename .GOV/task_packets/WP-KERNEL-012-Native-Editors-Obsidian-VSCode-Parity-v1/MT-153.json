@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-23T23:52:39.079Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -65,7 +65,12 @@
       ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json remediation_v24 (KERNEL_BUILDER-C2 round 5: what is already fixed) and remediation_v25 (KERNEL_BUILDER-C3 round 6, in progress)"
     ],
     "audit_refs_note": "The two audit files live in an Operator session scratchpad and are not durable; every row this MT relies on is copied into scope.routes / implementation_steps, so the MT is executable without them.",
-    "in_progress_note": "KERNEL_BUILDER-C3 is implementing this scope now from base ab618f46 (MT-109.json remediation_v25, lane ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3, batch owner MT-109). At authoring time (2026-09-23) C3 had uncommitted edits in wtc-native-editors-v1: api/loom.rs, knowledge_wiki/compiler.rs, loom_ai/mod.rs, loom_ai/promotion.rs, storage/surreal/{block_view_store.rs,database.rs,event_ledger.rs,local_accounts.rs,schema.rs,schema.surql}, tests/{loom_media_tiers_tests.rs,project_wiki_drift_tests.rs}. This MT is the contract C3's work is validated against; C3 records its proof here or in MT-109 with covered_mts including MT-153 (Codex CX-984-009)."
+    "in_progress_note": "KERNEL_BUILDER-C3 is implementing this scope now from base ab618f46 (MT-109.json remediation_v25, lane ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3, batch owner MT-109). At authoring time (2026-09-23) C3 had uncommitted edits in wtc-native-editors-v1: api/loom.rs, knowledge_wiki/compiler.rs, loom_ai/mod.rs, loom_ai/promotion.rs, storage/surreal/{block_view_store.rs,database.rs,event_ledger.rs,local_accounts.rs,schema.rs,schema.surql}, tests/{loom_media_tiers_tests.rs,project_wiki_drift_tests.rs}. This MT is the contract C3's work is validated against; C3 records its proof here or in MT-109 with covered_mts including MT-153 (Codex CX-984-009).",
+    "ready_for_validation_remediation_v3": {
+      "by": "KERNEL_BUILDER-C5-20260923-2250",
+      "at_utc": "2026-09-23T23:52:39.079Z",
+      "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
+    }
   },
   "closure_unit": {
     "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
@@ -1987,5 +1992,66 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "remediation_v3": {
+    "status": "CANDIDATE_PUSHED",
+    "session": "KERNEL_BUILDER-C5-20260923-2250",
+    "executor_role": "KERNEL_BUILDER",
+    "base_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
+    "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06",
+    "pushed_branch": "feat/WP-KERNEL-012",
+    "pushed_verified": "git ls-remote origin feat/WP-KERNEL-012 = fe0949d8953cad7334c943a1cf39b82dd6185f06",
+    "compile_gates": [
+      {
+        "proof_id": "KB-C5-01-core-check-lib",
+        "command": "timeout 3600 cargo check --locked -j 6 --lib --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "target_dir": "C:/.target/WP-KERNEL-012/MT-154/kb-c5/target",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/01-core-check-lib.log"
+      },
+      {
+        "proof_id": "KB-C5-02-core-check-tests",
+        "command": "timeout 3600 cargo check --locked -j 6 --tests --features app-runtime,surreal-test-support,test-utils",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/02-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-05-core-pin-measure",
+        "command": "handshake_core lib test exe --exact --test-threads=4 <6 schema pin tests> (HANDSHAKE_TEST_SURREAL_SYNC=never, D: runtime)",
+        "result": "exit 101 by design (measurement, not an attempt): printed GENERATED 9107f275..., schema info 0c59fb08..., Loom catalog efc3ecc6...; declarative catalog and Atelier catalog unchanged",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/05-core-pin-measure.log"
+      },
+      {
+        "proof_id": "KB-C5-06-core-check-tests",
+        "command": "timeout 3000 cargo check --locked -j 6 --tests --features app-runtime,surreal-test-support,test-utils (final tree fe0949d8)",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/06-core-check-tests.log"
+      }
+    ],
+    "test_runs": "builder runs no expensive tests (Operator rule); validators run the tests on fe0949d8953cad7334c943a1cf39b82dd6185f06",
+    "updated_at_utc": "2026-09-23T23:52:39.079Z",
+    "commits": [
+      "0a75a108",
+      "fe0949d8 (Loom test-schema function part)"
+    ],
+    "changed_files": [
+      "src/backend/handshake_core/src/storage/surreal/loom_canvas_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs"
+    ],
+    "items": [
+      {
+        "failure": "log 44 (MT-109/wpv-c3x): api::loom record-user tests, mt264, mt153 matrix, mt109_c2_memory_surfaces, owned_workspace_delete_cascades, routes_tests mt067: record-user-loom-bundle statement_index=3 HSK-403 on OWNED creates",
+        "root_cause": "8cebbbcd wrapped CREATE $block / CREATE $owned_resource in OWNED_LOOM_BUNDLE_SQL with IF array::len((CREATE ... RETURN VALUE id)) != 1 THROW; a record user's CREATE output is filtered by the table SELECT permission and neither row is readable until the creator grant (next statement) exists",
+        "fix": "loom_canvas_store.rs:55-56 restored to RETURN NONE (pre-C4 form); silent denies stay caught by the unchanged final verification SELECT over every bundle row",
+        "spec_basis": "spec_ruling_c3_silent_deny (observable deny) preserved by the final verification SELECT; Master Spec 02-system-architecture.md:2758"
+      },
+      {
+        "failure": "log 44:4038 loom_store tests: fn::mt153_loom_identity_unchanged does not exist",
+        "root_cause": "the loom_blocks.block_id ASSERT (MT-153) calls a function defined in the MT154 authority block, which bootstrap_loom_receipt_test_schema's bounded DDL did not copy",
+        "fix": "schema.rs: LOOM_RECEIPT_TEST_TABLE_FUNCTIONS copied whole from SCHEMA into the bounded DDL; ExactDatabase function set includes it; Loom receipt catalog re-pinned efc3ecc6... (both sites)",
+        "spec_basis": "bounded test DDL is sliced from the compiled schema (no hand-written DDL)"
+      }
+    ]
   }
 }

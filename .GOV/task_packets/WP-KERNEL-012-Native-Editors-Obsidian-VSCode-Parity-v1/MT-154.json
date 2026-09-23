@@ -25,7 +25,7 @@
   "title": "B18-MT-154-Non-Loom-Routes-Account-Session-Authority-And-Residuals",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-23T20:34:50.778Z",
+  "updated_at_utc": "2026-09-23T23:52:39.079Z",
   "identity": {
     "mt_id": "MT-154",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -62,7 +62,12 @@
       "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/authority-audit/authority_scope.md (IN_WP/OUT_OF_WP classification against base 97a22310)",
       ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json remediation_v24 (KERNEL_BUILDER-C2 round 5: what is already fixed) and remediation_v25 (KERNEL_BUILDER-C3 round 6, in progress)"
     ],
-    "audit_refs_note": "The two audit files live in an Operator session scratchpad and are not durable; every row this MT relies on is copied into scope.routes / implementation_steps, so the MT is executable without them."
+    "audit_refs_note": "The two audit files live in an Operator session scratchpad and are not durable; every row this MT relies on is copied into scope.routes / implementation_steps, so the MT is executable without them.",
+    "ready_for_validation_remediation_v2": {
+      "by": "KERNEL_BUILDER-C5-20260923-2250",
+      "at_utc": "2026-09-23T23:52:39.079Z",
+      "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
+    }
   },
   "closure_unit": {
     "outcome": "Every non-Loom route row in scope.routes (calendar, stage, atelier/intake, canvases, flight recorder, preferences, locus, kernel trace projection, knowledge CRDT/ingestion/memory/retrieval, workspace delete residuals) runs under the authenticated account session with least-privilege permissions or is explicitly decision-gated; plus four residual defects are fixed: the native create-note drain, root-written receipts, the revision-158/159 predecessor-checksum tests, and the workspace-delete guard residue.",
@@ -2010,5 +2015,86 @@
     ],
     "finding": "FMT-CHECK FAIL on storage/surreal.rs, a file MT-154 (HANDSHAKE_TEST_SURREAL_SYNC switch, commit 8f60313b) modified. Blocks MT-154 PASS until builder runs cargo fmt on that file. Not blocking MT-153/155/156/157/158 (their delta-changed files: jobs.rs, workspaces.rs, locus_store.rs, schema.rs, structured_collab_store.rs, tests.rs, user_manual/seed.rs, mt154_non_loom_route_authority_tests.rs all fmt-clean).",
     "note": "lifecycle.status/validator_verdict not modified by this partial block."
+  },
+  "remediation_v2": {
+    "status": "CANDIDATE_PUSHED",
+    "session": "KERNEL_BUILDER-C5-20260923-2250",
+    "executor_role": "KERNEL_BUILDER",
+    "base_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
+    "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06",
+    "pushed_branch": "feat/WP-KERNEL-012",
+    "pushed_verified": "git ls-remote origin feat/WP-KERNEL-012 = fe0949d8953cad7334c943a1cf39b82dd6185f06",
+    "compile_gates": [
+      {
+        "proof_id": "KB-C5-01-core-check-lib",
+        "command": "timeout 3600 cargo check --locked -j 6 --lib --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "target_dir": "C:/.target/WP-KERNEL-012/MT-154/kb-c5/target",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/01-core-check-lib.log"
+      },
+      {
+        "proof_id": "KB-C5-02-core-check-tests",
+        "command": "timeout 3600 cargo check --locked -j 6 --tests --features app-runtime,surreal-test-support,test-utils",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/02-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-05-core-pin-measure",
+        "command": "handshake_core lib test exe --exact --test-threads=4 <6 schema pin tests> (HANDSHAKE_TEST_SURREAL_SYNC=never, D: runtime)",
+        "result": "exit 101 by design (measurement, not an attempt): printed GENERATED 9107f275..., schema info 0c59fb08..., Loom catalog efc3ecc6...; declarative catalog and Atelier catalog unchanged",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/05-core-pin-measure.log"
+      },
+      {
+        "proof_id": "KB-C5-06-core-check-tests",
+        "command": "timeout 3000 cargo check --locked -j 6 --tests --features app-runtime,surreal-test-support,test-utils (final tree fe0949d8)",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/06-core-check-tests.log"
+      }
+    ],
+    "test_runs": "builder runs no expensive tests (Operator rule); validators run the tests on fe0949d8953cad7334c943a1cf39b82dd6185f06",
+    "updated_at_utc": "2026-09-23T23:52:39.079Z",
+    "commits": [
+      "56573ecb",
+      "a09d6cc5",
+      "c1f2a1e2",
+      "5a88c802"
+    ],
+    "changed_files": [
+      "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
+      "src/backend/handshake_core/src/storage/surreal.rs",
+      "src/backend/handshake_core/src/storage/tests.rs",
+      "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_chaos.rs",
+      "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_child.rs",
+      "src/backend/handshake_core/src/storage/surreal/database.rs",
+      "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+    ],
+    "items": [
+      {
+        "failure": "NotFound(\"workspace\") on trusted workspace delete (mt136 proof C, proposal_delete_race, workspace_memory_cleanup)",
+        "root_cause": "7e73eb03 inserted DELETE kernel_crdt_updates into workspace_delete_body!, shifting DELETE $workspace RETURN BEFORE from result index 10 to 11; index 10 (DELETE loom_blocks) is empty",
+        "fix": "workspaces.rs delete_workspace_record: index derived as WORKSPACE_DELETE_BODY.lines().count() - 1 (statement per line verified); scoped path reads errors only (no index)",
+        "spec_basis": "AC-154-6 workspace delete cascade"
+      },
+      {
+        "failure": "Hang-A class timeouts (atelier, fr_emitter, spans, ingestion, scheduler, process_ledger, session_checkpoint, fems_memory, calendar/canvas/event_ledger/stage/governance/kb003 stores, atelier_surreal_support, memory pack): stores opened outside the test-support openers ignored HANDSHAKE_TEST_SURREAL_SYNC",
+        "root_cause": "8f60313b applied the switch only in two openers",
+        "fix": "surreal.rs SurrealStorageConfig::test_datastore_sync_never() (sole input to the single Surreal::new::<RocksDb>) honours HANDSHAKE_TEST_SURREAL_SYNC=never in test-support builds for every opener, first open and reopen alike (same ?sync=never endpoint form); with_test_datastore_sync_durable() pins the kill-based crash_recovery_e2e suite to Every; the switch unit test is env-independent",
+        "spec_basis": "IV 2026-09-23 HANG-A classification; production (no surreal-test-support) unchanged",
+        "notes": "native live-backend tests: HSK_TEST_BACKEND_BIN must be built with --features app-runtime,surreal-test-support for the switch to reach it (validator harness config, IV ruling)"
+      },
+      {
+        "failure": "storage::surreal::database::not_implemented_surface::not_implemented_surface_is_declared (database.rs:3120)",
+        "root_cause": "LF marker search over a CRLF (core.autocrlf) include_str! source; test from 4ed7b60a",
+        "fix": "both include_str! sources normalized with replace(\"\\r\\n\", \"\\n\"); scan of all include_str!(*.rs) marker searches in handshake_core/handshake_native found no other fragile site",
+        "spec_basis": "test hygiene"
+      },
+      {
+        "failure": "routes_tests route6_document_soft_delete_tombstones_and_receipts :3260 deleted=Null",
+        "root_cause": "NOT FOUND statically (delete paths and schema functions unchanged since 0cfbff64)",
+        "fix": "diagnostic only (IV ruling): failure now reports DELETE status/body and follow-up GET; route6 remains OPEN",
+        "spec_basis": "IV ruling 2026-09-24"
+      }
+    ]
   }
 }
