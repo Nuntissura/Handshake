@@ -14,7 +14,7 @@
   "title": "E3-MT023-TagsTagHubs",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-23T04:07:17.531Z",
+  "updated_at_utc": "2026-09-23T06:14:41.580Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-023.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1358,5 +1358,109 @@
     "status": "CLASSES_FIXED_STATIC_NEW_CLASSES_OPEN",
     "note": "This MT's validated classes have round-3 fixes (see failure_classes/REPRESENTATIVE_RUNS); live representatives now fail in newly exposed classes C1V-LOOM-CONTENT-TYPES / C1V-LEGACY-ROOT-CREATE-ROUTES / C1V-BACKEND-HARNESS-AUTH, so not READY.",
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "remediation_v8": {
+    "session": "KERNEL_BUILDER-C1",
+    "round": 4,
+    "candidate_sha": "2f49f2a66a7b742347e289b83a58926dea76d912",
+    "base_sha": "c1060bca3be3490de44f4fbe33a750dc4db95a67",
+    "batch_owner": "MT-109",
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1",
+    "commits": [
+      "2f49f2a6 fix(MT-070): click the create-note menu item only once it is clickable",
+      "73a445f4 fix(MT-120): migrate backend integration harnesses to account sessions",
+      "3b716adb fix(MT-109): probe the workspace delete guard on the real route",
+      "7320d1c4 fix(MT-067): run Canvas text cards and daily notes under the account session",
+      "01df5ebf fix(MT-023): let account members create every spec Loom content type"
+    ],
+    "spec_rulings": {
+      "R1": {
+        "clause": "Master Spec v02.206 11-shared-dev-platform-and-oss-foundations.md:242-247 (LoomBlockContentType = note, file, annotated_file, tag_hub, journal) + LM-RLS-001 (line 580: viewer reads; member creates/edits; admin deletes/manages)",
+        "ruling": "Members/owner/admin may create all five spec content types (canvas kept); viewers none. Enforced by record-user table permissions intersected with ResourceBroker."
+      },
+      "R2": {
+        "clause": "Master Spec v02.206 02-system-architecture.md:2773 (privileged SurrealDB sessions MUST NOT execute ordinary protected-resource flows); 02:2804 (only MCP service principals as non-human principals)",
+        "ruling": "Canvas text-card and daily-journal creation run under the authenticated account (record-user) session."
+      },
+      "R3": {
+        "clause": "Master Spec v02.206 02-system-architecture.md:2776 (record-user table/field permissions plus ResourceBroker are the non-bypassable product data boundary) + Authorization law #6 (02:2758, deny-by-default at every backend boundary)",
+        "ruling": "The Operator's 2026-09-22 cascade must be permitted by DB record-user permissions for owner/admin on every cascaded table plus a ResourceBroker recheck; no elevated transaction after an API check; probe through the real route."
+      },
+      "R4": {
+        "clause": "LM-RLS-002 (privacy proof executes as authenticated record users)",
+        "ruling": "Backend integration harnesses migrate to account sessions via shared helpers, file-wide."
+      }
+    },
+    "results": {
+      "R1": {
+        "status": "FIXED_BACKEND_PROVEN_LIB",
+        "commits": [
+          "01df5ebf fix(MT-023): let account members create every spec Loom content type"
+        ],
+        "what": "loom_blocks record-user create/update content_type list, fn::mt120_resource_create and fn::mt120_loom_receipt (KNOWLEDGE_LOOM_BLOCK_INDEXED) widened to note/file/annotated_file/tag_hub/journal/canvas (schema.surql + identical schema.rs overlay constants); store validation widened (loom_canvas_store create_record_user_loom_bundle). Pins: GENERATED 79444332.., EXPECTED_SCHEMA_INFO a99410f0.., MT109 loom catalog dd12fac9.., Atelier catalog ed842497..a04a.",
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/96-core-r4-confirm.log: 8/9 pass incl. api::loom::tests::mt264_journal_block_indexed_on_create (record-user journal create + idempotent reopen) and all pin/predecessor-upgrade/atelier parity tests.",
+        "native": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/101-rep-r1-tag.log: tag_hub seeding now passes (old backend_proof_support/mod.rs:2102 400/500 gone); fails later at test_block_collection_view.rs:1743 PATCH block-view mutation 403 (legacy block-view route authority; new class C1V-BLOCKVIEW-PATCH-403)"
+      },
+      "R2": {
+        "status": "IMPLEMENTED",
+        "commits": [
+          "7320d1c4 fix(MT-067): run Canvas text cards and daily notes under the account session"
+        ],
+        "what": "create_canvas_card (non-Stage): RichDocument created under the workspace Create scope (markdown import), placed via place_record_user_canvas_block under the board Update scope with the document's exact fs.read Read scope; the placements create/delete permission accepts a same-id rich-document projection via fn::mt120_document_access. open_daily_journal: 401 without session; existing note located by natural key and re-authorized (loom_block read); otherwise created via create_record_user_loom_bundle(journal) under the workspace Create scope; uq_loom_blocks_journal_key race returns the existing note. Stage embed-back cards (create_stage_canvas_card) still run on the legacy path (Stage service flow; not changed).",
+        "native": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/102-rep-r2-card.log: still times out at test_canvas_board.rs:1791; board.error = 'http: error sending request for url .../canvas-boards/:id/cards'; backend logs no card error. Hypothesis UNVERIFIED: native send_canvas_mutation 5 s timeout (backend_client.rs ~4143) vs the longer record-user card path (markdown import + RichDocument create + placement). 2 native runs used."
+      },
+      "R3": {
+        "status": "OPEN_ROOT_CAUSE_LOCATED",
+        "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/78-core-r4-confirm.log (probe on the real route: C1_FDELETE_ROUTE_PROBE statement_index=17 verdict=clause-1) and ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/96-core-r4-confirm.log (still 403)",
+        "finding": "Evaluated on the delete transaction's own record-user connection, the guard returns clause-1: fn::mt109_has_workspace_access(ws,'delete','fs.write') is FALSE for the owner (probe runs after the aborted transaction, i.e. in the pre-delete state), while the Rust ResourceBroker check for the same owner/workspace/Delete passes and admin reads show a fully valid grant. The existing FEMS-only delete test passes this clause, so the owner's workspace-access evaluation becomes false after this test's Loom/Canvas activity (notes, canvas board, placements, visual edge). Not a cascade-permission problem (the transaction never reaches a cascaded-table denial).",
+        "next_step": "One sub-condition probe of fn::mt109_has_workspace_access (live session, session/principal delegated caps, and each grant-row predicate incl. policy_version and delegation_chain) on the same route connection, bisecting which prior Loom/Canvas write flips it.",
+        "probe_toggle": "HSK_C1_FDELETE_PROBE=1 (test builds only)"
+      },
+      "R4": {
+        "status": "HARNESS_MIGRATED",
+        "commits": [
+          "73a445f4 fix(MT-120): migrate backend integration harnesses to account sessions"
+        ],
+        "what": "tests/account_session_support/mod.rs (NativeBindingEnv, OwnerSession::provision/headers/client/create_workspace, AccountFixture) applied to knowledge_documents_api_tests, wp_kernel_012_native_editor_routes_tests, atelier_loom_projection_api_tests, knowledge_code_nav_api_tests; negative-credential tests unchanged; sets A/B/C compile.",
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/89-rep-r4-kd.log: explorer_bookmark_rename_returns_409_and_preserves_first_writer now creates the owner workspace and Loom block (200); fails later: PATCH rename -> 500 (new class C1V-LOOM-PATCH-500, not diagnosed).",
+        "left_unmigrated": "17 other harnesses (knowledge_crdt_bridge_api, knowledge_delete_title_race, knowledge_ingestion_api, knowledge_memory_api, knowledge_parallel_write_conflict_fixture, knowledge_retrieval_debug_api, loom_ai_suggestions_api, loom_daily_journal, loom_media_tiers, loom_transclusion, mex, parallel_swarm_state_recovery, project_wiki_drift, role_mailbox, user_manual_api, user_manual_content, atelier_stealth_window) can reuse account_session_support.",
+        "expectations_replaced_by_mt109": [
+          "knowledge_documents_api_tests.rs:3504 HSK-403-DOC-ACTOR-SPOOF (now constant HSK-403-PROTECTED-RESOURCE)",
+          ":3577/:3581 401 HSK-401-DOC-SESSION (now constant 403)",
+          ":3653 minted_by_principal handshake-native: prefix (now account principal)",
+          "wp_kernel_012_native_editor_routes_tests.rs:1433 save minted_by_principal == Stage binding principal"
+        ]
+      },
+      "R5": {
+        "apphost": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/92-rep-r5-apphost.log: still red at test_app_host_mount.rs:571 status=None, resolver_ready=true (click waits for Click action now). Agent correction: regressed between ba03f563 and c792b8a2; suspects MT-111 1236078e AccountUi::show top panel (local_account.rs:366 via app.rs:36028), per-frame bind_authenticated_context (app.rs:36077) or account gate (app.rs:36052) swallowing the menu click — UNVERIFIED.",
+        "ckc_save": "Root cause found and fixed in R1 commit: the save transaction hid the old projection (hash-equality select filter) and re-created it (loom_blocks already exists -> 500 = C1-SAVE-500). Writer branch added to loom_blocks select/update. Native re-run pending (validator).",
+        "canvas_text_card": "see R2",
+        "tag_hub": "see R1"
+      }
+    },
+    "gates": {
+      "native_clippy_integration": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/82-native-clippy-int.log",
+      "native_clippy_default": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/83-native-clippy-def.log",
+      "core_clippy_changed_lines": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/84-core-clippy.log (0 on changed lines; new tests/account_session_support clean)",
+      "check_setA": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/97-check-setA.log",
+      "check_setB": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/98-check-setB.log",
+      "check_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/99-check-setC.log",
+      "check_native": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/85-check-native.log"
+    },
+    "status": "ROUND4",
+    "spec_basis": {
+      "clause": "Master Spec v02.206 11-shared-dev-platform-and-oss-foundations.md:242-247 (LoomBlockContentType = note, file, annotated_file, tag_hub, journal) + LM-RLS-001 (line 580: viewer reads; member creates/edits; admin deletes/manages)",
+      "ruling": "Members/owner/admin may create all five spec content types (canvas kept); viewers none. Enforced by record-user table permissions intersected with ResourceBroker."
+    },
+    "result": {
+      "status": "FIXED_BACKEND_PROVEN_LIB",
+      "commits": [
+        "01df5ebf fix(MT-023): let account members create every spec Loom content type"
+      ],
+      "what": "loom_blocks record-user create/update content_type list, fn::mt120_resource_create and fn::mt120_loom_receipt (KNOWLEDGE_LOOM_BLOCK_INDEXED) widened to note/file/annotated_file/tag_hub/journal/canvas (schema.surql + identical schema.rs overlay constants); store validation widened (loom_canvas_store create_record_user_loom_bundle). Pins: GENERATED 79444332.., EXPECTED_SCHEMA_INFO a99410f0.., MT109 loom catalog dd12fac9.., Atelier catalog ed842497..a04a.",
+      "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/96-core-r4-confirm.log: 8/9 pass incl. api::loom::tests::mt264_journal_block_indexed_on_create (record-user journal create + idempotent reopen) and all pin/predecessor-upgrade/atelier parity tests.",
+      "native": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/101-rep-r1-tag.log: tag_hub seeding now passes (old backend_proof_support/mod.rs:2102 400/500 gone); fails later at test_block_collection_view.rs:1743 PATCH block-view mutation 403 (legacy block-view route authority; new class C1V-BLOCKVIEW-PATCH-403)"
+    },
+    "recorded_at_utc": "2026-09-23T06:14:41.580Z"
   }
 }
