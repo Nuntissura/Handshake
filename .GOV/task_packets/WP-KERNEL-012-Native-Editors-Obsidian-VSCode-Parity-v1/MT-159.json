@@ -1,0 +1,574 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-159",
+  "title": "B18-MT-159-Remaining-Jobs-Routes-And-Job-Kinds-Under-The-Account-Session-And-Locus-Ids-Do-Not-Reveal-Existence",
+  "group": "B18",
+  "created_at_utc": "2026-09-23T16:43:28.779Z",
+  "updated_at_utc": "2026-09-23T16:43:28.779Z",
+  "identity": {
+    "mt_id": "MT-159",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "B18-MT-159-Remaining-Jobs-Routes-And-Job-Kinds-Under-The-Account-Session-And-Locus-Ids-Do-Not-Reveal-Existence",
+    "title_human": "Remaining /jobs routes and job kinds run under the account session; WP/MT ids don't reveal existence across accounts",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-159.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
+  },
+  "operator_decision": {
+    "decision": "include in WP-KERNEL-012 as MT-159",
+    "by": "OPERATOR",
+    "at_utc": "2026-09-23T16:45:00.000Z",
+    "at_utc_note": "Relayed as '2026-09-23 ~18:45' local (CEST, UTC+2); the exact minute was not relayed.",
+    "relayed_by": "INTEGRATION_VALIDATOR session 6",
+    "source": "MT-158 remediation_v1.residual_risks (KERNEL_BUILDER-C4)"
+  },
+  "lifecycle": {
+    "status": "IN_PROGRESS",
+    "depends_on": [
+      "MT-158"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "validated_by": null,
+    "validated_at_utc": null,
+    "completed_by": null,
+    "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
+    "claimed_at_utc": "2026-09-23T16:43:28.779Z",
+    "created_by": "KERNEL_BUILDER-C4-20260923-100258 (KB-PREP-002, IV-directed)",
+    "created_at_utc": "2026-09-23T16:43:28.779Z",
+    "origin": "operator_decision_2026-09-23_include_residuals_as_MT-159",
+    "creation_reason": "MT-158 residuals: GET /jobs, GET /jobs/:id, POST /jobs/:id/cloud_escalation/consent and non-Locus job kinds were unauthenticated and root-run; resume read the job as root; wp_id/mt_id/iteration_id/dependency_id were global keys, so a second account's create revealed the first account's ids."
+  },
+  "closure_unit": {
+    "outcome": "Every /jobs route and every job kind requires the account session and reads or writes jobs as that account's record user; a job the caller cannot see answers exactly like an unknown id. Locus work packet, microtask, iteration and dependency ids are owner-scoped, so the same id created by two accounts never collides and no response reveals another account's ids.",
+    "requirement_refs": [
+      "02:2752",
+      "02:2758",
+      "02:2759",
+      "02:2773",
+      "02:2776",
+      "LM-RLS-001",
+      "LM-RLS-002",
+      "D-154-3 (extension)"
+    ],
+    "acceptance_refs": [
+      "AC-159-1",
+      "AC-159-2",
+      "AC-159-3",
+      "AC-159-4",
+      "AC-159-5",
+      "AC-159-6"
+    ],
+    "specification_anchor_refs": [
+      {
+        "id": "02:2758",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2758",
+        "verbatim": "6. Authorization is deny-by-default and evaluated on every executable backend boundary. Hiding UI rows is a projection behavior, never the security boundary."
+      },
+      {
+        "id": "02:2773",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2773",
+        "verbatim": "- root, system, namespace-owner, database-owner, and other privileged SurrealDB sessions MUST NOT execute ordinary protected-resource flows or count as privacy/isolation proof because privileged users bypass table permissions;"
+      },
+      {
+        "id": "02:2776",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2776",
+        "verbatim": "Application authorization remains required for action semantics and capability checks; record-user table/field permissions plus ResourceBroker are the non-bypassable product data boundary, not the only policy layer."
+      },
+      {
+        "id": "LM-RLS-001",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/11-shared-dev-platform-and-oss-foundations.md:580",
+        "verbatim": "**[LM-RLS-001]** Multi-user workspace isolation MUST use authenticated record-user table/field permissions intersected with ResourceBroker scope. A `viewer` can read but not create/edit LoomBlocks; a `member` can create and edit; an `admin` can delete and manage workspace settings."
+      },
+      {
+        "id": "LM-RLS-002",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/11-shared-dev-platform-and-oss-foundations.md:582",
+        "verbatim": "**[LM-RLS-002]** Authority tables default to `PERMISSIONS NONE`; every grant is explicit at the database layer and rechecked by ResourceBroker. Privacy proof MUST execute as authenticated record users because root, namespace, database, and other system users bypass record-user table permissions."
+      },
+      {
+        "id": "02:2736-2740",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2736-2740",
+        "verbatim": "Every durable or derived ProtectedResource MUST carry, directly or through a canonical registry row: [...] - `owner_account_id`, `created_by_principal_id`, `created_in_session_id`, and current `access_space_id` or explicit Space links;"
+      },
+      {
+        "id": "02:2759",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2759",
+        "verbatim": "7. Denials MUST use constant-shape responses where practical so counts, identifiers, names, paths, thumbnails, timing, search facets, error variants, logs, or diagnostics do not reveal that a restricted resource exists."
+      },
+      {
+        "id": "02:2752",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2752",
+        "verbatim": "1. Default visibility is private to the owning LocalAccount until an explicit ResourceGrant says otherwise."
+      }
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-159-1",
+        "text": "POST /jobs for EVERY job kind requires the account session and a named workspace (workspace_id, or job_inputs.workspace_id / job_inputs.wsid), authorized with fs.write + Create BEFORE any table access; the job is created and started under that account's record-user scope (MT-158 / api/bundles.rs pattern). A doc_id is resolved only under that scope and must belong to the named workspace. Anonymous, workspace-less, foreign-workspace or foreign-document requests get the constant 403 and create no ai_jobs row. Spec: 02:2758: \"6. Authorization is deny-by-default and evaluated on every executable backend boundary. Hiding UI rows is a projection behavior, never the security boundary.\""
+      },
+      {
+        "id": "AC-159-2",
+        "text": "GET /jobs and GET /jobs/:id require the account session and read ai_jobs as the record user (fn::mt154_job_access): the list holds only jobs of workspaces the caller can read; a job of another account and an unknown id both get the identical constant 403. Spec: 02:2759: \"7. Denials MUST use constant-shape responses where practical so counts, identifiers, names, paths, thumbnails, timing, search facets, error variants, logs, or diagnostics do not reveal that a restricted resource exists.\""
+      },
+      {
+        "id": "AC-159-3",
+        "text": "POST /jobs/:id/resume and POST /jobs/:id/cloud_escalation/consent resolve the job as the record user (invisible or unknown -> the same constant 403), re-authorize the job's workspace (fs.write + Update) and run the resume / consent write under that scope; a job with no single workspace ref is denied. Spec: 02:2773: \"- root, system, namespace-owner, database-owner, and other privileged SurrealDB sessions MUST NOT execute ordinary protected-resource flows or count as privacy/isolation proof because privileged users bypass table permissions;\""
+      },
+      {
+        "id": "AC-159-4",
+        "text": "Locus ids are owner-scoped (D-154-3 extension). A record user's work_packets / micro_tasks / mt_iterations / dependencies rows are keyed [owner_scope, id] with owner_scope = fn::mt158_dependency_graph_scope() ('account:<id>'); root/system rows keep their plain id. The id fields assert the id component of the record key; uniqueness indexes become (owner_account_id, id); record-user create requires the record key's owner component to be the caller's own scope. The same wp_id/mt_id/dependency_id created by two accounts yields two independent rows. Spec: 02:2752: \"1. Default visibility is private to the owning LocalAccount until an explicit ResourceGrant says otherwise.\" 02:2759: \"7. Denials MUST use constant-shape responses where practical so counts, identifiers, names, paths, thumbnails, timing, search facets, error variants, logs, or diagnostics do not reveal that a restricted resource exists.\""
+      },
+      {
+        "id": "AC-159-5",
+        "text": "No Locus response reveals another account's ids: a create of an id another account owns succeeds for the caller (its own row); reads through the Locus routes answer 404 identical to a missing id for ids the caller does not own. Spec: 02:2759: \"7. Denials MUST use constant-shape responses where practical so counts, identifiers, names, paths, thumbnails, timing, search facets, error variants, logs, or diagnostics do not reveal that a restricted resource exists.\" LM-RLS-001: \"**[LM-RLS-001]** Multi-user workspace isolation MUST use authenticated record-user table/field permissions intersected with ResourceBroker scope. A `viewer` can read but not create/edit LoomBlocks; a `member` can create and edit; an `admin` can delete and manage workspace settings.\""
+      },
+      {
+        "id": "AC-159-6",
+        "text": "Schema changes are batched into ONE re-pin together with the validator's failure-list fixes (IV 2026-09-23: the validator is mid-run on 0caf1c10); lineage delta regenerated (lineage_check PASS, rev-158/159 statement sets EQUAL); no PRE_/PREDECESSOR_ constant changes. The re-pin waits for the IV's go."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Authority migration of every /jobs route plus an owner-scoped key change across four Locus tables and a re-pin.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong (escalate to Operator decision)"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "diagnosis_fields": [
+      "failing_assertion (file:line + message)",
+      "attempts (what each run changed)",
+      "root_cause_hypothesis with code location",
+      "intended_fix",
+      "next_runs (1 probe + 1 confirm)"
+    ],
+    "diagnosis_location": "this MT file, handoff.attempt_diagnoses.<CHECK_ID> (same shape as MT-109.json remediation_v24.attempt_diagnoses)",
+    "note": "Codex CX-EXEC-003/003A: counts carry across agents and sessions; a new executor does not reset them. Pin-measure runs (schema re-pin step 3) are measurements, not attempts."
+  },
+  "execution": {
+    "lane": "PRODUCT_CODE_BACKEND",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [
+      "MT-158"
+    ],
+    "start_precondition": "MT-158 candidate pushed on feat/WP-KERNEL-012 (0caf1c10 or later); worktree clean except this batch.",
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/api/jobs.rs (all /jobs handlers, their error mapping and the in-file tests)",
+      "src/backend/handshake_core/src/api/workspaces.rs (tests module visibility of WorkspaceBindingFixture / workspace_test_principal / create_owned_test_workspace only)",
+      "src/backend/handshake_core/src/storage/surreal/locus_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/structured_collab_store.rs (work packet / micro task lookups by owner-scoped record only)",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql (work_packets, micro_tasks, mt_iterations, dependencies keys/indexes/permissions; fn::mt159_* only)",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs (lineage delta + current-catalog pins + count constants only)",
+      "src/backend/handshake_core/tests/mt154_non_loom_route_authority_tests.rs (new mt159_* tests only; Matrix harness)",
+      "src/backend/handshake_core/src/user_manual/seed.rs (MT-159 section only)"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/** (any path, including through the .GOV junction)",
+      "any other worktree (handshake_main, wt-gov-kernel, wt-ilja, other wtc-*)",
+      "AGENTS.md, CLAUDE.md, .claude/**, .github/**, root justfile (main-only control files)",
+      "src/backend/handshake_core/src/storage/postgres/** and any SQLite/PostgreSQL dependency or language (Codex CX-503R)",
+      "Cargo.toml / Cargo.lock dependency additions (no new crates in this MT)",
+      "src/backend/handshake_core/src/api/loom.rs and Loom stores (MT-153)",
+      "src/backend/handshake_core/src/api/bundles.rs, src/backend/handshake_core/src/bundles/ (MT-156)",
+      "src/backend/handshake_core/src/api/debug_adapter.rs breakpoint routes and state_store.rs debug breakpoint functions (MT-157)",
+      "src/backend/handshake_core/src/api/kernel.rs execute_product_screenshot_capture_api (MT-155)",
+      "PRE_*_GENERATED_SHA256 / PRE_*_INFO_SHA256 constants in schema.rs (must not change; AC-154-8)"
+    ],
+    "stop_conditions": [
+      "`git status --porcelain` in the product worktree is non-empty at start with changes this session did not make (another builder is active in the shared worktree) - STOP, report BLOCKED; do not stash or discard.",
+      "The launcher did not supply CARGO_TARGET_DIR, TMP/TEMP, HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_SURREAL_TEST_STORE_ROOT, or they resolve outside <artifact_root>/WP-KERNEL-012/<MT>/<OWNER_SLUG>/ (or the granted C:/.target target) - STOP.",
+      "A needed change falls outside execution.allowed_write_paths - STOP and record an operator_decision_request naming the file and why.",
+      "A fix would require weakening, deleting or #[ignore]-ing an existing assertion, re-pinning a predecessor constant, or running a protected flow as root - STOP.",
+      "attempt_budget exhausted for any check - STOP with the written diagnosis, status BLOCKED.",
+      "Any operator_decision_request listed in this MT is reached - record it, skip that item, continue the other items.",
+      "A tool would open a foreground window, installer, prompt or steal focus - do not run it.",
+      "MT-153 is not yet committed (lifecycle not READY_FOR_VALIDATION/PASS) - STOP; schema pins would collide.",
+      "Making AC-154-8 pass seems to require editing a PRE_* predecessor pin - STOP (laundering).",
+      "D-154-1, D-154-2 or D-154-3 is needed to finish an item - record it, finish the non-gated part (AC-154-2 deny-by-default always applies), continue.",
+      "A Locus write under the record user is silently dropped and no AC-158-3 permission predicate explains it - STOP with a written diagnosis (never fall back to root).",
+      "A pin change is needed before the IV confirms the batch with the validator's failure list - STOP after cargo check, commit locally, and report (do not re-pin, do not push a pin change)."
+    ],
+    "artifact_isolation": {
+      "artifact_root": "<Handshake Worktrees>/Handshake_Artifacts (verified to exist on 2026-09-23; the launcher passes the absolute path; resolve from the wt-gov-kernel checkout, never from a working directory - Codex CX-984-001/012/013)",
+      "owner_dir": "<artifact_root>/WP-KERNEL-012/MT-154/<OWNER_SLUG>/ (MT-158 shares the kb-c4 lane of its batch owner MT-154; Operator decision 2026-09-23 16:10: builder proof is cargo check/clippy, and the validator runs the tests)",
+      "env": {
+        "CARGO_TARGET_DIR": "<owner_dir>/target",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+        "TMP": "<owner_dir>/tmp",
+        "TEMP": "<owner_dir>/tmp",
+        "TMPDIR": "<owner_dir>/tmp",
+        "HANDSHAKE_ARTIFACTS_ROOT": "<artifact_root>",
+        "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "<owner_dir>/runtime",
+        "HANDSHAKE_WORKSPACE_ROOT": "<owner_dir>/workspace/run-<NN>"
+      },
+      "native_test_env_additions": {
+        "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<artifact_root>/handshake-test",
+        "HSK_TEST_BACKEND_TARGET_ROOT": "<owner_dir>/backend-target",
+        "HSK_TEST_BACKEND_BIN": "<owner_dir>/backend-target/debug/handshake_core.exe",
+        "HANDSHAKE_TEST_STAGE_BINDING_ROOT": "<owner_dir>/runtime/binding-<NN>",
+        "HSK_TEST_BASE": "(unset)"
+      },
+      "disk": "All of the above are on D: (the Handshake Worktrees disk). An Operator grant (2026-09-22, recorded in MT-008/MT-023) also allows CARGO_TARGET_DIR=C:/.target/WP-KERNEL-012/target; the Coder never chooses between them - the launcher supplies CARGO_TARGET_DIR (CODER-PROOF-002). If the launcher did not supply every variable above, that is a blocker.",
+      "one_build_per_disk": "Before every cargo invocation verify no cargo.exe / rustc.exe / clippy-driver.exe is running (`tasklist | grep -Ei '^(cargo|rustc|clippy-driver)\\.exe'`); if one is, wait for it or report BLOCKED - never stop it (Codex CX-984-002, CX-SAFE-001). MT-109 C3 (KERNEL_BUILDER-C3) builds on D: under WP-KERNEL-012/MT-109/kb-c3.",
+      "flags": "--locked on every cargo command; -j 12 is the lane default.",
+      "reference_runner": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/run.sh and run_test.sh (read-only reference for the env and timeout wrapper; copy the pattern into your own owner dir, never write into kb-c3)."
+    },
+    "git_rules": [
+      "Work only in the product worktree `<Handshake Worktrees>/wtc-native-editors-v1` on branch `feat/WP-KERNEL-012`; verify with `git rev-parse --abbrev-ref HEAD` before the first edit.",
+      "Commit messages: fix(MT-158): / test(MT-158): / style(MT-158): (CODER-CERT-002). Never commit .GOV/ files. No stash, checkout, restore, reset, rebase, branch or worktree creation (CODER-GIT-001). Pushing is not part of this MT; the Integration Validator integrates."
+    ]
+  },
+  "scope": {
+    "summary": "(a) every other /jobs route and every job kind under the account session; (b) owner-scoped Locus ids so id uniqueness no longer leaks existence across accounts.",
+    "routes": [
+      {
+        "route": "POST /jobs (every job kind)",
+        "handler_fn": "create_new_job",
+        "fix": "AC-159-1"
+      },
+      {
+        "route": "GET /jobs",
+        "handler_fn": "list_jobs",
+        "session_today": "NONE; root list",
+        "fix": "AC-159-2"
+      },
+      {
+        "route": "GET /jobs/:id",
+        "handler_fn": "get_job",
+        "session_today": "NONE; root read",
+        "fix": "AC-159-2"
+      },
+      {
+        "route": "POST /jobs/:id/resume",
+        "handler_fn": "resume_job",
+        "session_today": "Locus kinds authorized (MT-158) after a root read; other kinds NONE",
+        "fix": "AC-159-3"
+      },
+      {
+        "route": "POST /jobs/:id/cloud_escalation/consent",
+        "handler_fn": "record_cloud_escalation_consent",
+        "session_today": "NONE; root read + root write",
+        "fix": "AC-159-3"
+      }
+    ],
+    "tables": [
+      {
+        "table": "work_packets",
+        "key_today": "work_packets:<wp_id>, pk_work_packets UNIQUE(wp_id)",
+        "fix": "AC-159-4"
+      },
+      {
+        "table": "micro_tasks",
+        "key_today": "micro_tasks:<mt_id>, pk_micro_tasks UNIQUE(mt_id)",
+        "fix": "AC-159-4"
+      },
+      {
+        "table": "mt_iterations",
+        "key_today": "mt_iterations:<sha(identity)>, pk_mt_iterations UNIQUE(iteration_id)",
+        "fix": "AC-159-4"
+      },
+      {
+        "table": "dependencies",
+        "key_today": "dependencies:<dependency_id>, pk_dependencies UNIQUE(dependency_id)",
+        "fix": "AC-159-4"
+      }
+    ],
+    "out_of_scope": [
+      "Job-producing routes outside /jobs (governance pack export, calendar sync, Loom preview, bundles) - owned by their MTs",
+      "Legacy `documents` rows (PERMISSIONS NONE; D-154-1): a doc_id job is therefore denied for record users"
+    ]
+  },
+  "implementation_steps": [
+    {
+      "n": 1,
+      "step": "api/jobs.rs: one job_authority helper for all kinds (fs.write/Create on the named workspace); create under scope; doc_id resolved under scope; get/list under an account session scope (fs.read); resume/consent resolve under the session scope then re-authorize the job workspace (Update) and run under it; every denial is the constant 403."
+    },
+    {
+      "n": 2,
+      "step": "In-file jobs tests authenticate through the api::workspaces test fixtures (pub(crate) visibility only) and name their workspace."
+    },
+    {
+      "n": 3,
+      "step": "Schema: owner-scoped keys for work_packets/micro_tasks/mt_iterations/dependencies (id-component ASSERTs, (owner_account_id, id) UNIQUE indexes, create-permission owner-key check, fn::mt159_* helpers)."
+    },
+    {
+      "n": 4,
+      "step": "locus_store.rs / structured_collab_store.rs: resolve the owner scope once per operation under a record-user scope and build [scope, id] record keys; decode array keys; root keeps plain keys."
+    },
+    {
+      "n": 5,
+      "step": "Tests (Matrix harness): mt159_job_routes_require_account_session and mt159_locus_ids_do_not_reveal_existence_across_accounts; user manual section."
+    },
+    {
+      "n": 6,
+      "step": "lineage_check --write; cargo check sets A/B/C + clippy; commit locally; REPORT the pin change to the IV and wait; then ONE pin-measure + ONE re-pin batched with the failure-list fixes; push; READY_FOR_VALIDATION."
+    }
+  ],
+  "engine_facts": [
+    "SurrealDB is pinned =3.2.0 (src/backend/handshake_core/Cargo.toml). Facts verified in surrealdb-core-3.2.0 source by the authority matrix:",
+    "F1 Table and field permissions are OFF inside a PERMISSIONS predicate (dbs/options.rs:201 new_for_permission_predicate; doc/check.rs:457-470; exec/permission.rs:87-99). Predicates and the fn::* functions they call see every row and field, including fields that are FOR select NONE.",
+    "F2 A top-level query issued on a record-user connection DOES enforce field permissions. Never probe a predicate by running `RETURN fn::...` directly as the record user; it reads permission-hidden fields as NONE and lies. Probe inside a predicate instead (e.g. a probe table whose PERMISSIONS FOR select calls the function).",
+    "F3 A denied CREATE, UPDATE or DELETE is SILENTLY IGNORED: no row returned, no error (doc/check.rs:457,469 IgnoreError::Ignore). Every record-user write MUST check the returned row (or a follow-up SELECT) and map an empty result to the constant denial; the failure otherwise surfaces later as a field ASSERT 500, an empty 404, or a guard THROW 403.",
+    "F4 REFERENCE ON DELETE CASCADE/UNSET and DEFINE EVENT bodies run with permissions OFF (doc/purge.rs:376,385; doc/event.rs:52,80). Cascades are never blocked by the caller's delete permission, and cascade targets need no delete predicate for the cascade itself.",
+    "F5 Session selection: `SurrealStorage::with_record_user_scope(scope, fut)` (src/backend/handshake_core/src/storage/surreal.rs:956 @ab618f46) sets a tokio task-local; `with_data_operation` then signs a cloned client in as the record user. Anything outside that scope, INCLUDING work moved into `tokio::spawn`, runs as root. Re-enter the scope inside every spawned future that touches protected tables."
+  ],
+  "authority_toolkit": [
+    "Rust authorization entry points (all @ab618f46, src/backend/handshake_core/src/): `api::authority::authorize_request(state, headers, capability_id, ResourceKind, external_resource_id, ResourceAction)` (api/authority.rs:1216) returns an AuthorizedResourceContext whose `.record_user_scope` MUST then wrap the storage call via `state.surreal.with_record_user_scope(ctx.record_user_scope, fut)`. A route that calls authorize_request but writes outside that scope is still ROOT-WRITE.",
+    "`api::authority::require_authenticated_session` (api/authority.rs:1013) is the axum route_layer middleware C2 used for process-starting routes with no protected-resource row (see api/debug_adapter.rs:183-186 route_layer). `authenticated_session_credentials` (api/authority.rs:1031) returns the LocalSessionContext + token + channel binding hash. Missing/invalid credentials map to `constant_denial()` = 403 {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}.",
+    "ResourceKind (storage/surreal/resource_authority.rs:43): Workspace, RichDocument, KnowledgeSource, KnowledgeCodeFile, LoomBlock, FlightRecorder, MemoryPack, MemoryProposal, MemoryCommitReport, MemoryItem, MemoryItemCount, ReconciliationQueue.",
+    "Owner creator grants (fn::mt120_creator_grant, provisioned by POST /workspaces): workspace resource actions create/read/update/delete x capabilities fs.read, fs.write, fr.read, fr.ingest.runtime_chat, fr.ingest.native_editor, memory.read, memory.propose (+ memory.review/memory.commit since C2 ec34c88e); rich_document and loom_block resources CRUD x fs.read/fs.write; knowledge_source/code_file CRUD x memory.read/memory.propose/fs.write. Resources are account-private.",
+    "Schema predicate helpers in src/backend/handshake_core/src/storage/surreal/schema.surql: fn::mt109_live_session, fn::mt109_has_grant(kind, external, action, cap), fn::mt109_has_workspace_access(ws, action, cap), fn::mt120_document_access(doc, ws, action, cap), fn::mt120_loom_block_access(block, ws, action, cap), fn::mt120_resource_create, fn::mt120_creator_grant, fn::mt120_workspace_delete(ws), fn::mt120_document_delete, and the kernel_event_ledger receipt predicates fn::mt109_ledger_receipt / fn::mt120_*_receipt. Every record-user write that appends a kernel_event_ledger receipt needs a receipt predicate branch that accepts it; the receipt actor MUST be the session principal (`$session = $auth.id`), never a System actor.",
+    "Test helpers: integration tests use src/backend/handshake_core/tests/account_session_support/mod.rs (`mod account_session_support;` then `AccountFixture::install(&storage)`, `OwnerSession::provision(&storage, token)`, `.headers()`, `.apply(req)`, `.client()`, `.create_workspace(&state)`; hold NATIVE_BINDING_ENV_LOCK when installing a binding). A second account = a second `OwnerSession::provision` against the same installed binding token. In-crate lib tests (behind cfg(all(test, feature = \"duckdb-flight-recorder\"))) use api::workspaces::tests::{WorkspaceBindingFixture (api/workspaces.rs:1626), workspace_test_principal (:1663), create_owned_test_workspace (:1714)}; the reference example is `mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default` (api/workspaces.rs:2766). A viewer/second principal in the SAME account with a read-only grant is expressed with `SurrealStorage::grant_resource(account_id, access_space_id, ResourceGrantSpec{..actions: [read], capability_ids: [fs.read]..})` (storage/surreal/resource_authority.rs:1022); see resource_authority_tests.rs:185/227 for usage.",
+    "AppState construction for integration tests: copy `test_app_state_embedded` (tests/atelier_stealth_window_tests.rs:265) but DO NOT copy its `Option` + `else { return Ok(()) }` early return: a test that cannot build its store MUST fail (panic/expect), never return Ok silently."
+  ],
+  "schema_repin_procedure": [
+    "Schema re-pin procedure (the one C2 used for MT-109 remediation_v24 and C3 is using now): (1) Batch every schema edit for this MT first. Edit `src/backend/handshake_core/src/storage/surreal/schema.surql` (the live schema for a fresh store). (2) For every changed statement add a (current_text, predecessor_text) pair to a delta array in `schema.rs` next to `MT109_C2_SCHEMA_DELTAS` (schema.rs:1991 @ab618f46) so predecessor reconstructions revert it and upgrades re-emit it from SCHEMA; the pair must be byte-exact (scripts in ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/scripts/strip_check.js show how C2 proved a revert is exact). (3) Build the lib once, then run ONE pin-measure run of the pin tests (check PIN-MEASURE). It is expected to fail and prints the new values: MT109_LOOM_CATALOG_SHA256=, MT109_CURRENT_AUTHORITY_INFO_SHA256=, MT109_PREDECESSOR_AUTHORITY_INFO_SHA256=, MT139_CURRENT_SCHEMA_INFO_SHA256=, EXPECTED_ATELIER_CATALOG_SHA256= and the `left:` values of the GENERATED/DECLARATIVE assertions. (4) Update the pins in schema.rs: GENERATED_SURREALQL_SHA256 (:2128), DECLARATIVE_SCHEMA_CATALOG_SHA256 (:2144), EXPECTED_SCHEMA_INFO_SHA256 (:2190), EXPECTED_ATELIER_CATALOG_SHA256 (:2201) and the MT109 Loom/authority catalog pins the tests name. (5) ONE confirm run (check PIN-CONFIRM). The pin-measure run is a measurement, not an attempt; the confirm run counts against attempt_budget. Re-measure once per batch, never once per edit.",
+    "NEVER re-pin a PREDECESSOR constant (PRE_*_GENERATED_SHA256 / PRE_*_INFO_SHA256 / PREDECESSOR_*) to a newly observed value: those record historical catalogs that real on-disk stores carry; re-pinning them would make the upgrade path accept a catalog no real store has (proof laundering)."
+  ],
+  "dependencies": {
+    "depends_on": [
+      "MT-158 (Locus job path under the account session; fn::mt158_dependency_graph_scope)"
+    ],
+    "blocks": [],
+    "ordering_rule": "Its schema change is re-pinned together with the validator's failure-list fixes for 0caf1c10 (one validator rebuild)."
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-158.json remediation_v1"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-159-CHECK-SETS",
+        "claim_refs": [
+          "compile"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo check --locked -j 6 --tests --features <set> (A: surreal-test-support,test-utils; B: app-runtime,surreal-test-support,test-utils; C: inspector,surreal-test-support,test-utils)",
+        "expected": "exit 0 for each set",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-159-CLIPPY",
+        "claim_refs": [
+          "compile"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo clippy --locked -j 6 -p handshake_core --all-targets --features app-runtime,surreal-test-support,test-utils --message-format=short -- -D warnings",
+        "expected": "0 errors on lines changed by this MT (pre-existing errors excluded by diff)",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "changed-line filter output"
+        ]
+      },
+      {
+        "check_id": "MT-159-PINS",
+        "claim_refs": [
+          "AC-159-6"
+        ],
+        "command_or_method": "handshake_core lib test exe --exact --test-threads=4 storage::surreal::schema::tests::{declarative_schema_catalog_is_complete_and_content_sensitive,mt139_current_schema_info_pin_matches_fresh_mem_catalog,mt109_loom_catalog_dependencies_are_complete_and_deterministic,mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin,mt109_authority_catalog_pins_are_deterministic,schema_delta_upgrade_statements_re_emit_every_mt154_delta} (timeout 900 s; SURREAL_DATASTORE_SYNC=never; runtime roots on C:/.target)",
+        "expected": "all pass after the single re-pin (validator run)",
+        "timeout_seconds": 900,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-159-ISOLATION",
+        "claim_refs": [
+          "AC-159-1",
+          "AC-159-2",
+          "AC-159-3",
+          "AC-159-4",
+          "AC-159-5"
+        ],
+        "command_or_method": "mt154_non_loom_route_authority_tests exe --exact --test-threads=1 mt159_job_routes_require_account_session mt159_locus_ids_do_not_reveal_existence_across_accounts mt158_locus_jobs_require_account_session mt158_locus_job_rows_are_private_to_the_creating_account (timeout 1800 s; SURREAL_DATASTORE_SYNC=never)",
+        "expected": "4 passed; 0 failed (a 0-test run is a defect)",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-159-JOBS-INCRATE",
+        "claim_refs": [
+          "AC-159-1"
+        ],
+        "command_or_method": "handshake_core lib (features app-runtime,surreal-test-support,test-utils) --exact api::jobs::tests::create_job_rejects_unknown_job_kind api::jobs::tests::create_job_allows_terminal_when_authorized (timeout 900 s). The MT-101 model-session tests in the same module belong to the forbidden session-worktree family: compile only.",
+        "expected": "2 passed",
+        "timeout_seconds": 900,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-159-REGRESSION",
+        "claim_refs": [
+          "AC-159-4"
+        ],
+        "command_or_method": "existing Locus suites as root (unchanged behaviour): handshake_core lib storage::surreal::mt136_database_surface_proof_c; tests/micro_task_executor_tests.rs; tests/mt151_early_lock_release_race_tests.rs; tests/wp_kernel_012_native_editor_routes_tests.rs route1_locus* (timeouts 1800 s)",
+        "expected": "pass",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "builder_proof_policy": "Operator decision 2026-09-23 16:10: the builder runs cargo check/clippy plus the one pin-measure run; the Integration Validator is the single test runner."
+  },
+  "owned_files": [
+    "src/backend/handshake_core/src/api/jobs.rs",
+    "src/backend/handshake_core/src/storage/surreal/locus_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/structured_collab_store.rs"
+  ],
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Backend job-path authority; the native Locus interop already binds the account context (MT-154)."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Jobs: every /jobs route requires the account session; jobs are private to the workspaces the caller holds; Locus ids are per account"
+    ],
+    "expected_evidence": [
+      "user_manual_diff"
+    ],
+    "location": "src/backend/handshake_core/src/user_manual/seed.rs",
+    "reason": "Shipped behaviour change: unauthenticated job routes are denied; Locus ids no longer collide across accounts."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "ai_jobs (every kind)",
+      "workflow_runs",
+      "work_packets",
+      "micro_tasks",
+      "mt_iterations",
+      "dependencies"
+    ],
+    "identity_and_scope_contexts": [
+      "owner",
+      "second account",
+      "anonymous"
+    ],
+    "enforcement_boundaries": [
+      "authorize_request (fs.write, Workspace, Create/Update)",
+      "record-user PERMISSIONS (fn::mt154_account_row, fn::mt154_job_access)",
+      "captured account authority in start_workflow_for_job"
+    ],
+    "cross_account_negative_cases": [
+      "B cannot list, read, resume or consent on A's job; responses identical to an unknown id",
+      "B creating A's wp_id/mt_id/dependency_id gets its own row, never a conflict"
+    ],
+    "metadata_side_channel_cases": [
+      "job ids and Locus ids of another account are indistinguishable from unknown ids"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "HBR-INT-009: denial bodies stay constant; diagnostics posture unchanged.",
+    "STOP": "No predecessor pin edits; no assertion weakening; no root fallback for a denied Locus write."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "ACCOUNT_SESSION_AUTHORITY_MIGRATION_V1",
+    "risks": [
+      "Existing callers of POST /jobs without a session (tests, tools) now get 403 - intended; in-crate tests adapted.",
+      "Owner-scoped array keys must not break root/system Locus flows (plain keys kept for root).",
+      "A record-user create with a forged [other-account, id] key must be rejected by the create permission.",
+      "structured_collab_store lookups by RecordId must use the owner-scoped key or the field value."
+    ],
+    "minimum_controls": [
+      "Every positive proof runs as an authenticated record user (account session + channel binding). A root/admin session (with_admin_operation, test_admin_query*, SurrealStorage without with_record_user_scope) may only SEED preconditions that the product itself cannot create, and never counts as privacy/isolation proof (02:2773, LM-RLS-002).",
+      "Every changed route has: anonymous negative (no session headers), cross-account negative (a second OwnerSession cannot read or write the first account's rows, and the rows are unchanged afterwards), and where a write is involved, a read-only (viewer) negative when the grant model can express one.",
+      "Denied writes are proven by re-reading the canonical row after the call (F3: denied writes are silent). A 403 status alone is not proof that nothing was written.",
+      "Anti-scaffold: no new abstraction, trait, feature flag, config knob or helper that is not called by product code in this MT; no `#[ignore]`, no `return Ok(())` skip paths, no assertion weakened or deleted to go green; tests may not assert only on mocks/fixtures the Coder authored for a resource-boundary claim (CODER-PROOF-004, CODER-CODE-006).",
+      "No fixture-only proof: each acceptance item is proven against the real embedded SurrealDB store (fresh Handshake-managed RocksDB/SurrealKV directory under the owner runtime root), through the real axum router, with the real ResourceBroker.",
+      "Every test binary run must report a NONZERO executed count for the named tests (`running N tests` with N equal to the number of names passed with --exact); a `0 passed` result is a failure of the check, not a pass.",
+      "MT-154-PREDECESSOR-PINS-UNCHANGED must pass.",
+      "The drain fix changes product code under src/; the test file diff for test_app_host_mount.rs may only add diagnostics output, never relax an assertion.",
+      "Every header-actor path in the routes in scope is removed or ignored in favour of the session actor (list them in the handoff)."
+    ]
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "product_branch": "feat/WP-KERNEL-012",
+    "product_worktree": "<Handshake Worktrees>/wtc-native-editors-v1",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "next_actor": "ORCHESTRATOR (assign a coder session); after READY_FOR_VALIDATION -> INTEGRATION_VALIDATOR",
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "report_fields_required": [
+      "status",
+      "commits",
+      "changed_paths",
+      "commands_run (command, exit code, result line, log path)",
+      "attempt_diagnoses",
+      "blockers",
+      "operator_decision_requests",
+      "residual_risks"
+    ],
+    "attempt_diagnoses": {},
+    "operator_decision_requests": [],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "commit_policy": "The Coder commits product changes on feat/WP-KERNEL-012 (fix/test/style(MT-159) messages). The Integration Validator commits governance (this file) on gov_kernel; the Coder does not edit this file except the handoff report fields if the launcher routes the report here."
+  }
+}
