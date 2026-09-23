@@ -3247,17 +3247,33 @@ async fn route6_document_soft_delete_tombstones_and_receipts() {
     );
 
     // Operator DELETE soft-deletes and returns the receipt.
-    let deleted: Value = operator_headers(
+    let delete_response = operator_headers(
         http.delete(format!("{base}/knowledge/documents/{doc_id}")),
         "delete",
     )
     .send()
     .await
-    .expect("delete request")
-    .json()
-    .await
-    .expect("delete json");
-    assert_eq!(deleted["deleted"], true);
+    .expect("delete request");
+    let delete_status = delete_response.status();
+    let delete_body = delete_response.text().await.expect("delete body");
+    let deleted: Value = serde_json::from_str(&delete_body).unwrap_or(Value::Null);
+    if deleted["deleted"] != true {
+        // MT-154 route6 diagnostic (IV): record the DELETE status/body and the follow-up GET so
+        // the next union run explains a failure without a separate diagnostic run.
+        let get_response = operator_headers(
+            http.get(format!("{base}/knowledge/documents/{doc_id}")),
+            "delete-diagnostic",
+        )
+        .send()
+        .await
+        .expect("diagnostic get request");
+        let get_status = get_response.status();
+        let get_body = get_response.text().await.unwrap_or_default();
+        panic!(
+            "operator delete did not report deleted=true: DELETE status={delete_status} \
+             body={delete_body}; follow-up GET status={get_status} body={get_body}"
+        );
+    }
     assert_eq!(
         deleted["rich_document_id"].as_str(),
         Some(doc_id.as_str()),
