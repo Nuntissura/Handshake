@@ -12,8 +12,14 @@
 
 mod knowledge_memory_fixtures;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the memory routes run as an authenticated record user
+// (persisted account session + live native-MCP channel binding).
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
 use std::sync::Arc;
 
+use account_session_support::AccountFixture;
 use async_trait::async_trait;
 use handshake_core::api::knowledge_memory as mem_api;
 use handshake_core::capabilities::CapabilityRegistry;
@@ -149,6 +155,9 @@ async fn mt126_memory_api_claim_conflict_fact_neighborhood_visualdebug_with_rece
         eprintln!("SKIP mt126_memory_api: embedded store unavailable");
         return;
     };
+    // MT-109 C2: root seed kept: `MemoryFixture::setup` (shared fixture) creates the workspace,
+    // source root and claims through root storage, so the workspace carries no account grant.
+    let account = AccountFixture::install(&fx.store.storage).await;
     let pool = pool_for(&fx.store).await;
     let db = SurrealDatabase::new(pool.clone());
 
@@ -188,7 +197,7 @@ async fn mt126_memory_api_claim_conflict_fact_neighborhood_visualdebug_with_rece
 
     let state = app_state_for(&fx.store.storage).await;
     let (base, server) = start_server(state).await;
-    let http = reqwest::Client::new();
+    let http = account.client();
 
     // --- Missing identity headers -> 400 (receipt law) -----------------------
     let no_hdr = http

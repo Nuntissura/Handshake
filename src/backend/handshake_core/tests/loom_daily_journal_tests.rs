@@ -6,6 +6,12 @@ mod knowledge_ingestion_support;
 #[allow(dead_code)]
 mod user_manual_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the Loom routes run as an authenticated record user
+// (persisted account session + live native-MCP channel binding) in an Owner-created workspace.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
+use account_session_support::AccountFixture;
 use handshake_core::api;
 use handshake_core::storage::{
     Database, LoomBlockContentType, LoomViewFilters, LoomViewResponse, LoomViewType,
@@ -19,17 +25,29 @@ struct ApiFixture {
     base: String,
     _server: tokio::task::JoinHandle<()>,
     http: reqwest::Client,
+    account: AccountFixture,
+}
+
+impl ApiFixture {
+    /// A workspace created through the real `POST /workspaces` route as the Owner.
+    async fn create_workspace(&self) -> String {
+        self.account
+            .create_workspace(&app_state_for(&self.store.db).await)
+            .await
+    }
 }
 
 async fn fixture() -> Option<ApiFixture> {
     let store = knowledge_ingestion_support::open_embedded_store().await?;
+    let account = AccountFixture::install(&store.storage).await;
     let state = app_state_for(&store.db).await;
     let (base, server) = start_server(api::loom::routes(state)).await;
     Some(ApiFixture {
         store,
         base,
         _server: server,
-        http: reqwest::Client::new(),
+        http: account.client(),
+        account,
     })
 }
 
@@ -147,7 +165,7 @@ async fn daily_journal_open_is_idempotent_and_bridged() {
         eprintln!("SKIP MT-257 daily journal proof: embedded store unavailable");
         return;
     };
-    let workspace_id = fx.store.create_workspace().await;
+    let workspace_id = fx.create_workspace().await;
     let journal_date = "2026-06-16";
     let first = open_journal(&fx, &workspace_id, journal_date).await;
     let second = open_journal(&fx, &workspace_id, journal_date).await;
@@ -177,7 +195,7 @@ async fn journal_date_filters_all_and_sorted_views() {
         eprintln!("SKIP MT-257 journal date view proof: embedded store unavailable");
         return;
     };
-    let workspace_id = fx.store.create_workspace().await;
+    let workspace_id = fx.create_workspace().await;
 
     let june15 = open_journal(&fx, &workspace_id, "2026-06-15").await;
     let june16 = open_journal(&fx, &workspace_id, "2026-06-16").await;
@@ -246,7 +264,7 @@ async fn journal_mentions_surface_as_backlinks() {
         eprintln!("SKIP MT-257 journal backlink proof: embedded store unavailable");
         return;
     };
-    let workspace_id = fx.store.create_workspace().await;
+    let workspace_id = fx.create_workspace().await;
 
     let journal = open_journal(&fx, &workspace_id, "2026-06-16").await;
     let target = create_note(&fx, &workspace_id, "Roadmap").await;
@@ -281,7 +299,7 @@ async fn daily_journal_rejects_non_canonical_dates() {
         eprintln!("SKIP MT-257 journal date validation proof: embedded store unavailable");
         return;
     };
-    let workspace_id = fx.store.create_workspace().await;
+    let workspace_id = fx.create_workspace().await;
 
     let response = fx
         .http

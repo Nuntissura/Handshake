@@ -8,6 +8,15 @@
 //! drive it with reqwest — in-process Handshake backend, real embedded storage,
 //! no external relay (the MT-078 posture this surface must keep).
 
+#[allow(dead_code)]
+mod user_manual_support;
+
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the HTTP proofs run as an authenticated record user
+// (persisted account session + live native-MCP channel binding) in an Owner-created workspace.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
+use account_session_support::{AccountFixture, OwnerSession};
 use base64::Engine;
 use handshake_core::api::knowledge_crdt::{router_with_state, KnowledgeCrdtApiState};
 use handshake_core::kernel::crdt::actor_site::{
@@ -18,6 +27,7 @@ use handshake_core::kernel::crdt::state_vector::KnowledgeStateVectorV1;
 use handshake_core::kernel::crdt::yjs_bridge::{
     YjsUpdateEnvelopeV1, YJS_UPDATE_ENCODING_V1, YJS_UPDATE_ENVELOPE_SCHEMA_ID,
 };
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
 use handshake_core::storage::StorageError;
 
@@ -42,6 +52,14 @@ async fn serve_knowledge_crdt(backend: &EmbeddedTestBackend) -> String {
         axum::serve(listener, app).await.expect("serve router");
     });
     format!("http://{addr}")
+}
+
+/// A workspace created through the real `POST /workspaces` route as `owner`.
+async fn owned_workspace(backend: &EmbeddedTestBackend, owner: &OwnerSession) -> String {
+    let db = SurrealDatabase::new(backend.storage.clone());
+    owner
+        .create_workspace(&user_manual_support::app_state_for(&db).await)
+        .await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -186,9 +204,10 @@ mod mt_067_yjs_bridge {
     async fn http_push_pull_round_trip_with_navigation_receipts() {
         let backend = embedded_backend_or_blocked().await;
         let base_url = serve_knowledge_crdt(&backend).await;
-        let client = reqwest::Client::new();
+        let account = AccountFixture::install(&backend.storage).await;
+        let client = account.client();
         let suffix = Uuid::now_v7().simple().to_string();
-        let ws = format!("ws-mt067-{suffix}");
+        let ws = owned_workspace(&backend, &account).await;
         let doc = format!("doc-mt067-{suffix}");
         let crdt_doc = format!("crdt-mt067-{suffix}");
         let operator =
@@ -375,9 +394,10 @@ mod mt_075_conflict_ui {
         let db = backend.database.clone();
         let pool = backend.storage.clone();
         let base_url = serve_knowledge_crdt(&backend).await;
-        let client = reqwest::Client::new();
+        let account = AccountFixture::install(&backend.storage).await;
+        let client = account.client();
         let suffix = Uuid::now_v7().simple().to_string();
-        let ws = format!("ws-mt075-{suffix}");
+        let ws = owned_workspace(&backend, &account).await;
         let doc = format!("doc-mt075-{suffix}");
         let crdt_doc = format!("crdt-mt075-{suffix}");
         let operator =
@@ -388,6 +408,8 @@ mod mt_075_conflict_ui {
         let lm_site = derive_knowledge_site_id(&ws, &crdt_doc, &model);
 
         // Operator lands head; model collides from the same base.
+        // MT-109 C2: root seed (save_rich_document_draft on synthetic doc/crdt ids) kept; the
+        // conflict_state route reads its receipts.
         let empty = KnowledgeStateVectorV1::new();
         let mut head = empty.clone();
         head.increment(&op_site.site_id);

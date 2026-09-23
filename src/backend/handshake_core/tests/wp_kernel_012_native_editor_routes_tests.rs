@@ -1427,10 +1427,15 @@ async fn document_save_authenticates_same_native_principal_as_independent_stage_
         .expect("minted_by_principal present")
         .to_string();
 
+    // MT-109 C2: the document-save route now stamps the account principal of the Owner session
+    // bound to this binding; the binding-only Stage principal is no longer the anchor.
     assert_eq!(
+        minted_by_principal, owner.principal_id,
+        "the document-save route must stamp the authenticated account principal"
+    );
+    assert_ne!(
         minted_by_principal, derived_from_stage_route,
-        "the document-save route must authenticate the SAME principal an independent \
-         capture_context route derives for the identical binding, not a locally recomputed one"
+        "the account principal is not the binding-only Stage-route principal"
     );
     assert_ne!(
         minted_by_principal, agent_actor,

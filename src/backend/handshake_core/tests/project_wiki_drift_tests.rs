@@ -15,9 +15,16 @@
 
 mod user_manual_support;
 
-use std::sync::Arc;
-use sha2::{Digest, Sha256};
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the Loom wiki route proof runs as an authenticated record
+// user (persisted account session + live native-MCP channel binding) in an Owner-created
+// workspace.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
 
+use sha2::{Digest, Sha256};
+use std::sync::Arc;
+
+use account_session_support::AccountFixture;
 use handshake_core::kernel::KernelActor;
 use handshake_core::knowledge_code_index::engine::{CodeIndexContext, CodeIndexEngine};
 use handshake_core::knowledge_wiki::compiler::{
@@ -80,6 +87,11 @@ struct Seeded {
 
 async fn seed_workspace(backend: &ManualTestBackend) -> Seeded {
     let workspace_id = backend.create_workspace().await;
+    seed_workspace_in(backend, workspace_id).await
+}
+
+/// Seed the real sources into an existing workspace (an Owner-created one for route proofs).
+async fn seed_workspace_in(backend: &ManualTestBackend, workspace_id: String) -> Seeded {
     let engine = CodeIndexEngine::new(Arc::new(backend.db.clone()));
     let root_id = backend
         .db
@@ -402,7 +414,9 @@ async fn mt242_no_change_recompile_yields_zero_stale() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
     let pg = manual_test_backend().await.expect("embedded test backend");
-    let seeded = seed_workspace(&pg).await;
+    let account = AccountFixture::install(pg.db.storage()).await;
+    let owned_workspace_id = account.create_workspace(&app_state_for(&pg.db).await).await;
+    let seeded = seed_workspace_in(&pg, owned_workspace_id).await;
     let compiler = compiler_for(&pg);
     let outcome = compiler
         .bootstrap(
@@ -430,7 +444,7 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
 
     let state = app_state_for(&pg.db).await;
     let (base, _server) = start_server(handshake_core::api::loom::routes(state)).await;
-    let http = reqwest::Client::new();
+    let http = account.client();
 
     // ---- list serve path: EVERY page carries a verdict ----------------------
     let list: Value = http
@@ -559,6 +573,8 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
     let ctx = WriteContext::human(None);
     let mut derived = LoomBlockDerived::default();
     derived.full_text_index = Some("wiki drift api test block".to_string());
+    // MT-109 C2: root seed (create_loom_block, no account grant) kept; the create route cannot
+    // set `derived.full_text_index`, which this compile input carries.
     let block = pg
         .db
         .create_loom_block(

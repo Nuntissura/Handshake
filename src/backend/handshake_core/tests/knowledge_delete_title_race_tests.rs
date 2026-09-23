@@ -31,8 +31,14 @@
 #[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the document routes run as an authenticated record user
+// (persisted account session + live native-MCP channel binding) in an Owner-created workspace.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
 use std::sync::Arc;
 
+use account_session_support::{AccountFixture, OwnerSession};
 use async_trait::async_trait;
 use embedded_knowledge_support::{open_embedded_store, EmbeddedKnowledgeStore};
 use handshake_core::api::knowledge_documents as docs_api;
@@ -146,9 +152,9 @@ impl Drop for ServerGuard {
     }
 }
 
-async fn doc_server(store: &EmbeddedKnowledgeStore) -> (String, reqwest::Client, ServerGuard) {
+async fn test_state(store: &EmbeddedKnowledgeStore) -> AppState {
     let recorder = Arc::new(NoopRecorder);
-    let state = AppState {
+    AppState {
         storage: Arc::new(store.db.clone()),
         surreal: store.storage.clone(),
         flight_recorder: recorder.clone(),
@@ -158,7 +164,15 @@ async fn doc_server(store: &EmbeddedKnowledgeStore) -> (String, reqwest::Client,
         }),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-    };
+    }
+}
+
+/// Document routes whose client carries `owner`'s account-session credentials on every request.
+async fn doc_server(
+    store: &EmbeddedKnowledgeStore,
+    owner: &OwnerSession,
+) -> (String, reqwest::Client, ServerGuard) {
+    let state = test_state(store).await;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind loopback listener");
@@ -170,7 +184,7 @@ async fn doc_server(store: &EmbeddedKnowledgeStore) -> (String, reqwest::Client,
     });
     (
         format!("http://{addr}"),
-        reqwest::Client::new(),
+        owner.client(),
         ServerGuard(Some(handle)),
     )
 }
@@ -210,12 +224,7 @@ fn plain_body(workspace_id: &str, title: &str) -> Value {
     })
 }
 
-async fn create_doc(
-    base: &str,
-    http: &reqwest::Client,
-    label: &str,
-    body: Value,
-) -> String {
+async fn create_doc(base: &str, http: &reqwest::Client, label: &str, body: Value) -> String {
     let response = operator(http.post(format!("{base}/knowledge/documents")), label)
         .json(&body)
         .send()
@@ -311,8 +320,9 @@ async fn title_anchor_write_set_and_delete_rename_race() {
     let store = open_embedded_store()
         .await
         .expect("MT-142 R1-1-2 requires an isolated embedded store");
-    let workspace_id = store.create_workspace().await;
-    let (base, http, server) = doc_server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = account.create_workspace(&test_state(&store).await).await;
+    let (base, http, server) = doc_server(&store, &account).await;
 
     let created = create_doc(
         &base,
@@ -462,7 +472,8 @@ async fn title_anchor_write_set_and_delete_rename_race() {
             })
         };
         let rename_task = {
-            let (base, http, label, title) = (base.clone(), http.clone(), label.clone(), title.clone());
+            let (base, http, label, title) =
+                (base.clone(), http.clone(), label.clone(), title.clone());
             let barrier = Arc::clone(&barrier);
             let renamed = renamed.clone();
             tokio::spawn(async move {

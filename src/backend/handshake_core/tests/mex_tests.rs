@@ -1,6 +1,13 @@
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the calendar route proof runs as an authenticated record
+// user (persisted account session + live native-MCP channel binding) in an Owner-created
+// workspace.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use account_session_support::AccountFixture;
 use async_trait::async_trait;
 use chrono::{Duration, NaiveDate, TimeZone, Utc};
 use handshake_core::ace::ArtifactHandle;
@@ -31,8 +38,8 @@ use handshake_core::mex::{SupplyChainAllowlists, SupplyChainEngineAdapter, Termi
 use handshake_core::storage::{
     tests::{embedded_test_backend, EmbeddedTestBackend},
     AccessMode, CalendarEventWindowQuery, CalendarSourceProviderType, CalendarSourceSyncState,
-    CalendarSourceUpsert, CalendarSourceWritePolicy, JobKind, JobMetrics, NewAiJob, NewWorkspace,
-    SafetyMode, WriteContext,
+    CalendarSourceUpsert, CalendarSourceWritePolicy, JobKind, JobMetrics, NewAiJob, SafetyMode,
+    WriteContext,
 };
 use handshake_core::terminal::config::TerminalConfig;
 use handshake_core::terminal::redaction::PatternRedactor;
@@ -912,15 +919,8 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = calendar_sync_test_state().await?;
     let ctx = WriteContext::human(Some("calendar-sync-test".to_string()));
-    let workspace = state
-        .storage
-        .create_workspace(
-            &ctx,
-            NewWorkspace {
-                name: "calendar-sync-workflow".to_string(),
-            },
-        )
-        .await?;
+    let account = AccountFixture::install(&state.backend.storage).await;
+    let workspace_id = account.create_workspace(&state.state).await;
     let source_id = format!("google:read-only:{}", Uuid::now_v7());
     state
         .storage
@@ -928,7 +928,7 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
             &ctx,
             CalendarSourceUpsert {
                 id: source_id.clone(),
-                workspace_id: workspace.id.clone(),
+                workspace_id: workspace_id.clone(),
                 display_name: "Google read only".to_string(),
                 provider_type: CalendarSourceProviderType::Google,
                 write_policy: CalendarSourceWritePolicy::ReadOnlyImport,
@@ -968,7 +968,7 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
             status_reason: "queued".to_string(),
             metrics: JobMetrics::zero(),
             job_inputs: Some(serde_json::json!({
-                "workspace_id": workspace.id,
+                "workspace_id": workspace_id,
                 "source_id": source_id,
                 "next_sync_token": "sync-token-2",
                 "remote_watermark": "remote-watermark-2",
@@ -1187,7 +1187,8 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
     );
 
     let base = serve_calendar(state.state.clone()).await?;
-    let response = reqwest::Client::new()
+    let http = account.client();
+    let response = http
         .get(format!(
             "{base}/workspaces/{}/calendar/events?from_date=2026-07-24&to_date_exclusive=2026-07-25&from_utc=2026-07-23T22:00:00Z&to_utc=2026-07-24T22:00:00Z&view_tzid=Europe/Brussels",
             source.workspace_id
@@ -1209,7 +1210,7 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
     assert_eq!(timed_wire["temporal"]["end_local"], "2026-07-24T03:00:00");
     assert_eq!(timed_wire["temporal"]["tzid"], "Europe/Brussels");
 
-    let response = reqwest::Client::new()
+    let response = http
         .get(format!(
             "{base}/workspaces/{}/calendar/events?from_date=2026-03-29&to_date_exclusive=2026-03-30&from_utc=2026-03-28T23:00:00Z&to_utc=2026-03-29T22:00:00Z&view_tzid=Europe/Brussels",
             source.workspace_id

@@ -19,6 +19,12 @@
 #[allow(dead_code)]
 mod user_manual_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the router proof runs as an authenticated record user
+// (persisted account session + live native-MCP channel binding) in an Owner-created workspace.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
+use account_session_support::AccountFixture;
 use handshake_core::api;
 use handshake_core::kernel::model_manual::kernel002_no_context_model_manual;
 use handshake_core::knowledge_document::embed::{BrokenEmbedRepair, EmbedRefKind, EmbedTarget};
@@ -142,6 +148,7 @@ struct RouterFixture {
     base: String,
     _server: tokio::task::JoinHandle<()>,
     http: reqwest::Client,
+    account: AccountFixture,
 }
 
 async fn router_fixture() -> RouterFixture {
@@ -149,13 +156,15 @@ async fn router_fixture() -> RouterFixture {
         .await
         .expect("open embedded backend for UserManual router fixture");
     ensure_seeded(&kpg.db).await.expect("seed");
+    let account = AccountFixture::install(kpg.db.storage()).await;
     let state = app_state_for(&kpg.db).await;
     let (base, server) = start_server(api::routes(state)).await;
     RouterFixture {
         kpg,
         base,
         _server: server,
-        http: reqwest::Client::new(),
+        http: account.client(),
+        account,
     }
 }
 
@@ -166,6 +175,7 @@ impl RouterFixture {
             base: _,
             _server,
             http: _,
+            account: _account,
         } = self;
         _server.abort();
         let _ = _server.await;
@@ -226,7 +236,10 @@ async fn mt198_documented_failure_modes_match_runtime() {
 
     // 2) Permission law (documents): cloud_model write -> 403 forbidden with
     //    the documented stable reason.
-    let workspace_id = fx.kpg.create_workspace().await;
+    let workspace_id = fx
+        .account
+        .create_workspace(&app_state_for(&fx.kpg.db).await)
+        .await;
     let create = doc_headers(
         fx.http.post(format!("{}/knowledge/documents", fx.base)),
         "operator",

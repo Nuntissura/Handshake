@@ -6,6 +6,12 @@ use std::{
 
 mod atelier_surreal_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the role-mailbox route proofs run as an authenticated record
+// user (persisted account session + live native-MCP channel binding).
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
+use account_session_support::AccountFixture;
 use handshake_core::{
     ace::ArtifactHandle,
     api::role_mailbox as role_mailbox_api,
@@ -803,9 +809,14 @@ async fn role_mailbox_index_api_returns_valid_structured_export(
         .export_repo(&test_context(), "operator".to_string())
         .await?;
 
-    let (state, _harness) = setup_api_state(recorder.clone()).await?;
+    let (state, harness) = setup_api_state(recorder.clone()).await?;
+    let account = AccountFixture::install(&harness.storage).await;
     let (base_url, server) = start_role_mailbox_api_server(state).await?;
-    let response = reqwest::get(format!("{base_url}/role_mailbox/index")).await?;
+    let response = account
+        .client()
+        .get(format!("{base_url}/role_mailbox/index"))
+        .send()
+        .await?;
     server.abort();
     let _ = server.await;
 
@@ -848,9 +859,14 @@ async fn role_mailbox_index_api_rejects_invalid_structured_export(
     index_json["authority_refs"] = json!([".GOV/roles_shared/ROLE_MAILBOX/index.json"]);
     fs::write(&index_path, serde_json::to_vec_pretty(&index_json)?)?;
 
-    let (state, _harness) = setup_api_state(recorder.clone()).await?;
+    let (state, harness) = setup_api_state(recorder.clone()).await?;
+    let account = AccountFixture::install(&harness.storage).await;
     let (base_url, server) = start_role_mailbox_api_server(state).await?;
-    let response = reqwest::get(format!("{base_url}/role_mailbox/index")).await?;
+    let response = account
+        .client()
+        .get(format!("{base_url}/role_mailbox/index"))
+        .send()
+        .await?;
     let status = response.status();
     let body = response.text().await?;
     server.abort();

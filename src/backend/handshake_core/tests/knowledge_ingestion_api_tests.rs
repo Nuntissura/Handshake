@@ -11,9 +11,15 @@
 #[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the ingestion routes run as an authenticated record user
+// (persisted account session + live native-MCP channel binding) in an Owner-created workspace.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
 use std::path::Path;
 use std::sync::Arc;
 
+use account_session_support::AccountFixture;
 use async_trait::async_trait;
 use handshake_core::api::knowledge_ingestion as ingestion_api;
 use handshake_core::capabilities::CapabilityRegistry;
@@ -161,10 +167,11 @@ async fn mt095_routes_cover_register_run_inspect_and_repair_with_ledger_receipts
         );
         return;
     };
-    let workspace_id = env.store.create_workspace().await;
+    let account = AccountFixture::install(&env.store.storage).await;
     let state = app_state_for(&env.store).await;
+    let workspace_id = account.create_workspace(&state).await;
     let (base_url, server) = start_server(state).await;
-    let http = reqwest::Client::new();
+    let http = account.client();
 
     // Runtime source tree: one good note, one broken transcript.
     let temp = tempfile::tempdir().expect("temp dir");

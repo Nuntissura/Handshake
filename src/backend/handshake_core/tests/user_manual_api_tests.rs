@@ -15,6 +15,12 @@
 #[allow(dead_code)]
 mod user_manual_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the route proofs run as an authenticated record user
+// (persisted account session + live native-MCP channel binding).
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
+use account_session_support::AccountFixture;
 use handshake_core::api;
 use handshake_core::kernel::KernelEventType;
 use handshake_core::storage::surreal::SurrealDatabase;
@@ -36,18 +42,21 @@ struct ApiFixture {
     base: String,
     _server: tokio::task::JoinHandle<()>,
     http: reqwest::Client,
+    _account: AccountFixture,
 }
 
 async fn fixture() -> ApiFixture {
     let backend = manual_test_backend().await.expect("open embedded backend");
     ensure_seeded(&backend.db).await.expect("seed corpus");
+    let account = AccountFixture::install(backend.db.storage()).await;
     let state = app_state_for(&backend.db).await;
     let (base, server) = start_server(api::user_manual::routes(state)).await;
     ApiFixture {
         backend,
         base,
         _server: server,
-        http: reqwest::Client::new(),
+        http: account.client(),
+        _account: account,
     }
 }
 
@@ -801,9 +810,10 @@ async fn mtdoc_every_registry_surface_exists_on_the_real_router() {
         .await
         .expect("open embedded backend for router probe");
     ensure_seeded(&backend.db).await.expect("seed");
+    let account = AccountFixture::install(backend.db.storage()).await;
     let state = app_state_for(&backend.db).await;
     let (base, _server) = start_server(api::routes(state)).await;
-    let http = reqwest::Client::new();
+    let http = account.client();
 
     for surface in wp009_surface_registry() {
         let path = probe_path(surface.route);

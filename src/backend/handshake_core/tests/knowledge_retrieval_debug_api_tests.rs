@@ -9,9 +9,15 @@
 #[path = "knowledge_memory_fixtures/mod.rs"]
 mod knowledge_memory_fixtures;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the retrieval routes run as an authenticated record user
+// (persisted account session + live native-MCP channel binding).
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+use account_session_support::{AccountFixture, OwnerSession};
 use async_trait::async_trait;
 use handshake_core::api::knowledge_retrieval as retrieval_api;
 use handshake_core::capabilities::CapabilityRegistry;
@@ -107,7 +113,11 @@ impl LlmClient for NoopLlmClient {
     }
 }
 
-async fn retrieval_server(storage: SurrealStorage) -> (String, reqwest::Client) {
+/// The client carries `owner`'s account-session credentials on every request.
+async fn retrieval_server(
+    storage: SurrealStorage,
+    owner: &OwnerSession,
+) -> (String, reqwest::Client) {
     let storage_facade = SurrealDatabase::new(storage.clone());
     let recorder = Arc::new(NoopRecorder);
     let state = AppState {
@@ -131,7 +141,7 @@ async fn retrieval_server(storage: SurrealStorage) -> (String, reqwest::Client) 
             .await
             .expect("retrieval api server");
     });
-    (format!("http://{addr}"), reqwest::Client::new())
+    (format!("http://{addr}"), owner.client())
 }
 
 fn nav_headers(req: reqwest::RequestBuilder, label: &str) -> reqwest::RequestBuilder {
@@ -150,6 +160,9 @@ async fn mt143_staleness_surface_and_repair_action() {
         eprintln!("SKIP mt143_staleness_surface_and_repair_action: embedded storage unavailable");
         return;
     };
+    // MT-109 C2: root seed kept: `MemoryFixture::setup` (shared fixture) creates the workspace
+    // and evidence through root storage, so the workspace carries no account grant.
+    let account = AccountFixture::install(&fx.store.storage).await;
     let pool = pool_for(&fx.store).await;
 
     // A span-backed passage; the executed pipeline (no edges) falls back to it
@@ -191,7 +204,7 @@ async fn mt143_staleness_surface_and_repair_action() {
     .expect("execute");
     let bundle_id = executed.compiled.bundle_id.clone();
 
-    let (base, http) = retrieval_server(fx.store.storage.clone()).await;
+    let (base, http) = retrieval_server(fx.store.storage.clone(), &account).await;
 
     // FRESH bundle: every item ok, stale=false, receipt present.
     let resp = nav_headers(

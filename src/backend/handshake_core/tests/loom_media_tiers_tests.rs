@@ -16,8 +16,14 @@
 #[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the HTTP proofs run as an authenticated record user
+// (persisted account session + live native-MCP channel binding) in an Owner-created workspace.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
 use std::sync::Arc;
 
+use account_session_support::{AccountFixture, OwnerSession};
 use async_trait::async_trait;
 use handshake_core::api::loom as loom_api;
 use handshake_core::capabilities::CapabilityRegistry;
@@ -149,9 +155,11 @@ async fn loom_state(store: &EmbeddedKnowledgeStore) -> (AppState, Arc<NoopRecord
     (state, recorder)
 }
 
-/// Boot the real loom routes over loopback against the isolated schema.
+/// Boot the real loom routes over loopback against the isolated schema. The client carries
+/// `owner`'s account-session credentials on every request.
 async fn loom_server(
     store: &EmbeddedKnowledgeStore,
+    owner: &OwnerSession,
 ) -> (String, reqwest::Client, AppState, Arc<NoopRecorder>) {
     let (state, recorder) = loom_state(store).await;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -162,12 +170,7 @@ async fn loom_server(
     tokio::spawn(async move {
         axum::serve(listener, app).await.expect("loom api server");
     });
-    (
-        format!("http://{addr}"),
-        reqwest::Client::new(),
-        state,
-        recorder,
-    )
+    (format!("http://{addr}"), owner.client(), state, recorder)
 }
 
 /// Create an `original` asset row AND write its blob to disk under the configured
@@ -484,11 +487,13 @@ async fn mt259_collection_enumerates_ordered_members_from_backend() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_range_endpoint_and_tier_serving_over_http() {
     let store = embedded_or_skip!("range_endpoint");
-    let ws = store.create_workspace().await;
+    let account = AccountFixture::install(&store.storage).await;
+    let ws = account.create_workspace(&loom_state(&store).await.0).await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
 
     // Original is a 1000-byte ramp so a Range slice is byte-checkable.
+    // MT-109 C2: root seed (create_asset + upsert_media_tier) kept; the asset routes read it.
     let original_bytes: Vec<u8> = (0..1000u32).map(|i| (i % 256) as u8).collect();
     let (asset_id, _hash, _blob) =
         make_original_asset(&store.db, tmp.path(), &ws, "video/mp4", &original_bytes).await;
@@ -515,7 +520,7 @@ async fn mt259_range_endpoint_and_tier_serving_over_http() {
         .await
         .expect("upsert thumb tier");
 
-    let (base, http, _state, _recorder) = loom_server(&store).await;
+    let (base, http, _state, _recorder) = loom_server(&store, &account).await;
     let content_url = format!("{base}/workspaces/{ws}/assets/{asset_id}/content");
 
     // (a) No Range -> 200 full + Accept-Ranges advertised.
@@ -810,12 +815,15 @@ async fn mt259_preview_generate_job_builds_pyramid_and_receipt_carries_tiers() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_http_retry_endpoint_requeues_failed_tier() {
     let store = embedded_or_skip!("http_retry");
-    let ws = store.create_workspace().await;
+    let account = AccountFixture::install(&store.storage).await;
+    let ws = account.create_workspace(&loom_state(&store).await.0).await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
 
     // A real image block so find_loom_block_by_asset_id resolves (the retry
     // endpoint requeues the job keyed by the owning block).
+    // MT-109 C2: root seed (create_asset + create_loom_block + upsert_media_tier) kept; the
+    // retry route reads it.
     let (_block_id, asset_id, _hash) = make_image_block(&store.db, tmp.path(), &ws).await;
 
     // Seed a FAILED poster tier (the honest video-poster failure shape).
@@ -837,7 +845,7 @@ async fn mt259_http_retry_endpoint_requeues_failed_tier() {
         .await
         .expect("seed failed poster");
 
-    let (base, http, _state, _recorder) = loom_server(&store).await;
+    let (base, http, _state, _recorder) = loom_server(&store, &account).await;
 
     // It is in the failed queue before retry.
     assert_eq!(

@@ -49,12 +49,21 @@ use uuid::Uuid;
 
 mod atelier_surreal_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the Atelier route proofs run as an authenticated record user
+// (persisted account session bound to the live native-MCP channel binding installed below).
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
+use account_session_support::{AccountFixture, OwnerSession};
+
+// `HANDSHAKE_STAGE_BINDING_FILE` is process-global; every test in this binary that installs a
+// binding holds the shared per-binary lock of `account_session_support`.
+use account_session_support::NATIVE_BINDING_ENV_LOCK;
+
 const SIDECAR_VISIBILITY_HEALTH_LOCK_ID: i64 = 5_023_022;
-static NATIVE_BINDING_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 struct NativeSessionBinding {
     token: String,
-    actor_id: String,
     binding_path: PathBuf,
     previous_binding_path: Option<std::ffi::OsString>,
 }
@@ -76,12 +85,10 @@ impl NativeSessionBinding {
         .expect("write native session binding");
         let previous_binding_path = std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE");
         std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &binding_path);
-        let actor_id = handshake_core::api::stage::authenticate_native_session_token(Some(&token))
-            .expect("current-process native session authenticates")
-            .actor_id;
+        handshake_core::api::stage::authenticate_native_session_token(Some(&token))
+            .expect("current-process native session authenticates");
         Self {
             token,
-            actor_id,
             binding_path,
             previous_binding_path,
         }
@@ -349,9 +356,12 @@ async fn stealth_window_api_list_is_scoped_to_calling_actor(
         return Ok(());
     };
     let store = AtelierStore::new(state.surreal.clone());
+    // The lock is already held: the Owner is bound to THIS test's native binding.
+    let owner = OwnerSession::provision(&state.surreal, &binding.token).await;
 
     let mut caller_input = fresh_window_input();
-    caller_input.owner_actor.clone_from(&binding.actor_id);
+    // MT-109 C2: the route attributes the account principal, not the Stage-binding actor.
+    caller_input.owner_actor.clone_from(&owner.actor_id);
     let caller_actor = caller_input.owner_actor.clone();
     let foreign_input = fresh_window_input();
     let foreign_actor = foreign_input.owner_actor.clone();
@@ -366,9 +376,9 @@ async fn stealth_window_api_list_is_scoped_to_calling_actor(
         .expect("create foreign window");
 
     let (base_url, server) = start_atelier_api_server(state).await?;
-    let response = reqwest::Client::new()
+    let response = owner
+        .client()
         .get(format!("{base_url}/atelier/stealth/windows"))
-        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "forged-caller")
         .send()
         .await?;
@@ -410,6 +420,7 @@ async fn atelier_filesystem_health_api_records_read_only_check(
         return Ok(());
     };
     let store = AtelierStore::new(state.surreal.clone());
+    let owner = OwnerSession::provision(&state.surreal, &binding.token).await;
     let parent = fresh_api_media_asset(&store, "health-parent").await;
     let sidecar = fresh_api_media_asset(&store, "health-sidecar").await;
     let sidecar_relation = store
@@ -422,11 +433,10 @@ async fn atelier_filesystem_health_api_records_read_only_check(
         .await
         .expect("record sidecar relation for API health drift proof");
     let (base_url, server) = start_atelier_api_server(state).await?;
-    let client = reqwest::Client::new();
+    let client = owner.client();
 
     let check_response_result = client
         .post(format!("{base_url}/atelier/filesystem-health/checks"))
-        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-health")
         .json(&serde_json::json!({ "scope_label": "api-health" }))
         .send()
@@ -444,8 +454,9 @@ async fn atelier_filesystem_health_api_records_read_only_check(
         report
             .get("check")
             .and_then(|check| check.get("requested_by")),
-        Some(&serde_json::json!(&binding.actor_id)),
-        "health check route must attribute the authenticated native-session principal"
+        // MT-109 C2: the authenticated principal is the account actor, not the Stage binding.
+        Some(&serde_json::json!(&owner.actor_id)),
+        "health check route must attribute the authenticated account-session principal"
     );
     assert_eq!(
         report
@@ -517,6 +528,7 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
         return Ok(());
     };
     let store = AtelierStore::new(state.surreal.clone());
+    let owner = OwnerSession::provision(&state.surreal, &binding.token).await;
     let character = store
         .create_character(&NewCharacter {
             public_id: format!("api-delete-{}", Uuid::new_v4()),
@@ -539,11 +551,10 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
         { "target_type": "sheet_version", "target_id": sheet.version_id },
     ]);
     let (base_url, server) = start_atelier_api_server(state).await?;
-    let client = reqwest::Client::new();
+    let client = owner.client();
 
     let preview_response = client
         .post(format!("{base_url}/atelier/deletion/impact-preview"))
-        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-delete")
         .json(&serde_json::json!({
             "targets": targets,
@@ -553,7 +564,8 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
         .await?;
     assert_eq!(preview_response.status(), reqwest::StatusCode::OK);
     let preview: serde_json::Value = preview_response.json().await?;
-    assert_eq!(preview["requested_by"], binding.actor_id);
+    // MT-109 C2: the authenticated principal is the account actor, not the Stage binding.
+    assert_eq!(preview["requested_by"], owner.actor_id);
     assert_eq!(preview["target_count"], 2);
     assert_eq!(preview["would_archive_count"], 2);
     assert_eq!(preview["already_archived_count"], 0);
@@ -574,7 +586,6 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
 
     let archive_response = client
         .post(format!("{base_url}/atelier/deletion/archive"))
-        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-delete")
         .json(&serde_json::json!({
             "targets": preview["targets"],
@@ -597,7 +608,6 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
 
     let restore_response = client
         .post(format!("{base_url}/atelier/deletion/restore"))
-        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-delete")
         .json(&serde_json::json!({
             "targets": preview["targets"],
@@ -631,6 +641,7 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
         return Ok(());
     };
     let store = AtelierStore::new(state.surreal.clone());
+    let owner = OwnerSession::provision(&state.surreal, &binding.token).await;
     let count_storage = state.surreal.clone();
     let artifact = atelier_surreal_support::write_native_media_artifact(b"mt-025 api clipboard");
     let url_source = format!(
@@ -638,11 +649,10 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
         Uuid::new_v4()
     );
     let (base_url, server) = start_atelier_api_server(state).await?;
-    let client = reqwest::Client::new();
+    let client = owner.client();
 
     let clipboard_response = client
         .post(format!("{base_url}/atelier/image-import/clipboard"))
-        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-import-api")
         .json(&serde_json::json!({
             "idempotency_key": format!("api-clipboard-import-{}", Uuid::new_v4()),
@@ -658,7 +668,8 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
     let clipboard: serde_json::Value = clipboard_response.json().await?;
     assert_eq!(clipboard["source_kind"], "clipboard");
     assert_eq!(clipboard["status"], "materialized");
-    assert_eq!(clipboard["requested_by"], binding.actor_id);
+    // MT-109 C2: the authenticated principal is the account actor, not the Stage binding.
+    assert_eq!(clipboard["requested_by"], owner.actor_id);
     assert!(
         clipboard
             .get("asset_id")
@@ -670,7 +681,6 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
     let before_url_rows = embedded_row_count(&count_storage, "atelier_image_import_request").await;
     let url_response = client
         .post(format!("{base_url}/atelier/image-import/url"))
-        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-import-api")
         .json(&serde_json::json!({
             "idempotency_key": format!("api-url-import-{}", Uuid::new_v4()),
@@ -689,7 +699,8 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
     let url_record: serde_json::Value = url_response.json().await?;
     assert_eq!(url_record["source_kind"], "url");
     assert_eq!(url_record["status"], "queued");
-    assert_eq!(url_record["requested_by"], binding.actor_id);
+    // MT-109 C2: the authenticated principal is the account actor, not the Stage binding.
+    assert_eq!(url_record["requested_by"], owner.actor_id);
     assert_eq!(url_record["asset_id"], serde_json::Value::Null);
     assert!(
         url_record["source_url_hash"]
@@ -707,7 +718,6 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
 
     let rejected_response = client
         .post(format!("{base_url}/atelier/image-import/url"))
-        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-import-api")
         .json(&serde_json::json!({
             "idempotency_key": format!("api-url-import-blocked-{}", Uuid::new_v4()),
@@ -801,6 +811,7 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
         return Ok(());
     };
     let store = AtelierStore::new(state.surreal.clone());
+    let owner = OwnerSession::provision(&state.surreal, &binding.token).await;
     let count_storage = state.surreal.clone();
     let character = store
         .create_character(&NewCharacter {
@@ -811,7 +822,7 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
         .expect("create character for API AI tag suggestion");
 
     let (base_url, server) = start_atelier_api_server(state).await?;
-    let client = reqwest::Client::new();
+    let client = owner.client();
     let record_response = client
         .post(format!("{base_url}/atelier/ai-tag-suggestions"))
         .json(&serde_json::json!({
@@ -863,7 +874,6 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
         .post(format!(
             "{base_url}/atelier/ai-tag-suggestions/{suggestion_id}/accept"
         ))
-        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-api-reviewer")
         .json(&serde_json::json!({ "reason": "matches image" }))
         .send()
@@ -873,8 +883,9 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
     assert_eq!(accepted.get("status"), Some(&serde_json::json!("accepted")));
     assert_eq!(
         accepted.get("decided_by"),
-        Some(&serde_json::json!(&binding.actor_id)),
-        "decision route must attribute the authenticated native-session principal"
+        // MT-109 C2: the authenticated principal is the account actor, not the Stage binding.
+        Some(&serde_json::json!(&owner.actor_id)),
+        "decision route must attribute the authenticated account-session principal"
     );
 
     let reject_record_response = client
@@ -904,7 +915,6 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
         .post(format!(
             "{base_url}/atelier/ai-tag-suggestions/{reject_suggestion_id}/reject"
         ))
-        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-api-rejecter")
         .json(&serde_json::json!({ "reason": "does not match image" }))
         .send()
@@ -914,15 +924,15 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
     assert_eq!(rejected.get("status"), Some(&serde_json::json!("rejected")));
     assert_eq!(
         rejected.get("decided_by"),
-        Some(&serde_json::json!(&binding.actor_id)),
-        "reject route must attribute the authenticated native-session principal"
+        // MT-109 C2: the authenticated principal is the account actor, not the Stage binding.
+        Some(&serde_json::json!(&owner.actor_id)),
+        "reject route must attribute the authenticated account-session principal"
     );
 
     let apply_response = client
         .post(format!(
             "{base_url}/atelier/ai-tag-suggestions/{suggestion_id}/apply"
         ))
-        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-api-reviewer")
         .send()
         .await?;
@@ -948,6 +958,7 @@ async fn atelier_ai_tag_suggestion_api_rejects_non_receipt_refs(
     let Some(state) = test_app_state_embedded().await else {
         return Ok(());
     };
+    let account = AccountFixture::install(&state.surreal).await;
     let store = AtelierStore::new(state.surreal.clone());
     let count_storage = state.surreal.clone();
     let character = store
@@ -964,7 +975,7 @@ async fn atelier_ai_tag_suggestion_api_rejects_non_receipt_refs(
         .expect("count AI suggestion events before invalid API receipt refs");
 
     let (base_url, server) = start_atelier_api_server(state).await?;
-    let client = reqwest::Client::new();
+    let client = account.client();
 
     let invalid_model = client
         .post(format!("{base_url}/atelier/ai-tag-suggestions"))

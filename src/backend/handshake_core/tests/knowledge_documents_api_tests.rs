@@ -3500,7 +3500,9 @@ async fn mt120_unauthenticated_caller_cannot_forge_the_reserved_native_principal
         .expect("mt120 forged save request");
     assert_eq!(response.status(), 403);
     let body: Value = response.json().await.expect("mt120 forged save body");
-    assert_eq!(body["error"], "HSK-403-DOC-ACTOR-SPOOF");
+    // MT-109 C2: the credential-free request is refused by the constant protected-resource denial
+    // before any actor-spoof check runs.
+    assert_eq!(body["error"], "HSK-403-PROTECTED-RESOURCE");
 
     // The guard sits on the shared identity path, so a READ route forges nothing either.
     let read = unauthenticated
@@ -3571,13 +3573,14 @@ async fn mt120_invalid_session_token_is_401_and_never_downgrades_to_the_header_i
         .send()
         .await
         .expect("mt120 stale-token save request");
+    // MT-109 C2: a presented-but-invalid account session is the constant protected-resource 403.
     assert_eq!(
         response.status(),
-        401,
+        403,
         "a presented-but-invalid token must fail closed, not fall back"
     );
     let body: Value = response.json().await.expect("mt120 stale-token body");
-    assert_eq!(body["error"], "HSK-401-DOC-SESSION");
+    assert_eq!(body["error"], "HSK-403-PROTECTED-RESOURCE");
 
     // Proof it did NOT silently continue as the header identity: no save happened at all.
     let after = mt120_save_receipts(&store, &doc_id).await;
@@ -3648,9 +3651,11 @@ async fn mt120_authenticated_save_stamps_derived_principal_without_rebinding_act
         .expect("mt120 minted_by_principal present")
         .to_string();
     assert_ne!(derived, agent_actor);
-    assert!(
-        derived.starts_with("handshake-native:"),
-        "the server-derived principal must be in the reserved namespace: {derived}"
+    // MT-109 C2: the server-derived principal is the authenticated account principal, not a
+    // `handshake-native:` Stage-binding principal.
+    assert_eq!(
+        derived, account.principal_id,
+        "the server-derived principal must be the authenticated account principal: {derived}"
     );
 
     // The owner of the reserved namespace may declare its own id; the guard permits exactly that.

@@ -8,9 +8,17 @@
 #[allow(dead_code)]
 #[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
+#[allow(dead_code)]
+mod user_manual_support;
+
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the CRDT routes run as an authenticated record user
+// (persisted account session + live native-MCP channel binding) in an Owner-created workspace.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
 
 use std::{collections::BTreeSet, sync::Arc};
 
+use account_session_support::AccountFixture;
 use base64::Engine;
 use handshake_core::api::knowledge_crdt::{router_with_state, KnowledgeCrdtApiState};
 use handshake_core::kernel::crdt::actor_site::{
@@ -199,10 +207,13 @@ async fn mt237_parallel_model_validator_conflicts_leave_repairable_state() {
     let pool = embedded.storage.clone();
     let db: Arc<dyn Database> = embedded.database();
     let base_url = serve_knowledge_crdt(db.clone(), pool.clone()).await;
-    let client = reqwest::Client::new();
+    let account = AccountFixture::install(&embedded.storage).await;
+    let client = account.client();
 
     let suffix = Uuid::now_v7().simple().to_string();
-    let workspace_id = format!("ws-mt237-{suffix}");
+    let workspace_id = account
+        .create_workspace(&user_manual_support::app_state_for(&embedded.db).await)
+        .await;
     let document_id = format!("doc-mt237-{suffix}");
     let crdt_document_id = format!("crdt-mt237-{suffix}");
     let operator =

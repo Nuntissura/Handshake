@@ -10,8 +10,14 @@
 #[allow(dead_code)]
 mod user_manual_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the route proofs run as an authenticated record user
+// (persisted account session + live native-MCP channel binding) in an Owner-created workspace.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
 use std::sync::Arc;
 
+use account_session_support::AccountFixture;
 use handshake_core::{
     api::{kernel as kernel_api, knowledge_code_nav as nav_api},
     kernel::KernelActor,
@@ -1685,6 +1691,8 @@ async fn mt223_interrupted_editor_save_reclaim_unblocks_rich_document_claim() {
         )
         .await
         .expect("editor workspace");
+    // MT-109 C2: root seed (root create_workspace + create_knowledge_rich_document, no account
+    // grant) kept; this proof drives the recovery store directly, not a record-user route.
     let document = db
         .create_knowledge_rich_document(NewKnowledgeRichDocument {
             workspace_id: workspace.id.clone(),
@@ -2158,7 +2166,10 @@ async fn release_claim_rolls_back_authority_state_if_receipt_insert_fails() {
 #[tokio::test]
 async fn swarm_dashboard_projection_api_exposes_embedded_eventledger_read_model() {
     let (backend, store) = recovery_store().await;
-    let workspace = format!("workspace-dashboard-api-{}", Uuid::now_v7());
+    let account = AccountFixture::install(&backend.storage).await;
+    let db = SurrealDatabase::new(backend.storage.clone());
+    let state = app_state_for(&db).await;
+    let workspace = account.create_workspace(&state).await;
     let claim = store
         .claim_work_surface(claim_request(
             &workspace,
@@ -2170,10 +2181,9 @@ async fn swarm_dashboard_projection_api_exposes_embedded_eventledger_read_model(
         ))
         .await
         .expect("seed API projection claim");
-    let db = SurrealDatabase::new(backend.storage.clone());
-    let state = app_state_for(&db).await;
     let (base, server) = start_server(kernel_api::routes(state)).await;
-    let response = reqwest::Client::new()
+    let response = account
+        .client()
         .get(format!("{base}/kernel/parallel_swarm/dashboard_projection"))
         .query(&[("workspace_id", workspace.as_str()), ("limit", "100")])
         .send()
@@ -2211,8 +2221,9 @@ async fn swarm_dashboard_projection_api_exposes_embedded_eventledger_read_model(
 #[tokio::test]
 async fn real_product_entrypoints_emit_quiet_background_work_receipts() {
     let (backend, store) = recovery_store().await;
+    let account = AccountFixture::install(&backend.storage).await;
     let db = SurrealDatabase::new(backend.storage.clone());
-    let workspace = create_product_workspace(&db, "quiet-entrypoints").await;
+    let workspace = account.create_workspace(&app_state_for(&db).await).await;
     let engine = CodeIndexEngine::new(Arc::new(db.clone()));
     let quiet_run = engine
         .start_quiet_run(
@@ -2236,7 +2247,8 @@ async fn real_product_entrypoints_emit_quiet_background_work_receipts() {
     let state = app_state_for(&db).await;
     let (base, server) = start_server(nav_api::routes(state)).await;
     let response = nav_headers(
-        reqwest::Client::new()
+        account
+            .client()
             .get(format!("{base}/knowledge/code/symbols"))
             .query(&[("workspace_id", workspace.as_str()), ("name", "missing")]),
         "quiet-entrypoints",

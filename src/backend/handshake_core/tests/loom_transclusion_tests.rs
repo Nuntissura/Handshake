@@ -20,8 +20,15 @@
 #[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
+// WP-KERNEL-012 MT-109 / LM-RLS-002: the Loom + document routes run as an authenticated
+// record user (persisted account session + live native-MCP channel binding) in an Owner-created
+// workspace.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
 use std::sync::Arc;
 
+use account_session_support::{AccountFixture, OwnerSession};
 use async_trait::async_trait;
 use handshake_core::api::knowledge_documents as docs_api;
 use handshake_core::api::loom as loom_api;
@@ -116,9 +123,9 @@ impl LlmClient for NoopLlmClient {
 /// Boot the real loom + document routes over loopback against the isolated
 /// schema. Both route groups share one AppState so a loom block's
 /// `document_id` resolves to a rich document created through the docs API.
-async fn server(store: &EmbeddedKnowledgeStore) -> (String, reqwest::Client) {
+async fn test_state(store: &EmbeddedKnowledgeStore) -> AppState {
     let recorder = Arc::new(NoopRecorder);
-    let state = AppState {
+    AppState {
         storage: Arc::new(store.db.clone()),
         surreal: store.storage.clone(),
         flight_recorder: recorder.clone(),
@@ -128,7 +135,12 @@ async fn server(store: &EmbeddedKnowledgeStore) -> (String, reqwest::Client) {
         }),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-    };
+    }
+}
+
+/// The client carries `owner`'s account-session credentials on every request.
+async fn server(store: &EmbeddedKnowledgeStore, owner: &OwnerSession) -> (String, reqwest::Client) {
+    let state = test_state(store).await;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind loopback listener");
@@ -139,7 +151,7 @@ async fn server(store: &EmbeddedKnowledgeStore) -> (String, reqwest::Client) {
             .await
             .expect("transclusion api server");
     });
-    (format!("http://{addr}"), reqwest::Client::new())
+    (format!("http://{addr}"), owner.client())
 }
 
 fn doc_headers(req: reqwest::RequestBuilder, label: &str) -> reqwest::RequestBuilder {
@@ -276,11 +288,14 @@ async fn mt258_transclusion_read_through_edit_routes_to_source_and_host_stays_co
         eprintln!("SKIP mt258 transclusion proof: embedded store unavailable");
         return;
     };
-    let workspace_id = store.create_workspace().await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = account.create_workspace(&test_state(&store).await).await;
     let db = storage_for(&store).await;
-    let (base, http) = server(&store).await;
+    let (base, http) = server(&store, &account).await;
 
     // --- Source authority document + a LoomBlock that resolves to it ---------
+    // MT-109 C2: root seed (legacy documents anchor + rich document + create_loom_block) kept;
+    // the HTTP surface cannot express the legacy anchor, so these rows carry no account grant.
     let (block_id, source_document_id, source_v1) =
         setup_source(&db, &workspace_id, "ORIGINAL source body").await;
 
@@ -446,8 +461,9 @@ async fn mt258_transclusion_unresolved_block_without_source_is_typed_not_blank()
         eprintln!("SKIP mt258 transclusion unresolved proof: embedded store unavailable");
         return;
     };
-    let workspace_id = store.create_workspace().await;
-    let (base, http) = server(&store).await;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = account.create_workspace(&test_state(&store).await).await;
+    let (base, http) = server(&store, &account).await;
 
     // A loom block with NO document_id (e.g. an asset/tag block) cannot resolve
     // to a source document; the read-through is a typed unresolved state.
