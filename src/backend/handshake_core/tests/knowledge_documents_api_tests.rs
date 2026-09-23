@@ -3641,9 +3641,16 @@ async fn mt120_authenticated_save_stamps_derived_principal_without_rebinding_act
         .iter()
         .find(|event| event.event_id == receipt_id)
         .expect("mt120 save receipt readback");
-    // AC-120-2: per-agent attribution SURVIVES in the actor_id column. Rebinding it would destroy
-    // swarm attribution (two agents saving the same document must remain individually attributable).
-    assert_eq!(receipt.actor.actor_id(), agent_actor);
+    // AC-120-2: per-agent attribution SURVIVES, in the server-written payload `declared_actor_id`
+    // (two agents saving the same document must remain individually attributable). MT-109: the
+    // ledger actor_id column is the authenticated session principal's actor id, which
+    // fn::mt120_document_receipt requires ($actor_id = $session.principal_id.actor_id).
+    assert_eq!(
+        receipt.payload["declared_actor_id"].as_str(),
+        Some(agent_actor),
+        "per-agent attribution must survive in declared_actor_id"
+    );
+    assert_eq!(receipt.actor.actor_id(), account.actor_id);
     // AC-120-1: the ownership anchor is server-written and IS the Flight Recorder's derived
     // principal — never equal to the client-declared per-agent actor.
     let derived = receipt.payload["minted_by_principal"]
