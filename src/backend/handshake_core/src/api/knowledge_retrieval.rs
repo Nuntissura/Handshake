@@ -199,7 +199,7 @@ fn nav_context(headers: &HeaderMap) -> Result<NavContext, ApiError> {
     })
 }
 
-//// Authorize the named workspace BEFORE any table access (Read+fs.read for reads, Create+fs.write
+/// Authorize the named workspace BEFORE any table access (Read+fs.read for reads, Create+fs.write
 /// for the repair action), then build the navigation identity attributed to the session principal
 /// (the header actor is ignored).
 async fn retrieval_account(

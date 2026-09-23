@@ -276,7 +276,7 @@ fn clamp_limit(requested: Option<i64>) -> i64 {
 // Handlers.
 // ---------------------------------------------------------------------------
 
-//// GET /knowledge/memory/claims/:claim_id?workspace_id=
+/// GET /knowledge/memory/claims/:claim_id?workspace_id=
 async fn get_claim_with_evidence(
     State(state): State<AppState>,
     Path(claim_id): Path<String>,
@@ -455,7 +455,7 @@ fn record_key(record: RecordId, context: &'static str) -> Result<String, Storage
     }
 }
 
-//// GET /knowledge/memory/facts/:fact_id?workspace_id=
+/// GET /knowledge/memory/facts/:fact_id?workspace_id=
 async fn get_fact(
     State(state): State<AppState>,
     Path(fact_id): Path<String>,

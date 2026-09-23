@@ -1076,7 +1076,6 @@ pub(crate) async fn authenticated_session_credentials(
 /// `fn::mt154_account_receipt`.
 #[derive(Clone, Debug)]
 pub(crate) struct AccountSessionAuthority {
-    pub(crate) account_id: String,
     pub(crate) actor_id: String,
     pub(crate) record_user_scope: RecordUserScope,
 }
@@ -1125,7 +1124,6 @@ pub(crate) async fn authorize_account_session(
         action,
     };
     Ok(AccountSessionAuthority {
-        account_id: session.context.identity.account_id,
         actor_id: session.context.actor_id,
         record_user_scope,
     })

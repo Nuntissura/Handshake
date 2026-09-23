@@ -23,13 +23,13 @@ use crate::{
         DiagnosticInput, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface, LinkConfidence,
     },
     models::{
-        BlockResponse, CreateWorkspaceRequest, DocumentResponse, DocumentWithBlocksResponse,
-        ErrorResponse, UpsertBlocksRequest, WorkspaceResponse,
+        BlockResponse, CreateWorkspaceRequest, DocumentWithBlocksResponse, ErrorResponse,
+        UpsertBlocksRequest, WorkspaceResponse,
     },
     storage::{
-        Block, JobKind, JobState, NewBlock, NewDocument, NewWorkspace, StorageError,
-        WorkbenchLayoutStateInput, WorkspaceSearchBookmarkStateInput, WorkspaceSettingsStateInput,
-        WriteActorKind, WriteContext,
+        Block, JobKind, JobState, NewBlock, NewWorkspace, StorageError, WorkbenchLayoutStateInput,
+        WorkspaceSearchBookmarkStateInput, WorkspaceSettingsStateInput, WriteActorKind,
+        WriteContext,
     },
     AppState,
 };
@@ -1487,7 +1487,7 @@ mod tests {
     };
     use crate::storage::{
         fems_memory, tests::embedded_test_backend, AccessMode, Database, EntityRef, JobKind,
-        JobMetrics, JobState, JobStatusUpdate, NewAiJob, PlannedOperation, SafetyMode,
+        JobMetrics, JobState, JobStatusUpdate, NewAiJob, NewDocument, PlannedOperation, SafetyMode,
     };
     use axum::extract::{Path, State};
     use serde_json::json;
