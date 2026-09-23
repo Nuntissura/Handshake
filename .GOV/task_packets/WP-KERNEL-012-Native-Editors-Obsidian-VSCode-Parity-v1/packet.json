@@ -515,7 +515,15 @@
       "MT-146",
       "MT-147",
       "MT-148",
-      "MT-149"
+      "MT-149",
+      "MT-150",
+      "MT-151",
+      "MT-152",
+      "MT-153",
+      "MT-154",
+      "MT-155",
+      "MT-156",
+      "MT-157"
     ],
     "active_id": null,
     "next_id": null,
@@ -668,7 +676,15 @@
       "MT-146": "READY_FOR_VALIDATION_V4",
       "MT-147": "READY_FOR_VALIDATION_V4",
       "MT-148": "CLAIMED",
-      "MT-149": "READY_FOR_VALIDATION"
+      "MT-149": "READY_FOR_VALIDATION",
+      "MT-150": "PASS_V3",
+      "MT-151": "PASS_V6",
+      "MT-152": "PASS_V6",
+      "MT-153": "IN_PROGRESS",
+      "MT-154": "READY",
+      "MT-155": "READY",
+      "MT-156": "READY",
+      "MT-157": "READY"
     },
     "kernel_builder_sequence_note": "KERNEL_BUILDER re-sequence 2026-06-24: the E8 proof capstones MT-044 (parity suite, depends_on 001-043+047-062), MT-045 (perf proof), MT-046 (interconnection proof) are DEFERRED to the END of the WP - they prove the whole editor set + most of their proofs require live WP-scoped embedded SurrealDB/EventLedger (NEEDS_MANAGED_RESOURCE_PROOF). Build the remaining FEATURE MTs first in numeric order: E1-deepening 047-054, E2-deepening 055-059, E3-deepening 060-062, E9 063-065, E10 066-068+074, E11 host-mount 069-071 (the convergence point that mounts the editors live + clears the carry-forwards), E12 072-073, E13 i18n 075-078. THEN run the 044-046 capstones last for a truthful comprehensive parity manifest.",
     "wp_status": "IN_PROGRESS_OPEN_REPAIR",
@@ -726,8 +742,8 @@
     "contract_glob": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-*.json",
     "authoring_status": "AUTHORED",
     "authored_at_utc": "2026-06-21T00:00:00Z",
-    "authored_count": 144,
-    "authored_via": "46 base via workflow wf_3d7b88d0-301 (2026-06-19); +28 expansion MT-047..MT-074 via workflow wf_01ae2073-72e (2026-06-21); +4 i18n MT-075..MT-078 (E13) authored directly by KERNEL_BUILDER 2026-06-22 (operator-ordered scope expansion, based on the existing MT template). All reviewed by KERNEL_BUILDER. ; +47 MT-079..MT-127 authored across the V2/V3/V4 remediation waves; +1 MT-128 authored 2026-08-13 by KERNEL_BUILDER-20260812-113007 (MT-043 live-child wall-clock budget, isolated while re-proving AC-120-3). Count corrected from 81 to 128 by direct file census of the contract glob, which is the authority - the stale number was never load-bearing because discovery is glob-based, but a wrong count invites a wrong completeness claim. ; +5 MT-129..MT-133 authored 2026-08-13 from root-caused MT-108 sweep failures and the MT-117 contract conflict. ; +2 MT-140..MT-141 authored 2026-08-18 by KERNEL_BUILDER-20260818-130753 under the Operator SurrealDB-only directive: MT-140 owns the frontend test-suite PostgreSQL-language purge and the broken run_fixture_sql call sites the fixture conversion left behind; MT-141 owns the backend test-suite port off sqlx (~190 files), which MT-137's notes had flagged as needing its own microtask. Count 141 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 by an Operator-requested governance subagent for SurrealDB-only parallel swarm concurrency/load hardening, bounded retry with jitter, coarse-lock replacement, lifecycle stress, structured metrics and two-lens adversarial validation. Count 142 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 (Operator-requested SurrealDB swarm concurrency/load MT). Count 142 by direct file census of the contract glob on 2026-09-02; MT-136-candidate-boundary.json is a non-contract sidecar and is excluded."
+    "authored_count": 149,
+    "authored_via": "46 base via workflow wf_3d7b88d0-301 (2026-06-19); +28 expansion MT-047..MT-074 via workflow wf_01ae2073-72e (2026-06-21); +4 i18n MT-075..MT-078 (E13) authored directly by KERNEL_BUILDER 2026-06-22 (operator-ordered scope expansion, based on the existing MT template). All reviewed by KERNEL_BUILDER. ; +47 MT-079..MT-127 authored across the V2/V3/V4 remediation waves; +1 MT-128 authored 2026-08-13 by KERNEL_BUILDER-20260812-113007 (MT-043 live-child wall-clock budget, isolated while re-proving AC-120-3). Count corrected from 81 to 128 by direct file census of the contract glob, which is the authority - the stale number was never load-bearing because discovery is glob-based, but a wrong count invites a wrong completeness claim. ; +5 MT-129..MT-133 authored 2026-08-13 from root-caused MT-108 sweep failures and the MT-117 contract conflict. ; +2 MT-140..MT-141 authored 2026-08-18 by KERNEL_BUILDER-20260818-130753 under the Operator SurrealDB-only directive: MT-140 owns the frontend test-suite PostgreSQL-language purge and the broken run_fixture_sql call sites the fixture conversion left behind; MT-141 owns the backend test-suite port off sqlx (~190 files), which MT-137's notes had flagged as needing its own microtask. Count 141 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 by an Operator-requested governance subagent for SurrealDB-only parallel swarm concurrency/load hardening, bounded retry with jitter, coarse-lock replacement, lifecycle stress, structured metrics and two-lens adversarial validation. Count 142 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 (Operator-requested SurrealDB swarm concurrency/load MT). Count 142 by direct file census of the contract glob on 2026-09-02; MT-136-candidate-boundary.json is a non-contract sidecar and is excluded. ; +5 MT-153..MT-157 operator scope expansion 2026-09-23 (authority migration + security residuals): MT-153 Loom routes account-session authority (IN_PROGRESS, KERNEL_BUILDER-C3), MT-154 non-Loom routes account-session authority + residuals (create-note drain, root-written receipts, revision-158/159 predecessor checksums, workspace-delete residue), MT-155 authenticate /kernel/product_screenshot_capture/execute, MT-156 debug bundle export/download authority, MT-157 durable debugger breakpoints under account session. Authored by an Orchestrator governance subagent on Operator direction. authored_count incremented by 5 as instructed; note the direct file census of the contract glob is 157 MT-*.json contracts (MT-001..MT-157; MT-136-candidate-boundary.json excluded), so the pre-existing count (144) was already stale by 8."
   },
   "packet_acceptance_matrix": {
     "schema": "PACKET_ACCEPTANCE_MATRIX_V1",
@@ -1271,7 +1287,15 @@
       "MT-146": "READY_FOR_VALIDATION_V4",
       "MT-147": "READY_FOR_VALIDATION_V4",
       "MT-148": "CLAIMED",
-      "MT-149": "READY_FOR_VALIDATION"
+      "MT-149": "READY_FOR_VALIDATION",
+      "MT-150": "PASS_V3",
+      "MT-151": "PASS_V6",
+      "MT-152": "PASS_V6",
+      "MT-153": "IN_PROGRESS",
+      "MT-154": "READY",
+      "MT-155": "READY",
+      "MT-156": "READY",
+      "MT-157": "READY"
     },
     "status_sync_note_2026_08_31_mt108_v4_repair": "MT-108 moved CLAIMED/FAIL_V4 -> READY_FOR_VALIDATION_V4/PENDING_V4 by KERNEL_BUILDER-20260830-124008 at product source 1505edb6ebab0c22d85fd38f9f840505f55927e4. Exact-source GPU proof passed with 34 supervised processes, 38 CAPTURED frames, and zero invalid pairs, duplicate identities, nonzero exits, cleanup failures, or missing frames. Exact-source headless proof passed with 34 supervised processes, 38 DEFERRED markers, and zero frames. Current-head focused checks and scoped static guards passed; the authoritative unchanged-input full-suite proof remains MT-127's governed 189/189 sweep. MT-025's ready contract/test and all other ready/passing MT contracts were untouched. completed_by remains null pending official V4 validation.",
     "status_sync_note_2026_07_04_mt021_repair": "MT-021 READY_FOR_VALIDATION evidence refreshed at 2026-07-04T21:50:52.481Z by KERNEL_BUILDER-20260704-195953 after current repair proof: manual MT-021 tests 2/2, wave5 manual guard 1/1, graph_view lib 8/8, graph_view kittest filter 7/7 including pan, zoom, AccessKit, click-open, empty/error, and screenshot; app-host graph delivery 1/1; mounted secondary pane screenshot 1/1; loom_graph_ backend-client tests 5/5; AddEdge request-shape proof 1/1; cargo check --lib PASS; scoped rustfmt/diff PASS; post-review Lorentz PASS_WITH_TYPED_EXTERNAL_BLOCKER, Cicero PASS, Hypatia READY_AFTER_RECEIPT; KB_READY_CHECKLIST PASS emitted at 2026-07-04T21:48:29.828Z. Official validator has not run; validator_verdict remains PENDING. Live PostgreSQL AC1/AC2 and live PROOF2/PROOF3 remain NEEDS_MANAGED_RESOURCE_PROOF due absent seeded managed backend env.",

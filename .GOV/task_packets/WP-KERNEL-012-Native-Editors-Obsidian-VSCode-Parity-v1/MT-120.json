@@ -1019,5 +1019,30 @@
     "fixed_here": "items 7 and 9: backlink link kinds / rich_document sources; 16 harnesses migrated + 5 stale assertions",
     "status_change": "none (other open classes remain)",
     "recorded_at_utc": "2026-09-23T08:35:42.548Z"
+  },
+  "remediation_v6": {
+    "session": "KERNEL_BUILDER-C3",
+    "batch_owner": "MT-109",
+    "covered_mts": [
+      "MT-109",
+      "MT-153",
+      "MT-015",
+      "MT-019",
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025",
+      "MT-026",
+      "MT-027",
+      "MT-028",
+      "MT-030",
+      "MT-067",
+      "MT-120"
+    ],
+    "pointer": "MT-109.json remediation_v26",
+    "candidate_sha": "0cfbff649c08ae260ac53eb866293b2bc273137d",
+    "status_change": "none",
+    "recorded_at_utc": "2026-09-23T09:50:35.693Z"
   }
 }

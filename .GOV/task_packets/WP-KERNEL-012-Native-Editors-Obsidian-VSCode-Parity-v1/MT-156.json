@@ -1,0 +1,589 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-156",
+  "title": "B18-MT-156-Debug-Bundle-Export-And-Download-Account-Authority",
+  "group": "B18",
+  "created_at_utc": "2026-09-23T09:49:34.269Z",
+  "updated_at_utc": null,
+  "identity": {
+    "mt_id": "MT-156",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "B18-MT-156-Debug-Bundle-Export-And-Download-Account-Authority",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-156.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
+  },
+  "lifecycle": {
+    "status": "READY",
+    "depends_on": [
+      "MT-153"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "validated_by": null,
+    "validated_at_utc": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "created_by": "ORCHESTRATOR governance subagent (operator-directed MT authoring 2026-09-23)",
+    "created_at_utc": "2026-09-23T09:49:34.269Z",
+    "origin": "operator_scope_expansion_2026-09-23",
+    "creation_reason": "Operator decision 2026-09-23: 'no new WP, expand scope of this WP and create extra MTs, with enough detail that models with no context can execute them'.",
+    "audit_refs": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/authority-audit/authority_matrix.md (static read of feat/WP-KERNEL-012 at 2f49f2a6; 159 routes with file:line)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/authority-audit/authority_scope.md (IN_WP/OUT_OF_WP classification against base 97a22310)",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json remediation_v24 (KERNEL_BUILDER-C2 round 5: what is already fixed) and remediation_v25 (KERNEL_BUILDER-C3 round 6, in progress)"
+    ],
+    "audit_refs_note": "The two audit files live in an Operator session scratchpad and are not durable; every row this MT relies on is copied into scope.routes / implementation_steps, so the MT is executable without them."
+  },
+  "closure_unit": {
+    "outcome": "Debug bundle export and download run under the caller's account session and can only include and return data from a workspace the caller may read; another account can neither export nor download it.",
+    "requirement_refs": [
+      "02:2758",
+      "02:2773",
+      "02:2776",
+      "LM-RLS-002"
+    ],
+    "acceptance_refs": [
+      "AC-156-1",
+      "AC-156-2",
+      "AC-156-3",
+      "AC-156-4",
+      "AC-156-5",
+      "AC-156-6"
+    ],
+    "specification_anchor_refs": [
+      {
+        "id": "02:2758",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2758",
+        "verbatim": "6. Authorization is deny-by-default and evaluated on every executable backend boundary. Hiding UI rows is a projection behavior, never the security boundary."
+      },
+      {
+        "id": "02:2773",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2773",
+        "verbatim": "- root, system, namespace-owner, database-owner, and other privileged SurrealDB sessions MUST NOT execute ordinary protected-resource flows or count as privacy/isolation proof because privileged users bypass table permissions;"
+      },
+      {
+        "id": "02:2776",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2776",
+        "verbatim": "Application authorization remains required for action semantics and capability checks; record-user table/field permissions plus ResourceBroker are the non-bypassable product data boundary, not the only policy layer."
+      },
+      {
+        "id": "LM-RLS-002",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/11-shared-dev-platform-and-oss-foundations.md:582",
+        "verbatim": "**[LM-RLS-002]** Authority tables default to `PERMISSIONS NONE`; every grant is explicit at the database layer and rechecked by ResourceBroker. Privacy proof MUST execute as authenticated record users because root, namespace, database, and other system users bypass record-user table permissions."
+      }
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-156-1",
+        "text": "Spec basis, quoted. 02:2758: \"6. Authorization is deny-by-default and evaluated on every executable backend boundary. Hiding UI rows is a projection behavior, never the security boundary.\" 02:2773: \"- root, system, namespace-owner, database-owner, and other privileged SurrealDB sessions MUST NOT execute ordinary protected-resource flows or count as privacy/isolation proof because privileged users bypass table permissions;\" 02:2776: \"Application authorization remains required for action semantics and capability checks; record-user table/field permissions plus ResourceBroker are the non-bypassable product data boundary, not the only policy layer.\" LM-RLS-002: \"**[LM-RLS-002]** Authority tables default to `PERMISSIONS NONE`; every grant is explicit at the database layer and rechecked by ResourceBroker. Privacy proof MUST execute as authenticated record users because root, namespace, database, and other system users bypass record-user table permissions.\""
+      },
+      {
+        "id": "AC-156-2",
+        "text": "POST /api/bundles/debug/export (api/bundles.rs export_bundle :134 @ab618f46) requires an authenticated account session; the export scope must resolve to exactly one workspace (scope.wsid for workspace/time_window scopes; the job's workspace entity_ref or job_inputs.wsid for job/problem scopes - see bundles/exporter.rs job_matches_wsid :134-144) and the caller must pass authorize_request(Workspace, wsid, Read, 'fr.read'). A scope that cannot be resolved to one authorized workspace (e.g. time_window without wsid, a job in another account's workspace) is denied with the constant 403 and no job is created."
+      },
+      {
+        "id": "AC-156-3",
+        "text": "The export job records the requesting account (account_id, principal_id, session actor) in its job_inputs, and the export work (started via tokio::spawn -> start_workflow_for_job, api/bundles.rs:177-181; executed in workflows.rs:11353/11466 via DefaultDebugBundleExporter) reads SurrealDB (ai_jobs etc.) inside the requesting user's record-user scope (re-enter with_record_user_scope inside the spawned future, F5), never as root. ai_jobs gets a select predicate admitting rows whose workspace entity_ref the caller can read (fn::mt109_has_workspace_access(..., 'read', 'fr.read')); DuckDB Flight Recorder reads are filtered to the authorized wsid (DuckDB has no SurrealDB permissions; same residual as MT-154 D-154-2)."
+      },
+      {
+        "id": "AC-156-4",
+        "text": "GET /api/bundles/debug/:bundle_id/download (download_bundle :264) - and the sibling read routes of the same router that expose the same bundle, GET /api/bundles/debug/:bundle_id (bundle_status :192), POST .../validate (validate_bundle :300) and GET /api/bundles/debug/exportable (list_exportable :288) - require an authenticated session and return the bundle only if the job's recorded account equals the caller's account AND the caller still passes Workspace Read fr.read on the bundle's workspace; otherwise the constant 403 (a non-existent bundle id also returns 403, not 404, so existence is not disclosed to other accounts). list_exportable returns only items from workspaces the caller can read."
+      },
+      {
+        "id": "AC-156-5",
+        "text": "Cross-account negatives through the real router with two account sessions: account B cannot export account A's workspace (403, no ai_jobs row created), cannot download/status/validate A's bundle (403, bytes never returned), and B's exportable inventory contains none of A's items; anonymous gets 403 on all five routes; A's own export -> status -> download round trip succeeds and the downloaded zip's manifest names only A's workspace."
+      },
+      {
+        "id": "AC-156-6",
+        "text": "Bundle path traversal: bundle_id is validated (uuid-shaped) before being joined into a filesystem path (download/status/validate use PathBuf::from(\"data\").join(\"bundles\").join(format!(\"bundle-{bundle_id}\")) today)."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "medium",
+    "tier_reason": "One router (5 handlers), one exporter entry and one ai_jobs predicate; the authorization pattern exists. Spawned-task scope re-entry is the only subtle part and is spelled out.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "diagnosis_fields": [
+      "failing_assertion (file:line + message)",
+      "attempts (what each run changed)",
+      "root_cause_hypothesis with code location",
+      "intended_fix",
+      "next_runs (1 probe + 1 confirm)"
+    ],
+    "diagnosis_location": "this MT file, handoff.attempt_diagnoses.<CHECK_ID> (same shape as MT-109.json remediation_v24.attempt_diagnoses)",
+    "note": "Codex CX-EXEC-003/003A: counts carry across agents and sessions; a new executor does not reset them. Pin-measure runs (schema re-pin step 3) are measurements, not attempts."
+  },
+  "execution": {
+    "lane": "PRODUCT_CODE_BACKEND",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [
+      "MT-153"
+    ],
+    "start_precondition": "MT-153 committed (schema pins); if MT-154 is also committed, re-pin on top of it. Worktree clean.",
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/api/bundles.rs",
+      "src/backend/handshake_core/src/bundles/exporter.rs",
+      "src/backend/handshake_core/src/bundles/mod.rs",
+      "src/backend/handshake_core/src/workflows.rs (the DebugBundleExport branch ~:11353-11470 @ab618f46 only)",
+      "src/backend/handshake_core/src/storage/surreal/ai_job_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql (ai_jobs table permissions only)",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs (delta pair + pins)",
+      "src/backend/handshake_core/src/api/authority.rs (read-only use; a helper only if needed)",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/tests/mt156_debug_bundle_authority_tests.rs (new)",
+      "src/backend/handshake_core/tests/account_session_support/mod.rs",
+      "src/backend/handshake_core/Cargo.toml ([[test]] entry only if required-features are needed)"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/** (any path, including through the .GOV junction)",
+      "any other worktree (handshake_main, wt-gov-kernel, wt-ilja, other wtc-*)",
+      "AGENTS.md, CLAUDE.md, .claude/**, .github/**, root justfile (main-only control files)",
+      "src/backend/handshake_core/src/storage/postgres/** and any SQLite/PostgreSQL dependency or language (Codex CX-503R)",
+      "Cargo.toml / Cargo.lock dependency additions (no new crates in this MT)",
+      "src/backend/handshake_core/src/api/ (all files except bundles.rs and authority.rs)",
+      "PRE_*/PREDECESSOR_* pins in schema.rs"
+    ],
+    "stop_conditions": [
+      "`git status --porcelain` in the product worktree is non-empty at start with changes this session did not make (another builder is active in the shared worktree) - STOP, report BLOCKED; do not stash or discard.",
+      "The launcher did not supply CARGO_TARGET_DIR, TMP/TEMP, HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_SURREAL_TEST_STORE_ROOT, or they resolve outside <artifact_root>/WP-KERNEL-012/<MT>/<OWNER_SLUG>/ (or the granted C:/.target target) - STOP.",
+      "A needed change falls outside execution.allowed_write_paths - STOP and record an operator_decision_request naming the file and why.",
+      "A fix would require weakening, deleting or #[ignore]-ing an existing assertion, re-pinning a predecessor constant, or running a protected flow as root - STOP.",
+      "attempt_budget exhausted for any check - STOP with the written diagnosis, status BLOCKED.",
+      "Any operator_decision_request listed in this MT is reached - record it, skip that item, continue the other items.",
+      "A tool would open a foreground window, installer, prompt or steal focus - do not run it.",
+      "The ai_jobs predicate would break an unrelated job kind's record-user flow (a non-bundle test regresses) - STOP and record which."
+    ],
+    "artifact_isolation": {
+      "artifact_root": "<Handshake Worktrees>/Handshake_Artifacts (verified to exist on 2026-09-23; the launcher passes the absolute path; resolve from the wt-gov-kernel checkout, never from a working directory - Codex CX-984-001/012/013)",
+      "owner_dir": "<artifact_root>/WP-KERNEL-012/MT-156/<OWNER_SLUG>/  (OWNER_SLUG is assigned by the launcher, e.g. kb-c4; per Operator 2026-09-23 the WP folder is WP-KERNEL-012, matching MT-109's kb-c2/kb-c3 lanes)",
+      "env": {
+        "CARGO_TARGET_DIR": "<owner_dir>/target",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+        "TMP": "<owner_dir>/tmp",
+        "TEMP": "<owner_dir>/tmp",
+        "TMPDIR": "<owner_dir>/tmp",
+        "HANDSHAKE_ARTIFACTS_ROOT": "<artifact_root>",
+        "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "<owner_dir>/runtime",
+        "HANDSHAKE_WORKSPACE_ROOT": "<owner_dir>/workspace/run-<NN>"
+      },
+      "native_test_env_additions": {
+        "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<artifact_root>/handshake-test",
+        "HSK_TEST_BACKEND_TARGET_ROOT": "<owner_dir>/backend-target",
+        "HSK_TEST_BACKEND_BIN": "<owner_dir>/backend-target/debug/handshake_core.exe",
+        "HANDSHAKE_TEST_STAGE_BINDING_ROOT": "<owner_dir>/runtime/binding-<NN>",
+        "HSK_TEST_BASE": "(unset)"
+      },
+      "disk": "All of the above are on D: (the Handshake Worktrees disk). An Operator grant (2026-09-22, recorded in MT-008/MT-023) also allows CARGO_TARGET_DIR=C:/.target/WP-KERNEL-012/target; the Coder never chooses between them - the launcher supplies CARGO_TARGET_DIR (CODER-PROOF-002). If the launcher did not supply every variable above, that is a blocker.",
+      "one_build_per_disk": "Before every cargo invocation verify no cargo.exe / rustc.exe / clippy-driver.exe is running (`tasklist | grep -Ei '^(cargo|rustc|clippy-driver)\\.exe'`); if one is, wait for it or report BLOCKED - never stop it (Codex CX-984-002, CX-SAFE-001). MT-109 C3 (KERNEL_BUILDER-C3) builds on D: under WP-KERNEL-012/MT-109/kb-c3.",
+      "flags": "--locked on every cargo command; -j 12 is the lane default.",
+      "reference_runner": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/run.sh and run_test.sh (read-only reference for the env and timeout wrapper; copy the pattern into your own owner dir, never write into kb-c3)."
+    },
+    "git_rules": [
+      "Work only in the product worktree `<Handshake Worktrees>/wtc-native-editors-v1` on branch `feat/WP-KERNEL-012`; verify with `git rev-parse --abbrev-ref HEAD` before the first edit.",
+      "Commit messages: fix(MT-NNN): / test(MT-NNN): / style(MT-NNN): (CODER-CERT-002). Never commit .GOV/ files. No stash, checkout, restore, reset, rebase, branch or worktree creation (CODER-GIT-001). Pushing is not part of this MT; the Integration Validator integrates."
+    ]
+  },
+  "scope": {
+    "summary": "The /api/bundles/debug router (api/bundles.rs:70-84 @ab618f46) has no authentication; export reads DuckDB Flight Recorder and ai_jobs by wsid as root (matrix Table 4 last row, ROOT-READ; scope file: OUT_OF_WP by diff - api/bundles.rs has 0 diff lines - but brought into this WP by the Operator 2026-09-23).",
+    "routes": [
+      {
+        "route": "POST /api/bundles/debug/export",
+        "handler_fn": "export_bundle",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/bundles.rs:134",
+        "matrix_mark": "ROOT-READ"
+      },
+      {
+        "route": "GET /api/bundles/debug/:bundle_id/download",
+        "handler_fn": "download_bundle",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/bundles.rs:264",
+        "matrix_mark": "ROOT-READ"
+      },
+      {
+        "route": "GET /api/bundles/debug/:bundle_id",
+        "handler_fn": "bundle_status",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/bundles.rs:192",
+        "matrix_mark": "not in matrix (same router, same bundle data)"
+      },
+      {
+        "route": "POST /api/bundles/debug/:bundle_id/validate",
+        "handler_fn": "validate_bundle",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/bundles.rs:300",
+        "matrix_mark": "not in matrix (same router)"
+      },
+      {
+        "route": "GET /api/bundles/debug/exportable",
+        "handler_fn": "list_exportable",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/bundles.rs:288",
+        "matrix_mark": "not in matrix (same router; lists exportable items across workspaces)"
+      }
+    ],
+    "scope_note": "The Operator named export and download. The three sibling routes serve the same bundle bytes/manifest or the cross-workspace inventory, so leaving them open would keep the leak; they are included and flagged in the report for Operator confirmation.",
+    "allowed_paths": [],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "AC-156-1..AC-156-6"
+    ],
+    "proof_targets": [
+      "PT-156-1 cross-account export/download/status/validate/list negatives",
+      "PT-156-2 owner round trip",
+      "PT-156-3 existing debug-bundle workflow tests green",
+      "PT-156-4 pins re-measured"
+    ]
+  },
+  "implementation_steps": [
+    {
+      "n": 1,
+      "step": "Verify precondition (MT-153 committed) and clean worktree."
+    },
+    {
+      "n": 2,
+      "step": "Router: add require_authenticated_session as route_layer on the bundles router (pattern api/debug_adapter.rs:183-186), then per handler call authorize_request(state, headers, 'fr.read', ResourceKind::Workspace, wsid, ResourceAction::Read) once the wsid is resolved (AC-156-2). Resolve job/problem scopes to their workspace via the job's entity_refs (exporter.rs:134-144 job_matches_wsid logic) read under record-user scope."
+    },
+    {
+      "n": 3,
+      "step": "Record the requester in job_inputs (account_id, principal_id, actor_id). In the tokio::spawn at api/bundles.rs:177-181 move the AuthorizedResourceContext's record_user_scope into the task and wrap start_workflow_for_job in with_record_user_scope; confirm workflows.rs DebugBundleExport branch storage reads happen inside it."
+    },
+    {
+      "n": 4,
+      "step": "Schema: give ai_jobs (schema.surql:195 @ab618f46, PERMISSIONS NONE) a select predicate for rows whose workspace entity_ref passes fn::mt109_has_workspace_access(<ws>, 'read', 'fr.read'), plus create/update predicates only if the scoped export job creation/update needs them (then require workspace update + fs.write). Keep delete NONE. Add the delta pair and re-pin once (schema_repin_procedure)."
+    },
+    {
+      "n": 5,
+      "step": "Download/status/validate: load the job under record-user scope; if absent (F3: denied select = empty) or its recorded account differs from the caller, return the constant 403. Validate bundle_id shape before building paths (AC-156-6). list_exportable: filter to authorized workspaces."
+    },
+    {
+      "n": 6,
+      "step": "Tests: tests/mt156_debug_bundle_authority_tests.rs with mt156_anonymous_bundle_routes_denied, mt156_cross_account_cannot_export_or_read_bundle, mt156_owner_export_download_round_trip_contains_only_owner_workspace, mt156_unresolvable_scope_denied_without_job_row, mt156_bundle_id_path_traversal_rejected. Two accounts via two OwnerSession::provision calls on one installed binding. Re-read ai_jobs as the owner to prove 'no job row created' for denied exports."
+    },
+    {
+      "n": 7,
+      "step": "Manual update; proof checks; report."
+    }
+  ],
+  "engine_facts": [
+    "SurrealDB is pinned =3.2.0 (src/backend/handshake_core/Cargo.toml). Facts verified in surrealdb-core-3.2.0 source by the authority matrix:",
+    "F1 Table and field permissions are OFF inside a PERMISSIONS predicate (dbs/options.rs:201 new_for_permission_predicate; doc/check.rs:457-470; exec/permission.rs:87-99). Predicates and the fn::* functions they call see every row and field, including fields that are FOR select NONE.",
+    "F2 A top-level query issued on a record-user connection DOES enforce field permissions. Never probe a predicate by running `RETURN fn::...` directly as the record user; it reads permission-hidden fields as NONE and lies. Probe inside a predicate instead (e.g. a probe table whose PERMISSIONS FOR select calls the function).",
+    "F3 A denied CREATE, UPDATE or DELETE is SILENTLY IGNORED: no row returned, no error (doc/check.rs:457,469 IgnoreError::Ignore). Every record-user write MUST check the returned row (or a follow-up SELECT) and map an empty result to the constant denial; the failure otherwise surfaces later as a field ASSERT 500, an empty 404, or a guard THROW 403.",
+    "F4 REFERENCE ON DELETE CASCADE/UNSET and DEFINE EVENT bodies run with permissions OFF (doc/purge.rs:376,385; doc/event.rs:52,80). Cascades are never blocked by the caller's delete permission, and cascade targets need no delete predicate for the cascade itself.",
+    "F5 Session selection: `SurrealStorage::with_record_user_scope(scope, fut)` (src/backend/handshake_core/src/storage/surreal.rs:956 @ab618f46) sets a tokio task-local; `with_data_operation` then signs a cloned client in as the record user. Anything outside that scope, INCLUDING work moved into `tokio::spawn`, runs as root. Re-enter the scope inside every spawned future that touches protected tables."
+  ],
+  "authority_toolkit": [
+    "Rust authorization entry points (all @ab618f46, src/backend/handshake_core/src/): `api::authority::authorize_request(state, headers, capability_id, ResourceKind, external_resource_id, ResourceAction)` (api/authority.rs:1216) returns an AuthorizedResourceContext whose `.record_user_scope` MUST then wrap the storage call via `state.surreal.with_record_user_scope(ctx.record_user_scope, fut)`. A route that calls authorize_request but writes outside that scope is still ROOT-WRITE.",
+    "`api::authority::require_authenticated_session` (api/authority.rs:1013) is the axum route_layer middleware C2 used for process-starting routes with no protected-resource row (see api/debug_adapter.rs:183-186 route_layer). `authenticated_session_credentials` (api/authority.rs:1031) returns the LocalSessionContext + token + channel binding hash. Missing/invalid credentials map to `constant_denial()` = 403 {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}.",
+    "ResourceKind (storage/surreal/resource_authority.rs:43): Workspace, RichDocument, KnowledgeSource, KnowledgeCodeFile, LoomBlock, FlightRecorder, MemoryPack, MemoryProposal, MemoryCommitReport, MemoryItem, MemoryItemCount, ReconciliationQueue.",
+    "Owner creator grants (fn::mt120_creator_grant, provisioned by POST /workspaces): workspace resource actions create/read/update/delete x capabilities fs.read, fs.write, fr.read, fr.ingest.runtime_chat, fr.ingest.native_editor, memory.read, memory.propose (+ memory.review/memory.commit since C2 ec34c88e); rich_document and loom_block resources CRUD x fs.read/fs.write; knowledge_source/code_file CRUD x memory.read/memory.propose/fs.write. Resources are account-private.",
+    "Schema predicate helpers in src/backend/handshake_core/src/storage/surreal/schema.surql: fn::mt109_live_session, fn::mt109_has_grant(kind, external, action, cap), fn::mt109_has_workspace_access(ws, action, cap), fn::mt120_document_access(doc, ws, action, cap), fn::mt120_loom_block_access(block, ws, action, cap), fn::mt120_resource_create, fn::mt120_creator_grant, fn::mt120_workspace_delete(ws), fn::mt120_document_delete, and the kernel_event_ledger receipt predicates fn::mt109_ledger_receipt / fn::mt120_*_receipt. Every record-user write that appends a kernel_event_ledger receipt needs a receipt predicate branch that accepts it; the receipt actor MUST be the session principal (`$session = $auth.id`), never a System actor.",
+    "Test helpers: integration tests use src/backend/handshake_core/tests/account_session_support/mod.rs (`mod account_session_support;` then `AccountFixture::install(&storage)`, `OwnerSession::provision(&storage, token)`, `.headers()`, `.apply(req)`, `.client()`, `.create_workspace(&state)`; hold NATIVE_BINDING_ENV_LOCK when installing a binding). A second account = a second `OwnerSession::provision` against the same installed binding token. In-crate lib tests (behind cfg(all(test, feature = \"duckdb-flight-recorder\"))) use api::workspaces::tests::{WorkspaceBindingFixture (api/workspaces.rs:1626), workspace_test_principal (:1663), create_owned_test_workspace (:1714)}; the reference example is `mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default` (api/workspaces.rs:2766). A viewer/second principal in the SAME account with a read-only grant is expressed with `SurrealStorage::grant_resource(account_id, access_space_id, ResourceGrantSpec{..actions: [read], capability_ids: [fs.read]..})` (storage/surreal/resource_authority.rs:1022); see resource_authority_tests.rs:185/227 for usage.",
+    "AppState construction for integration tests: copy `test_app_state_embedded` (tests/atelier_stealth_window_tests.rs:265) but DO NOT copy its `Option` + `else { return Ok(()) }` early return: a test that cannot build its store MUST fail (panic/expect), never return Ok silently."
+  ],
+  "schema_repin_procedure": [
+    "Schema re-pin procedure (the one C2 used for MT-109 remediation_v24 and C3 is using now): (1) Batch every schema edit for this MT first. Edit `src/backend/handshake_core/src/storage/surreal/schema.surql` (the live schema for a fresh store). (2) For every changed statement add a (current_text, predecessor_text) pair to a delta array in `schema.rs` next to `MT109_C2_SCHEMA_DELTAS` (schema.rs:1991 @ab618f46) so predecessor reconstructions revert it and upgrades re-emit it from SCHEMA; the pair must be byte-exact (scripts in ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/scripts/strip_check.js show how C2 proved a revert is exact). (3) Build the lib once, then run ONE pin-measure run of the pin tests (check PIN-MEASURE). It is expected to fail and prints the new values: MT109_LOOM_CATALOG_SHA256=, MT109_CURRENT_AUTHORITY_INFO_SHA256=, MT109_PREDECESSOR_AUTHORITY_INFO_SHA256=, MT139_CURRENT_SCHEMA_INFO_SHA256=, EXPECTED_ATELIER_CATALOG_SHA256= and the `left:` values of the GENERATED/DECLARATIVE assertions. (4) Update the pins in schema.rs: GENERATED_SURREALQL_SHA256 (:2128), DECLARATIVE_SCHEMA_CATALOG_SHA256 (:2144), EXPECTED_SCHEMA_INFO_SHA256 (:2190), EXPECTED_ATELIER_CATALOG_SHA256 (:2201) and the MT109 Loom/authority catalog pins the tests name. (5) ONE confirm run (check PIN-CONFIRM). The pin-measure run is a measurement, not an attempt; the confirm run counts against attempt_budget. Re-measure once per batch, never once per edit.",
+    "NEVER re-pin a PREDECESSOR constant (PRE_*_GENERATED_SHA256 / PRE_*_INFO_SHA256 / PREDECESSOR_*) to a newly observed value: those record historical catalogs that real on-disk stores carry; re-pinning them would make the upgrade path accept a catalog no real store has (proof laundering)."
+  ],
+  "dependencies": {
+    "depends_on": [
+      "MT-153 (schema pins)"
+    ],
+    "blocks": [],
+    "ordering_rule": "Re-measure pins on top of the last committed schema MT (MT-153, or MT-154 if already committed)."
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "MT-156-BUILD-LIB",
+        "claim_refs": [
+          "compile"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo test --locked -j 12 --no-run --lib --features app-runtime,surreal-test-support,test-utils",
+        "expected": "exit 0",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-156-PIN-MEASURE",
+        "claim_refs": [
+          "schema re-pin"
+        ],
+        "kind": "measurement_not_attempt",
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1500 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+        "expected": "May FAIL (exit 101). Its purpose is to print the new pin values (MT109_LOOM_CATALOG_SHA256=, MT109_CURRENT_AUTHORITY_INFO_SHA256=, MT139_CURRENT_SCHEMA_INFO_SHA256=, EXPECTED_ATELIER_CATALOG_SHA256=, assertion left: values). Copy them into schema.rs per implementation step 'schema re-pin'. Skip this check if this MT made no schema.surql change.",
+        "timeout_seconds": 1500,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log with the printed pin lines"
+        ]
+      },
+      {
+        "check_id": "MT-156-PIN-CONFIRM",
+        "claim_refs": [
+          "schema re-pin"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1500 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+        "expected": "stdout contains 'running 7 tests' and 'test result: ok. 7 passed; 0 failed' and process exit 0",
+        "timeout_seconds": 1500,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "exit code",
+          "result line"
+        ]
+      },
+      {
+        "check_id": "MT-156-BUNDLE-AUTH",
+        "claim_refs": [
+          "AC-156-2",
+          "AC-156-3",
+          "AC-156-4",
+          "AC-156-5",
+          "AC-156-6"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1800 cargo test --locked -j 12 --test mt156_debug_bundle_authority_tests --features app-runtime,surreal-test-support,test-utils -- --test-threads=1",
+        "expected": "'running 5 tests' and 'test result: ok. 5 passed; 0 failed'",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-156-WORKFLOW-EXISTING",
+        "claim_refs": [
+          "no regression"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1800 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 workflows::tests::debug_bundle_export_rejects_workflow_run_scope_without_workflow_run_id workflows::tests::debug_bundle_export_rejects_workflow_node_execution_scope_without_workflow_run_id workflows::tests::debug_bundle_export_rejects_workflow_node_execution_scope_without_node_id   (module path: confirm with `grep -n \"mod tests\" src/workflows.rs` - the three fns are at workflows.rs:29669/29698/29734 @ab618f46; adjust the path prefix if the enclosing module differs, keep the fn names)",
+        "expected": "stdout contains 'running 3 tests' and 'test result: ok. 3 passed; 0 failed' and process exit 0",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-156-BUNDLES-LIB",
+        "claim_refs": [
+          "no regression"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1800 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils bundles:: -- --test-threads=1",
+        "expected": "nonzero executed count (bundles::exporter::tests is behind duckdb-flight-recorder, which app-runtime enables; bundles::validator::tests and bundles::redactor::tests too), test result: ok., 0 failed",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-156-CHECK-TESTS",
+        "claim_refs": [
+          "all changed test targets compile"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo check --locked -j 12 --tests --features app-runtime,surreal-test-support,test-utils",
+        "expected": "exit 0 ('Finished' line, no 'error[')",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "exit code"
+        ]
+      },
+      {
+        "check_id": "MT-156-CLIPPY-CHANGED",
+        "claim_refs": [
+          "no new clippy findings on changed lines"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo clippy --locked --keep-going -j 12 -p handshake_core --all-targets --features app-runtime,surreal-test-support,test-utils --message-format=short -- -D warnings",
+        "expected": "Exit 101 is tolerated ONLY because 395 pre-existing diagnostics exist (MT-109 kb-c2 log 31-core-clippy.log). Required: zero diagnostics whose file:line falls on a line changed by this MT (compare against `git diff -U0 <base>..HEAD`). Record the count of findings on changed lines (must be 0).",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "changed-line finding count = 0"
+        ]
+      },
+      {
+        "check_id": "MT-156-FMT",
+        "claim_refs": [
+          "formatting"
+        ],
+        "command_or_method": "cd <worktree> && rustfmt --edition 2021 --check <each changed .rs file>",
+        "expected": "exit 0, no diff output",
+        "timeout_seconds": 300,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "exit code"
+        ]
+      },
+      {
+        "check_id": "MT-156-DIFF-CHECK",
+        "claim_refs": [
+          "whitespace hygiene"
+        ],
+        "command_or_method": "cd <worktree> && git diff --check <base>..HEAD",
+        "expected": "no output, exit 0",
+        "timeout_seconds": 120,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "exit code"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true
+  },
+  "owned_files": [
+    "src/backend/handshake_core/src/api/bundles.rs",
+    "src/backend/handshake_core/src/bundles/exporter.rs",
+    "src/backend/handshake_core/tests/mt156_debug_bundle_authority_tests.rs"
+  ],
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "trace_projection_or_runtime_evidence"
+    ],
+    "not_applicable_reason": "Backend route authorization; no GUI change."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Debug bundles: account session required; only the exporting account can read its bundle; unresolvable scopes are refused"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test (existing LIB user_manual tests green)"
+    ],
+    "location": "src/backend/handshake_core/src/user_manual/ (seed.rs holds the manual pages; follow the MT-152 pattern: a section per behaviour, pinned to code by a test where MT-152 did so)",
+    "reason": "Shipped route behaviour changes."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "ai_jobs",
+      "DuckDB Flight Recorder events",
+      "bundle files under data/bundles"
+    ],
+    "identity_and_scope_contexts": [
+      "owner",
+      "second account",
+      "anonymous"
+    ],
+    "enforcement_boundaries": [
+      "require_authenticated_session",
+      "authorize_request Workspace Read fr.read",
+      "ai_jobs record-user select predicate"
+    ],
+    "cross_account_negative_cases": [
+      "AC-156-5"
+    ],
+    "derived_resource_non_widening_cases": [
+      "a bundle never contains rows outside the authorized workspace"
+    ],
+    "metadata_side_channel_cases": [
+      "403 for missing and foreign bundle ids alike"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "HBR-INT-009: bundle export remains the diagnostic path; denial is constant.",
+    "STOP": "No root export; no predecessor pin edits."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "EXPORT_ROUTE_PRIVACY_V1",
+    "risks": [
+      "tokio::spawn drops the record-user scope, so the export silently runs as root even after the handler is authorized (F5).",
+      "Scopes without wsid (time_window, problem) export cross-account Flight Recorder data.",
+      "Download by guessable bundle id bypasses the export authorization.",
+      "404-vs-403 reveals which bundle ids exist.",
+      "An ai_jobs predicate that is too broad exposes every job kind; too narrow breaks other job flows."
+    ],
+    "minimum_controls": [
+      "Every positive proof runs as an authenticated record user (account session + channel binding). A root/admin session (with_admin_operation, test_admin_query*, SurrealStorage without with_record_user_scope) may only SEED preconditions that the product itself cannot create, and never counts as privacy/isolation proof (02:2773, LM-RLS-002).",
+      "Every changed route has: anonymous negative (no session headers), cross-account negative (a second OwnerSession cannot read or write the first account's rows, and the rows are unchanged afterwards), and where a write is involved, a read-only (viewer) negative when the grant model can express one.",
+      "Denied writes are proven by re-reading the canonical row after the call (F3: denied writes are silent). A 403 status alone is not proof that nothing was written.",
+      "Anti-scaffold: no new abstraction, trait, feature flag, config knob or helper that is not called by product code in this MT; no `#[ignore]`, no `return Ok(())` skip paths, no assertion weakened or deleted to go green; tests may not assert only on mocks/fixtures the Coder authored for a resource-boundary claim (CODER-PROOF-004, CODER-CODE-006).",
+      "No fixture-only proof: each acceptance item is proven against the real embedded SurrealDB store (fresh Handshake-managed RocksDB/SurrealKV directory under the owner runtime root), through the real axum router, with the real ResourceBroker.",
+      "Every test binary run must report a NONZERO executed count for the named tests (`running N tests` with N equal to the number of names passed with --exact); a `0 passed` result is a failure of the check, not a pass.",
+      "The downloaded zip is opened in the owner round-trip test and its manifest scope wsid asserted equal to the owner's workspace."
+    ]
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "product_branch": "feat/WP-KERNEL-012",
+    "product_worktree": "<Handshake Worktrees>/wtc-native-editors-v1",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "next_actor": "ORCHESTRATOR (assign a coder session); after READY_FOR_VALIDATION -> INTEGRATION_VALIDATOR",
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "report_fields_required": [
+      "status",
+      "commits",
+      "changed_paths",
+      "commands_run (command, exit code, result line, log path)",
+      "attempt_diagnoses",
+      "blockers",
+      "operator_decision_requests",
+      "residual_risks"
+    ],
+    "attempt_diagnoses": {},
+    "operator_decision_requests": [],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "commit_policy": "The Coder commits product changes on feat/WP-KERNEL-012 (fix/test/style(MT-156) messages). The Integration Validator commits governance (this file) on gov_kernel; the Coder does not edit this file except the handoff report fields if the launcher routes the report here."
+  }
+}

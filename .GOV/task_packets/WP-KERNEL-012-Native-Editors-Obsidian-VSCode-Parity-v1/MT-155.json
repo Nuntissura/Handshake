@@ -1,0 +1,509 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-155",
+  "title": "B18-MT-155-Authenticate-Product-Screenshot-Capture-Execute",
+  "group": "B18",
+  "created_at_utc": "2026-09-23T09:49:34.269Z",
+  "updated_at_utc": null,
+  "identity": {
+    "mt_id": "MT-155",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "B18-MT-155-Authenticate-Product-Screenshot-Capture-Execute",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-155.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
+  },
+  "lifecycle": {
+    "status": "READY",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "validated_by": null,
+    "validated_at_utc": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "created_by": "ORCHESTRATOR governance subagent (operator-directed MT authoring 2026-09-23)",
+    "created_at_utc": "2026-09-23T09:49:34.269Z",
+    "origin": "operator_scope_expansion_2026-09-23",
+    "creation_reason": "Operator decision 2026-09-23: 'no new WP, expand scope of this WP and create extra MTs, with enough detail that models with no context can execute them'.",
+    "audit_refs": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/authority-audit/authority_matrix.md (static read of feat/WP-KERNEL-012 at 2f49f2a6; 159 routes with file:line)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/authority-audit/authority_scope.md (IN_WP/OUT_OF_WP classification against base 97a22310)",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json remediation_v24 (KERNEL_BUILDER-C2 round 5: what is already fixed) and remediation_v25 (KERNEL_BUILDER-C3 round 6, in progress)"
+    ],
+    "audit_refs_note": "The two audit files live in an Operator session scratchpad and are not durable; every row this MT relies on is copied into scope.routes / implementation_steps, so the MT is executable without them."
+  },
+  "closure_unit": {
+    "outcome": "POST /kernel/product_screenshot_capture/execute only runs for an authenticated account session that holds the screenshot-capture capability; everyone else is denied before any process starts, and an authorized run is attributable to the session principal and its child process is always reclaimed.",
+    "requirement_refs": [
+      "02:2758",
+      "02:2776"
+    ],
+    "acceptance_refs": [
+      "AC-155-1",
+      "AC-155-2",
+      "AC-155-3",
+      "AC-155-4",
+      "AC-155-5",
+      "AC-155-6"
+    ],
+    "specification_anchor_refs": [
+      {
+        "id": "02:2758",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2758",
+        "verbatim": "6. Authorization is deny-by-default and evaluated on every executable backend boundary. Hiding UI rows is a projection behavior, never the security boundary."
+      },
+      {
+        "id": "02:2776",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2776",
+        "verbatim": "Application authorization remains required for action semantics and capability checks; record-user table/field permissions plus ResourceBroker are the non-bypassable product data boundary, not the only policy layer."
+      }
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-155-1",
+        "text": "Spec basis, quoted. 02:2758: \"6. Authorization is deny-by-default and evaluated on every executable backend boundary. Hiding UI rows is a projection behavior, never the security boundary.\" 02:2776: \"Application authorization remains required for action semantics and capability checks; record-user table/field permissions plus ResourceBroker are the non-bypassable product data boundary, not the only policy layer.\""
+      },
+      {
+        "id": "AC-155-2",
+        "text": "Anonymous: a request without a valid account session token + live channel binding returns HTTP 401 (Operator 2026-09-23: 'anonymous -> 401'), and no process is spawned (no `node --version` pre-flight either). This status is route-local: do NOT change api::authority::constant_denial (403) used by every other route."
+      },
+      {
+        "id": "AC-155-3",
+        "text": "Authenticated account WITHOUT the capability `kernel.product_screenshot_capture.execute` in the session's delegated_capabilities returns HTTP 403 with the constant body {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}, and no process is spawned. Deny by default: an absent, empty or unreadable capability list is a denial. Wildcards are not accepted (setup_local_owner already rejects '*' at storage/surreal/local_accounts.rs:374-375 @ab618f46)."
+      },
+      {
+        "id": "AC-155-4",
+        "text": "Authorized (session holds the capability): the capture runs; the response keeps its current shape (schema_id hsk.kernel.product_screenshot_capture_execute_result@1, artifact, durable_receipt, proof, receipt) and the receipt/proof record the session principal (actor id + session id) as the initiator, not a constant or header value."
+      },
+      {
+        "id": "AC-155-5",
+        "text": "Process safety: the request body may no longer choose the executable or script. `node_binary` and `adapter_script_path` in ProductScreenshotCaptureExecuteRequest are ignored or rejected (400) when they differ from the server-side defaults ('node' resolved by the server; app/scripts/handshake-screenshot-capture.mjs); the handler never executes a caller-supplied path. The child process (kernel/product_screenshot_capture.rs:561 pre-flight and :590-606 adapter) runs off the async executor (spawn_blocking or tokio::process), has a wall-clock timeout, is killed and waited on (reaped) on timeout or request cancellation, keeps hide_console_window (no foreground window, Codex CX-SAFE-002), and a timeout returns a typed error, never a hang."
+      },
+      {
+        "id": "AC-155-6",
+        "text": "Negative tests exist and pass against the real router and real account-session store: anonymous -> 401 and zero spawns; account without capability -> 403 and zero spawns; authorized -> runs (or returns the typed AdapterDependencyMissing when node/playwright are absent - the test asserts the authorization passed, i.e. the error is not 401/403) and the result/receipt carries the session principal; caller-supplied node_binary/adapter_script_path -> not executed; a hung adapter is killed and reaped within the timeout (use a server-side test hook for the timeout value and a script that sleeps, placed under the owner TMP dir - no network, no foreground)."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "medium",
+    "tier_reason": "One route, one process-spawning module and one test file; the authorization pattern (require_authenticated_session + capability) and fixtures already exist.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "diagnosis_fields": [
+      "failing_assertion (file:line + message)",
+      "attempts (what each run changed)",
+      "root_cause_hypothesis with code location",
+      "intended_fix",
+      "next_runs (1 probe + 1 confirm)"
+    ],
+    "diagnosis_location": "this MT file, handoff.attempt_diagnoses.<CHECK_ID> (same shape as MT-109.json remediation_v24.attempt_diagnoses)",
+    "note": "Codex CX-EXEC-003/003A: counts carry across agents and sessions; a new executor does not reset them. Pin-measure runs (schema re-pin step 3) are measurements, not attempts."
+  },
+  "execution": {
+    "lane": "PRODUCT_CODE_BACKEND",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "start_precondition": "Worktree clean (no other builder's uncommitted edits). No schema change in this MT, so it may be sequenced before or after MT-153/MT-154.",
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/api/kernel.rs (execute_product_screenshot_capture_api, its request type and the route registration at ~:733-736 only)",
+      "src/backend/handshake_core/src/api/authority.rs (a capability-check helper next to require_authenticated_session, if needed)",
+      "src/backend/handshake_core/src/storage/surreal/local_accounts.rs (expose the session's delegated_capabilities in LocalSessionContext, if needed)",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs (read-only helpers for delegated_capabilities, if needed)",
+      "src/backend/handshake_core/src/kernel/product_screenshot_capture.rs",
+      "src/backend/handshake_core/src/kernel/action_catalog.rs (the kernel.product_screenshot_capture.execute action's capability/authority fields, if the catalog must name the capability)",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/tests/kernel_product_screenshot_capture_tests.rs",
+      "src/backend/handshake_core/tests/mt155_product_screenshot_capture_route_auth_tests.rs (new)",
+      "src/backend/handshake_core/tests/account_session_support/mod.rs (optional: a provision variant with extra capabilities)",
+      "src/backend/handshake_core/Cargo.toml ([[test]] entry for the new test only, if required-features are needed; no dependency changes)"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/** (any path, including through the .GOV junction)",
+      "any other worktree (handshake_main, wt-gov-kernel, wt-ilja, other wtc-*)",
+      "AGENTS.md, CLAUDE.md, .claude/**, .github/**, root justfile (main-only control files)",
+      "src/backend/handshake_core/src/storage/postgres/** and any SQLite/PostgreSQL dependency or language (Codex CX-503R)",
+      "Cargo.toml / Cargo.lock dependency additions (no new crates in this MT)",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "src/backend/handshake_core/src/api/ (all files except kernel.rs and authority.rs)",
+      "app/scripts/handshake-screenshot-capture.mjs (do not modify the adapter)"
+    ],
+    "stop_conditions": [
+      "`git status --porcelain` in the product worktree is non-empty at start with changes this session did not make (another builder is active in the shared worktree) - STOP, report BLOCKED; do not stash or discard.",
+      "The launcher did not supply CARGO_TARGET_DIR, TMP/TEMP, HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_SURREAL_TEST_STORE_ROOT, or they resolve outside <artifact_root>/WP-KERNEL-012/<MT>/<OWNER_SLUG>/ (or the granted C:/.target target) - STOP.",
+      "A needed change falls outside execution.allowed_write_paths - STOP and record an operator_decision_request naming the file and why.",
+      "A fix would require weakening, deleting or #[ignore]-ing an existing assertion, re-pinning a predecessor constant, or running a protected flow as root - STOP.",
+      "attempt_budget exhausted for any check - STOP with the written diagnosis, status BLOCKED.",
+      "Any operator_decision_request listed in this MT is reached - record it, skip that item, continue the other items.",
+      "A tool would open a foreground window, installer, prompt or steal focus - do not run it.",
+      "The capability cannot be carried on the session without a schema change - STOP and record an operator_decision_request (this MT has no schema budget)."
+    ],
+    "artifact_isolation": {
+      "artifact_root": "<Handshake Worktrees>/Handshake_Artifacts (verified to exist on 2026-09-23; the launcher passes the absolute path; resolve from the wt-gov-kernel checkout, never from a working directory - Codex CX-984-001/012/013)",
+      "owner_dir": "<artifact_root>/WP-KERNEL-012/MT-155/<OWNER_SLUG>/  (OWNER_SLUG is assigned by the launcher, e.g. kb-c4; per Operator 2026-09-23 the WP folder is WP-KERNEL-012, matching MT-109's kb-c2/kb-c3 lanes)",
+      "env": {
+        "CARGO_TARGET_DIR": "<owner_dir>/target",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+        "TMP": "<owner_dir>/tmp",
+        "TEMP": "<owner_dir>/tmp",
+        "TMPDIR": "<owner_dir>/tmp",
+        "HANDSHAKE_ARTIFACTS_ROOT": "<artifact_root>",
+        "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "<owner_dir>/runtime",
+        "HANDSHAKE_WORKSPACE_ROOT": "<owner_dir>/workspace/run-<NN>"
+      },
+      "native_test_env_additions": {
+        "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<artifact_root>/handshake-test",
+        "HSK_TEST_BACKEND_TARGET_ROOT": "<owner_dir>/backend-target",
+        "HSK_TEST_BACKEND_BIN": "<owner_dir>/backend-target/debug/handshake_core.exe",
+        "HANDSHAKE_TEST_STAGE_BINDING_ROOT": "<owner_dir>/runtime/binding-<NN>",
+        "HSK_TEST_BASE": "(unset)"
+      },
+      "disk": "All of the above are on D: (the Handshake Worktrees disk). An Operator grant (2026-09-22, recorded in MT-008/MT-023) also allows CARGO_TARGET_DIR=C:/.target/WP-KERNEL-012/target; the Coder never chooses between them - the launcher supplies CARGO_TARGET_DIR (CODER-PROOF-002). If the launcher did not supply every variable above, that is a blocker.",
+      "one_build_per_disk": "Before every cargo invocation verify no cargo.exe / rustc.exe / clippy-driver.exe is running (`tasklist | grep -Ei '^(cargo|rustc|clippy-driver)\\.exe'`); if one is, wait for it or report BLOCKED - never stop it (Codex CX-984-002, CX-SAFE-001). MT-109 C3 (KERNEL_BUILDER-C3) builds on D: under WP-KERNEL-012/MT-109/kb-c3.",
+      "flags": "--locked on every cargo command; -j 12 is the lane default.",
+      "reference_runner": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/run.sh and run_test.sh (read-only reference for the env and timeout wrapper; copy the pattern into your own owner dir, never write into kb-c3)."
+    },
+    "git_rules": [
+      "Work only in the product worktree `<Handshake Worktrees>/wtc-native-editors-v1` on branch `feat/WP-KERNEL-012`; verify with `git rev-parse --abbrev-ref HEAD` before the first edit.",
+      "Commit messages: fix(MT-NNN): / test(MT-NNN): / style(MT-NNN): (CODER-CERT-002). Never commit .GOV/ files. No stash, checkout, restore, reset, rebase, branch or worktree creation (CODER-GIT-001). Pushing is not part of this MT; the Integration Validator integrates."
+    ]
+  },
+  "scope": {
+    "summary": "Close the pre-existing unauthenticated process-execution route found by the authority audit (callout 'Not protected tables, but serious'; OUT_OF_WP by diff but SECURITY:YES; C2 left it untouched: MT-109 remediation_v24 items.8_SECURITY_routes.out_of_scope).",
+    "route": {
+      "route": "POST /kernel/product_screenshot_capture/execute",
+      "handler_fn": "execute_product_screenshot_capture_api",
+      "handler_at_ab618f46": "src/backend/handshake_core/src/api/kernel.rs:378",
+      "registered_at_ab618f46": "src/backend/handshake_core/src/api/kernel.rs:733-736",
+      "process_spawn_sites_at_ab618f46": [
+        "src/backend/handshake_core/src/kernel/product_screenshot_capture.rs:561 (node --version pre-flight, Command::output)",
+        "src/backend/handshake_core/src/kernel/product_screenshot_capture.rs:590-606 (adapter run, Command::output, no timeout)"
+      ],
+      "artifact_root_today": "\"../Handshake_Artifacts/handshake-product/screenshots\" (relative to the process working directory; see risks)"
+    },
+    "current_behaviour": "No authentication at all; the JSON body chooses node_binary and adapter_script_path and they are executed (kernel.rs:383-389). Command::output() blocks an async worker with no timeout.",
+    "capability_design": "Session capabilities come from the principal's delegated_capabilities (copied onto authenticated_sessions at issue time, resource_authority.rs:800/901 @ab618f46). Owners are provisioned with an explicit list (setup_local_owner, local_accounts.rs:364-416; harness OWNER_CAPABILITIES in tests/account_session_support/mod.rs:34-42). The new capability id is `kernel.product_screenshot_capture.execute` (same string as the action catalog id, tests/kernel_product_screenshot_capture_tests.rs:246). It is NOT added to any default owner capability list by this MT (deny by default); tests provision it explicitly.",
+    "allowed_paths": [],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "AC-155-1..AC-155-6"
+    ],
+    "proof_targets": [
+      "PT-155-1 route auth negative/positive tests",
+      "PT-155-2 existing kernel_product_screenshot_capture_tests green",
+      "PT-155-3 hung-adapter reclaim test"
+    ]
+  },
+  "operator_decision_requests_prefiled": [
+    {
+      "id": "D-155-1",
+      "question": "Which accounts should hold `kernel.product_screenshot_capture.execute` in production (native setup_local_owner currently passes its own list)?",
+      "default_until_decided": "None by default; the capability is granted only where provisioned explicitly. Record which native/visual-debugging flows lose access (grep handshake_native and kernel/visual_debugging_loop.rs for callers of the HTTP route) in residual_risks.",
+      "blocks": "nothing in this MT"
+    }
+  ],
+  "implementation_steps": [
+    {
+      "n": 1,
+      "step": "Verify branch and clean worktree. Read api/kernel.rs:378-409 and kernel/product_screenshot_capture.rs:537-620 @ab618f46 (locate by fn name if lines moved)."
+    },
+    {
+      "n": 2,
+      "step": "Authentication: in execute_product_screenshot_capture_api take State<AppState> + HeaderMap and call api::authority::authenticated_session_credentials (authority.rs:1031). On Err return 401 with body {\"error\":\"HSK-401-SESSION-REQUIRED\"} (route-local; do not touch constant_denial). Do this before anything else."
+    },
+    {
+      "n": 3,
+      "step": "Capability: read the session's delegated_capabilities (add the field to LocalSessionContext in storage/surreal/local_accounts.rs:125-131 if absent, populated from the authenticated_sessions row that authenticate_local_session already reads). If it does not contain exactly `kernel.product_screenshot_capture.execute`, return 403 constant body. Absent/empty = deny."
+    },
+    {
+      "n": 4,
+      "step": "Remove caller control of the executable: ignore/reject request.node_binary and request.adapter_script_path unless equal to the server defaults (AC-155-5); keep the fields in the type only if removing them breaks deserialisation of existing callers (then reject non-default values with 400)."
+    },
+    {
+      "n": 5,
+      "step": "Process lifecycle: run both Command invocations with a bounded wall-clock timeout (constant in product_screenshot_capture.rs, e.g. 120 s, with a test-only override), kill + wait on expiry, keep hide_console_window, and move the blocking work to tokio::task::spawn_blocking (or tokio::process with kill_on_drop(true)). Map a timeout to a typed ProductScreenshotExecutionError variant (no new StorageError variants involved)."
+    },
+    {
+      "n": 6,
+      "step": "Attribution: pass the session actor id and session id into the receipt/proof construction (capture_product_screenshot_from_browser_adapter's command_or_api_ref / receipt fields) so the returned receipt names the initiator."
+    },
+    {
+      "n": 7,
+      "step": "Tests: create tests/mt155_product_screenshot_capture_route_auth_tests.rs using account_session_support + an AppState built like tests/atelier_stealth_window_tests.rs:265 (without the Option skip), serving api::kernel routes on 127.0.0.1:0. Tests: mt155_anonymous_capture_is_401_and_spawns_nothing, mt155_account_without_capability_is_403_and_spawns_nothing, mt155_authorized_capture_passes_authorization_and_is_attributed, mt155_caller_supplied_binary_is_never_executed, mt155_hung_adapter_is_killed_and_reaped_within_timeout. 'Spawns nothing' is proven by a sentinel: point the (rejected) caller path at a script that would create a marker file under the owner TMP dir and assert the marker never appears; for the default path assert no adapter-output file is created."
+    },
+    {
+      "n": 8,
+      "step": "Update the user manual entry for the capture route; run the proof checks; report."
+    }
+  ],
+  "engine_facts": [
+    "SurrealDB is pinned =3.2.0 (src/backend/handshake_core/Cargo.toml). Facts verified in surrealdb-core-3.2.0 source by the authority matrix:",
+    "F5 Session selection: `SurrealStorage::with_record_user_scope(scope, fut)` (src/backend/handshake_core/src/storage/surreal.rs:956 @ab618f46) sets a tokio task-local; `with_data_operation` then signs a cloned client in as the record user. Anything outside that scope, INCLUDING work moved into `tokio::spawn`, runs as root. Re-enter the scope inside every spawned future that touches protected tables."
+  ],
+  "authority_toolkit": [
+    "Rust authorization entry points (all @ab618f46, src/backend/handshake_core/src/): `api::authority::authorize_request(state, headers, capability_id, ResourceKind, external_resource_id, ResourceAction)` (api/authority.rs:1216) returns an AuthorizedResourceContext whose `.record_user_scope` MUST then wrap the storage call via `state.surreal.with_record_user_scope(ctx.record_user_scope, fut)`. A route that calls authorize_request but writes outside that scope is still ROOT-WRITE.",
+    "`api::authority::require_authenticated_session` (api/authority.rs:1013) is the axum route_layer middleware C2 used for process-starting routes with no protected-resource row (see api/debug_adapter.rs:183-186 route_layer). `authenticated_session_credentials` (api/authority.rs:1031) returns the LocalSessionContext + token + channel binding hash. Missing/invalid credentials map to `constant_denial()` = 403 {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}.",
+    "ResourceKind (storage/surreal/resource_authority.rs:43): Workspace, RichDocument, KnowledgeSource, KnowledgeCodeFile, LoomBlock, FlightRecorder, MemoryPack, MemoryProposal, MemoryCommitReport, MemoryItem, MemoryItemCount, ReconciliationQueue.",
+    "Owner creator grants (fn::mt120_creator_grant, provisioned by POST /workspaces): workspace resource actions create/read/update/delete x capabilities fs.read, fs.write, fr.read, fr.ingest.runtime_chat, fr.ingest.native_editor, memory.read, memory.propose (+ memory.review/memory.commit since C2 ec34c88e); rich_document and loom_block resources CRUD x fs.read/fs.write; knowledge_source/code_file CRUD x memory.read/memory.propose/fs.write. Resources are account-private.",
+    "Schema predicate helpers in src/backend/handshake_core/src/storage/surreal/schema.surql: fn::mt109_live_session, fn::mt109_has_grant(kind, external, action, cap), fn::mt109_has_workspace_access(ws, action, cap), fn::mt120_document_access(doc, ws, action, cap), fn::mt120_loom_block_access(block, ws, action, cap), fn::mt120_resource_create, fn::mt120_creator_grant, fn::mt120_workspace_delete(ws), fn::mt120_document_delete, and the kernel_event_ledger receipt predicates fn::mt109_ledger_receipt / fn::mt120_*_receipt. Every record-user write that appends a kernel_event_ledger receipt needs a receipt predicate branch that accepts it; the receipt actor MUST be the session principal (`$session = $auth.id`), never a System actor.",
+    "Test helpers: integration tests use src/backend/handshake_core/tests/account_session_support/mod.rs (`mod account_session_support;` then `AccountFixture::install(&storage)`, `OwnerSession::provision(&storage, token)`, `.headers()`, `.apply(req)`, `.client()`, `.create_workspace(&state)`; hold NATIVE_BINDING_ENV_LOCK when installing a binding). A second account = a second `OwnerSession::provision` against the same installed binding token. In-crate lib tests (behind cfg(all(test, feature = \"duckdb-flight-recorder\"))) use api::workspaces::tests::{WorkspaceBindingFixture (api/workspaces.rs:1626), workspace_test_principal (:1663), create_owned_test_workspace (:1714)}; the reference example is `mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default` (api/workspaces.rs:2766). A viewer/second principal in the SAME account with a read-only grant is expressed with `SurrealStorage::grant_resource(account_id, access_space_id, ResourceGrantSpec{..actions: [read], capability_ids: [fs.read]..})` (storage/surreal/resource_authority.rs:1022); see resource_authority_tests.rs:185/227 for usage.",
+    "AppState construction for integration tests: copy `test_app_state_embedded` (tests/atelier_stealth_window_tests.rs:265) but DO NOT copy its `Option` + `else { return Ok(()) }` early return: a test that cannot build its store MUST fail (panic/expect), never return Ok silently."
+  ],
+  "dependencies": {
+    "depends_on": [],
+    "blocks": [],
+    "ordering_rule": "No schema overlap; shares the worktree, so it runs when no other builder is active in wtc-native-editors-v1."
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "MT-155-ROUTE-AUTH",
+        "claim_refs": [
+          "AC-155-2",
+          "AC-155-3",
+          "AC-155-4",
+          "AC-155-5",
+          "AC-155-6"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1800 cargo test --locked -j 12 --test mt155_product_screenshot_capture_route_auth_tests --features app-runtime,surreal-test-support,test-utils -- --test-threads=1",
+        "expected": "'running 5 tests' and 'test result: ok. 5 passed; 0 failed'",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-155-EXISTING",
+        "claim_refs": [
+          "no regression"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1800 cargo test --locked -j 12 --test kernel_product_screenshot_capture_tests --features app-runtime,surreal-test-support,test-utils -- --test-threads=1",
+        "expected": "nonzero executed count, 'test result: ok.', 0 failed (tests that need node+playwright keep their existing typed AdapterDependencyMissing behaviour; none may be newly ignored)",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-155-KERNEL-LIB",
+        "claim_refs": [
+          "no regression in api::kernel unit tests"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1800 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils api::kernel::tests:: -- --test-threads=1",
+        "expected": "nonzero executed count, 'test result: ok.', 0 failed",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-155-CHECK-TESTS",
+        "claim_refs": [
+          "all changed test targets compile"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo check --locked -j 12 --tests --features app-runtime,surreal-test-support,test-utils",
+        "expected": "exit 0 ('Finished' line, no 'error[')",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "exit code"
+        ]
+      },
+      {
+        "check_id": "MT-155-CLIPPY-CHANGED",
+        "claim_refs": [
+          "no new clippy findings on changed lines"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo clippy --locked --keep-going -j 12 -p handshake_core --all-targets --features app-runtime,surreal-test-support,test-utils --message-format=short -- -D warnings",
+        "expected": "Exit 101 is tolerated ONLY because 395 pre-existing diagnostics exist (MT-109 kb-c2 log 31-core-clippy.log). Required: zero diagnostics whose file:line falls on a line changed by this MT (compare against `git diff -U0 <base>..HEAD`). Record the count of findings on changed lines (must be 0).",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "changed-line finding count = 0"
+        ]
+      },
+      {
+        "check_id": "MT-155-FMT",
+        "claim_refs": [
+          "formatting"
+        ],
+        "command_or_method": "cd <worktree> && rustfmt --edition 2021 --check <each changed .rs file>",
+        "expected": "exit 0, no diff output",
+        "timeout_seconds": 300,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "exit code"
+        ]
+      },
+      {
+        "check_id": "MT-155-DIFF-CHECK",
+        "claim_refs": [
+          "whitespace hygiene"
+        ],
+        "command_or_method": "cd <worktree> && git diff --check <base>..HEAD",
+        "expected": "no output, exit 0",
+        "timeout_seconds": 120,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "exit code"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true
+  },
+  "owned_files": [
+    "src/backend/handshake_core/src/api/kernel.rs",
+    "src/backend/handshake_core/src/kernel/product_screenshot_capture.rs",
+    "src/backend/handshake_core/tests/mt155_product_screenshot_capture_route_auth_tests.rs"
+  ],
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "trace_projection_or_runtime_evidence"
+    ],
+    "not_applicable_reason": "Backend route authorization; no operator-visible surface changes."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Product screenshot capture route: requires an account session with capability kernel.product_screenshot_capture.execute; 401/403 semantics; timeout"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test (existing LIB user_manual tests green)"
+    ],
+    "location": "src/backend/handshake_core/src/user_manual/ (seed.rs holds the manual pages; follow the MT-152 pattern: a section per behaviour, pinned to code by a test where MT-152 did so)",
+    "reason": "Shipped route behaviour changes."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "local process execution",
+      "screenshot artifacts under Handshake_Artifacts/handshake-product/screenshots"
+    ],
+    "identity_and_scope_contexts": [
+      "anonymous",
+      "account without capability",
+      "account with capability"
+    ],
+    "enforcement_boundaries": [
+      "authenticated_session_credentials",
+      "session delegated_capabilities"
+    ],
+    "cross_account_negative_cases": [
+      "account without capability"
+    ],
+    "metadata_side_channel_cases": [
+      "error bodies must not echo stderr of a denied run (nothing runs when denied)"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "HBR-INT-009: denial is logged without secrets.",
+    "STOP": "No capability wildcard; no process before authorization."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROCESS_EXECUTION_ROUTE_V1",
+    "risks": [
+      "Arbitrary code execution: the body chooses node_binary and adapter_script_path today.",
+      "Blocking Command::output() on the async executor starves other requests; no timeout means orphaned/hung node processes.",
+      "Checking the capability after the pre-flight `node --version` still spawns a process for denied callers.",
+      "Changing constant_denial to 401 globally would change every other route's contract and C2's proofs.",
+      "The artifact root is resolved relative to the process working directory (\"../Handshake_Artifacts/...\") - Codex CX-984-001 forbids cwd-relative resolution; recorded as residual unless the fix is trivially within this route (use the configured HANDSHAKE_ARTIFACTS_ROOT)."
+    ],
+    "minimum_controls": [
+      "Every positive proof runs as an authenticated record user (account session + channel binding). A root/admin session (with_admin_operation, test_admin_query*, SurrealStorage without with_record_user_scope) may only SEED preconditions that the product itself cannot create, and never counts as privacy/isolation proof (02:2773, LM-RLS-002).",
+      "Every changed route has: anonymous negative (no session headers), cross-account negative (a second OwnerSession cannot read or write the first account's rows, and the rows are unchanged afterwards), and where a write is involved, a read-only (viewer) negative when the grant model can express one.",
+      "Denied writes are proven by re-reading the canonical row after the call (F3: denied writes are silent). A 403 status alone is not proof that nothing was written.",
+      "Anti-scaffold: no new abstraction, trait, feature flag, config knob or helper that is not called by product code in this MT; no `#[ignore]`, no `return Ok(())` skip paths, no assertion weakened or deleted to go green; tests may not assert only on mocks/fixtures the Coder authored for a resource-boundary claim (CODER-PROOF-004, CODER-CODE-006).",
+      "No fixture-only proof: each acceptance item is proven against the real embedded SurrealDB store (fresh Handshake-managed RocksDB/SurrealKV directory under the owner runtime root), through the real axum router, with the real ResourceBroker.",
+      "Every test binary run must report a NONZERO executed count for the named tests (`running N tests` with N equal to the number of names passed with --exact); a `0 passed` result is a failure of the check, not a pass.",
+      "Spawn-count proof: denied tests assert zero processes via a marker file, not by status code alone.",
+      "The reclaim test proves the child PID is gone after the timeout (e.g. the marker script writes its PID; assert the process no longer exists via sysinfo/tasklist in-test) - never kill a process the test did not start."
+    ]
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "product_branch": "feat/WP-KERNEL-012",
+    "product_worktree": "<Handshake Worktrees>/wtc-native-editors-v1",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "next_actor": "ORCHESTRATOR (assign a coder session); after READY_FOR_VALIDATION -> INTEGRATION_VALIDATOR",
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "report_fields_required": [
+      "status",
+      "commits",
+      "changed_paths",
+      "commands_run (command, exit code, result line, log path)",
+      "attempt_diagnoses",
+      "blockers",
+      "operator_decision_requests",
+      "residual_risks"
+    ],
+    "attempt_diagnoses": {},
+    "operator_decision_requests": [],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "commit_policy": "The Coder commits product changes on feat/WP-KERNEL-012 (fix/test/style(MT-155) messages). The Integration Validator commits governance (this file) on gov_kernel; the Coder does not edit this file except the handoff report fields if the launcher routes the report here."
+  }
+}

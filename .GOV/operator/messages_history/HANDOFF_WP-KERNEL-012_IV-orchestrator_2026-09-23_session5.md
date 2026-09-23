@@ -10,8 +10,8 @@ Close WP-KERNEL-012: every MT at validator-proven `PASS_Vn`, then the whole-WP I
 
 ## 2. Verified state (2026-09-23 11:45 local)
 
-- Product: branch `feat/WP-KERNEL-012`, worktree `wtc-native-editors-v1`. Last PUSHED candidate `ab618f46` (builder C2). Local HEAD `0cfbff64` = builder C3 in progress (commits not yet pushed). Always verify with `git ls-remote origin refs/heads/feat/WP-KERNEL-012`.
-- Governance: `gov_kernel` @ `15a63b42` (pushed). Uncommitted in `wt-gov-kernel`: Operator + IV authority edits (Codex, IV/KB/WPV protocols, HANDSHAKE_BUILD_RULES.json, the two `*_CONTRACT_TEMPLATE.json`), the new lean `roles/coder/CODER_PROTOCOL.md` (untracked), and MT-109.json. **Defect to fix first:** commit `743b76e8` accidentally included the staged move of the old Coder protocol to `roles/coder/archive/`, so `gov_kernel` currently has NO active `CODER_PROTOCOL.md`. Commit the new file (the Operator approved its content on 2026-09-23; confirm with the Operator whether to commit it alone now or with the full governance diff).
+- Product: branch `feat/WP-KERNEL-012`, worktree `wtc-native-editors-v1`, pushed and clean at `0cfbff64` (builder C3). Always verify with `git ls-remote origin refs/heads/feat/WP-KERNEL-012`.
+- Governance: `gov_kernel` pushed. The lean `roles/coder/CODER_PROTOCOL.md` is committed (`0d48d398`); the old one is in `roles/coder/archive/`. MT-153..157, packet.json and all MT records are committed with this handoff. Still uncommitted in `wt-gov-kernel` (the Operator is reviewing these as one diff): Codex, IV/KB/WPV protocols, HANDSHAKE_BUILD_RULES.json, and the two `*_CONTRACT_TEMPLATE.json`. Commits need no Operator approval (Operator, 2026-09-23); just use explicit paths.
 - `handshake_main` local `main` is 2 commits ahead of `origin/main` (the Operator's docs commit and `71298891d` `.claude/settings.local.json` allowlist). Both go out with the WP merge.
 - MT tally: 115 PASS; 29 FAIL (008 023 027 033 034 036 046 064 065 066 067 068 074 079 088 098 108 113 116 117 120 121 122 127 128 130 140 141 143); 3 BLOCKED_ON_DEPENDENCY (026 070 111); 4 PARTIAL (045 124 125 142); 1 READY_FOR_VALIDATION (131). New MT-153..157 are being authored (§4) and may not exist yet.
 - C: free 338.5 GB after the approved cleanup of `C:\.target\WP-KERNEL-012\*` (2026-09-23).
@@ -24,11 +24,24 @@ Close WP-KERNEL-012: every MT at validator-proven `PASS_Vn`, then the whole-WP I
 3. Builder C2 (`ab618f46`) fixed: workspace delete cascade (the Operator's 2026-09-22 cascade decision), rename 500, memory routes + grants, knowledge-doc backlinks/sources, auth on `/debug/sessions*`, `/source-control/*` and `/kernel/events/aggregates`, and 16 backend harnesses moved to account sessions. Records: MT-109 `remediation_v24`.
 4. Spec rulings recorded as `spec_basis` (not operator decisions): members may create all five LoomBlockContentTypes (note, file, annotated_file, tag_hub, journal; `canvas` kept); user-initiated writes must run under the account session; the workspace-delete cascade must be permitted by DB record-user permissions plus a ResourceBroker recheck (no system transaction).
 
-## 4. Agents in flight at handoff (they stop when their session ends; resume from the ledgers)
+## 4. Lane state at handoff (all agents stopped cleanly, 2026-09-23 ~12:30)
 
-- Lane A, KERNEL_BUILDER-C3 (Opus): Loom routes to account sessions (MT-153 scope), plus the C2 follow-ups (tag-edge PATCH timeout, text-card undo placement DELETE 403, transclusion 403 at loom.rs:5815, test tag-edge seeding). Build target on D:: `Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target`. Ledger `.../kb-c3/00-lane.txt`. If it did not finish: read the ledger + the local commits after `ab618f46`, then spawn a fresh C3 with the same scope, starting from the last commit.
-- Lane B, WP_VALIDATOR-V2 (Sonnet): full backend suites (sets A/B/lib, non-live native) from a CLEAN EXPORT of `ab618f46` at `C:/.target/WP-KERNEL-012/export-ab618f46`, target `C:/.target/WP-KERNEL-012/target-v2`, ledger `.../MT-109/wpv-v2c/`. It writes verdicts (PASS / FAIL grouped by failure_class and area / BLOCKED `C3-LOOM-AUTHORITY`). If it did not finish: read `results.jsonl`, and resume with a fresh validator on the same export and target (do not rebuild).
-- MT author agent (Opus): writes MT-153..MT-157 into the packet folder and registers them in `packet.json` (see §7). Check that the files exist and parse, then commit them by explicit path.
+- Lane A, KERNEL_BUILDER-C3, STOPPED-FOR-HANDOFF. Pushed `0cfbff64` (commits a1e18d79, 19922490, 0cfbff64; tree clean). Record: MT-109 `remediation_v26` (covers MT-153), with pointers in 14 MTs.
+  - Done: all 37 Loom ROOT-WRITE rows, all 29 ROOT-READ rows and the PATCH GAP row now run as the account record user. The schema was re-pinned once. C2 follow-ups a–c are fixed and proven (b was a placement lookup that did not accept a text card's rich-document resource); d needed no change. Representative runs: kb-c3 logs 06 (15 of 17 pass, including every pin, upgrade and workspace-delete test) and 08 (graph/search passes).
+  - Open:
+    1. Its gates never ran (runs 09–15 logged BUSY because its script waits on ANY host cargo, and the V2 build was running on C:). First action: run `Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/gates.sh`, after changing its busy check to per-disk.
+    2. Stage-card create/compensate still write as root after the grant check; asset import and tier retry still start preview jobs as root.
+    3. The pre-existing test `mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows` still fails: a record user's `workspace_id` update is silently ignored (SurrealDB silent deny) where the test expects a 403. Decide from spec/code whether the route must detect the no-op and return 403 (probably yes: deny-by-default must be observable); one confirm run is left.
+    4. 11 native Loom clients send no account session, so they now get 403. Put this in C4 (native/app-host).
+  - D: target `kb-c3/target` is 19 GB and warm at `0cfbff64`; reuse it for C4.
+- Lane B, WP_VALIDATOR-V2, STOPPED-FOR-HANDOFF before any test ran. The clean export of `ab618f46` is complete (7,139 files) at `C:/.target/WP-KERNEL-012/export-ab618f46`, with a partial cold build in `C:/.target/WP-KERNEL-012/target-v2`. `ab618f46` is now superseded by `0cfbff64`: make a NEW export of the current pushed SHA for the next validation, delete the old export and target-v2 (approved routine cleanup inside the C: grant), and do not validate `ab618f46`.
+- MT author: DONE. MT-153..MT-157 are written and registered (packet `mt_plan.declared_ids` and both `mt_status` maps now cover MT-001..MT-157). Audit references point to the durable D: copy. Notes from the author:
+  - MT-157: durable breakpoint storage already exists (`database.rs:1476` → `state_store.rs:680/706`); the real gaps are authentication, root execution, the `knowledge_debug_breakpoints` table being `PERMISSIONS NONE`, and receipts written under a fixed actor.
+  - MT-155: today the request body chooses which program runs (`node_binary`, `adapter_script_path`) with no timeout; the MT forbids caller-chosen programs and requires a timeout and cleanup.
+  - MT-156: also covers three sibling routes on the same router (status, validate, exportable), since they expose the same bundle data.
+  - MT-154: the revision-158/159 checksum tests fail because four schema commits (edb54c0e, c792b8a2, 64ca7c82, 01df5ebf) changed the schema after pinning; the fix rebuilds the old schema exactly and does not change old pins.
+  - MT-154 carries three pre-filed questions, each defaulting to "must be logged in" until decided: D-154-1 the legacy `/workspaces/:ws/documents` route; D-154-2 how the Flight Recorder reads DuckDB events; D-154-3 scoping for ~60 Atelier tables plus the locus and global-preference tables, which have no workspace or owner column. Resolve them from the Master Spec first (Operator rule: research spec/online, use sub-agents); only escalate what the spec cannot answer.
+- The packet `mt_status` maps are projections and may be stale for older MTs. MT-*.json `lifecycle` is the authority.
 
 ## 5. Build, disk and host rules (HARD; replace session-4 §5)
 
@@ -90,7 +103,9 @@ C3 lands → C4 (MT-154/155/156) in the worktree while the validator checks the 
 
 ## 11. First actions
 
-1. `git ls-remote` + status for `feat/WP-KERNEL-012` and `gov_kernel`; process scan (cargo/rustc/link/test_); C: free.
-2. Fix the §2 Coder-protocol defect (with the Operator's go).
-3. Read the ledgers of lanes A/B (`kb-c3`, `wpv-v2c`) and check whether MT-153..157 exist; verify and snapshot whatever finished; resume unfinished lanes with fresh agents (§4).
-4. Re-arm the two-lane tick. Start C4 the moment C3's candidate is pushed.
+1. `git ls-remote` + status for `feat/WP-KERNEL-012` (expect `0cfbff64`) and `gov_kernel`; process scan (cargo/rustc/link/test_); C: free.
+2. Two lanes at once:
+   - Lane A (D: HDD, warm `kb-c3/target`): builder C4 = C3's gates first (fix `gates.sh` to check per disk), then C3 open items 2–4, then MT-154 + MT-155 + MT-156, then MT-157. Fresh Opus builder, briefed per §6.
+   - Lane B (C: SSD): validator = new clean export of `0cfbff64`, clean up the old export and target-v2, run the backend suites + non-live native binaries, write verdicts, and group failures by area for C4.
+3. Resolve MT-154's D-154-1..3 from the Master Spec with a read-only sub-agent while the lanes run.
+4. Re-arm the two-lane tick. Snapshot every round by explicit path.

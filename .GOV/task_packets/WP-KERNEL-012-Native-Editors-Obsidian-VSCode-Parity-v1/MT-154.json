@@ -1,0 +1,1102 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-154",
+  "title": "B18-MT-154-Non-Loom-Routes-Account-Session-Authority-And-Residuals",
+  "group": "B18",
+  "created_at_utc": "2026-09-23T09:49:34.269Z",
+  "updated_at_utc": null,
+  "identity": {
+    "mt_id": "MT-154",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "B18-MT-154-Non-Loom-Routes-Account-Session-Authority-And-Residuals",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-154.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
+  },
+  "lifecycle": {
+    "status": "READY",
+    "depends_on": [
+      "MT-153"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "validated_by": null,
+    "validated_at_utc": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "created_by": "ORCHESTRATOR governance subagent (operator-directed MT authoring 2026-09-23)",
+    "created_at_utc": "2026-09-23T09:49:34.269Z",
+    "origin": "operator_scope_expansion_2026-09-23",
+    "creation_reason": "Operator decision 2026-09-23: 'no new WP, expand scope of this WP and create extra MTs, with enough detail that models with no context can execute them'.",
+    "audit_refs": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/authority-audit/authority_matrix.md (static read of feat/WP-KERNEL-012 at 2f49f2a6; 159 routes with file:line)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/authority-audit/authority_scope.md (IN_WP/OUT_OF_WP classification against base 97a22310)",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json remediation_v24 (KERNEL_BUILDER-C2 round 5: what is already fixed) and remediation_v25 (KERNEL_BUILDER-C3 round 6, in progress)"
+    ],
+    "audit_refs_note": "The two audit files live in an Operator session scratchpad and are not durable; every row this MT relies on is copied into scope.routes / implementation_steps, so the MT is executable without them."
+  },
+  "closure_unit": {
+    "outcome": "Every non-Loom route row in scope.routes (calendar, stage, atelier/intake, canvases, flight recorder, preferences, locus, kernel trace projection, knowledge CRDT/ingestion/memory/retrieval, workspace delete residuals) runs under the authenticated account session with least-privilege permissions or is explicitly decision-gated; plus four residual defects are fixed: the native create-note drain, root-written receipts, the revision-158/159 predecessor-checksum tests, and the workspace-delete guard residue.",
+    "requirement_refs": [
+      "02:2758",
+      "02:2773",
+      "02:2776",
+      "LM-RLS-001",
+      "LM-RLS-002"
+    ],
+    "acceptance_refs": [
+      "AC-154-1",
+      "AC-154-2",
+      "AC-154-3",
+      "AC-154-4",
+      "AC-154-5",
+      "AC-154-6",
+      "AC-154-7",
+      "AC-154-8",
+      "AC-154-9"
+    ],
+    "specification_anchor_refs": [
+      {
+        "id": "02:2758",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2758",
+        "verbatim": "6. Authorization is deny-by-default and evaluated on every executable backend boundary. Hiding UI rows is a projection behavior, never the security boundary."
+      },
+      {
+        "id": "02:2773",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2773",
+        "verbatim": "- root, system, namespace-owner, database-owner, and other privileged SurrealDB sessions MUST NOT execute ordinary protected-resource flows or count as privacy/isolation proof because privileged users bypass table permissions;"
+      },
+      {
+        "id": "02:2776",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2776",
+        "verbatim": "Application authorization remains required for action semantics and capability checks; record-user table/field permissions plus ResourceBroker are the non-bypassable product data boundary, not the only policy layer."
+      },
+      {
+        "id": "LM-RLS-001",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/11-shared-dev-platform-and-oss-foundations.md:580",
+        "verbatim": "**[LM-RLS-001]** Multi-user workspace isolation MUST use authenticated record-user table/field permissions intersected with ResourceBroker scope. A `viewer` can read but not create/edit LoomBlocks; a `member` can create and edit; an `admin` can delete and manage workspace settings."
+      },
+      {
+        "id": "LM-RLS-002",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/11-shared-dev-platform-and-oss-foundations.md:582",
+        "verbatim": "**[LM-RLS-002]** Authority tables default to `PERMISSIONS NONE`; every grant is explicit at the database layer and rechecked by ResourceBroker. Privacy proof MUST execute as authenticated record users because root, namespace, database, and other system users bypass record-user table permissions."
+      }
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-154-1",
+        "text": "Spec basis, quoted. 02:2758: \"6. Authorization is deny-by-default and evaluated on every executable backend boundary. Hiding UI rows is a projection behavior, never the security boundary.\" 02:2773: \"- root, system, namespace-owner, database-owner, and other privileged SurrealDB sessions MUST NOT execute ordinary protected-resource flows or count as privacy/isolation proof because privileged users bypass table permissions;\" 02:2776: \"Application authorization remains required for action semantics and capability checks; record-user table/field permissions plus ResourceBroker are the non-bypassable product data boundary, not the only policy layer.\" LM-RLS-001: \"**[LM-RLS-001]** Multi-user workspace isolation MUST use authenticated record-user table/field permissions intersected with ResourceBroker scope. A `viewer` can read but not create/edit LoomBlocks; a `member` can create and edit; an `admin` can delete and manage workspace settings.\" LM-RLS-002: \"**[LM-RLS-002]** Authority tables default to `PERMISSIONS NONE`; every grant is explicit at the database layer and rechecked by ResourceBroker. Privacy proof MUST execute as authenticated record users because root, namespace, database, and other system users bypass record-user table permissions.\""
+      },
+      {
+        "id": "AC-154-2",
+        "text": "Deny by default (unconditional, no decision needed): every route in scope.routes rejects a caller without a valid account session + live channel binding with the constant denial BEFORE touching any table, filesystem path, DuckDB store or process. This includes the Atelier routes (api/atelier.rs:300-1104 @2f49f2a6), locus, preferences, calendar, stage, canvases, knowledge CRDT/ingestion/memory/retrieval and GET /kernel/trace_projection."
+      },
+      {
+        "id": "AC-154-3",
+        "text": "Workspace-scoped tables (canvases, canvas_nodes, canvas_edges, calendar_sources, calendar_events, calendar_activity_spans, calendar_mutation_outbox, stage_capture_artifacts, knowledge_source_roots and ingestion children, kernel_crdt_updates/snapshots/denial receipts, knowledge memory/retrieval tables, preference_records/receipts with scope_kind='workspace'): the route authorizes against the workspace resource (Read+fs.read for reads, Update/Create+fs.write for writes, Delete+fs.write for deletes; fr.read for Flight Recorder reads) and every read/write runs inside with_record_user_scope; schema.surql gives each table per-operation predicates via fn::mt109_has_workspace_access(record::id(workspace_id), <action>, <cap>) instead of PERMISSIONS NONE. calendar events must no longer read other accounts' loom_blocks (calendar_activity.rs:224 @2f49f2a6)."
+      },
+      {
+        "id": "AC-154-4",
+        "text": "Account-global surfaces without a workspace or owner column (atelier_* tables, work_packets/micro_tasks, preference_records with scope_kind 'global'/'surface', atelier_stealth_*): AC-154-2 applies now; per-row account isolation is decision-gated by D-154-3 (ownership model). Until decided, these routes must not read or write rows as root on behalf of a user beyond what AC-154-2 already requires, and the residual is recorded in residual_risks with the table list. PUT /atelier/intake/items/:id/loom-projection (atelier/intake.rs:1362 @2f49f2a6) must additionally authorize loom_block read on the target block (it currently lets any account make another account's workspace undeletable)."
+      },
+      {
+        "id": "AC-154-5",
+        "text": "Receipts: every kernel_event_ledger receipt these routes append (preference_record_changed, calendar, stage, canvas, ingestion, CRDT, retrieval/memory ledger appends in knowledge_memory.rs:203 and knowledge_retrieval.rs:215 @2f49f2a6) is written inside the record-user scope by a receipt predicate branch with $session = $auth.id, and carries the session principal as actor - never a header-supplied or System actor. C2 risk closed: after a preference write, the owner reads the preference_record aggregate via GET /kernel/events/aggregates/preference_record/:id and sees the new receipt; another account sees 0 receipts."
+      },
+      {
+        "id": "AC-154-6",
+        "text": "Workspace delete residuals (scope.routes[0].mt154_residual a-c): an owner's DELETE /workspaces/:id succeeds when the workspace holds calendar, stage and canvas rows created through the scoped routes; the fems_workspace_write_anchors guard statement is not dropped by the `.lines().skip(2)` slice; the Flight Recorder purge runs only after authorization and only for the deleted workspace. Extends the Operator decision 2026-09-22 (owner/admin workspace delete cascades documents, versions and Canvas boards with an audit event) exactly as C2 extended it to Loom entities and Atelier projections."
+      },
+      {
+        "id": "AC-154-7",
+        "text": "Native create-note drain regression (since commit 1236078e): in the app host, confirming the code editor's context-menu entry 'Create note from link' on an unresolved [[wikilink]] stages exactly one create-note intent that the host drain consumes. Deciding evidence from C2 (MT-109 remediation_v24 item 5): create_note_confirm_counts() = (confirms 0, staged 0) while link_under_cursor = unresolved_under_cursor = Some(\"Design Notes\") and the account context is active, so ContextMenu::show_on (src/frontend/handshake_native/src/context_menu.rs:236 @ab618f46) does not return the create-note id to CodeEditorPanel (panel.rs:9206 B::CreateNoteFromLink arm; stage_create_note_from_link panel.rs:9477; counters panel.rs:9493). Required: tests/test_app_host_mount.rs::code_pane_create_note_from_link_routes_through_host_drain (fn at :463, failing assertion :571) passes without weakening its assertions; the component-level context-menu tests (tests/test_context_menu.rs, tests/test_editor_body_context_menu.rs) stay green."
+      },
+      {
+        "id": "AC-154-8",
+        "text": "Schema lineage tests: storage::surreal::schema::tests::canvas_receipt_revision_158_upgrade_requires_exact_catalog_and_restarts_current (schema.rs:8846 @ab618f46) and storage::surreal::schema::tests::standalone_loom_revision_159_upgrade_requires_exact_catalog_and_restarts_current (schema.rs:9028) pass WITHOUT changing PRE_CANVAS_RECEIPT_GENERATED_SHA256 (schema.rs:27, 6dc61807...) or PRE_STANDALONE_LOOM_UPDATE_GENERATED_SHA256 (schema.rs:21, d7cf6adb...). Root cause per C2 (MT-109 remediation_v24 observations.predecessor_lineage_tests): the predecessor pins were set at 456dc63a and later schema.surql commits edb54c0e, c792b8a2, 64ca7c82, 01df5ebf changed the schema without revertible deltas (ec34c88e's C2 deltas are revertible). Fix: make pre_canvas_receipt_schema() (schema.rs:2027) and the revision-159 reconstruction revert every post-pin change (those four commits plus the C2 deltas plus any MT-153/MT-154+ deltas) so the reconstruction hashes to the historical pins again."
+      },
+      {
+        "id": "AC-154-9",
+        "text": "Owner positive, anonymous negative, cross-account negative and canonical re-read (F3) per route family in scope.routes, through the real HTTP routers, as record users; plus a viewer (same-account read-only principal) negative for each write family where a workspace grant can express it."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "31 route rows over 14 API files plus a native egui input-routing defect, schema lineage reconstruction and receipt-predicate work; several items are decision-gated and need judgement about what is safe to do before the decision.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong (escalate to Operator decision)"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "diagnosis_fields": [
+      "failing_assertion (file:line + message)",
+      "attempts (what each run changed)",
+      "root_cause_hypothesis with code location",
+      "intended_fix",
+      "next_runs (1 probe + 1 confirm)"
+    ],
+    "diagnosis_location": "this MT file, handoff.attempt_diagnoses.<CHECK_ID> (same shape as MT-109.json remediation_v24.attempt_diagnoses)",
+    "note": "Codex CX-EXEC-003/003A: counts carry across agents and sessions; a new executor does not reset them. Pin-measure runs (schema re-pin step 3) are measurements, not attempts."
+  },
+  "execution": {
+    "lane": "PRODUCT_CODE_BACKEND_PLUS_NATIVE",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [
+      "MT-153"
+    ],
+    "start_precondition": "MT-153's product commits are on feat/WP-KERNEL-012 (lifecycle READY_FOR_VALIDATION or later) and the worktree is clean. Base = the MT-153 head at claim time; record it in handoff.base_commit.",
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/api/workspaces.rs",
+      "src/backend/handshake_core/src/api/canvases.rs",
+      "src/backend/handshake_core/src/api/flight_recorder.rs",
+      "src/backend/handshake_core/src/api/calendar.rs",
+      "src/backend/handshake_core/src/api/stage.rs",
+      "src/backend/handshake_core/src/api/atelier.rs",
+      "src/backend/handshake_core/src/api/preferences.rs",
+      "src/backend/handshake_core/src/api/locus.rs",
+      "src/backend/handshake_core/src/api/kernel.rs (inspect_trace_projection route only)",
+      "src/backend/handshake_core/src/api/knowledge_crdt.rs",
+      "src/backend/handshake_core/src/api/knowledge_ingestion.rs",
+      "src/backend/handshake_core/src/api/knowledge_memory.rs",
+      "src/backend/handshake_core/src/api/knowledge_retrieval.rs",
+      "src/backend/handshake_core/src/api/authority.rs",
+      "src/backend/handshake_core/src/atelier/",
+      "src/backend/handshake_core/src/storage/calendar.rs",
+      "src/backend/handshake_core/src/storage/calendar_activity.rs",
+      "src/backend/handshake_core/src/storage/stage_artifacts.rs",
+      "src/backend/handshake_core/src/storage/knowledge_crdt.rs",
+      "src/backend/handshake_core/src/storage/knowledge_memory.rs",
+      "src/backend/handshake_core/src/storage/knowledge_retrieval.rs",
+      "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
+      "src/backend/handshake_core/src/storage/surreal/calendar_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/canvas_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/preferences.rs",
+      "src/backend/handshake_core/src/storage/surreal/locus_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/kernel_crdt_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+      "src/backend/handshake_core/src/storage/surreal/state_store.rs (non-breakpoint, non-quick-switcher parts)",
+      "src/backend/handshake_core/src/storage/surreal/database.rs",
+      "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/tests/account_session_support/mod.rs",
+      "src/backend/handshake_core/tests/atelier_*.rs",
+      "src/backend/handshake_core/tests/calendar_*.rs",
+      "src/backend/handshake_core/tests/knowledge_crdt_bridge_api_tests.rs",
+      "src/backend/handshake_core/tests/knowledge_ingestion_api_tests.rs",
+      "src/backend/handshake_core/tests/knowledge_memory_api_tests.rs",
+      "src/backend/handshake_core/tests/knowledge_retrieval_debug_api_tests.rs",
+      "src/backend/handshake_core/tests/mt154_non_loom_route_authority_tests.rs (new)",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/context_menu.rs",
+      "src/frontend/handshake_native/src/app.rs (create-note drain only)",
+      "src/frontend/handshake_native/src/backend_client.rs (account context for the clients of routes in scope)",
+      "src/frontend/handshake_native/tests/test_app_host_mount.rs",
+      "src/frontend/handshake_native/tests/test_context_menu.rs",
+      "src/frontend/handshake_native/tests/test_editor_body_context_menu.rs"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/** (any path, including through the .GOV junction)",
+      "any other worktree (handshake_main, wt-gov-kernel, wt-ilja, other wtc-*)",
+      "AGENTS.md, CLAUDE.md, .claude/**, .github/**, root justfile (main-only control files)",
+      "src/backend/handshake_core/src/storage/postgres/** and any SQLite/PostgreSQL dependency or language (Codex CX-503R)",
+      "Cargo.toml / Cargo.lock dependency additions (no new crates in this MT)",
+      "src/backend/handshake_core/src/api/loom.rs and Loom stores (MT-153)",
+      "src/backend/handshake_core/src/api/bundles.rs, src/backend/handshake_core/src/bundles/ (MT-156)",
+      "src/backend/handshake_core/src/api/debug_adapter.rs breakpoint routes and state_store.rs debug breakpoint functions (MT-157)",
+      "src/backend/handshake_core/src/api/kernel.rs execute_product_screenshot_capture_api (MT-155)",
+      "PRE_*_GENERATED_SHA256 / PRE_*_INFO_SHA256 constants in schema.rs (must not change; AC-154-8)"
+    ],
+    "stop_conditions": [
+      "`git status --porcelain` in the product worktree is non-empty at start with changes this session did not make (another builder is active in the shared worktree) - STOP, report BLOCKED; do not stash or discard.",
+      "The launcher did not supply CARGO_TARGET_DIR, TMP/TEMP, HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_SURREAL_TEST_STORE_ROOT, or they resolve outside <artifact_root>/WP-KERNEL-012/<MT>/<OWNER_SLUG>/ (or the granted C:/.target target) - STOP.",
+      "A needed change falls outside execution.allowed_write_paths - STOP and record an operator_decision_request naming the file and why.",
+      "A fix would require weakening, deleting or #[ignore]-ing an existing assertion, re-pinning a predecessor constant, or running a protected flow as root - STOP.",
+      "attempt_budget exhausted for any check - STOP with the written diagnosis, status BLOCKED.",
+      "Any operator_decision_request listed in this MT is reached - record it, skip that item, continue the other items.",
+      "A tool would open a foreground window, installer, prompt or steal focus - do not run it.",
+      "MT-153 is not yet committed (lifecycle not READY_FOR_VALIDATION/PASS) - STOP; schema pins would collide.",
+      "Making AC-154-8 pass seems to require editing a PRE_* predecessor pin - STOP (laundering).",
+      "D-154-1, D-154-2 or D-154-3 is needed to finish an item - record it, finish the non-gated part (AC-154-2 deny-by-default always applies), continue."
+    ],
+    "artifact_isolation": {
+      "artifact_root": "<Handshake Worktrees>/Handshake_Artifacts (verified to exist on 2026-09-23; the launcher passes the absolute path; resolve from the wt-gov-kernel checkout, never from a working directory - Codex CX-984-001/012/013)",
+      "owner_dir": "<artifact_root>/WP-KERNEL-012/MT-154/<OWNER_SLUG>/  (OWNER_SLUG is assigned by the launcher, e.g. kb-c4; per Operator 2026-09-23 the WP folder is WP-KERNEL-012, matching MT-109's kb-c2/kb-c3 lanes)",
+      "env": {
+        "CARGO_TARGET_DIR": "<owner_dir>/target",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+        "TMP": "<owner_dir>/tmp",
+        "TEMP": "<owner_dir>/tmp",
+        "TMPDIR": "<owner_dir>/tmp",
+        "HANDSHAKE_ARTIFACTS_ROOT": "<artifact_root>",
+        "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "<owner_dir>/runtime",
+        "HANDSHAKE_WORKSPACE_ROOT": "<owner_dir>/workspace/run-<NN>"
+      },
+      "native_test_env_additions": {
+        "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<artifact_root>/handshake-test",
+        "HSK_TEST_BACKEND_TARGET_ROOT": "<owner_dir>/backend-target",
+        "HSK_TEST_BACKEND_BIN": "<owner_dir>/backend-target/debug/handshake_core.exe",
+        "HANDSHAKE_TEST_STAGE_BINDING_ROOT": "<owner_dir>/runtime/binding-<NN>",
+        "HSK_TEST_BASE": "(unset)"
+      },
+      "disk": "All of the above are on D: (the Handshake Worktrees disk). An Operator grant (2026-09-22, recorded in MT-008/MT-023) also allows CARGO_TARGET_DIR=C:/.target/WP-KERNEL-012/target; the Coder never chooses between them - the launcher supplies CARGO_TARGET_DIR (CODER-PROOF-002). If the launcher did not supply every variable above, that is a blocker.",
+      "one_build_per_disk": "Before every cargo invocation verify no cargo.exe / rustc.exe / clippy-driver.exe is running (`tasklist | grep -Ei '^(cargo|rustc|clippy-driver)\\.exe'`); if one is, wait for it or report BLOCKED - never stop it (Codex CX-984-002, CX-SAFE-001). MT-109 C3 (KERNEL_BUILDER-C3) builds on D: under WP-KERNEL-012/MT-109/kb-c3.",
+      "flags": "--locked on every cargo command; -j 12 is the lane default.",
+      "reference_runner": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/run.sh and run_test.sh (read-only reference for the env and timeout wrapper; copy the pattern into your own owner dir, never write into kb-c3)."
+    },
+    "git_rules": [
+      "Work only in the product worktree `<Handshake Worktrees>/wtc-native-editors-v1` on branch `feat/WP-KERNEL-012`; verify with `git rev-parse --abbrev-ref HEAD` before the first edit.",
+      "Commit messages: fix(MT-NNN): / test(MT-NNN): / style(MT-NNN): (CODER-CERT-002). Never commit .GOV/ files. No stash, checkout, restore, reset, rebase, branch or worktree creation (CODER-GIT-001). Pushing is not part of this MT; the Integration Validator integrates."
+    ]
+  },
+  "scope": {
+    "summary": "Non-Loom half of the authority migration: every IN_WP non-Loom route the matrix marks ROOT-WRITE/ROOT-READ/GAP that C2 did not fix and MT-155/156/157 do not own; plus the create-note drain regression, root-written receipts, predecessor-checksum tests and workspace-delete residue.",
+    "route_count": 31,
+    "routes": [
+      {
+        "route": "DELETE /workspaces/:id",
+        "matrix_mark": "GAP",
+        "handler_fn": "delete_workspace",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/workspaces.rs:741",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/workspaces.rs:741",
+        "session_today": "MIXED: SurrealDB transaction is record-user (storage/surreal/workspaces.rs:449); FR purge + audit go to DuckDB unscoped (:762-791)",
+        "tables_ops": "nonces U; loom_* D; workspaces D; perms-off cascades",
+        "schema_verdict_for_owner": "guard false for Loom-block entities (S:6653, diagnosis a), and for any row in calendar_*, stage_capture_artifacts, debug_breakpoints, quick_switcher_recents, canvases, documents, loom_ai_suggestions, loom_folders… (S:6461-6497); atelier projection is self-blocking + REJECT",
+        "matrix_fix": "Also `lines().skip(2)` (:444) drops the fems_workspace_write_anchors race guard; ledger rows stay behind",
+        "mt154_residual": "C2 fixed the Loom-entity, visual-edge and Atelier-projection blockers. Remaining here: (a) fn::mt120_workspace_delete still returns false while rows exist in calendar_sources/calendar_events/calendar_activity_spans, stage_capture_artifacts, canvases/canvas_nodes/canvas_edges, documents (S:6461-6497 @2f49f2a6) - make the owner's delete remove them (Loom tables are MT-153; debug breakpoints are MT-157); (b) storage/surreal/workspaces.rs:479 @ab618f46 `WORKSPACE_DELETE_BODY.lines().skip(2)` drops the fems_workspace_write_anchors race guard - keep the guard statement; (c) the Flight Recorder purge + audit go to DuckDB unscoped (api/workspaces.rs:762-791 @2f49f2a6) - authorize first and purge only the deleted workspace's events; (d) kernel_event_ledger rows of the workspace stay behind - record as residual unless the Operator decides retention (they are the audit trail)."
+      },
+      {
+        "route": "POST/GET /workspaces/:ws/documents (legacy; api/workspaces.rs)",
+        "matrix_mark": "GAP",
+        "handler_fn": "create_document (api/workspaces.rs; not the knowledge_documents.rs fn of the same name) + its list handler",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/workspaces.rs:996 (create) and :1059 (list)",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/workspaces.rs:996",
+        "session_today": "RECORD-USER (middleware :115-119)",
+        "tables_ops": "documents C/S",
+        "schema_verdict_for_owner": "`documents` PERMISSIONS NONE (S:106)",
+        "matrix_fix": "Legacy route that cannot work: retire or redirect",
+        "mt154_residual": "Decision-gated: see operator_decision_requests D-154-1. The table `documents` is PERMISSIONS NONE (S:106) so the scoped route can never work for an owner."
+      },
+      {
+        "route": "POST/GET /ws/:ws/canvases; GET/PATCH/PUT/DELETE /canvases/:id",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "create_canvas",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/canvases.rs:285",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/canvases.rs:285",
+        "session_today": "ROOT; header WriteContext (:177)",
+        "tables_ops": "canvases, canvas_nodes, canvas_edges CRUD",
+        "schema_verdict_for_owner": "NONE (S:143-189)",
+        "matrix_fix": "Unauthenticated; any row blocks workspace delete"
+      },
+      {
+        "route": "GET /flight_recorder, /events",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_events",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/flight_recorder.rs:1627",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/flight_recorder.rs:1627",
+        "session_today": "scoped (:465-473) but reads go to DuckDB (:1677)",
+        "tables_ops": "FR S",
+        "schema_verdict_for_owner": "none",
+        "matrix_fix": "Serve from kernel_event_ledger or record a spec exception"
+      },
+      {
+        "route": "POST …/flight_recorder/runtime_chat_event",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "record_runtime_chat_event",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/flight_recorder.rs:543",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/flight_recorder.rs:543",
+        "session_today": "workspaces S record-user; write goes to DuckDB",
+        "tables_ops": "DuckDB C",
+        "schema_verdict_for_owner": "no runtime_chat branch in mt109_ledger_receipt (S:6071)",
+        "matrix_fix": "Add the receipt predicate and mirror the event"
+      },
+      {
+        "route": "PUT /ws/:ws/calendar/sources/:id",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "upsert_calendar_source",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/calendar.rs:233",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/calendar.rs:233",
+        "session_today": "ROOT; header ctx (:126)",
+        "tables_ops": "calendar_sources S/U; calendar_mutation_outbox C; ledger C",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": "Blocks workspace delete"
+      },
+      {
+        "route": "GET /ws/:ws/calendar/events",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_calendar_events",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/calendar.rs:363",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/calendar.rs:363",
+        "session_today": "ROOT",
+        "tables_ops": "calendar_events S; loom_blocks S (calendar_activity.rs:224)",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": "Reads other accounts' blocks"
+      },
+      {
+        "route": "GET/POST /ws/:ws/calendar/activity-spans",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "list_activity_spans / create_activity_span",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/calendar.rs:480",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/calendar.rs:475 (list_activity_spans) and :507-ish (create_activity_span; locate by name)",
+        "session_today": "ROOT",
+        "tables_ops": "calendar_activity_spans S/UPSERT",
+        "schema_verdict_for_owner": "NONE (S:5006)",
+        "matrix_fix": "Blocks workspace delete"
+      },
+      {
+        "route": "POST /ws/:ws/stage/artifacts",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "create_stage_artifact",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/stage.rs:1101",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/stage.rs:1101",
+        "session_today": "ROOT (capture_request_context authenticates only, :536; store unscoped :1263)",
+        "tables_ops": "stage_capture_artifacts C; ledger C; DuckDB C",
+        "schema_verdict_for_owner": "NONE (S:5020)",
+        "matrix_fix": "Cross-account write that makes the workspace undeletable"
+      },
+      {
+        "route": "GET …/stage/artifacts/:id, /content",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "get_stage_artifact",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/stage.rs:1306",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/stage.rs:1306",
+        "session_today": "ROOT",
+        "tables_ops": "stage_capture_artifacts S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /atelier/{overview, intake/batches, intake/batches/:id/items, filesystem-health/checks/:id/findings, command-corpus, ai-tag-suggestions/characters/:id}",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "overview",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/atelier.rs:300",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/atelier.rs:300",
+        "session_today": "ROOT, no authentication",
+        "tables_ops": "atelier_* S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST /atelier/intake/batches, /atelier/ai-tag-suggestions",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "create_intake_batch",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/atelier.rs:414",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/atelier.rs:414",
+        "session_today": "ROOT, no authentication",
+        "tables_ops": "atelier C",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST /atelier/{items, filesystem-health, deletion/*, image-import/*, ai-tag-suggestions/:id/accept,reject,apply}",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "run_filesystem_health_check",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/atelier.rs:470",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/atelier.rs:470",
+        "session_today": "ROOT (request_actor authenticates only, :205)",
+        "tables_ops": "atelier_* C/U/D",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "PUT /atelier/intake/items/:id/loom-projection",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "link_intake_item_loom_projection",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/atelier.rs:869",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/atelier.rs:869",
+        "session_today": "ROOT",
+        "tables_ops": "loom_blocks S (any account); atelier_intake_item_loom_projection C",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": "Any account can make another account's workspace permanently undeletable"
+      },
+      {
+        "route": "GET /atelier/stealth/windows, …/refs/:ref_id",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_stealth_windows",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/atelier.rs:1140",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/atelier.rs:1140",
+        "session_today": "ROOT; owner check in Rust only",
+        "tables_ops": "atelier_stealth_* S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /ws/:ws/preferences, /:id, /:id/history",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_preferences",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/preferences.rs:110",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/preferences.rs:110",
+        "session_today": "ROOT",
+        "tables_ops": "preference_records, receipts S",
+        "schema_verdict_for_owner": "NONE (S:5268/5287)",
+        "matrix_fix": null
+      },
+      {
+        "route": "PUT /…/preferences/:id, POST /…/reset",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "set_preference",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/preferences.rs:150",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/preferences.rs:150",
+        "session_today": "ROOT; actor from header (:64)",
+        "tables_ops": "records U; receipts C; ledger C",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /ws/:ws/locus/{work-packets, microtasks}/:id",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "resolve_work_packet",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/locus.rs:96",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/locus.rs:96",
+        "session_today": "ROOT",
+        "tables_ops": "work_packets, micro_tasks S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /kernel/trace_projection",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "inspect_trace_projection",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/kernel.rs:181",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/kernel.rs:181",
+        "session_today": "ROOT",
+        "tables_ops": "ledger S",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST /knowledge/crdt/updates/push",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "push_update",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/knowledge_crdt.rs:141",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/knowledge_crdt.rs:141",
+        "session_today": "ROOT; actor from envelope",
+        "tables_ops": "kernel_crdt_updates C, ledger C, denial_receipts C",
+        "schema_verdict_for_owner": "NONE (S:923, S:3757)",
+        "matrix_fix": "authz RichDocument update + scope + perms + receipt"
+      },
+      {
+        "route": "GET /knowledge/crdt/updates/pull",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "pull_updates",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/knowledge_crdt.rs:273",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/knowledge_crdt.rs:273",
+        "session_today": "ROOT",
+        "tables_ops": "crdt_updates S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /knowledge/crdt/conflict_state",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "conflict_state",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/knowledge_crdt.rs:322",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/knowledge_crdt.rs:322",
+        "session_today": "ROOT",
+        "tables_ops": "crdt_updates, denial_receipts S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST /knowledge/ingestion/roots",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "register_root",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:305",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:305",
+        "session_today": "ROOT",
+        "tables_ops": "source_roots C, policy_decisions C, ledger C",
+        "schema_verdict_for_owner": "roots without created_in_session_id can never be seen by record users (S:3319)",
+        "matrix_fix": "Copy the code_nav_index.rs:267-278 pattern"
+      },
+      {
+        "route": "GET /knowledge/ingestion/roots",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_roots",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:353",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:353",
+        "session_today": "ROOT",
+        "tables_ops": "source_roots S",
+        "schema_verdict_for_owner": "",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET …/roots/:root_id/sources",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_sources",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:366",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:366",
+        "session_today": "ROOT",
+        "tables_ops": "knowledge_sources S",
+        "schema_verdict_for_owner": "",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST /knowledge/ingestion/runs",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "trigger_run",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:393",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:393",
+        "session_today": "ROOT",
+        "tables_ops": "sources, spans, receipts, index_runs, repair_queue, ledger C",
+        "schema_verdict_for_owner": "",
+        "matrix_fix": "reads a caller-supplied fs_anchor as root"
+      },
+      {
+        "route": "GET …/sources/:id/receipts",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_receipts",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:424",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:424",
+        "session_today": "ROOT",
+        "tables_ops": "ingestion_receipts S",
+        "schema_verdict_for_owner": "",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /knowledge/ingestion/repairs",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_repairs",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:451",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:451",
+        "session_today": "ROOT",
+        "tables_ops": "repair_queue S",
+        "schema_verdict_for_owner": "",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST …/repairs/:id/retry",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "retry_repair",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:479",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/knowledge_ingestion.rs:479",
+        "session_today": "ROOT",
+        "tables_ops": "repair_queue U, sources, receipts, ledger C",
+        "schema_verdict_for_owner": "",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /knowledge/memory/claims/:id, /conflicts, /facts/:id, /entities/:id/neighborhood, /visual-debug",
+        "matrix_mark": "ROOT-WRITE (x5)",
+        "handler_fn": "get_claim_with_evidence",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/knowledge_memory.rs:238",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/knowledge_memory.rs:238",
+        "session_today": "ROOT; header actor",
+        "tables_ops": "claims/spans/conflicts/facts/edges S; ledger C (:203)",
+        "schema_verdict_for_owner": "NONE (S:3489-3517, 4179)",
+        "matrix_fix": "Root ledger append with a client-declared actor"
+      },
+      {
+        "route": "GET /knowledge/retrieval/bundles/:id, /export, /staleness; POST /repair; GET /catalog",
+        "matrix_mark": "ROOT-WRITE (x5)",
+        "handler_fn": "explain_bundle",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/knowledge_retrieval.rs:237",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/knowledge_retrieval.rs:237",
+        "session_today": "ROOT",
+        "tables_ops": "bundles/items/traces/catalog S or C; ledger C (:215)",
+        "schema_verdict_for_owner": "NONE (S:3685-3718, 4259)",
+        "matrix_fix": null
+      }
+    ],
+    "excluded_already_fixed_by_c2": [
+      "GET/POST /ws/:ws/memory/* (4 GAP rows): memory resources + owner grants provisioned (MT-109 remediation_v24 item 6).",
+      "POST /knowledge/documents, /import, PUT save, POST backlinks, POST rename (5 GAP rows): backlink predicates + knowledge_sources rich_document kind (item 7). Regression-checked by MT-154-KNOWLEDGE-DOCS.",
+      "GET /kernel/events/aggregates/:type/:id, POST /debug/sessions, /source-control/* (item 8).",
+      "DELETE /workspaces/:id Loom-entity/visual-edge/Atelier-projection blockers (item 1)."
+    ],
+    "excluded_owned_elsewhere": [
+      "Loom routes -> MT-153",
+      "POST /kernel/product_screenshot_capture/execute -> MT-155",
+      "/api/bundles/debug/* -> MT-156",
+      "GET/PUT /debug/documents/:id/breakpoints -> MT-157"
+    ],
+    "residual_items": [
+      {
+        "id": "R-154-A",
+        "title": "native create-note drain (AC-154-7)",
+        "evidence": "MT-109 remediation_v24 items.5_apphost_create_note_drain + attempt_diagnoses.C1V-APPHOST-CREATE-NOTE-DRAIN (logs kb-c2/12-rep-apphost-drain.log, 15-probe-apphost-drain.log). Attempts already spent on this failure: kb-c1 run 92, kb-c2 runs 12 and 15 (probe). Per CX-EXEC-003A the count carries over: the NEXT run must be the confirm run of a fix derived from the recorded hypothesis; before any other run, write a new diagnosis."
+      },
+      {
+        "id": "R-154-B",
+        "title": "receipts written without an account session (AC-154-5)",
+        "evidence": "C2 risk (remediation_v24 items.8_SECURITY_routes.risk): native proofs that read root-written aggregates (e.g. preference_record) see only receipts readable by the account until those writers are scoped. Writers: storage/surreal/preferences.rs (ledger append ~:216-330 @ab618f46, header actor), state_store.rs build_event (:173) callers in scope, kernel_queue_store.rs build_event (:489) callers in scope."
+      },
+      {
+        "id": "R-154-C",
+        "title": "revision-158/159 predecessor checksum tests (AC-154-8)",
+        "evidence": "kb-c2/logs/03-core-lib-measure.log: revision-158 left 5462196396454dfcc90ec1fda74ca2b335e6aab082b6ed9b708e54a8d75eda82 vs pin 6dc618075e25af5ae13d61b7914ab07799c5142e9db479cc86016c864de59899; revision-159 left 6baf36fe8e047f74696f3ee49b3adf1ca5cfa4eb0f1f3ee1c539c8c11d3f72f2 vs pin d7cf6adbe590a6807a7ee495cd320add2dada1588d02c7bb90d91c6022abe178. Schema commits after the pin: `git log --oneline 456dc63a..ab618f46 -- src/backend/handshake_core/src/storage/surreal/schema.surql` = ec34c88e, 01df5ebf, 64ca7c82, c792b8a2, edb54c0e."
+      },
+      {
+        "id": "R-154-D",
+        "title": "workspace delete residue (AC-154-6)",
+        "evidence": "scope.routes[0].mt154_residual"
+      }
+    ],
+    "allowed_paths": [],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "AC-154-1..AC-154-9"
+    ],
+    "proof_targets": [
+      "PT-154-1 non-Loom route matrix test",
+      "PT-154-2 preference receipt visibility",
+      "PT-154-3 workspace delete with calendar/stage/canvas rows",
+      "PT-154-4 revision 158/159 tests green with unchanged predecessor pins",
+      "PT-154-5 native create-note drain green"
+    ]
+  },
+  "operator_decision_requests_prefiled": [
+    {
+      "id": "D-154-1",
+      "question": "Legacy POST/GET /workspaces/:ws/documents (api/workspaces.rs:996/:1059 @2f49f2a6) cannot work for an owner (`documents` is PERMISSIONS NONE). Retire the route, redirect it to /knowledge/documents, or give `documents` owner predicates?",
+      "default_until_decided": "Leave the handler in place; it already denies (constant 403 via middleware). Do not delete it.",
+      "blocks": "only this row"
+    },
+    {
+      "id": "D-154-2",
+      "question": "GET /flight_recorder and /events read DuckDB (api/flight_recorder.rs:1677 @2f49f2a6), which no SurrealDB permission governs. Serve these reads from kernel_event_ledger under record-user scope, or record a spec exception for DuckDB Flight Recorder reads filtered by an authorized workspace (fr.read)?",
+      "default_until_decided": "Keep the existing session + workspace fr.read authorization (api/flight_recorder.rs:465-473) and add a test that another account's events are never returned; record the DuckDB residual.",
+      "blocks": "full closure of the FR read row and the runtime_chat mirror"
+    },
+    {
+      "id": "D-154-3",
+      "question": "Ownership model for account-global tables with no workspace/owner column (atelier_* ~60 tables, work_packets, micro_tasks, preference_records scope_kind global/surface, atelier_stealth_*): stamp owner_account_id/access_space_id from $auth at create and filter by it, bind them to a workspace, or treat them as single-account local data?",
+      "default_until_decided": "AC-154-2 (authenticated session required) only; list the tables under residual_risks.",
+      "blocks": "per-row account isolation for those tables"
+    }
+  ],
+  "implementation_steps": [
+    {
+      "n": 1,
+      "step": "Verify precondition: MT-153 committed, worktree clean, branch feat/WP-KERNEL-012. Record base commit."
+    },
+    {
+      "n": 2,
+      "step": "AC-154-2 first (cheap, unconditional): add `route_layer(axum::middleware::from_fn_with_state(state.clone(), crate::api::authority::require_authenticated_session))` to each router in scope that lacks authentication (pattern: api/debug_adapter.rs:183-186, api/source_control.rs:~118-121 @ab618f46). Where a handler already reads identity headers only (e.g. calendar write_context_from_headers api/calendar.rs:126, preferences actor header api/preferences.rs:64, canvases header WriteContext api/canvases.rs:177, stage capture_request_context api/stage.rs:536), replace the header actor with the authenticated session's actor."
+    },
+    {
+      "n": 3,
+      "step": "AC-154-3: for each workspace-scoped route call authorize_request(state, headers, cap, ResourceKind::Workspace, workspace_id, action) and wrap the storage calls in with_record_user_scope. Add the schema predicates for each table (schema.surql). Check every record-user write's returned row (F3)."
+    },
+    {
+      "n": 4,
+      "step": "AC-154-5: add receipt predicate branches for each receipt kind written by these routes (search schema.surql for fn::mt109_ledger_receipt and the fn::mt120_*_receipt family; add e.g. a preference_record_changed branch requiring workspace update+fs.write and $session = $auth.id; add a runtime_chat branch for POST /flight_recorder/runtime_chat_event as the matrix notes S:6071). Make the stores build receipts with the session actor."
+    },
+    {
+      "n": 5,
+      "step": "AC-154-6: extend fn::mt120_workspace_delete so the owner's delete removes (or is permitted to cascade) calendar, stage and canvas rows (mirror the C2 change for Loom entities, first tuple of MT109_C2_SCHEMA_DELTAS schema.rs:1991); keep the fems_workspace_write_anchors statement that `.lines().skip(2)` (storage/surreal/workspaces.rs:479 @ab618f46) currently drops - slice by an explicit marker instead of a line count; move the FR purge after authorization."
+    },
+    {
+      "n": 6,
+      "step": "AC-154-4: atelier/locus/global preferences - apply AC-154-2 now; fix the loom-projection link authorization (atelier/intake.rs:1362 @2f49f2a6); record D-154-3."
+    },
+    {
+      "n": 7,
+      "step": "AC-154-8: `git show 456dc63a:src/backend/handshake_core/src/storage/surreal/schema.surql` and diff it against the current file; for each hunk from edb54c0e, c792b8a2, 64ca7c82, 01df5ebf that is not already a revertible delta, add a (current, predecessor) delta pair (same array style as MT109_C2_SCHEMA_DELTAS) and make pre_canvas_receipt_schema() (schema.rs:2027) and the revision-159 reconstruction apply ALL later deltas' reverts before stripping their own branch. Prove with a node/rust one-off that the reconstruction's sha256 equals the historical pin before running cargo (C2's strip_check.js at ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/scripts/strip_check.js is the model; copy it into your owner dir)."
+    },
+    {
+      "n": 8,
+      "step": "AC-154-7: follow the recorded next_step: instrument the id returned by show_on in the code panel render (panel.rs, the context-menu call feeding the B::CreateNoteFromLink arm at :9206) and compare with the passing component proof's click sequence (tests/test_editor_body_context_menu.rs). The C2 hypothesis: the AccessKit click in the app-host frame sequence is consumed before egui::Popup::context_menu reports the item click (context_menu.rs:236-243), e.g. because the popup closes on the same frame or the local-account TopBottomPanel added by 1236078e (local_account.rs:367ff, app.rs:36027-36061 @2f49f2a6) shifts focus/ids. Fix in product code (not by changing the test's expectations)."
+    },
+    {
+      "n": 9,
+      "step": "Tests: add tests/mt154_non_loom_route_authority_tests.rs (integration, account_session_support) with one test per family: mt154_calendar_routes_authority, mt154_stage_routes_authority, mt154_canvases_routes_authority, mt154_preferences_routes_authority_and_receipt_visibility, mt154_locus_routes_require_session, mt154_atelier_routes_require_session, mt154_knowledge_crdt_ingestion_memory_retrieval_authority, mt154_trace_projection_requires_session, mt154_flight_recorder_runtime_chat_receipt_is_session_attributed; and an in-crate test api::workspaces::tests::mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows. Each asserts owner/anonymous/cross-account(/viewer) with canonical re-reads."
+    },
+    {
+      "n": 10,
+      "step": "Schema re-pin once (schema_repin_procedure), then run proof checks in order; update the user manual; report."
+    }
+  ],
+  "engine_facts": [
+    "SurrealDB is pinned =3.2.0 (src/backend/handshake_core/Cargo.toml). Facts verified in surrealdb-core-3.2.0 source by the authority matrix:",
+    "F1 Table and field permissions are OFF inside a PERMISSIONS predicate (dbs/options.rs:201 new_for_permission_predicate; doc/check.rs:457-470; exec/permission.rs:87-99). Predicates and the fn::* functions they call see every row and field, including fields that are FOR select NONE.",
+    "F2 A top-level query issued on a record-user connection DOES enforce field permissions. Never probe a predicate by running `RETURN fn::...` directly as the record user; it reads permission-hidden fields as NONE and lies. Probe inside a predicate instead (e.g. a probe table whose PERMISSIONS FOR select calls the function).",
+    "F3 A denied CREATE, UPDATE or DELETE is SILENTLY IGNORED: no row returned, no error (doc/check.rs:457,469 IgnoreError::Ignore). Every record-user write MUST check the returned row (or a follow-up SELECT) and map an empty result to the constant denial; the failure otherwise surfaces later as a field ASSERT 500, an empty 404, or a guard THROW 403.",
+    "F4 REFERENCE ON DELETE CASCADE/UNSET and DEFINE EVENT bodies run with permissions OFF (doc/purge.rs:376,385; doc/event.rs:52,80). Cascades are never blocked by the caller's delete permission, and cascade targets need no delete predicate for the cascade itself.",
+    "F5 Session selection: `SurrealStorage::with_record_user_scope(scope, fut)` (src/backend/handshake_core/src/storage/surreal.rs:956 @ab618f46) sets a tokio task-local; `with_data_operation` then signs a cloned client in as the record user. Anything outside that scope, INCLUDING work moved into `tokio::spawn`, runs as root. Re-enter the scope inside every spawned future that touches protected tables."
+  ],
+  "authority_toolkit": [
+    "Rust authorization entry points (all @ab618f46, src/backend/handshake_core/src/): `api::authority::authorize_request(state, headers, capability_id, ResourceKind, external_resource_id, ResourceAction)` (api/authority.rs:1216) returns an AuthorizedResourceContext whose `.record_user_scope` MUST then wrap the storage call via `state.surreal.with_record_user_scope(ctx.record_user_scope, fut)`. A route that calls authorize_request but writes outside that scope is still ROOT-WRITE.",
+    "`api::authority::require_authenticated_session` (api/authority.rs:1013) is the axum route_layer middleware C2 used for process-starting routes with no protected-resource row (see api/debug_adapter.rs:183-186 route_layer). `authenticated_session_credentials` (api/authority.rs:1031) returns the LocalSessionContext + token + channel binding hash. Missing/invalid credentials map to `constant_denial()` = 403 {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}.",
+    "ResourceKind (storage/surreal/resource_authority.rs:43): Workspace, RichDocument, KnowledgeSource, KnowledgeCodeFile, LoomBlock, FlightRecorder, MemoryPack, MemoryProposal, MemoryCommitReport, MemoryItem, MemoryItemCount, ReconciliationQueue.",
+    "Owner creator grants (fn::mt120_creator_grant, provisioned by POST /workspaces): workspace resource actions create/read/update/delete x capabilities fs.read, fs.write, fr.read, fr.ingest.runtime_chat, fr.ingest.native_editor, memory.read, memory.propose (+ memory.review/memory.commit since C2 ec34c88e); rich_document and loom_block resources CRUD x fs.read/fs.write; knowledge_source/code_file CRUD x memory.read/memory.propose/fs.write. Resources are account-private.",
+    "Schema predicate helpers in src/backend/handshake_core/src/storage/surreal/schema.surql: fn::mt109_live_session, fn::mt109_has_grant(kind, external, action, cap), fn::mt109_has_workspace_access(ws, action, cap), fn::mt120_document_access(doc, ws, action, cap), fn::mt120_loom_block_access(block, ws, action, cap), fn::mt120_resource_create, fn::mt120_creator_grant, fn::mt120_workspace_delete(ws), fn::mt120_document_delete, and the kernel_event_ledger receipt predicates fn::mt109_ledger_receipt / fn::mt120_*_receipt. Every record-user write that appends a kernel_event_ledger receipt needs a receipt predicate branch that accepts it; the receipt actor MUST be the session principal (`$session = $auth.id`), never a System actor.",
+    "Test helpers: integration tests use src/backend/handshake_core/tests/account_session_support/mod.rs (`mod account_session_support;` then `AccountFixture::install(&storage)`, `OwnerSession::provision(&storage, token)`, `.headers()`, `.apply(req)`, `.client()`, `.create_workspace(&state)`; hold NATIVE_BINDING_ENV_LOCK when installing a binding). A second account = a second `OwnerSession::provision` against the same installed binding token. In-crate lib tests (behind cfg(all(test, feature = \"duckdb-flight-recorder\"))) use api::workspaces::tests::{WorkspaceBindingFixture (api/workspaces.rs:1626), workspace_test_principal (:1663), create_owned_test_workspace (:1714)}; the reference example is `mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default` (api/workspaces.rs:2766). A viewer/second principal in the SAME account with a read-only grant is expressed with `SurrealStorage::grant_resource(account_id, access_space_id, ResourceGrantSpec{..actions: [read], capability_ids: [fs.read]..})` (storage/surreal/resource_authority.rs:1022); see resource_authority_tests.rs:185/227 for usage.",
+    "AppState construction for integration tests: copy `test_app_state_embedded` (tests/atelier_stealth_window_tests.rs:265) but DO NOT copy its `Option` + `else { return Ok(()) }` early return: a test that cannot build its store MUST fail (panic/expect), never return Ok silently."
+  ],
+  "schema_repin_procedure": [
+    "Schema re-pin procedure (the one C2 used for MT-109 remediation_v24 and C3 is using now): (1) Batch every schema edit for this MT first. Edit `src/backend/handshake_core/src/storage/surreal/schema.surql` (the live schema for a fresh store). (2) For every changed statement add a (current_text, predecessor_text) pair to a delta array in `schema.rs` next to `MT109_C2_SCHEMA_DELTAS` (schema.rs:1991 @ab618f46) so predecessor reconstructions revert it and upgrades re-emit it from SCHEMA; the pair must be byte-exact (scripts in ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/scripts/strip_check.js show how C2 proved a revert is exact). (3) Build the lib once, then run ONE pin-measure run of the pin tests (check PIN-MEASURE). It is expected to fail and prints the new values: MT109_LOOM_CATALOG_SHA256=, MT109_CURRENT_AUTHORITY_INFO_SHA256=, MT109_PREDECESSOR_AUTHORITY_INFO_SHA256=, MT139_CURRENT_SCHEMA_INFO_SHA256=, EXPECTED_ATELIER_CATALOG_SHA256= and the `left:` values of the GENERATED/DECLARATIVE assertions. (4) Update the pins in schema.rs: GENERATED_SURREALQL_SHA256 (:2128), DECLARATIVE_SCHEMA_CATALOG_SHA256 (:2144), EXPECTED_SCHEMA_INFO_SHA256 (:2190), EXPECTED_ATELIER_CATALOG_SHA256 (:2201) and the MT109 Loom/authority catalog pins the tests name. (5) ONE confirm run (check PIN-CONFIRM). The pin-measure run is a measurement, not an attempt; the confirm run counts against attempt_budget. Re-measure once per batch, never once per edit.",
+    "NEVER re-pin a PREDECESSOR constant (PRE_*_GENERATED_SHA256 / PRE_*_INFO_SHA256 / PREDECESSOR_*) to a newly observed value: those record historical catalogs that real on-disk stores carry; re-pinning them would make the upgrade path accept a catalog no real store has (proof laundering)."
+  ],
+  "dependencies": {
+    "depends_on": [
+      "MT-153 (schema.surql, schema.rs pins and fn::mt120_workspace_delete overlap)"
+    ],
+    "blocks": [],
+    "ordering_rule": "Starts after MT-153 is committed; re-measures pins on top of MT-153's pins. MT-155 may run before or after (no schema overlap); MT-156/MT-157 re-measure on top of whichever schema MT committed last."
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-109.json remediation_v24"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-154-BUILD-LIB",
+        "claim_refs": [
+          "compile"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo test --locked -j 12 --no-run --lib --features app-runtime,surreal-test-support,test-utils",
+        "expected": "exit 0",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-154-PIN-MEASURE",
+        "claim_refs": [
+          "schema re-pin"
+        ],
+        "kind": "measurement_not_attempt",
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1500 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+        "expected": "May FAIL (exit 101). Its purpose is to print the new pin values (MT109_LOOM_CATALOG_SHA256=, MT109_CURRENT_AUTHORITY_INFO_SHA256=, MT139_CURRENT_SCHEMA_INFO_SHA256=, EXPECTED_ATELIER_CATALOG_SHA256=, assertion left: values). Copy them into schema.rs per implementation step 'schema re-pin'. Skip this check if this MT made no schema.surql change.",
+        "timeout_seconds": 1500,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log with the printed pin lines"
+        ]
+      },
+      {
+        "check_id": "MT-154-PIN-CONFIRM",
+        "claim_refs": [
+          "schema re-pin"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1500 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current storage::surreal::schema::tests::canvas_receipt_revision_158_upgrade_requires_exact_catalog_and_restarts_current storage::surreal::schema::tests::standalone_loom_revision_159_upgrade_requires_exact_catalog_and_restarts_current",
+        "expected": "stdout contains 'running 9 tests' and 'test result: ok. 9 passed; 0 failed' and process exit 0",
+        "timeout_seconds": 1500,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "exit code",
+          "result line"
+        ]
+      },
+      {
+        "check_id": "MT-154-PREDECESSOR-PINS-UNCHANGED",
+        "claim_refs": [
+          "AC-154-8"
+        ],
+        "command_or_method": "cd <worktree> && git diff <base>..HEAD -- src/backend/handshake_core/src/storage/surreal/schema.rs | grep -E '^[-+].*(PRE_[A-Z_]*_SHA256|PREDECESSOR_[A-Z_]*_SHA256)' ; test $? -eq 1",
+        "expected": "no output, exit 0 (grep found nothing: no predecessor pin line changed)",
+        "timeout_seconds": 60,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "exit code"
+        ]
+      },
+      {
+        "check_id": "MT-154-ROUTES",
+        "claim_refs": [
+          "AC-154-2",
+          "AC-154-3",
+          "AC-154-4",
+          "AC-154-5",
+          "AC-154-9"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 2400 cargo test --locked -j 12 --test mt154_non_loom_route_authority_tests --features app-runtime,surreal-test-support,test-utils -- --test-threads=1",
+        "expected": "'running 9 tests' (one per family listed in step 9) and 'test result: ok. 9 passed; 0 failed'",
+        "timeout_seconds": 2400,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-154-WORKSPACE-DELETE",
+        "claim_refs": [
+          "AC-154-6"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1800 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 api::workspaces::tests::mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit api::workspaces::tests::mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default",
+        "expected": "stdout contains 'running 3 tests' and 'test result: ok. 3 passed; 0 failed' and process exit 0",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-154-EXISTING-TARGETS",
+        "claim_refs": [
+          "no regression"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && for t in knowledge_crdt_bridge_api_tests knowledge_ingestion_api_tests knowledge_memory_api_tests knowledge_retrieval_debug_api_tests atelier_stealth_window_tests atelier_loom_projection_api_tests calendar_storage_tests; do timeout 1800 cargo test --locked -j 12 --test $t --features app-runtime,surreal-test-support,test-utils -- --test-threads=1 || exit 1; done",
+        "expected": "each target nonzero executed count, 'test result: ok.', 0 failed; loop exit 0",
+        "timeout_seconds": 10800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log per target"
+        ]
+      },
+      {
+        "check_id": "MT-154-KNOWLEDGE-DOCS",
+        "claim_refs": [
+          "C2 item 7 regression"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 2400 cargo test --locked -j 12 --test knowledge_documents_api_tests --features app-runtime,surreal-test-support,test-utils -- --test-threads=1",
+        "expected": "nonzero executed count, 'test result: ok.', 0 failed",
+        "timeout_seconds": 2400,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-154-NATIVE-DRAIN",
+        "claim_refs": [
+          "AC-154-7"
+        ],
+        "command_or_method": "(1) backend bin build as in MT-153-NATIVE-LOOM step 1; (2) cd <worktree>/src/frontend/handshake_native && timeout 1800 cargo test --locked -j 12 --features integration,integration_tests --test test_app_host_mount --test test_context_menu --test test_editor_body_context_menu -- --test-threads=1",
+        "expected": "test_app_host_mount: code_pane_create_note_from_link_routes_through_host_drain ok; all three binaries nonzero executed count, 'test result: ok.', 0 failed",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "logs",
+          "native_test_env_additions set"
+        ]
+      },
+      {
+        "check_id": "MT-154-CHECK-TESTS",
+        "claim_refs": [
+          "all changed test targets compile"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo check --locked -j 12 --tests --features app-runtime,surreal-test-support,test-utils",
+        "expected": "exit 0 ('Finished' line, no 'error[')",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "exit code"
+        ]
+      },
+      {
+        "check_id": "MT-154-CLIPPY-CHANGED",
+        "claim_refs": [
+          "no new clippy findings on changed lines"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo clippy --locked --keep-going -j 12 -p handshake_core --all-targets --features app-runtime,surreal-test-support,test-utils --message-format=short -- -D warnings",
+        "expected": "Exit 101 is tolerated ONLY because 395 pre-existing diagnostics exist (MT-109 kb-c2 log 31-core-clippy.log). Required: zero diagnostics whose file:line falls on a line changed by this MT (compare against `git diff -U0 <base>..HEAD`). Record the count of findings on changed lines (must be 0).",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "changed-line finding count = 0"
+        ]
+      },
+      {
+        "check_id": "MT-154-FMT",
+        "claim_refs": [
+          "formatting"
+        ],
+        "command_or_method": "cd <worktree> && rustfmt --edition 2021 --check <each changed .rs file>",
+        "expected": "exit 0, no diff output",
+        "timeout_seconds": 300,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "exit code"
+        ]
+      },
+      {
+        "check_id": "MT-154-DIFF-CHECK",
+        "claim_refs": [
+          "whitespace hygiene"
+        ],
+        "command_or_method": "cd <worktree> && git diff --check <base>..HEAD",
+        "expected": "no output, exit 0",
+        "timeout_seconds": 120,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "exit code"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true
+  },
+  "owned_files": [
+    "src/backend/handshake_core/src/api/calendar.rs",
+    "src/backend/handshake_core/src/api/stage.rs",
+    "src/backend/handshake_core/src/api/canvases.rs",
+    "src/backend/handshake_core/src/api/preferences.rs",
+    "src/backend/handshake_core/src/api/locus.rs",
+    "src/backend/handshake_core/src/api/atelier.rs",
+    "src/backend/handshake_core/src/storage/surreal/preferences.rs",
+    "src/frontend/handshake_native/src/code_editor/panel.rs",
+    "src/frontend/handshake_native/src/context_menu.rs"
+  ],
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [
+      "code editor context menu 'Create note from link' in the app host"
+    ],
+    "expected_evidence": [
+      "tests/test_app_host_mount.rs live proof (AccessKit click path)"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Calendar, Stage, Canvas, Preferences, Locus, Atelier and knowledge ingestion/CRDT/memory/retrieval: account session required; which grants apply",
+      "Workspace delete: what an owner's delete removes (now incl. calendar, stage, canvas rows)"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test (existing LIB user_manual tests green)"
+    ],
+    "location": "src/backend/handshake_core/src/user_manual/ (seed.rs holds the manual pages; follow the MT-152 pattern: a section per behaviour, pinned to code by a test where MT-152 did so)",
+    "reason": "Shipped behaviour changes for many routes."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "canvases",
+      "canvas_nodes",
+      "canvas_edges",
+      "calendar_sources",
+      "calendar_events",
+      "calendar_activity_spans",
+      "calendar_mutation_outbox",
+      "stage_capture_artifacts",
+      "atelier_* (decision-gated)",
+      "preference_records",
+      "preference_receipts",
+      "work_packets",
+      "micro_tasks",
+      "kernel_crdt_updates",
+      "knowledge_source_roots",
+      "knowledge_sources",
+      "ingestion receipts/repair queue",
+      "knowledge memory/retrieval tables",
+      "kernel_event_ledger",
+      "DuckDB Flight Recorder (decision-gated)"
+    ],
+    "identity_and_scope_contexts": [
+      "owner",
+      "second account",
+      "same-account read-only principal",
+      "anonymous"
+    ],
+    "enforcement_boundaries": [
+      "require_authenticated_session",
+      "authorize_request",
+      "record-user PERMISSIONS"
+    ],
+    "cross_account_negative_cases": [
+      "every family in AC-154-9",
+      "calendar events must not surface another account's loom_blocks",
+      "loom-projection link cannot target another account's block"
+    ],
+    "metadata_side_channel_cases": [
+      "root ensure_workspace_exists-style existence checks replaced by authorize-then-read"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "HBR-INT-009: denial bodies stay constant; diagnostics posture unchanged.",
+    "STOP": "No predecessor pin edits; no assertion weakening; decision-gated items recorded, not guessed."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "ACCOUNT_SESSION_AUTHORITY_MIGRATION_V1",
+    "risks": [
+      "Header-supplied actors (x-hsk-*) let a caller forge receipt attribution.",
+      "Account-global tables have no ownership column; making them 'record-user' without an ownership model gives false isolation.",
+      "Re-pinning predecessor hashes would make a real upgrade path accept a catalog no store has.",
+      "The native drain fix could be 'solved' by changing the test's click sequence instead of the product input routing.",
+      "Workspace delete that removes rows via root cascades could delete another account's rows if workspace ids collide or are guessed."
+    ],
+    "minimum_controls": [
+      "Every positive proof runs as an authenticated record user (account session + channel binding). A root/admin session (with_admin_operation, test_admin_query*, SurrealStorage without with_record_user_scope) may only SEED preconditions that the product itself cannot create, and never counts as privacy/isolation proof (02:2773, LM-RLS-002).",
+      "Every changed route has: anonymous negative (no session headers), cross-account negative (a second OwnerSession cannot read or write the first account's rows, and the rows are unchanged afterwards), and where a write is involved, a read-only (viewer) negative when the grant model can express one.",
+      "Denied writes are proven by re-reading the canonical row after the call (F3: denied writes are silent). A 403 status alone is not proof that nothing was written.",
+      "Anti-scaffold: no new abstraction, trait, feature flag, config knob or helper that is not called by product code in this MT; no `#[ignore]`, no `return Ok(())` skip paths, no assertion weakened or deleted to go green; tests may not assert only on mocks/fixtures the Coder authored for a resource-boundary claim (CODER-PROOF-004, CODER-CODE-006).",
+      "No fixture-only proof: each acceptance item is proven against the real embedded SurrealDB store (fresh Handshake-managed RocksDB/SurrealKV directory under the owner runtime root), through the real axum router, with the real ResourceBroker.",
+      "Every test binary run must report a NONZERO executed count for the named tests (`running N tests` with N equal to the number of names passed with --exact); a `0 passed` result is a failure of the check, not a pass.",
+      "MT-154-PREDECESSOR-PINS-UNCHANGED must pass.",
+      "The drain fix changes product code under src/; the test file diff for test_app_host_mount.rs may only add diagnostics output, never relax an assertion.",
+      "Every header-actor path in the routes in scope is removed or ignored in favour of the session actor (list them in the handoff)."
+    ]
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "product_branch": "feat/WP-KERNEL-012",
+    "product_worktree": "<Handshake Worktrees>/wtc-native-editors-v1",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "next_actor": "ORCHESTRATOR (assign a coder session); after READY_FOR_VALIDATION -> INTEGRATION_VALIDATOR",
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "report_fields_required": [
+      "status",
+      "commits",
+      "changed_paths",
+      "commands_run (command, exit code, result line, log path)",
+      "attempt_diagnoses",
+      "blockers",
+      "operator_decision_requests",
+      "residual_risks"
+    ],
+    "attempt_diagnoses": {},
+    "operator_decision_requests": [],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "commit_policy": "The Coder commits product changes on feat/WP-KERNEL-012 (fix/test/style(MT-154) messages). The Integration Validator commits governance (this file) on gov_kernel; the Coder does not edit this file except the handoff report fields if the launcher routes the report here."
+  }
+}

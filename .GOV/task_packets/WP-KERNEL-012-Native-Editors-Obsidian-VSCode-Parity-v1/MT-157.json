@@ -1,0 +1,601 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-157",
+  "title": "B18-MT-157-Durable-Debugger-Breakpoints-Under-Account-Session",
+  "group": "B18",
+  "created_at_utc": "2026-09-23T09:49:34.269Z",
+  "updated_at_utc": null,
+  "identity": {
+    "mt_id": "MT-157",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "B18-MT-157-Durable-Debugger-Breakpoints-Under-Account-Session",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-157.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
+  },
+  "lifecycle": {
+    "status": "READY",
+    "depends_on": [
+      "MT-153"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "validated_by": null,
+    "validated_at_utc": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "created_by": "ORCHESTRATOR governance subagent (operator-directed MT authoring 2026-09-23)",
+    "created_at_utc": "2026-09-23T09:49:34.269Z",
+    "origin": "operator_scope_expansion_2026-09-23",
+    "creation_reason": "Operator decision 2026-09-23: 'no new WP, expand scope of this WP and create extra MTs, with enough detail that models with no context can execute them'.",
+    "audit_refs": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/authority-audit/authority_matrix.md (static read of feat/WP-KERNEL-012 at 2f49f2a6; 159 routes with file:line)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/authority-audit/authority_scope.md (IN_WP/OUT_OF_WP classification against base 97a22310)",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json remediation_v24 (KERNEL_BUILDER-C2 round 5: what is already fixed) and remediation_v25 (KERNEL_BUILDER-C3 round 6, in progress)"
+    ],
+    "audit_refs_note": "The two audit files live in an Operator session scratchpad and are not durable; every row this MT relies on is copied into scope.routes / implementation_steps, so the MT is executable without them.",
+    "mt136_relation": "MT-136 stays PASS (PASS_V6); this MT carries the durable-breakpoint residual the scope audit found (authority_scope.md row 'GET /debug/documents/:id/breakpoints': MT-136(PASS_V6,owns storage/; doc comment at debug_adapter.rs still says durable breakpoints NotImplemented pending Surreal port - residual gap in a PASSd MT))."
+  },
+  "closure_unit": {
+    "outcome": "GET/PUT /debug/documents/:rich_document_id/breakpoints persist and reload debugger breakpoints in the Handshake-managed SurrealDB store under the caller's account session, with account-scoped permissions, a session-attributed receipt, and no regression of MT-136's storage proof.",
+    "requirement_refs": [
+      "02:2758",
+      "02:2773",
+      "02:2776",
+      "LM-RLS-002"
+    ],
+    "acceptance_refs": [
+      "AC-157-1",
+      "AC-157-2",
+      "AC-157-3",
+      "AC-157-4",
+      "AC-157-5",
+      "AC-157-6",
+      "AC-157-7"
+    ],
+    "specification_anchor_refs": [
+      {
+        "id": "02:2758",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2758",
+        "verbatim": "6. Authorization is deny-by-default and evaluated on every executable backend boundary. Hiding UI rows is a projection behavior, never the security boundary."
+      },
+      {
+        "id": "02:2773",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2773",
+        "verbatim": "- root, system, namespace-owner, database-owner, and other privileged SurrealDB sessions MUST NOT execute ordinary protected-resource flows or count as privacy/isolation proof because privileged users bypass table permissions;"
+      },
+      {
+        "id": "02:2776",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2776",
+        "verbatim": "Application authorization remains required for action semantics and capability checks; record-user table/field permissions plus ResourceBroker are the non-bypassable product data boundary, not the only policy layer."
+      },
+      {
+        "id": "LM-RLS-002",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/11-shared-dev-platform-and-oss-foundations.md:582",
+        "verbatim": "**[LM-RLS-002]** Authority tables default to `PERMISSIONS NONE`; every grant is explicit at the database layer and rechecked by ResourceBroker. Privacy proof MUST execute as authenticated record users because root, namespace, database, and other system users bypass record-user table permissions."
+      }
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-157-1",
+        "text": "Spec basis, quoted. 02:2758: \"6. Authorization is deny-by-default and evaluated on every executable backend boundary. Hiding UI rows is a projection behavior, never the security boundary.\" 02:2773: \"- root, system, namespace-owner, database-owner, and other privileged SurrealDB sessions MUST NOT execute ordinary protected-resource flows or count as privacy/isolation proof because privileged users bypass table permissions;\" 02:2776: \"Application authorization remains required for action semantics and capability checks; record-user table/field permissions plus ResourceBroker are the non-bypassable product data boundary, not the only policy layer.\" LM-RLS-002: \"**[LM-RLS-002]** Authority tables default to `PERMISSIONS NONE`; every grant is explicit at the database layer and rechecked by ResourceBroker. Privacy proof MUST execute as authenticated record users because root, namespace, database, and other system users bypass record-user table permissions.\""
+      },
+      {
+        "id": "AC-157-2",
+        "text": "State found at ab618f46 (read this before coding): the durable half EXISTS at the storage layer but only as root. SurrealDatabase implements list_debug_breakpoints / set_debug_breakpoints (storage/surreal/database.rs:1476-1495 -> storage/surreal/state_store.rs:680 and :706) against table knowledge_debug_breakpoints (schema.surql:4796-4812, PERMISSIONS NONE); only the Database trait DEFAULT bodies return NotImplemented (storage/mod.rs:2522-2539), and the api/debug_adapter.rs module doc (lines 5-10) is stale when it says the durable half fails closed. The routes (get_breakpoints :277, put_breakpoints :294 @ab618f46) are unauthenticated and run as root; the write's receipt is a KnowledgeRichDocumentSaved event with the constant actor 'debug-breakpoints-ui' (state_store.rs:720-734). First prove the current behaviour with a live-store route test (owner PUT then GET returns the set, not NotImplemented) and record the observation; if the live route does return NotImplemented, the implementation goes through SurrealDatabase as described here."
+      },
+      {
+        "id": "AC-157-3",
+        "text": "Authorization: both routes require an authenticated account session and authorize_request(RichDocument, rich_document_id, Read, 'fs.read') for GET and (RichDocument, rich_document_id, Update, 'fs.write') for PUT, and the PUT body's workspace_id must equal the rich document's workspace (already asserted in the transaction: THROW 'HSK-DEBUG-BREAKPOINT-DOCUMENT-WORKSPACE'). Storage calls run inside with_record_user_scope."
+      },
+      {
+        "id": "AC-157-4",
+        "text": "Database layer: knowledge_debug_breakpoints gets per-operation predicates: select WHERE fn::mt120_document_access(record::id(rich_document_id), record::id(workspace_id), 'read', 'fs.read'); create and delete WHERE fn::mt120_document_access(..., 'update', 'fs.write') (PUT is replace-all = delete + create); update NONE unless used; plus the owner workspace-delete path keeps working (the table is already covered by REFERENCE ON DELETE CASCADE on rich_document_id/workspace_id - F4 - and by fn::mt120_workspace_delete's zero-row check; make sure an owner with breakpoints can still delete the workspace)."
+      },
+      {
+        "id": "AC-157-5",
+        "text": "Receipt: the PUT's kernel_event_ledger receipt is accepted by a receipt predicate branch (resource rich_document, action update, fs.write, $session = $auth.id) and carries the session principal as actor instead of the constant 'debug-breakpoints-ui'. The owner can read it via GET /kernel/events/aggregates/debug_breakpoints/:rich_document_id; another account reads 0."
+      },
+      {
+        "id": "AC-157-6",
+        "text": "Persistence/reload: breakpoints written by PUT survive closing and reopening the embedded store (same data directory) and are returned by GET after reopen, in (source_url, line) order, with condition and verified preserved; a second PUT replaces the set (no leftovers); uniqueness (rich_document_id, source_url, line) still enforced."
+      },
+      {
+        "id": "AC-157-7",
+        "text": "Negatives: anonymous GET/PUT -> constant denial and no rows written; another account's GET returns the constant denial (never the owner's breakpoints) and its PUT leaves the owner's set unchanged (re-read as owner, F3); a same-account read-only principal can GET but its PUT is denied and changes nothing. No regression: storage::surreal::mt136_database_surface_proof_a::mt136_database_surface_proof_a (its loom_navigation case exercises list/set_debug_breakpoints at mt136_database_surface_proof_a.rs:867-940) stays green, and api::debug_adapter lifecycle tests stay green. The api/debug_adapter.rs module doc is corrected."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "medium",
+    "tier_reason": "Storage already exists; the work is two route handlers, one table's predicates, one receipt branch, and route/reopen tests. Medium suffices because the pattern is spelled out; escalate to strong if the MT-136 proof (which calls the storage functions without a record-user scope) needs restructuring.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "diagnosis_fields": [
+      "failing_assertion (file:line + message)",
+      "attempts (what each run changed)",
+      "root_cause_hypothesis with code location",
+      "intended_fix",
+      "next_runs (1 probe + 1 confirm)"
+    ],
+    "diagnosis_location": "this MT file, handoff.attempt_diagnoses.<CHECK_ID> (same shape as MT-109.json remediation_v24.attempt_diagnoses)",
+    "note": "Codex CX-EXEC-003/003A: counts carry across agents and sessions; a new executor does not reset them. Pin-measure runs (schema re-pin step 3) are measurements, not attempts."
+  },
+  "execution": {
+    "lane": "PRODUCT_CODE_BACKEND",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [
+      "MT-153"
+    ],
+    "start_precondition": "MT-153 committed (schema pins; re-pin on top of the last committed schema MT). Worktree clean.",
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/api/debug_adapter.rs (get_breakpoints, put_breakpoints, the breakpoint route registration and the module doc only; the /debug/sessions routes are C2's and stay as they are)",
+      "src/backend/handshake_core/src/storage/surreal/state_store.rs (list_debug_breakpoints, set_debug_breakpoints and their receipt construction only)",
+      "src/backend/handshake_core/src/storage/surreal/database.rs (the two Database impl methods only)",
+      "src/backend/handshake_core/src/storage/mod.rs (doc comments of the two trait methods only; no new StorageError variants)",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql (knowledge_debug_breakpoints permissions + its receipt branch)",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs (delta pair + pins)",
+      "src/backend/handshake_core/src/storage/surreal/mt136_database_surface_proof_a.rs (only if the MT-136 proof must run its breakpoint calls as a record user; never weaken it)",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/tests/mt157_debug_breakpoints_authority_tests.rs (new)",
+      "src/backend/handshake_core/tests/account_session_support/mod.rs",
+      "src/backend/handshake_core/Cargo.toml ([[test]] entry only if required-features are needed)"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/** (any path, including through the .GOV junction)",
+      "any other worktree (handshake_main, wt-gov-kernel, wt-ilja, other wtc-*)",
+      "AGENTS.md, CLAUDE.md, .claude/**, .github/**, root justfile (main-only control files)",
+      "src/backend/handshake_core/src/storage/postgres/** and any SQLite/PostgreSQL dependency or language (Codex CX-503R)",
+      "Cargo.toml / Cargo.lock dependency additions (no new crates in this MT)",
+      "src/backend/handshake_core/src/api/ (all files except debug_adapter.rs)",
+      "src/backend/handshake_core/src/debug_adapter/ (live debug sessions are out of scope)",
+      "PRE_*/PREDECESSOR_* pins in schema.rs",
+      ".GOV MT-136.json (MT-136 stays PASS)"
+    ],
+    "stop_conditions": [
+      "`git status --porcelain` in the product worktree is non-empty at start with changes this session did not make (another builder is active in the shared worktree) - STOP, report BLOCKED; do not stash or discard.",
+      "The launcher did not supply CARGO_TARGET_DIR, TMP/TEMP, HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_SURREAL_TEST_STORE_ROOT, or they resolve outside <artifact_root>/WP-KERNEL-012/<MT>/<OWNER_SLUG>/ (or the granted C:/.target target) - STOP.",
+      "A needed change falls outside execution.allowed_write_paths - STOP and record an operator_decision_request naming the file and why.",
+      "A fix would require weakening, deleting or #[ignore]-ing an existing assertion, re-pinning a predecessor constant, or running a protected flow as root - STOP.",
+      "attempt_budget exhausted for any check - STOP with the written diagnosis, status BLOCKED.",
+      "Any operator_decision_request listed in this MT is reached - record it, skip that item, continue the other items.",
+      "A tool would open a foreground window, installer, prompt or steal focus - do not run it.",
+      "Keeping the MT-136 proof green would require weakening its assertions or removing its reopen step - STOP and record."
+    ],
+    "artifact_isolation": {
+      "artifact_root": "<Handshake Worktrees>/Handshake_Artifacts (verified to exist on 2026-09-23; the launcher passes the absolute path; resolve from the wt-gov-kernel checkout, never from a working directory - Codex CX-984-001/012/013)",
+      "owner_dir": "<artifact_root>/WP-KERNEL-012/MT-157/<OWNER_SLUG>/  (OWNER_SLUG is assigned by the launcher, e.g. kb-c4; per Operator 2026-09-23 the WP folder is WP-KERNEL-012, matching MT-109's kb-c2/kb-c3 lanes)",
+      "env": {
+        "CARGO_TARGET_DIR": "<owner_dir>/target",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+        "TMP": "<owner_dir>/tmp",
+        "TEMP": "<owner_dir>/tmp",
+        "TMPDIR": "<owner_dir>/tmp",
+        "HANDSHAKE_ARTIFACTS_ROOT": "<artifact_root>",
+        "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "<owner_dir>/runtime",
+        "HANDSHAKE_WORKSPACE_ROOT": "<owner_dir>/workspace/run-<NN>"
+      },
+      "native_test_env_additions": {
+        "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<artifact_root>/handshake-test",
+        "HSK_TEST_BACKEND_TARGET_ROOT": "<owner_dir>/backend-target",
+        "HSK_TEST_BACKEND_BIN": "<owner_dir>/backend-target/debug/handshake_core.exe",
+        "HANDSHAKE_TEST_STAGE_BINDING_ROOT": "<owner_dir>/runtime/binding-<NN>",
+        "HSK_TEST_BASE": "(unset)"
+      },
+      "disk": "All of the above are on D: (the Handshake Worktrees disk). An Operator grant (2026-09-22, recorded in MT-008/MT-023) also allows CARGO_TARGET_DIR=C:/.target/WP-KERNEL-012/target; the Coder never chooses between them - the launcher supplies CARGO_TARGET_DIR (CODER-PROOF-002). If the launcher did not supply every variable above, that is a blocker.",
+      "one_build_per_disk": "Before every cargo invocation verify no cargo.exe / rustc.exe / clippy-driver.exe is running (`tasklist | grep -Ei '^(cargo|rustc|clippy-driver)\\.exe'`); if one is, wait for it or report BLOCKED - never stop it (Codex CX-984-002, CX-SAFE-001). MT-109 C3 (KERNEL_BUILDER-C3) builds on D: under WP-KERNEL-012/MT-109/kb-c3.",
+      "flags": "--locked on every cargo command; -j 12 is the lane default.",
+      "reference_runner": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/run.sh and run_test.sh (read-only reference for the env and timeout wrapper; copy the pattern into your own owner dir, never write into kb-c3)."
+    },
+    "git_rules": [
+      "Work only in the product worktree `<Handshake Worktrees>/wtc-native-editors-v1` on branch `feat/WP-KERNEL-012`; verify with `git rev-parse --abbrev-ref HEAD` before the first edit.",
+      "Commit messages: fix(MT-NNN): / test(MT-NNN): / style(MT-NNN): (CODER-CERT-002). Never commit .GOV/ files. No stash, checkout, restore, reset, rebase, branch or worktree creation (CODER-GIT-001). Pushing is not part of this MT; the Integration Validator integrates."
+    ]
+  },
+  "scope": {
+    "summary": "Carry the MT-136 durable-breakpoint residual to closure under account authority.",
+    "routes": [
+      {
+        "route": "GET /debug/documents/:id/breakpoints",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "get_breakpoints",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/debug_adapter.rs:269",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/debug_adapter.rs:277",
+        "session_today": "ROOT",
+        "tables_ops": "knowledge_debug_breakpoints S",
+        "schema_verdict_for_owner": "NONE (S:4797)",
+        "matrix_fix": null
+      },
+      {
+        "route": "PUT /debug/documents/:id/breakpoints",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "put_breakpoints",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/debug_adapter.rs:286",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/debug_adapter.rs:294 -> src/backend/handshake_core/src/storage/surreal/state_store.rs:706",
+        "session_today": "ROOT",
+        "tables_ops": "krd S; breakpoints D/C; ledger C (KNOWLEDGE_RICH_DOCUMENT_SAVED, :727)",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": "Root-authored \"saved\" receipt; blocks workspace delete"
+      }
+    ],
+    "surql_notes": "uuid::Uuid::new_v4() is used for breakpoint record ids (state_store.rs ~:743). Operator note: the project is moving to time-ordered UUID v7 (planned rule, not yet in force). Do not rewrite it in this MT unless you touch that line anyway; if you do, use Uuid::now_v7() as tests/account_session_support/mod.rs does.",
+    "allowed_paths": [],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "AC-157-1..AC-157-7"
+    ],
+    "proof_targets": [
+      "PT-157-1 route authority + reopen test",
+      "PT-157-2 MT-136 proof a green",
+      "PT-157-3 pins re-measured"
+    ]
+  },
+  "implementation_steps": [
+    {
+      "n": 1,
+      "step": "Verify precondition and clean worktree. Read api/debug_adapter.rs:1-20 and :262-315, state_store.rs:680-790, database.rs:1470-1500, schema.surql:4796-4812 (locate by names if lines moved)."
+    },
+    {
+      "n": 2,
+      "step": "Write the first test (mt157_owner_breakpoints_persist_across_store_reopen) and run it once as a deciding observation of AC-157-2 BEFORE changing handlers: record whether the live route returns the set or NotImplemented. (It will be unauthenticated at this point; adapt it to send the owner headers after step 3.)"
+    },
+    {
+      "n": 3,
+      "step": "Handlers: add State + HeaderMap extraction, authorize_request per AC-157-3, wrap the storage calls in state.surreal.with_record_user_scope(ctx.record_user_scope, ...)."
+    },
+    {
+      "n": 4,
+      "step": "Storage: in set_debug_breakpoints build the receipt with the session principal's actor (the record-user scope carries it; follow how C2 built Loom update receipts with the session actor in loom_store.rs, commit ec34c88e) and check the returned rows (F3): if the CREATE loop was silently denied the SELECT returns fewer rows than requested - map to the constant denial."
+    },
+    {
+      "n": 5,
+      "step": "Schema: predicates per AC-157-4 and a receipt branch per AC-157-5; delta pair; re-pin once (schema_repin_procedure)."
+    },
+    {
+      "n": 6,
+      "step": "Tests in tests/mt157_debug_breakpoints_authority_tests.rs: mt157_owner_breakpoints_persist_across_store_reopen, mt157_put_replaces_set_and_keeps_uniqueness, mt157_anonymous_and_cross_account_denied_without_side_effects, mt157_read_only_principal_can_get_but_not_put, mt157_breakpoint_receipt_is_session_attributed_and_private. Reopen = drop AppState/storage, reopen SurrealStorage on the same data dir, rebuild the router."
+    },
+    {
+      "n": 7,
+      "step": "Run the MT-136 proof; if it now fails because its breakpoint calls run without a record-user scope, run those calls through an owner scope inside the proof (not by removing them) and document the change in the handoff. Fix the api/debug_adapter.rs module doc. Update the manual. Run checks; report."
+    }
+  ],
+  "engine_facts": [
+    "SurrealDB is pinned =3.2.0 (src/backend/handshake_core/Cargo.toml). Facts verified in surrealdb-core-3.2.0 source by the authority matrix:",
+    "F1 Table and field permissions are OFF inside a PERMISSIONS predicate (dbs/options.rs:201 new_for_permission_predicate; doc/check.rs:457-470; exec/permission.rs:87-99). Predicates and the fn::* functions they call see every row and field, including fields that are FOR select NONE.",
+    "F2 A top-level query issued on a record-user connection DOES enforce field permissions. Never probe a predicate by running `RETURN fn::...` directly as the record user; it reads permission-hidden fields as NONE and lies. Probe inside a predicate instead (e.g. a probe table whose PERMISSIONS FOR select calls the function).",
+    "F3 A denied CREATE, UPDATE or DELETE is SILENTLY IGNORED: no row returned, no error (doc/check.rs:457,469 IgnoreError::Ignore). Every record-user write MUST check the returned row (or a follow-up SELECT) and map an empty result to the constant denial; the failure otherwise surfaces later as a field ASSERT 500, an empty 404, or a guard THROW 403.",
+    "F4 REFERENCE ON DELETE CASCADE/UNSET and DEFINE EVENT bodies run with permissions OFF (doc/purge.rs:376,385; doc/event.rs:52,80). Cascades are never blocked by the caller's delete permission, and cascade targets need no delete predicate for the cascade itself.",
+    "F5 Session selection: `SurrealStorage::with_record_user_scope(scope, fut)` (src/backend/handshake_core/src/storage/surreal.rs:956 @ab618f46) sets a tokio task-local; `with_data_operation` then signs a cloned client in as the record user. Anything outside that scope, INCLUDING work moved into `tokio::spawn`, runs as root. Re-enter the scope inside every spawned future that touches protected tables."
+  ],
+  "authority_toolkit": [
+    "Rust authorization entry points (all @ab618f46, src/backend/handshake_core/src/): `api::authority::authorize_request(state, headers, capability_id, ResourceKind, external_resource_id, ResourceAction)` (api/authority.rs:1216) returns an AuthorizedResourceContext whose `.record_user_scope` MUST then wrap the storage call via `state.surreal.with_record_user_scope(ctx.record_user_scope, fut)`. A route that calls authorize_request but writes outside that scope is still ROOT-WRITE.",
+    "`api::authority::require_authenticated_session` (api/authority.rs:1013) is the axum route_layer middleware C2 used for process-starting routes with no protected-resource row (see api/debug_adapter.rs:183-186 route_layer). `authenticated_session_credentials` (api/authority.rs:1031) returns the LocalSessionContext + token + channel binding hash. Missing/invalid credentials map to `constant_denial()` = 403 {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}.",
+    "ResourceKind (storage/surreal/resource_authority.rs:43): Workspace, RichDocument, KnowledgeSource, KnowledgeCodeFile, LoomBlock, FlightRecorder, MemoryPack, MemoryProposal, MemoryCommitReport, MemoryItem, MemoryItemCount, ReconciliationQueue.",
+    "Owner creator grants (fn::mt120_creator_grant, provisioned by POST /workspaces): workspace resource actions create/read/update/delete x capabilities fs.read, fs.write, fr.read, fr.ingest.runtime_chat, fr.ingest.native_editor, memory.read, memory.propose (+ memory.review/memory.commit since C2 ec34c88e); rich_document and loom_block resources CRUD x fs.read/fs.write; knowledge_source/code_file CRUD x memory.read/memory.propose/fs.write. Resources are account-private.",
+    "Schema predicate helpers in src/backend/handshake_core/src/storage/surreal/schema.surql: fn::mt109_live_session, fn::mt109_has_grant(kind, external, action, cap), fn::mt109_has_workspace_access(ws, action, cap), fn::mt120_document_access(doc, ws, action, cap), fn::mt120_loom_block_access(block, ws, action, cap), fn::mt120_resource_create, fn::mt120_creator_grant, fn::mt120_workspace_delete(ws), fn::mt120_document_delete, and the kernel_event_ledger receipt predicates fn::mt109_ledger_receipt / fn::mt120_*_receipt. Every record-user write that appends a kernel_event_ledger receipt needs a receipt predicate branch that accepts it; the receipt actor MUST be the session principal (`$session = $auth.id`), never a System actor.",
+    "Test helpers: integration tests use src/backend/handshake_core/tests/account_session_support/mod.rs (`mod account_session_support;` then `AccountFixture::install(&storage)`, `OwnerSession::provision(&storage, token)`, `.headers()`, `.apply(req)`, `.client()`, `.create_workspace(&state)`; hold NATIVE_BINDING_ENV_LOCK when installing a binding). A second account = a second `OwnerSession::provision` against the same installed binding token. In-crate lib tests (behind cfg(all(test, feature = \"duckdb-flight-recorder\"))) use api::workspaces::tests::{WorkspaceBindingFixture (api/workspaces.rs:1626), workspace_test_principal (:1663), create_owned_test_workspace (:1714)}; the reference example is `mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default` (api/workspaces.rs:2766). A viewer/second principal in the SAME account with a read-only grant is expressed with `SurrealStorage::grant_resource(account_id, access_space_id, ResourceGrantSpec{..actions: [read], capability_ids: [fs.read]..})` (storage/surreal/resource_authority.rs:1022); see resource_authority_tests.rs:185/227 for usage.",
+    "AppState construction for integration tests: copy `test_app_state_embedded` (tests/atelier_stealth_window_tests.rs:265) but DO NOT copy its `Option` + `else { return Ok(()) }` early return: a test that cannot build its store MUST fail (panic/expect), never return Ok silently."
+  ],
+  "schema_repin_procedure": [
+    "Schema re-pin procedure (the one C2 used for MT-109 remediation_v24 and C3 is using now): (1) Batch every schema edit for this MT first. Edit `src/backend/handshake_core/src/storage/surreal/schema.surql` (the live schema for a fresh store). (2) For every changed statement add a (current_text, predecessor_text) pair to a delta array in `schema.rs` next to `MT109_C2_SCHEMA_DELTAS` (schema.rs:1991 @ab618f46) so predecessor reconstructions revert it and upgrades re-emit it from SCHEMA; the pair must be byte-exact (scripts in ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/scripts/strip_check.js show how C2 proved a revert is exact). (3) Build the lib once, then run ONE pin-measure run of the pin tests (check PIN-MEASURE). It is expected to fail and prints the new values: MT109_LOOM_CATALOG_SHA256=, MT109_CURRENT_AUTHORITY_INFO_SHA256=, MT109_PREDECESSOR_AUTHORITY_INFO_SHA256=, MT139_CURRENT_SCHEMA_INFO_SHA256=, EXPECTED_ATELIER_CATALOG_SHA256= and the `left:` values of the GENERATED/DECLARATIVE assertions. (4) Update the pins in schema.rs: GENERATED_SURREALQL_SHA256 (:2128), DECLARATIVE_SCHEMA_CATALOG_SHA256 (:2144), EXPECTED_SCHEMA_INFO_SHA256 (:2190), EXPECTED_ATELIER_CATALOG_SHA256 (:2201) and the MT109 Loom/authority catalog pins the tests name. (5) ONE confirm run (check PIN-CONFIRM). The pin-measure run is a measurement, not an attempt; the confirm run counts against attempt_budget. Re-measure once per batch, never once per edit.",
+    "NEVER re-pin a PREDECESSOR constant (PRE_*_GENERATED_SHA256 / PRE_*_INFO_SHA256 / PREDECESSOR_*) to a newly observed value: those record historical catalogs that real on-disk stores carry; re-pinning them would make the upgrade path accept a catalog no real store has (proof laundering)."
+  ],
+  "dependencies": {
+    "depends_on": [
+      "MT-153 (schema pins)"
+    ],
+    "blocks": [],
+    "ordering_rule": "Re-measure pins on top of the last committed schema MT."
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-136.json (PASS_V6) proof of storage::surreal::mt136_database_surface_proof_a"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-157-BUILD-LIB",
+        "claim_refs": [
+          "compile"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo test --locked -j 12 --no-run --lib --features app-runtime,surreal-test-support,test-utils",
+        "expected": "exit 0",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-157-PIN-MEASURE",
+        "claim_refs": [
+          "schema re-pin"
+        ],
+        "kind": "measurement_not_attempt",
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1500 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+        "expected": "May FAIL (exit 101). Its purpose is to print the new pin values (MT109_LOOM_CATALOG_SHA256=, MT109_CURRENT_AUTHORITY_INFO_SHA256=, MT139_CURRENT_SCHEMA_INFO_SHA256=, EXPECTED_ATELIER_CATALOG_SHA256=, assertion left: values). Copy them into schema.rs per implementation step 'schema re-pin'. Skip this check if this MT made no schema.surql change.",
+        "timeout_seconds": 1500,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log with the printed pin lines"
+        ]
+      },
+      {
+        "check_id": "MT-157-PIN-CONFIRM",
+        "claim_refs": [
+          "schema re-pin"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1500 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+        "expected": "stdout contains 'running 7 tests' and 'test result: ok. 7 passed; 0 failed' and process exit 0",
+        "timeout_seconds": 1500,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "exit code",
+          "result line"
+        ]
+      },
+      {
+        "check_id": "MT-157-BREAKPOINTS",
+        "claim_refs": [
+          "AC-157-2",
+          "AC-157-3",
+          "AC-157-4",
+          "AC-157-5",
+          "AC-157-6",
+          "AC-157-7"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1800 cargo test --locked -j 12 --test mt157_debug_breakpoints_authority_tests --features app-runtime,surreal-test-support,test-utils -- --test-threads=1",
+        "expected": "'running 5 tests' and 'test result: ok. 5 passed; 0 failed'",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-157-MT136-NO-REGRESSION",
+        "claim_refs": [
+          "AC-157-7"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 2400 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 storage::surreal::mt136_database_surface_proof_a::mt136_database_surface_proof_a",
+        "expected": "stdout contains 'running 1 test' and 'test result: ok. 1 passed; 0 failed' and process exit 0; stderr shows MT136_PROOF_CASE_PASS database_surface_a.loom_navigation",
+        "timeout_seconds": 2400,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-157-DEBUG-ADAPTER-LIB",
+        "claim_refs": [
+          "no regression"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1800 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils api::debug_adapter:: -- --test-threads=1",
+        "expected": "nonzero executed count, 'test result: ok.', 0 failed. api::debug_adapter::lifecycle_tests launch a real Node debuggee (TempNodeScript): node must be on PATH; if it is not, record NOT_RUN with that reason (never PASS) and report it as a blocker for this check",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-157-WORKSPACE-DELETE",
+        "claim_refs": [
+          "AC-157-4 workspace delete"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1800 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit",
+        "expected": "stdout contains 'running 1 test' and 'test result: ok. 1 passed; 0 failed' and process exit 0 (extend it, or add a sibling in mt157 tests, so a workspace holding breakpoints written via the scoped PUT is deleted by its owner)",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-157-CHECK-TESTS",
+        "claim_refs": [
+          "all changed test targets compile"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo check --locked -j 12 --tests --features app-runtime,surreal-test-support,test-utils",
+        "expected": "exit 0 ('Finished' line, no 'error[')",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "exit code"
+        ]
+      },
+      {
+        "check_id": "MT-157-CLIPPY-CHANGED",
+        "claim_refs": [
+          "no new clippy findings on changed lines"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo clippy --locked --keep-going -j 12 -p handshake_core --all-targets --features app-runtime,surreal-test-support,test-utils --message-format=short -- -D warnings",
+        "expected": "Exit 101 is tolerated ONLY because 395 pre-existing diagnostics exist (MT-109 kb-c2 log 31-core-clippy.log). Required: zero diagnostics whose file:line falls on a line changed by this MT (compare against `git diff -U0 <base>..HEAD`). Record the count of findings on changed lines (must be 0).",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "changed-line finding count = 0"
+        ]
+      },
+      {
+        "check_id": "MT-157-FMT",
+        "claim_refs": [
+          "formatting"
+        ],
+        "command_or_method": "cd <worktree> && rustfmt --edition 2021 --check <each changed .rs file>",
+        "expected": "exit 0, no diff output",
+        "timeout_seconds": 300,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "exit code"
+        ]
+      },
+      {
+        "check_id": "MT-157-DIFF-CHECK",
+        "claim_refs": [
+          "whitespace hygiene"
+        ],
+        "command_or_method": "cd <worktree> && git diff --check <base>..HEAD",
+        "expected": "no output, exit 0",
+        "timeout_seconds": 120,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "exit code"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true
+  },
+  "owned_files": [
+    "src/backend/handshake_core/src/api/debug_adapter.rs",
+    "src/backend/handshake_core/src/storage/surreal/state_store.rs",
+    "src/backend/handshake_core/tests/mt157_debug_breakpoints_authority_tests.rs"
+  ],
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "trace_projection_or_runtime_evidence"
+    ],
+    "not_applicable_reason": "Backend persistence + authority; the native debugger UI is unchanged (its client must send the account session - verify the native breakpoint client, if one exists, already uses AuthenticatedRequest and record the finding)."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Debugger breakpoints: stored per rich document in the local store, visible only to accounts that can read the document; survive restart"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test (existing LIB user_manual tests green)"
+    ],
+    "location": "src/backend/handshake_core/src/user_manual/ (seed.rs holds the manual pages; follow the MT-152 pattern: a section per behaviour, pinned to code by a test where MT-152 did so)",
+    "reason": "Shipped route behaviour changes."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "knowledge_debug_breakpoints",
+      "kernel_event_ledger"
+    ],
+    "identity_and_scope_contexts": [
+      "owner",
+      "second account",
+      "same-account read-only principal",
+      "anonymous"
+    ],
+    "enforcement_boundaries": [
+      "authorize_request RichDocument",
+      "record-user PERMISSIONS on knowledge_debug_breakpoints"
+    ],
+    "cross_account_negative_cases": [
+      "AC-157-7"
+    ],
+    "derived_resource_non_widening_cases": [
+      "receipt readable only with the document read grant"
+    ],
+    "revocation_and_context_switch_cases": [
+      "after the owner's grant is revoked (SurrealStorage::revoke_grant, resource_authority.rs:1312) GET is denied - optional sixth test if cheap"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "HBR-INT-009: unchanged.",
+    "STOP": "MT-136 proof not weakened; no predecessor pin edits."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "ACCOUNT_SESSION_AUTHORITY_MIGRATION_V1",
+    "risks": [
+      "Replace-all PUT under record-user scope: a denied DELETE plus an allowed CREATE (or vice versa) leaves duplicates or a partial set (F3).",
+      "The constant 'debug-breakpoints-ui' actor makes the owner's receipt unreadable under the record-user aggregate route (C2 risk pattern).",
+      "Workspace delete may become blocked by breakpoint rows if the guard's zero-row check is kept while the cascade is not reached.",
+      "Making MT-136's proof pass by running it as root would hide a regression of the record-user path."
+    ],
+    "minimum_controls": [
+      "Every positive proof runs as an authenticated record user (account session + channel binding). A root/admin session (with_admin_operation, test_admin_query*, SurrealStorage without with_record_user_scope) may only SEED preconditions that the product itself cannot create, and never counts as privacy/isolation proof (02:2773, LM-RLS-002).",
+      "Every changed route has: anonymous negative (no session headers), cross-account negative (a second OwnerSession cannot read or write the first account's rows, and the rows are unchanged afterwards), and where a write is involved, a read-only (viewer) negative when the grant model can express one.",
+      "Denied writes are proven by re-reading the canonical row after the call (F3: denied writes are silent). A 403 status alone is not proof that nothing was written.",
+      "Anti-scaffold: no new abstraction, trait, feature flag, config knob or helper that is not called by product code in this MT; no `#[ignore]`, no `return Ok(())` skip paths, no assertion weakened or deleted to go green; tests may not assert only on mocks/fixtures the Coder authored for a resource-boundary claim (CODER-PROOF-004, CODER-CODE-006).",
+      "No fixture-only proof: each acceptance item is proven against the real embedded SurrealDB store (fresh Handshake-managed RocksDB/SurrealKV directory under the owner runtime root), through the real axum router, with the real ResourceBroker.",
+      "Every test binary run must report a NONZERO executed count for the named tests (`running N tests` with N equal to the number of names passed with --exact); a `0 passed` result is a failure of the check, not a pass.",
+      "The reopen test uses a fresh process-local store handle on the same data directory; an in-memory cache cannot satisfy it."
+    ]
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "product_branch": "feat/WP-KERNEL-012",
+    "product_worktree": "<Handshake Worktrees>/wtc-native-editors-v1",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "next_actor": "ORCHESTRATOR (assign a coder session); after READY_FOR_VALIDATION -> INTEGRATION_VALIDATOR",
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "report_fields_required": [
+      "status",
+      "commits",
+      "changed_paths",
+      "commands_run (command, exit code, result line, log path)",
+      "attempt_diagnoses",
+      "blockers",
+      "operator_decision_requests",
+      "residual_risks"
+    ],
+    "attempt_diagnoses": {},
+    "operator_decision_requests": [],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "commit_policy": "The Coder commits product changes on feat/WP-KERNEL-012 (fix/test/style(MT-157) messages). The Integration Validator commits governance (this file) on gov_kernel; the Coder does not edit this file except the handoff report fields if the launcher routes the report here."
+  }
+}

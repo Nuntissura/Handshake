@@ -1,0 +1,1445 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-153",
+  "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
+  "group": "B18",
+  "created_at_utc": "2026-09-23T09:49:34.269Z",
+  "updated_at_utc": null,
+  "identity": {
+    "mt_id": "MT-153",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-153.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
+  },
+  "lifecycle": {
+    "status": "IN_PROGRESS",
+    "depends_on": [],
+    "blocks": [
+      "MT-154",
+      "MT-156",
+      "MT-157"
+    ],
+    "active": true,
+    "validator_verdict": null,
+    "validated_by": null,
+    "validated_at_utc": null,
+    "completed_by": null,
+    "claimed_by": "KERNEL_BUILDER-C3",
+    "claimed_at_utc": "2026-09-23T09:49:34.269Z",
+    "created_by": "ORCHESTRATOR governance subagent (operator-directed MT authoring 2026-09-23)",
+    "created_at_utc": "2026-09-23T09:49:34.269Z",
+    "origin": "operator_scope_expansion_2026-09-23",
+    "creation_reason": "Operator decision 2026-09-23: 'no new WP, expand scope of this WP and create extra MTs, with enough detail that models with no context can execute them'.",
+    "audit_refs": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/authority-audit/authority_matrix.md (static read of feat/WP-KERNEL-012 at 2f49f2a6; 159 routes with file:line)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/authority-audit/authority_scope.md (IN_WP/OUT_OF_WP classification against base 97a22310)",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json remediation_v24 (KERNEL_BUILDER-C2 round 5: what is already fixed) and remediation_v25 (KERNEL_BUILDER-C3 round 6, in progress)"
+    ],
+    "audit_refs_note": "The two audit files live in an Operator session scratchpad and are not durable; every row this MT relies on is copied into scope.routes / implementation_steps, so the MT is executable without them.",
+    "in_progress_note": "KERNEL_BUILDER-C3 is implementing this scope now from base ab618f46 (MT-109.json remediation_v25, lane ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3, batch owner MT-109). At authoring time (2026-09-23) C3 had uncommitted edits in wtc-native-editors-v1: api/loom.rs, knowledge_wiki/compiler.rs, loom_ai/mod.rs, loom_ai/promotion.rs, storage/surreal/{block_view_store.rs,database.rs,event_ledger.rs,local_accounts.rs,schema.rs,schema.surql}, tests/{loom_media_tiers_tests.rs,project_wiki_drift_tests.rs}. This MT is the contract C3's work is validated against; C3 records its proof here or in MT-109 with covered_mts including MT-153 (Codex CX-984-009)."
+  },
+  "closure_unit": {
+    "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
+    "requirement_refs": [
+      "02:2758",
+      "02:2773",
+      "02:2776",
+      "LM-RLS-001",
+      "LM-RLS-002",
+      "LoomBlockContentType"
+    ],
+    "acceptance_refs": [
+      "AC-153-1",
+      "AC-153-2",
+      "AC-153-3",
+      "AC-153-4",
+      "AC-153-5",
+      "AC-153-6",
+      "AC-153-7",
+      "AC-153-8"
+    ],
+    "specification_anchor_refs": [
+      {
+        "id": "02:2758",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2758",
+        "verbatim": "6. Authorization is deny-by-default and evaluated on every executable backend boundary. Hiding UI rows is a projection behavior, never the security boundary."
+      },
+      {
+        "id": "02:2773",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2773",
+        "verbatim": "- root, system, namespace-owner, database-owner, and other privileged SurrealDB sessions MUST NOT execute ordinary protected-resource flows or count as privacy/isolation proof because privileged users bypass table permissions;"
+      },
+      {
+        "id": "02:2776",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2776",
+        "verbatim": "Application authorization remains required for action semantics and capability checks; record-user table/field permissions plus ResourceBroker are the non-bypassable product data boundary, not the only policy layer."
+      },
+      {
+        "id": "LM-RLS-001",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/11-shared-dev-platform-and-oss-foundations.md:580",
+        "verbatim": "**[LM-RLS-001]** Multi-user workspace isolation MUST use authenticated record-user table/field permissions intersected with ResourceBroker scope. A `viewer` can read but not create/edit LoomBlocks; a `member` can create and edit; an `admin` can delete and manage workspace settings."
+      },
+      {
+        "id": "LM-RLS-002",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/11-shared-dev-platform-and-oss-foundations.md:582",
+        "verbatim": "**[LM-RLS-002]** Authority tables default to `PERMISSIONS NONE`; every grant is explicit at the database layer and rechecked by ResourceBroker. Privacy proof MUST execute as authenticated record users because root, namespace, database, and other system users bypass record-user table permissions."
+      },
+      {
+        "id": "LoomBlockContentType",
+        "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/11-shared-dev-platform-and-oss-foundations.md:242-247",
+        "verbatim": "enum LoomBlockContentType { NOTE = 'note', // Rich text only (no file)  FILE = 'file', // File reference only (no annotations yet)  ANNOTATED_FILE = 'annotated_file', // File + rich text context  TAG_HUB = 'tag_hub', // Tag that holds content and sub-tags  JOURNAL = 'journal', // Daily/weekly note }"
+      }
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-153-1",
+        "text": "Spec basis, quoted so no spec read is needed. 02:2758: \"6. Authorization is deny-by-default and evaluated on every executable backend boundary. Hiding UI rows is a projection behavior, never the security boundary.\" 02:2773: \"- root, system, namespace-owner, database-owner, and other privileged SurrealDB sessions MUST NOT execute ordinary protected-resource flows or count as privacy/isolation proof because privileged users bypass table permissions;\" 02:2776: \"Application authorization remains required for action semantics and capability checks; record-user table/field permissions plus ResourceBroker are the non-bypassable product data boundary, not the only policy layer.\" LM-RLS-001: \"**[LM-RLS-001]** Multi-user workspace isolation MUST use authenticated record-user table/field permissions intersected with ResourceBroker scope. A `viewer` can read but not create/edit LoomBlocks; a `member` can create and edit; an `admin` can delete and manage workspace settings.\" LM-RLS-002: \"**[LM-RLS-002]** Authority tables default to `PERMISSIONS NONE`; every grant is explicit at the database layer and rechecked by ResourceBroker. Privacy proof MUST execute as authenticated record users because root, namespace, database, and other system users bypass record-user table permissions.\""
+      },
+      {
+        "id": "AC-153-2",
+        "text": "For each of the 68 routes in scope.routes, the handler authenticates the caller with authorize_request (resource kind and action per the route's semantics: reads = ResourceAction::Read + fs.read; creates/updates = Update or Create + fs.write; deletes = Delete + fs.write) BEFORE any protected-table access, and every protected-table read and write of that request executes inside state.surreal.with_record_user_scope(ctx.record_user_scope, ...). No route in scope keeps a root-session read or write of a protected table (including root ensure_workspace_exists lookups that disclose existence: authorize workspace read first, then look up under scope)."
+      },
+      {
+        "id": "AC-153-3",
+        "text": "Least privilege at the database layer: every Loom table these routes touch has explicit record-user PERMISSIONS in schema.surql that admit exactly the owner's grant for that operation (fn::mt120_loom_block_access / fn::mt109_has_workspace_access with the matching action+capability) and nothing broader; tables currently PERMISSIONS NONE that a scoped route needs (loom_folders, loom_folder_members, knowledge_wiki_projections, loom_wiki_overlays, assets, media_asset_tiers, loom_collections + members, loom_ai_suggestions, knowledge_quick_switcher_recents, loom_block_view_fr_outbox) get per-operation predicates; update NONE on loom_canvas_boards / loom_canvas_placements and create/update NONE on loom_canvas_visual_edges get owner predicates; loom_edges select/create/delete admit user tag edges (not only SYSTEM mention edges) through fn::mt120_loom_block_access. Tables no scoped route needs stay PERMISSIONS NONE (LM-RLS-002 default)."
+      },
+      {
+        "id": "AC-153-4",
+        "text": "Every kernel_event_ledger receipt appended by a scoped Loom write (KNOWLEDGE_LOOM_BLOCK_MUTATED, KNOWLEDGE_LOOM_TAG_MUTATED, folder/wiki/collection/suggestion/quick-switcher/view-definition/canvas viewport receipts) is accepted by a receipt predicate branch that checks $session = $auth.id, fn::mt109_ledger_access and the matching loom access, and carries the session principal as actor (never a System or header-supplied actor). The owner can read these receipts via GET /kernel/events/aggregates/:type/:id; another account reads 0 of them."
+      },
+      {
+        "id": "AC-153-5",
+        "text": "Per route family (blocks+pins+metrics, folders, wiki+overlays+bootstrap/drift/fanout, markdown import + asset import, tags+edges, assets+tiers, collections, views+graph+search+visual-debug, quick-switcher, AI jobs+suggestions, canvas viewport/cards/stage-cards/placements/visual-edges, block-view definitions+results, daily journal): (a) owner positive through the real HTTP route returns the success status and the canonical row reflects the change; (b) anonymous (no session headers) returns the constant denial and the canonical row is unchanged; (c) a second account returns the constant denial (or an empty list for list routes, never the other account's rows) and the canonical row is unchanged; (d) for write routes, a same-account read-only (viewer) principal is denied the write (LM-RLS-001 viewer) - if the grant model cannot express a viewer for a table, record that under residual_risks with the table name instead of inventing sharing."
+      },
+      {
+        "id": "AC-153-6",
+        "text": "Content types: owner/admin/member may create every LoomBlockContentType (note, file, annotated_file, tag_hub, journal) plus the existing canvas and view_def types through the scoped routes; the POST /loom/views/definitions and card/journal paths no longer need root to create their block rows."
+      },
+      {
+        "id": "AC-153-7",
+        "text": "Stage path of POST /loom/canvas-boards/:block_id/cards and POST .../stage-cards/:placement_id/compensate require an authenticated account session and run their writes under record-user scope (they are unauthenticated root writes today). The spawn_block_view_reconciler loop (api/loom.rs:2041 @2f49f2a6, tokio::spawn) must not perform protected writes as root on behalf of a user: it either re-enters the owning user's scope per work item or is limited to non-protected bookkeeping - record which."
+      },
+      {
+        "id": "AC-153-8",
+        "text": "Loom-owned workspace-delete blockers: rows in knowledge_quick_switcher_recents, loom_folders (+members), loom_ai_suggestions, loom_collections and any other Loom table named in fn::mt120_workspace_delete's zero-row checks no longer make an owner's workspace undeletable: the owner workspace delete (DELETE /workspaces/:id) removes them (cascade or predicate-permitted delete) and api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit stays green with such rows seeded through the scoped routes."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "68 route rows across ~5.3k lines of api/loom.rs plus coordinated schema predicate, receipt-branch and pin changes; SurrealDB silent-denial semantics make wrong fixes look green.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong (escalate to Operator decision; no larger tier exists)"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "diagnosis_fields": [
+      "failing_assertion (file:line + message)",
+      "attempts (what each run changed)",
+      "root_cause_hypothesis with code location",
+      "intended_fix",
+      "next_runs (1 probe + 1 confirm)"
+    ],
+    "diagnosis_location": "this MT file, handoff.attempt_diagnoses.<CHECK_ID> (same shape as MT-109.json remediation_v24.attempt_diagnoses)",
+    "note": "Codex CX-EXEC-003/003A: counts carry across agents and sessions; a new executor does not reset them. Pin-measure runs (schema re-pin step 3) are measurements, not attempts."
+  },
+  "execution": {
+    "lane": "PRODUCT_CODE_BACKEND_PLUS_NATIVE_CLIENTS",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "base_commit": "ab618f46fa03635dcb6848e42e3599f906c520a4",
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/src/api/authority.rs",
+      "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/loom_canvas_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/wiki_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/block_view_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/bridge_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/search_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/state_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/visual_debug_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/database.rs",
+      "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+      "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
+      "src/backend/handshake_core/src/storage/block_view_outbox.rs",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/storage/loom_ai.rs",
+      "src/backend/handshake_core/src/knowledge_wiki/",
+      "src/backend/handshake_core/src/loom_ai/",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/tests/account_session_support/mod.rs",
+      "src/backend/handshake_core/tests/loom_*.rs",
+      "src/backend/handshake_core/tests/project_wiki_drift_tests.rs",
+      "src/backend/handshake_core/tests/mt153_loom_route_authority_tests.rs (new)",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/tests/test_block_collection_view.rs",
+      "src/frontend/handshake_native/tests/test_canvas_board.rs"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/** (any path, including through the .GOV junction)",
+      "any other worktree (handshake_main, wt-gov-kernel, wt-ilja, other wtc-*)",
+      "AGENTS.md, CLAUDE.md, .claude/**, .github/**, root justfile (main-only control files)",
+      "src/backend/handshake_core/src/storage/postgres/** and any SQLite/PostgreSQL dependency or language (Codex CX-503R)",
+      "Cargo.toml / Cargo.lock dependency additions (no new crates in this MT)",
+      "src/backend/handshake_core/src/api/ (every file except loom.rs and authority.rs; non-Loom routes belong to MT-154..MT-157)",
+      "src/backend/handshake_core/src/storage/mod.rs (StorageError: no new variants)"
+    ],
+    "stop_conditions": [
+      "`git status --porcelain` in the product worktree is non-empty at start with changes this session did not make (another builder is active in the shared worktree) - STOP, report BLOCKED; do not stash or discard.",
+      "The launcher did not supply CARGO_TARGET_DIR, TMP/TEMP, HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_SURREAL_TEST_STORE_ROOT, or they resolve outside <artifact_root>/WP-KERNEL-012/<MT>/<OWNER_SLUG>/ (or the granted C:/.target target) - STOP.",
+      "A needed change falls outside execution.allowed_write_paths - STOP and record an operator_decision_request naming the file and why.",
+      "A fix would require weakening, deleting or #[ignore]-ing an existing assertion, re-pinning a predecessor constant, or running a protected flow as root - STOP.",
+      "attempt_budget exhausted for any check - STOP with the written diagnosis, status BLOCKED.",
+      "Any operator_decision_request listed in this MT is reached - record it, skip that item, continue the other items.",
+      "A tool would open a foreground window, installer, prompt or steal focus - do not run it.",
+      "A Loom route's fix needs a change to a non-Loom route handler (MT-154/155/156/157 scope) - STOP and record it."
+    ],
+    "artifact_isolation": {
+      "artifact_root": "<Handshake Worktrees>/Handshake_Artifacts (verified to exist on 2026-09-23; the launcher passes the absolute path; resolve from the wt-gov-kernel checkout, never from a working directory - Codex CX-984-001/012/013)",
+      "owner_dir": "<artifact_root>/WP-KERNEL-012/MT-153/<OWNER_SLUG>/  (OWNER_SLUG is assigned by the launcher, e.g. kb-c4; per Operator 2026-09-23 the WP folder is WP-KERNEL-012, matching MT-109's kb-c2/kb-c3 lanes)",
+      "env": {
+        "CARGO_TARGET_DIR": "<owner_dir>/target",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+        "TMP": "<owner_dir>/tmp",
+        "TEMP": "<owner_dir>/tmp",
+        "TMPDIR": "<owner_dir>/tmp",
+        "HANDSHAKE_ARTIFACTS_ROOT": "<artifact_root>",
+        "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "<owner_dir>/runtime",
+        "HANDSHAKE_WORKSPACE_ROOT": "<owner_dir>/workspace/run-<NN>"
+      },
+      "native_test_env_additions": {
+        "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<artifact_root>/handshake-test",
+        "HSK_TEST_BACKEND_TARGET_ROOT": "<owner_dir>/backend-target",
+        "HSK_TEST_BACKEND_BIN": "<owner_dir>/backend-target/debug/handshake_core.exe",
+        "HANDSHAKE_TEST_STAGE_BINDING_ROOT": "<owner_dir>/runtime/binding-<NN>",
+        "HSK_TEST_BASE": "(unset)"
+      },
+      "disk": "All of the above are on D: (the Handshake Worktrees disk). An Operator grant (2026-09-22, recorded in MT-008/MT-023) also allows CARGO_TARGET_DIR=C:/.target/WP-KERNEL-012/target; the Coder never chooses between them - the launcher supplies CARGO_TARGET_DIR (CODER-PROOF-002). If the launcher did not supply every variable above, that is a blocker.",
+      "one_build_per_disk": "Before every cargo invocation verify no cargo.exe / rustc.exe / clippy-driver.exe is running (`tasklist | grep -Ei '^(cargo|rustc|clippy-driver)\\.exe'`); if one is, wait for it or report BLOCKED - never stop it (Codex CX-984-002, CX-SAFE-001). MT-109 C3 (KERNEL_BUILDER-C3) builds on D: under WP-KERNEL-012/MT-109/kb-c3.",
+      "flags": "--locked on every cargo command; -j 12 is the lane default.",
+      "reference_runner": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/run.sh and run_test.sh (read-only reference for the env and timeout wrapper; copy the pattern into your own owner dir, never write into kb-c3)."
+    },
+    "git_rules": [
+      "Work only in the product worktree `<Handshake Worktrees>/wtc-native-editors-v1` on branch `feat/WP-KERNEL-012`; verify with `git rev-parse --abbrev-ref HEAD` before the first edit.",
+      "Commit messages: fix(MT-NNN): / test(MT-NNN): / style(MT-NNN): (CODER-CERT-002). Never commit .GOV/ files. No stash, checkout, restore, reset, rebase, branch or worktree creation (CODER-GIT-001). Pushing is not part of this MT; the Integration Validator integrates."
+    ]
+  },
+  "scope": {
+    "summary": "Move every Loom route the authority matrix marks ROOT-WRITE, ROOT-READ, GAP or UNSURE onto the authenticated record-user session with least-privilege table permissions, receipt predicates carrying the session principal, and route-level negative proofs. Includes the Loom follow-ups C2 recorded (tag-edge create/delete, transclusion of rich-document projections, text-card undo DELETE 403, identity-mutation fail-closed).",
+    "route_count": 68,
+    "route_count_by_mark": {
+      "ROOT-READ": 29,
+      "GAP": 1,
+      "UNSURE": 1,
+      "ROOT-WRITE": 37
+    },
+    "routes_note": "Handler lines are from the matrix (HEAD 2f49f2a6) and re-resolved by fn name at ab618f46. C3's uncommitted edits shift lines further; always locate by handler_fn. Paths in `route` use the matrix shorthand /ws/:ws = /workspaces/:workspace_id.",
+    "routes": [
+      {
+        "route": "PUT /ws/:ws/loom/journals/:date",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "open_daily_journal",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:669",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:669",
+        "session_today": "MIXED: session :691; `ensure_workspace_exists` and `journal_block_id` run as root (loom_canvas_store.rs:3287); read :717 and create :752 are scoped",
+        "tables_ops": "workspaces S (root); loom_blocks S (root); record-user S/C",
+        "schema_verdict_for_owner": "record-user parts allowed",
+        "matrix_fix": "Leaks whether a workspace or journal date exists (404 vs 403). Authorize workspace read first and scope both lookups"
+      },
+      {
+        "route": "PATCH /ws/:ws/loom/blocks/:id",
+        "matrix_mark": "GAP",
+        "handler_fn": "patch_loom_block_authenticated",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:2174",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:2174",
+        "session_today": "RECORD-USER :2203",
+        "tables_ops": "loom_blocks S/U; ledger C (KNOWLEDGE_LOOM_BLOCK_MUTATED, System actor); search_index U; tags: loom_edges S/C/D, TAG_MUTATED ledger, recompute U",
+        "schema_verdict_for_owner": "U allowed; search_index U has no standalone branch (S:4991); loom_edges C/D/S allow only SYSTEM mention edges (S:540-543); no ledger predicate accepts BLOCK_MUTATED or TAG_MUTATED",
+        "matrix_fix": "500 via the event_ledger_event_id ASSERT (diagnosis b). Fixes: receipt branch + session actor, search_index branch, loom_edges tag predicates"
+      },
+      {
+        "route": "DELETE /ws/:ws/loom/blocks/:id",
+        "matrix_mark": "UNSURE",
+        "handler_fn": "delete_loom_block_authenticated",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:2367",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:2367",
+        "session_today": "RECORD-USER :2395",
+        "tables_ops": "loom_blocks S/D; loom_edges S; neighbour U; cascades",
+        "schema_verdict_for_owner": "D allowed; cascades run with perms off (fact 4)",
+        "matrix_fix": "The block's protected_resource and grant are never retired, and its knowledge_entities row is left behind. The DELETE assert at test :5853 decides it"
+      },
+      {
+        "route": "POST …/blocks/:id/metrics/recompute",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "recompute_loom_block_metrics",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:4085",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:4085",
+        "session_today": "ROOT",
+        "tables_ops": "loom_blocks U",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": "authorize loom_block update + scope"
+      },
+      {
+        "route": "PUT …/blocks/:id/pin-order",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "set_loom_block_pin_order",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1108",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1108",
+        "session_today": "ROOT, WriteContext::human(None)",
+        "tables_ops": "loom_blocks U; ledger C (BLOCK_MUTATED)",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": "Needs the (b) receipt branch before it can be scoped"
+      },
+      {
+        "route": "POST …/blocks/:id/remove-pin",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "remove_loom_block_pin",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1144",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1144",
+        "session_today": "ROOT",
+        "tables_ops": "loom_blocks U; ledger C",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": "same"
+      },
+      {
+        "route": "GET …/blocks/:id/breadcrumbs",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "get_loom_block_breadcrumbs",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1045",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1045",
+        "session_today": "ROOT",
+        "tables_ops": "loom_blocks, loom_folders, knowledge_entities S",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": "authz + scope"
+      },
+      {
+        "route": "GET …/blocks/:id/backlinks",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "get_loom_block_backlinks",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1060",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1060",
+        "session_today": "ROOT",
+        "tables_ops": "loom_edges, loom_blocks S",
+        "schema_verdict_for_owner": "loom_edges S would hide tag and mention edges",
+        "matrix_fix": "same + loom_edges select"
+      },
+      {
+        "route": "GET …/blocks/:id/unlinked-mentions",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "scan_loom_block_unlinked_mentions",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1084",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1084",
+        "session_today": "ROOT",
+        "tables_ops": "loom_blocks, loom_edges S",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /ws/:ws/loom/folders",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_loom_folders",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1747",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1747",
+        "session_today": "ROOT",
+        "tables_ops": "loom_folders S",
+        "schema_verdict_for_owner": "NONE (S:4338)",
+        "matrix_fix": "needs PERMISSIONS"
+      },
+      {
+        "route": "POST /ws/:ws/loom/folders",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "create_loom_folder",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1718",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1718",
+        "session_today": "ROOT",
+        "tables_ops": "loom_folders C; storage_graph_anchors; ledger C (FOLDER_MUTATED)",
+        "schema_verdict_for_owner": "NONE; no receipt predicate",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET …/folders/:fid",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "get_loom_folder",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1760",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1760",
+        "session_today": "ROOT",
+        "tables_ops": "loom_folders S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "PATCH …/folders/:fid",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "update_loom_folder",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1773",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1773",
+        "session_today": "ROOT",
+        "tables_ops": "loom_folders U; ledger C",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "DELETE …/folders/:fid",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "delete_loom_folder",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1788",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1788",
+        "session_today": "ROOT",
+        "tables_ops": "loom_folders D; members D; ledger C",
+        "schema_verdict_for_owner": "NONE (S:4338/4363)",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET …/folders/:fid/blocks",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_loom_folder_blocks",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1845",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1845",
+        "session_today": "ROOT",
+        "tables_ops": "loom_folder_members, loom_blocks S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "PUT …/folders/:fid/blocks/:bid",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "add_block_to_loom_folder",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1808",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1808",
+        "session_today": "ROOT",
+        "tables_ops": "loom_folder_members C; ledger C",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "DELETE …/folders/:fid/blocks/:bid",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "remove_block_from_loom_folder",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1823",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1823",
+        "session_today": "ROOT",
+        "tables_ops": "loom_folder_members D; ledger C",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /ws/:ws/loom/wiki",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_loom_wiki_pages",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1383",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1383",
+        "session_today": "ROOT",
+        "tables_ops": "knowledge_wiki_projections S",
+        "schema_verdict_for_owner": "NONE (S:3566)",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST /ws/:ws/loom/wiki",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "compile_loom_wiki_projection",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1267",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1267",
+        "session_today": "ROOT",
+        "tables_ops": "wiki C; loom_blocks S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST …/wiki/bootstrap",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "bootstrap_project_wiki",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1426",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1426",
+        "session_today": "ROOT; actor comes from x-hsk-* headers (:1208)",
+        "tables_ops": "code index, entities/edges, rich docs S; wiki C; ledger C",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": "Receipts carry a header-supplied actor"
+      },
+      {
+        "route": "POST …/wiki/drift-check",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "project_wiki_drift_check",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1502",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1502",
+        "session_today": "ROOT",
+        "tables_ops": "wiki S/U; ledger C",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST …/wiki/fanout",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "project_wiki_fanout",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1531",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1531",
+        "session_today": "ROOT",
+        "tables_ops": "wiki U/C; ledger C",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET …/wiki/:pid",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "get_loom_wiki_projection",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1297",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1297",
+        "session_today": "ROOT",
+        "tables_ops": "wiki S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "DELETE …/wiki/:pid",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "delete_loom_wiki_projection",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1572",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1572",
+        "session_today": "ROOT",
+        "tables_ops": "wiki D",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST …/wiki/:pid/regenerate",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "regenerate_loom_wiki_projection",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1336",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1336",
+        "session_today": "ROOT",
+        "tables_ops": "wiki U; loom_blocks S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET …/wiki/:pid/stale",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "loom_wiki_projection_stale",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1312",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1312",
+        "session_today": "ROOT",
+        "tables_ops": "wiki S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET …/wiki/:pid/overlays",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_loom_wiki_overlays",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1611",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1611",
+        "session_today": "ROOT",
+        "tables_ops": "loom_wiki_overlays S",
+        "schema_verdict_for_owner": "NONE (S:4390)",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST …/wiki/:pid/overlays",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "add_loom_wiki_overlay",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1592",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1592",
+        "session_today": "ROOT",
+        "tables_ops": "loom_wiki_overlays C",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "DELETE …/wiki-overlays/:oid",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "delete_loom_wiki_overlay",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1624",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1624",
+        "session_today": "ROOT",
+        "tables_ops": "loom_wiki_overlays D",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST …/loom/import/markdown",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "import_markdown_to_loom",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1645",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1645",
+        "session_today": "ROOT",
+        "tables_ops": "rich_documents, loom_blocks, search_index, entities, bridge, ledger C (wiki_store.rs:1142)",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": "Creates rows with no grant, so the owner later gets 403 on them"
+      },
+      {
+        "route": "GET /ws/:ws/loom/tags",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_loom_tag_hubs",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1870",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1870",
+        "session_today": "ROOT",
+        "tables_ops": "loom_blocks S",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET …/tags/:tid",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "get_loom_tag_hub",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1887",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1887",
+        "session_today": "ROOT",
+        "tables_ops": "loom_blocks, loom_edges S",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET …/tags/:tid/blocks",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_loom_blocks_for_tag",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:1972",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:1972",
+        "session_today": "ROOT",
+        "tables_ops": "loom_edges, loom_blocks S",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST /ws/:ws/loom/edges",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "create_loom_edge",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:2523",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:2523",
+        "session_today": "ROOT",
+        "tables_ops": "loom_edges C; loom_blocks U; ledger C (TAG_MUTATED); can auto-create target blocks C + bridge (:2463)",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": "The tag edges the native Kanban test seeds come from here"
+      },
+      {
+        "route": "DELETE /ws/:ws/loom/edges/:eid",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "delete_loom_edge",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:2604",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:2604",
+        "session_today": "ROOT",
+        "tables_ops": "loom_edges D; loom_blocks U; ledger C",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST /ws/:ws/loom/import",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "import_loom_asset",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:2661",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:2661",
+        "session_today": "ROOT",
+        "tables_ops": "assets S/C (NONE S:413); blob write; loom_blocks C; bridge C; ledger C; ai_jobs C",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /ws/:ws/assets/:aid",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "get_asset_metadata",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:2840",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:2840",
+        "session_today": "ROOT",
+        "tables_ops": "assets S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /ws/:ws/assets/:aid/content",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "get_asset_content",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:2906",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:2906",
+        "session_today": "ROOT",
+        "tables_ops": "assets, media_asset_tiers S (NONE S:4814); blob read",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /assets/:asset_id/thumbnail",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "get_asset_thumbnail",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3026",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3026",
+        "session_today": "ROOT",
+        "tables_ops": "loom_blocks S; assets S (loom_store.rs:1071, :362)",
+        "schema_verdict_for_owner": "assets NONE → GAP if scoped",
+        "matrix_fix": "authz + scope; assets select perms"
+      },
+      {
+        "route": "GET /assets/:asset_id/tiers",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_asset_tiers",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3100",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3100",
+        "session_today": "ROOT",
+        "tables_ops": "assets S; media_asset_tiers S",
+        "schema_verdict_for_owner": "NONE (:413, :4814)",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST /assets/:asset_id/tiers/:tier/retry",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "retry_asset_tier",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3129",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3129",
+        "session_today": "ROOT, human(None)",
+        "tables_ops": "loom_blocks S; media_asset_tiers U; ai_jobs C; workflow start",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": "Unauthenticated caller can start a job"
+      },
+      {
+        "route": "POST /loom/collections",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "create_loom_collection",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3221",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3221",
+        "session_today": "ROOT",
+        "tables_ops": "loom_collections C/U; members C/D (loom_store.rs:633, :702)",
+        "schema_verdict_for_owner": "NONE (:4831, :4840)",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /loom/collections/:id",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "get_loom_collection",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3253",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3253",
+        "session_today": "ROOT",
+        "tables_ops": "collections, members S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "PUT /loom/collections/:id/order",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "set_loom_collection_order",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3271",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3271",
+        "session_today": "ROOT",
+        "tables_ops": "members D/C; collection U",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /loom/views/:view_type",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "query_loom_view",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3896",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3896",
+        "session_today": "ROOT",
+        "tables_ops": "loom_blocks, loom_edges, assets S (loom_store.rs:1806); FR",
+        "schema_verdict_for_owner": "loom_edges select exposes only mention edges",
+        "matrix_fix": "widen loom_edges select"
+      },
+      {
+        "route": "GET /loom/graph/traverse",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "traverse_loom_graph",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3975",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3975",
+        "session_today": "ROOT",
+        "tables_ops": "loom_blocks, loom_edges S",
+        "schema_verdict_for_owner": "same",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /loom/graph/local",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "local_loom_graph",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:4022",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:4022",
+        "session_today": "ROOT",
+        "tables_ops": "same (loom_store.rs:3007)",
+        "schema_verdict_for_owner": "same",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /loom/graph/global",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "global_loom_graph",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:4062",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:4062",
+        "session_today": "ROOT",
+        "tables_ops": "same (loom_store.rs:3070)",
+        "schema_verdict_for_owner": "same",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST /loom/metrics/recompute",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "recompute_all_loom_metrics",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:4104",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:4104",
+        "session_today": "ROOT (guarded_storage_mutation, no scope)",
+        "tables_ops": "loom_blocks U; loom_edges S",
+        "schema_verdict_for_owner": "view_def blocks excluded from U",
+        "matrix_fix": "Workspace-wide write with no authentication"
+      },
+      {
+        "route": "GET /loom/search",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "search_loom_blocks",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:4166",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:4166",
+        "session_today": "ROOT",
+        "tables_ops": "loom_blocks, loom_edges, assets S; FR",
+        "schema_verdict_for_owner": "",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /loom/visual-debug",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "loom_visual_debug_snapshot",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:4229",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:4229",
+        "session_today": "ROOT",
+        "tables_ops": "graph + backlinks + loom_folders + members + search",
+        "schema_verdict_for_owner": "folders NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET /loom/graph-search",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "search_loom_graph",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:4280",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:4280",
+        "session_today": "ROOT",
+        "tables_ops": "+ knowledge_entities, knowledge_rich_documents S",
+        "schema_verdict_for_owner": "",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST /loom/search-v2",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "loom_search_v2",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3453",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3453",
+        "session_today": "ROOT",
+        "tables_ops": "loom_block_search_index S, loom_edges S (search_store.rs:396)",
+        "schema_verdict_for_owner": "search_index S OK",
+        "matrix_fix": null
+      },
+      {
+        "route": "GET+POST /loom/quick-switcher/recents",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "list_quick_switcher_recents",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:4346",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:4346",
+        "session_today": "ROOT",
+        "tables_ops": "knowledge_quick_switcher_recents S/UPSERT; ledger C (state_store.rs:272)",
+        "schema_verdict_for_owner": "NONE (:4715); no receipt predicate",
+        "matrix_fix": "Also blocks workspace delete (S:6494)"
+      },
+      {
+        "route": "POST /loom/ai-jobs",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "run_loom_ai_job",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3375",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3375",
+        "session_today": "ROOT",
+        "tables_ops": "loom_blocks S; loom_ai_suggestions C; ledger C",
+        "schema_verdict_for_owner": "NONE (:4851)",
+        "matrix_fix": "Unauthenticated"
+      },
+      {
+        "route": "POST /loom/ai-jobs/:job_id/accept-all",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "accept_all_loom_ai_suggestions",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3617",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3617",
+        "session_today": "ROOT; reviewer defaults to Operator (:1325)",
+        "tables_ops": "suggestions U; loom_edges C; loom_blocks U; ledger C",
+        "schema_verdict_for_owner": "NONE; loom_edges C mention-only",
+        "matrix_fix": "Unauthenticated promotion"
+      },
+      {
+        "route": "GET /loom/ai-suggestions",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "list_loom_ai_suggestions",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3487",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3487",
+        "session_today": "ROOT",
+        "tables_ops": "suggestions S",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST /loom/ai-suggestions/:id/accept",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "accept_loom_ai_suggestion",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3510",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3510",
+        "session_today": "ROOT",
+        "tables_ops": "as accept-all",
+        "schema_verdict_for_owner": "",
+        "matrix_fix": null
+      },
+      {
+        "route": "POST /loom/ai-suggestions/:id/reject",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "reject_loom_ai_suggestion",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:3555",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:3555",
+        "session_today": "ROOT",
+        "tables_ops": "suggestions U; ledger C",
+        "schema_verdict_for_owner": "NONE",
+        "matrix_fix": null
+      },
+      {
+        "route": "PUT /loom/canvas-boards/:block_id/viewport",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "update_canvas_board_state",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:4499",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:4499",
+        "session_today": "ROOT, human(None)",
+        "tables_ops": "boards U; ledger C (loom_canvas_store.rs:1529)",
+        "schema_verdict_for_owner": "boards `FOR update NONE` (:4886)",
+        "matrix_fix": "authz + scope + boards update perm + receipt"
+      },
+      {
+        "route": "POST …/cards",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "create_canvas_card",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:4674",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:4674",
+        "session_today": "MIXED: normal path scoped (:4750, :4813); Stage path ROOT, human(None) (:4687)",
+        "tables_ops": "Stage path: rich docs, versions, loom_blocks, search, entities, bridge, placements, ledger C (loom_canvas_store.rs:1981)",
+        "schema_verdict_for_owner": "normal path allowed",
+        "matrix_fix": "Stage branch unauthenticated. Normal path: see diagnosis d"
+      },
+      {
+        "route": "POST …/stage-cards/:placement_id/compensate",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "compensate_stage_canvas_card",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:4842",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:4857",
+        "session_today": "ROOT, human(None)",
+        "tables_ops": "placements, bridge, entities, blocks, documents D",
+        "schema_verdict_for_owner": "–",
+        "matrix_fix": "Unauthenticated deletes"
+      },
+      {
+        "route": "PATCH /loom/canvas-placements/:id",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "update_canvas_placement",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:4898",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:4913",
+        "session_today": "ROOT, human(None)",
+        "tables_ops": "placements U (loom_canvas_store.rs:2907)",
+        "schema_verdict_for_owner": "placements `FOR update NONE` (:4902)",
+        "matrix_fix": "authz + scope + update perm"
+      },
+      {
+        "route": "POST …/visual-edges",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "add_canvas_visual_edge",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:5067",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:5098",
+        "session_today": "authorize_request (:5031) then unscoped write → ROOT",
+        "tables_ops": "visual_edges C (loom_canvas_store.rs:3176)",
+        "schema_verdict_for_owner": "`FOR create, update NONE` (:4966)",
+        "matrix_fix": "Scope it; add create perm (board update + both placements read)"
+      },
+      {
+        "route": "DELETE /loom/canvas-visual-edges/:id",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "remove_canvas_visual_edge",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:5091",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:5122",
+        "session_today": "same; edge lookup is root (loom_canvas_store.rs:3309)",
+        "tables_ops": "visual_edges D (:3343)",
+        "schema_verdict_for_owner": "delete only via the self-blocking workspace guard (:4967)",
+        "matrix_fix": "Scope it; add board-grant delete perm (also part of fix a)"
+      },
+      {
+        "route": "POST /loom/views/definitions",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "create_block_view",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:5149",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:5180",
+        "session_today": "ROOT; actor kind from headers (block_view_write_context :2010)",
+        "tables_ops": "loom_blocks C/U (view_def), search UPSERT, entities UPSERT, bridge UPSERT, ledger C x2, loom_block_view_fr_outbox C (block_view_store.rs:336-343)",
+        "schema_verdict_for_owner": "view_def not in allowed types (:442); outbox create NONE (:5306); receipts have System actor and no authority fields",
+        "matrix_fix": "authz + scope + schema widening; decide on outbox ownership"
+      },
+      {
+        "route": "GET+PATCH /loom/views/definitions/:block_id",
+        "matrix_mark": "ROOT-WRITE",
+        "handler_fn": "get_block_view",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:5178",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:5209",
+        "session_today": "ROOT",
+        "tables_ops": "GET loom_blocks S; PATCH ledger C, loom_blocks U, outbox C (block_view_store.rs:652-656)",
+        "schema_verdict_for_owner": "same",
+        "matrix_fix": "Works unauthenticated today; see diagnosis c"
+      },
+      {
+        "route": "POST /loom/views/definitions/:block_id/results",
+        "matrix_mark": "ROOT-READ",
+        "handler_fn": "query_block_view_results",
+        "handler_at_2f49f2a6": "src/backend/handshake_core/src/api/loom.rs:5229",
+        "handler_at_ab618f46": "src/backend/handshake_core/src/api/loom.rs:5260",
+        "session_today": "ROOT",
+        "tables_ops": "loom_blocks S, loom_edges S; FR",
+        "schema_verdict_for_owner": "",
+        "matrix_fix": null
+      }
+    ],
+    "already_fixed_by_c2_do_not_redo": [
+      "PATCH /ws/:ws/loom/blocks/:id: KNOWLEDGE_LOOM_BLOCK_MUTATED receipt branch + session actor + standalone loom_block_search_index update branch (ec34c88e, MT-109 remediation_v24 item 2). Remaining for this MT: tag edges (TAG_MUTATED branch, loom_edges predicates, scoped POST/DELETE /loom/edges).",
+      "Workspace delete of account Loom entities, Canvas visual edges and Atelier projections (item 1).",
+      "Canvas text-card create timeout (item 4): 30 s client timeout; still red: DELETE placement 403 on undo (tests/test_canvas_board.rs:1791 'host undo removes original text-card placement'), diagnosis in MT-109 remediation_v24 items.4_text_card_error_sending_request.still_red.",
+      "BlockViewClient account context (item 3); next failure: Kanban card-move PATCH add_tags times out (record-user tag edges)."
+    ],
+    "c2_and_c3_open_items_in_this_scope": [
+      "C2 observation: api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows fails at api/loom.rs:5815 @2f49f2a6: GET transclusion of a rich-document projection authorizes ResourceKind::LoomBlock only (403). Fix: fall back to RichDocument authorization for a same-id rich-document projection (as C2 did for placement DELETE).",
+      "C3 attempt diagnosis C3-IDENTITY-MUTATION-FAIL-CLOSED (MT-109 remediation_v25): the same test's expect_err('record-user standalone identity mutation must fail closed') got Ok(()); hypothesis: a record-user UPDATE whose after-state fails the loom_blocks update predicate is silently ignored (F3). The route must detect the no-op (row unchanged / no row returned) and return the constant denial.",
+      "DELETE /ws/:ws/loom/blocks/:id (UNSURE): the block's protected_resource and grant are never retired and its knowledge_entities row stays behind; decide by the DELETE assert in the mounted test (api/loom.rs ~:5853 @2f49f2a6) and retire resource+grant+entity in the same transaction."
+    ],
+    "allowed_paths": [],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "AC-153-1..AC-153-8 (closure_unit.materialized_acceptance)"
+    ],
+    "proof_targets": [
+      "PT-153-1 route matrix test (owner/anonymous/cross-account/viewer per family)",
+      "PT-153-2 existing Loom and mounted tests green",
+      "PT-153-3 pins re-measured once",
+      "PT-153-4 native Loom client proofs (block-view Kanban, canvas card undo) green"
+    ]
+  },
+  "implementation_steps": [
+    {
+      "n": 1,
+      "step": "Read the Codex, CODER_PROTOCOL and this MT only. Confirm branch feat/WP-KERNEL-012 and whether C3's work is committed: `git log --oneline -5` and `git status --porcelain`. If C3 (KERNEL_BUILDER-C3) still has uncommitted edits and you are not C3, STOP (shared worktree)."
+    },
+    {
+      "n": 2,
+      "step": "Build the route checklist from scope.routes. For each route open the handler by fn name in api/loom.rs and classify: (a) no authorize_request -> add it; (b) authorize_request present but storage call outside with_record_user_scope -> wrap; (c) root helper calls (ensure_workspace_exists at api/loom.rs:96, journal_block_id at loom_canvas_store.rs:3287, root lookups in loom_canvas_store.rs:3309) -> replace with scoped reads after authorization. Use the existing authenticated handlers as the template: create_loom_block_authenticated (api/loom.rs:476), patch_loom_block_authenticated (:2174), the Loom middleware at :105-142."
+    },
+    {
+      "n": 3,
+      "step": "Write the schema predicates (AC-153-3) in schema.surql for every table a scoped route now touches, reusing fn::mt120_loom_block_access / fn::mt109_has_workspace_access. Remember F1 (predicates run with permissions off, so they may read protected_resources.external_resource_id) and F4 (cascades need no delete predicate)."
+    },
+    {
+      "n": 4,
+      "step": "Add receipt predicate branches (AC-153-4) in fn::mt120_loom_receipt (schema.surql, search 'fn::mt120_loom_receipt'), modelled on the KNOWLEDGE_LOOM_BLOCK_MUTATED branch C2 added (see the second tuple of MT109_C2_SCHEMA_DELTAS, schema.rs:1991). In the stores (loom_store.rs, loom_canvas_store.rs, wiki_store.rs, block_view_store.rs, state_store.rs quick-switcher) build receipts with the session principal's actor kind/id, not System actors."
+    },
+    {
+      "n": 5,
+      "step": "Handle F3 everywhere a scoped write happens: check the returned row / statement result; if empty, return the constant denial (403 HSK-403-PROTECTED-RESOURCE) and make sure the transaction wrote nothing."
+    },
+    {
+      "n": 6,
+      "step": "Fix the C2/C3 open items listed in scope.c2_and_c3_open_items_in_this_scope and the tag-edge chain (loom_edges predicates for user tag edges, TAG_MUTATED receipt, scoped POST/DELETE /loom/edges) so the native Kanban card move (add_tags) no longer times out."
+    },
+    {
+      "n": 7,
+      "step": "Native clients: every Loom client the app builds must carry the account context (AuthenticatedRequest), following the Canvas client pattern (src/frontend/handshake_native/src/backend_client.rs:2857-2891, :4077) and C2's BlockViewClient change (bfb5196f). C1 flagged LoomSearchV2Client, LoomTagClient, LoomSidebarClient (app.rs ~20004/27439/28087 @c1060bca) as built without an account - verify each and bind it."
+    },
+    {
+      "n": 8,
+      "step": "Tests: add tests/mt153_loom_route_authority_tests.rs (integration, using account_session_support) or an in-crate api::loom::tests module test (behind duckdb-flight-recorder) named mt153_loom_route_family_authority_matrix, iterating the route families of AC-153-5 with owner/anonymous/cross-account/viewer cases and canonical re-reads. Extend, do not weaken, api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows."
+    },
+    {
+      "n": 9,
+      "step": "Schema re-pin once for the whole batch (procedure in schema_repin_procedure)."
+    },
+    {
+      "n": 10,
+      "step": "Update the user manual (user_manual_obligation) and run the proof checks in order. Report per CODER-REPORT-001; final status READY_FOR_VALIDATION or BLOCKED."
+    }
+  ],
+  "engine_facts": [
+    "SurrealDB is pinned =3.2.0 (src/backend/handshake_core/Cargo.toml). Facts verified in surrealdb-core-3.2.0 source by the authority matrix:",
+    "F1 Table and field permissions are OFF inside a PERMISSIONS predicate (dbs/options.rs:201 new_for_permission_predicate; doc/check.rs:457-470; exec/permission.rs:87-99). Predicates and the fn::* functions they call see every row and field, including fields that are FOR select NONE.",
+    "F2 A top-level query issued on a record-user connection DOES enforce field permissions. Never probe a predicate by running `RETURN fn::...` directly as the record user; it reads permission-hidden fields as NONE and lies. Probe inside a predicate instead (e.g. a probe table whose PERMISSIONS FOR select calls the function).",
+    "F3 A denied CREATE, UPDATE or DELETE is SILENTLY IGNORED: no row returned, no error (doc/check.rs:457,469 IgnoreError::Ignore). Every record-user write MUST check the returned row (or a follow-up SELECT) and map an empty result to the constant denial; the failure otherwise surfaces later as a field ASSERT 500, an empty 404, or a guard THROW 403.",
+    "F4 REFERENCE ON DELETE CASCADE/UNSET and DEFINE EVENT bodies run with permissions OFF (doc/purge.rs:376,385; doc/event.rs:52,80). Cascades are never blocked by the caller's delete permission, and cascade targets need no delete predicate for the cascade itself.",
+    "F5 Session selection: `SurrealStorage::with_record_user_scope(scope, fut)` (src/backend/handshake_core/src/storage/surreal.rs:956 @ab618f46) sets a tokio task-local; `with_data_operation` then signs a cloned client in as the record user. Anything outside that scope, INCLUDING work moved into `tokio::spawn`, runs as root. Re-enter the scope inside every spawned future that touches protected tables."
+  ],
+  "authority_toolkit": [
+    "Rust authorization entry points (all @ab618f46, src/backend/handshake_core/src/): `api::authority::authorize_request(state, headers, capability_id, ResourceKind, external_resource_id, ResourceAction)` (api/authority.rs:1216) returns an AuthorizedResourceContext whose `.record_user_scope` MUST then wrap the storage call via `state.surreal.with_record_user_scope(ctx.record_user_scope, fut)`. A route that calls authorize_request but writes outside that scope is still ROOT-WRITE.",
+    "`api::authority::require_authenticated_session` (api/authority.rs:1013) is the axum route_layer middleware C2 used for process-starting routes with no protected-resource row (see api/debug_adapter.rs:183-186 route_layer). `authenticated_session_credentials` (api/authority.rs:1031) returns the LocalSessionContext + token + channel binding hash. Missing/invalid credentials map to `constant_denial()` = 403 {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}.",
+    "ResourceKind (storage/surreal/resource_authority.rs:43): Workspace, RichDocument, KnowledgeSource, KnowledgeCodeFile, LoomBlock, FlightRecorder, MemoryPack, MemoryProposal, MemoryCommitReport, MemoryItem, MemoryItemCount, ReconciliationQueue.",
+    "Owner creator grants (fn::mt120_creator_grant, provisioned by POST /workspaces): workspace resource actions create/read/update/delete x capabilities fs.read, fs.write, fr.read, fr.ingest.runtime_chat, fr.ingest.native_editor, memory.read, memory.propose (+ memory.review/memory.commit since C2 ec34c88e); rich_document and loom_block resources CRUD x fs.read/fs.write; knowledge_source/code_file CRUD x memory.read/memory.propose/fs.write. Resources are account-private.",
+    "Schema predicate helpers in src/backend/handshake_core/src/storage/surreal/schema.surql: fn::mt109_live_session, fn::mt109_has_grant(kind, external, action, cap), fn::mt109_has_workspace_access(ws, action, cap), fn::mt120_document_access(doc, ws, action, cap), fn::mt120_loom_block_access(block, ws, action, cap), fn::mt120_resource_create, fn::mt120_creator_grant, fn::mt120_workspace_delete(ws), fn::mt120_document_delete, and the kernel_event_ledger receipt predicates fn::mt109_ledger_receipt / fn::mt120_*_receipt. Every record-user write that appends a kernel_event_ledger receipt needs a receipt predicate branch that accepts it; the receipt actor MUST be the session principal (`$session = $auth.id`), never a System actor.",
+    "Test helpers: integration tests use src/backend/handshake_core/tests/account_session_support/mod.rs (`mod account_session_support;` then `AccountFixture::install(&storage)`, `OwnerSession::provision(&storage, token)`, `.headers()`, `.apply(req)`, `.client()`, `.create_workspace(&state)`; hold NATIVE_BINDING_ENV_LOCK when installing a binding). A second account = a second `OwnerSession::provision` against the same installed binding token. In-crate lib tests (behind cfg(all(test, feature = \"duckdb-flight-recorder\"))) use api::workspaces::tests::{WorkspaceBindingFixture (api/workspaces.rs:1626), workspace_test_principal (:1663), create_owned_test_workspace (:1714)}; the reference example is `mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default` (api/workspaces.rs:2766). A viewer/second principal in the SAME account with a read-only grant is expressed with `SurrealStorage::grant_resource(account_id, access_space_id, ResourceGrantSpec{..actions: [read], capability_ids: [fs.read]..})` (storage/surreal/resource_authority.rs:1022); see resource_authority_tests.rs:185/227 for usage.",
+    "AppState construction for integration tests: copy `test_app_state_embedded` (tests/atelier_stealth_window_tests.rs:265) but DO NOT copy its `Option` + `else { return Ok(()) }` early return: a test that cannot build its store MUST fail (panic/expect), never return Ok silently."
+  ],
+  "schema_repin_procedure": [
+    "Schema re-pin procedure (the one C2 used for MT-109 remediation_v24 and C3 is using now): (1) Batch every schema edit for this MT first. Edit `src/backend/handshake_core/src/storage/surreal/schema.surql` (the live schema for a fresh store). (2) For every changed statement add a (current_text, predecessor_text) pair to a delta array in `schema.rs` next to `MT109_C2_SCHEMA_DELTAS` (schema.rs:1991 @ab618f46) so predecessor reconstructions revert it and upgrades re-emit it from SCHEMA; the pair must be byte-exact (scripts in ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/scripts/strip_check.js show how C2 proved a revert is exact). (3) Build the lib once, then run ONE pin-measure run of the pin tests (check PIN-MEASURE). It is expected to fail and prints the new values: MT109_LOOM_CATALOG_SHA256=, MT109_CURRENT_AUTHORITY_INFO_SHA256=, MT109_PREDECESSOR_AUTHORITY_INFO_SHA256=, MT139_CURRENT_SCHEMA_INFO_SHA256=, EXPECTED_ATELIER_CATALOG_SHA256= and the `left:` values of the GENERATED/DECLARATIVE assertions. (4) Update the pins in schema.rs: GENERATED_SURREALQL_SHA256 (:2128), DECLARATIVE_SCHEMA_CATALOG_SHA256 (:2144), EXPECTED_SCHEMA_INFO_SHA256 (:2190), EXPECTED_ATELIER_CATALOG_SHA256 (:2201) and the MT109 Loom/authority catalog pins the tests name. (5) ONE confirm run (check PIN-CONFIRM). The pin-measure run is a measurement, not an attempt; the confirm run counts against attempt_budget. Re-measure once per batch, never once per edit.",
+    "NEVER re-pin a PREDECESSOR constant (PRE_*_GENERATED_SHA256 / PRE_*_INFO_SHA256 / PREDECESSOR_*) to a newly observed value: those record historical catalogs that real on-disk stores carry; re-pinning them would make the upgrade path accept a catalog no real store has (proof laundering)."
+  ],
+  "dependencies": {
+    "depends_on": [],
+    "blocks": [
+      "MT-154 (shares schema.surql/schema.rs pins and fn::mt120_workspace_delete)",
+      "MT-156 (ai_jobs predicate + pins)",
+      "MT-157 (knowledge_debug_breakpoints predicate + pins)"
+    ],
+    "ordering_rule": "One builder at a time in wtc-native-editors-v1. Schema pins are re-measured once per batch; a later MT re-measures on top of the previous MT's committed pins."
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-109.json remediation_v24 (C2 proofs, logs under ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/)"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-153-BUILD-LIB",
+        "claim_refs": [
+          "compile"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo test --locked -j 12 --no-run --lib --features app-runtime,surreal-test-support,test-utils",
+        "expected": "exit 0; 'Finished' line",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "exit code"
+        ]
+      },
+      {
+        "check_id": "MT-153-PIN-MEASURE",
+        "claim_refs": [
+          "schema re-pin"
+        ],
+        "kind": "measurement_not_attempt",
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1500 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+        "expected": "May FAIL (exit 101). Its purpose is to print the new pin values (MT109_LOOM_CATALOG_SHA256=, MT109_CURRENT_AUTHORITY_INFO_SHA256=, MT139_CURRENT_SCHEMA_INFO_SHA256=, EXPECTED_ATELIER_CATALOG_SHA256=, assertion left: values). Copy them into schema.rs per implementation step 'schema re-pin'. Skip this check if this MT made no schema.surql change.",
+        "timeout_seconds": 1500,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log with the printed pin lines"
+        ]
+      },
+      {
+        "check_id": "MT-153-PIN-CONFIRM",
+        "claim_refs": [
+          "schema re-pin"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1500 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+        "expected": "stdout contains 'running 7 tests' and 'test result: ok. 7 passed; 0 failed' and process exit 0",
+        "timeout_seconds": 1500,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "exit code",
+          "result line"
+        ]
+      },
+      {
+        "check_id": "MT-153-ROUTE-MATRIX",
+        "claim_refs": [
+          "AC-153-2",
+          "AC-153-4",
+          "AC-153-5",
+          "AC-153-6",
+          "AC-153-7"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 2400 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 api::loom::tests::mt153_loom_route_family_authority_matrix api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows   (if implemented as the integration file instead: timeout 2400 cargo test --locked -j 12 --test mt153_loom_route_authority_tests --features app-runtime,surreal-test-support,test-utils -- --test-threads=1, plus a [[test]] entry only if required-features demands it)",
+        "expected": "stdout contains 'running 2 tests' and 'test result: ok. 2 passed; 0 failed' and process exit 0 (integration variant: nonzero count, 0 failed)",
+        "timeout_seconds": 2400,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "per-family owner/anon/cross/viewer assertions visible in test names or output"
+        ]
+      },
+      {
+        "check_id": "MT-153-WORKSPACE-DELETE",
+        "claim_refs": [
+          "AC-153-8"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 1800 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit api::workspaces::tests::mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default",
+        "expected": "stdout contains 'running 2 tests' and 'test result: ok. 2 passed; 0 failed' and process exit 0",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log"
+        ]
+      },
+      {
+        "check_id": "MT-153-LOOM-TARGETS",
+        "claim_refs": [
+          "no regression"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && for t in loom_daily_journal_tests loom_transclusion_tests loom_media_tiers_tests project_wiki_drift_tests; do timeout 1800 cargo test --locked -j 12 --test $t --features app-runtime,surreal-test-support,test-utils -- --test-threads=1 || exit 1; done",
+        "expected": "each target: nonzero 'running N tests', 'test result: ok.', 0 failed; loop exit 0",
+        "timeout_seconds": 7200,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log per target"
+        ]
+      },
+      {
+        "check_id": "MT-153-NATIVE-LOOM",
+        "claim_refs": [
+          "AC-153-5 native",
+          "C2 next failures"
+        ],
+        "command_or_method": "(1) cd <worktree>/src/backend/handshake_core && timeout 3600 cargo build --locked -j 12 --bin handshake_core --features app-runtime  (CARGO_TARGET_DIR=<owner_dir>/backend-target for this build only, so HSK_TEST_BACKEND_BIN exists); (2) cd <worktree>/src/frontend/handshake_native && timeout 3600 cargo test --locked -j 12 --features integration,integration_tests --test test_block_collection_view --test test_canvas_board -- --test-threads=1 block_collection_views_live_surrealdb_self_seed_full_round_trip canvas_board_live_surrealdb_self_seeds_mounted_round_trip",
+        "expected": "build exit 0; each test binary reports nonzero executed count and 'test result: ok.' with 0 failed (the Kanban card move and the text-card undo DELETE both pass)",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "logs",
+          "native_test_env_additions set"
+        ]
+      },
+      {
+        "check_id": "MT-153-CHECK-TESTS",
+        "claim_refs": [
+          "all changed test targets compile"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo check --locked -j 12 --tests --features app-runtime,surreal-test-support,test-utils",
+        "expected": "exit 0 ('Finished' line, no 'error[')",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "exit code"
+        ]
+      },
+      {
+        "check_id": "MT-153-CLIPPY-CHANGED",
+        "claim_refs": [
+          "no new clippy findings on changed lines"
+        ],
+        "command_or_method": "cd <worktree>/src/backend/handshake_core && timeout 3600 cargo clippy --locked --keep-going -j 12 -p handshake_core --all-targets --features app-runtime,surreal-test-support,test-utils --message-format=short -- -D warnings",
+        "expected": "Exit 101 is tolerated ONLY because 395 pre-existing diagnostics exist (MT-109 kb-c2 log 31-core-clippy.log). Required: zero diagnostics whose file:line falls on a line changed by this MT (compare against `git diff -U0 <base>..HEAD`). Record the count of findings on changed lines (must be 0).",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "log",
+          "changed-line finding count = 0"
+        ]
+      },
+      {
+        "check_id": "MT-153-FMT",
+        "claim_refs": [
+          "formatting"
+        ],
+        "command_or_method": "cd <worktree> && rustfmt --edition 2021 --check <each changed .rs file>",
+        "expected": "exit 0, no diff output",
+        "timeout_seconds": 300,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "exit code"
+        ]
+      },
+      {
+        "check_id": "MT-153-DIFF-CHECK",
+        "claim_refs": [
+          "whitespace hygiene"
+        ],
+        "command_or_method": "cd <worktree> && git diff --check <base>..HEAD",
+        "expected": "no output, exit 0",
+        "timeout_seconds": 120,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "exit code"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true
+  },
+  "owned_files": [
+    "src/backend/handshake_core/src/api/loom.rs",
+    "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/loom_canvas_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/wiki_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/block_view_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/schema.surql",
+    "src/backend/handshake_core/src/storage/surreal/schema.rs"
+  ],
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "native live-backend proofs in MT-153-NATIVE-LOOM"
+    ],
+    "not_applicable_reason": "Authority migration of existing routes; the native surfaces are unchanged except that their clients now send the account session."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Loom account-session authority: which Loom operations need which grant; what an anonymous or other-account caller sees (constant 403 / empty list)"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test (existing LIB user_manual tests green)"
+    ],
+    "location": "src/backend/handshake_core/src/user_manual/ (seed.rs holds the manual pages; follow the MT-152 pattern: a section per behaviour, pinned to code by a test where MT-152 did so)",
+    "reason": "Shipped behaviour changes: Loom routes that previously worked without a session now require one."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "loom_blocks",
+      "loom_edges",
+      "loom_folders",
+      "loom_folder_members",
+      "knowledge_wiki_projections",
+      "loom_wiki_overlays",
+      "assets",
+      "media_asset_tiers",
+      "loom_collections",
+      "loom_ai_suggestions",
+      "knowledge_quick_switcher_recents",
+      "loom_canvas_boards",
+      "loom_canvas_placements",
+      "loom_canvas_visual_edges",
+      "loom_block_view_fr_outbox",
+      "loom_block_search_index",
+      "kernel_event_ledger"
+    ],
+    "identity_and_scope_contexts": [
+      "owner account session",
+      "second account session",
+      "same-account read-only principal",
+      "anonymous"
+    ],
+    "enforcement_boundaries": [
+      "ResourceBroker authorize_request",
+      "record-user table/field PERMISSIONS"
+    ],
+    "cross_account_negative_cases": [
+      "every route family in AC-153-5(c)"
+    ],
+    "derived_resource_non_widening_cases": [
+      "receipts readable only through the owning block's grant",
+      "search index rows visible only with the block's read grant"
+    ],
+    "metadata_side_channel_cases": [
+      "404 vs 403 on journal/workspace existence (PUT /ws/:ws/loom/journals/:date): authorize before lookup so both cases return the constant denial to non-owners"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "HBR-INT-009: diagnostics posture unchanged; denial paths keep the constant error body.",
+    "STOP": "No assertion weakened; no root flow counted as proof."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "ACCOUNT_SESSION_AUTHORITY_MIGRATION_V1",
+    "risks": [
+      "Silent denials (F3) turn a missing predicate into an empty success that tests read as 'nothing to do'.",
+      "A route authorized in Rust but written as root passes owner tests and still leaks across accounts.",
+      "Root existence checks leak workspace/journal existence through 404-vs-403.",
+      "Receipts written with System actors are invisible to the owner after the aggregate route became record-user (C2 risk).",
+      "tokio::spawn inside a handler silently drops the record-user scope (F5).",
+      "Widening a predicate to make a test pass (e.g. OR true, or granting fs.write for reads) breaks least privilege."
+    ],
+    "minimum_controls": [
+      "Every positive proof runs as an authenticated record user (account session + channel binding). A root/admin session (with_admin_operation, test_admin_query*, SurrealStorage without with_record_user_scope) may only SEED preconditions that the product itself cannot create, and never counts as privacy/isolation proof (02:2773, LM-RLS-002).",
+      "Every changed route has: anonymous negative (no session headers), cross-account negative (a second OwnerSession cannot read or write the first account's rows, and the rows are unchanged afterwards), and where a write is involved, a read-only (viewer) negative when the grant model can express one.",
+      "Denied writes are proven by re-reading the canonical row after the call (F3: denied writes are silent). A 403 status alone is not proof that nothing was written.",
+      "Anti-scaffold: no new abstraction, trait, feature flag, config knob or helper that is not called by product code in this MT; no `#[ignore]`, no `return Ok(())` skip paths, no assertion weakened or deleted to go green; tests may not assert only on mocks/fixtures the Coder authored for a resource-boundary claim (CODER-PROOF-004, CODER-CODE-006).",
+      "No fixture-only proof: each acceptance item is proven against the real embedded SurrealDB store (fresh Handshake-managed RocksDB/SurrealKV directory under the owner runtime root), through the real axum router, with the real ResourceBroker.",
+      "Every test binary run must report a NONZERO executed count for the named tests (`running N tests` with N equal to the number of names passed with --exact); a `0 passed` result is a failure of the check, not a pass.",
+      "Grep proof in the handoff: for every handler in scope.routes, the storage calls are lexically inside with_record_user_scope (list handler -> line).",
+      "No predicate may contain a bare `true`, `FULL`, or a capability broader than the route's action."
+    ]
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "product_branch": "feat/WP-KERNEL-012",
+    "product_worktree": "<Handshake Worktrees>/wtc-native-editors-v1",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "next_actor": "ORCHESTRATOR (assign a coder session); after READY_FOR_VALIDATION -> INTEGRATION_VALIDATOR",
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "report_fields_required": [
+      "status",
+      "commits",
+      "changed_paths",
+      "commands_run (command, exit code, result line, log path)",
+      "attempt_diagnoses",
+      "blockers",
+      "operator_decision_requests",
+      "residual_risks"
+    ],
+    "attempt_diagnoses": {},
+    "operator_decision_requests": [],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "commit_policy": "The Coder commits product changes on feat/WP-KERNEL-012 (fix/test/style(MT-153) messages). The Integration Validator commits governance (this file) on gov_kernel; the Coder does not edit this file except the handoff report fields if the launcher routes the report here."
+  },
+  "remediation_v1": {
+    "session": "KERNEL_BUILDER-C3",
+    "batch_owner": "MT-109",
+    "covered_mts": [
+      "MT-109",
+      "MT-153",
+      "MT-015",
+      "MT-019",
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025",
+      "MT-026",
+      "MT-027",
+      "MT-028",
+      "MT-030",
+      "MT-067",
+      "MT-120"
+    ],
+    "pointer": "MT-109.json remediation_v26",
+    "candidate_sha": "0cfbff649c08ae260ac53eb866293b2bc273137d",
+    "status_change": "none",
+    "recorded_at_utc": "2026-09-23T09:50:35.693Z"
+  }
+}

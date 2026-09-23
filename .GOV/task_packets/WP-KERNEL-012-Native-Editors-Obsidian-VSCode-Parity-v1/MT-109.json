@@ -13574,5 +13574,102 @@
     "ready_for_validation": "none: every covered MT keeps open classes outside this round (e.g. C1V-QUIET-LEAK, C1V-LOOM-READ-403, Loom tag edges)",
     "c_free_gb_final": 272,
     "completed_at_utc": "2026-09-23T08:35:42.548Z"
+  },
+  "remediation_v25": {
+    "session": "KERNEL_BUILDER-C3",
+    "round": 6,
+    "status": "SUPERSEDED_BY_remediation_v26",
+    "base_sha": "ab618f46fa03635dcb6848e42e3599f906c520a4",
+    "batch_owner": "MT-109",
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3",
+    "attempt_diagnoses": {
+      "C3-IDENTITY-MUTATION-FAIL-CLOSED": {
+        "failing_assertion": "api/loom.rs mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows: expect_err(\"record-user standalone identity mutation must fail closed\") got Ok(()) (section first reached in C3 after the transclusion fix)",
+        "attempts": [
+          "kb-c3 run 06: Ok(()) for one of the three UPDATE statements"
+        ],
+        "root_cause_hypothesis": "a record-user UPDATE whose after-state fails the loom_blocks update predicate (e.g. foreign workspace_id) is silently ignored (SurrealDB 3.2.0 fact 3) instead of reaching the mt109_loom_source_integrity THROW; code location schema.surql loom_blocks FOR update / event mt109_loom_source_integrity",
+        "intended_fix": "probe (run 08) records per-statement outcomes; if a silent no-op with the row unchanged, it is a fail-closed denial without the canonical error text",
+        "next_runs": "1 probe + 1 confirm"
+      }
+    },
+    "recorded_at_utc": "2026-09-23T09:33:28.447Z"
+  },
+  "remediation_v26": {
+    "session": "KERNEL_BUILDER-C3",
+    "round": 6,
+    "status": "STOPPED_FOR_HANDOFF",
+    "batch_owner": "MT-109",
+    "covers": [
+      "MT-153"
+    ],
+    "covered_mts": [
+      "MT-109",
+      "MT-153",
+      "MT-015",
+      "MT-019",
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025",
+      "MT-026",
+      "MT-027",
+      "MT-028",
+      "MT-030",
+      "MT-067",
+      "MT-120"
+    ],
+    "base_sha": "ab618f46fa03635dcb6848e42e3599f906c520a4",
+    "pushed_sha": "0cfbff649c08ae260ac53eb866293b2bc273137d",
+    "uncommitted_files": [],
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3",
+    "commits": [
+      "a1e18d79 fix(MT-109): give the account-scoped Loom surfaces least-privilege record-user permissions",
+      "19922490 fix(MT-109): run every Loom route as the authenticated account record user",
+      "0cfbff64 test(MT-120): create the retry and wiki-compile inputs through the account routes"
+    ],
+    "spec_basis": [
+      "02-system-architecture.md:2758/2773/2776",
+      "LM-RLS-001/002 (11-shared-dev-platform:580-582)",
+      "LoomBlockContentType (11:242-247)"
+    ],
+    "loom_routes_done": "All 37 ROOT-WRITE + 29 ROOT-READ loom.rs rows and the PATCH /loom/blocks GAP row: ResourceBroker authorization (workspace or exact block/rich_document grant; fs.read reads, fs.write writes) + LoomAccount::run record-user scope with session-principal receipts; NONE tables given workspace-grant predicates (folders, folder members, folder anchors, wiki projections/overlays, assets, media tiers, collections/members, quick-switcher recents, AI suggestions, saved-view outbox); loom_edges user branches; view_def rows; board/placement update, visual-edge create; schema re-pinned once (run 04, confirmed run 06).",
+    "loom_routes_partial": [
+      "POST canvas-boards/:id/cards Stage branch and POST stage-cards/:pid/compensate: now require the canvas edit + workspace grants, but their storage writes still run as root (Stage storage conversion left to C4 stage scope)",
+      "POST /loom/import and POST assets/:id/tiers/:tier/retry: protected writes scoped; the preview job enqueue (ai_jobs/workflow, kernel queue without a record-user model) stays root (C4 kernel)",
+      "DELETE /loom/blocks/:id (matrix UNSURE row): runs in the account scope; resource/grant/entity retirement not changed",
+      "spawn_block_view_reconciler background loop still root (not a route)"
+    ],
+    "c2_followups": {
+      "a_kanban_tag_edge_timeout": "FIXED_PROVEN_LIB: loom_edges account branches + TAG_MUTATED receipt branch + scoped PATCH; mt109_c3_record_user_tags_and_edges ok (../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/logs/06-core-c3-reps.log); native Kanban rerun not done (no native sweep)",
+      "b_text_card_undo_403": "FIXED_PROVEN_LIB: root cause local_accounts.rs authorized_canvas_placement_identity required a loom_block resource for the placed block (text card = rich_document); mt109_c3_record_user_canvas_placements text-card undo DELETE 200 (../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/logs/06-core-c3-reps.log)",
+      "c_transclusion_403": "FIXED_PROVEN_LIB: transclusion accepts the rich_document grant; mt109_c3_record_user_transclusion_and_markdown_import ok; mounted_record_user_loom_creates_* now passes the transclusion step (fails later, see open_failures)",
+      "d_test_tag_edges_root_seed": "FIXED_BY_ROUTE: native LiveBackend.post_json already sends the account session, and POST /loom/edges is now account-scoped; no native test change needed"
+    },
+    "representative_results": {
+      "run_06": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/logs/06-core-c3-reps.log: 15 passed / 2 failed; passed: all 5 schema pin tests, full_schema_atelier_noop, exact_predecessor_upgrade, owned_workspace_delete_cascades, mt109_c3_record_user_{folders,wiki,tags_and_edges,ai_suggestions,assets_collections_and_views,transclusion_and_markdown_import,canvas_placements}",
+      "run_08": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/logs/08-core-probe-identity-graph.log: mt109_c3_record_user_graph_search_and_pins ok (journal anonymous assertion corrected to the route 401 contract); mounted_record_user_loom_creates probe failed as below"
+    },
+    "open_failures": {
+      "C3-IDENTITY-MUTATION-FAIL-CLOSED": {
+        "assertion": "api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows (identity mutation must report HSK-403)",
+        "runs": [
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/logs/06-core-c3-reps.log",
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/logs/08-core-probe-identity-graph.log (probe)"
+        ],
+        "diagnosis": "row stays unchanged (immutability assertion passes) but: UPDATE workspace_id => silent Ok(()) (after-state fails loom_blocks FOR update, SurrealDB 3.2.0 silent deny), content_type => HSK-403 THROW, source_rich_document_id => field ASSERT error. Pre-existing contract section first reached in C3; not a C3 route defect.",
+        "next_step": "decide whether a silent deny counts as fail-closed or add an explicit identity guard THROW before the permission check (1 confirm run left)"
+      }
+    },
+    "gates": {
+      "status": "NOT_RUN: runs 09-15 all logged BUSY (another cargo/rustc process was running on the host; not stopped); rerun gates.sh in the next session",
+      "script": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/gates.sh"
+    },
+    "native_gap": "Native Loom clients without account context now receive the constant denial on the migrated routes: LoomBlockClient, CanvasTitleClient, CanvasClient, DrawerDataClient, DrawerActionClient, LoomGraphClient, LoomFolderClient, LoomTagClient, LoomSidebarClient, LoomWikiClient, backend/loom.rs LoomClient (BlockViewClient, CanvasBoardClient, WorkspaceSearchClient already bound). Binding them is required before native Loom surfaces work (operator_decision_request: C3 follow-up vs C4 app-host).",
+    "workspace_delete_note": "fn::mt120_workspace_delete still refuses workspaces that contain folders/wiki/assets/collections/AI suggestions/recents (zero-row guard); unchanged, follow-up for the workspace delete route",
+    "d_target_size": "19G",
+    "ready_for_validation": "none",
+    "recorded_at_utc": "2026-09-23T09:50:35.693Z"
   }
 }
