@@ -669,30 +669,124 @@ fn parse_journal_date(raw: &str) -> ApiResult<String> {
 async fn open_daily_journal(
     State(state): State<AppState>,
     Path((workspace_id, journal_date)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<LoomBlock>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
     let journal_date = parse_journal_date(&journal_date)?;
-    let ctx = WriteContext::human(None);
-    let block = state
-        .storage
-        .get_or_create_daily_journal_block(&ctx, &workspace_id, &journal_date)
+    let denied = || {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    };
+    // Master Spec §2.3.13.12.4: the daily note is created and read under the authenticated
+    // account session (LM-RLS-001: members create; viewers only read an existing note).
+    if crate::api::authority::authenticated_session_credentials(&state, &headers)
         .await
-        .map_err(map_storage_error)?;
-
-    // MT-177 authority still applies to the MT-257 daily journal path. The
-    // bridge is idempotent, so repeated opens keep returning the same block
-    // while proving it resolves through ProjectKnowledgeIndex + EventLedger.
-    state
-        .storage
-        .bridge_loom_block_to_knowledge(&ctx, &workspace_id, &block.block_id)
-        .await
-        .map_err(map_storage_error)?;
-
-    // WP-KERNEL-009 MT-264: refresh the semantic embedding projection for the
-    // journal block (the keyword/trigram row is written in storage).
-    refresh_loom_block_embedding(&state, &ctx, &block).await;
-
-    Ok(Json(block))
+        .is_err()
+    {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(ErrorResponse {
+                error: "HSK-401-LOOM-SESSION",
+            }),
+        ));
+    }
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let database = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
+    let read_existing = |block_id: String| {
+        let state = state.clone();
+        let headers = headers.clone();
+        let workspace_id = workspace_id.clone();
+        let database = database.clone();
+        async move {
+            let authority = crate::api::authority::authorize_request(
+                &state,
+                &headers,
+                "fs.read",
+                ResourceKind::LoomBlock,
+                &block_id,
+                ResourceAction::Read,
+            )
+            .await
+            .map_err(|_| denied())?;
+            state
+                .surreal
+                .with_record_user_scope(
+                    authority.record_user_scope,
+                    database.get_record_user_loom_block(&workspace_id, &block_id),
+                )
+                .await
+                .map_err(map_storage_error)
+        }
+    };
+    // The natural-key lookup only locates the id; the read itself is re-authorized above.
+    if let Some(existing) = crate::storage::surreal::loom_canvas_store::journal_block_id(
+        &state.surreal,
+        &workspace_id,
+        &journal_date,
+    )
+    .await
+    .map_err(map_storage_error)?
+    {
+        return read_existing(existing).await.map(Json);
+    }
+    let authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.write",
+        ResourceKind::Workspace,
+        &workspace_id,
+        ResourceAction::Create,
+    )
+    .await
+    .map_err(|_| denied())?;
+    let ctx = loom_create_write_context(&authority)?;
+    let title = format!("Daily Note {journal_date}");
+    let mut derived = LoomBlockDerived::default();
+    derived.full_text_index = Some(format!("# {title}\n\n"));
+    let created = state
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope,
+            database.create_record_user_loom_bundle(
+                &ctx,
+                NewLoomBlock {
+                    block_id: None,
+                    workspace_id: workspace_id.clone(),
+                    content_type: LoomBlockContentType::Journal,
+                    document_id: None,
+                    asset_id: None,
+                    title: Some(title),
+                    original_filename: None,
+                    content_hash: None,
+                    pinned: false,
+                    journal_date: Some(journal_date.clone()),
+                    imported_at: None,
+                    derived,
+                },
+                None,
+            ),
+        )
+        .await;
+    match created {
+        Ok(block) => finalize_loom_block_create(&state, &ctx, &workspace_id, block).await,
+        // A concurrent open won the uq_loom_blocks_journal_key race: return that same note.
+        Err(StorageError::Conflict(_)) | Err(StorageError::ConflictDetails { .. }) => {
+            let existing = crate::storage::surreal::loom_canvas_store::journal_block_id(
+                &state.surreal,
+                &workspace_id,
+                &journal_date,
+            )
+            .await
+            .map_err(map_storage_error)?
+            .ok_or_else(denied)?;
+            read_existing(existing).await.map(Json)
+        }
+        Err(error) => Err(map_storage_error(error)),
+    }
 }
 
 async fn get_loom_block(
@@ -4580,8 +4674,10 @@ struct CreateCanvasCardResponse {
 async fn create_canvas_card(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Json(payload): Json<CreateCanvasCardRequest>,
 ) -> ApiResult<Json<CreateCanvasCardResponse>> {
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
     ensure_workspace_exists(&state, &workspace_id).await?;
     let stage_provenance_key = validated_stage_provenance_key(&payload)?;
     let ctx = WriteContext::human(None);
@@ -4617,44 +4713,114 @@ async fn create_canvas_card(
         }));
     }
 
-    let imported = state
-        .storage
-        .import_markdown_to_loom(
-            &ctx,
-            &workspace_id,
-            &payload.title,
-            payload.body.as_deref().unwrap_or(""),
+    // Master Spec 02-system-architecture §2.3.13.12.4: privileged sessions MUST NOT execute ordinary
+    // protected-resource flows. The text card's RichDocument, its Loom projection and the placement
+    // are all written under the authenticated account session, each through its exact grant.
+    let denied = || {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    };
+    let title = payload.title.trim().to_owned();
+    if title.is_empty() {
+        return Err(bad_request("HSK-400-LOOM-VALIDATION"));
+    }
+    let board_authority = authorize_canvas_visual_edge_write(&state, &headers, &block_id).await?;
+    let workspace_authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.write",
+        ResourceKind::Workspace,
+        &workspace_id,
+        ResourceAction::Create,
+    )
+    .await
+    .map_err(|_| denied())?;
+    let ctx = loom_create_write_context(&board_authority)?;
+    let imported = crate::knowledge_document::import::import_snippet(
+        payload.body.as_deref().unwrap_or(""),
+        crate::knowledge_document::import::ImportFormat::Markdown,
+    );
+    let database = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
+    let document = state
+        .surreal
+        .with_record_user_scope(
+            workspace_authority.record_user_scope,
+            crate::storage::knowledge::KnowledgeStore::create_knowledge_rich_document(
+                &database,
+                crate::storage::knowledge::NewKnowledgeRichDocument {
+                    workspace_id: workspace_id.clone(),
+                    document_id: None,
+                    title,
+                    schema_version: crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION
+                        .to_owned(),
+                    content_json: imported.document_json,
+                    crdt_document_id: None,
+                    crdt_snapshot_id: None,
+                    promotion_receipt_event_id: None,
+                    project_ref: None,
+                    folder_ref: None,
+                    authority_label: Some("promoted".to_owned()),
+                    owner_actor_kind: Some(board_authority.actor_kind.clone()),
+                    owner_actor_id: Some(board_authority.actor_id.clone()),
+                },
+            ),
         )
         .await
         .map_err(map_storage_error)?;
-
-    let placement = state
-        .storage
-        .place_block_on_canvas(
-            &ctx,
-            NewLoomCanvasPlacement {
-                canvas_block_id: block_id,
-                workspace_id: workspace_id.clone(),
-                placed_block_id: imported.block.block_id.clone(),
-                x: payload.x,
-                y: payload.y,
-                w: payload.w,
-                h: payload.h,
-                z_index: payload.z_index.unwrap_or(0),
-                group_id: None,
-                // Inline text-card editor origin: mark so the frontend restores
-                // an inline-editable text card across sessions (MT-080 FIX A).
-                is_text_card: true,
-                stage_provenance_key: None,
-            },
+    let rich_document_id = document.rich_document_id.clone();
+    let source_authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.read",
+        ResourceKind::RichDocument,
+        &rich_document_id,
+        ResourceAction::Read,
+    )
+    .await
+    .map_err(|_| denied())?;
+    let receipt = state
+        .surreal
+        .with_record_user_scope(
+            board_authority.record_user_scope,
+            database.place_record_user_canvas_block(
+                &ctx,
+                NewLoomCanvasPlacement {
+                    canvas_block_id: block_id,
+                    workspace_id: workspace_id.clone(),
+                    placed_block_id: rich_document_id.clone(),
+                    x: payload.x,
+                    y: payload.y,
+                    w: payload.w,
+                    h: payload.h,
+                    z_index: payload.z_index.unwrap_or(0),
+                    group_id: None,
+                    // Inline text-card editor origin: mark so the frontend restores
+                    // an inline-editable text card across sessions (MT-080 FIX A).
+                    is_text_card: true,
+                    stage_provenance_key: None,
+                },
+                source_authority.record_user_scope.clone(),
+            ),
+        )
+        .await
+        .map_err(map_storage_error)?;
+    let block = state
+        .surreal
+        .with_record_user_scope(
+            source_authority.record_user_scope,
+            database.get_record_user_loom_block(&workspace_id, &rich_document_id),
         )
         .await
         .map_err(map_storage_error)?;
 
     Ok(Json(CreateCanvasCardResponse {
-        block: imported.block,
-        rich_document_id: imported.rich_document_id,
-        placement,
+        block,
+        rich_document_id,
+        placement: receipt.placement,
         created_by_request: true,
     }))
 }
@@ -5337,6 +5503,75 @@ mod tests {
             .await
             .unwrap();
         snapshot.take::<Option<Value>>(0).unwrap().unwrap()
+    }
+
+    #[cfg(feature = "os-keychain")]
+    /// Owner account session (setup -> login -> session exchange) plus an owned workspace created
+    /// through the product route; returns the router, the account headers and the workspace id.
+    async fn owned_loom_session(
+        state: &AppState,
+        binding: &LoomCreateBinding,
+    ) -> (axum::Router, HeaderMap, String) {
+        let router = crate::api::authority::routes(state.clone())
+            .merge(crate::api::workspaces::routes(state.clone()))
+            .merge(routes(state.clone()));
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-hsk-channel-binding-token",
+            binding.channel.parse().unwrap(),
+        );
+        let credentials = serde_json::json!({
+            "account_name": "Loom journal owner",
+            "password": "loom journal owner runtime proof password",
+        });
+        let (status, _) = loom_create_request(
+            &router,
+            "POST",
+            "/authority/setup",
+            &headers,
+            credentials.clone(),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "owner setup");
+        let (status, credential) =
+            loom_create_request(&router, "POST", "/authority/login", &headers, credentials).await;
+        assert_eq!(status, StatusCode::OK, "owner login");
+        let (status, session) = loom_create_request(
+            &router,
+            "POST",
+            "/authority/session",
+            &headers,
+            serde_json::json!({
+                "account_id": credential["account_id"],
+                "principal_id": credential["principal_id"],
+                "access_space_id": credential["access_space_id"],
+                "authentication_token": credential["token"],
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "owner session exchange");
+        headers.insert(
+            "x-hsk-session-token",
+            session["session_token"].as_str().unwrap().parse().unwrap(),
+        );
+        headers.insert(
+            "x-hsk-actor-id",
+            session["principal_id"].as_str().unwrap().parse().unwrap(),
+        );
+        headers.insert("x-hsk-actor-kind", "operator".parse().unwrap());
+        headers.insert("x-hsk-kernel-task-run-id", "owned-loom".parse().unwrap());
+        headers.insert("x-hsk-session-run-id", "owned-loom".parse().unwrap());
+        let (status, workspace) = loom_create_request(
+            &router,
+            "POST",
+            "/workspaces",
+            &headers,
+            serde_json::json!({"name": "Owned journal workspace"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "owned workspace: {workspace}");
+        let workspace_id = workspace["id"].as_str().unwrap().to_owned();
+        (router, headers, workspace_id)
     }
 
     #[cfg(feature = "os-keychain")]
@@ -6892,14 +7127,19 @@ mod tests {
     /// gets a `loom_block_search_index` row on creation and is immediately
     /// findable by LoomSearchV2 — no stale/missing-projection drift. Proven
     /// against the real durable store.
+    #[cfg(feature = "os-keychain")]
     #[tokio::test]
     async fn mt264_journal_block_indexed_on_create() -> Result<(), Box<dyn std::error::Error>> {
+        let binding = LoomCreateBinding::new();
         let (state, _store) = setup_state().await?;
-        let workspace_id = create_workspace(&state).await?;
+        // The daily note is created under the authenticated account session (Master Spec
+        // §2.3.13.12.4); the owner creates the workspace through the product route.
+        let (_router, headers, workspace_id) = owned_loom_session(&state, &binding).await;
 
         let journal = open_daily_journal(
             State(state.clone()),
             Path((workspace_id.clone(), "2026-06-18".to_string())),
+            headers.clone(),
         )
         .await
         .map_err(|(status, Json(body))| LoomApiTestCallError {
@@ -6907,6 +7147,18 @@ mod tests {
             code: body.error.to_string(),
         })?;
         let block_id = journal.0.block_id.clone();
+        // Get-or-create is idempotent for the same account/workspace/date.
+        let reopened = open_daily_journal(
+            State(state.clone()),
+            Path((workspace_id.clone(), "2026-06-18".to_string())),
+            headers,
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+        assert_eq!(reopened.0.block_id, block_id, "same daily note on reopen");
 
         // The journal block has an index row immediately on creation.
         let index_rows = loom_test_count(

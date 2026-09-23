@@ -1179,11 +1179,20 @@ pub(crate) async fn create_record_user_loom_bundle(
             "loom block_id must be non-empty without surrounding whitespace",
         ))?;
     let is_canvas = matches!(block.content_type, LoomBlockContentType::Canvas);
-    if !matches!(block.content_type, LoomBlockContentType::Note | LoomBlockContentType::Canvas)
-        || is_canvas != board_state.is_some()
+    // Master Spec LoomBlockContentType (11-shared-dev-platform §242-247) + the implemented canvas
+    // kind; LM-RLS-001 gates creation by membership role, not by content type.
+    if !matches!(
+        block.content_type,
+        LoomBlockContentType::Note
+            | LoomBlockContentType::File
+            | LoomBlockContentType::AnnotatedFile
+            | LoomBlockContentType::TagHub
+            | LoomBlockContentType::Journal
+            | LoomBlockContentType::Canvas
+    ) || is_canvas != board_state.is_some()
     {
         return Err(StorageError::Validation(
-            "record-user Loom creation supports only note or canvas blocks",
+            "record-user Loom creation supports note, file, annotated_file, tag_hub, journal or canvas blocks",
         ));
     }
     if let Some(state) = &board_state {
@@ -3260,6 +3269,45 @@ async fn add_canvas_visual_edge_attempt(
         .ok_or_else(|| {
             StorageError::Database("canvas visual edge create returned no row".to_owned())
         })
+}
+
+#[derive(SurrealValue)]
+struct JournalLookupBindings {
+    workspace: RecordId,
+    journal_date: String,
+}
+
+#[derive(SurrealValue)]
+struct JournalIdRow {
+    block_id: String,
+}
+
+/// The existing daily-journal block id for `(workspace, date)`, used only to locate the note; the
+/// API re-authorizes the read through the account's exact grant before returning any content.
+pub(crate) async fn journal_block_id(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    journal_date: &str,
+) -> StorageResult<Option<String>> {
+    let bindings = JournalLookupBindings {
+        workspace: RecordId::new(WORKSPACES, workspace_id.to_owned()),
+        journal_date: journal_date.to_owned(),
+    };
+    let rows: Vec<JournalIdRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT block_id FROM loom_blocks WHERE workspace_id = $workspace \
+                           AND content_type = 'journal' AND journal_date = $journal_date LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    Ok(rows.into_iter().next().map(|row| row.block_id))
 }
 
 /// The canvas board that owns `visual_edge_id` inside `workspace_id`, read for API-boundary
