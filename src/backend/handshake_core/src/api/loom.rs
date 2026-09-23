@@ -702,7 +702,10 @@ async fn get_loom_block(
 ) -> ApiResult<Json<LoomBlock>> {
     use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
 
-    let authority = crate::api::authority::authorize_request(
+    // A rich document's Loom projection shares the document id and is protected by the account's
+    // `rich_document` resource (MT-109 C1V-LOOM-READ-403); a standalone block has its own
+    // `loom_block` resource. Either exact grant authorizes the read; the denial stays constant.
+    let authority = match crate::api::authority::authorize_request(
         &state,
         &headers,
         "fs.read",
@@ -711,14 +714,26 @@ async fn get_loom_block(
         ResourceAction::Read,
     )
     .await
-    .map_err(|_| {
-        (
-            StatusCode::FORBIDDEN,
-            Json(ErrorResponse {
-                error: "HSK-403-PROTECTED-RESOURCE",
-            }),
+    {
+        Ok(authority) => authority,
+        Err(_) => crate::api::authority::authorize_request(
+            &state,
+            &headers,
+            "fs.read",
+            ResourceKind::RichDocument,
+            &block_id,
+            ResourceAction::Read,
         )
-    })?;
+        .await
+        .map_err(|_| {
+            (
+                StatusCode::FORBIDDEN,
+                Json(ErrorResponse {
+                    error: "HSK-403-PROTECTED-RESOURCE",
+                }),
+            )
+        })?,
+    };
     let database = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
     let block = state
         .surreal
