@@ -153,7 +153,7 @@ impl Drop for LiveWorkspaceCleanup<'_> {
 /// Mount a production shell bound to the live backend + seeded workspace, with the Canvas pane bound to
 /// the seeded canvas board and opened on the active work surface.
 fn canvas_shell(
-    base: &str,
+    live: &interconnect_support::backend_proof_support::LiveBackend,
     workspace_id: &str,
     canvas_block_id: &str,
 ) -> (
@@ -171,7 +171,8 @@ fn canvas_shell(
         db_status: "ok".to_string(),
         migration_version: Some(1),
     }));
-    app.set_backend_base_url_for_test(base, runtime.handle().clone());
+    live.bind_app_account(&mut app);
+    app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
     assert!(
         app.switch_project(workspace_id),
         "switch to the seeded managed-SurrealDB workspace"
@@ -283,7 +284,7 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
     let placement_two = place(&source_two, 320.0, 220.0);
 
     // Mount the production shell; the app self-fetches the board and drains the two real placements in.
-    let (app, _rt, board) = canvas_shell(&live.base, &workspace_id, &canvas_id);
+    let (app, _rt, board) = canvas_shell(&live, &workspace_id, &canvas_id);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 900.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
@@ -688,7 +689,7 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
     let placement_one = place(&source_one, 40.0, 40.0);
     let placement_two = place(&source_two, 360.0, 260.0);
 
-    let (app, rt, board) = canvas_shell(&live.base, &workspace_id, &canvas_id);
+    let (app, rt, board) = canvas_shell(&live, &workspace_id, &canvas_id);
     let graph_client = LoomGraphClient::new(live.base.clone(), rt.handle().clone());
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 900.0))
@@ -932,7 +933,7 @@ fn mt026_mounted_canvas_canonical_argus_move_placement() {
         "baseline persisted x is the seeded 40: {baseline}"
     );
 
-    let (app, _rt, board) = canvas_shell(&live.base, &workspace_id, &canvas_id);
+    let (app, _rt, board) = canvas_shell(&live, &workspace_id, &canvas_id);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 900.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
@@ -1088,7 +1089,7 @@ fn mt026_mounted_canvas_canonical_argus_group_placements() {
     let placement_one = place(&source_one, 40.0, 40.0);
     let placement_two = place(&source_two, 360.0, 260.0);
 
-    let (app, _rt, board) = canvas_shell(&live.base, &workspace_id, &canvas_id);
+    let (app, _rt, board) = canvas_shell(&live, &workspace_id, &canvas_id);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 900.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
@@ -1241,7 +1242,7 @@ fn mt026_mounted_canvas_empty_state_canonical_argus() {
         .expect("canvas create returns block_id")
         .to_owned();
 
-    let (app, _rt, board) = canvas_shell(&live.base, &workspace_id, &canvas_id);
+    let (app, _rt, board) = canvas_shell(&live, &workspace_id, &canvas_id);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1000.0, 700.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);

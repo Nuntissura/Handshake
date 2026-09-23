@@ -3075,7 +3075,8 @@ mod live_backend {
 
         // The reverse lookup must find the real document through its transactional Loom note/search
         // projection, then the mounted code pane must render the exact NoteRefs AccessKit nodes.
-        let find_notes = FindNotesHttp::new(live.base.clone());
+        let find_notes = FindNotesHttp::new(live.base.clone())
+            .with_authenticated_context(Some(live.account_context.clone()));
         let notes = runtime
             .block_on(find_code_ref_notes_with(
                 &find_notes,
@@ -3112,7 +3113,8 @@ mod live_backend {
             .with_authenticated_context(Some(live.account_context.clone()));
         let restarted_documents = KnowledgeDocumentsClient::with_base_url(live.base.clone())
             .with_authenticated_context(live.account_context.clone());
-        let restarted_find_notes = FindNotesHttp::new(live.base.clone());
+        let restarted_find_notes = FindNotesHttp::new(live.base.clone())
+            .with_authenticated_context(Some(live.account_context.clone()));
         let restarted_symbol = runtime
             .block_on(restarted_code_nav.get_symbol(&symbol_id))
             .expect("fresh symbol read after owned backend restart");

@@ -102,6 +102,9 @@ pub struct LiveBackend {
     rt: tokio::runtime::Runtime,
     owned_backend: RefCell<Option<Child>>,
     owned_binary: Option<PathBuf>,
+    /// Exact native-MCP binding file the owned backend verifies channel credentials against
+    /// (`HANDSHAKE_STAGE_BINDING_FILE`), reused verbatim by `restart_owned`.
+    owned_binding_file: Option<PathBuf>,
     owned_data_dir: Option<PathBuf>,
     owned_runtime_roots: Vec<PathBuf>,
     retained_failure_receipt: RefCell<Option<PathBuf>>,
@@ -549,6 +552,29 @@ fn wait_for_owned_exit_before(child: &mut Child, deadline: Instant) -> Result<bo
     }
 }
 
+/// Typed account for a deterministic LOCAL test double (one-shot/404 server) that never checks
+/// credentials. It carries no real session and is origin-bound to `base`, so it can only ever
+/// authorize requests to that double; product backends still reject it. Real backends must use
+/// [`LiveBackend::account`] / [`LiveBackend::bind_app_account`] instead.
+pub fn typed_test_double_account(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext =
+        serde_json::from_value(serde_json::json!({
+            "account_id": "test-double-account",
+            "principal_id": "test-double-principal",
+            "session_id": "test-double-session",
+            "access_space_id": "test-double-space",
+            "session_token": "a".repeat(64),
+        }))
+        .expect("typed test-double account");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("test-double account binds its local origin"),
+    )
+}
+
 pub fn require_live_backend() -> LiveBackend {
     start_product_backend(true)
 }
@@ -579,7 +605,22 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
         } else {
             None
         };
-    let channel_token = live_flight_recorder_session_token();
+    // The channel credential and the file the owned backend verifies it against are captured ONCE,
+    // here. `%LOCALAPPDATA%` is process-global and parallel tests in the same binary (for example a
+    // `CanonicalArgusDriver::bind`) or a test-pinned `HANDSHAKE_STAGE_BINDING_FILE` can redirect it
+    // between publication and spawn; re-resolving would hand the child a different (missing/stale)
+    // binding and turn Owner setup into a constant "Account authentication denied". The backend still
+    // performs its full token + PID + process-birth verification against this exact file.
+    let (channel_token, binding_file) = match native_binding.as_ref() {
+        Some(binding) => (
+            binding.token().to_owned(),
+            binding.binding_path().to_path_buf(),
+        ),
+        None => (
+            live_flight_recorder_session_token(),
+            handshake_native::mcp::binding_path(),
+        ),
+    };
     let configured_base =
         std::env::var("HSK_TEST_BASE").unwrap_or_else(|_| DEFAULT_BASE.to_owned());
     let force_owned = std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT").is_some();
@@ -591,8 +632,12 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
     let client = build_backend_client();
 
     let mut base = configured_base.clone();
-    let mut owned_backend = None;
+    // C1V-QUIET-LEAK: the owned child stays inside the kill-on-drop `PendingChild` guard until the
+    // `LiveBackend` (whose Drop reaps it) exists. A bare `Child` dropped by a panic during Owner setup
+    // or login is NOT killed by std and previously survived the test process.
+    let mut owned_backend: Option<PendingChild> = None;
     let mut owned_binary = None;
+    let mut owned_binding_file = None;
     let mut owned_data_dir = None;
     let mut owned_runtime_roots = Vec::new();
     if force_owned || !healthy(&rt, &client, &configured_base, proof_command_deadline()) {
@@ -603,13 +648,14 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
             );
         }
         let binary = resolve_backend_binary();
-        let (child, report_path, data_dir) = spawn_backend(&binary);
+        let (child, report_path, data_dir) = spawn_backend(&binary, &binding_file);
         let mut pending = PendingChild::new(child);
         let startup_deadline = bounded_command_deadline(STARTUP_TIMEOUT);
         base = wait_for_listen_report(pending.child_mut(), &report_path, startup_deadline);
         wait_for_health(&rt, &client, &base, pending.child_mut(), startup_deadline);
-        owned_backend = Some(pending.take());
+        owned_backend = Some(pending);
         owned_binary = Some(binary);
+        owned_binding_file = Some(binding_file.clone());
         owned_runtime_roots.push(
             data_dir
                 .parent()
@@ -671,8 +717,9 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
         _native_binding: native_binding,
         client,
         rt,
-        owned_backend: RefCell::new(owned_backend),
+        owned_backend: RefCell::new(owned_backend.map(PendingChild::take)),
         owned_binary,
+        owned_binding_file,
         owned_data_dir,
         owned_runtime_roots,
         retained_failure_receipt: RefCell::new(None),
@@ -982,14 +1029,15 @@ mod backend_binary_guard_tests {
     }
 }
 
-fn spawn_backend(binary: &Path) -> (Child, PathBuf, PathBuf) {
-    spawn_backend_at(binary, "127.0.0.1:0", None)
+fn spawn_backend(binary: &Path, binding_file: &Path) -> (Child, PathBuf, PathBuf) {
+    spawn_backend_at(binary, "127.0.0.1:0", None, binding_file)
 }
 
 fn spawn_backend_at(
     binary: &Path,
     listen_addr: &str,
     existing_data_dir: Option<&Path>,
+    binding_file: &Path,
 ) -> (Child, PathBuf, PathBuf) {
     let run_id = compact_runtime_component(
         "r",
@@ -1050,7 +1098,11 @@ fn spawn_backend_at(
         // no shared cluster, no schema/database name to collide on, and nothing to clean up between
         // runs beyond removing this directory.
         .env(EMBEDDED_STORAGE_MODE_ENV, EMBEDDED_STORAGE_MODE)
-        .env(EMBEDDED_DATA_DIR_ENV, &data_dir);
+        .env(EMBEDDED_DATA_DIR_ENV, &data_dir)
+        // Pin the product's own binding-file override (`api::stage::native_mcp_binding_path`) to
+        // the exact file whose token this fixture presents, instead of inheriting a process-global
+        // `%LOCALAPPDATA%` that concurrent tests may have redirected.
+        .env("HANDSHAKE_STAGE_BINDING_FILE", binding_file);
     let child = no_window(&mut command)
         .spawn()
         .unwrap_or_else(|error| panic!("start {}: {error}", binary.display()));
@@ -1400,8 +1452,12 @@ impl LiveBackend {
             .owned_data_dir
             .clone()
             .expect("restart_owned requires the fixture's persistent data directory");
+        let binding_file = self
+            .owned_binding_file
+            .clone()
+            .expect("restart_owned requires the fixture's original native-MCP binding file");
         let (replacement, report_path, replacement_data_dir) =
-            spawn_backend_at(&binary, listen_addr, Some(&data_dir));
+            spawn_backend_at(&binary, listen_addr, Some(&data_dir), &binding_file);
         self.owned_runtime_roots.push(
             report_path
                 .parent()
@@ -1440,6 +1496,24 @@ impl LiveBackend {
         self.account_context
             .authorize_builder(self.client.clone(), request)
             .expect("proof request must use its live account and backend origin")
+    }
+
+    /// C1V-NATIVE-AUTH-LOGIN: since MT-111 (1236078e) every native product client fails closed with
+    /// "Account login required" unless it carries an authenticated account session. This is the
+    /// fixture's REAL proof account (Owner setup + `/authority/login` + persisted session exchange
+    /// against this exact backend), for native clients built directly against [`Self::base`].
+    pub fn account(
+        &self,
+    ) -> Option<std::sync::Arc<handshake_native::local_account::AuthenticatedContext>> {
+        Some(self.account_context.clone())
+    }
+
+    /// Bind the fixture's real proof account into a mounted app through the product's own
+    /// `bind_initial_account` seam (the same path a completed login takes). Call it BEFORE
+    /// `set_backend_base_url_for_test` so every rebound client carries the session.
+    pub fn bind_app_account(&self, app: &mut handshake_native::app::HandshakeApp) {
+        app.bind_initial_account(self.account_context.clone())
+            .expect("bind the fixture's authenticated proof account into the mounted app");
     }
 
     fn ident(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
@@ -3613,6 +3687,7 @@ mod failure_diagnostic_tests {
                     .expect("build live success test runtime"),
                 owned_backend: RefCell::new(Some(child)),
                 owned_binary: None,
+                owned_binding_file: None,
                 owned_data_dir: None,
                 owned_runtime_roots: vec![runtime_root.to_path_buf()],
                 retained_failure_receipt: RefCell::new(None),
@@ -3922,6 +3997,7 @@ mod failure_diagnostic_tests {
                 .expect("build attached-boundary runtime"),
             owned_backend: RefCell::new(None),
             owned_binary: None,
+            owned_binding_file: None,
             owned_data_dir: None,
             owned_runtime_roots: Vec::new(),
             retained_failure_receipt: RefCell::new(None),
@@ -4198,8 +4274,12 @@ fn canonical_handshake_artifact_root() -> Result<PathBuf, String> {
                 .expect("native crate must live under a worktree root")
                 .join("Handshake_Artifacts")
         });
-    let canonical_root = std::fs::canonicalize(&root)
-        .map_err(|error| format!("canonicalize Handshake_Artifacts root {}: {error}", root.display()))?;
+    let canonical_root = std::fs::canonicalize(&root).map_err(|error| {
+        format!(
+            "canonicalize Handshake_Artifacts root {}: {error}",
+            root.display()
+        )
+    })?;
     if canonical_root.file_name().and_then(|name| name.to_str()) != Some("Handshake_Artifacts") {
         return Err(format!(
             "configured canonical artifact root has an invalid terminal component: {}",

@@ -155,7 +155,10 @@ fn remove_owned_prior_artifact(path: &Path) {
 /// Mount a production `HandshakeApp` shell bound to the live backend + the seeded workspace, with the
 /// Graph View pane opened on the active work surface. The multi-thread runtime is returned so it outlives
 /// the harness (the per-frame graph feed dispatches onto it).
-fn graph_shell(base: &str, workspace_id: &str) -> (HandshakeApp, tokio::runtime::Runtime) {
+fn graph_shell(
+    live: &interconnect_support::backend_proof_support::LiveBackend,
+    workspace_id: &str,
+) -> (HandshakeApp, tokio::runtime::Runtime) {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
@@ -166,7 +169,8 @@ fn graph_shell(base: &str, workspace_id: &str) -> (HandshakeApp, tokio::runtime:
         db_status: "ok".to_string(),
         migration_version: Some(1),
     }));
-    app.set_backend_base_url_for_test(base, runtime.handle().clone());
+    live.bind_app_account(&mut app);
+    app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
     assert!(
         app.switch_project(workspace_id),
         "switch to the seeded managed-SurrealDB workspace"
@@ -258,7 +262,7 @@ fn mt021_mounted_graph_canonical_argus_inspect_steer_reobserve() {
 
     // Mount the production shell; the app's own per-frame feed fetches the Global projection from the live
     // workspace and drains it into the mounted graph view.
-    let (app, _rt) = graph_shell(&live.base, &workspace_id);
+    let (app, _rt) = graph_shell(&live, &workspace_id);
     let graph_view = app.mounted_graph_view();
     let bus_workspace_id = workspace_id.clone();
     let mut bus_prebound = false;
@@ -520,7 +524,7 @@ fn mt021_mounted_graph_canonical_argus_local_global_switch_distinct_queries() {
         );
     }
 
-    let (app, _rt) = graph_shell(&live.base, &workspace_id);
+    let (app, _rt) = graph_shell(&live, &workspace_id);
     let graph_view = app.mounted_graph_view();
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 900.0))
@@ -730,7 +734,7 @@ fn mt021_mounted_graph_empty_state_canonical_argus() {
         cleaned: false,
     };
 
-    let (app, _rt) = graph_shell(&live.base, &workspace_id);
+    let (app, _rt) = graph_shell(&live, &workspace_id);
     let graph_view = app.mounted_graph_view();
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1000.0, 700.0))

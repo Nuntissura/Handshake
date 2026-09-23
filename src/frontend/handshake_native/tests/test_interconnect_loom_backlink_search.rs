@@ -1014,6 +1014,7 @@ fn supplemental_mt046_argus_ic14_quick_switcher_search() {
         migration_version: Some(1),
     }));
     app.set_runtime_handle(runtime.handle().clone());
+    backend.bind_app_account(&mut app);
     app.set_backend_base_url_for_test(&backend.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.clone());
     let mut harness = ScreenshotHarness::builder()

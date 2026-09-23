@@ -3535,6 +3535,27 @@ fn outgoing_links_click_routes_to_nav() {
 
 // ── PT-080-B / AC-080-5: relevant-memory shows the EndpointMissing empty-state ────────────────────────
 
+/// Typed account for the local deterministic 404 double (no real session; origin-bound to `base`, so
+/// it can only authorize requests to that double). Mirrors `backend_proof_support::typed_test_double_account`.
+fn typed_test_double_account(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext =
+        serde_json::from_value(serde_json::json!({
+            "account_id": "test-double-account",
+            "principal_id": "test-double-principal",
+            "session_id": "test-double-session",
+            "access_space_id": "test-double-space",
+            "session_token": "a".repeat(64),
+        }))
+        .expect("typed test-double account");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("test-double account binds its local origin"),
+    )
+}
+
 #[test]
 fn relevant_memory_shows_endpoint_missing_empty_state() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind deterministic 404");
@@ -3612,6 +3633,12 @@ fn relevant_memory_shows_endpoint_missing_empty_state() {
         migration_version: Some(1),
     }));
     app.set_runtime_handle(runtime.handle().clone());
+    // MT-111 (1236078e): the FEMS memory-pack read fails closed with "Account login required" before
+    // any HTTP when no account is bound, so the 404 double was never contacted. Bind a typed,
+    // origin-bound account for THIS local double through the product login seam; the EndpointMissing
+    // contract asserted below is unchanged.
+    app.bind_initial_account(typed_test_double_account(&base_url))
+        .expect("bind typed test-double account before mounting");
     app.set_backend_base_url_for_test(&base_url, runtime.handle().clone());
     retype_panes(
         &mut app,

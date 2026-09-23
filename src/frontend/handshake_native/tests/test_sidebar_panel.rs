@@ -991,6 +991,7 @@ fn sidebar_live_surrealdb_self_seeds_mounted_round_trip() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    live.bind_app_account(&mut app);
     app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
     app.set_sidebar_backend_base_url_for_test(live.base.clone());
     assert!(app.switch_project(&workspace_id));

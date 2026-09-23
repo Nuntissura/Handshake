@@ -168,6 +168,7 @@ fn mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query() {
             },
         ),
     );
+    live.bind_app_account(&mut production_app);
     production_app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
     production_app.bind_active_project_for_integration_test(workspace_id.clone());
     assert!(production_app.dispatch_palette_action_for_test(
@@ -341,7 +342,8 @@ fn mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query() {
     }
 
     // 4. A fresh, independent backend GET must see the removal — the UI verdict is never the proof.
-    let search_client = WorkspaceSearchClient::new(&live.base, runtime.handle().clone());
+    let search_client = WorkspaceSearchClient::new(&live.base, runtime.handle().clone())
+        .with_authenticated_context(live.account());
     let absence_cell: BookmarkStateCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
     search_client.load_bookmarks(
         &workspace_id,

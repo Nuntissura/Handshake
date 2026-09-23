@@ -1865,7 +1865,8 @@ fn canvas_board_live_surrealdb_self_seeds_mounted_round_trip() {
         .enable_all()
         .build()
         .expect("canvas live runtime");
-    let client = CanvasBoardClient::new(live.base.clone(), runtime.handle().clone());
+    let client = CanvasBoardClient::new(live.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(live.account());
 
     let create_block = |title: &str| {
         let block = live.post_json(
@@ -1905,6 +1906,7 @@ fn canvas_board_live_surrealdb_self_seeds_mounted_round_trip() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    live.bind_app_account(&mut app);
     app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
     assert!(app.switch_project(&workspace_id));
     let app_board = app.mounted_canvas_board();
@@ -2365,7 +2367,8 @@ fn canvas_board_live_surrealdb_self_seeds_mounted_round_trip() {
         "semantic edge persists in the canonical Loom relation surface"
     );
 
-    let fresh_client = CanvasBoardClient::new(live.base.clone(), runtime.handle().clone());
+    let fresh_client = CanvasBoardClient::new(live.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(live.account());
     let mut persisted = fetch_canvas(&fresh_client, &workspace_id, &canvas_id)
         .expect("fresh Canvas client reload succeeds");
     assert_eq!(
@@ -2539,7 +2542,10 @@ fn canvas_board_live_surrealdb_self_seeds_mounted_round_trip() {
         "placements": [{"placement_id": "broken-row"}],
         "visual_edges": []
     }));
-    let malformed = CanvasBoardClient::new(malformed_base, runtime.handle().clone());
+    let malformed = CanvasBoardClient::new(malformed_base.clone(), runtime.handle().clone())
+        .with_authenticated_context(Some(
+            interconnect_support::backend_proof_support::typed_test_double_account(&malformed_base),
+        ));
     let failure = fetch_canvas(&malformed, "mt026-malformed-success", &canvas_id)
         .expect_err("malformed successful Canvas response fails closed");
     malformed_join

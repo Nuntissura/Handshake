@@ -227,6 +227,7 @@ fn mount_code_app(
         migration_version: Some(1),
     }));
     app.set_runtime_handle(app_rt.clone());
+    live.bind_app_account(&mut app);
     app.set_backend_base_url_for_test(&live.base, app_rt.clone());
     app.set_active_project_id_for_test(workspace_id.to_owned());
     app.set_active_pane_for_test(Some(PaneId::from("pane-a")));

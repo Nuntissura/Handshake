@@ -193,6 +193,7 @@ fn interconnect_ic06_open_code_block_from_note() {
     let chip_id = code_ref_chip_author_id(&literal_ref);
 
     let (mut app, runtime) = editor_shell();
+    be.bind_app_account(&mut app);
     app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(be.workspace_id.clone());
     app.mounted_code_panel()
@@ -816,6 +817,7 @@ fn interconnect_ic08_shared_find_replace() {
 
     // Use the exact mounted HandshakeApp + MT-029 client, bound to the managed workspace/backend.
     let (mut app, runtime) = editor_shell();
+    be.bind_app_account(&mut app);
     app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.clone());
     app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
@@ -1014,6 +1016,7 @@ fn interconnect_ic09_diagnostic_note_reference() {
         .expect("IC-09: managed rich-document id")
         .to_owned();
     let (mut app, runtime) = editor_shell();
+    be.bind_app_account(&mut app);
     app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(be.workspace_id.clone());
     app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
@@ -1287,6 +1290,7 @@ fn supplemental_mt046_argus_ic06_note_to_code() {
     let literal_ref = "ic06_fixture_src/lib.rs#my_function".to_owned();
     let chip_id = code_ref_chip_author_id(&literal_ref);
     let (mut app, runtime) = editor_shell();
+    be.bind_app_account(&mut app);
     app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(be.workspace_id.clone());
     app.mounted_code_panel()
@@ -1580,6 +1584,7 @@ fn supplemental_mt046_argus_ic08_shared_find() {
     let note_result_id = result_author_id(&note_source_kind, &note_document_id);
 
     let (mut app, runtime) = editor_shell();
+    be.bind_app_account(&mut app);
     app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.clone());
     app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
@@ -1721,6 +1726,7 @@ fn supplemental_mt046_argus_ic09_diagnostic_to_note() {
         .unwrap()
         .to_owned();
     let (mut app, runtime) = editor_shell();
+    be.bind_app_account(&mut app);
     app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(be.workspace_id.clone());
     app.set_active_pane_for_test(Some(PaneId::from("pane-a")));

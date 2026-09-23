@@ -1064,7 +1064,8 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
         "AC-006 LIVE: all exact Locus attrs survive backend restart and save/reload"
     );
 
-    let reverse_lookup = Arc::new(FindNotesHttp::new(be.base.clone()));
+    let reverse_lookup =
+        Arc::new(FindNotesHttp::new(be.base.clone()).with_authenticated_context(be.account()));
     let svc =
         LocusInteropService::with_base_url(be.base.clone(), ws.clone(), reverse_lookup.clone());
     let wp = parse_locus_ref(&wp_uri).unwrap();
@@ -2793,7 +2794,7 @@ fn ac004_reverse_lookup_case_robust_against_real_backend_live() {
     let svc = LocusInteropService::with_base_url(
         be.base.clone(),
         ws.clone(),
-        Arc::new(FindNotesHttp::new(be.base.clone())),
+        Arc::new(FindNotesHttp::new(be.base.clone()).with_authenticated_context(be.account())),
     );
     let mt = parse_locus_ref("locus://mt/MT-034").expect("a valid mt ref");
     assert_eq!(

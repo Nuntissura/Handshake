@@ -297,6 +297,7 @@ mod live {
             db_status: "ok".to_string(),
             migration_version: Some(1),
         }));
+        live.bind_app_account(&mut app);
         app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
         app.set_sidebar_backend_base_url_for_test(live.base.clone());
         assert!(

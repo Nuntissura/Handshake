@@ -133,6 +133,7 @@ fn mt035_workspace_headers(request: reqwest::RequestBuilder) -> reqwest::Request
 struct Mt035WorkspaceCleanup {
     base: String,
     workspace_id: String,
+    account: std::sync::Arc<handshake_native::local_account::AuthenticatedContext>,
     armed: bool,
 }
 
@@ -140,7 +141,12 @@ struct Mt035WorkspaceCleanup {
 impl Mt035WorkspaceCleanup {
     async fn cleanup(&mut self, client: &reqwest::Client) {
         let response = mt035_workspace_headers(
-            client.delete(format!("{}/workspaces/{}", self.base, self.workspace_id)),
+            self.account
+                .authorize_builder(
+                    client.clone(),
+                    client.delete(format!("{}/workspaces/{}", self.base, self.workspace_id)),
+                )
+                .expect("MT-035 cleanup uses the fixture account for its own backend"),
         )
         .send()
         .await
@@ -158,6 +164,7 @@ impl Drop for Mt035WorkspaceCleanup {
         }
         let base = self.base.clone();
         let workspace_id = self.workspace_id.clone();
+        let account = self.account.clone();
         let _ = std::thread::spawn(move || {
             let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -168,11 +175,12 @@ impl Drop for Mt035WorkspaceCleanup {
                     .timeout(std::time::Duration::from_secs(5))
                     .build()
                     .expect("MT-035 cleanup client");
-                let _ = mt035_workspace_headers(
+                if let Ok(request) = account.authorize_builder(
+                    client.clone(),
                     client.delete(format!("{base}/workspaces/{workspace_id}")),
-                )
-                .send()
-                .await;
+                ) {
+                    let _ = mt035_workspace_headers(request).send().await;
+                }
             });
         })
         .join();
@@ -2534,30 +2542,35 @@ fn canvas_placement_undo_round_trip_live_surrealdb() {
             .expect("live handshake_core health")
             .status()
             .is_success());
-        let workspace: serde_json::Value =
-            mt035_workspace_headers(http.post(format!("{base}/workspaces")))
-                .json(&serde_json::json!({"name": format!("MT-035-{suffix}")}))
-                .send()
-                .await
-                .expect("create MT-035 workspace")
-                .json()
-                .await
-                .expect("workspace JSON");
+        let workspace: serde_json::Value = mt035_workspace_headers(
+            managed_backend.authenticated(http.post(format!("{base}/workspaces"))),
+        )
+        .json(&serde_json::json!({"name": format!("MT-035-{suffix}")}))
+        .send()
+        .await
+        .expect("create MT-035 workspace")
+        .json()
+        .await
+        .expect("workspace JSON");
         let workspace_id = workspace["id"].as_str().expect("workspace id").to_owned();
         let cleanup = Mt035WorkspaceCleanup {
             base: base.clone(),
             workspace_id: workspace_id.clone(),
+            account: managed_backend.account_context.clone(),
             armed: true,
         };
 
-        let import_block = |name: String, bytes_b64: &'static str| {
-            mt035_proof_headers(http.post(format!("{base}/workspaces/{workspace_id}/loom/import")))
+        let import_block =
+            |name: String, bytes_b64: &'static str| {
+                mt035_proof_headers(managed_backend.authenticated(
+                    http.post(format!("{base}/workspaces/{workspace_id}/loom/import")),
+                ))
                 .json(&serde_json::json!({
                     "bytes_b64": bytes_b64,
                     "original_filename": name,
                     "mime": "text/plain"
                 }))
-        };
+            };
         let first: serde_json::Value =
             import_block(format!("mt035-owned-{suffix}.txt"), "bXQwMzUtb3duZWQ=")
                 .send()
@@ -2579,10 +2592,10 @@ fn canvas_placement_undo_round_trip_live_surrealdb() {
         let first_block = first["block_id"].as_str().expect("owned block id");
         let second_block = second["block_id"].as_str().expect("unrelated block id");
 
-        let canvas: serde_json::Value = http
-            .post(format!(
+        let canvas: serde_json::Value = managed_backend
+            .authenticated(http.post(format!(
                 "{base}/workspaces/{workspace_id}/loom/canvas-boards"
-            ))
+            )))
             .json(&serde_json::json!({"title": format!("MT-035 Canvas {suffix}")}))
             .send()
             .await
@@ -2591,7 +2604,8 @@ fn canvas_placement_undo_round_trip_live_surrealdb() {
             .await
             .expect("canvas JSON");
         let canvas_id = canvas["block_id"].as_str().expect("canvas id").to_owned();
-        let client = CanvasBoardClient::new(&base, runtime.handle().clone());
+        let client = CanvasBoardClient::new(&base, runtime.handle().clone())
+            .with_authenticated_context(managed_backend.account());
         let owned = mt035_dispatch_created_placement(
             &client,
             client.place_block_request(
@@ -2627,6 +2641,7 @@ fn canvas_placement_undo_round_trip_live_surrealdb() {
         migration_version: Some(1),
     }));
     app.set_runtime_handle(runtime.handle().clone());
+    managed_backend.bind_app_account(&mut app);
     app.set_backend_base_url_for_test(&base, runtime.handle().clone());
     {
         let board = app.mounted_canvas_board();
@@ -2658,15 +2673,16 @@ fn canvas_placement_undo_round_trip_live_surrealdb() {
     for _ in 0..100 {
         harness.step();
         fresh_board = runtime.block_on(async {
-            http.get(format!(
-                "{base}/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
-            ))
-            .send()
-            .await
-            .expect("fresh board after Ctrl+Shift+Z")
-            .json()
-            .await
-            .expect("fresh board JSON")
+            managed_backend
+                .authenticated(http.get(format!(
+                    "{base}/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
+                )))
+                .send()
+                .await
+                .expect("fresh board after Ctrl+Shift+Z")
+                .json()
+                .await
+                .expect("fresh board JSON")
         });
         let rows = fresh_board["placements"].as_array().expect("placements");
         if rows
