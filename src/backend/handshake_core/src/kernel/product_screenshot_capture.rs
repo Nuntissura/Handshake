@@ -1,8 +1,14 @@
 use std::{
     collections::HashSet,
     fs,
+    io::Read,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Output, Stdio},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc,
+    },
+    time::{Duration, Instant},
 };
 
 use chrono::{SecondsFormat, Utc};
@@ -10,10 +16,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-use crate::operator_foreground::focus_audit::{FocusAuditReport, assert_no_handshake_foreground};
+use crate::operator_foreground::focus_audit::{assert_no_handshake_foreground, FocusAuditReport};
 use crate::storage::artifacts::{
-    ArtifactClassification, ArtifactError, ArtifactLayer, ArtifactManifest, ArtifactPayloadKind,
-    artifact_root_rel, write_file_artifact,
+    artifact_root_rel, write_file_artifact, ArtifactClassification, ArtifactError, ArtifactLayer,
+    ArtifactManifest, ArtifactPayloadKind,
 };
 use crate::swarm_orchestration::state_recovery::{
     AgentLaneIdentity, ParallelSwarmStateRecoveryStore, QuietBackgroundPolicy,
@@ -37,6 +43,122 @@ fn hide_console_window(command: &mut Command) {
 
 pub const FOLDED_PRODUCT_SCREENSHOT_VISUAL_VALIDATION_STUB_ID: &str =
     "WP-1-Product-Screenshot-Visual-Validation-v1";
+
+/// MT-155: the delegated session capability `POST /kernel/product_screenshot_capture/execute`
+/// requires (same id as the action-catalog entry). Granted to no principal by default.
+pub const PRODUCT_SCREENSHOT_CAPTURE_EXECUTE_CAPABILITY: &str =
+    "kernel.product_screenshot_capture.execute";
+/// The governed API command ref the HTTP capture route stamps on metadata, proof and receipt.
+pub const PRODUCT_SCREENSHOT_API_COMMAND_REF: &str =
+    "api://kernel.product_screenshot_capture.execute";
+/// MT-155 AC-155-5: the only executable the HTTP route runs (resolved by the server via PATH).
+pub const PRODUCT_SCREENSHOT_DEFAULT_NODE_BINARY: &str = "node";
+/// MT-155 AC-155-5: the only adapter script the HTTP route runs.
+pub const PRODUCT_SCREENSHOT_DEFAULT_ADAPTER_SCRIPT_PATH: &str =
+    "app/scripts/handshake-screenshot-capture.mjs";
+/// Legacy working-directory-relative artifact root, used by the HTTP route only when
+/// `HANDSHAKE_ARTIFACTS_ROOT` is not an absolute path.
+pub const PRODUCT_SCREENSHOT_LEGACY_ARTIFACT_ROOT: &str =
+    "../Handshake_Artifacts/handshake-product/screenshots";
+/// MT-155 AC-155-5: wall-clock bound for every child process of a capture (the `node --version`
+/// pre-flight and the adapter run). On expiry the child is killed and waited on (reaped).
+pub const PRODUCT_SCREENSHOT_ADAPTER_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// MT-155 AC-155-4: the authenticated session principal that initiated a capture.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProductScreenshotInitiatorV1 {
+    pub actor_id: String,
+    pub session_id: String,
+}
+
+/// MT-155: how one capture runs its child processes.
+#[derive(Debug, Clone)]
+pub struct ProductScreenshotAdapterRunOptionsV1 {
+    /// Wall-clock bound per child process.
+    pub timeout: Duration,
+    /// Recorded on the proof and receipt; `None` for the local CLI path.
+    pub initiated_by: Option<ProductScreenshotInitiatorV1>,
+    /// Set by the HTTP route when its request future is dropped; the running child is then killed
+    /// and reaped.
+    pub cancel: Option<Arc<AtomicBool>>,
+}
+
+impl Default for ProductScreenshotAdapterRunOptionsV1 {
+    fn default() -> Self {
+        Self {
+            timeout: PRODUCT_SCREENSHOT_ADAPTER_TIMEOUT,
+            initiated_by: None,
+            cancel: None,
+        }
+    }
+}
+
+/// MT-155: server-side settings of the HTTP capture route. A caller never chooses them.
+#[derive(Debug, Clone)]
+pub struct ProductScreenshotRouteDefaultsV1 {
+    pub node_binary: String,
+    pub adapter_script_path: String,
+    pub artifact_root: PathBuf,
+    pub timeout: Duration,
+}
+
+/// The server-side route settings: constant executable and script, the artifact root under an
+/// absolute `HANDSHAKE_ARTIFACTS_ROOT` (legacy relative root otherwise) and the constant timeout.
+/// Builds with `test-utils` overlay [`ProductScreenshotRouteTestHooks`].
+pub fn product_screenshot_route_defaults() -> ProductScreenshotRouteDefaultsV1 {
+    let artifact_root = match std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT").map(PathBuf::from) {
+        Some(root) if root.is_absolute() => root.join("handshake-product").join("screenshots"),
+        _ => PathBuf::from(PRODUCT_SCREENSHOT_LEGACY_ARTIFACT_ROOT),
+    };
+    #[allow(unused_mut)]
+    let mut defaults = ProductScreenshotRouteDefaultsV1 {
+        node_binary: PRODUCT_SCREENSHOT_DEFAULT_NODE_BINARY.to_string(),
+        adapter_script_path: PRODUCT_SCREENSHOT_DEFAULT_ADAPTER_SCRIPT_PATH.to_string(),
+        artifact_root,
+        timeout: PRODUCT_SCREENSHOT_ADAPTER_TIMEOUT,
+    };
+    #[cfg(any(test, feature = "test-utils"))]
+    {
+        let hooks = ROUTE_TEST_HOOKS
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
+        if let Some(hooks) = hooks {
+            if let Some(timeout) = hooks.timeout {
+                defaults.timeout = timeout;
+            }
+            if let Some(script) = hooks.adapter_script_path {
+                defaults.adapter_script_path = script.to_string_lossy().into_owned();
+            }
+            if let Some(root) = hooks.artifact_root {
+                defaults.artifact_root = root;
+            }
+        }
+    }
+    defaults
+}
+
+/// MT-155 test-only server-side hook (never reachable from a request body): shortens the timeout,
+/// points the route at a test adapter script and isolates the artifact root.
+#[cfg(any(test, feature = "test-utils"))]
+#[derive(Debug, Clone, Default)]
+pub struct ProductScreenshotRouteTestHooks {
+    pub timeout: Option<Duration>,
+    pub adapter_script_path: Option<PathBuf>,
+    pub artifact_root: Option<PathBuf>,
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+static ROUTE_TEST_HOOKS: std::sync::Mutex<Option<ProductScreenshotRouteTestHooks>> =
+    std::sync::Mutex::new(None);
+
+/// Install (`Some`) or clear (`None`) the process-global [`ProductScreenshotRouteTestHooks`].
+#[cfg(any(test, feature = "test-utils"))]
+pub fn set_product_screenshot_route_test_hooks(hooks: Option<ProductScreenshotRouteTestHooks>) {
+    *ROUTE_TEST_HOOKS
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = hooks;
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ScreenshotCaptureScope {
@@ -120,6 +242,9 @@ pub struct ProductScreenshotExecutionProofV1 {
     pub writes_screenshot_ref: String,
     pub writes_metadata_ref: String,
     pub writes_receipt_ref: String,
+    /// MT-155 AC-155-4: the session principal that initiated an HTTP capture.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initiated_by: Option<ProductScreenshotInitiatorV1>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -169,6 +294,9 @@ pub struct ProductScreenshotExecutionReceiptV1 {
     pub metadata_sha256: String,
     pub adapter_exit_status: i32,
     pub workdir_ref: String,
+    /// MT-155 AC-155-4: the session principal that initiated an HTTP capture.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initiated_by: Option<ProductScreenshotInitiatorV1>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -196,6 +324,21 @@ pub enum ProductScreenshotExecutionError {
         hint: &'static str,
     },
     MissingAdapterOutput(PathBuf),
+    /// MT-155 AC-155-5: a child process outlived its wall-clock bound; it was killed and waited on
+    /// (`reaped` reports whether the wait succeeded).
+    AdapterTimedOut {
+        stage: &'static str,
+        timeout_ms: u64,
+        pid: u32,
+        reaped: bool,
+    },
+    /// MT-155 AC-155-5: the HTTP request was dropped while a child process ran; it was killed and
+    /// waited on.
+    AdapterCancelled {
+        stage: &'static str,
+        pid: u32,
+        reaped: bool,
+    },
     Io(std::io::Error),
     Serialize(serde_json::Error),
     /// The native capture evidence failed governed validation (e.g. not captured
@@ -399,6 +542,15 @@ pub fn execute_product_screenshot_capture(
     adapter_capture: ProductScreenshotAdapterCaptureV1,
     artifact_root: impl AsRef<Path>,
 ) -> Result<ProductScreenshotExecutionResultV1, ProductScreenshotExecutionError> {
+    execute_product_screenshot_capture_attributed(request, adapter_capture, artifact_root, None)
+}
+
+fn execute_product_screenshot_capture_attributed(
+    request: &ProductScreenshotRequestV1,
+    adapter_capture: ProductScreenshotAdapterCaptureV1,
+    artifact_root: impl AsRef<Path>,
+    initiated_by: Option<ProductScreenshotInitiatorV1>,
+) -> Result<ProductScreenshotExecutionResultV1, ProductScreenshotExecutionError> {
     if request.request_id.trim().is_empty() {
         return Err(ProductScreenshotExecutionError::InvalidRequest(
             "request_id is required",
@@ -502,6 +654,7 @@ pub fn execute_product_screenshot_capture(
         writes_screenshot_ref: artifact.screenshot_ref.clone(),
         writes_metadata_ref: artifact.metadata_ref.clone(),
         writes_receipt_ref: durable_receipt.receipt_ref.clone(),
+        initiated_by: initiated_by.clone(),
     };
     let receipt = ProductScreenshotExecutionReceiptV1 {
         schema_id: "hsk.product_screenshot_execution_receipt@1".to_string(),
@@ -518,6 +671,7 @@ pub fn execute_product_screenshot_capture(
         metadata_sha256,
         adapter_exit_status: adapter_capture.adapter_exit_status,
         workdir_ref: request.workdir_ref.clone(),
+        initiated_by,
     };
     let receipt_bytes = serde_json::to_vec_pretty(&receipt)?;
     fs::write(&receipt_path, receipt_bytes)?;
@@ -538,6 +692,22 @@ pub fn capture_product_screenshot_from_browser_adapter(
     request: &ProductScreenshotRequestV1,
     adapter_config: ProductScreenshotBrowserAdapterConfigV1,
     artifact_root: impl AsRef<Path>,
+) -> Result<ProductScreenshotExecutionResultV1, ProductScreenshotExecutionError> {
+    capture_product_screenshot_from_browser_adapter_with_options(
+        request,
+        adapter_config,
+        artifact_root,
+        &ProductScreenshotAdapterRunOptionsV1::default(),
+    )
+}
+
+/// MT-155: [`capture_product_screenshot_from_browser_adapter`] with an explicit wall-clock bound,
+/// cancellation flag and initiator. Blocking: async callers run it on `spawn_blocking`.
+pub fn capture_product_screenshot_from_browser_adapter_with_options(
+    request: &ProductScreenshotRequestV1,
+    adapter_config: ProductScreenshotBrowserAdapterConfigV1,
+    artifact_root: impl AsRef<Path>,
+    options: &ProductScreenshotAdapterRunOptionsV1,
 ) -> Result<ProductScreenshotExecutionResultV1, ProductScreenshotExecutionError> {
     if adapter_config.source_url.trim().is_empty() {
         return Err(ProductScreenshotExecutionError::InvalidRequest(
@@ -561,18 +731,20 @@ pub fn capture_product_screenshot_from_browser_adapter(
     let mut node_version_cmd = Command::new(adapter_config.node_binary.trim());
     node_version_cmd.arg("--version");
     hide_console_window(&mut node_version_cmd);
-    let node_version_status = node_version_cmd
-        .output()
-        .ok()
-        .map(|output| output.status.success())
-        .unwrap_or(false);
+    let node_version_status =
+        match run_bounded_command(node_version_cmd, "node_version_preflight", options) {
+            Ok(output) => output.status.success(),
+            // Spawn/wait I/O failure (for example ENOENT) = node unavailable, as before.
+            Err(ProductScreenshotExecutionError::Io(_)) => false,
+            Err(bounded) => return Err(bounded),
+        };
     if !node_version_status {
         return Err(ProductScreenshotExecutionError::AdapterDependencyMissing {
             dep: "node",
             hint: "install Node 20+ and ensure 'node' is on PATH",
         });
     }
-    if !Path::new("app/node_modules/playwright/package.json").is_file() {
+    if !playwright_probe_path(Path::new(adapter_config.adapter_script_path.trim())).is_file() {
         return Err(ProductScreenshotExecutionError::AdapterDependencyMissing {
             dep: "playwright",
             hint: "run 'pnpm install' in app/",
@@ -603,7 +775,7 @@ pub fn capture_product_screenshot_from_browser_adapter(
         .arg("--height")
         .arg(request.height.to_string());
     hide_console_window(&mut adapter_cmd);
-    let output = adapter_cmd.output()?;
+    let output = run_bounded_command(adapter_cmd, "adapter", options)?;
 
     if !output.status.success() {
         return Err(ProductScreenshotExecutionError::AdapterFailed {
@@ -618,7 +790,7 @@ pub fn capture_product_screenshot_from_browser_adapter(
     }
 
     let png_bytes = fs::read(adapter_output_path)?;
-    execute_product_screenshot_capture(
+    execute_product_screenshot_capture_attributed(
         request,
         ProductScreenshotAdapterCaptureV1 {
             png_bytes,
@@ -627,7 +799,101 @@ pub fn capture_product_screenshot_from_browser_adapter(
             command_or_api_ref: adapter_config.command_or_api_ref,
         },
         artifact_root,
+        options.initiated_by.clone(),
     )
+}
+
+/// The Playwright install the adapter script resolves: `<app>/node_modules/playwright` for a script
+/// at `<app>/scripts/<name>` (the default script yields `app/node_modules/playwright/package.json`).
+fn playwright_probe_path(adapter_script: &Path) -> PathBuf {
+    adapter_script
+        .parent()
+        .and_then(Path::parent)
+        .map(|app_dir| {
+            app_dir
+                .join("node_modules")
+                .join("playwright")
+                .join("package.json")
+        })
+        .unwrap_or_else(|| PathBuf::from("app/node_modules/playwright/package.json"))
+}
+
+/// Drain one child pipe on its own thread so a full pipe buffer never stalls the child.
+fn spawn_pipe_reader<R: Read + Send + 'static>(mut pipe: R) -> mpsc::Receiver<Vec<u8>> {
+    let (sender, receiver) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let _ = pipe.read_to_end(&mut bytes);
+        let _ = sender.send(bytes);
+    });
+    receiver
+}
+
+/// Collect a drained pipe without waiting past `deadline` (plus a short grace): a grandchild that
+/// inherited the pipe must not extend the bound.
+fn collect_pipe(receiver: Option<mpsc::Receiver<Vec<u8>>>, deadline: Instant) -> Vec<u8> {
+    let wait = deadline
+        .saturating_duration_since(Instant::now())
+        .max(Duration::from_secs(1));
+    receiver
+        .and_then(|receiver| receiver.recv_timeout(wait).ok())
+        .unwrap_or_default()
+}
+
+/// MT-155 AC-155-5: run one child process under a wall-clock bound. The child keeps the caller's
+/// `hide_console_window` flags. On expiry or cancellation it is killed and waited on (reaped) and
+/// a typed error is returned; the call never outlives `options.timeout` by more than the pipe
+/// grace.
+fn run_bounded_command(
+    mut command: Command,
+    stage: &'static str,
+    options: &ProductScreenshotAdapterRunOptionsV1,
+) -> Result<Output, ProductScreenshotExecutionError> {
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let deadline = Instant::now() + options.timeout;
+    let mut child = command.spawn()?;
+    let pid = child.id();
+    let stdout = child.stdout.take().map(spawn_pipe_reader);
+    let stderr = child.stderr.take().map(spawn_pipe_reader);
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                return Ok(Output {
+                    status,
+                    stdout: collect_pipe(stdout, deadline),
+                    stderr: collect_pipe(stderr, deadline),
+                });
+            }
+            Ok(None) => {}
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(error.into());
+            }
+        }
+        let cancelled = options
+            .cancel
+            .as_ref()
+            .is_some_and(|flag| flag.load(Ordering::SeqCst));
+        if cancelled || Instant::now() >= deadline {
+            let _ = child.kill();
+            let reaped = child.wait().is_ok();
+            return Err(if cancelled {
+                ProductScreenshotExecutionError::AdapterCancelled { stage, pid, reaped }
+            } else {
+                ProductScreenshotExecutionError::AdapterTimedOut {
+                    stage,
+                    timeout_ms: u64::try_from(options.timeout.as_millis()).unwrap_or(u64::MAX),
+                    pid,
+                    reaped,
+                }
+            });
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
 }
 
 // === Native (Playwright-free) capture path ==================================

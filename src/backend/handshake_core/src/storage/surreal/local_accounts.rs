@@ -103,6 +103,7 @@ struct SessionRow {
     actor_id: String,
     policy_version: i64,
     delegation_chain: Vec<String>,
+    delegated_capabilities: Vec<String>,
 }
 
 #[derive(SurrealValue)]
@@ -128,6 +129,9 @@ pub struct LocalSessionContext {
     pub actor_id: String,
     pub policy_version: i64,
     pub delegation_chain: Vec<String>,
+    /// MT-155: the capabilities delegated to THIS session (copied from the principal when the
+    /// session was issued). Route-level capability checks read it; deny by default when absent.
+    pub delegated_capabilities: Vec<String>,
 }
 
 pub(crate) fn account_event(
@@ -330,7 +334,7 @@ impl SurrealStorage {
             ordinary.use_ns(namespace.clone()).use_db(database.clone()).await?;
             ordinary.signin(Record { namespace, database, access: AUTHORITY_ACCESS_METHOD.to_owned(),
                 params: SigninParams { token_hash, channel_binding_hash } }).await?;
-            let mut response = ordinary.query("SELECT account_id, principal_id, access_space_id, id AS session_id, principal_id.actor_id AS actor_id, policy_version, delegation_chain FROM authenticated_sessions WHERE id = $auth.id LIMIT 1;").await?.check()?;
+            let mut response = ordinary.query("SELECT account_id, principal_id, access_space_id, id AS session_id, principal_id.actor_id AS actor_id, policy_version, delegation_chain, delegated_capabilities FROM authenticated_sessions WHERE id = $auth.id LIMIT 1;").await?.check()?;
             let mut rows: Vec<SessionRow> = response.take(0)?;
             Ok(rows.pop())
         })).await?;
@@ -347,6 +351,7 @@ impl SurrealStorage {
             actor_id: row.actor_id,
             policy_version: row.policy_version,
             delegation_chain: row.delegation_chain,
+            delegated_capabilities: row.delegated_capabilities,
         })
     }
     /// First-run status is installation state only. It never returns account names or ids.

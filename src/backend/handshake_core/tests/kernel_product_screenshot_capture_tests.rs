@@ -383,6 +383,7 @@ fn proof(
         writes_screenshot_ref: artifact_ref.to_string(),
         writes_metadata_ref: metadata_ref.to_string(),
         writes_receipt_ref: receipt_ref.to_string(),
+        initiated_by: None,
     }
 }
 

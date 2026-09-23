@@ -1,18 +1,26 @@
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 use crate::flight_recorder::{EventFilter, FlightRecorderEvent, FlightRecorderEventType};
 use crate::kernel::product_screenshot_capture::{
-    capture_product_screenshot_from_browser_adapter, ProductScreenshotArtifactV1,
-    ProductScreenshotBrowserAdapterConfigV1, ProductScreenshotDurableReceiptV1,
+    capture_product_screenshot_from_browser_adapter_with_options,
+    product_screenshot_route_defaults, ProductScreenshotAdapterRunOptionsV1,
+    ProductScreenshotArtifactV1, ProductScreenshotBrowserAdapterConfigV1,
+    ProductScreenshotDurableReceiptV1, ProductScreenshotExecutionError,
     ProductScreenshotExecutionProofV1, ProductScreenshotExecutionReceiptV1,
-    ProductScreenshotRequestV1,
+    ProductScreenshotInitiatorV1, ProductScreenshotRequestV1, PRODUCT_SCREENSHOT_API_COMMAND_REF,
+    PRODUCT_SCREENSHOT_CAPTURE_EXECUTE_CAPABILITY, PRODUCT_SCREENSHOT_DEFAULT_ADAPTER_SCRIPT_PATH,
+    PRODUCT_SCREENSHOT_DEFAULT_NODE_BINARY,
 };
 use crate::kernel::session_spawn_tree_dcc::{
     project_session_spawn_tree_dcc, SessionAnnounceBackBadgeV1, SessionRuntimeState,
@@ -178,22 +186,47 @@ fn map_state_recovery_error(err: StateRecoveryError) -> (StatusCode, Json<ErrorR
     }
 }
 
+/// MT-154 AC-154-2 (Master Spec 02-system-architecture.md:2758/2773/2774): the trace projection reads
+/// the EventLedger, a protected resource. It requires the live account session (fr.read) before any
+/// read, and reads as the account's record user, so only receipts that account may read are projected.
 pub async fn inspect_trace_projection(
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     Query(query): Query<TraceProjectionQuery>,
-) -> ApiResult<TraceProjection> {
+) -> Result<Json<TraceProjection>, axum::response::Response> {
+    use axum::response::IntoResponse;
+    let account = crate::api::authority::authorize_account_session(
+        &state,
+        &headers,
+        "fr.read",
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await
+    .map_err(IntoResponse::into_response)?;
     if query.kernel_task_run_id.trim().is_empty() || query.session_run_id.trim().is_empty() {
         return Err(api_error(
             StatusCode::BAD_REQUEST,
             "kernel_trace_missing_ids",
             "kernel_task_run_id and session_run_id are required",
-        ));
+        )
+        .into_response());
     }
 
-    let projection = KernelTraceInspector::new(state.storage.clone())
-        .inspect_session(&query.kernel_task_run_id, &query.session_run_id)
+    let projection = account
+        .run(
+            &state,
+            KernelTraceInspector::new(state.storage.clone())
+                .inspect_session(&query.kernel_task_run_id, &query.session_run_id),
+        )
         .await
-        .map_err(map_kernel_error)?;
+        .map_err(|error| match error {
+            // A trace with no receipt this account may read is indistinguishable from an absent one
+            // (constant denial; existence is never disclosed, Master Spec 02-system-architecture.md:2759).
+            KernelError::InvalidEvent("trace projection requires EventLedger events") => {
+                crate::api::authority::constant_denial().into_response()
+            }
+            other => map_kernel_error(other).into_response(),
+        })?;
     Ok(Json(projection))
 }
 
@@ -375,27 +408,136 @@ pub async fn session_spawn_tree_dcc_projection(
     }))
 }
 
+/// MT-155 AC-155-2: route-local anonymous status body. Every other route keeps
+/// `api::authority::constant_denial` (403).
+pub const PRODUCT_SCREENSHOT_SESSION_REQUIRED_ERROR: &str = "HSK-401-SESSION-REQUIRED";
+
+/// Signals the blocking capture worker to kill and reap its child when the request future is
+/// dropped (client disconnect / cancellation).
+struct CancelCaptureOnDrop(Arc<AtomicBool>);
+
+impl Drop for CancelCaptureOnDrop {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::SeqCst);
+    }
+}
+
+/// MT-155 (Master Spec 02-system-architecture:2758 deny by default, :2776 capability checks).
+/// Order is load-bearing: authenticate (401), check the delegated capability (403), then parse the
+/// body; nothing is spawned before both checks pass. The executable and script are server-side.
 pub async fn execute_product_screenshot_capture_api(
-    Json(request): Json<ProductScreenshotCaptureExecuteRequest>,
-) -> ApiResult<ProductScreenshotCaptureExecuteResponse> {
-    let result = capture_product_screenshot_from_browser_adapter(
-        &request.request,
-        ProductScreenshotBrowserAdapterConfigV1 {
-            source_url: request.source_url,
-            adapter_script_path: request
-                .adapter_script_path
-                .unwrap_or_else(|| "app/scripts/handshake-screenshot-capture.mjs".to_string()),
-            node_binary: request.node_binary.unwrap_or_else(|| "node".to_string()),
-            command_or_api_ref: "api://kernel.product_screenshot_capture.execute".to_string(),
-        },
-        "../Handshake_Artifacts/handshake-product/screenshots",
-    )
-    .map_err(|err| {
-        api_error(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> Result<Json<ProductScreenshotCaptureExecuteResponse>, axum::response::Response> {
+    use axum::response::IntoResponse;
+
+    let session =
+        match crate::api::authority::authenticated_session_credentials(&state, &headers).await {
+            Ok(session) => session.context,
+            Err(_) => {
+                tracing::warn!(
+                    target: "handshake_core::product_screenshot_capture",
+                    reason = "session_required",
+                    "product screenshot capture denied"
+                );
+                return Err((
+                    StatusCode::UNAUTHORIZED,
+                    Json(serde_json::json!({ "error": PRODUCT_SCREENSHOT_SESSION_REQUIRED_ERROR })),
+                )
+                    .into_response());
+            }
+        };
+    if !crate::api::authority::session_holds_capability(
+        &session,
+        PRODUCT_SCREENSHOT_CAPTURE_EXECUTE_CAPABILITY,
+    ) {
+        tracing::warn!(
+            target: "handshake_core::product_screenshot_capture",
+            reason = "capability_missing",
+            capability = PRODUCT_SCREENSHOT_CAPTURE_EXECUTE_CAPABILITY,
+            session_id = %session.session_id,
+            "product screenshot capture denied"
+        );
+        return Err(crate::api::authority::constant_denial().into_response());
+    }
+
+    let request: ProductScreenshotCaptureExecuteRequest =
+        serde_json::from_slice(&body).map_err(|err| {
+            api_error(
+                StatusCode::BAD_REQUEST,
+                "kernel_product_screenshot_capture_request_invalid",
+                err.to_string(),
+            )
+            .into_response()
+        })?;
+    let caller_chose_binary = request
+        .node_binary
+        .as_deref()
+        .is_some_and(|value| value != PRODUCT_SCREENSHOT_DEFAULT_NODE_BINARY);
+    let caller_chose_script = request
+        .adapter_script_path
+        .as_deref()
+        .is_some_and(|value| value != PRODUCT_SCREENSHOT_DEFAULT_ADAPTER_SCRIPT_PATH);
+    if caller_chose_binary || caller_chose_script {
+        return Err(api_error(
             StatusCode::BAD_REQUEST,
-            "kernel_product_screenshot_capture_execute_failed",
-            format!("{err:?}"),
+            "kernel_product_screenshot_capture_caller_path_rejected",
+            "node_binary and adapter_script_path are chosen by the server; omit them",
         )
+        .into_response());
+    }
+
+    let defaults = product_screenshot_route_defaults();
+    let cancel = Arc::new(AtomicBool::new(false));
+    let _cancel_on_drop = CancelCaptureOnDrop(cancel.clone());
+    let options = ProductScreenshotAdapterRunOptionsV1 {
+        timeout: defaults.timeout,
+        initiated_by: Some(ProductScreenshotInitiatorV1 {
+            actor_id: session.actor_id.clone(),
+            session_id: session.session_id.clone(),
+        }),
+        cancel: Some(cancel),
+    };
+    let ProductScreenshotCaptureExecuteRequest {
+        request: capture_request,
+        source_url,
+        ..
+    } = request;
+    let result = tokio::task::spawn_blocking(move || {
+        capture_product_screenshot_from_browser_adapter_with_options(
+            &capture_request,
+            ProductScreenshotBrowserAdapterConfigV1 {
+                source_url,
+                adapter_script_path: defaults.adapter_script_path,
+                node_binary: defaults.node_binary,
+                command_or_api_ref: PRODUCT_SCREENSHOT_API_COMMAND_REF.to_string(),
+            },
+            &defaults.artifact_root,
+            &options,
+        )
+    })
+    .await
+    .map_err(|_| {
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "kernel_product_screenshot_capture_worker_failed",
+            "capture worker did not complete",
+        )
+        .into_response()
+    })?
+    .map_err(|err| {
+        let (status, code) = match err {
+            ProductScreenshotExecutionError::AdapterTimedOut { .. } => (
+                StatusCode::GATEWAY_TIMEOUT,
+                "kernel_product_screenshot_capture_timeout",
+            ),
+            _ => (
+                StatusCode::BAD_REQUEST,
+                "kernel_product_screenshot_capture_execute_failed",
+            ),
+        };
+        api_error(status, code, format!("{err:?}")).into_response()
     })?;
 
     Ok(Json(ProductScreenshotCaptureExecuteResponse {
