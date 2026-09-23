@@ -278,7 +278,10 @@ impl SurrealDataContext<'_> {
                     workspace: RecordId::new(WORKSPACES_TABLE, id.to_owned()),
                     anchor: workspace_write_anchor(id),
                 },
-                10,
+                // The final `DELETE $workspace RETURN BEFORE` result. One statement per body line;
+                // derived so an added cascade line (7e73eb03) cannot silently shift it onto
+                // `DELETE loom_blocks` and turn every trusted delete into NotFound("workspace").
+                WORKSPACE_DELETE_BODY.lines().count() - 1,
             )
             .await?;
         Ok(!deleted.is_empty())
