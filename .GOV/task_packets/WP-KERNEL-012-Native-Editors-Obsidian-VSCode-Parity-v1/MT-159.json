@@ -25,7 +25,7 @@
   "title": "B18-MT-159-Remaining-Jobs-Routes-And-Job-Kinds-Under-The-Account-Session-And-Locus-Ids-Do-Not-Reveal-Existence",
   "group": "B18",
   "created_at_utc": "2026-09-23T16:43:28.779Z",
-  "updated_at_utc": "2026-09-23T16:43:28.779Z",
+  "updated_at_utc": "2026-09-23T20:34:50.778Z",
   "identity": {
     "mt_id": "MT-159",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -50,7 +50,7 @@
     "source": "MT-158 remediation_v1.residual_risks (KERNEL_BUILDER-C4)"
   },
   "lifecycle": {
-    "status": "IN_PROGRESS",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-158"
     ],
@@ -570,5 +570,278 @@
     "operator_decision_requests": [],
     "worker_final_status": "ready_for_validation_or_blocked",
     "commit_policy": "The Coder commits product changes on feat/WP-KERNEL-012 (fix/test/style(MT-159) messages). The Integration Validator commits governance (this file) on gov_kernel; the Coder does not edit this file except the handoff report fields if the launcher routes the report here."
+  },
+  "remediation_v1": {
+    "session": "KERNEL_BUILDER-C4-20260923-100258",
+    "status": "READY_FOR_VALIDATION_CANDIDATE_PUSHED",
+    "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
+    "commits": [
+      {
+        "sha": "9552ca2b",
+        "mt": "MT-159",
+        "subject": "every /jobs route and job kind runs under the account session (+ native launch session, native job helpers name a workspace)"
+      },
+      {
+        "sha": "a4f5a46f",
+        "mt": "MT-159",
+        "subject": "owner-scoped Locus ids; bootstrap watchdog (MT-154 hardening)"
+      },
+      {
+        "sha": "52873427",
+        "mt": "MT-159",
+        "subject": "re-pin the owner-scoped Locus key schema; clear needless borrows (also wires schema-test open_test_storage to the test sync switch)"
+      },
+      {
+        "sha": "8f60313b",
+        "mt": "MT-154",
+        "subject": "test-only datastore sync switch that reaches the embedded engine (?sync=never)"
+      }
+    ],
+    "gates": {
+      "core": [
+        {
+          "proof_id": "KB-C4-102-core-check-setB",
+          "command": "timeout 3600s cargo check --locked --keep-going -j 6 --tests --features app-runtime,surreal-test-support,test-utils",
+          "cwd": "src/backend/handshake_core",
+          "commit": "a4f5a46ffa9ca42165f6228133416b91856fa755",
+          "tree_clean": false,
+          "dirty_file_count": 4,
+          "executor_role": "KERNEL_BUILDER",
+          "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+          "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+          "started_utc": "2026-09-23T19:24:08Z",
+          "finished_utc": "2026-09-23T19:50:39.372Z",
+          "exit_code": 0,
+          "result_line": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 26m 28s",
+          "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/102-core-check-setB.log",
+          "features": null,
+          "env_knobs": {
+            "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+          },
+          "covers": [
+            "MT-154",
+            "MT-159"
+          ]
+        },
+        {
+          "proof_id": "KB-C4-103-core-check-setA",
+          "command": "timeout 3600s cargo check --locked --keep-going -j 6 --tests --features surreal-test-support,test-utils",
+          "cwd": "src/backend/handshake_core",
+          "commit": "a4f5a46ffa9ca42165f6228133416b91856fa755",
+          "tree_clean": false,
+          "dirty_file_count": 4,
+          "executor_role": "KERNEL_BUILDER",
+          "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+          "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+          "started_utc": "2026-09-23T19:50:41Z",
+          "finished_utc": "2026-09-23T20:11:26.434Z",
+          "exit_code": 0,
+          "result_line": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 20m 41s",
+          "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/103-core-check-setA.log",
+          "features": null,
+          "env_knobs": {
+            "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+          },
+          "covers": [
+            "MT-154",
+            "MT-159"
+          ]
+        },
+        {
+          "proof_id": "KB-C4-104-core-check-setC",
+          "command": "timeout 3600s cargo check --locked --keep-going -j 6 --tests --features inspector,surreal-test-support,test-utils",
+          "cwd": "src/backend/handshake_core",
+          "commit": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
+          "tree_clean": true,
+          "dirty_file_count": 0,
+          "executor_role": "KERNEL_BUILDER",
+          "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+          "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+          "started_utc": "2026-09-23T20:11:29Z",
+          "finished_utc": "2026-09-23T20:27:43.964Z",
+          "exit_code": 0,
+          "result_line": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 16m 12s",
+          "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/104-core-check-setC.log",
+          "features": null,
+          "env_knobs": {
+            "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+          },
+          "covers": [
+            "MT-154",
+            "MT-159"
+          ]
+        },
+        {
+          "proof_id": "KB-C4-105-core-clippy",
+          "command": "timeout 3600s cargo clippy --locked --keep-going -j 6 -p handshake_core --all-targets --features app-runtime,surreal-test-support,test-utils --message-format=short -- -D warnings",
+          "cwd": "src/backend/handshake_core",
+          "commit": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
+          "tree_clean": true,
+          "dirty_file_count": 0,
+          "executor_role": "KERNEL_BUILDER",
+          "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+          "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+          "started_utc": "2026-09-23T20:27:46Z",
+          "finished_utc": "2026-09-23T20:33:53.229Z",
+          "exit_code": 101,
+          "result_line": "error: could not compile `handshake_core` (lib test) due to 358 previous errors",
+          "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/105-core-clippy.log",
+          "features": null,
+          "env_knobs": {
+            "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+          },
+          "covers": [
+            "MT-154",
+            "MT-159"
+          ]
+        }
+      ],
+      "clippy_changed_lines": "run 105 vs base 0cfbff64..8f60313b: 0 errors on changed lines (396 pre-existing; exit 101 from those)",
+      "native_at_a4f5a46f": [
+        {
+          "proof_id": "KB-C4-93-check-native",
+          "command": "timeout 3600s cargo check --locked --keep-going -j 6 --tests --features integration,integration_tests",
+          "cwd": "src/frontend/handshake_native",
+          "commit": "0caf1c102c48f88b68027f4fcfe18e16f8168cbb",
+          "tree_clean": false,
+          "dirty_file_count": 7,
+          "executor_role": "KERNEL_BUILDER",
+          "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+          "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+          "started_utc": "2026-09-23T16:58:04Z",
+          "finished_utc": "2026-09-23T17:08:05.049Z",
+          "exit_code": 0,
+          "result_line": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 9m 59s",
+          "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/93-check-native.log",
+          "features": null,
+          "env_knobs": {
+            "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+          },
+          "covers": [
+            "MT-159"
+          ]
+        },
+        {
+          "proof_id": "KB-C4-98-native-clippy-int",
+          "command": "timeout 3600s cargo clippy --locked --keep-going -j 6 -p handshake-native --all-targets --features integration,integration_tests -- -D warnings",
+          "cwd": "src/frontend/handshake_native",
+          "commit": "a4f5a46ffa9ca42165f6228133416b91856fa755",
+          "tree_clean": true,
+          "dirty_file_count": 0,
+          "executor_role": "KERNEL_BUILDER",
+          "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+          "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+          "started_utc": "2026-09-23T17:33:45Z",
+          "finished_utc": "2026-09-23T17:52:16.439Z",
+          "exit_code": 0,
+          "result_line": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 18m 21s",
+          "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/98-native-clippy-int.log",
+          "features": null,
+          "env_knobs": {
+            "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+          },
+          "covers": [
+            "MT-159"
+          ]
+        },
+        {
+          "proof_id": "KB-C4-99-native-clippy-def",
+          "command": "timeout 3600s cargo clippy --locked --keep-going -j 6 -p handshake-native --all-targets -- -D warnings",
+          "cwd": "src/frontend/handshake_native",
+          "commit": "a4f5a46ffa9ca42165f6228133416b91856fa755",
+          "tree_clean": true,
+          "dirty_file_count": 0,
+          "executor_role": "KERNEL_BUILDER",
+          "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+          "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+          "started_utc": "2026-09-23T17:52:21Z",
+          "finished_utc": "2026-09-23T18:05:40.081Z",
+          "exit_code": 0,
+          "result_line": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 13m 16s",
+          "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/99-native-clippy-def.log",
+          "features": null,
+          "env_knobs": {
+            "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+          },
+          "covers": [
+            "MT-159"
+          ]
+        }
+      ],
+      "native_note": "native files unchanged after a4f5a46f"
+    },
+    "pin_measure": {
+      "run": {
+        "proof_id": "KB-C4-101-core-pin-measure",
+        "command": "exe=D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target/debug/deps/handshake_core-1e9b2aa02575dd71.exe sha256=9b9929eaf939eca4f9a59efdb28b5c931fb62c08fc5a1e86325e2f99ca60166f :: timeout 900s args: --exact --test-threads=4 storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic",
+        "cwd": null,
+        "commit": "a4f5a46ffa9ca42165f6228133416b91856fa755",
+        "tree_clean": false,
+        "dirty_file_count": 4,
+        "executor_role": "KERNEL_BUILDER",
+        "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+        "target_dir": null,
+        "started_utc": "2026-09-23T19:22:18Z",
+        "finished_utc": "2026-09-23T19:22:52.103Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 2 passed; 4 failed; 0 ignored; 0 measured; 2253 filtered out; finished in 28.45s",
+        "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/101-core-pin-measure.log",
+        "features": null,
+        "env_knobs": {
+          "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+        },
+        "covers": [
+          "MT-159"
+        ]
+      },
+      "kind": "measurement (IV GO; one run)",
+      "measured": {
+        "GENERATED_SURREALQL_SHA256": [
+          "35ce1b4d6578eedd5ef6f054f3b70432f94b2728fd9ae98cd4d35dd32e8974be",
+          "27528c0e71735b81fbaa798dabb9e35b3805a16166db450d86fec4baaa32c38f (also sha256 of schema.surql)"
+        ],
+        "DECLARATIVE_SCHEMA_CATALOG_SHA256": [
+          "54b282b48cf22a2f02ae0d2964b659b01c53da3177c9e95ae5d70dce358fce7c",
+          "a50bd154872a5cffe14e3d1ffe8823852d70a76f4a7a2853ecd91736f461238c"
+        ],
+        "EXPECTED_SCHEMA_INFO_SHA256": [
+          "5cb894682f37a18549316cc96e73167171ec21fa71e381da55f6d25d507e52f3",
+          "33f106de7ee1f2f5caa33fe7e2de5e61ba7d563d8064c727c89248dbc43fa86c"
+        ],
+        "unchanged": [
+          "Loom catalog",
+          "Atelier catalog",
+          "no PRE_/PREDECESSOR_ constant"
+        ],
+        "counts": "FUNCTION_DEFINITION_COUNT 53->55"
+      },
+      "lineage": "lineage_check --write + verify: PASS, rev-158/159 EQUAL"
+    },
+    "ready_basis": "OPERATOR DECISION 2026-09-23 16:10: builder proof = cargo check/clippy (+ the one pin-measure); the Integration Validator runs MT-159-ISOLATION, MT-159-JOBS-INCRATE, MT-159-PINS, MT-159-REGRESSION.",
+    "tests_for_validator": [
+      "tests/mt154_non_loom_route_authority_tests.rs::mt159_job_routes_require_account_session",
+      "tests/mt154_non_loom_route_authority_tests.rs::mt159_locus_ids_do_not_reveal_existence_across_accounts",
+      "tests/mt154_non_loom_route_authority_tests.rs::mt158_* (still apply)",
+      "handshake_core lib api::jobs::tests::create_job_allows_terminal_when_authorized, create_job_accepts_fems_job_kind_alias, create_job_rejects_unknown_job_kind, create_job_rejects_mismatched_fems_alias_protocol",
+      "handshake_core lib storage::surreal::schema::tests::bounded_bootstrap_maps_a_stall_to_the_typed_error",
+      "handshake_core lib storage::tests::test_datastore_sync_never_reaches_the_engine_endpoint"
+    ],
+    "test_env": {
+      "HANDSHAKE_TEST_SURREAL_SYNC": "never (the only switch the embedded engine honors; SURREAL_DATASTORE_SYNC is never read)",
+      "durability_tests": "leave HANDSHAKE_TEST_SURREAL_SYNC unset"
+    },
+    "changed_paths_outside_first_contract_list": [
+      "src/frontend/handshake_native/src/app.rs (bind account session at model-session launch)",
+      "src/frontend/handshake_native/src/backend_client.rs (ModelSessionLaunchClient.with_authenticated_context)",
+      "src/frontend/handshake_native/tests/test_locus_interop.rs, test_other_pillar_interop_proofs.rs (job helpers name a workspace; MT-158 regression too)",
+      "src/backend/handshake_core/src/storage/surreal.rs, storage/tests.rs (BootstrapStalled variant; test-only sync switch; IV-directed)"
+    ],
+    "residual_risks": [
+      "doc_id jobs read legacy `documents` (PERMISSIONS NONE, D-154-1) and are therefore denied for record users.",
+      "The in-crate MT-101 model-session tests in api::jobs::tests authenticate now but belong to the forbidden session-worktree family (compile-only for the builder).",
+      "A native model-session launch without a logged-in account gets the backend's constant 403 (surfaced as launch failure).",
+      "Integration-test reopen helper (knowledge_ingestion_support reopen) keeps the engine default sync (durability path)."
+    ],
+    "updated_at_utc": "2026-09-23T20:34:50.778Z"
   }
 }

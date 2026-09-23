@@ -25,7 +25,7 @@
   "title": "B18-MT-154-Non-Loom-Routes-Account-Session-Authority-And-Residuals",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-23T18:56:17.805Z",
+  "updated_at_utc": "2026-09-23T20:34:50.778Z",
   "identity": {
     "mt_id": "MT-154",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -1159,14 +1159,14 @@
       "MT-157"
     ],
     "base_sha": "0cfbff649c08ae260ac53eb866293b2bc273137d",
-    "candidate_sha": "0caf1c102c48f88b68027f4fcfe18e16f8168cbb",
+    "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
     "commits": [
       "625893e1 fix(MT-154) schema batch",
       "9538d2fc fix(MT-154) non-Loom routes"
     ],
     "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4",
     "note": "Recorded at claim per KB-OUT-001 before proof.",
-    "updated_at_utc": "2026-09-23T16:38:09.426Z",
+    "updated_at_utc": "2026-09-23T20:34:50.778Z",
     "candidate_history": [
       "bea9496d70670ade7abc97dfd06515795275c546 (compiling batch, pins not re-measured)",
       "888229743b8f8decb01e305367182c44ad79f058 (partial re-pin + test(MT-088))",
@@ -1851,6 +1851,10 @@
         "static_proof": "unit test storage::surreal::schema::tests::fresh_bootstrap_script_runs_every_index_outside_an_explicit_transaction (validator to run)"
       },
       "kernel_crdt_updates_cascade": "FIXED (5f31aa07 permission + 7e73eb03 delete body); knowledge_crdt_denial_receipts retained as audit trail (IV approved)"
+    },
+    "round3_hardening": {
+      "bootstrap_watchdog": "a4f5a46f: bootstrap_schema under a 900 s tokio timeout -> SurrealStorageError::BootstrapStalled (possible OS flush stall; dumps hang-run15/18/21/22 in MT-109/wpv-c3x/logs); sync mode unchanged",
+      "test_sync_switch": "8f60313b: SURREAL_DATASTORE_SYNC is never read by the embedded engine (native.rs:131 empty ConfigMap); test-only HANDSHAKE_TEST_SURREAL_SYNC=never opens '<path>?sync=never' via the test-support openers only"
     }
   },
   "out_of_scope_edit_waiver": {
@@ -1964,5 +1968,47 @@
     },
     "reuse_note": "Proof on these 4 non-DB checks carries forward to the next SHA only if the relevant crate inputs (0cfbff64..0caf1c10 diff scope, features, toolchain) are unchanged (VPX-004); re-verify when the new candidate SHA lands.",
     "note": "lifecycle.status and validator_verdict intentionally NOT modified by this partial block; MT remains READY_FOR_VALIDATION pending DB-dependent checks and pin re-confirm."
+  },
+  "validation_v2_partial": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "partial": true,
+    "session": "WP_VALIDATOR-C5V-20260923-2200",
+    "timestamp_utc": "2026-09-23T20:24:34.786Z",
+    "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
+    "export_path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/export-e9973e8c/src/backend/handshake_core",
+    "diff_base": "0caf1c10..8f60313b (13 changed .rs files)",
+    "proof_records": [
+      {
+        "id": "PR-mt154-fmt-check-delta",
+        "executor_role": "WP_VALIDATOR",
+        "command": "rustfmt --edition 2021 --check <each of 13 files changed 0caf1c10..8f60313b>",
+        "exe": "C:/Users/Ilja Smets/.rustup/toolchains/1.97.1-x86_64-pc-windows-msvc/bin/rustfmt.exe",
+        "log": "../../../../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/33-fmt-check-delta.log",
+        "result_line": "FMT_DELTA_RC=1: src/backend/handshake_core/src/storage/surreal.rs FAILS (mod local_accounts out of alpha order near line 39-64; with_admin_operation/query_bound closures on changed lines 1301,1312 not rustfmt-clean). src/frontend/handshake_native/src/app.rs also FAILS (MT-159 scope, not this MT) at line 22974.",
+        "covers": [
+          "MT-154"
+        ],
+        "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
+      },
+      {
+        "id": "PR-mt154-diff-check-delta",
+        "executor_role": "WP_VALIDATOR",
+        "command": "git diff --check 0caf1c10..8f60313b -- <13 changed files>",
+        "exe": "git",
+        "log": "../../../../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/32-diff-check-delta.log",
+        "result_line": "DIFF_CHECK_EXIT=0, no whitespace errors",
+        "covers": [
+          "MT-153",
+          "MT-154",
+          "MT-155",
+          "MT-156",
+          "MT-157",
+          "MT-158"
+        ],
+        "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
+      }
+    ],
+    "finding": "FMT-CHECK FAIL on storage/surreal.rs, a file MT-154 (HANDSHAKE_TEST_SURREAL_SYNC switch, commit 8f60313b) modified. Blocks MT-154 PASS until builder runs cargo fmt on that file. Not blocking MT-153/155/156/157/158 (their delta-changed files: jobs.rs, workspaces.rs, locus_store.rs, schema.rs, structured_collab_store.rs, tests.rs, user_manual/seed.rs, mt154_non_loom_route_authority_tests.rs all fmt-clean).",
+    "note": "lifecycle.status/validator_verdict not modified by this partial block."
   }
 }
