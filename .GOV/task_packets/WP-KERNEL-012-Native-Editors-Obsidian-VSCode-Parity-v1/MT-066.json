@@ -14,7 +14,7 @@
   "title": "E10-MT-066-StageRouteAndCaptureInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-23T23:38:21.613Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-066.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-014",
@@ -35,10 +35,10 @@
     "blocks": [
       "MT-073"
     ],
-    "validator_verdict": null,
+    "validator_verdict": "BLOCKED_ON_DEPENDENCY",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
-    "validated_at_utc": "2026-09-16T23:19:50.929Z",
+    "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
+    "validated_at_utc": "2026-09-23T23:38:21.613Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: embed-back leg orphaned in the live shell - (1) enabled Embed-Stage-Capture palette row has NO dispatch arm (falls to warn+false silent no-op, contradicting the catalog comment); (2) register_embed_stage_capture_command called only in tests; (3) StagePane::show_round_trip (the surface with the embed-back button) renders only via a dock mount no code ever opens - live bottom panel uses the button-less MT-033 show(); (4) stage_embed_requested drain is just request_repaint. EmbedBackEndpointAbsent can never surface to an operator. Also two forked StagePane instances (live bottom panel vs never-opened dock) - share one Arc<Mutex<StagePane>>. proofs claim bidirectional visually verified but the screenshot is a fixture render of a surface the shell never mounts. Route leg IS live (app.rs:6684 drain) and stays.",
@@ -1683,5 +1683,25 @@
     "status": "PARTIAL_OPEN_CLASS",
     "open": "C1V-LOOM-READ-403 (partial)",
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "validation_v_c7v_blocked": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-C7V-20260923-2345",
+    "timestamp_utc": "2026-09-23T23:38:21.613Z",
+    "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
+    "verdict": "BLOCKED_ON_DEPENDENCY",
+    "dependency_id": "NATIVE-HARNESS-ENV",
+    "reason": "All required native test binaries for this MT ran in run45 (nextest, features integration,integration_tests, junit-native.xml) but every failure observed is a harness/environment-configuration panic, not a product assertion: group (a) HANDSHAKE_TEST_STAGE_BINDING_ROOT unset (34 occurrences crate-wide), group (b) HANDSHAKE_ARTIFACTS_ROOT resolved to a 2-component path that fails canonical_handshake_artifact_boundary in tests/backend_proof_support/mod.rs (requires [wp-kernel-012] / [handshake-test,wp-kernel-012] / WP-KERNEL-012+MT-<id>+owner shape) (101 occurrences), group (c) HSK_TEST_BACKEND_BIN unset (1), group (d) HANDSHAKE_GPU_SCREENSHOT unset for GPU render proofs (2). No product code defect evidenced. Blocked pending a corrected lane env file (HANDSHAKE_TEST_STAGE_BINDING_ROOT, HANDSHAKE_TEST_ARTIFACTS_ROOT or a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT, HSK_TEST_BACKEND_BIN+HSK_TEST_BACKEND_TARGET_ROOT, HANDSHAKE_GPU_SCREENSHOT) and rerun.",
+    "proof_records": [
+      {
+        "id": "PR-c7v-run45-native-nextest",
+        "executor_role": "WP_VALIDATOR",
+        "command": "cargo-nextest.exe nextest run --locked --no-fail-fast --config-file nextest.toml --features integration,integration_tests (35 targets, from export-e9973e8c/src/frontend/handshake_native, binaries built in run43)",
+        "log": "logs/45-nextest-native.log",
+        "junit": "junit-native.xml (sha256 73023e480fef4db81e2514ada7b49a9c1f8b3a01eff56920bd49b3bd54df4f71)",
+        "result_line": "995 tests run: 854 passed, 141 failed, 4 skipped (nextest Summary line, independently verified against junit tests=995 failures=141)",
+        "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
+      }
+    ]
   }
 }

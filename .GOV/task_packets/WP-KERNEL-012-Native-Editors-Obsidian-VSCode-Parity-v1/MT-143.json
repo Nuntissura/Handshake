@@ -31,13 +31,13 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [],
     "blocks": [
       "MT-117"
     ],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "BLOCKED_ON_DEPENDENCY",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260903-170735",
     "origin": "Created 2026-09-03 by KERNEL_BUILDER-20260903-170735 under the Operator instruction to open a lane for the Calendar navigation defect found while closing the MT-117/121/122/135 readiness batch. MT-117 PT-117-2 requires the MT-067 Calendar suite green; test_calendar_interop::mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue fails deterministically (30/31) and is NOT an MT-117 defect: MT-117 owns completion observers, this is the navigation dispatch path. Recorded per the standing rule that a gap outside the current MT becomes a new MT in the same work packet rather than being lost or silently absorbed.",
@@ -133,8 +133,8 @@
       }
     ],
     "handoff_note": "Unblocks MT-117 PT-117-2: test_calendar_interop is 31/31 at 4a44f2a2.",
-    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
-    "validated_at_utc": "2026-09-16T23:19:56.858Z",
+    "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
+    "validated_at_utc": "2026-09-23T23:38:21.613Z",
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
     "next_actor": "WP_VALIDATOR",
     "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY",
@@ -778,7 +778,7 @@
     "next_actor": "KERNEL_BUILDER",
     "no_context_instruction": "FAIL_V1 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V2."
   },
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-23T23:38:21.613Z",
   "remediation_v2": {
     "session": "KERNEL_BUILDER-C1",
     "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
@@ -1116,5 +1116,25 @@
     "status": "PARTIAL_OPEN_CLASS",
     "open": "C1V-LOOM-READ-403",
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "validation_v_c7v_blocked": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-C7V-20260923-2345",
+    "timestamp_utc": "2026-09-23T23:38:21.613Z",
+    "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
+    "verdict": "BLOCKED_ON_DEPENDENCY",
+    "dependency_id": "NATIVE-HARNESS-ENV",
+    "reason": "All required native test binaries for this MT ran in run45 (nextest, features integration,integration_tests, junit-native.xml) but every failure observed is a harness/environment-configuration panic, not a product assertion: group (a) HANDSHAKE_TEST_STAGE_BINDING_ROOT unset (34 occurrences crate-wide), group (b) HANDSHAKE_ARTIFACTS_ROOT resolved to a 2-component path that fails canonical_handshake_artifact_boundary in tests/backend_proof_support/mod.rs (requires [wp-kernel-012] / [handshake-test,wp-kernel-012] / WP-KERNEL-012+MT-<id>+owner shape) (101 occurrences), group (c) HSK_TEST_BACKEND_BIN unset (1), group (d) HANDSHAKE_GPU_SCREENSHOT unset for GPU render proofs (2). No product code defect evidenced. Blocked pending a corrected lane env file (HANDSHAKE_TEST_STAGE_BINDING_ROOT, HANDSHAKE_TEST_ARTIFACTS_ROOT or a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT, HSK_TEST_BACKEND_BIN+HSK_TEST_BACKEND_TARGET_ROOT, HANDSHAKE_GPU_SCREENSHOT) and rerun.",
+    "proof_records": [
+      {
+        "id": "PR-c7v-run45-native-nextest",
+        "executor_role": "WP_VALIDATOR",
+        "command": "cargo-nextest.exe nextest run --locked --no-fail-fast --config-file nextest.toml --features integration,integration_tests (35 targets, from export-e9973e8c/src/frontend/handshake_native, binaries built in run43)",
+        "log": "logs/45-nextest-native.log",
+        "junit": "junit-native.xml (sha256 73023e480fef4db81e2514ada7b49a9c1f8b3a01eff56920bd49b3bd54df4f71)",
+        "result_line": "995 tests run: 854 passed, 141 failed, 4 skipped (nextest Summary line, independently verified against junit tests=995 failures=141)",
+        "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
+      }
+    ]
   }
 }

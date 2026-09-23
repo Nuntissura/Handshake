@@ -25,7 +25,7 @@
   "title": "B18-MT-159-Remaining-Jobs-Routes-And-Job-Kinds-Under-The-Account-Session-And-Locus-Ids-Do-Not-Reveal-Existence",
   "group": "B18",
   "created_at_utc": "2026-09-23T16:43:28.779Z",
-  "updated_at_utc": "2026-09-23T22:31:51.277Z",
+  "updated_at_utc": "2026-09-23T23:38:21.613Z",
   "identity": {
     "mt_id": "MT-159",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -57,8 +57,8 @@
     "blocks": [],
     "active": true,
     "validator_verdict": "BLOCKED_ON_DEPENDENCY",
-    "validated_by": "WP_VALIDATOR-D1V-20260923-2240",
-    "validated_at_utc": "2026-09-23T22:31:51.277Z",
+    "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
+    "validated_at_utc": "2026-09-23T23:38:21.613Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T16:43:28.779Z",
@@ -930,5 +930,25 @@
     "reason": "MT-154-WS-DELETE-INDEX blocks REGRESSION proof; all MT-own checks pass",
     "at_utc": "2026-09-23T22:31:51.277Z",
     "by": "WP_VALIDATOR-D1V-20260923-2240"
+  },
+  "validation_v_c7v_blocked": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-C7V-20260923-2345",
+    "timestamp_utc": "2026-09-23T23:38:21.613Z",
+    "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
+    "verdict": "BLOCKED_ON_DEPENDENCY",
+    "dependency_id": "NATIVE-HARNESS-ENV",
+    "reason": "All required native test binaries for this MT ran in run45 (nextest, features integration,integration_tests, junit-native.xml) but every failure observed is a harness/environment-configuration panic, not a product assertion: group (a) HANDSHAKE_TEST_STAGE_BINDING_ROOT unset (34 occurrences crate-wide), group (b) HANDSHAKE_ARTIFACTS_ROOT resolved to a 2-component path that fails canonical_handshake_artifact_boundary in tests/backend_proof_support/mod.rs (requires [wp-kernel-012] / [handshake-test,wp-kernel-012] / WP-KERNEL-012+MT-<id>+owner shape) (101 occurrences), group (c) HSK_TEST_BACKEND_BIN unset (1), group (d) HANDSHAKE_GPU_SCREENSHOT unset for GPU render proofs (2). No product code defect evidenced. Blocked pending a corrected lane env file (HANDSHAKE_TEST_STAGE_BINDING_ROOT, HANDSHAKE_TEST_ARTIFACTS_ROOT or a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT, HSK_TEST_BACKEND_BIN+HSK_TEST_BACKEND_TARGET_ROOT, HANDSHAKE_GPU_SCREENSHOT) and rerun.",
+    "proof_records": [
+      {
+        "id": "PR-c7v-run45-native-nextest",
+        "executor_role": "WP_VALIDATOR",
+        "command": "cargo-nextest.exe nextest run --locked --no-fail-fast --config-file nextest.toml --features integration,integration_tests (35 targets, from export-e9973e8c/src/frontend/handshake_native, binaries built in run43)",
+        "log": "logs/45-nextest-native.log",
+        "junit": "junit-native.xml (sha256 73023e480fef4db81e2514ada7b49a9c1f8b3a01eff56920bd49b3bd54df4f71)",
+        "result_line": "995 tests run: 854 passed, 141 failed, 4 skipped (nextest Summary line, independently verified against junit tests=995 failures=141)",
+        "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
+      }
+    ]
   }
 }
