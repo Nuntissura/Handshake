@@ -25,7 +25,7 @@
   "title": "B18-MT-154-Non-Loom-Routes-Account-Session-Authority-And-Residuals",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-09-23T10:08:21.896Z",
   "identity": {
     "mt_id": "MT-154",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -687,19 +687,53 @@
       "id": "D-154-1",
       "question": "Legacy POST/GET /workspaces/:ws/documents (api/workspaces.rs:996/:1059 @2f49f2a6) cannot work for an owner (`documents` is PERMISSIONS NONE). Retire the route, redirect it to /knowledge/documents, or give `documents` owner predicates?",
       "default_until_decided": "Leave the handler in place; it already denies (constant 403 via middleware). Do not delete it.",
-      "blocks": "only this row"
+      "blocks": "only this row",
+      "spec_resolution": {
+        "resolved_by": "INTEGRATION_VALIDATOR (session 2026-09-23 s6; read-only spec agent + IV quote verification; Operator directive 2026-09-23: resolve blockers from spec without escalation)",
+        "resolved_at_utc": "2026-09-23T10:08:21.896Z",
+        "operator_decision_needed": false,
+        "ruling": "RETIRE the legacy POST/GET /workspaces/:ws/documents route (api/workspaces.rs ~:996/:1059) and do not repair the `documents` table (PERMISSIONS NONE, schema.surql:106). The canonical document surface is ProjectKnowledgeIndex RichDocument (`knowledge_rich_documents`, the /knowledge/documents API). Before removal, grep for callers (backend, native backend_client, tests, UserManual). Move any caller to /knowledge/documents; remove the route registration and its UserManual entry in the same change. Do NOT add owner predicates to `documents`.",
+        "spec_basis": [
+          "master-spec-v02.206/spec-modules/02-system-architecture.md:2680-2705 (§2.3.13.11: ProjectKnowledgeIndex canonical record families incl. RichDocument; writes outside the catalog/write-box/promotion path are invalid)"
+        ],
+        "confidence": "spec-explicit on the canonical surface; retirement mechanics decided by IV from that clause"
+      }
     },
     {
       "id": "D-154-2",
       "question": "GET /flight_recorder and /events read DuckDB (api/flight_recorder.rs:1677 @2f49f2a6), which no SurrealDB permission governs. Serve these reads from kernel_event_ledger under record-user scope, or record a spec exception for DuckDB Flight Recorder reads filtered by an authorized workspace (fr.read)?",
       "default_until_decided": "Keep the existing session + workspace fr.read authorization (api/flight_recorder.rs:465-473) and add a test that another account's events are never returned; record the DuckDB residual.",
-      "blocks": "full closure of the FR read row and the runtime_chat mirror"
+      "blocks": "full closure of the FR read row and the runtime_chat mirror",
+      "spec_resolution": {
+        "resolved_by": "INTEGRATION_VALIDATOR (session 2026-09-23 s6; read-only spec agent + IV quote verification; Operator directive 2026-09-23: resolve blockers from spec without escalation)",
+        "resolved_at_utc": "2026-09-23T10:08:21.896Z",
+        "operator_decision_needed": false,
+        "ruling": "KEEP DuckDB Flight Recorder reads as a non-authority diagnostic projection, gated by the existing session + workspace fr.read / fr.read.global capability via authorize_recorder_workspace (api/flight_recorder.rs ~:465-560), with the path :workspace_id as authority. Add a test that another account's events are never returned and that unscoped enumeration requires fr.read.global. No SurrealDB permission layer on DuckDB. Any DuckDB write/purge path (e.g., the workspace-delete purge) must authorize first and scope to the resolved workspace.",
+        "spec_basis": [
+          "master-spec-v02.206/spec-modules/11-shared-dev-platform-and-oss-foundations.md:18 (SurrealDB only durable authority; DuckDB only a rebuildable bounded analytics/diagnostic projection)",
+          "master-spec-v02.206/spec-modules/02-system-architecture.md:2774 (EventLedger, Flight Recorder, diagnostics ... are protected resources and cannot become side-channel bypasses)"
+        ],
+        "confidence": "spec-explicit"
+      }
     },
     {
       "id": "D-154-3",
       "question": "Ownership model for account-global tables with no workspace/owner column (atelier_* ~60 tables, work_packets, micro_tasks, preference_records scope_kind global/surface, atelier_stealth_*): stamp owner_account_id/access_space_id from $auth at create and filter by it, bind them to a workspace, or treat them as single-account local data?",
       "default_until_decided": "AC-154-2 (authenticated session required) only; list the tables under residual_risks.",
-      "blocks": "per-row account isolation for those tables"
+      "blocks": "per-row account isolation for those tables",
+      "spec_resolution": {
+        "resolved_by": "INTEGRATION_VALIDATOR (session 2026-09-23 s6; read-only spec agent + IV quote verification; Operator directive 2026-09-23: resolve blockers from spec without escalation)",
+        "resolved_at_utc": "2026-09-23T10:08:21.896Z",
+        "operator_decision_needed": false,
+        "ruling": "Account-owned ProtectedResource. On create, stamp owner_account_id (and access_space_id where the table models a Space) from $auth in: atelier_* (incl. atelier_stealth_*), work_packets, micro_tasks, and preference_records with scope_kind global/surface. Add record-user PERMISSIONS predicates (select/update/delete WHERE owner_account_id matches $auth) and a ResourceBroker recheck on the routes; default private to the owning LocalAccount. Do NOT force a workspace bind for global/surface-scope records. Fresh SurrealDB state per Codex CX-503R, so no legacy-row migration. Batch all these schema edits with the other MT-154 schema changes in one re-pin. Isolation proof: account B cannot list/read/update/delete account A's rows, including through counts/search/errors.",
+        "spec_basis": [
+          "master-spec-v02.206/spec-modules/02-system-architecture.md:2740 (every durable/derived ProtectedResource carries owner_account_id, created_by_principal_id, created_in_session_id, access_space_id)",
+          "master-spec-v02.206/spec-modules/02-system-architecture.md:2751 (default visibility private to the owning LocalAccount until an explicit ResourceGrant)",
+          "master-spec-v02.206/spec-modules/02-system-architecture.md:2758-2759 (deny-by-default on every executable boundary; constant-shape denials)",
+          "master-spec-v02.206/spec-modules/10-product-surfaces.md:8318 (PreferenceRecord scope global/workspace/surface)"
+        ],
+        "confidence": "spec-implied from the universal envelope law; no per-table carve-out exists; rollout decided by IV"
+      }
     }
   ],
   "implementation_steps": [
@@ -1098,5 +1132,19 @@
     "operator_decision_requests": [],
     "worker_final_status": "ready_for_validation_or_blocked",
     "commit_policy": "The Coder commits product changes on feat/WP-KERNEL-012 (fix/test/style(MT-154) messages). The Integration Validator commits governance (this file) on gov_kernel; the Coder does not edit this file except the handoff report fields if the launcher routes the report here."
+  },
+  "spec_ruling_c3_silent_deny": {
+    "applies_to": [
+      "MT-153",
+      "MT-154"
+    ],
+    "ruling": "A record-user write that SurrealDB 3.2.0 silently drops (denied by table/field permissions) MUST be detected (affected-row count / re-read / changed-field check) and returned as an explicit 403-class denial with a constant-shape body, never 200.",
+    "spec_basis": [
+      "master-spec-v02.206/spec-modules/02-system-architecture.md:2758 (deny-by-default on every executable backend boundary)",
+      "master-spec-v02.206/spec-modules/02-system-architecture.md:16447 (HSK-403-SILENT-EDIT)",
+      "master-spec-v02.206/spec-modules/11-shared-dev-platform-and-oss-foundations.md:4519 (failures MUST surface as Diagnostics, not silent no-ops)"
+    ],
+    "resolved_by": "INTEGRATION_VALIDATOR (session 2026-09-23 s6; read-only spec agent + IV quote verification; Operator directive 2026-09-23: resolve blockers from spec without escalation)",
+    "resolved_at_utc": "2026-09-23T10:08:21.896Z"
   }
 }
