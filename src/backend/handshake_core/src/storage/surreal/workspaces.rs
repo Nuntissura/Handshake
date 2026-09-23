@@ -284,6 +284,13 @@ impl SurrealDataContext<'_> {
     }
 }
 
+#[derive(SurrealValue)]
+struct MemorySurfaceBinding {
+    kind: String,
+    resource: RecordId,
+    grant: RecordId,
+}
+
 impl SurrealStorage {
     /// Creates only a fresh server-generated source and its exact grants in one broker transaction.
     pub async fn create_account_workspace(
@@ -340,6 +347,7 @@ impl SurrealStorage {
             let mut result = broker.query(r#"
 BEGIN TRANSACTION;
 LET $live = $auth;
+LET $granted = IF $live.delegated_capabilities CONTAINS '*' AND $live.principal_id.delegated_capabilities CONTAINS '*' { $capabilities } ELSE { array::filter($capabilities, |$capability| ($live.delegated_capabilities CONTAINS '*' OR $live.delegated_capabilities CONTAINS $capability) AND ($live.principal_id.delegated_capabilities CONTAINS '*' OR $live.principal_id.delegated_capabilities CONTAINS $capability)) };
 CREATE $workspace SET created_in_session_id = $account_session, name = $name, last_actor_id = $actor, last_actor_kind = 'HUMAN', edit_event_id = $edit RETURN NONE;
 CREATE $resource SET resource_kind = 'workspace', external_resource_id = $external, owner_account_id = $account,
     created_by_principal_id = $principal, created_in_session_id = $account_session, access_space_id = $space,
@@ -350,13 +358,26 @@ CREATE $fr SET resource_kind = 'flight_recorder', external_resource_id = $extern
     creator_grant_id = $fr_grant, parent_resource_id = $resource, schema_version = 1, lifecycle_state = 'active', policy_version = $live.policy_version,
     classification = 'account_private', storage_locator_hash = crypto::sha256('flight_recorder:' + $external), created_at = time::now(), updated_at = time::now() RETURN NONE;
 IF array::len((CREATE $workspace_grant SET account_id = $account, principal_id = $principal, access_space_id = $space,
-    resource_id = $resource, actions = ['create','read','update','delete'], capability_ids = $capabilities,
+    resource_id = $resource, actions = ['create','read','update','delete'], capability_ids = $granted,
     delegation_chain = $live.delegation_chain, status = 'active', grant_version = 1, policy_version = $live.policy_version,
     expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
 IF array::len((CREATE $fr_grant SET account_id = $account, principal_id = $principal, access_space_id = $space,
     resource_id = $fr, actions = ['create','read'], capability_ids = ['fr.read','fr.ingest.runtime_chat','fr.ingest.native_editor'],
     delegation_chain = $live.delegation_chain, status = 'active', grant_version = 1, policy_version = $live.policy_version,
     expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+FOR $surface IN $memory_surfaces {
+    LET $memory_resource = $surface.resource;
+    LET $memory_grant = $surface.grant;
+    CREATE $memory_resource SET resource_kind = $surface.kind, external_resource_id = $external, owner_account_id = $account,
+        created_by_principal_id = $principal, created_in_session_id = $account_session, access_space_id = $space,
+        creator_grant_id = $memory_grant, parent_resource_id = $resource, schema_version = 1, lifecycle_state = 'active', policy_version = $live.policy_version,
+        classification = 'account_private', storage_locator_hash = crypto::sha256($surface.kind + ':' + $external), created_at = time::now(), updated_at = time::now() RETURN NONE;
+    IF array::len((CREATE $memory_grant SET account_id = $account, principal_id = $principal, access_space_id = $space,
+        resource_id = $memory_resource, actions = ['create','read','update','delete'],
+        capability_ids = array::filter(['memory.read','memory.propose','memory.review','memory.commit','fs.write'], |$capability| $granted CONTAINS $capability),
+        delegation_chain = $live.delegation_chain, status = 'active', grant_version = 1, policy_version = $live.policy_version,
+        expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+};
 IF array::len(UPDATE $account_session SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
 IF array::len(UPDATE $account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
 IF array::len(UPDATE $principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
@@ -372,7 +393,17 @@ COMMIT TRANSACTION;
                 .bind(("fr", RecordId::new("protected_resources", Uuid::now_v7().to_string())))
                 .bind(("workspace_grant", RecordId::new("resource_grants", Uuid::now_v7().to_string())))
                 .bind(("fr_grant", RecordId::new("resource_grants", Uuid::now_v7().to_string())))
-                .bind(("capabilities", vec!["fs.read", "fs.write", "fr.read", "fr.ingest.runtime_chat", "fr.ingest.native_editor", "memory.read", "memory.propose"]))
+                .bind(("capabilities", vec!["fs.read", "fs.write", "fr.read", "fr.ingest.runtime_chat", "fr.ingest.native_editor", "memory.read", "memory.propose", "memory.review", "memory.commit"]))
+                // MT-109 C2: the workspace owner's memory surfaces (Master Spec 02:2776 record-user
+                // permissions), provisioned with the workspace instead of only by test fixtures.
+                .bind(("memory_surfaces", ["memory_pack", "memory_proposal", "memory_commit_report", "memory_item", "memory_item_count"]
+                    .into_iter()
+                    .map(|kind| MemorySurfaceBinding {
+                        kind: kind.to_owned(),
+                        resource: RecordId::new("protected_resources", Uuid::now_v7().to_string()),
+                        grant: RecordId::new("resource_grants", Uuid::now_v7().to_string()),
+                    })
+                    .collect::<Vec<_>>()))
                 .await?;
             let mut errors = result.take_errors().into_iter().collect::<Vec<_>>();
             errors.sort_by_key(|(statement_index, _)| *statement_index);
@@ -383,7 +414,8 @@ COMMIT TRANSACTION;
                 #[cfg(not(test))] let _ = statement_index;
                 return Err(error.into());
             }
-            let created: Option<WorkspaceRecord> = result.take(12)?;
+            // BEGIN(0) .. memory surfaces(8) .. workspace read(14).
+            let created: Option<WorkspaceRecord> = result.take(14)?;
             created.ok_or(SurrealStorageError::InvalidWorkspaceRecord { reason: "atomic workspace create returned no row" })?.try_into()
         }))).await;
         match &created {

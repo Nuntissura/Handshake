@@ -360,6 +360,15 @@ DEFINE FUNCTION OVERWRITE fn::mt120_loom_receipt($resource: option<record<protec
                 AND fn::mt109_has_workspace_access($wsids[0], 'create', 'fs.write'))
             OR (!$write AND fn::mt120_loom_block_access($payload.block_id, $wsids[0], 'read', 'fs.read'));
     };
+    IF $resource.resource_kind = 'loom_block' AND $resource.external_resource_id = $payload.block_id
+        AND $capability = 'fs.write' AND $action = 'update'
+        AND $event = 'KNOWLEDGE_LOOM_BLOCK_MUTATED' AND $source = 'loom_block' AND $aggregate = 'loom_block'
+        AND $aggregate_id = $payload.block_id AND $payload.type = 'knowledge_loom_block_mutated' AND $payload.operation = 'update'
+        AND type::record('loom_blocks', $payload.block_id).workspace_id = type::record('workspaces', $wsids[0]) {
+        RETURN ($write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)
+                AND fn::mt120_loom_block_access($payload.block_id, $wsids[0], 'update', 'fs.write'))
+            OR (!$write AND fn::mt120_loom_block_access($payload.block_id, $wsids[0], 'read', 'fs.read'));
+    };
     IF $resource.resource_kind != 'loom_block' OR $resource.external_resource_id != $payload.canvas_block_id
         OR $capability != 'fs.write' OR $action != 'update'
         OR $event != 'KNOWLEDGE_LOOM_CANVAS_BOARD_RECORDED' OR $source != 'loom_canvas_board'
@@ -377,12 +386,12 @@ DEFINE FUNCTION OVERWRITE fn::mt120_loom_receipt($resource: option<record<protec
         AND placed_block_id = type::record('loom_blocks', $payload.placed_block_id)) != 1 { RETURN false; };
     RETURN ($write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)
             AND fn::mt120_loom_block_access($payload.canvas_block_id, $wsids[0], 'update', 'fs.write')
-            AND fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read'))
+            AND (fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read') OR fn::mt120_document_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read')))
         OR (!$write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)
             AND fn::mt120_loom_block_access($payload.canvas_block_id, $wsids[0], 'update', 'fs.write')
-            AND fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read'))
+            AND (fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read') OR fn::mt120_document_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read')))
         OR (!$write AND fn::mt120_loom_block_access($payload.canvas_block_id, $wsids[0], 'read', 'fs.read')
-            AND fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read'));
+            AND (fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read') OR fn::mt120_document_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read')));
 };
 DEFINE FUNCTION OVERWRITE fn::mt120_document_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $document: string, $payload: object, $actor_kind: string, $actor_id: string, $write: bool) {
     RETURN fn::mt109_live_session() AND $resource != NONE AND $session != NONE
@@ -1138,7 +1147,7 @@ DEFINE FUNCTION OVERWRITE fn::mt120_resource_create($row: object) {
     };
     IF $row.resource_kind = 'knowledge_source' {
         LET $source = type::record('knowledge_sources', $row.external_resource_id);
-        RETURN $source.created_in_session_id = $auth.id AND $source.source_kind = 'file'
+        RETURN $source.created_in_session_id = $auth.id AND $source.source_kind IN ['file', 'rich_document']
             AND $row.parent_resource_id.resource_kind = 'workspace'
             AND $row.parent_resource_id.external_resource_id = record::id($source.workspace_id)
             AND $row.parent_resource_id.owner_account_id = $auth.account_id
@@ -1154,7 +1163,7 @@ DEFINE FUNCTION OVERWRITE fn::mt120_resource_create($row: object) {
             AND $row.parent_resource_id.access_space_id = $auth.access_space_id
             AND fn::mt109_has_grant('knowledge_source', record::id($file.source_id), 'create', 'memory.propose');
     };
-    RETURN $row.resource_kind = 'flight_recorder'
+    RETURN $row.resource_kind IN ['flight_recorder', 'memory_pack', 'memory_proposal', 'memory_commit_report', 'memory_item', 'memory_item_count']
         AND $row.parent_resource_id.resource_kind = 'workspace'
         AND $row.parent_resource_id.created_in_session_id = $auth.id
         AND $row.parent_resource_id.owner_account_id = $auth.account_id
@@ -1178,7 +1187,8 @@ DEFINE FUNCTION OVERWRITE fn::mt120_creator_grant($row: object) {
         AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINSALL $row.capability_ids)
         AND (($row.resource_id.resource_kind = 'workspace'
              AND ['create','read','update','delete'] CONTAINSALL $row.actions
-             AND ['fs.read','fs.write','fr.read','fr.ingest.runtime_chat','fr.ingest.native_editor','memory.read','memory.propose'] CONTAINSALL $row.capability_ids)
+             AND ['fs.read','fs.write','fr.read','fr.ingest.runtime_chat','fr.ingest.native_editor','memory.read','memory.propose','memory.review','memory.commit'] CONTAINSALL $row.capability_ids)
+          OR ($row.resource_id.resource_kind IN ['memory_pack','memory_proposal','memory_commit_report','memory_item','memory_item_count'] AND ['create','read','update','delete'] CONTAINSALL $row.actions AND ['memory.read','memory.propose','memory.review','memory.commit','fs.write'] CONTAINSALL $row.capability_ids AND $row.actions CONTAINS 'delete' AND $row.capability_ids CONTAINS 'fs.write')
           OR ($row.resource_id.resource_kind = 'rich_document' AND ['create','read','update','delete'] CONTAINSALL $row.actions AND ['fs.read','fs.write'] CONTAINSALL $row.capability_ids)
           OR ($row.resource_id.resource_kind = 'loom_block' AND ['create','read','update','delete'] CONTAINSALL $row.actions AND ['fs.read','fs.write'] CONTAINSALL $row.capability_ids)
           OR ($row.resource_id.resource_kind IN ['knowledge_source','knowledge_code_file'] AND ['create','read','update','delete'] CONTAINSALL $row.actions AND ['memory.read','memory.propose','fs.write'] CONTAINSALL $row.capability_ids AND ((!(($row.actions CONTAINS 'delete') OR ($row.capability_ids CONTAINS 'fs.write'))) OR (($row.capability_ids CONTAINS 'fs.write') AND fn::mt109_has_grant($row.resource_id.parent_resource_id.resource_kind, $row.resource_id.parent_resource_id.external_resource_id, 'delete', 'fs.write'))))
@@ -1433,7 +1443,9 @@ FOR $source IN (SELECT id FROM fems_memory_commit_reports WHERE workspace_id = $
         };
     };
     FOR $entity IN (SELECT * FROM knowledge_entities WHERE workspace_id = $workspace) {
-        IF $entity.primary_source_id = NONE OR $entity.primary_source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($entity.primary_source_id), 'delete', 'fs.write') { RETURN false; };
+        IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {
+            IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };
+        } ELSE IF $entity.primary_source_id = NONE OR $entity.primary_source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($entity.primary_source_id), 'delete', 'fs.write') { RETURN false; };
         FOR $link IN (SELECT span_id FROM knowledge_entity_spans WHERE entity_id = $entity.id) {
             IF $link.span_id.source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($link.span_id.source_id), 'delete', 'fs.write') { RETURN false; };
         };
@@ -1854,6 +1866,16 @@ fn mt120_loom_bundle_table_statements() -> String {
     );
     statements.push_str(&SCHEMA[start..end]);
     statements.push('\n');
+    // MT-109 C2: Atelier projection delete, backlink link kinds and rich-document sources.
+    for table in [
+        "atelier_intake_item_loom_projection",
+        "knowledge_document_backlinks",
+        "knowledge_sources",
+    ] {
+        let (start, end) = schema_table_definition_bounds(SCHEMA, table);
+        statements.push_str(&SCHEMA[start..end]);
+        statements.push('\n');
+    }
     statements
 }
 
@@ -1962,8 +1984,29 @@ fn restore_pre_mt120_loom_bundle(mut source: String) -> String {
     source.replace_range(start.saturating_sub(1)..end, "");
     source
 }
+/// MT-109 C2 schema deltas (workspace-delete Loom entities, loom_block update receipt, Canvas
+/// visual-edge delete, Atelier projection delete, standalone search-index update). Predecessor
+/// reconstructions revert them; upgrades re-emit them from [`SCHEMA`].
+#[cfg(test)]
+const MT109_C2_SCHEMA_DELTAS: [(&str, &str); 11] = [
+    ("        IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {\n            IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };\n        } ELSE IF $entity.primary_source_id = NONE OR $entity.primary_source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($entity.primary_source_id), 'delete', 'fs.write') { RETURN false; };\n", "        IF $entity.primary_source_id = NONE OR $entity.primary_source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($entity.primary_source_id), 'delete', 'fs.write') { RETURN false; };\n"),
+    ("    IF $resource.resource_kind = 'loom_block' AND $resource.external_resource_id = $payload.block_id\n        AND $capability = 'fs.write' AND $action = 'update'\n        AND $event = 'KNOWLEDGE_LOOM_BLOCK_MUTATED' AND $source = 'loom_block' AND $aggregate = 'loom_block'\n        AND $aggregate_id = $payload.block_id AND $payload.type = 'knowledge_loom_block_mutated' AND $payload.operation = 'update'\n        AND type::record('loom_blocks', $payload.block_id).workspace_id = type::record('workspaces', $wsids[0]) {\n        RETURN ($write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)\n                AND fn::mt120_loom_block_access($payload.block_id, $wsids[0], 'update', 'fs.write'))\n            OR (!$write AND fn::mt120_loom_block_access($payload.block_id, $wsids[0], 'read', 'fs.read'));\n    };\n", ""),
+    ("                FOR create, update NONE\n                FOR delete WHERE fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write') OR fn::mt120_workspace_delete(record::id(workspace_id));\nDEFINE FIELD OVERWRITE visual_edge_id", "                FOR create, update NONE\n                FOR delete WHERE fn::mt120_workspace_delete(record::id(workspace_id));\nDEFINE FIELD OVERWRITE visual_edge_id"),
+    ("DEFINE TABLE OVERWRITE atelier_intake_item_loom_projection SCHEMAFULL PERMISSIONS FOR select, create, update NONE FOR delete WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'delete', 'fs.write');\n", "DEFINE TABLE OVERWRITE atelier_intake_item_loom_projection SCHEMAFULL PERMISSIONS FOR select, create, update NONE FOR delete WHERE fn::mt120_workspace_delete(record::id(workspace_id));\n"),
+    ("                FOR update WHERE (block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')) OR (block_id.source_rich_document_id = NONE AND block_id.workspace_id = workspace_id AND fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'update', 'fs.write'))\n                FOR delete WHERE block_id.source_rich_document_id != NONE", "                FOR update WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')\n                FOR delete WHERE block_id.source_rich_document_id != NONE"),
+    ("    RETURN $row.resource_kind IN ['flight_recorder', 'memory_pack', 'memory_proposal', 'memory_commit_report', 'memory_item', 'memory_item_count']\n        AND $row.parent_resource_id.resource_kind = 'workspace'", "    RETURN $row.resource_kind = 'flight_recorder'\n        AND $row.parent_resource_id.resource_kind = 'workspace'"),
+    ("             AND ['fs.read','fs.write','fr.read','fr.ingest.runtime_chat','fr.ingest.native_editor','memory.read','memory.propose','memory.review','memory.commit'] CONTAINSALL $row.capability_ids)\n          OR ($row.resource_id.resource_kind IN ['memory_pack','memory_proposal','memory_commit_report','memory_item','memory_item_count'] AND ['create','read','update','delete'] CONTAINSALL $row.actions AND ['memory.read','memory.propose','memory.review','memory.commit','fs.write'] CONTAINSALL $row.capability_ids AND $row.actions CONTAINS 'delete' AND $row.capability_ids CONTAINS 'fs.write')\n", "             AND ['fs.read','fs.write','fr.read','fr.ingest.runtime_chat','fr.ingest.native_editor','memory.read','memory.propose'] CONTAINSALL $row.capability_ids)\n"),
+    ("        RETURN $source.created_in_session_id = $auth.id AND $source.source_kind IN ['file', 'rich_document']\n", "        RETURN $source.created_in_session_id = $auth.id AND $source.source_kind = 'file'\n"),
+    ("    PERMISSIONS FOR select WHERE source_kind IN ['file', 'rich_document'] AND fn::mt109_source_read('knowledge_source', source_id, record::id(workspace_id), 'workspace', record::id(workspace_id))\n                FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND source_kind IN ['file', 'rich_document'] AND (root_id", "    PERMISSIONS FOR select WHERE source_kind = 'file' AND fn::mt109_source_read('knowledge_source', source_id, record::id(workspace_id), 'workspace', record::id(workspace_id))\n                FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND source_kind = 'file' AND (root_id"),
+    ("DEFINE TABLE OVERWRITE knowledge_document_backlinks SCHEMAFULL\n    PERMISSIONS FOR select WHERE source_document_id.workspace_id = workspace_id AND fn::mt120_document_access(record::id(source_document_id), record::id(workspace_id), 'read', 'fs.read') AND (fn::mt120_document_access(target, record::id(workspace_id), 'read', 'fs.read') OR !record::exists(type::record('knowledge_rich_documents', target)))\n                FOR create WHERE source_document_id.workspace_id = workspace_id AND fn::mt120_document_access(record::id(source_document_id), record::id(workspace_id), 'update', 'fs.write') AND (fn::mt120_document_access(target, record::id(workspace_id), 'read', 'fs.read') OR !record::exists(type::record('knowledge_rich_documents', target)))\n                FOR update WHERE source_document_id.workspace_id = workspace_id AND fn::mt120_document_access(record::id(source_document_id), record::id(workspace_id), 'update', 'fs.write') AND (fn::mt120_document_access(target, record::id(workspace_id), 'read', 'fs.read') OR !record::exists(type::record('knowledge_rich_documents', target)))\n                FOR delete WHERE source_document_id.workspace_id = workspace_id AND fn::mt120_document_access(record::id(source_document_id), record::id(workspace_id), 'update', 'fs.write') AND (fn::mt120_document_access(target, record::id(workspace_id), 'read', 'fs.read') OR !record::exists(type::record('knowledge_rich_documents', target)));\n", "DEFINE TABLE OVERWRITE knowledge_document_backlinks SCHEMAFULL\n    PERMISSIONS FOR select WHERE source_document_id.workspace_id = workspace_id AND link_kind = 'wikilink' AND fn::mt120_document_access(record::id(source_document_id), record::id(workspace_id), 'read', 'fs.read') AND fn::mt120_document_access(target, record::id(workspace_id), 'read', 'fs.read')\n                FOR create WHERE source_document_id.workspace_id = workspace_id AND link_kind = 'wikilink' AND fn::mt120_document_access(record::id(source_document_id), record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(target, record::id(workspace_id), 'read', 'fs.read')\n                FOR update WHERE source_document_id.workspace_id = workspace_id AND link_kind = 'wikilink' AND fn::mt120_document_access(record::id(source_document_id), record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(target, record::id(workspace_id), 'read', 'fs.read')\n                FOR delete WHERE source_document_id.workspace_id = workspace_id AND link_kind = 'wikilink' AND fn::mt120_document_access(record::id(source_document_id), record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(target, record::id(workspace_id), 'read', 'fs.read');\n"),
+    ("    RETURN ($write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)\n            AND fn::mt120_loom_block_access($payload.canvas_block_id, $wsids[0], 'update', 'fs.write')\n            AND (fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read') OR fn::mt120_document_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read')))\n        OR (!$write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)\n            AND fn::mt120_loom_block_access($payload.canvas_block_id, $wsids[0], 'update', 'fs.write')\n            AND (fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read') OR fn::mt120_document_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read')))\n        OR (!$write AND fn::mt120_loom_block_access($payload.canvas_block_id, $wsids[0], 'read', 'fs.read')\n            AND (fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read') OR fn::mt120_document_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read')));\n", "    RETURN ($write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)\n            AND fn::mt120_loom_block_access($payload.canvas_block_id, $wsids[0], 'update', 'fs.write')\n            AND fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read'))\n        OR (!$write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)\n            AND fn::mt120_loom_block_access($payload.canvas_block_id, $wsids[0], 'update', 'fs.write')\n            AND fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read'))\n        OR (!$write AND fn::mt120_loom_block_access($payload.canvas_block_id, $wsids[0], 'read', 'fs.read')\n            AND fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read'));\n"),
+];
+
 #[cfg(test)]
 fn restore_pre_standalone_loom_update_schema(mut source: String) -> String {
+    for (current, previous) in MT109_C2_SCHEMA_DELTAS {
+        source = source.replace(current, previous);
+    }
     source = source.replace(
         "FOR update WHERE (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')) OR (source_rich_document_id = NONE AND content_type IN ['note','file','annotated_file','tag_hub','journal','canvas'] AND fn::mt120_loom_block_access(block_id, record::id(workspace_id), 'update', 'fs.write'))",
         "FOR update WHERE source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')",
@@ -2077,8 +2120,13 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-109 round-4 re-pin (Master Spec LM-RLS-001 / §2.3.13.12.4): record-user Loom creation of all
 // spec content types, rich-document projection placements, and writer access to a same-id
 // projection across a save (previous value 01a3f6068b040794f3c670b919a46324d283da1374f09a72c3a98bf24bfe2653).
+// MT-109 C2 re-pin: workspace delete accepts account Loom block entities; loom_block update receipt;
+// Canvas visual-edge / Atelier projection delete; standalone search-index update; memory surfaces;
+// rich-document knowledge sources; backlink link kinds; rich-document projection placement
+// receipts (previous value
+// 79444332fefc2fe7cf5950152bb7d29ddbbd0452f30a17f4abb277b6cbb6504a); kb-c2 runs 03/18.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "79444332fefc2fe7cf5950152bb7d29ddbbd0452f30a17f4abb277b6cbb6504a";
+    "dcb91130af87c675f199db0afa9483fbbc60dc40b925870dfd0bcf1b340e1049";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -2138,8 +2186,9 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // 8955551a907913596f6751ac4a96ad4686b9c98889c293310900874cc06a1ca8); kb-c1 run 54.
 // MT-109 round-4 re-pin (previous d06f44fd00b2525e93d55d4884a81d092a26c4e08b486da3b03b4671a035d3eb);
 // kb-c1 run 76.
+// MT-109 C2 re-pin (previous a99410f0c48491e110068e2d10d3ab0fc526073b6af749ce17afb85fe7e549f6); kb-c2 runs 03/18.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "a99410f0c48491e110068e2d10d3ab0fc526073b6af749ce17afb85fe7e549f6";
+    "13be68fc1edba9476e4cdd2db98f51b02ee33190683472fca3bb4cf57ee7225c";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -2147,8 +2196,10 @@ pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
 // MT-141 pin; before that 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-109 round-4 re-pin: fn::mt120_resource_create / fn::mt120_loom_receipt admit all spec Loom
 // content types (previous ad696e28be444fd68b39f4c280400ae4914c17234ed0888794df75ed1de6483c).
+// MT-109 C2 re-pin: Atelier projection delete follows the workspace delete grant (previous
+// ed84249709a9ab9c3c7d4304859732fac8373d0001a27aa84685c319e6a6a04a).
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
-    "ed84249709a9ab9c3c7d4304859732fac8373d0001a27aa84685c319e6a6a04a";
+    "f8909f93910491ac4c95bb8f4b567dd2c572b6e08b5ca899fb0b223dbb2ca411";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 /// Second allowlisted lineage (MT-142): every store bootstrapped at schema revision 157 before
@@ -2999,7 +3050,7 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // run 30, HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH / MT109_LOOM_CATALOG_SHA256
     // observed).
     const EXPECTED_CATALOG_SHA256: &str =
-        "dd12fac9516131c6b962fef8ed7bfb23d20f38c0b10d4756ac6eae9b987a2127";
+        "98a5b3cfbb8587edb966577e19c6ed133ae5defadccae100966748ccf8805ccd";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -7427,7 +7478,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "dd12fac9516131c6b962fef8ed7bfb23d20f38c0b10d4756ac6eae9b987a2127"
+            "98a5b3cfbb8587edb966577e19c6ed133ae5defadccae100966748ccf8805ccd"
         );
     }
 

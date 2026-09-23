@@ -1179,7 +1179,12 @@ pub(crate) async fn update_loom_block(
         }),
         &identity,
     )?;
-    let (_, ledger) = event_ledger::prepare_event(event)?;
+    let (_, mut ledger) = event_ledger::prepare_event(event)?;
+    // MT-109 C2 (diagnosis b): a record-user scope authorizes the block resource, so bind the
+    // receipt to the block workspace as `fn::mt120_loom_receipt` requires.
+    if super::current_record_user_scope().is_some() {
+        ledger.wsids = vec![workspace_id.to_owned()];
+    }
     // Result-set index 6: BEGIN(0), workspace guard(1), receipt read(2), receipt append(3),
     // receipt bind(4), apply-once block(5), read(6), COMMIT(7).
     let rows = db
@@ -3315,6 +3320,10 @@ struct LoomMutationIdentity {
     actor_id: Option<String>,
     job_id: Option<String>,
     workflow_id: Option<String>,
+    /// MT-109 C2 (diagnosis b): the session principal that a record-user receipt must carry.
+    /// `fn::mt120_loom_receipt` requires the receipt actor to equal the session principal, so a
+    /// scoped mutation is stamped with the request actor instead of the System component actor.
+    session_actor: Option<KernelActor>,
 }
 
 impl LoomMutationIdentity {
@@ -3325,6 +3334,16 @@ impl LoomMutationIdentity {
             actor_id: metadata.actor_id.clone(),
             job_id: metadata.job_id.map(|id| id.to_string()),
             workflow_id: metadata.workflow_id.map(|id| id.to_string()),
+            session_actor: super::current_record_user_scope().and_then(|_| {
+                metadata
+                    .actor_id
+                    .clone()
+                    .map(|actor_id| match metadata.actor_kind {
+                        crate::storage::WriteActorKind::Human => KernelActor::Operator(actor_id),
+                        crate::storage::WriteActorKind::Ai => KernelActor::ModelAdapter(actor_id),
+                        crate::storage::WriteActorKind::System => KernelActor::System(actor_id),
+                    })
+            }),
         }
     }
 
@@ -3335,6 +3354,7 @@ impl LoomMutationIdentity {
             actor_id: None,
             job_id: None,
             workflow_id: None,
+            session_actor: None,
         }
     }
 }
@@ -3430,7 +3450,10 @@ fn build_loom_mutation_event(
         run_id.clone(),
         run_id,
         event_type,
-        KernelActor::System(actor_id.to_owned()),
+        identity
+            .session_actor
+            .clone()
+            .unwrap_or_else(|| KernelActor::System(actor_id.to_owned())),
     )
     .aggregate(aggregate_kind, aggregate_id.to_owned())
     .idempotency_key(loom_mutation_idempotency_key(
