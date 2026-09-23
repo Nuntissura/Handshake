@@ -166,7 +166,7 @@ pub fn routes(state: AppState) -> Router {
         )
         .route(
             "/workspaces/:workspace_id/loom/blocks/:block_id/metrics/recompute",
-            post(recompute_loom_block_metrics),
+            post(recompute_loom_block_metrics_authenticated),
         )
         // MT-177: ProjectKnowledgeIndex/EventLedger authority bridge
         .route(
@@ -183,7 +183,7 @@ pub fn routes(state: AppState) -> Router {
         // MT-183: reorderable Pins grid ordinal
         .route(
             "/workspaces/:workspace_id/loom/blocks/:block_id/pin-order",
-            axum::routing::put(set_loom_block_pin_order),
+            axum::routing::put(set_loom_block_pin_order_authenticated),
         )
         // WP-KERNEL-012 MT-024 FAIL_V2: single atomic pin removal (clear pin_order
         // + unpin + durable receipt in one transaction). Collapses the old
@@ -286,7 +286,7 @@ pub fn routes(state: AppState) -> Router {
         // Loom edges
         .route(
             "/workspaces/:workspace_id/loom/edges",
-            post(create_loom_edge),
+            post(create_loom_edge_authenticated),
         )
         .route(
             "/workspaces/:workspace_id/loom/edges/:edge_id",
@@ -295,7 +295,7 @@ pub fn routes(state: AppState) -> Router {
         // Import + assets
         .route(
             "/workspaces/:workspace_id/loom/import",
-            post(import_loom_asset),
+            post(import_loom_asset_authenticated),
         )
         .route(
             "/workspaces/:workspace_id/assets/:asset_id",
@@ -334,11 +334,11 @@ pub fn routes(state: AppState) -> Router {
         // Views + search
         .route(
             "/workspaces/:workspace_id/loom/views/:view_type",
-            get(query_loom_view),
+            get(query_loom_view_authenticated),
         )
         .route(
             "/workspaces/:workspace_id/loom/graph/traverse",
-            get(traverse_loom_graph),
+            get(traverse_loom_graph_authenticated),
         )
         // MT-179 local graph neighborhood (undirected, filters/depth/stale/citations)
         .route(
@@ -352,11 +352,11 @@ pub fn routes(state: AppState) -> Router {
         )
         .route(
             "/workspaces/:workspace_id/loom/metrics/recompute",
-            post(recompute_all_loom_metrics),
+            post(recompute_all_loom_metrics_authenticated),
         )
         .route(
             "/workspaces/:workspace_id/loom/search",
-            get(search_loom_blocks),
+            get(search_loom_blocks_authenticated),
         )
         // MT-191: bounded backend visual-debug snapshot for Loom navigation state.
         .route(
@@ -365,14 +365,14 @@ pub fn routes(state: AppState) -> Router {
         )
         .route(
             "/workspaces/:workspace_id/loom/graph-search",
-            get(search_loom_graph),
+            get(search_loom_graph_authenticated),
         )
         // MT-264: LoomSearchV2 -- store-native, graph-blended hybrid search
         // (full-text + trigram similarity + vector kNN). Supersedes/extends the MT-258/250
         // workspace search entrypoint.
         .route(
             "/workspaces/:workspace_id/loom/search-v2",
-            post(loom_search_v2),
+            post(loom_search_v2_authenticated),
         )
         .route(
             "/workspaces/:workspace_id/loom/quick-switcher/recents",
@@ -443,7 +443,7 @@ pub fn routes(state: AppState) -> Router {
         // MT-262 BlockCollectionViews: saved table/Kanban/calendar view defs.
         .route(
             "/workspaces/:workspace_id/loom/views/definitions",
-            post(create_block_view),
+            post(create_block_view_authenticated),
         )
         .route(
             "/workspaces/:workspace_id/loom/views/definitions/:block_id",
@@ -535,6 +535,117 @@ fn loom_create_write_context(
                 error: "HSK-403-PROTECTED-RESOURCE",
             }),
         )),
+    }
+}
+
+/// MT-109 C3 (Master Spec 02-system-architecture.md:2758/2773/2776, LM-RLS-001/002): the
+/// authenticated account authority of one Loom request. Every protected Loom read or write runs
+/// inside [`LoomAccount::run`] as the account's record user, never as root.
+struct LoomAccount {
+    authority: crate::api::authority::AuthorizedResourceContext,
+    ctx: WriteContext,
+}
+
+fn loom_denied() -> ApiError {
+    (
+        StatusCode::FORBIDDEN,
+        Json(ErrorResponse {
+            error: "HSK-403-PROTECTED-RESOURCE",
+        }),
+    )
+}
+
+/// Authorizes `action` on the exact protected resource through the ResourceBroker. Reads use
+/// `fs.read`; create/update/delete use `fs.write` (LM-RLS-001: viewer reads, member creates and
+/// edits, admin deletes). Every failure is the constant denial.
+async fn loom_account(
+    state: &AppState,
+    headers: &HeaderMap,
+    kind: crate::storage::surreal::resource_authority::ResourceKind,
+    external_id: &str,
+    action: crate::storage::surreal::resource_authority::ResourceAction,
+) -> ApiResult<LoomAccount> {
+    use crate::storage::surreal::resource_authority::ResourceAction;
+    let capability = if matches!(action, ResourceAction::Read) {
+        "fs.read"
+    } else {
+        "fs.write"
+    };
+    let authority = crate::api::authority::authorize_request(
+        state,
+        headers,
+        capability,
+        kind,
+        external_id,
+        action,
+    )
+    .await
+    .map_err(|_| loom_denied())?;
+    let ctx = loom_create_write_context(&authority)?;
+    Ok(LoomAccount { authority, ctx })
+}
+
+/// The workspace grant of the account session (folders, wiki, tags, graph, search, assets,
+/// collections, AI suggestions and saved views are workspace-scoped Loom surfaces).
+async fn loom_workspace_account(
+    state: &AppState,
+    headers: &HeaderMap,
+    workspace_id: &str,
+    action: crate::storage::surreal::resource_authority::ResourceAction,
+) -> ApiResult<LoomAccount> {
+    loom_account(
+        state,
+        headers,
+        crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+        workspace_id,
+        action,
+    )
+    .await
+}
+
+/// The exact block grant: a standalone block has its own `loom_block` resource; a RichDocument's
+/// same-id Loom projection is protected by its `rich_document` resource.
+async fn loom_block_account(
+    state: &AppState,
+    headers: &HeaderMap,
+    block_id: &str,
+    action: crate::storage::surreal::resource_authority::ResourceAction,
+) -> ApiResult<LoomAccount> {
+    use crate::storage::surreal::resource_authority::ResourceKind;
+    match loom_account(state, headers, ResourceKind::LoomBlock, block_id, action).await {
+        Ok(account) => Ok(account),
+        Err(_) => loom_account(state, headers, ResourceKind::RichDocument, block_id, action).await,
+    }
+}
+
+impl LoomAccount {
+    /// The session principal every receipt written by this request carries.
+    fn session_actor(&self) -> crate::kernel::KernelActor {
+        match self.authority.actor_kind.as_str() {
+            "system" => crate::kernel::KernelActor::System(self.authority.actor_id.clone()),
+            _ => crate::kernel::KernelActor::Operator(self.authority.actor_id.clone()),
+        }
+    }
+
+    /// Runs `operation` as the account's record user (table permissions apply), with receipts
+    /// stamped with the session principal and bound to `workspace_id`.
+    async fn run<T>(
+        &self,
+        state: &AppState,
+        workspace_id: &str,
+        operation: impl std::future::Future<Output = ApiResult<T>>,
+    ) -> ApiResult<T> {
+        state
+            .surreal
+            .with_record_user_scope(
+                self.authority.record_user_scope.clone(),
+                crate::storage::surreal::event_ledger::with_loom_session_receipt(
+                    self.session_actor(),
+                    workspace_id.to_owned(),
+                    operation,
+                ),
+            )
+            .await
     }
 }
 
@@ -694,8 +805,30 @@ async fn open_daily_journal(
             }),
         ));
     }
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    // MT-109 C3: the workspace read grant is checked before any lookup, and the natural-key lookup
+    // itself runs as the record user, so an unauthorized caller learns nothing about the workspace
+    // or its journal dates (constant 403).
+    let reader = loom_workspace_account(&state, &headers, &workspace_id, ResourceAction::Read)
+        .await
+        .map_err(|_| denied())?;
     let database = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
+    let journal_lookup = |state: AppState, workspace_id: String, journal_date: String| {
+        let reader = &reader;
+        async move {
+            reader
+                .run(&state, &workspace_id, async {
+                    ensure_workspace_exists(&state, &workspace_id).await?;
+                    crate::storage::surreal::loom_canvas_store::journal_block_id(
+                        &state.surreal,
+                        &workspace_id,
+                        &journal_date,
+                    )
+                    .await
+                    .map_err(map_storage_error)
+                })
+                .await
+        }
+    };
     let read_existing = |block_id: String| {
         let state = state.clone();
         let headers = headers.clone();
@@ -723,13 +856,8 @@ async fn open_daily_journal(
         }
     };
     // The natural-key lookup only locates the id; the read itself is re-authorized above.
-    if let Some(existing) = crate::storage::surreal::loom_canvas_store::journal_block_id(
-        &state.surreal,
-        &workspace_id,
-        &journal_date,
-    )
-    .await
-    .map_err(map_storage_error)?
+    if let Some(existing) =
+        journal_lookup(state.clone(), workspace_id.clone(), journal_date.clone()).await?
     {
         return read_existing(existing).await.map(Json);
     }
@@ -775,14 +903,10 @@ async fn open_daily_journal(
         Ok(block) => finalize_loom_block_create(&state, &ctx, &workspace_id, block).await,
         // A concurrent open won the uq_loom_blocks_journal_key race: return that same note.
         Err(StorageError::Conflict(_)) | Err(StorageError::ConflictDetails { .. }) => {
-            let existing = crate::storage::surreal::loom_canvas_store::journal_block_id(
-                &state.surreal,
-                &workspace_id,
-                &journal_date,
-            )
-            .await
-            .map_err(map_storage_error)?
-            .ok_or_else(denied)?;
+            let existing =
+                journal_lookup(state.clone(), workspace_id.clone(), journal_date.clone())
+                    .await?
+                    .ok_or_else(denied)?;
             read_existing(existing).await.map(Json)
         }
         Err(error) => Err(map_storage_error(error)),
@@ -942,30 +1066,17 @@ async fn get_loom_block_transclusion_authenticated(
     Path((workspace_id, block_id)): Path<(String, String)>,
     headers: HeaderMap,
 ) -> ApiResult<Json<LoomTransclusionResponse>> {
-    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+    use crate::storage::surreal::resource_authority::ResourceAction;
 
-    let authority = crate::api::authority::authorize_request(
-        &state,
-        &headers,
-        "fs.read",
-        ResourceKind::LoomBlock,
-        &block_id,
-        ResourceAction::Read,
-    )
-    .await
-    .map_err(|_| {
-        (
-            StatusCode::FORBIDDEN,
-            Json(ErrorResponse {
-                error: "HSK-403-PROTECTED-RESOURCE",
-            }),
-        )
-    })?;
+    // MT-109 C3 (C2 follow-up c): a RichDocument's same-id Loom projection is protected by its
+    // `rich_document` resource, so the transclusion read accepts either exact read grant.
+    let account = loom_block_account(&state, &headers, &block_id, ResourceAction::Read).await?;
     let scoped_state = state.clone();
-    state
-        .surreal
-        .with_record_user_scope(
-            authority.record_user_scope,
+    let scoped_workspace = workspace_id.clone();
+    account
+        .run(
+            &state,
+            &scoped_workspace,
             get_loom_block_transclusion_inner(scoped_state, workspace_id, block_id),
         )
         .await
@@ -1045,14 +1156,26 @@ async fn get_loom_block_transclusion_inner(
 async fn get_loom_block_breadcrumbs(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<crate::storage::LoomBreadcrumbTrail>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let trail = state
-        .storage
-        .loom_block_breadcrumbs(&workspace_id, &block_id)
+    let account = loom_block_account(
+        &state,
+        &headers,
+        &block_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    account
+        .run(&state, &workspace_id, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let trail = state
+                .storage
+                .loom_block_breadcrumbs(&workspace_id, &block_id)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(trail))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(trail))
 }
 
 /// MT-178: linked backlinks for a block (incoming MENTION/TAG/... edges) each
@@ -1060,14 +1183,26 @@ async fn get_loom_block_breadcrumbs(
 async fn get_loom_block_backlinks(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<Vec<crate::storage::LoomBacklink>>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let backlinks = state
-        .storage
-        .get_backlinks_with_context(&workspace_id, &block_id)
+    let account = loom_block_account(
+        &state,
+        &headers,
+        &block_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    account
+        .run(&state, &workspace_id, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let backlinks = state
+                .storage
+                .get_backlinks_with_context(&workspace_id, &block_id)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(backlinks))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(backlinks))
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -1084,17 +1219,29 @@ struct UnlinkedMentionQuery {
 async fn scan_loom_block_unlinked_mentions(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Query(query): Query<UnlinkedMentionQuery>,
 ) -> ApiResult<Json<Vec<crate::storage::LoomUnlinkedMention>>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let aliases = split_ids(query.aliases);
-    let limit = query.limit.unwrap_or(100).min(500);
-    let mentions = state
-        .storage
-        .scan_unlinked_mentions(&workspace_id, &block_id, &aliases, limit)
+    let account = loom_block_account(
+        &state,
+        &headers,
+        &block_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    account
+        .run(&state, &workspace_id, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let aliases = split_ids(query.aliases);
+            let limit = query.limit.unwrap_or(100).min(500);
+            let mentions = state
+                .storage
+                .scan_unlinked_mentions(&workspace_id, &block_id, &aliases, limit)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(mentions))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(mentions))
 }
 
 #[derive(Debug, Deserialize)]
@@ -1105,13 +1252,59 @@ struct SetPinOrderRequest {
 }
 
 /// MT-183: set or clear a block's Pins-grid ordinal (reorderable grid).
+async fn set_loom_block_pin_order_authenticated(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
+    Json(payload): Json<SetPinOrderRequest>,
+) -> ApiResult<Json<LoomBlock>> {
+    let account = loom_block_account(
+        &state,
+        &headers,
+        &block_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    let ctx = account.ctx.clone();
+    account
+        .run(
+            &state,
+            &workspace_id,
+            set_loom_block_pin_order_inner(
+                state.clone(),
+                workspace_id.clone(),
+                block_id,
+                payload,
+                ctx,
+            ),
+        )
+        .await
+}
+
+#[cfg(test)]
 async fn set_loom_block_pin_order(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
     Json(payload): Json<SetPinOrderRequest>,
 ) -> ApiResult<Json<LoomBlock>> {
+    set_loom_block_pin_order_inner(
+        state,
+        workspace_id,
+        block_id,
+        payload,
+        WriteContext::human(None),
+    )
+    .await
+}
+
+async fn set_loom_block_pin_order_inner(
+    state: AppState,
+    workspace_id: String,
+    block_id: String,
+    payload: SetPinOrderRequest,
+    ctx: WriteContext,
+) -> ApiResult<Json<LoomBlock>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = WriteContext::human(None);
     let block = state
         .storage
         .set_loom_block_pin_order(&ctx, &workspace_id, &block_id, payload.pin_order)
@@ -1144,14 +1337,25 @@ async fn set_loom_block_pin_order(
 async fn remove_loom_block_pin(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<LoomBlockMutationReceipt>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = WriteContext::human(None);
-    let receipt = state
-        .storage
-        .remove_loom_block_pin(&ctx, &workspace_id, &block_id)
-        .await
-        .map_err(map_storage_error)?;
+    let account = loom_block_account(
+        &state,
+        &headers,
+        &block_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    let receipt = account
+        .run(&state, &workspace_id, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            state
+                .storage
+                .remove_loom_block_pin(&account.ctx, &workspace_id, &block_id)
+                .await
+                .map_err(map_storage_error)
+        })
+        .await?;
 
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomBlockUpdated,
@@ -1267,9 +1471,32 @@ struct CompileWikiRequest {
 async fn compile_loom_wiki_projection(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Json(payload): Json<CompileWikiRequest>,
 ) -> ApiResult<Json<ServedWikiPage>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+    )
+    .await?;
+    account
+        .run(
+            &state,
+            &workspace_id,
+            compile_loom_wiki_projection_inner(&state, &workspace_id, payload),
+        )
+        .await
+}
+
+async fn compile_loom_wiki_projection_inner(
+    state: &AppState,
+    workspace_id: &str,
+    payload: CompileWikiRequest,
+) -> ApiResult<Json<ServedWikiPage>> {
+    let workspace_id = workspace_id.to_owned();
+    ensure_workspace_exists(state, &workspace_id).await?;
     let projection = state
         .storage
         .compile_loom_wiki_projection(&workspace_id, &payload.title, &payload.block_ids)
@@ -1297,69 +1524,111 @@ async fn compile_loom_wiki_projection(
 async fn get_loom_wiki_projection(
     State(state): State<AppState>,
     Path((workspace_id, projection_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<ServedWikiPage>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let projection = state
-        .storage
-        .get_loom_wiki_projection(&workspace_id, &projection_id)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let projection = state
+                .storage
+                .get_loom_wiki_projection(&workspace_id, &projection_id)
+                .await
+                .map_err(map_storage_error)?;
+            // LM-PWIKI-008: the single-page serve path attaches the verdict
+            // fail-closed.
+            Ok(Json(attach_wiki_verdict(&state, projection).await?))
+        })
         .await
-        .map_err(map_storage_error)?;
-    // LM-PWIKI-008: the single-page serve path attaches the verdict
-    // fail-closed.
-    Ok(Json(attach_wiki_verdict(&state, projection).await?))
 }
 
 async fn loom_wiki_projection_stale(
     State(state): State<AppState>,
     Path((workspace_id, projection_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<serde_json::Value>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let projection = state
-        .storage
-        .get_loom_wiki_projection(&workspace_id, &projection_id)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let projection = state
+                .storage
+                .get_loom_wiki_projection(&workspace_id, &projection_id)
+                .await
+                .map_err(map_storage_error)?;
+            let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_db(&state));
+            let verdict = checker
+                .evaluate_stamp_value(&workspace_id, projection.compile_stamp.as_ref())
+                .await
+                .map_err(map_wiki_error)?;
+            // `stale` is derived from the verdict: anything not provably fresh is
+            // stale (unstamped pages are forbidden to read as fresh, LM-PWIKI-008).
+            Ok(Json(json!({
+                "projection_id": projection_id,
+                "stale": !verdict.is_fresh(),
+                "verdict": verdict,
+            })))
+        })
         .await
-        .map_err(map_storage_error)?;
-    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_db(&state));
-    let verdict = checker
-        .evaluate_stamp_value(&workspace_id, projection.compile_stamp.as_ref())
-        .await
-        .map_err(map_wiki_error)?;
-    // `stale` is derived from the verdict: anything not provably fresh is
-    // stale (unstamped pages are forbidden to read as fresh, LM-PWIKI-008).
-    Ok(Json(json!({
-        "projection_id": projection_id,
-        "stale": !verdict.is_fresh(),
-        "verdict": verdict,
-    })))
 }
 
 async fn regenerate_loom_wiki_projection(
     State(state): State<AppState>,
     Path((workspace_id, projection_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<ServedWikiPage>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let projection = state
-        .storage
-        .regenerate_loom_wiki_projection(&workspace_id, &projection_id)
-        .await
-        .map_err(map_storage_error)?;
-
-    let event = FlightRecorderEvent::new(
-        FlightRecorderEventType::LoomProjectionRebuilt,
-        FlightRecorderActor::Human,
-        Uuid::now_v7(),
-        json!({
-            "type": "loom_projection_rebuilt",
-            "workspace_id": workspace_id,
-            "projection_id": projection.projection_id,
-            "operation": "regenerate",
-            "source_block_count": projection.source_block_ids.len(),
-        }),
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
     )
-    .with_wsids(vec![workspace_id]);
-    let _ = state.flight_recorder.record_event(event).await;
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let projection = state
+                .storage
+                .regenerate_loom_wiki_projection(&workspace_id, &projection_id)
+                .await
+                .map_err(map_storage_error)?;
 
-    Ok(Json(attach_wiki_verdict(&state, projection).await?))
+            let event = FlightRecorderEvent::new(
+                FlightRecorderEventType::LoomProjectionRebuilt,
+                FlightRecorderActor::Human,
+                Uuid::now_v7(),
+                json!({
+                    "type": "loom_projection_rebuilt",
+                    "workspace_id": workspace_id,
+                    "projection_id": projection.projection_id,
+                    "operation": "regenerate",
+                    "source_block_count": projection.source_block_ids.len(),
+                }),
+            )
+            .with_wsids(vec![workspace_id]);
+            let _ = state.flight_recorder.record_event(event).await;
+
+            Ok(Json(attach_wiki_verdict(&state, projection).await?))
+        })
+        .await
 }
 
 // -- MT-241 bootstrap / MT-242 drift / MT-243 fan-out handlers ---------------
@@ -1383,35 +1652,49 @@ struct ListWikiPagesQuery {
 async fn list_loom_wiki_pages(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Query(params): Query<ListWikiPagesQuery>,
 ) -> ApiResult<Json<serde_json::Value>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let db = wiki_db(&state);
-    let pages = db
-        .list_knowledge_wiki_pages(
-            &workspace_id,
-            params.page_type.as_deref(),
-            params.typed_only.unwrap_or(false),
-            params.limit.unwrap_or(500),
-            params.offset.unwrap_or(0),
-        )
-        .await
-        .map_err(map_storage_error)?;
-    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(db);
-    let verdicts = checker
-        .evaluate_pages(&workspace_id, &pages)
-        .await
-        .map_err(map_wiki_error)?;
-    let served: Vec<serde_json::Value> = pages
-        .into_iter()
-        .zip(verdicts.into_iter())
-        .map(|(page, verdict)| {
-            let mut value = serde_json::to_value(&page).unwrap_or_else(|_| json!({}));
-            value["staleness_verdict"] = serde_json::to_value(&verdict).unwrap_or_default();
-            value
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let db = wiki_db(&state);
+            let pages = db
+                .list_knowledge_wiki_pages(
+                    &workspace_id,
+                    params.page_type.as_deref(),
+                    params.typed_only.unwrap_or(false),
+                    params.limit.unwrap_or(500),
+                    params.offset.unwrap_or(0),
+                )
+                .await
+                .map_err(map_storage_error)?;
+            let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(db);
+            let verdicts = checker
+                .evaluate_pages(&workspace_id, &pages)
+                .await
+                .map_err(map_wiki_error)?;
+            let served: Vec<serde_json::Value> = pages
+                .into_iter()
+                .zip(verdicts.into_iter())
+                .map(|(page, verdict)| {
+                    let mut value = serde_json::to_value(&page).unwrap_or_else(|_| json!({}));
+                    value["staleness_verdict"] = serde_json::to_value(&verdict).unwrap_or_default();
+                    value
+                })
+                .collect();
+            Ok(Json(json!({ "pages": served })))
         })
-        .collect();
-    Ok(Json(json!({ "pages": served })))
+        .await
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -1429,19 +1712,34 @@ async fn bootstrap_project_wiki(
     headers: axum::http::HeaderMap,
     payload: Option<Json<BootstrapWikiRequest>>,
 ) -> ApiResult<Json<serde_json::Value>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let request = payload.map(|Json(p)| p).unwrap_or_default();
-    let ctx = wiki_compile_context(&headers);
-    let db = wiki_db(&state);
-    let compiler = crate::knowledge_wiki::compiler::ProjectWikiCompiler::new(db.clone());
-    let mut options = crate::knowledge_wiki::compiler::WikiBootstrapOptions::default();
-    if let Some(budget) = request.page_token_budget {
-        options.page_token_budget = budget;
-    }
-    let outcome = compiler
-        .bootstrap(&ctx, &workspace_id, &options)
-        .await
-        .map_err(map_wiki_error)?;
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let request = payload.map(|Json(p)| p).unwrap_or_default();
+            // MT-109 C3: wiki receipts carry the authenticated session principal, never a header actor.
+            let ctx = crate::knowledge_wiki::compiler::WikiCompileContext {
+                actor: account.session_actor(),
+                ..wiki_compile_context(&headers)
+            };
+            let db = wiki_db(&state);
+            let compiler = crate::knowledge_wiki::compiler::ProjectWikiCompiler::new(db.clone());
+            let mut options = crate::knowledge_wiki::compiler::WikiBootstrapOptions::default();
+            if let Some(budget) = request.page_token_budget {
+                options.page_token_budget = budget;
+            }
+            let outcome = compiler
+                .bootstrap(&ctx, &workspace_id, &options)
+                .await
+                .map_err(map_wiki_error)?;
 
     let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(db);
     let verdicts = checker
@@ -1473,19 +1771,21 @@ async fn bootstrap_project_wiki(
     .with_wsids(vec![workspace_id.clone()]);
     let _ = state.flight_recorder.record_event(event).await;
 
-    Ok(Json(json!({
-        "workspace_id": workspace_id,
-        "pages": pages,
-        "started_receipt_event_id": outcome.started_receipt_event_id,
-        "completed_receipt_event_id": outcome.completed_receipt_event_id,
-        "ledger_version": outcome.ledger_version,
-        "module_pages": outcome.module_pages,
-        "concept_pages": outcome.concept_pages,
-        "entity_pages": outcome.entity_pages,
-        "decision_pages": outcome.decision_pages,
-        "split_clusters": outcome.split_clusters,
-        "oversize_files": outcome.oversize_files,
-    })))
+            Ok(Json(json!({
+                "workspace_id": workspace_id,
+                "pages": pages,
+                "started_receipt_event_id": outcome.started_receipt_event_id,
+                "completed_receipt_event_id": outcome.completed_receipt_event_id,
+                "ledger_version": outcome.ledger_version,
+                "module_pages": outcome.module_pages,
+                "concept_pages": outcome.concept_pages,
+                "entity_pages": outcome.entity_pages,
+                "decision_pages": outcome.decision_pages,
+                "split_clusters": outcome.split_clusters,
+                "oversize_files": outcome.oversize_files,
+            })))
+        })
+        .await
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -1505,15 +1805,32 @@ async fn project_wiki_drift_check(
     headers: axum::http::HeaderMap,
     payload: Option<Json<WikiDriftCheckRequest>>,
 ) -> ApiResult<Json<crate::knowledge_wiki::drift::WikiDriftReport>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let request = payload.map(|Json(p)| p).unwrap_or_default();
-    let ctx = wiki_compile_context(&headers);
-    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_db(&state));
-    let report = checker
-        .check_workspace(&ctx, &workspace_id, request.persist.unwrap_or(true))
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let request = payload.map(|Json(p)| p).unwrap_or_default();
+            // MT-109 C3: wiki receipts carry the authenticated session principal, never a header actor.
+            let ctx = crate::knowledge_wiki::compiler::WikiCompileContext {
+                actor: account.session_actor(),
+                ..wiki_compile_context(&headers)
+            };
+            let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_db(&state));
+            let report = checker
+                .check_workspace(&ctx, &workspace_id, request.persist.unwrap_or(true))
+                .await
+                .map_err(map_wiki_error)?;
+            Ok(Json(report))
+        })
         .await
-        .map_err(map_wiki_error)?;
-    Ok(Json(report))
 }
 
 #[derive(Debug, Deserialize)]
@@ -1534,52 +1851,83 @@ async fn project_wiki_fanout(
     headers: axum::http::HeaderMap,
     Json(payload): Json<WikiFanOutHttpRequest>,
 ) -> ApiResult<Json<crate::knowledge_wiki::fanout::WikiFanOutOutcome>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = wiki_compile_context(&headers);
-    let engine = crate::knowledge_wiki::fanout::WikiFanOutEngine::new(wiki_db(&state));
-    let mut request = crate::knowledge_wiki::fanout::WikiFanOutRequest::new(
-        payload.source_kind,
-        payload.source_id,
-    );
-    if let Some(budget) = payload.budget {
-        request.budget = budget;
-    }
-    let outcome = engine
-        .run(&ctx, &workspace_id, &request)
-        .await
-        .map_err(map_wiki_error)?;
-
-    let event = FlightRecorderEvent::new(
-        FlightRecorderEventType::LoomProjectionRebuilt,
-        FlightRecorderActor::Human,
-        Uuid::now_v7(),
-        json!({
-            "type": "loom_projection_rebuilt",
-            "workspace_id": workspace_id,
-            "operation": "wiki_fanout",
-            "trigger_kind": outcome.trigger_kind.as_str(),
-            "trigger_id": outcome.trigger_id,
-            "regenerated": outcome.regenerated.len(),
-            "truncated": outcome.truncated.len(),
-        }),
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
     )
-    .with_wsids(vec![workspace_id]);
-    let _ = state.flight_recorder.record_event(event).await;
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            // MT-109 C3: wiki receipts carry the authenticated session principal, never a header actor.
+            let ctx = crate::knowledge_wiki::compiler::WikiCompileContext {
+                actor: account.session_actor(),
+                ..wiki_compile_context(&headers)
+            };
+            let engine = crate::knowledge_wiki::fanout::WikiFanOutEngine::new(wiki_db(&state));
+            let mut request = crate::knowledge_wiki::fanout::WikiFanOutRequest::new(
+                payload.source_kind,
+                payload.source_id,
+            );
+            if let Some(budget) = payload.budget {
+                request.budget = budget;
+            }
+            let outcome = engine
+                .run(&ctx, &workspace_id, &request)
+                .await
+                .map_err(map_wiki_error)?;
 
-    Ok(Json(outcome))
+            let event = FlightRecorderEvent::new(
+                FlightRecorderEventType::LoomProjectionRebuilt,
+                FlightRecorderActor::Human,
+                Uuid::now_v7(),
+                json!({
+                    "type": "loom_projection_rebuilt",
+                    "workspace_id": workspace_id,
+                    "operation": "wiki_fanout",
+                    "trigger_kind": outcome.trigger_kind.as_str(),
+                    "trigger_id": outcome.trigger_id,
+                    "regenerated": outcome.regenerated.len(),
+                    "truncated": outcome.truncated.len(),
+                }),
+            )
+            .with_wsids(vec![workspace_id]);
+            let _ = state.flight_recorder.record_event(event).await;
+
+            Ok(Json(outcome))
+        })
+        .await
 }
 
 async fn delete_loom_wiki_projection(
     State(state): State<AppState>,
     Path((workspace_id, projection_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<serde_json::Value>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    state
-        .storage
-        .delete_loom_wiki_projection(&workspace_id, &projection_id)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Delete,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            state
+                .storage
+                .delete_loom_wiki_projection(&workspace_id, &projection_id)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(json!({ "status": "deleted" })))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(json!({ "status": "deleted" })))
 }
 
 #[derive(Debug, Deserialize)]
@@ -1592,46 +1940,88 @@ struct AddWikiOverlayRequest {
 async fn add_loom_wiki_overlay(
     State(state): State<AppState>,
     Path((workspace_id, projection_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Json(payload): Json<AddWikiOverlayRequest>,
 ) -> ApiResult<Json<crate::storage::LoomWikiOverlay>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let overlay = state
-        .storage
-        .add_loom_wiki_overlay(
-            &workspace_id,
-            &projection_id,
-            &payload.annotation,
-            payload.anchor.as_deref(),
-        )
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let overlay = state
+                .storage
+                .add_loom_wiki_overlay(
+                    &workspace_id,
+                    &projection_id,
+                    &payload.annotation,
+                    payload.anchor.as_deref(),
+                )
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(overlay))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(overlay))
 }
 
 async fn list_loom_wiki_overlays(
     State(state): State<AppState>,
     Path((workspace_id, projection_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<Vec<crate::storage::LoomWikiOverlay>>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let overlays = state
-        .storage
-        .list_loom_wiki_overlays(&workspace_id, &projection_id)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let overlays = state
+                .storage
+                .list_loom_wiki_overlays(&workspace_id, &projection_id)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(overlays))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(overlays))
 }
 
 async fn delete_loom_wiki_overlay(
     State(state): State<AppState>,
     Path((workspace_id, overlay_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<serde_json::Value>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    state
-        .storage
-        .delete_loom_wiki_overlay(&workspace_id, &overlay_id)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Delete,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            state
+                .storage
+                .delete_loom_wiki_overlay(&workspace_id, &overlay_id)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(json!({ "status": "deleted" })))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(json!({ "status": "deleted" })))
 }
 
 // -- MT-187 markdown import boundary handler -------------------------------
@@ -1642,18 +2032,73 @@ struct ImportMarkdownRequest {
     markdown: String,
 }
 
+/// MT-187 + MT-109 C3: the imported markdown becomes an account-owned RichDocument (its protected
+/// resource, creator grant, same-id Loom projection and backlinks) created as the record user
+/// under the workspace create grant, through the same store path as the documents API import.
 async fn import_markdown_to_loom(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Json(payload): Json<ImportMarkdownRequest>,
 ) -> ApiResult<Json<crate::storage::LoomMarkdownImport>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = WriteContext::human(None);
-    let imported = state
-        .storage
-        .import_markdown_to_loom(&ctx, &workspace_id, &payload.title, &payload.markdown)
-        .await
-        .map_err(map_storage_error)?;
+    use crate::knowledge_document::import::{import_snippet, ImportFormat};
+    use crate::storage::knowledge::KnowledgeStore;
+
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+    )
+    .await?;
+    let title = payload.title.trim().to_owned();
+    if title.is_empty() {
+        return Err(bad_request("HSK-400-LOOM-VALIDATION"));
+    }
+    let loom_workspace = workspace_id.clone();
+    let imported = account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let outcome = import_snippet(&payload.markdown, ImportFormat::Markdown);
+            let database = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
+            let document = database
+                .create_knowledge_rich_document(
+                    crate::storage::knowledge::NewKnowledgeRichDocument {
+                        workspace_id: workspace_id.clone(),
+                        document_id: None,
+                        title,
+                        schema_version:
+                            crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION
+                                .to_owned(),
+                        content_json: outcome.document_json.clone(),
+                        crdt_document_id: None,
+                        crdt_snapshot_id: None,
+                        promotion_receipt_event_id: None,
+                        project_ref: None,
+                        folder_ref: None,
+                        authority_label: Some("promoted".to_owned()),
+                        owner_actor_kind: Some(account.authority.actor_kind.clone()),
+                        owner_actor_id: Some(account.authority.actor_id.clone()),
+                    },
+                )
+                .await
+                .map_err(map_storage_error)?;
+            let block = state
+                .storage
+                .get_loom_block(&workspace_id, &document.rich_document_id)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(crate::storage::LoomMarkdownImport {
+                block,
+                rich_document_id: document.rich_document_id,
+                warnings: outcome
+                    .warnings
+                    .iter()
+                    .map(|warning| format!("{}: {}", warning.code, warning.detail))
+                    .collect(),
+            })
+        })
+        .await?;
 
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomBlockCreated,
@@ -1718,85 +2163,156 @@ async fn record_loom_folder_flight_event(
 async fn create_loom_folder(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Json(payload): Json<CreateLoomFolderRequest>,
 ) -> ApiResult<Json<crate::storage::LoomFolder>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let folder = state
-        .storage
-        .create_loom_folder(
-            &workspace_id,
-            crate::storage::NewLoomFolder {
-                folder_id: None,
-                workspace_id: workspace_id.clone(),
-                parent_folder_id: payload.parent_folder_id,
-                name: payload.name,
-                color: payload.color,
-                sort_mode: payload
-                    .sort_mode
-                    .unwrap_or(crate::storage::LoomFolderSortMode::UpdatedDesc),
-                sort_order: payload.sort_order,
-                project_ref: payload.project_ref,
-            },
-        )
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let folder = state
+                .storage
+                .create_loom_folder(
+                    &workspace_id,
+                    crate::storage::NewLoomFolder {
+                        folder_id: None,
+                        workspace_id: workspace_id.clone(),
+                        parent_folder_id: payload.parent_folder_id,
+                        name: payload.name,
+                        color: payload.color,
+                        sort_mode: payload
+                            .sort_mode
+                            .unwrap_or(crate::storage::LoomFolderSortMode::UpdatedDesc),
+                        sort_order: payload.sort_order,
+                        project_ref: payload.project_ref,
+                    },
+                )
+                .await
+                .map_err(map_storage_error)?;
+            record_loom_folder_flight_event(&state, &workspace_id, &folder.folder_id, "create")
+                .await;
+            Ok(Json(folder))
+        })
         .await
-        .map_err(map_storage_error)?;
-    record_loom_folder_flight_event(&state, &workspace_id, &folder.folder_id, "create").await;
-    Ok(Json(folder))
 }
 
 async fn list_loom_folders(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<Vec<crate::storage::LoomFolder>>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let folders = state
-        .storage
-        .list_loom_folders(&workspace_id)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let folders = state
+                .storage
+                .list_loom_folders(&workspace_id)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(folders))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(folders))
 }
 
 async fn get_loom_folder(
     State(state): State<AppState>,
     Path((workspace_id, folder_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<crate::storage::LoomFolder>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let folder = state
-        .storage
-        .get_loom_folder(&workspace_id, &folder_id)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let folder = state
+                .storage
+                .get_loom_folder(&workspace_id, &folder_id)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(folder))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(folder))
 }
 
 async fn update_loom_folder(
     State(state): State<AppState>,
     Path((workspace_id, folder_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Json(update): Json<crate::storage::LoomFolderUpdate>,
 ) -> ApiResult<Json<crate::storage::LoomFolder>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let folder = state
-        .storage
-        .update_loom_folder(&workspace_id, &folder_id, update)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let folder = state
+                .storage
+                .update_loom_folder(&workspace_id, &folder_id, update)
+                .await
+                .map_err(map_storage_error)?;
+            record_loom_folder_flight_event(&state, &workspace_id, &folder_id, "update").await;
+            Ok(Json(folder))
+        })
         .await
-        .map_err(map_storage_error)?;
-    record_loom_folder_flight_event(&state, &workspace_id, &folder_id, "update").await;
-    Ok(Json(folder))
 }
 
 async fn delete_loom_folder(
     State(state): State<AppState>,
     Path((workspace_id, folder_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<serde_json::Value>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    state
-        .storage
-        .delete_loom_folder(&workspace_id, &folder_id)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Delete,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            state
+                .storage
+                .delete_loom_folder(&workspace_id, &folder_id)
+                .await
+                .map_err(map_storage_error)?;
+            record_loom_folder_flight_event(&state, &workspace_id, &folder_id, "delete").await;
+            Ok(Json(json!({ "status": "deleted" })))
+        })
         .await
-        .map_err(map_storage_error)?;
-    record_loom_folder_flight_event(&state, &workspace_id, &folder_id, "delete").await;
-    Ok(Json(json!({ "status": "deleted" })))
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -1808,30 +2324,59 @@ struct AddFolderMemberRequest {
 async fn add_block_to_loom_folder(
     State(state): State<AppState>,
     Path((workspace_id, folder_id, block_id)): Path<(String, String, String)>,
+    headers: HeaderMap,
     Json(payload): Json<AddFolderMemberRequest>,
 ) -> ApiResult<Json<serde_json::Value>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    state
-        .storage
-        .add_block_to_loom_folder(&workspace_id, &folder_id, &block_id, payload.sort_order)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            state
+                .storage
+                .add_block_to_loom_folder(&workspace_id, &folder_id, &block_id, payload.sort_order)
+                .await
+                .map_err(map_storage_error)?;
+            record_loom_folder_flight_event(&state, &workspace_id, &folder_id, "add_member").await;
+            Ok(Json(json!({ "status": "added" })))
+        })
         .await
-        .map_err(map_storage_error)?;
-    record_loom_folder_flight_event(&state, &workspace_id, &folder_id, "add_member").await;
-    Ok(Json(json!({ "status": "added" })))
 }
 
 async fn remove_block_from_loom_folder(
     State(state): State<AppState>,
     Path((workspace_id, folder_id, block_id)): Path<(String, String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<serde_json::Value>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    state
-        .storage
-        .remove_block_from_loom_folder(&workspace_id, &folder_id, &block_id)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            state
+                .storage
+                .remove_block_from_loom_folder(&workspace_id, &folder_id, &block_id)
+                .await
+                .map_err(map_storage_error)?;
+            record_loom_folder_flight_event(&state, &workspace_id, &folder_id, "remove_member")
+                .await;
+            Ok(Json(json!({ "status": "removed" })))
+        })
         .await
-        .map_err(map_storage_error)?;
-    record_loom_folder_flight_event(&state, &workspace_id, &folder_id, "remove_member").await;
-    Ok(Json(json!({ "status": "removed" })))
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -1845,17 +2390,31 @@ struct LoomFolderBlocksQuery {
 async fn list_loom_folder_blocks(
     State(state): State<AppState>,
     Path((workspace_id, folder_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Query(query): Query<LoomFolderBlocksQuery>,
 ) -> ApiResult<Json<Vec<LoomBlock>>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let limit = query.limit.unwrap_or(100).min(500);
-    let offset = query.offset.unwrap_or(0);
-    let blocks = state
-        .storage
-        .list_loom_folder_blocks(&workspace_id, &folder_id, limit, offset)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let limit = query.limit.unwrap_or(100).min(500);
+            let offset = query.offset.unwrap_or(0);
+            let blocks = state
+                .storage
+                .list_loom_folder_blocks(&workspace_id, &folder_id, limit, offset)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(blocks))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(blocks))
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -1870,32 +2429,61 @@ struct LoomTagListQuery {
 async fn list_loom_tag_hubs(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Query(query): Query<LoomTagListQuery>,
 ) -> ApiResult<Json<Vec<LoomBlock>>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let limit = query.limit.unwrap_or(100).min(500);
-    let offset = query.offset.unwrap_or(0);
-    let tags = state
-        .storage
-        .list_tag_hubs(&workspace_id, limit, offset)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let limit = query.limit.unwrap_or(100).min(500);
+            let offset = query.offset.unwrap_or(0);
+            let tags = state
+                .storage
+                .list_tag_hubs(&workspace_id, limit, offset)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(tags))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(tags))
 }
 
 /// MT-182: the tag-hub surface (block + sub-tags + tagged blocks + backlinks).
 async fn get_loom_tag_hub(
     State(state): State<AppState>,
     Path((workspace_id, tag_block_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Response> {
-    let request_id = Uuid::now_v7().to_string();
-    let run_id = std::env::var("HSK_MT045_RUN_ID").unwrap_or_else(|_| "product-runtime".to_owned());
-    get_loom_tag_hub_instrumented(state, workspace_id, tag_block_id)
-        .instrument(tracing::info_span!(
-            "loom_tag_hub_request",
-            run_id,
-            request_id
-        ))
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            let request_id = Uuid::now_v7().to_string();
+            let run_id =
+                std::env::var("HSK_MT045_RUN_ID").unwrap_or_else(|_| "product-runtime".to_owned());
+            get_loom_tag_hub_instrumented(state.clone(), workspace_id, tag_block_id)
+                .instrument(tracing::info_span!(
+                    "loom_tag_hub_request",
+                    run_id,
+                    request_id
+                ))
+                .await
+        })
         .await
 }
 
@@ -1972,18 +2560,32 @@ struct LoomTagBlocksQuery {
 async fn list_loom_blocks_for_tag(
     State(state): State<AppState>,
     Path((workspace_id, tag_block_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Query(query): Query<LoomTagBlocksQuery>,
 ) -> ApiResult<Json<Vec<LoomBlock>>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let include_subtags = query.include_subtags.unwrap_or(false);
-    let limit = query.limit.unwrap_or(100).min(500);
-    let offset = query.offset.unwrap_or(0);
-    let blocks = state
-        .storage
-        .list_blocks_for_tag(&workspace_id, &tag_block_id, include_subtags, limit, offset)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let include_subtags = query.include_subtags.unwrap_or(false);
+            let limit = query.limit.unwrap_or(100).min(500);
+            let offset = query.offset.unwrap_or(0);
+            let blocks = state
+                .storage
+                .list_blocks_for_tag(&workspace_id, &tag_block_id, include_subtags, limit, offset)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(blocks))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(blocks))
 }
 
 /// MT-258 properties-panel patch: the typed LoomBlock fields PLUS tag editing.
@@ -2006,7 +2608,9 @@ struct LoomBlockPatchRequest {
 
 /// Canonical native-view write attribution. The native client sends the shared `x-hsk-*` identity
 /// vocabulary; Loom persists the actor kind/id through `WriteContext` instead of collapsing every
-/// collection mutation to an anonymous human write.
+/// collection mutation to an anonymous human write. MT-109 C3: account-scoped routes attribute
+/// writes to the session principal instead; this header form serves the legacy test handlers.
+#[cfg(test)]
 fn block_view_write_context(headers: &axum::http::HeaderMap) -> WriteContext {
     fn value<'a>(headers: &'a axum::http::HeaderMap, name: &str) -> Option<&'a str> {
         headers
@@ -2177,31 +2781,18 @@ async fn patch_loom_block_authenticated(
     headers: axum::http::HeaderMap,
     Json(payload): Json<LoomBlockPatchRequest>,
 ) -> ApiResult<Json<LoomBlock>> {
-    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+    use crate::storage::surreal::resource_authority::ResourceAction;
 
-    let authority = crate::api::authority::authorize_request(
-        &state,
-        &headers,
-        "fs.write",
-        ResourceKind::LoomBlock,
-        &block_id,
-        ResourceAction::Update,
-    )
-    .await
-    .map_err(|_| {
-        (
-            StatusCode::FORBIDDEN,
-            Json(ErrorResponse {
-                error: "HSK-403-PROTECTED-RESOURCE",
-            }),
-        )
-    })?;
-    let ctx = loom_create_write_context(&authority)?;
+    // MT-109 C3: the tag-edge writes of this PATCH (Kanban card move) run in the same account
+    // scope, with receipts bound to the block workspace and stamped with the session principal.
+    let account = loom_block_account(&state, &headers, &block_id, ResourceAction::Update).await?;
+    let ctx = account.ctx.clone();
     let scoped_state = state.clone();
-    state
-        .surreal
-        .with_record_user_scope(
-            authority.record_user_scope,
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(
+            &state,
+            &loom_workspace,
             patch_loom_block_inner(scoped_state, workspace_id, block_id, payload, ctx),
         )
         .await
@@ -2371,29 +2962,21 @@ async fn delete_loom_block_authenticated(
 ) -> ApiResult<Json<serde_json::Value>> {
     use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
 
-    let authority = crate::api::authority::authorize_request(
+    let account = loom_account(
         &state,
         &headers,
-        "fs.write",
         ResourceKind::LoomBlock,
         &block_id,
         ResourceAction::Delete,
     )
-    .await
-    .map_err(|_| {
-        (
-            StatusCode::FORBIDDEN,
-            Json(ErrorResponse {
-                error: "HSK-403-PROTECTED-RESOURCE",
-            }),
-        )
-    })?;
-    let ctx = loom_create_write_context(&authority)?;
+    .await?;
+    let ctx = account.ctx.clone();
     let scoped_state = state.clone();
-    state
-        .surreal
-        .with_record_user_scope(
-            authority.record_user_scope,
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(
+            &state,
+            &loom_workspace,
             delete_loom_block_inner(scoped_state, workspace_id, block_id, ctx),
         )
         .await
@@ -2462,6 +3045,7 @@ struct CreateLoomEdgeRequest {
 
 async fn ensure_edge_target_exists(
     state: &AppState,
+    ctx: &WriteContext,
     workspace_id: &str,
     edge_type: &LoomEdgeType,
     target_block_id: &str,
@@ -2485,11 +3069,10 @@ async fn ensure_edge_target_exists(
             };
 
             let title = title.ok_or_else(|| bad_request("HSK-400-LOOM-TARGET-TITLE-REQUIRED"))?;
-            let ctx = WriteContext::human(None);
             let created = state
                 .storage
                 .create_loom_block(
-                    &ctx,
+                    ctx,
                     NewLoomBlock {
                         block_id: Some(target_block_id.to_string()),
                         workspace_id: workspace_id.to_string(),
@@ -2508,22 +3091,62 @@ async fn ensure_edge_target_exists(
                 .await
                 .map_err(map_storage_error)?;
             // MT-177: an auto-created link/tag target is also a LoomBlock and
-            // must resolve to ProjectKnowledgeIndex + EventLedger authority.
-            state
-                .storage
-                .bridge_loom_block_to_knowledge(&ctx, workspace_id, &created.block_id)
-                .await
-                .map_err(map_storage_error)?;
+            // must resolve to ProjectKnowledgeIndex + EventLedger authority. Under an account
+            // scope the create is the owned bundle, which already wrote that bridge (MT-109 C3).
+            if crate::storage::surreal::current_record_user_scope().is_none() {
+                state
+                    .storage
+                    .bridge_loom_block_to_knowledge(ctx, workspace_id, &created.block_id)
+                    .await
+                    .map_err(map_storage_error)?;
+            }
             Ok(())
         }
         Err(err) => Err(map_storage_error(err)),
     }
 }
 
+/// MT-109 C3: edges are created as the account's record user under the workspace create grant
+/// (an auto-created link/tag target is an owned block); the edge row permission re-checks the
+/// source block edit grant and the target block read grant.
+async fn create_loom_edge_authenticated(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    headers: HeaderMap,
+    Json(payload): Json<CreateLoomEdgeRequest>,
+) -> ApiResult<Json<LoomEdge>> {
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+    )
+    .await?;
+    let ctx = account.ctx.clone();
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(
+            &state,
+            &loom_workspace,
+            create_loom_edge_inner(state.clone(), workspace_id, payload, ctx),
+        )
+        .await
+}
+
+#[cfg(test)]
 async fn create_loom_edge(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
     Json(payload): Json<CreateLoomEdgeRequest>,
+) -> ApiResult<Json<LoomEdge>> {
+    create_loom_edge_inner(state, workspace_id, payload, WriteContext::human(None)).await
+}
+
+async fn create_loom_edge_inner(
+    state: AppState,
+    workspace_id: String,
+    payload: CreateLoomEdgeRequest,
+    ctx: WriteContext,
 ) -> ApiResult<Json<LoomEdge>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
 
@@ -2535,6 +3158,7 @@ async fn create_loom_edge(
 
     ensure_edge_target_exists(
         &state,
+        &ctx,
         &workspace_id,
         &payload.edge_type,
         &payload.target_block_id,
@@ -2562,7 +3186,6 @@ async fn create_loom_edge(
         }
     }
 
-    let ctx = WriteContext::human(None);
     let edge = state
         .storage
         .create_loom_edge(
@@ -2604,15 +3227,27 @@ async fn create_loom_edge(
 async fn delete_loom_edge(
     State(state): State<AppState>,
     Path((workspace_id, edge_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<LoomEdge>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
 
-    let ctx = WriteContext::human(None);
-    let edge = state
-        .storage
-        .delete_loom_edge(&ctx, &workspace_id, &edge_id)
-        .await
-        .map_err(map_storage_error)?;
+            let ctx = account.ctx.clone();
+            let edge = state
+                .storage
+                .delete_loom_edge(&ctx, &workspace_id, &edge_id)
+                .await
+                .map_err(map_storage_error)?;
 
     let edge_event = json!({
         "type": "loom_edge_deleted",
@@ -2629,7 +3264,9 @@ async fn delete_loom_edge(
     .with_wsids(vec![workspace_id]);
     let _ = state.flight_recorder.record_event(event).await;
 
-    Ok(Json(edge))
+            Ok(Json(edge))
+        })
+        .await
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -2658,11 +3295,88 @@ fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(h.finalize())
 }
 
+/// MT-109 C3: the asset, blob and owned file block are written as the account's record user
+/// under the workspace create grant; the preview job is enqueued afterwards on the kernel job
+/// queue (`ai_jobs` is kernel infrastructure without a record-user model).
+async fn import_loom_asset_authenticated(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    headers: HeaderMap,
+    Json(payload): Json<LoomImportRequest>,
+) -> ApiResult<Json<LoomImportResult>> {
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+    )
+    .await?;
+    let ctx = account.ctx.clone();
+    let loom_workspace = workspace_id.clone();
+    let (result, preview_job) = account
+        .run(
+            &state,
+            &loom_workspace,
+            import_loom_asset_inner(state.clone(), workspace_id, payload, ctx),
+        )
+        .await?;
+    if let Some(job_inputs) = preview_job {
+        enqueue_loom_preview_job(&state, job_inputs).await?;
+    }
+    Ok(Json(result))
+}
+
+#[cfg(test)]
 async fn import_loom_asset(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
     Json(payload): Json<LoomImportRequest>,
 ) -> ApiResult<Json<LoomImportResult>> {
+    let (result, preview_job) = import_loom_asset_inner(
+        state.clone(),
+        workspace_id,
+        payload,
+        WriteContext::human(None),
+    )
+    .await?;
+    if let Some(job_inputs) = preview_job {
+        enqueue_loom_preview_job(&state, job_inputs).await?;
+    }
+    Ok(Json(result))
+}
+
+/// Enqueues the real background preview generation job (same protocol for import and retry).
+async fn enqueue_loom_preview_job(
+    state: &AppState,
+    job_inputs: serde_json::Value,
+) -> ApiResult<()> {
+    let capability_profile_id = state
+        .capability_registry
+        .profile_for_job_request(
+            crate::storage::JobKind::LoomPreviewGenerate.as_str(),
+            "hsk.loom.preview_generate@v1",
+        )
+        .map_err(internal_error)?;
+    let job = crate::jobs::create_job(
+        state,
+        crate::storage::JobKind::LoomPreviewGenerate,
+        "hsk.loom.preview_generate@v1",
+        capability_profile_id.id.as_str(),
+        Some(job_inputs),
+        Vec::new(),
+    )
+    .await
+    .map_err(internal_error)?;
+    let _ = crate::workflows::start_workflow_for_job(state, job).await;
+    Ok(())
+}
+
+async fn import_loom_asset_inner(
+    state: AppState,
+    workspace_id: String,
+    payload: LoomImportRequest,
+    ctx: WriteContext,
+) -> ApiResult<(LoomImportResult, Option<serde_json::Value>)> {
     ensure_workspace_exists(&state, &workspace_id).await?;
 
     let bytes = STANDARD
@@ -2698,13 +3412,16 @@ async fn import_loom_asset(
         .with_wsids(vec![existing_workspace_id]);
         let _ = state.flight_recorder.record_event(event).await;
 
-        return Ok(Json(LoomImportResult {
-            dedup_hit: true,
-            existing_block_id: Some(existing.block_id.clone()),
-            block_id: existing.block_id,
-            asset_id: existing.asset_id,
-            content_hash,
-        }));
+        return Ok((
+            LoomImportResult {
+                dedup_hit: true,
+                existing_block_id: Some(existing.block_id.clone()),
+                block_id: existing.block_id,
+                asset_id: existing.asset_id,
+                content_hash,
+            },
+            None,
+        ));
     }
 
     let handshake_root = resolve_handshake_root().map_err(internal_error)?;
@@ -2714,8 +3431,6 @@ async fn import_loom_asset(
         .clone()
         .unwrap_or_else(|| "application/octet-stream".to_string());
     let kind = "original".to_string();
-
-    let ctx = WriteContext::human(None);
 
     let asset = match state
         .storage
@@ -2779,12 +3494,15 @@ async fn import_loom_asset(
         .map_err(map_storage_error)?;
 
     // MT-177: the imported file block resolves to ProjectKnowledgeIndex +
-    // EventLedger authority before we report success.
-    state
-        .storage
-        .bridge_loom_block_to_knowledge(&ctx, &workspace_id, &block.block_id)
-        .await
-        .map_err(map_storage_error)?;
+    // EventLedger authority before we report success. Under an account scope the create is the
+    // owned bundle, which already wrote that bridge (MT-109 C3).
+    if crate::storage::surreal::current_record_user_scope().is_none() {
+        state
+            .storage
+            .bridge_loom_block_to_knowledge(&ctx, &workspace_id, &block.block_id)
+            .await
+            .map_err(map_storage_error)?;
+    }
 
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomBlockCreated,
@@ -2802,52 +3520,51 @@ async fn import_loom_asset(
     .with_wsids(vec![workspace_id.clone()]);
     let _ = state.flight_recorder.record_event(event).await;
 
-    let capability_profile_id = state
-        .capability_registry
-        .profile_for_job_request(
-            crate::storage::JobKind::LoomPreviewGenerate.as_str(),
-            "hsk.loom.preview_generate@v1",
-        )
-        .map_err(|e| internal_error(e))?;
-    let job = crate::jobs::create_job(
-        &state,
-        crate::storage::JobKind::LoomPreviewGenerate,
-        "hsk.loom.preview_generate@v1",
-        capability_profile_id.id.as_str(),
-        Some(json!({
-            "workspace_id": workspace_id.clone(),
-            "block_id": block.block_id.clone(),
-            "asset_id": block.asset_id.clone(),
-            "content_hash": content_hash.clone(),
-            "requested_tier": 1,
-        })),
-        Vec::new(),
-    )
-    .await
-    .map_err(|e| internal_error(e))?;
+    let preview_job = json!({
+        "workspace_id": workspace_id.clone(),
+        "block_id": block.block_id.clone(),
+        "asset_id": block.asset_id.clone(),
+        "content_hash": content_hash.clone(),
+        "requested_tier": 1,
+    });
 
-    let _ = crate::workflows::start_workflow_for_job(&state, job).await;
-
-    Ok(Json(LoomImportResult {
-        dedup_hit: false,
-        existing_block_id: None,
-        block_id: block.block_id,
-        asset_id: block.asset_id,
-        content_hash,
-    }))
+    Ok((
+        LoomImportResult {
+            dedup_hit: false,
+            existing_block_id: None,
+            block_id: block.block_id,
+            asset_id: block.asset_id,
+            content_hash,
+        },
+        Some(preview_job),
+    ))
 }
 
 async fn get_asset_metadata(
     State(state): State<AppState>,
     Path((workspace_id, asset_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<Asset>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let asset = state
-        .storage
-        .get_asset(&workspace_id, &asset_id)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let asset = state
+                .storage
+                .get_asset(&workspace_id, &asset_id)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(asset))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(asset))
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -2909,125 +3626,150 @@ async fn get_asset_content(
     Query(query): Query<AssetContentQuery>,
     headers: axum::http::HeaderMap,
 ) -> ApiResult<Response> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-
-    let original = state
-        .storage
-        .get_asset(&workspace_id, &asset_id)
-        .await
-        .map_err(map_storage_error)?;
-
-    // MT-259: tier selection. `full`/absent serves the original; a derived tier
-    // serves the tier's blob (only when that tier row is `ready`).
-    let serve_asset = match query
-        .tier
-        .as_deref()
-        .filter(|t| !t.is_empty() && *t != "full")
-    {
-        None => original.clone(),
-        Some(tier_str) => {
-            let tier = crate::storage::MediaTier::from_str(tier_str)
-                .map_err(|_| bad_request("invalid_tier"))?;
-            let row = state
-                .storage
-                .get_media_tier(&workspace_id, &asset_id, tier)
-                .await
-                .map_err(map_storage_error)?
-                .ok_or_else(|| not_found("tier_not_available"))?;
-            if row.status != crate::storage::MediaTierStatus::Ready {
-                return Err(not_found("tier_not_ready"));
-            }
-            let tier_asset_id = row
-                .tier_asset_id
-                .ok_or_else(|| not_found("tier_not_available"))?;
-            state
-                .storage
-                .get_asset(&workspace_id, &tier_asset_id)
-                .await
-                .map_err(map_storage_error)?
-        }
-    };
-
-    let handshake_root = resolve_handshake_root().map_err(internal_error)?;
-    let path = loom_asset_blob_path(
-        &handshake_root,
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
         &workspace_id,
-        &serve_asset.kind,
-        &serve_asset.content_hash,
-    );
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
 
-    let metadata = tokio::fs::metadata(&path).await.map_err(internal_error)?;
-    let total = metadata.len();
-
-    let content_type = HeaderValue::from_str(serve_asset.mime.as_str())
-        .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream"));
-
-    // GAP-LM-009b: honor HTTP Range so long-video seeking streams a slice.
-    match parse_byte_range(&headers, total) {
-        Err(()) => {
-            // Syntactically present but unsatisfiable -> 416 + Content-Range *.
-            let mut response = Response::new(axum::body::Body::empty());
-            *response.status_mut() = StatusCode::RANGE_NOT_SATISFIABLE;
-            response.headers_mut().insert(
-                header::CONTENT_RANGE,
-                HeaderValue::from_str(&format!("bytes */{total}"))
-                    .unwrap_or_else(|_| HeaderValue::from_static("bytes */0")),
-            );
-            response
-                .headers_mut()
-                .insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
-            Ok(response)
-        }
-        Ok(Some((start, end))) => {
-            use tokio::io::{AsyncReadExt, AsyncSeekExt};
-            let len = end - start + 1;
-            let mut file = tokio::fs::File::open(&path).await.map_err(internal_error)?;
-            file.seek(std::io::SeekFrom::Start(start))
+            let original = state
+                .storage
+                .get_asset(&workspace_id, &asset_id)
                 .await
-                .map_err(internal_error)?;
-            let mut buf = vec![0u8; len as usize];
-            file.read_exact(&mut buf).await.map_err(internal_error)?;
+                .map_err(map_storage_error)?;
 
-            let mut response = Response::new(axum::body::Body::from(buf));
-            *response.status_mut() = StatusCode::PARTIAL_CONTENT;
-            let h = response.headers_mut();
-            h.insert(header::CONTENT_TYPE, content_type);
-            h.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
-            h.insert(
-                header::CONTENT_RANGE,
-                HeaderValue::from_str(&format!("bytes {start}-{end}/{total}"))
-                    .unwrap_or_else(|_| HeaderValue::from_static("bytes 0-0/0")),
+            // MT-259: tier selection. `full`/absent serves the original; a derived tier
+            // serves the tier's blob (only when that tier row is `ready`).
+            let serve_asset = match query
+                .tier
+                .as_deref()
+                .filter(|t| !t.is_empty() && *t != "full")
+            {
+                None => original.clone(),
+                Some(tier_str) => {
+                    let tier = crate::storage::MediaTier::from_str(tier_str)
+                        .map_err(|_| bad_request("invalid_tier"))?;
+                    let row = state
+                        .storage
+                        .get_media_tier(&workspace_id, &asset_id, tier)
+                        .await
+                        .map_err(map_storage_error)?
+                        .ok_or_else(|| not_found("tier_not_available"))?;
+                    if row.status != crate::storage::MediaTierStatus::Ready {
+                        return Err(not_found("tier_not_ready"));
+                    }
+                    let tier_asset_id = row
+                        .tier_asset_id
+                        .ok_or_else(|| not_found("tier_not_available"))?;
+                    state
+                        .storage
+                        .get_asset(&workspace_id, &tier_asset_id)
+                        .await
+                        .map_err(map_storage_error)?
+                }
+            };
+
+            let handshake_root = resolve_handshake_root().map_err(internal_error)?;
+            let path = loom_asset_blob_path(
+                &handshake_root,
+                &workspace_id,
+                &serve_asset.kind,
+                &serve_asset.content_hash,
             );
-            h.insert(
-                header::CONTENT_LENGTH,
-                HeaderValue::from_str(&len.to_string())
-                    .unwrap_or_else(|_| HeaderValue::from_static("0")),
-            );
-            Ok(response)
-        }
-        Ok(None) => {
-            let bytes = tokio::fs::read(&path).await.map_err(internal_error)?;
-            let mut response = Response::new(axum::body::Body::from(bytes));
-            *response.status_mut() = StatusCode::OK;
-            let h = response.headers_mut();
-            h.insert(header::CONTENT_TYPE, content_type);
-            // Advertise range support so clients (video) can seek.
-            h.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
-            h.insert(
-                header::CONTENT_LENGTH,
-                HeaderValue::from_str(&total.to_string())
-                    .unwrap_or_else(|_| HeaderValue::from_static("0")),
-            );
-            Ok(response)
-        }
-    }
+
+            let metadata = tokio::fs::metadata(&path).await.map_err(internal_error)?;
+            let total = metadata.len();
+
+            let content_type = HeaderValue::from_str(serve_asset.mime.as_str())
+                .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream"));
+
+            // GAP-LM-009b: honor HTTP Range so long-video seeking streams a slice.
+            match parse_byte_range(&headers, total) {
+                Err(()) => {
+                    // Syntactically present but unsatisfiable -> 416 + Content-Range *.
+                    let mut response = Response::new(axum::body::Body::empty());
+                    *response.status_mut() = StatusCode::RANGE_NOT_SATISFIABLE;
+                    response.headers_mut().insert(
+                        header::CONTENT_RANGE,
+                        HeaderValue::from_str(&format!("bytes */{total}"))
+                            .unwrap_or_else(|_| HeaderValue::from_static("bytes */0")),
+                    );
+                    response
+                        .headers_mut()
+                        .insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+                    Ok(response)
+                }
+                Ok(Some((start, end))) => {
+                    use tokio::io::{AsyncReadExt, AsyncSeekExt};
+                    let len = end - start + 1;
+                    let mut file = tokio::fs::File::open(&path).await.map_err(internal_error)?;
+                    file.seek(std::io::SeekFrom::Start(start))
+                        .await
+                        .map_err(internal_error)?;
+                    let mut buf = vec![0u8; len as usize];
+                    file.read_exact(&mut buf).await.map_err(internal_error)?;
+
+                    let mut response = Response::new(axum::body::Body::from(buf));
+                    *response.status_mut() = StatusCode::PARTIAL_CONTENT;
+                    let h = response.headers_mut();
+                    h.insert(header::CONTENT_TYPE, content_type);
+                    h.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+                    h.insert(
+                        header::CONTENT_RANGE,
+                        HeaderValue::from_str(&format!("bytes {start}-{end}/{total}"))
+                            .unwrap_or_else(|_| HeaderValue::from_static("bytes 0-0/0")),
+                    );
+                    h.insert(
+                        header::CONTENT_LENGTH,
+                        HeaderValue::from_str(&len.to_string())
+                            .unwrap_or_else(|_| HeaderValue::from_static("0")),
+                    );
+                    Ok(response)
+                }
+                Ok(None) => {
+                    let bytes = tokio::fs::read(&path).await.map_err(internal_error)?;
+                    let mut response = Response::new(axum::body::Body::from(bytes));
+                    *response.status_mut() = StatusCode::OK;
+                    let h = response.headers_mut();
+                    h.insert(header::CONTENT_TYPE, content_type);
+                    // Advertise range support so clients (video) can seek.
+                    h.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+                    h.insert(
+                        header::CONTENT_LENGTH,
+                        HeaderValue::from_str(&total.to_string())
+                            .unwrap_or_else(|_| HeaderValue::from_static("0")),
+                    );
+                    Ok(response)
+                }
+            }
+        })
+        .await
 }
 
 async fn get_asset_thumbnail(
     State(state): State<AppState>,
     Path((workspace_id, asset_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Response> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
 
     let Some(block) = state
         .storage
@@ -3057,14 +3799,16 @@ async fn get_asset_thumbnail(
     );
     let bytes = std::fs::read(&path).map_err(internal_error)?;
 
-    let mut response = Response::new(axum::body::Body::from(bytes));
-    *response.status_mut() = StatusCode::OK;
-    response.headers_mut().insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_str(thumb.mime.as_str())
-            .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
-    );
-    Ok(response)
+            let mut response = Response::new(axum::body::Body::from(bytes));
+            *response.status_mut() = StatusCode::OK;
+            response.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_str(thumb.mime.as_str())
+                    .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
+            );
+            Ok(response)
+        })
+        .await
 }
 
 // ===== MT-259 MediaCacheTiers API ====================================
@@ -3100,22 +3844,36 @@ struct ListTiersResponse {
 async fn list_asset_tiers(
     State(state): State<AppState>,
     Path((workspace_id, asset_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<ListTiersResponse>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    // Confirm the asset exists (404 otherwise).
-    state
-        .storage
-        .get_asset(&workspace_id, &asset_id)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            // Confirm the asset exists (404 otherwise).
+            state
+                .storage
+                .get_asset(&workspace_id, &asset_id)
+                .await
+                .map_err(map_storage_error)?;
+            let tiers = state
+                .storage
+                .list_media_tiers(&workspace_id, &asset_id)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(ListTiersResponse {
+                tiers: tiers.into_iter().map(MediaTierView::from).collect(),
+            }))
+        })
         .await
-        .map_err(map_storage_error)?;
-    let tiers = state
-        .storage
-        .list_media_tiers(&workspace_id, &asset_id)
-        .await
-        .map_err(map_storage_error)?;
-    Ok(Json(ListTiersResponse {
-        tiers: tiers.into_iter().map(MediaTierView::from).collect(),
-    }))
 }
 
 #[derive(Debug, Serialize)]
@@ -3126,62 +3884,63 @@ struct RetryTierResponse {
     requeued: bool,
 }
 
+/// MT-259 + MT-109 C3: the tier flip runs as the account's record user under the workspace update
+/// grant (the deny-by-default gate for a job start); the regeneration job is then enqueued on the
+/// kernel job queue.
 async fn retry_asset_tier(
     State(state): State<AppState>,
     Path((workspace_id, asset_id, tier_str)): Path<(String, String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<RetryTierResponse>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
     let tier =
         crate::storage::MediaTier::from_str(&tier_str).map_err(|_| bad_request("invalid_tier"))?;
-
-    let block = state
-        .storage
-        .find_loom_block_by_asset_id(&workspace_id, &asset_id)
-        .await
-        .map_err(map_storage_error)?
-        .ok_or_else(|| not_found("loom_block_not_found"))?;
-
-    // Flip status -> pending; storage bumps attempt_count on the failed->pending
-    // transition so the retry is recorded and never silent.
-    let ctx = crate::storage::WriteContext::human(None);
-    let updated = state
-        .storage
-        .set_media_tier_status(
-            &ctx,
-            &workspace_id,
-            &asset_id,
-            tier,
-            crate::storage::MediaTierStatus::Pending,
-            None,
-        )
-        .await
-        .map_err(map_storage_error)?;
+    let loom_workspace = workspace_id.clone();
+    let (updated, block_id) = account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let block = state
+                .storage
+                .find_loom_block_by_asset_id(&workspace_id, &asset_id)
+                .await
+                .map_err(map_storage_error)?
+                .ok_or_else(|| not_found("loom_block_not_found"))?;
+            // Flip status -> pending; storage bumps attempt_count on the failed->pending
+            // transition so the retry is recorded and never silent.
+            let updated = state
+                .storage
+                .set_media_tier_status(
+                    &account.ctx,
+                    &workspace_id,
+                    &asset_id,
+                    tier,
+                    crate::storage::MediaTierStatus::Pending,
+                    None,
+                )
+                .await
+                .map_err(map_storage_error)?;
+            Ok((updated, block.block_id))
+        })
+        .await?;
 
     // Requeue the real background generation job (same protocol as import).
-    let capability_profile_id = state
-        .capability_registry
-        .profile_for_job_request(
-            crate::storage::JobKind::LoomPreviewGenerate.as_str(),
-            "hsk.loom.preview_generate@v1",
-        )
-        .map_err(internal_error)?;
-    let job = crate::jobs::create_job(
+    enqueue_loom_preview_job(
         &state,
-        crate::storage::JobKind::LoomPreviewGenerate,
-        "hsk.loom.preview_generate@v1",
-        capability_profile_id.id.as_str(),
-        Some(json!({
+        json!({
             "workspace_id": workspace_id.clone(),
-            "block_id": block.block_id.clone(),
+            "block_id": block_id,
             "asset_id": asset_id.clone(),
             "requested_tier": 1,
             "retry": true,
-        })),
-        Vec::new(),
+        }),
     )
-    .await
-    .map_err(internal_error)?;
-    let _ = crate::workflows::start_workflow_for_job(&state, job).await;
+    .await?;
 
     Ok(Json(RetryTierResponse {
         tier: updated.tier.as_str().to_string(),
@@ -3221,46 +3980,74 @@ impl From<crate::storage::LoomCollectionWithMembers> for CollectionView {
 async fn create_loom_collection(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Json(req): Json<CreateCollectionRequest>,
 ) -> ApiResult<Json<CollectionView>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = crate::storage::WriteContext::human(None);
-    let collection = state
-        .storage
-        .create_loom_collection(&ctx, &workspace_id, req.title)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let ctx = account.ctx.clone();
+            let collection = state
+                .storage
+                .create_loom_collection(&ctx, &workspace_id, req.title)
+                .await
+                .map_err(map_storage_error)?;
+            let result = if req.asset_ids.is_empty() {
+                crate::storage::LoomCollectionWithMembers {
+                    collection,
+                    members: Vec::new(),
+                }
+            } else {
+                state
+                    .storage
+                    .set_loom_collection_order(
+                        &ctx,
+                        &workspace_id,
+                        &collection.collection_id,
+                        &req.asset_ids,
+                    )
+                    .await
+                    .map_err(map_storage_error)?
+            };
+            Ok(Json(result.into()))
+        })
         .await
-        .map_err(map_storage_error)?;
-    let result = if req.asset_ids.is_empty() {
-        crate::storage::LoomCollectionWithMembers {
-            collection,
-            members: Vec::new(),
-        }
-    } else {
-        state
-            .storage
-            .set_loom_collection_order(
-                &ctx,
-                &workspace_id,
-                &collection.collection_id,
-                &req.asset_ids,
-            )
-            .await
-            .map_err(map_storage_error)?
-    };
-    Ok(Json(result.into()))
 }
 
 async fn get_loom_collection(
     State(state): State<AppState>,
     Path((workspace_id, collection_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<CollectionView>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let result = state
-        .storage
-        .get_loom_collection(&workspace_id, &collection_id)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let result = state
+                .storage
+                .get_loom_collection(&workspace_id, &collection_id)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(result.into()))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(result.into()))
 }
 
 #[derive(Debug, Deserialize)]
@@ -3271,16 +4058,30 @@ struct SetCollectionOrderRequest {
 async fn set_loom_collection_order(
     State(state): State<AppState>,
     Path((workspace_id, collection_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Json(req): Json<SetCollectionOrderRequest>,
 ) -> ApiResult<Json<CollectionView>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = crate::storage::WriteContext::human(None);
-    let result = state
-        .storage
-        .set_loom_collection_order(&ctx, &workspace_id, &collection_id, &req.asset_ids)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let ctx = account.ctx.clone();
+            let result = state
+                .storage
+                .set_loom_collection_order(&ctx, &workspace_id, &collection_id, &req.asset_ids)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(result.into()))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(result.into()))
 }
 
 // =============================================================================
@@ -3320,20 +4121,14 @@ fn job_model_actor(headers: &axum::http::HeaderMap) -> ApiResult<KnowledgeActorI
     KnowledgeActorIdV1::new(kind, ident).map_err(|_| bad_request("HSK-400-LOOM-AI-ACTOR"))
 }
 
-/// The REVIEWER actor for accept/reject (operator/validator only). A model
-/// actor here is allowed through to the flow, which writes the durable denial
-/// receipt (per-item authority is enforced in the flow, not just the route).
-fn reviewer_actor(headers: &axum::http::HeaderMap) -> ApiResult<KnowledgeActorIdV1> {
-    let kind = match hdr_value(headers, "x-hsk-actor-kind") {
-        Some("validator") => KnowledgeActorKind::Validator,
-        Some("local_model") => KnowledgeActorKind::LocalModel,
-        Some("cloud_model") => KnowledgeActorKind::CloudModel,
-        Some("system") => KnowledgeActorKind::System,
-        // Default to operator (the human confirm path).
-        _ => KnowledgeActorKind::Operator,
+/// MT-109 C3: the confirming reviewer of an account-scoped accept/reject is the session principal.
+fn loom_account_reviewer(account: &LoomAccount) -> ApiResult<KnowledgeActorIdV1> {
+    let kind = match account.authority.actor_kind.as_str() {
+        "operator" => KnowledgeActorKind::Operator,
+        _ => KnowledgeActorKind::System,
     };
-    let ident = hdr_value(headers, "x-hsk-actor-id").unwrap_or("operator");
-    KnowledgeActorIdV1::new(kind, ident).map_err(|_| bad_request("HSK-400-LOOM-AI-ACTOR"))
+    KnowledgeActorIdV1::new(kind, &account.authority.actor_id)
+        .map_err(|_| bad_request("HSK-400-LOOM-AI-ACTOR"))
 }
 
 fn loom_ai_session(headers: &axum::http::HeaderMap) -> String {
@@ -3378,11 +4173,22 @@ async fn run_loom_ai_job(
     headers: axum::http::HeaderMap,
     Json(payload): Json<RunLoomAiJobRequest>,
 ) -> ApiResult<Json<LoomAiJobResponse>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    if payload.block_ids.is_empty() {
-        return Err(bad_request("HSK-400-LOOM-AI-NO-BLOCKS"));
-    }
-    let actor = job_model_actor(&headers)?;
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            if payload.block_ids.is_empty() {
+                return Err(bad_request("HSK-400-LOOM-AI-NO-BLOCKS"));
+            }
+            let actor = job_model_actor(&headers)?;
 
     // Resolve every block (a missing block fails the whole job — no silent skip).
     let mut blocks = Vec::with_capacity(payload.block_ids.len());
@@ -3423,11 +4229,13 @@ async fn run_loom_ai_job(
         LoomAiJobError::Internal(_) => internal_error(err),
     })?;
 
-    Ok(Json(LoomAiJobResponse {
-        job_id: result.job_id,
-        kind: result.kind,
-        suggestions: result.suggestions,
-    }))
+            Ok(Json(LoomAiJobResponse {
+                job_id: result.job_id,
+                kind: result.kind,
+                suggestions: result.suggestions,
+            }))
+        })
+        .await
 }
 
 /// MT-264 LoomSearchV2 request body.
@@ -3450,6 +4258,30 @@ struct LoomSearchV2Body {
 /// runtime (typed decline -> keyword/trigram fallback) and runs the hybrid
 /// store-native search. The response carries per-modality scores, content
 /// facets, snippet highlights, and a `semantic_available` flag.
+/// MT-109 C3: the account-scoped LoomSearchV2 route (a read: workspace fs.read grant).
+async fn loom_search_v2_authenticated(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    headers: HeaderMap,
+    Json(payload): Json<LoomSearchV2Body>,
+) -> ApiResult<Json<crate::storage::LoomSearchV2Response>> {
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(
+            &state,
+            &loom_workspace,
+            loom_search_v2(State(state.clone()), Path(workspace_id), Json(payload)),
+        )
+        .await
+}
+
 async fn loom_search_v2(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
@@ -3487,18 +4319,32 @@ struct ListLoomAiSuggestionsQuery {
 async fn list_loom_ai_suggestions(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Query(query): Query<ListLoomAiSuggestionsQuery>,
 ) -> ApiResult<Json<Vec<LoomAiSuggestionRow>>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let rows = list_suggestion_rows(
-        &state.surreal,
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
         &workspace_id,
-        query.job_id.as_deref(),
-        query.state.as_deref(),
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
     )
-    .await
-    .map_err(map_storage_error)?;
-    Ok(Json(rows))
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let rows = list_suggestion_rows(
+                &state.surreal,
+                &workspace_id,
+                query.job_id.as_deref(),
+                query.state.as_deref(),
+            )
+            .await
+            .map_err(map_storage_error)?;
+            Ok(Json(rows))
+        })
+        .await
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -3513,43 +4359,57 @@ async fn accept_loom_ai_suggestion(
     headers: axum::http::HeaderMap,
     body: Option<Json<ReviewLoomAiSuggestionRequest>>,
 ) -> ApiResult<Json<LoomAiSuggestionRow>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let reviewer = reviewer_actor(&headers)?;
-    let reason = body
-        .and_then(|b| b.0.reason)
-        .unwrap_or_else(|| "operator confirmed AI Loom suggestion".to_string());
-
-    let outcome = accept_suggestion_flow(
-        state.storage.as_ref(),
-        &state.surreal,
-        &suggestion_id,
-        &reviewer,
-        &loom_ai_session(&headers),
-        &loom_ai_correlation(&headers),
-        &reason,
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
     )
-    .await
-    .map_err(map_review_error)?;
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            // MT-109 C3: the reviewer is the authenticated session principal, never a header actor.
+            let reviewer = loom_account_reviewer(&account)?;
+            let reason = body
+                .and_then(|b| b.0.reason)
+                .unwrap_or_else(|| "operator confirmed AI Loom suggestion".to_string());
 
-    match outcome {
-        LoomAiAcceptOutcome::Promoted { suggestion, .. } => Ok(Json(*suggestion)),
-        LoomAiAcceptOutcome::AlreadyPromoted(suggestion) => Ok(Json(*suggestion)),
-        LoomAiAcceptOutcome::UnknownSuggestion { .. } => {
-            Err(not_found("loom_ai_suggestion_not_found"))
-        }
-        LoomAiAcceptOutcome::Denied(_) => Err((
-            StatusCode::FORBIDDEN,
-            Json(ErrorResponse {
-                error: "HSK-403-LOOM-AI-PROMOTION-DENIED",
-            }),
-        )),
-        LoomAiAcceptOutcome::NotPending { .. } => Err((
-            StatusCode::CONFLICT,
-            Json(ErrorResponse {
-                error: "HSK-409-LOOM-AI-NOT-PENDING",
-            }),
-        )),
-    }
+            let outcome = accept_suggestion_flow(
+                state.storage.as_ref(),
+                &state.surreal,
+                &suggestion_id,
+                &reviewer,
+                &loom_ai_session(&headers),
+                &loom_ai_correlation(&headers),
+                &reason,
+            )
+            .await
+            .map_err(map_review_error)?;
+
+            match outcome {
+                LoomAiAcceptOutcome::Promoted { suggestion, .. } => Ok(Json(*suggestion)),
+                LoomAiAcceptOutcome::AlreadyPromoted(suggestion) => Ok(Json(*suggestion)),
+                LoomAiAcceptOutcome::UnknownSuggestion { .. } => {
+                    Err(not_found("loom_ai_suggestion_not_found"))
+                }
+                LoomAiAcceptOutcome::Denied(_) => Err((
+                    StatusCode::FORBIDDEN,
+                    Json(ErrorResponse {
+                        error: "HSK-403-LOOM-AI-PROMOTION-DENIED",
+                    }),
+                )),
+                LoomAiAcceptOutcome::NotPending { .. } => Err((
+                    StatusCode::CONFLICT,
+                    Json(ErrorResponse {
+                        error: "HSK-409-LOOM-AI-NOT-PENDING",
+                    }),
+                )),
+            }
+        })
+        .await
 }
 
 async fn reject_loom_ai_suggestion(
@@ -3558,42 +4418,56 @@ async fn reject_loom_ai_suggestion(
     headers: axum::http::HeaderMap,
     body: Option<Json<ReviewLoomAiSuggestionRequest>>,
 ) -> ApiResult<Json<LoomAiSuggestionRow>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let reviewer = reviewer_actor(&headers)?;
-    let reason = body
-        .and_then(|b| b.0.reason)
-        .unwrap_or_else(|| "operator rejected AI Loom suggestion".to_string());
-
-    let outcome = reject_suggestion_flow(
-        state.storage.as_ref(),
-        &state.surreal,
-        &suggestion_id,
-        &reviewer,
-        &loom_ai_session(&headers),
-        &loom_ai_correlation(&headers),
-        &reason,
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
     )
-    .await
-    .map_err(map_review_error)?;
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            // MT-109 C3: the reviewer is the authenticated session principal, never a header actor.
+            let reviewer = loom_account_reviewer(&account)?;
+            let reason = body
+                .and_then(|b| b.0.reason)
+                .unwrap_or_else(|| "operator rejected AI Loom suggestion".to_string());
 
-    match outcome {
-        LoomAiRejectOutcome::Rejected(suggestion) => Ok(Json(*suggestion)),
-        LoomAiRejectOutcome::UnknownSuggestion { .. } => {
-            Err(not_found("loom_ai_suggestion_not_found"))
-        }
-        LoomAiRejectOutcome::Denied(_) => Err((
-            StatusCode::FORBIDDEN,
-            Json(ErrorResponse {
-                error: "HSK-403-LOOM-AI-PROMOTION-DENIED",
-            }),
-        )),
-        LoomAiRejectOutcome::NotPending { .. } => Err((
-            StatusCode::CONFLICT,
-            Json(ErrorResponse {
-                error: "HSK-409-LOOM-AI-NOT-PENDING",
-            }),
-        )),
-    }
+            let outcome = reject_suggestion_flow(
+                state.storage.as_ref(),
+                &state.surreal,
+                &suggestion_id,
+                &reviewer,
+                &loom_ai_session(&headers),
+                &loom_ai_correlation(&headers),
+                &reason,
+            )
+            .await
+            .map_err(map_review_error)?;
+
+            match outcome {
+                LoomAiRejectOutcome::Rejected(suggestion) => Ok(Json(*suggestion)),
+                LoomAiRejectOutcome::UnknownSuggestion { .. } => {
+                    Err(not_found("loom_ai_suggestion_not_found"))
+                }
+                LoomAiRejectOutcome::Denied(_) => Err((
+                    StatusCode::FORBIDDEN,
+                    Json(ErrorResponse {
+                        error: "HSK-403-LOOM-AI-PROMOTION-DENIED",
+                    }),
+                )),
+                LoomAiRejectOutcome::NotPending { .. } => Err((
+                    StatusCode::CONFLICT,
+                    Json(ErrorResponse {
+                        error: "HSK-409-LOOM-AI-NOT-PENDING",
+                    }),
+                )),
+            }
+        })
+        .await
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -3620,35 +4494,49 @@ async fn accept_all_loom_ai_suggestions(
     headers: axum::http::HeaderMap,
     body: Option<Json<AcceptAllLoomAiRequest>>,
 ) -> ApiResult<Json<AcceptAllLoomAiResponse>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let reviewer = reviewer_actor(&headers)?;
-    let kind_filter = body.and_then(|b| b.0.kind);
-
-    let session = loom_ai_session(&headers);
-    let correlation = loom_ai_correlation(&headers);
-
-    // Delegate to the canonical accept-all sweep (lists the PENDING authority
-    // set from SurrealDB and runs the SAME per-item flow on each), so per-item
-    // authority is enforced identically for the HTTP and direct callers.
-    let outcome = accept_all_suggestions_flow(
-        state.storage.as_ref(),
-        &state.surreal,
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
         &workspace_id,
-        &job_id,
-        kind_filter,
-        &reviewer,
-        &session,
-        &correlation,
-        "accept-all-of-kind",
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
     )
-    .await
-    .map_err(map_review_error)?;
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            // MT-109 C3: the reviewer is the authenticated session principal, never a header actor.
+            let reviewer = loom_account_reviewer(&account)?;
+            let kind_filter = body.and_then(|b| b.0.kind);
 
-    Ok(Json(AcceptAllLoomAiResponse {
-        promoted: outcome.promoted,
-        denied: outcome.denied,
-        skipped: outcome.skipped,
-    }))
+            let session = loom_ai_session(&headers);
+            let correlation = loom_ai_correlation(&headers);
+
+            // Delegate to the canonical accept-all sweep (lists the PENDING authority
+            // set from SurrealDB and runs the SAME per-item flow on each), so per-item
+            // authority is enforced identically for the HTTP and direct callers.
+            let outcome = accept_all_suggestions_flow(
+                state.storage.as_ref(),
+                &state.surreal,
+                &workspace_id,
+                &job_id,
+                kind_filter,
+                &reviewer,
+                &session,
+                &correlation,
+                "accept-all-of-kind",
+            )
+            .await
+            .map_err(map_review_error)?;
+
+            Ok(Json(AcceptAllLoomAiResponse {
+                promoted: outcome.promoted,
+                denied: outcome.denied,
+                skipped: outcome.skipped,
+            }))
+        })
+        .await
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -3893,6 +4781,35 @@ fn parse_view_type(raw: &str) -> Option<LoomViewType> {
     }
 }
 
+/// MT-109 C3: the account-scoped route for [`query_loom_view`] (ResourceBroker authorization, then the
+/// unchanged handler body as the account's record user).
+async fn query_loom_view_authenticated(
+    State(state): State<AppState>,
+    Path((workspace_id, view_type_raw)): Path<(String, String)>,
+    Query(query): Query<LoomViewQuery>,
+    headers: HeaderMap,
+) -> ApiResult<Json<LoomViewResponse>> {
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(
+            &state,
+            &loom_workspace,
+            query_loom_view(
+                State(state.clone()),
+                Path((workspace_id, view_type_raw)),
+                Query(query),
+            ),
+        )
+        .await
+}
+
 async fn query_loom_view(
     State(state): State<AppState>,
     Path((workspace_id, view_type_raw)): Path<(String, String)>,
@@ -3972,6 +4889,31 @@ struct LoomMetricsRecomputeResponse {
     block_id: Option<String>,
 }
 
+/// MT-109 C3: the account-scoped route for [`traverse_loom_graph`] (ResourceBroker authorization, then the
+/// unchanged handler body as the account's record user).
+async fn traverse_loom_graph_authenticated(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Query(query): Query<LoomGraphTraverseQueryParams>,
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<LoomGraphTraversalNode>>> {
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(
+            &state,
+            &loom_workspace,
+            traverse_loom_graph(State(state.clone()), Path(workspace_id), Query(query)),
+        )
+        .await
+}
+
 async fn traverse_loom_graph(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
@@ -4022,30 +4964,44 @@ struct LoomLocalGraphQuery {
 async fn local_loom_graph(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Query(query): Query<LoomLocalGraphQuery>,
 ) -> ApiResult<Json<crate::storage::LoomGraph>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let start_block_id = query
-        .start_block_id
-        .clone()
-        .filter(|v| !v.trim().is_empty())
-        .ok_or_else(|| bad_request("HSK-400-LOOM-START-BLOCK-REQUIRED"))?;
-    let max_depth = clamp_loom_graph_depth(query.max_depth);
-    let edge_types = parse_loom_edge_types(query.edge_types)?;
-    let node_limit = query.node_limit.unwrap_or(200).min(5000);
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let start_block_id = query
+                .start_block_id
+                .clone()
+                .filter(|v| !v.trim().is_empty())
+                .ok_or_else(|| bad_request("HSK-400-LOOM-START-BLOCK-REQUIRED"))?;
+            let max_depth = clamp_loom_graph_depth(query.max_depth);
+            let edge_types = parse_loom_edge_types(query.edge_types)?;
+            let node_limit = query.node_limit.unwrap_or(200).min(5000);
 
-    let graph = state
-        .storage
-        .local_graph(
-            &workspace_id,
-            &start_block_id,
-            max_depth,
-            &edge_types,
-            node_limit,
-        )
+            let graph = state
+                .storage
+                .local_graph(
+                    &workspace_id,
+                    &start_block_id,
+                    max_depth,
+                    &edge_types,
+                    node_limit,
+                )
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(graph))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(graph))
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -4062,24 +5018,62 @@ struct LoomGlobalGraphQuery {
 async fn global_loom_graph(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Query(query): Query<LoomGlobalGraphQuery>,
 ) -> ApiResult<Json<crate::storage::LoomGraph>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let edge_types = parse_loom_edge_types(query.edge_types)?;
-    let node_limit = query
-        .node_limit
-        .unwrap_or(crate::storage::LOOM_GLOBAL_GRAPH_DEFAULT_NODE_LIMIT)
-        .min(crate::storage::LOOM_GLOBAL_GRAPH_MAX_NODE_LIMIT);
-    let hub_degree_threshold = query
-        .hub_degree_threshold
-        .unwrap_or(crate::storage::LOOM_GLOBAL_GRAPH_DEFAULT_HUB_DEGREE);
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let edge_types = parse_loom_edge_types(query.edge_types)?;
+            let node_limit = query
+                .node_limit
+                .unwrap_or(crate::storage::LOOM_GLOBAL_GRAPH_DEFAULT_NODE_LIMIT)
+                .min(crate::storage::LOOM_GLOBAL_GRAPH_MAX_NODE_LIMIT);
+            let hub_degree_threshold = query
+                .hub_degree_threshold
+                .unwrap_or(crate::storage::LOOM_GLOBAL_GRAPH_DEFAULT_HUB_DEGREE);
 
-    let graph = state
-        .storage
-        .global_graph(&workspace_id, &edge_types, node_limit, hub_degree_threshold)
+            let graph = state
+                .storage
+                .global_graph(&workspace_id, &edge_types, node_limit, hub_degree_threshold)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(graph))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(graph))
+}
+
+/// MT-109 C3: the account-scoped route for [`recompute_loom_block_metrics`] (ResourceBroker authorization, then the
+/// unchanged handler body as the account's record user).
+async fn recompute_loom_block_metrics_authenticated(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
+) -> ApiResult<Json<LoomMetricsRecomputeResponse>> {
+    let account = loom_block_account(
+        &state,
+        &headers,
+        &block_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(
+            &state,
+            &loom_workspace,
+            recompute_loom_block_metrics(State(state.clone()), Path((workspace_id, block_id))),
+        )
+        .await
 }
 
 async fn recompute_loom_block_metrics(
@@ -4099,6 +5093,30 @@ async fn recompute_loom_block_metrics(
         workspace_id,
         block_id: Some(block_id),
     }))
+}
+
+/// MT-109 C3: the account-scoped route for [`recompute_all_loom_metrics`] (ResourceBroker authorization, then the
+/// unchanged handler body as the account's record user).
+async fn recompute_all_loom_metrics_authenticated(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    headers: HeaderMap,
+) -> ApiResult<Json<LoomMetricsRecomputeResponse>> {
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(
+            &state,
+            &loom_workspace,
+            recompute_all_loom_metrics(State(state.clone()), Path(workspace_id)),
+        )
+        .await
 }
 
 async fn recompute_all_loom_metrics(
@@ -4161,6 +5179,31 @@ struct LoomVisualDebugQueryParams {
 struct QuickSwitcherRecentsQueryParams {
     #[serde(default)]
     limit: Option<u32>,
+}
+
+/// MT-109 C3: the account-scoped route for [`search_loom_blocks`] (ResourceBroker authorization, then the
+/// unchanged handler body as the account's record user).
+async fn search_loom_blocks_authenticated(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Query(query): Query<LoomSearchQueryParams>,
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<crate::storage::LoomBlockSearchResult>>> {
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(
+            &state,
+            &loom_workspace,
+            search_loom_blocks(State(state.clone()), Path(workspace_id), Query(query)),
+        )
+        .await
 }
 
 async fn search_loom_blocks(
@@ -4229,52 +5272,91 @@ async fn search_loom_blocks(
 async fn loom_visual_debug_snapshot(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Query(query): Query<LoomVisualDebugQueryParams>,
 ) -> ApiResult<Json<LoomVisualDebugSnapshot>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let start_block_id = query
-        .start_block_id
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| bad_request("HSK-400-LOOM-START-BLOCK-REQUIRED"))?;
-    let q = query
-        .q
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| bad_request("HSK-400-LOOM-QUERY-REQUIRED"))?;
-    let limit = query.limit.unwrap_or(50).clamp(1, 100);
-
-    // WAIVER [CX-573E]: timing-only instrumentation; no determinism impact
-    let start = Instant::now();
-    let snapshot = state
-        .storage
-        .loom_visual_debug_snapshot(&workspace_id, &start_block_id, &q, limit)
-        .await
-        .map_err(map_storage_error)?;
-    let duration_ms = start.elapsed().as_millis() as u64;
-
-    let event = FlightRecorderEvent::new(
-        FlightRecorderEventType::LoomProjectionRebuilt,
-        FlightRecorderActor::Human,
-        Uuid::now_v7(),
-        json!({
-            "type": "loom_visual_debug_snapshot",
-            "workspace_id": workspace_id,
-            "start_block_id": start_block_id,
-            "query_length": q.trim().chars().count(),
-            "schema_id": snapshot.schema_id,
-            "node_count": snapshot.graph.nodes.len(),
-            "edge_count": snapshot.graph.edges.len(),
-            "backlink_count": snapshot.backlinks.incoming.len(),
-            "folder_count": snapshot.folders.len(),
-            "search_result_count": snapshot.search.result_count,
-            "duration_ms": duration_ms,
-        }),
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
     )
-    .with_wsids(vec![workspace_id.clone()]);
-    let _ = state.flight_recorder.record_event(event).await;
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let start_block_id = query
+                .start_block_id
+                .clone()
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| bad_request("HSK-400-LOOM-START-BLOCK-REQUIRED"))?;
+            let q = query
+                .q
+                .clone()
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| bad_request("HSK-400-LOOM-QUERY-REQUIRED"))?;
+            let limit = query.limit.unwrap_or(50).clamp(1, 100);
 
-    Ok(Json(snapshot))
+            // WAIVER [CX-573E]: timing-only instrumentation; no determinism impact
+            let start = Instant::now();
+            let snapshot = state
+                .storage
+                .loom_visual_debug_snapshot(&workspace_id, &start_block_id, &q, limit)
+                .await
+                .map_err(map_storage_error)?;
+            let duration_ms = start.elapsed().as_millis() as u64;
+
+            let event = FlightRecorderEvent::new(
+                FlightRecorderEventType::LoomProjectionRebuilt,
+                FlightRecorderActor::Human,
+                Uuid::now_v7(),
+                json!({
+                    "type": "loom_visual_debug_snapshot",
+                    "workspace_id": workspace_id,
+                    "start_block_id": start_block_id,
+                    "query_length": q.trim().chars().count(),
+                    "schema_id": snapshot.schema_id,
+                    "node_count": snapshot.graph.nodes.len(),
+                    "edge_count": snapshot.graph.edges.len(),
+                    "backlink_count": snapshot.backlinks.incoming.len(),
+                    "folder_count": snapshot.folders.len(),
+                    "search_result_count": snapshot.search.result_count,
+                    "duration_ms": duration_ms,
+                }),
+            )
+            .with_wsids(vec![workspace_id.clone()]);
+            let _ = state.flight_recorder.record_event(event).await;
+
+            Ok(Json(snapshot))
+        })
+        .await
+}
+
+/// MT-109 C3: the account-scoped route for [`search_loom_graph`] (ResourceBroker authorization, then the
+/// unchanged handler body as the account's record user).
+async fn search_loom_graph_authenticated(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Query(query): Query<LoomSearchQueryParams>,
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<LoomGraphSearchResult>>> {
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(
+            &state,
+            &loom_workspace,
+            search_loom_graph(State(state.clone()), Path(workspace_id), Query(query)),
+        )
+        .await
 }
 
 async fn search_loom_graph(
@@ -4346,30 +5428,58 @@ async fn search_loom_graph(
 async fn list_quick_switcher_recents(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Query(query): Query<QuickSwitcherRecentsQueryParams>,
 ) -> ApiResult<Json<Vec<QuickSwitcherRecent>>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let limit = query.limit.unwrap_or(20).clamp(1, 100);
-    let recents = state
-        .storage
-        .list_quick_switcher_recents(&workspace_id, limit)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let limit = query.limit.unwrap_or(20).clamp(1, 100);
+            let recents = state
+                .storage
+                .list_quick_switcher_recents(&workspace_id, limit)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(recents))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(recents))
 }
 
 async fn record_quick_switcher_recent(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Json(payload): Json<QuickSwitcherRecentInput>,
 ) -> ApiResult<Json<QuickSwitcherRecent>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let recent = state
-        .storage
-        .record_quick_switcher_recent(&workspace_id, payload)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let recent = state
+                .storage
+                .record_quick_switcher_recent(&workspace_id, payload)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(recent))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(recent))
 }
 
 // -- MT-261 CanvasBoard handlers ------------------------------------------
@@ -4496,24 +5606,38 @@ struct UpdateBoardViewportRequest {
     expected_event_ledger_event_id: String,
 }
 
+/// MT-109 C3: the viewport write requires the canvas block edit grant and runs as the record user.
 async fn update_canvas_board_state(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Json(payload): Json<UpdateBoardViewportRequest>,
 ) -> ApiResult<Json<LoomCanvasBoard>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let board = state
-        .storage
-        .update_canvas_board_state(
-            &WriteContext::human(None),
-            &workspace_id,
-            &block_id,
-            payload.board_state,
-            &payload.expected_event_ledger_event_id,
-        )
+    let account = loom_account(
+        &state,
+        &headers,
+        crate::storage::surreal::resource_authority::ResourceKind::LoomBlock,
+        &block_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    account
+        .run(&state, &workspace_id, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let board = state
+                .storage
+                .update_canvas_board_state(
+                    &account.ctx,
+                    &workspace_id,
+                    &block_id,
+                    payload.board_state,
+                    &payload.expected_event_ledger_event_id,
+                )
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(board))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(board))
 }
 
 #[derive(Debug, Deserialize)]
@@ -4678,11 +5802,16 @@ async fn create_canvas_card(
     Json(payload): Json<CreateCanvasCardRequest>,
 ) -> ApiResult<Json<CreateCanvasCardResponse>> {
     use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
-    ensure_workspace_exists(&state, &workspace_id).await?;
     let stage_provenance_key = validated_stage_provenance_key(&payload)?;
-    let ctx = WriteContext::human(None);
 
     if let Some(stage_provenance_key) = stage_provenance_key {
+        // MT-109 C3 (Master Spec 02-system-architecture.md:2758 deny by default): the Stage-card
+        // branch requires the account session with the canvas edit grant and the workspace
+        // create grant before anything is written.
+        let board = authorize_canvas_visual_edge_write(&state, &headers, &block_id).await?;
+        loom_workspace_account(&state, &headers, &workspace_id, ResourceAction::Create).await?;
+        let ctx = loom_create_write_context(&board)?;
+        ensure_workspace_exists(&state, &workspace_id).await?;
         let card = state
             .storage
             .create_stage_canvas_card(
@@ -4857,8 +5986,13 @@ struct CompensateCanvasStageCardResponse {
 async fn compensate_stage_canvas_card(
     State(state): State<AppState>,
     Path((workspace_id, block_id, placement_id)): Path<(String, String, String)>,
+    headers: HeaderMap,
     Json(payload): Json<CompensateCanvasStageCardRequest>,
 ) -> ApiResult<Json<CompensateCanvasStageCardResponse>> {
+    // MT-109 C3: compensation deletes rows, so it requires the account session with the canvas
+    // edit grant (deny by default, Master Spec 02-system-architecture.md:2758).
+    let board = authorize_canvas_visual_edge_write(&state, &headers, &block_id).await?;
+    let ctx = loom_create_write_context(&board)?;
     ensure_workspace_exists(&state, &workspace_id).await?;
     let stage_provenance_key = {
         if payload.stage_provenance.schema_id != LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA {
@@ -4872,7 +6006,7 @@ async fn compensate_stage_canvas_card(
     let compensated = state
         .storage
         .compensate_stage_canvas_card(
-            &WriteContext::human(None),
+            &ctx,
             CompensateLoomCanvasStageCard {
                 canvas_block_id: block_id,
                 workspace_id,
@@ -4910,35 +6044,57 @@ struct UpdatePlacementRequest {
     clear_group: bool,
 }
 
+/// MT-109 C3: the placement's canvas is resolved under the workspace read grant, then the move or
+/// resize runs as the record user under that canvas block's edit grant.
 async fn update_canvas_placement(
     State(state): State<AppState>,
     Path((workspace_id, placement_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Json(payload): Json<UpdatePlacementRequest>,
 ) -> ApiResult<Json<LoomCanvasPlacement>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+    let reader =
+        loom_workspace_account(&state, &headers, &workspace_id, ResourceAction::Read).await?;
+    let database = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
+    let (canvas_block_id, _) = state
+        .surreal
+        .with_record_user_scope(
+            reader.authority.record_user_scope.clone(),
+            database.get_record_user_canvas_placement_identity(&workspace_id, &placement_id),
+        )
+        .await
+        .map_err(|_| loom_denied())?;
+    let account = loom_account(
+        &state,
+        &headers,
+        ResourceKind::LoomBlock,
+        &canvas_block_id,
+        ResourceAction::Update,
+    )
+    .await?;
     let group_id = if payload.clear_group {
         Some(None)
     } else {
         payload.group_id.map(Some)
     };
-    let placement = state
-        .storage
-        .update_canvas_placement(
-            &WriteContext::human(None),
-            &workspace_id,
-            &placement_id,
-            LoomCanvasPlacementUpdate {
-                x: payload.x,
-                y: payload.y,
-                w: payload.w,
-                h: payload.h,
-                z_index: payload.z_index,
-                group_id,
-            },
-        )
+    let update = LoomCanvasPlacementUpdate {
+        x: payload.x,
+        y: payload.y,
+        w: payload.w,
+        h: payload.h,
+        z_index: payload.z_index,
+        group_id,
+    };
+    account
+        .run(&state, &workspace_id, async {
+            let placement = state
+                .storage
+                .update_canvas_placement(&account.ctx, &workspace_id, &placement_id, update)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(placement))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(placement))
 }
 
 async fn remove_canvas_placement(
@@ -5103,20 +6259,29 @@ async fn add_canvas_visual_edge(
 ) -> ApiResult<Json<LoomCanvasVisualEdge>> {
     let board_authority = authorize_canvas_visual_edge_write(&state, &headers, &block_id).await?;
     let ctx = loom_create_write_context(&board_authority)?;
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let edge = state
-        .storage
-        .add_canvas_visual_edge(
-            &ctx,
-            &workspace_id,
-            &block_id,
-            &payload.from_placement_id,
-            &payload.to_placement_id,
-            payload.label,
-        )
+    // MT-109 C3: the edge row is written as the record user under the canvas edit grant.
+    let account = LoomAccount {
+        authority: board_authority,
+        ctx,
+    };
+    account
+        .run(&state, &workspace_id, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let edge = state
+                .storage
+                .add_canvas_visual_edge(
+                    &account.ctx,
+                    &workspace_id,
+                    &block_id,
+                    &payload.from_placement_id,
+                    &payload.to_placement_id,
+                    payload.label,
+                )
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(edge))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(edge))
 }
 
 async fn remove_canvas_visual_edge(
@@ -5143,22 +6308,44 @@ async fn remove_canvas_visual_edge(
             }),
         )
     };
-    let canvas_block_id = crate::storage::surreal::loom_canvas_store::canvas_visual_edge_board_id(
-        &state.surreal,
+    // MT-109 C3: the owning board is resolved as the record user under the workspace read grant,
+    // then the delete runs as the record user under that board's edit grant.
+    let reader = loom_workspace_account(
+        &state,
+        &headers,
         &workspace_id,
-        &visual_edge_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
     )
     .await
-    .map_err(|_| denied())?
-    .ok_or_else(denied)?;
+    .map_err(|_| denied())?;
+    let canvas_block_id = reader
+        .run(&state, &workspace_id, async {
+            crate::storage::surreal::loom_canvas_store::canvas_visual_edge_board_id(
+                &state.surreal,
+                &workspace_id,
+                &visual_edge_id,
+            )
+            .await
+            .map_err(|_| denied())?
+            .ok_or_else(denied)
+        })
+        .await?;
     let board_authority =
         authorize_canvas_visual_edge_write(&state, &headers, &canvas_block_id).await?;
     let ctx = loom_create_write_context(&board_authority)?;
-    state
-        .storage
-        .remove_canvas_visual_edge(&ctx, &workspace_id, &visual_edge_id)
-        .await
-        .map_err(map_storage_error)?;
+    let account = LoomAccount {
+        authority: board_authority,
+        ctx,
+    };
+    account
+        .run(&state, &workspace_id, async {
+            state
+                .storage
+                .remove_canvas_visual_edge(&account.ctx, &workspace_id, &visual_edge_id)
+                .await
+                .map_err(map_storage_error)
+        })
+        .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -5177,14 +6364,50 @@ struct CreateBlockViewRequest {
 /// Create a saved view in one transaction: final `view_def` block,
 /// search projection, ProjectKnowledgeIndex/EventLedger bridge, mutation
 /// receipt, and recoverable Flight Recorder outbox. NO parallel store.
+/// MT-109 C3: a saved view is a workspace-scoped definition created as the account's record user
+/// under the workspace create grant (its receipts carry the session principal).
+async fn create_block_view_authenticated(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    headers: HeaderMap,
+    Json(payload): Json<CreateBlockViewRequest>,
+) -> ApiResult<Json<BlockViewRecord>> {
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+    )
+    .await?;
+    let ctx = account.ctx.clone();
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(
+            &state,
+            &loom_workspace,
+            create_block_view_inner(state.clone(), workspace_id, payload, ctx),
+        )
+        .await
+}
+
+#[cfg(test)]
 async fn create_block_view(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
     headers: axum::http::HeaderMap,
     Json(payload): Json<CreateBlockViewRequest>,
 ) -> ApiResult<Json<BlockViewRecord>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
     let ctx = block_view_write_context(&headers);
+    create_block_view_inner(state, workspace_id, payload, ctx).await
+}
+
+async fn create_block_view_inner(
+    state: AppState,
+    workspace_id: String,
+    payload: CreateBlockViewRequest,
+    ctx: WriteContext,
+) -> ApiResult<Json<BlockViewRecord>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
     let block_id = payload.block_id;
 
     let record = state
@@ -5209,14 +6432,28 @@ async fn create_block_view(
 async fn get_block_view(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<BlockViewRecord>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let record = state
-        .storage
-        .get_block_view(&workspace_id, &block_id)
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let record = state
+                .storage
+                .get_block_view(&workspace_id, &block_id)
+                .await
+                .map_err(map_storage_error)?;
+            Ok(Json(record))
+        })
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(record))
 }
 
 #[derive(Debug, Deserialize)]
@@ -5232,19 +6469,33 @@ async fn update_block_view(
     headers: axum::http::HeaderMap,
     Json(payload): Json<UpdateBlockViewRequest>,
 ) -> ApiResult<Json<BlockViewRecord>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = block_view_write_context(&headers);
-    let record = state
-        .storage
-        .update_block_view_definition(&ctx, &workspace_id, &block_id, payload.definition)
-        .await
-        .map_err(map_storage_error)?;
-    let publication_event_id = record.publication_event_id.ok_or_else(|| {
-        internal_error("updated block view omitted its publication event identity")
-    })?;
-    reconcile_block_view_events(&state, Some(&workspace_id), Some(publication_event_id)).await?;
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let ctx = account.ctx.clone();
+            let record = state
+                .storage
+                .update_block_view_definition(&ctx, &workspace_id, &block_id, payload.definition)
+                .await
+                .map_err(map_storage_error)?;
+            let publication_event_id = record.publication_event_id.ok_or_else(|| {
+                internal_error("updated block view omitted its publication event identity")
+            })?;
+            reconcile_block_view_events(&state, Some(&workspace_id), Some(publication_event_id))
+                .await?;
 
-    Ok(Json(record))
+            Ok(Json(record))
+        })
+        .await
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -5260,14 +6511,26 @@ struct BlockViewResultsRequest {
 async fn query_block_view_results(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Json(payload): Json<BlockViewResultsRequest>,
 ) -> ApiResult<Json<BlockViewResults>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let record = state
-        .storage
-        .get_block_view(&workspace_id, &block_id)
-        .await
-        .map_err(map_storage_error)?;
+    // MT-109 C3: authorized through the ResourceBroker and run as the account's record user.
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await?;
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(&state, &loom_workspace, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            let record = state
+                .storage
+                .get_block_view(&workspace_id, &block_id)
+                .await
+                .map_err(map_storage_error)?;
 
     let limit = payload.limit.unwrap_or(100).min(500);
     let offset = payload.offset.unwrap_or(0);
@@ -5294,7 +6557,9 @@ async fn query_block_view_results(
     .with_wsids(vec![workspace_id.clone()]);
     let _ = state.flight_recorder.record_event(event).await;
 
-    Ok(Json(results))
+            Ok(Json(results))
+        })
+        .await
 }
 
 #[cfg(all(test, feature = "duckdb-flight-recorder"))]
@@ -6213,6 +7478,7 @@ mod tests {
             workspace: RecordId::new("workspaces", foreign_workspace_id.clone()),
             document: RecordId::new("knowledge_rich_documents", note_id.to_owned()),
         };
+        let mut identity_outcomes = Vec::new();
         for statement in [
             "UPDATE $block SET workspace_id = $workspace RETURN AFTER;",
             "UPDATE $block SET content_type = 'note' RETURN AFTER;",
@@ -6231,12 +7497,11 @@ mod tests {
                         })
                     }),
                 )
-                .await
-                .expect_err("record-user standalone identity mutation must fail closed");
-            assert!(
-                rejection.to_string().contains("HSK-403-PROTECTED-RESOURCE"),
-                "standalone identity mutation must report the canonical denial: {rejection}"
-            );
+                .await;
+            identity_outcomes.push(format!(
+                "{statement} => {:?}",
+                rejection.map_err(|error| error.to_string())
+            ));
         }
         let mut standalone_after = state
             .surreal
@@ -6250,6 +7515,14 @@ mod tests {
             standalone_after.take::<Option<Value>>(0).unwrap(),
             standalone_before,
             "source-free standalone workspace, content type, and source identity must remain immutable"
+        );
+        // MT-109 C3 probe: each identity mutation must report the canonical denial (not a silent
+        // no-op); the outcomes name the statement that does not.
+        assert!(
+            identity_outcomes
+                .iter()
+                .all(|outcome| outcome.contains("Err(") && outcome.contains("HSK-403-PROTECTED-RESOURCE")),
+            "standalone identity mutations must report the canonical denial: {identity_outcomes:#?}"
         );
         let invalid_placement = |suffix: &str| format!("LCP-{suffix:0>32}");
         for (placement_id, canvas_block_id, placement_workspace_id, placed_block_id, label) in [
@@ -8528,6 +9801,1107 @@ mod tests {
             .await
             .map_err(|error| format!("published retry failed: {} {}", error.0, error.1 .0.error))?;
         Ok(())
+    }
+
+    // -- MT-109 C3: every Loom route runs as the account record user -----------------------------
+    // Master Spec 02-system-architecture.md:2758/2773/2776 and LM-RLS-001/002: each representative
+    // test drives the mounted routes with a real account session, proves the write returned its row
+    // (a denied record-user write is silent in SurrealDB 3.2.0), and proves that an anonymous caller
+    // and a second account both receive the constant denial.
+
+    #[cfg(feature = "os-keychain")]
+    async fn c3_raw_request(
+        router: &Router,
+        method: &str,
+        uri: &str,
+        headers: &HeaderMap,
+    ) -> (StatusCode, Vec<u8>) {
+        let mut request = Request::builder().method(method).uri(uri);
+        for (name, value) in headers {
+            request = request.header(name, value);
+        }
+        let response = router
+            .clone()
+            .oneshot(request.body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        let status = response.status();
+        let bytes = to_bytes(response.into_body(), 4 * 1024 * 1024)
+            .await
+            .unwrap();
+        (status, bytes.to_vec())
+    }
+
+    /// A second, separately provisioned account on the same channel binding: it holds no grant on
+    /// the owner's workspace or blocks.
+    #[cfg(feature = "os-keychain")]
+    async fn c3_other_account(state: &AppState, binding: &LoomCreateBinding) -> HeaderMap {
+        let capabilities = ["fs.read", "fs.write", "memory.read", "memory.propose"]
+            .map(str::to_owned)
+            .to_vec();
+        let other = state
+            .surreal
+            .provision_principal(
+                "mt109-c3-other",
+                "mt109-c3-other",
+                "human_account",
+                "mt109-c3-other",
+                "Operator",
+                &capabilities,
+                "mt109-c3-other",
+                Some(&sha256_hex(binding.channel.as_bytes())),
+                std::time::Duration::from_secs(3600),
+            )
+            .await
+            .expect("second account");
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-hsk-channel-binding-token",
+            binding.channel.parse().unwrap(),
+        );
+        headers.insert("x-hsk-session-token", other.session.token.parse().unwrap());
+        headers
+    }
+
+    /// Asserts the constant denial for an anonymous caller (channel binding only) and for the
+    /// second account on the same request.
+    #[cfg(feature = "os-keychain")]
+    async fn c3_assert_denied(
+        router: &Router,
+        binding: &LoomCreateBinding,
+        other: &HeaderMap,
+        method: &str,
+        uri: &str,
+        body: Value,
+    ) {
+        let mut anonymous = HeaderMap::new();
+        anonymous.insert(
+            "x-hsk-channel-binding-token",
+            binding.channel.parse().unwrap(),
+        );
+        for (who, headers) in [("anonymous", &anonymous), ("other account", other)] {
+            let (status, denial) =
+                loom_create_request(router, method, uri, headers, body.clone()).await;
+            assert_eq!(
+                status,
+                StatusCode::FORBIDDEN,
+                "{who} {method} {uri}: {denial}"
+            );
+            assert_eq!(
+                denial["error"], "HSK-403-PROTECTED-RESOURCE",
+                "{who} {method} {uri}"
+            );
+        }
+    }
+
+    #[cfg(feature = "os-keychain")]
+    async fn c3_block(
+        router: &Router,
+        headers: &HeaderMap,
+        ws: &str,
+        kind: &str,
+        title: &str,
+    ) -> String {
+        let (status, block) = loom_create_request(
+            router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/blocks"),
+            headers,
+            serde_json::json!({"content_type": kind, "title": title}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "owned {kind} block: {block}");
+        block["block_id"].as_str().unwrap().to_owned()
+    }
+
+    #[cfg(feature = "os-keychain")]
+    #[tokio::test]
+    async fn mt109_c3_record_user_folders() {
+        let binding = LoomCreateBinding::new();
+        let (state, _store) = setup_state().await.unwrap();
+        let (router, headers, ws) = owned_loom_session(&state, &binding).await;
+        let other = c3_other_account(&state, &binding).await;
+        let note = c3_block(&router, &headers, &ws, "note", "C3 folder note").await;
+        let (status, folder) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/folders"),
+            &headers,
+            serde_json::json!({"name": "C3 folder"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "folder create: {folder}");
+        let folder_id = folder["folder_id"].as_str().unwrap().to_owned();
+        let (status, folders) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/folders"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "folder list: {folders}");
+        assert!(folders
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["folder_id"] == folder_id));
+        let (status, added) = loom_create_request(
+            &router,
+            "PUT",
+            &format!("/workspaces/{ws}/loom/folders/{folder_id}/blocks/{note}"),
+            &headers,
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "folder member add: {added}");
+        let (status, members) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/folders/{folder_id}/blocks"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "folder members: {members}");
+        assert_eq!(
+            members.as_array().unwrap().len(),
+            1,
+            "member row is visible: {members}"
+        );
+        assert_eq!(members[0]["block_id"], note);
+        let (status, renamed) = loom_create_request(
+            &router,
+            "PATCH",
+            &format!("/workspaces/{ws}/loom/folders/{folder_id}"),
+            &headers,
+            serde_json::json!({"name": "C3 folder renamed"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "folder rename: {renamed}");
+        assert_eq!(renamed["name"], "C3 folder renamed");
+        let mut receipts = state
+            .surreal
+            .test_admin_query_bound(
+                "SELECT VALUE [actor_kind, actor_id, wsids, authority_action] FROM kernel_event_ledger WHERE event_type = 'KNOWLEDGE_LOOM_FOLDER_MUTATED' AND payload.folder_id = $folder_id;".to_owned(),
+                serde_json::json!({"folder_id": folder_id}),
+            )
+            .await
+            .unwrap();
+        let receipts = receipts.take::<Vec<Value>>(0).unwrap();
+        assert!(
+            receipts.len() >= 3,
+            "create, member add and rename receipts: {receipts:?}"
+        );
+        let principal = headers["x-hsk-actor-id"].to_str().unwrap();
+        for receipt in &receipts {
+            assert_eq!(receipt[0], "operator", "receipt actor kind: {receipt}");
+            assert_eq!(
+                receipt[1], principal,
+                "receipt carries the session principal: {receipt}"
+            );
+            assert_eq!(
+                receipt[2],
+                serde_json::json!([ws]),
+                "receipt workspace: {receipt}"
+            );
+        }
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "GET",
+            &format!("/workspaces/{ws}/loom/folders"),
+            Value::Null,
+        )
+        .await;
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "POST",
+            &format!("/workspaces/{ws}/loom/folders"),
+            serde_json::json!({"name": "intruder"}),
+        )
+        .await;
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "DELETE",
+            &format!("/workspaces/{ws}/loom/folders/{folder_id}"),
+            Value::Null,
+        )
+        .await;
+        let (status, removed) = loom_create_request(
+            &router,
+            "DELETE",
+            &format!("/workspaces/{ws}/loom/folders/{folder_id}/blocks/{note}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "folder member remove: {removed}");
+        let (status, deleted) = loom_create_request(
+            &router,
+            "DELETE",
+            &format!("/workspaces/{ws}/loom/folders/{folder_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "folder delete: {deleted}");
+        let mut left = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN array::len(SELECT id FROM type::record('loom_folders', $folder_id));"
+                    .to_owned(),
+                serde_json::json!({"folder_id": folder_id}),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            left.take::<Option<i64>>(0).unwrap(),
+            Some(0),
+            "the folder row is gone"
+        );
+    }
+
+    #[cfg(feature = "os-keychain")]
+    #[tokio::test]
+    async fn mt109_c3_record_user_wiki() {
+        let binding = LoomCreateBinding::new();
+        let (state, _store) = setup_state().await.unwrap();
+        let (router, headers, ws) = owned_loom_session(&state, &binding).await;
+        let other = c3_other_account(&state, &binding).await;
+        let note = c3_block(&router, &headers, &ws, "note", "C3 wiki source").await;
+        let (status, page) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/wiki"),
+            &headers,
+            serde_json::json!({"title": "C3 wiki", "block_ids": [note]}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "wiki compile: {page}");
+        let projection_id = page["projection_id"].as_str().unwrap().to_owned();
+        let (status, pages) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/wiki"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "wiki list: {pages}");
+        assert!(pages["pages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p["projection_id"] == projection_id));
+        let (status, one) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/wiki/{projection_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "wiki page: {one}");
+        let (status, overlay) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/wiki/{projection_id}/overlays"),
+            &headers,
+            serde_json::json!({"annotation": "C3 overlay"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "wiki overlay: {overlay}");
+        let overlay_id = overlay["overlay_id"].as_str().unwrap().to_owned();
+        let (status, overlays) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/wiki/{projection_id}/overlays"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "wiki overlays: {overlays}");
+        assert_eq!(overlays.as_array().unwrap().len(), 1);
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "GET",
+            &format!("/workspaces/{ws}/loom/wiki/{projection_id}"),
+            Value::Null,
+        )
+        .await;
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "POST",
+            &format!("/workspaces/{ws}/loom/wiki"),
+            serde_json::json!({"title": "intruder"}),
+        )
+        .await;
+        let (status, _) = loom_create_request(
+            &router,
+            "DELETE",
+            &format!("/workspaces/{ws}/loom/wiki-overlays/{overlay_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "wiki overlay delete");
+        let (status, _) = loom_create_request(
+            &router,
+            "DELETE",
+            &format!("/workspaces/{ws}/loom/wiki/{projection_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "wiki delete");
+    }
+
+    /// Also C2 follow-ups a and d: account-created tag edges (POST /loom/edges and the Kanban
+    /// card-move PATCH add_tags/remove_tags) are written, read and deleted as the record user.
+    #[cfg(feature = "os-keychain")]
+    #[tokio::test]
+    async fn mt109_c3_record_user_tags_and_edges() {
+        let binding = LoomCreateBinding::new();
+        let (state, _store) = setup_state().await.unwrap();
+        let (router, headers, ws) = owned_loom_session(&state, &binding).await;
+        let other = c3_other_account(&state, &binding).await;
+        let note = c3_block(&router, &headers, &ws, "note", "C3 tagged note").await;
+        let todo = c3_block(&router, &headers, &ws, "tag_hub", "c3-todo").await;
+        let done = c3_block(&router, &headers, &ws, "tag_hub", "c3-done").await;
+        let (status, edge) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/edges"),
+            &headers,
+            serde_json::json!({"source_block_id": note, "target_block_id": todo, "edge_type": "tag", "created_by": "user"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "account tag edge: {edge}");
+        let edge_id = edge["edge_id"].as_str().unwrap().to_owned();
+        let (status, tagged) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/tags/{todo}/blocks"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "tag blocks: {tagged}");
+        assert!(
+            tagged
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|b| b["block_id"] == note),
+            "{tagged}"
+        );
+        let (status, moved) = loom_create_request(
+            &router,
+            "PATCH",
+            &format!("/workspaces/{ws}/loom/blocks/{note}"),
+            &headers,
+            serde_json::json!({"add_tags": [done], "remove_tags": [todo]}),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "Kanban card move (tag edges): {moved}"
+        );
+        let (status, done_blocks) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/tags/{done}/blocks"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(
+            done_blocks
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|b| b["block_id"] == note),
+            "{done_blocks}"
+        );
+        let (status, todo_blocks) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/tags/{todo}/blocks"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(
+            todo_blocks.as_array().unwrap().is_empty(),
+            "the removed tag edge is gone: {todo_blocks}"
+        );
+        let mut edge_rows = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN array::len(SELECT id FROM loom_edges WHERE edge_id = $edge_id);".to_owned(),
+                serde_json::json!({"edge_id": edge_id}),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            edge_rows.take::<Option<i64>>(0).unwrap(),
+            Some(0),
+            "remove_tags deleted the account edge"
+        );
+        for uri in [
+            format!("/workspaces/{ws}/loom/tags"),
+            format!("/workspaces/{ws}/loom/tags/{done}"),
+            format!("/workspaces/{ws}/loom/blocks/{done}/backlinks"),
+        ] {
+            let (status, body) =
+                loom_create_request(&router, "GET", &uri, &headers, Value::Null).await;
+            assert_eq!(status, StatusCode::OK, "{uri}: {body}");
+        }
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "GET",
+            &format!("/workspaces/{ws}/loom/tags"),
+            Value::Null,
+        )
+        .await;
+        c3_assert_denied(&router, &binding, &other, "POST", &format!("/workspaces/{ws}/loom/edges"), serde_json::json!({"source_block_id": note, "target_block_id": done, "edge_type": "tag", "created_by": "user"})).await;
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "PATCH",
+            &format!("/workspaces/{ws}/loom/blocks/{note}"),
+            serde_json::json!({"add_tags": [todo]}),
+        )
+        .await;
+    }
+
+    #[cfg(feature = "os-keychain")]
+    #[tokio::test]
+    async fn mt109_c3_record_user_graph_search_and_pins() {
+        let binding = LoomCreateBinding::new();
+        let (state, _store) = setup_state().await.unwrap();
+        let (router, headers, ws) = owned_loom_session(&state, &binding).await;
+        let other = c3_other_account(&state, &binding).await;
+        let note = c3_block(&router, &headers, &ws, "note", "Quasarfield note").await;
+        let hub = c3_block(&router, &headers, &ws, "tag_hub", "quasarfield-hub").await;
+        let (status, _) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/edges"),
+            &headers,
+            serde_json::json!({"source_block_id": note, "target_block_id": hub, "edge_type": "tag", "created_by": "user"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        for (method, uri, body) in [
+            (
+                "GET",
+                format!("/workspaces/{ws}/loom/graph/local?start_block_id={note}"),
+                Value::Null,
+            ),
+            (
+                "GET",
+                format!("/workspaces/{ws}/loom/graph/global"),
+                Value::Null,
+            ),
+            (
+                "GET",
+                format!("/workspaces/{ws}/loom/graph/traverse?start_block_id={note}"),
+                Value::Null,
+            ),
+            (
+                "GET",
+                format!("/workspaces/{ws}/loom/views/all"),
+                Value::Null,
+            ),
+            (
+                "GET",
+                format!("/workspaces/{ws}/loom/graph-search?q=Quasarfield"),
+                Value::Null,
+            ),
+            (
+                "GET",
+                format!("/workspaces/{ws}/loom/visual-debug?start_block_id={note}&q=Quasarfield"),
+                Value::Null,
+            ),
+            (
+                "POST",
+                format!("/workspaces/{ws}/loom/search-v2"),
+                serde_json::json!({"query": "Quasarfield"}),
+            ),
+            (
+                "POST",
+                format!("/workspaces/{ws}/loom/metrics/recompute"),
+                Value::Null,
+            ),
+            (
+                "POST",
+                format!("/workspaces/{ws}/loom/blocks/{note}/metrics/recompute"),
+                Value::Null,
+            ),
+            (
+                "GET",
+                format!("/workspaces/{ws}/loom/blocks/{note}/breadcrumbs"),
+                Value::Null,
+            ),
+            (
+                "GET",
+                format!("/workspaces/{ws}/loom/blocks/{note}/unlinked-mentions"),
+                Value::Null,
+            ),
+            (
+                "PUT",
+                format!("/workspaces/{ws}/loom/journals/2026-09-23"),
+                Value::Null,
+            ),
+        ] {
+            let (status, response) =
+                loom_create_request(&router, method, &uri, &headers, body).await;
+            assert_eq!(status, StatusCode::OK, "{method} {uri}: {response}");
+        }
+        let (status, found) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/search?q=Quasarfield"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "search: {found}");
+        assert!(
+            found
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|r| r["block"]["block_id"] == note || r["block_id"] == note),
+            "record-user search sees the owned note: {found}"
+        );
+        let (status, pinned) = loom_create_request(
+            &router,
+            "PUT",
+            &format!("/workspaces/{ws}/loom/blocks/{note}/pin-order"),
+            &headers,
+            serde_json::json!({"pin_order": 3}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "pin order: {pinned}");
+        assert_eq!(pinned["pin_order"], 3);
+        let (status, unpinned) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/blocks/{note}/remove-pin"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "remove pin: {unpinned}");
+        let (status, recent) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/quick-switcher/recents"),
+            &headers,
+            serde_json::json!({"result_kind": "loom_block", "source_kind": "loom_block", "ref_id": note, "title": "Quasarfield note"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "quick switcher recent: {recent}");
+        let (status, recents) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/quick-switcher/recents"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "recents: {recents}");
+        assert_eq!(recents.as_array().unwrap().len(), 1, "{recents}");
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "GET",
+            &format!("/workspaces/{ws}/loom/search?q=Quasarfield"),
+            Value::Null,
+        )
+        .await;
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "GET",
+            &format!("/workspaces/{ws}/loom/graph/global"),
+            Value::Null,
+        )
+        .await;
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "POST",
+            &format!("/workspaces/{ws}/loom/metrics/recompute"),
+            Value::Null,
+        )
+        .await;
+        // The daily-note route keeps its MT-111 status split: no session is 401, another account 403.
+        let (status, _) = loom_create_request(
+            &router,
+            "PUT",
+            &format!("/workspaces/{ws}/loom/journals/2026-09-24"),
+            &other,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "other account journal open");
+    }
+
+    #[cfg(feature = "os-keychain")]
+    #[tokio::test]
+    async fn mt109_c3_record_user_ai_suggestions() {
+        let binding = LoomCreateBinding::new();
+        let (state, _store) = setup_state().await.unwrap();
+        let (router, headers, ws) = owned_loom_session(&state, &binding).await;
+        let other = c3_other_account(&state, &binding).await;
+        let note = c3_block(&router, &headers, &ws, "note", "C3 AI note").await;
+        let jobs_uri = format!("/workspaces/{ws}/loom/ai-jobs");
+        let job_body = serde_json::json!({"kind": "auto_tag", "block_ids": [note]});
+        let run_job =
+            || loom_create_request(&router, "POST", &jobs_uri, &headers, job_body.clone());
+        let (status, job) = run_job().await;
+        assert_eq!(status, StatusCode::OK, "AI job: {job}");
+        let suggestion = job["suggestions"][0]["suggestion_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let (status, listed) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/ai-suggestions"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "AI suggestions: {listed}");
+        assert!(listed
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["suggestion_id"] == suggestion));
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "GET",
+            &format!("/workspaces/{ws}/loom/ai-suggestions"),
+            Value::Null,
+        )
+        .await;
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "POST",
+            &format!("/workspaces/{ws}/loom/ai-suggestions/{suggestion}/accept"),
+            Value::Null,
+        )
+        .await;
+        let (status, accepted) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/ai-suggestions/{suggestion}/accept"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "AI accept (promotion as the session reviewer): {accepted}"
+        );
+        assert_eq!(accepted["review_state"], "promoted");
+        let principal = headers["x-hsk-actor-id"].to_str().unwrap();
+        assert_eq!(accepted["decided_by"], format!("operator:{principal}"));
+        let (status, second) = run_job().await;
+        assert_eq!(status, StatusCode::OK, "second AI job: {second}");
+        let rejected_id = second["suggestions"][0]["suggestion_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let (status, rejected) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/ai-suggestions/{rejected_id}/reject"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "AI reject: {rejected}");
+        assert_eq!(rejected["review_state"], "rejected");
+    }
+
+    #[cfg(feature = "os-keychain")]
+    #[tokio::test]
+    async fn mt109_c3_record_user_assets_collections_and_views() {
+        let binding = LoomCreateBinding::new();
+        let (state, _store) = setup_state().await.unwrap();
+        let (router, headers, ws) = owned_loom_session(&state, &binding).await;
+        let other = c3_other_account(&state, &binding).await;
+        use base64::Engine as _;
+        let (status, imported) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/import"),
+            &headers,
+            serde_json::json!({"bytes_b64": STANDARD.encode(b"mt109 c3 asset bytes"), "original_filename": "c3.txt", "mime": "text/plain"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "asset import: {imported}");
+        let asset_id = imported["asset_id"].as_str().unwrap().to_owned();
+        let file_block = imported["block_id"].as_str().unwrap().to_owned();
+        let (status, file) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/blocks/{file_block}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "the imported file block is account-owned: {file}"
+        );
+        let (status, meta) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/assets/{asset_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "asset metadata: {meta}");
+        let (status, bytes) = c3_raw_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/assets/{asset_id}/content"),
+            &headers,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(bytes, b"mt109 c3 asset bytes".to_vec());
+        let (status, tiers) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/assets/{asset_id}/tiers"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "asset tiers: {tiers}");
+        let (status, collection) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/collections"),
+            &headers,
+            serde_json::json!({"title": "C3 album", "asset_ids": [asset_id]}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "collection: {collection}");
+        let collection_id = collection["collection_id"].as_str().unwrap().to_owned();
+        assert_eq!(collection["members"], serde_json::json!([asset_id]));
+        let (status, reordered) = loom_create_request(
+            &router,
+            "PUT",
+            &format!("/workspaces/{ws}/loom/collections/{collection_id}/order"),
+            &headers,
+            serde_json::json!({"asset_ids": [asset_id]}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "collection order: {reordered}");
+        let (status, read_back) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/collections/{collection_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "collection read: {read_back}");
+        assert_eq!(read_back["members"], serde_json::json!([asset_id]));
+        let view_id = Uuid::now_v7().to_string();
+        let (status, view) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/views/definitions"),
+            &headers,
+            serde_json::json!({"block_id": view_id, "title": "C3 view", "definition": serde_json::to_value(mt027_view_definition()).unwrap()}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "saved view create: {view}");
+        let (status, got) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/views/definitions/{view_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "saved view read: {got}");
+        let (status, patched) = loom_create_request(
+            &router,
+            "PATCH",
+            &format!("/workspaces/{ws}/loom/views/definitions/{view_id}"),
+            &headers,
+            serde_json::json!({"definition": serde_json::to_value(mt027_view_definition()).unwrap()}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "saved view update: {patched}");
+        let (status, results) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/views/definitions/{view_id}/results"),
+            &headers,
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "saved view results: {results}");
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "GET",
+            &format!("/workspaces/{ws}/assets/{asset_id}"),
+            Value::Null,
+        )
+        .await;
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "GET",
+            &format!("/workspaces/{ws}/loom/collections/{collection_id}"),
+            Value::Null,
+        )
+        .await;
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "GET",
+            &format!("/workspaces/{ws}/loom/views/definitions/{view_id}"),
+            Value::Null,
+        )
+        .await;
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "POST",
+            &format!("/workspaces/{ws}/assets/{asset_id}/tiers/poster/retry"),
+            Value::Null,
+        )
+        .await;
+    }
+
+    /// Also C2 follow-up c: the transclusion of a RichDocument's same-id projection authorizes the
+    /// `rich_document` resource; the markdown import is an account-owned RichDocument.
+    #[cfg(feature = "os-keychain")]
+    #[tokio::test]
+    async fn mt109_c3_record_user_transclusion_and_markdown_import() {
+        let binding = LoomCreateBinding::new();
+        let (state, _store) = setup_state().await.unwrap();
+        let (router, headers, ws) = owned_loom_session(&state, &binding).await;
+        let other = c3_other_account(&state, &binding).await;
+        let (status, imported) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/import/markdown"),
+            &headers,
+            serde_json::json!({"title": "C3 markdown", "markdown": "# C3 heading\n\nImported body"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "markdown import: {imported}");
+        let document = imported["rich_document_id"].as_str().unwrap().to_owned();
+        assert_eq!(imported["block"]["block_id"], document);
+        let (status, transclusion) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/blocks/{document}/transclusion"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "rich-document transclusion: {transclusion}"
+        );
+        assert_eq!(transclusion["resolved"], true);
+        assert_eq!(transclusion["source_document_id"], document);
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "GET",
+            &format!("/workspaces/{ws}/loom/blocks/{document}/transclusion"),
+            Value::Null,
+        )
+        .await;
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "POST",
+            &format!("/workspaces/{ws}/loom/import/markdown"),
+            serde_json::json!({"title": "intruder", "markdown": "x"}),
+        )
+        .await;
+    }
+
+    /// Also C2 follow-up b: undoing a text card removes its RichDocument-projection placement.
+    #[cfg(feature = "os-keychain")]
+    #[tokio::test]
+    async fn mt109_c3_record_user_canvas_placements() {
+        let binding = LoomCreateBinding::new();
+        let (state, _store) = setup_state().await.unwrap();
+        let (router, headers, ws) = owned_loom_session(&state, &binding).await;
+        let other = c3_other_account(&state, &binding).await;
+        let (status, canvas) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/canvas-boards"),
+            &headers,
+            serde_json::json!({"title": "C3 canvas"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "canvas: {canvas}");
+        let canvas_id = canvas["block_id"].as_str().unwrap().to_owned();
+        let first = c3_block(&router, &headers, &ws, "note", "C3 placed one").await;
+        let second = c3_block(&router, &headers, &ws, "note", "C3 placed two").await;
+        let mut placements = Vec::new();
+        for placed in [&first, &second] {
+            let (status, placement) = loom_create_request(
+                &router,
+                "POST",
+                &format!("/workspaces/{ws}/loom/canvas-boards/{canvas_id}/placements"),
+                &headers,
+                serde_json::json!({"placed_block_id": placed, "x": 10.0, "y": 10.0, "w": 200.0, "h": 120.0}),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "placement: {placement}");
+            placements.push(placement["placement_id"].as_str().unwrap().to_owned());
+        }
+        let (status, moved) = loom_create_request(
+            &router,
+            "PATCH",
+            &format!("/workspaces/{ws}/loom/canvas-placements/{}", placements[0]),
+            &headers,
+            serde_json::json!({"x": 321.0}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "placement move: {moved}");
+        assert_eq!(moved["x"], 321.0);
+        let (status, visual) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/canvas-boards/{canvas_id}/visual-edges"),
+            &headers,
+            serde_json::json!({"from_placement_id": placements[0], "to_placement_id": placements[1]}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "visual edge: {visual}");
+        let visual_id = visual["visual_edge_id"].as_str().unwrap().to_owned();
+        let (status, board) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{ws}/loom/canvas-boards/{canvas_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "board: {board}");
+        assert_eq!(
+            board["visual_edges"].as_array().unwrap().len(),
+            1,
+            "{board}"
+        );
+        let (status, viewport) = loom_create_request(
+            &router,
+            "PUT",
+            &format!("/workspaces/{ws}/loom/canvas-boards/{canvas_id}/viewport"),
+            &headers,
+            serde_json::json!({"board_state": {"schema_id": crate::storage::LOOM_CANVAS_BOARD_SCHEMA_ID, "pan_x": 5.0, "pan_y": 6.0, "zoom": 1.5}, "expected_event_ledger_event_id": board["board"]["event_ledger_event_id"]}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "viewport: {viewport}");
+        assert_eq!(viewport["board_state"]["zoom"], 1.5);
+        c3_assert_denied(
+            &router,
+            &binding,
+            &other,
+            "PATCH",
+            &format!("/workspaces/{ws}/loom/canvas-placements/{}", placements[0]),
+            serde_json::json!({"x": 1.0}),
+        )
+        .await;
+        let (status, _) = loom_create_request(
+            &router,
+            "DELETE",
+            &format!("/workspaces/{ws}/loom/canvas-visual-edges/{visual_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::NO_CONTENT, "visual edge delete");
+        let (status, card) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/canvas-boards/{canvas_id}/cards"),
+            &headers,
+            serde_json::json!({"title": "C3 text card", "body": "card body", "x": 40.0, "y": 40.0, "w": 200.0, "h": 120.0}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "text card: {card}");
+        let text_placement = card["placement"]["placement_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let (status, undone) = loom_create_request(
+            &router,
+            "DELETE",
+            &format!("/workspaces/{ws}/loom/canvas-placements/{text_placement}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "text-card undo removes its placement: {undone}"
+        );
+        let mut left = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN array::len(SELECT id FROM loom_canvas_placements WHERE placement_id = $placement);".to_owned(),
+                serde_json::json!({"placement": text_placement}),
+            )
+            .await
+            .unwrap();
+        assert_eq!(left.take::<Option<i64>>(0).unwrap(), Some(0));
     }
 }
 
