@@ -2935,9 +2935,12 @@ async fn test_datastore_sync_never_reaches_the_engine_endpoint(
     let root = test_store_root()?.join(format!("sync-never-{}", Uuid::now_v7().simple()));
     std::fs::create_dir_all(&root)?;
     let store_dir = root.join("store");
-    let default_config = SurrealStorageConfig::with_path(&store_dir)?;
+    // Durable-pinned stores ignore HANDSHAKE_TEST_SURREAL_SYNC, so this holds whether or not the
+    // runner exported it; every other test-support store follows the env switch.
+    let default_config =
+        SurrealStorageConfig::with_path(&store_dir)?.with_test_datastore_sync_durable();
     assert!(!default_config.test_datastore_sync_never());
-    let config = default_config.with_test_datastore_sync_never();
+    let config = SurrealStorageConfig::with_path(&store_dir)?.with_test_datastore_sync_never();
     assert!(config.test_datastore_sync_never());
     let storage = SurrealStorage::open(config).await?;
     storage

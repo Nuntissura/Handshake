@@ -103,7 +103,8 @@ pub fn spawn_and_hard_kill_child(root: &Path) -> KilledChildEvidence {
 pub async fn seed_closed_recovery_store(data_dir: &Path) -> SeededRecoveryEvidence {
     let storage = SurrealStorage::open(
         SurrealStorageConfig::for_data_dir(data_dir)
-            .expect("configure real-binary recovery seed store"),
+            .expect("configure real-binary recovery seed store")
+            .with_test_datastore_sync_durable(),
     )
     .await
     .expect("open real-binary recovery seed store");
@@ -210,7 +211,8 @@ async fn run_child_entrypoint_from_env() {
     let ready_file =
         PathBuf::from(std::env::var_os(CHILD_READY_FILE_ENV).expect("MT-195 child ready file"));
     let storage = SurrealStorage::open(
-        SurrealStorageConfig::for_data_dir(&data_dir).expect("configure MT-195 child store"),
+        SurrealStorageConfig::for_data_dir(&data_dir).expect("configure MT-195 child store")
+            .with_test_datastore_sync_durable(),
     )
     .await
     .expect("open MT-195 child store");

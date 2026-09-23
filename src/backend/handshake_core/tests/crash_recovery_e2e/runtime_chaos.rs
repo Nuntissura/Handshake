@@ -242,7 +242,8 @@ async fn mt195_runtime_hard_kill_child_leaves_reopened_checkpoint_and_active_pro
 
     let storage = SurrealStorage::open(
         SurrealStorageConfig::for_data_dir(&killed.data_dir)
-            .expect("configure killed-child store reopen"),
+            .expect("configure killed-child store reopen")
+            .with_test_datastore_sync_durable(),
     )
     .await
     .expect("reopen killed-child embedded store");
@@ -367,7 +368,8 @@ async fn mt195_runtime_real_handshake_core_binary_runs_startup_recovery_and_pers
 
     let storage = SurrealStorage::open(
         SurrealStorageConfig::for_data_dir(&data_dir)
-            .expect("configure product-recovered store reopen"),
+            .expect("configure product-recovered store reopen")
+            .with_test_datastore_sync_durable(),
     )
     .await
     .expect("reopen product-recovered store");
@@ -453,7 +455,8 @@ async fn mt195_runtime_event_gap_persists_failed_report_and_decision_evidence() 
     let killed = crate::runtime_child::spawn_and_hard_kill_child(root.path());
     let storage = SurrealStorage::open(
         SurrealStorageConfig::for_data_dir(&killed.data_dir)
-            .expect("configure event-gap store reopen"),
+            .expect("configure event-gap store reopen")
+            .with_test_datastore_sync_durable(),
     )
     .await
     .expect("reopen event-gap store");
@@ -491,7 +494,8 @@ async fn mt195_runtime_operator_cancel_persists_failed_report_and_decision_evide
     let killed = crate::runtime_child::spawn_and_hard_kill_child(root.path());
     let storage = SurrealStorage::open(
         SurrealStorageConfig::for_data_dir(&killed.data_dir)
-            .expect("configure operator-cancel store reopen"),
+            .expect("configure operator-cancel store reopen")
+            .with_test_datastore_sync_durable(),
     )
     .await
     .expect("reopen operator-cancel store");
@@ -536,7 +540,8 @@ async fn mt195_runtime_transient_embedded_unavailable_backs_off_and_resumes_afte
                     }
                     let storage = SurrealStorage::open(
                         SurrealStorageConfig::for_data_dir(&data_dir)
-                            .expect("configure transient-return store"),
+                            .expect("configure transient-return store")
+                            .with_test_datastore_sync_durable(),
                     )
                     .await?;
                     bootstrap_schema(&storage).await?;

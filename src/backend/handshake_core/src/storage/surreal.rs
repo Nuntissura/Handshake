@@ -309,6 +309,9 @@ pub struct SurrealStorageConfig {
     /// TEST-ONLY (IV 2026-09-23): open RocksDB with `?sync=never`. Always false outside test
     /// support; see [`Self::with_test_sync_from_env`].
     test_datastore_sync_never: bool,
+    /// TEST-ONLY: keep the engine default (`Every`) even when [`HANDSHAKE_TEST_SURREAL_SYNC_ENV`]
+    /// is `never`; for crash/durability proofs. See [`Self::with_test_datastore_sync_durable`].
+    test_datastore_sync_durable: bool,
 }
 
 /// TEST-ONLY switch read by the test-support store openers: `never` disables the per-commit WAL
@@ -358,6 +361,7 @@ impl SurrealStorageConfig {
             engine_query_timeout: None,
             engine_transaction_timeout: None,
             test_datastore_sync_never: false,
+            test_datastore_sync_durable: false,
         })
     }
 
@@ -381,7 +385,26 @@ impl SurrealStorageConfig {
         self
     }
 
+    /// TEST-ONLY: pin this store to the engine default sync (`Every`) regardless of
+    /// [`HANDSHAKE_TEST_SURREAL_SYNC_ENV`]. Crash/durability proofs use it on every open and reopen.
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    pub fn with_test_datastore_sync_durable(mut self) -> Self {
+        self.test_datastore_sync_never = false;
+        self.test_datastore_sync_durable = true;
+        self
+    }
+
+    /// Whether this store opens with `?sync=never`. Test-support builds apply
+    /// [`HANDSHAKE_TEST_SURREAL_SYNC_ENV`]`=never` to EVERY opener (first open and reopen alike, so
+    /// the endpoint form never differs between them), unless the config is pinned durable. Without
+    /// test support only the explicit flag counts, and nothing sets it.
     pub fn test_datastore_sync_never(&self) -> bool {
+        #[cfg(any(test, feature = "surreal-test-support"))]
+        if !self.test_datastore_sync_durable
+            && env::var(HANDSHAKE_TEST_SURREAL_SYNC_ENV).as_deref() == Ok("never")
+        {
+            return true;
+        }
         self.test_datastore_sync_never
     }
 
