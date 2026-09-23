@@ -25,7 +25,7 @@
   "title": "B18-MT-158-Locus-Job-Path-Runs-Under-The-Account-Session",
   "group": "B18",
   "created_at_utc": "2026-09-23T15:01:47.520Z",
-  "updated_at_utc": "2026-09-23T22:31:51.277Z",
+  "updated_at_utc": "2026-09-23T23:43:15.504Z",
   "identity": {
     "mt_id": "MT-158",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -49,13 +49,13 @@
     "question": "Locus job-path authority gap found by KERNEL_BUILDER-C4 (MT-154 residual): option A (new MT inside WP-KERNEL-012) vs the 012-bis refactor."
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-154"
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": "BLOCKED_ON_DEPENDENCY",
+    "validator_verdict": null,
     "validated_by": "WP_VALIDATOR-D1V-20260923-2240",
     "validated_at_utc": "2026-09-23T22:31:51.277Z",
     "completed_by": null,
@@ -64,7 +64,14 @@
     "created_by": "KERNEL_BUILDER-C4-20260923-100258 (KB-PREP-002, IV-directed)",
     "created_at_utc": "2026-09-23T15:01:47.520Z",
     "origin": "operator_decision_2026-09-23_option_A",
-    "creation_reason": "MT-154 residual: POST /jobs (api/jobs.rs:194, no session layer) -> run_job (workflows.rs:10508) -> locus_store writers ran as root, so the account-owned work_packets/micro_tasks rows (D-154-3) were never owned by any account, and mt_iterations/dependencies stayed PERMISSIONS NONE."
+    "creation_reason": "MT-154 residual: POST /jobs (api/jobs.rs:194, no session layer) -> run_job (workflows.rs:10508) -> locus_store writers ran as root, so the account-owned work_packets/micro_tasks rows (D-154-3) were never owned by any account, and mt_iterations/dependencies stayed PERMISSIONS NONE.",
+    "ready_for_validation_transition_2": {
+      "at_utc": "2026-09-23T23:43:15.504Z",
+      "by": "INTEGRATION_VALIDATOR on Operator direction 2026-09-24 (remediated MTs are READY_FOR_VALIDATION)",
+      "from_status": "BLOCKED_ON_DEPENDENCY",
+      "prior_validator_verdict": "BLOCKED_ON_DEPENDENCY",
+      "reason": "dependency MT-154-WS-DELETE-INDEX fixed in 56573ecb (feat e85a69fc)"
+    }
   },
   "closure_unit": {
     "outcome": "A Locus job (job_kind locus_operation) can be created and resumed only through an authenticated account session holding the named workspace's write grant. The job and every Locus row it writes (work_packets, micro_tasks, mt_iterations, dependencies, the dependency-graph anchor) are written by the account's record user and are private to that account.",

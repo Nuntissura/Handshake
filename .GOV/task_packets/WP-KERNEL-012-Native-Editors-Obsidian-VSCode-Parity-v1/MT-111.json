@@ -22,7 +22,7 @@
   "title": "B3-MT-111-Frontend-FlightRecorder-Callers-To-Workspace-Scoped-Authorized-Routes",
   "group": "B-Backend-Contract",
   "created_at_utc": "2026-08-05T12:42:00.438Z",
-  "updated_at_utc": "2026-09-23T06:14:41.580Z",
+  "updated_at_utc": "2026-09-23T23:43:15.504Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-109"
@@ -39,7 +39,7 @@
     "blocks": [
       "MT-066"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": null,
     "claimed_by": null,
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
@@ -107,7 +107,14 @@
     "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
     "validated_at_utc": "2026-09-16T23:19:52.985Z",
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER"
+    "next_actor": "WP_VALIDATOR",
+    "ready_for_validation_transition_2": {
+      "at_utc": "2026-09-23T23:43:15.504Z",
+      "by": "INTEGRATION_VALIDATOR on Operator direction 2026-09-24 (remediated MTs are READY_FOR_VALIDATION)",
+      "from_status": "BLOCKED_ON_DEPENDENCY",
+      "prior_validator_verdict": "FAIL_V1",
+      "reason": "remediation_v4 newer than last validation"
+    }
   },
   "scope": {
     "summary": "Rewire every Handshake frontend caller of the flight-recorder API onto the MT-109 workspace-scoped, capability-gated routes, sending the native-MCP session binding token, and stop sending client-authored actor/workspace identity that the backend now derives and rejects on mismatch.",
