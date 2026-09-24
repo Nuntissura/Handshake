@@ -1231,16 +1231,20 @@ fn real_image_resolve_against_live_backend() {
     let mut backend = backend_proof_support::require_live_backend();
     let workspace_id = backend.workspace_id.clone();
     let base_url = backend.base.trim_end_matches('/').to_owned();
-    let asset_id = seed_asset(&backend, &workspace_id, &sized_png(48, 24), "mt014-live-resolve.png");
+    let asset_id = seed_asset(
+        &backend,
+        &workspace_id,
+        &sized_png(48, 24),
+        "mt014-live-resolve.png",
+    );
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
         .build()
         .expect("managed asset proof tokio runtime");
-    let fetcher = Arc::new(
-        ReqwestAssetFetcher::new(&base_url).with_authenticated_context(backend.account()),
-    );
+    let fetcher =
+        Arc::new(ReqwestAssetFetcher::new(&base_url).with_authenticated_context(backend.account()));
     let resolved = rt
         .block_on(async {
             resolve_one(
