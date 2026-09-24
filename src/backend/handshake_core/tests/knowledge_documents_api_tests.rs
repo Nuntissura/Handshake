@@ -46,7 +46,7 @@ use handshake_core::storage::knowledge::KnowledgeStore;
 use handshake_core::storage::surreal::RowFilter;
 use handshake_core::storage::{
     Database, LoomBlockContentType, LoomBlockDerived, LoomEdgeCreatedBy, LoomEdgeType,
-    NewLoomBlock, NewLoomCanvasPlacement, NewLoomEdge, WriteContext,
+    NewLoomBlock, NewLoomEdge, WriteContext,
 };
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
@@ -1758,67 +1758,40 @@ async fn mt032_delete_is_atomic_and_removes_canvas_references() {
     .expect("restore projector-owned edge");
     assert_eq!(restored.status(), 200);
 
-    let canvas_block = store
-        .db
-        .create_loom_block(
-            &write_ctx,
-            NewLoomBlock {
-                block_id: None,
-                workspace_id: workspace_id.clone(),
-                content_type: LoomBlockContentType::Canvas,
-                document_id: None,
-                asset_id: None,
-                title: Some("MT032 Delete Canvas".to_owned()),
-                original_filename: None,
-                content_hash: None,
-                pinned: false,
-                journal_date: None,
-                imported_at: None,
-                derived: LoomBlockDerived::default(),
-            },
-        )
+    // The cleanup must exercise the owner's real board grant, not a root-only fixture.
+    let (loom_base, loom_http, loom_server) = loom_server(&store, &account).await;
+    let canvas_response = headers_with_kind(
+        loom_http.post(format!(
+            "{loom_base}/workspaces/{workspace_id}/loom/canvas-boards"
+        )),
+        "mt032-delete-canvas-create",
+        "operator",
+    )
+    .json(&json!({"title": "MT032 Delete Canvas"}))
+    .send()
+    .await
+    .expect("create owner-authorized delete canvas");
+    assert_eq!(canvas_response.status(), 200);
+    let canvas_block: handshake_core::storage::LoomCanvasBoard =
+        canvas_response.json().await.expect("owner canvas response");
+    let placement_response = headers_with_kind(
+        loom_http.post(format!(
+            "{loom_base}/workspaces/{workspace_id}/loom/canvas-boards/{}/placements",
+            canvas_block.block_id,
+        )),
+        "mt032-delete-canvas-place",
+        "operator",
+    )
+    .json(&json!({"placed_block_id": document_id, "x": 0.0, "y": 0.0, "w": 320.0, "h": 180.0}))
+    .send()
+    .await
+    .expect("place delete target through owner route");
+    assert_eq!(placement_response.status(), 200);
+    let placement: handshake_core::storage::LoomCanvasPlacement = placement_response
+        .json()
         .await
-        .expect("create delete canvas block");
-    store
-        .db
-        .bridge_loom_block_to_knowledge(&write_ctx, &workspace_id, &canvas_block.block_id)
-        .await
-        .expect("bridge delete canvas block");
-    store
-        .db
-        .create_canvas_board(
-            &write_ctx,
-            &workspace_id,
-            &canvas_block.block_id,
-            json!({
-                "schema_id": "hsk.loom_canvas_board@1",
-                "pan_x": 0.0,
-                "pan_y": 0.0,
-                "zoom": 1.0
-            }),
-        )
-        .await
-        .expect("create delete canvas board");
-    let placement = store
-        .db
-        .place_block_on_canvas(
-            &write_ctx,
-            NewLoomCanvasPlacement {
-                canvas_block_id: canvas_block.block_id.clone(),
-                workspace_id: workspace_id.clone(),
-                placed_block_id: document_id.clone(),
-                x: 0.0,
-                y: 0.0,
-                w: 320.0,
-                h: 180.0,
-                z_index: 0,
-                group_id: None,
-                is_text_card: false,
-                stage_provenance_key: None,
-            },
-        )
-        .await
-        .expect("place delete target on canvas");
+        .expect("owner placement response");
+    loom_server.shutdown().await;
     let source_before = store
         .db
         .get_knowledge_source_by_document_id(&workspace_id, &document_id)

@@ -2149,6 +2149,7 @@ impl SurrealDatabase {
             DELETE knowledge_rich_document_drafts WHERE rich_document_id = $document; \
             DELETE loom_canvas_placements WHERE workspace_id = $workspace \
                 AND placed_block_id = $block; \
+            IF array::len(SELECT VALUE id FROM loom_canvas_placements WHERE workspace_id = $workspace AND placed_block_id = $block LIMIT 1) != 0 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
             IF array::len((DELETE $block WHERE workspace_id = $workspace \
                 AND block_id = $doc_id AND content_type = 'note' RETURN BEFORE)) != 1 { \
                 THROW 'HSK-KRD-LOOM-IDENTITY'; \
@@ -2289,11 +2290,15 @@ async fn delete_owned_document_execute(
     // That guard enforces live delete authority and receipt identity; any denial
     // rolls back this entire transaction, including all earlier projection writes.
     // Keep the caller/receipt bindings here and the revocation write anchors below.
-    let guard = "IF $creator != $auth.id { THROW 'HSK-403-PROTECTED-RESOURCE:delete-session'; }; IF $event.authority_resource_id != $owned_resource OR $event.authority_session_id != $auth.id { THROW 'HSK-403-PROTECTED-RESOURCE:delete-event-authority'; }; IF $event.authority_action != 'delete' OR $event.authority_capability_id != 'fs.write' { THROW 'HSK-403-PROTECTED-RESOURCE:delete-event-action'; }; IF $block.source_rich_document_id != $document OR $block.content_hash != $document.content_sha256 OR array::len(SELECT VALUE id FROM loom_canvas_placements WHERE workspace_id = $workspace AND placed_block_id = $block LIMIT 1) != 0 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len(SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND (source_block_id = $block OR target_block_id = $block) AND (source_block_id.source_rich_document_id = NONE OR target_block_id.source_rich_document_id = NONE) LIMIT 1) != 0 { THROW 'HSK-403-PROTECTED-RESOURCE'; };";
+    let guard = "IF $creator != $auth.id { THROW 'HSK-403-PROTECTED-RESOURCE:delete-session'; }; IF $event.authority_resource_id != $owned_resource OR $event.authority_session_id != $auth.id { THROW 'HSK-403-PROTECTED-RESOURCE:delete-event-authority'; }; IF $event.authority_action != 'delete' OR $event.authority_capability_id != 'fs.write' { THROW 'HSK-403-PROTECTED-RESOURCE:delete-event-action'; }; IF $block.source_rich_document_id != $document OR $block.content_hash != $document.content_sha256 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len(SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND (source_block_id = $block OR target_block_id = $block) AND (source_block_id.source_rich_document_id = NONE OR target_block_id.source_rich_document_id = NONE) LIMIT 1) != 0 { THROW 'HSK-403-PROTECTED-RESOURCE'; };";
     let anchors = "LET $creator_account = $creator.account_id; LET $creator_principal = $creator.principal_id; LET $creator_space = $creator.access_space_id; IF $authorizing_grant = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator_account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator_principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator_space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $owned_resource SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $authorizing_grant SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };";
+    // Surreal 3.2 classifies a standalone parameter-field IF/LET as Root context,
+    // but dereferencing record fields (including $auth.id) requires Database context.
+    // Keep the unchanged guards and anchor UPDATEs in one block: its write statements
+    // establish Database context for every preceding guard and anchor dereference.
     let statement = statement.replacen(
         "BEGIN TRANSACTION;",
-        &format!("BEGIN TRANSACTION; {guard} {anchors}"),
+        &format!("BEGIN TRANSACTION; {{ {guard} {anchors} }};"),
         1,
     );
     raw_execute(storage, statement, binds).await

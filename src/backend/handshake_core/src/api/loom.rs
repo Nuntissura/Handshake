@@ -5695,23 +5695,13 @@ async fn place_block_on_canvas(
             }),
         )
     })?;
-    let source_authority = crate::api::authority::authorize_request(
+    let source_account = loom_block_account(
         &state,
         &headers,
-        "fs.read",
-        ResourceKind::LoomBlock,
         &payload.placed_block_id,
         ResourceAction::Read,
     )
-    .await
-    .map_err(|_| {
-        (
-            StatusCode::FORBIDDEN,
-            Json(ErrorResponse {
-                error: "HSK-403-PROTECTED-RESOURCE",
-            }),
-        )
-    })?;
+    .await?;
     let ctx = loom_create_write_context(&board_authority)?;
     let database = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
     let receipt = state
@@ -5735,7 +5725,7 @@ async fn place_block_on_canvas(
                     is_text_card: false,
                     stage_provenance_key: None,
                 },
-                source_authority.record_user_scope,
+                source_account.authority.record_user_scope,
             ),
         )
         .await
