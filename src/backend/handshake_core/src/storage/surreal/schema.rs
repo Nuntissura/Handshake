@@ -5064,6 +5064,7 @@ pub(super) fn workspace_cascade_edges() -> Result<Vec<(String, String, String)>,
     let mut edges = Vec::new();
     for line in SCHEMA
         .lines()
+        .filter(|line| !line.trim_start().starts_with("--"))
         .filter(|line| line.contains("REFERENCE ON DELETE CASCADE"))
     {
         let tokens = line.split_whitespace().collect::<Vec<_>>();
@@ -9126,7 +9127,12 @@ mod tests {
                     ))
                 })
                 .unwrap_or_else(|| panic!("missing business-key alias {table}.{field}"));
-            assert!(definition.contains("ASSERT $value = record::id($this.id)"));
+            let identity = if table == "work_packets" {
+                "ASSERT $value = fn::mt159_locus_key_id(record::id($this.id))"
+            } else {
+                "ASSERT $value = record::id($this.id)"
+            };
+            assert!(definition.contains(identity), "identity alias {table}.{field}");
         }
         assert_eq!(
             SCHEMA.matches("record::id($this.id)").count(),

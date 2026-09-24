@@ -72,6 +72,27 @@ fn workspace_cascade_guards() -> Result<String, SurrealStorageError> {
     }
     let supported = BTreeSet::from([
         "workspaces",
+        "assets",
+        "media_asset_tiers",
+        "calendar_activity_spans",
+        "calendar_events",
+        "calendar_sources",
+        "canvases",
+        "canvas_nodes",
+        "canvas_edges",
+        "knowledge_debug_breakpoints",
+        "knowledge_quick_switcher_recents",
+        "knowledge_wiki_projections",
+        "loom_ai_suggestions",
+        "loom_canvas_boards",
+        "loom_canvas_placements",
+        "loom_canvas_visual_edges",
+        "loom_collections",
+        "loom_collection_members",
+        "loom_folders",
+        "loom_folder_members",
+        "loom_wiki_overlays",
+        "stage_capture_artifacts",
         "knowledge_rich_documents",
         "knowledge_rich_document_versions",
         "knowledge_rich_document_drafts",
@@ -705,15 +726,17 @@ mod cascade_guard_tests {
     #[test]
     fn workspace_cascade_graph_is_cycle_safe_and_checks_transitive_provenance() {
         let query = super::workspace_cascade_guards().expect("closed schema graph");
-        assert!(query.contains("FROM loom_folders WHERE workspace_id = $workspace"));
+        assert!(query.contains("FROM loom_folders WHERE workspace_id IN"));
         assert!(query.contains("FROM knowledge_rich_document_drafts WHERE rich_document_id IN"));
         assert!(query.contains("FROM knowledge_code_files WHERE workspace_id = $workspace"));
-        assert!(query.contains("FROM calendar_sources WHERE workspace_id = $workspace"));
+        assert!(query.contains("FROM calendar_sources WHERE workspace_id IN"));
         assert!(query.contains("AND (workspace_id = $workspace) != true"));
         let privileged_checks = query.replace("THROW 'HSK-403-PROTECTED-RESOURCE'", "RETURN false");
-        assert!(
-            include_str!("schema.surql").contains(&privileged_checks),
-            "schema permission closure must contain every current declarative graph guard"
-        );
+        for guard in privileged_checks.lines() {
+            assert!(
+                include_str!("schema.surql").lines().any(|line| line == guard),
+                "schema permission closure is missing declarative graph guard: {guard}"
+            );
+        }
     }
 }
