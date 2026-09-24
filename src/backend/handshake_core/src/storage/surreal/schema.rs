@@ -5115,6 +5115,20 @@ pub(super) fn resource_authority_schema_statements() -> String {
     )
 }
 
+/// The MT-154 authority block of the compiled SCHEMA (functions only, e.g. fn::mt154_workspace_receipt)
+/// that the C4 kernel_event_ledger / Atelier / job permissions call. Bounded authority schemas append it
+/// so a permission branch that reaches one of these functions evaluates instead of erroring.
+pub(super) fn mt154_authority_function_block() -> &'static str {
+    let start = SCHEMA
+        .find(MT154_AUTHORITY_BLOCK_BEGIN)
+        .expect("canonical schema carries the MT-154 authority block");
+    let end = SCHEMA[start..]
+        .find(MT154_AUTHORITY_BLOCK_END)
+        .map(|offset| start + offset + MT154_AUTHORITY_BLOCK_END.len())
+        .expect("MT-154 authority block must terminate");
+    &SCHEMA[start..end]
+}
+
 fn resource_authority_upgrade_statements() -> String {
     format!(
         "{}\n{}",

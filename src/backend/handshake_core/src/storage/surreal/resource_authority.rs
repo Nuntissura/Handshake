@@ -482,8 +482,14 @@ impl SurrealStorage {
             Box::pin(async move {
                 let authority = client.clone();
                 authority.use_ns(namespace).use_db(database.clone()).await?;
+                // MT-154: the authority tables' permissions call the MT-154 authority-block
+                // functions; the bounded bootstrap defines them too (only functions, no tables).
                 authority
-                    .query(super::schema::resource_authority_schema_statements())
+                    .query(format!(
+                        "{}\n{}",
+                        super::schema::resource_authority_schema_statements(),
+                        super::schema::mt154_authority_function_block()
+                    ))
                     .await?
                     .check()?;
                 Ok(())
