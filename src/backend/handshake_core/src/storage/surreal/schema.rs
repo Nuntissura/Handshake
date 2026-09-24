@@ -2675,8 +2675,11 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // kb-c4 run 101.
 // MT-159 re-pin: model_session* job-scoped permissions (previous
 // 33f106de7ee1f2f5caa33fe7e2de5e61ba7d563d8064c727c89248dbc43fa86c); kb-c5 run 05.
+// MT-154 re-pin after d6d43a87 applied DDL: independent fresh embedded stores at
+// 4ffda19b observed f8902e15... (MT-109/wpv-c3x/logs/round-4ffda19b.stderr.log:
+// 3224, 3240, 3258). Keep the canonical INFO comparison and predecessor pins intact.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "0c59fb082fac2c52b79fc530c571794b8c933fde9305303ef11511093690a53a";
+    "f8902e153103c1a6e6dd2549b9fe64f27fdaac27e2bc443c1ba9343728adfcdf";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection

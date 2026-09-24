@@ -585,10 +585,12 @@ COMMIT TRANSACTION;
                 eprintln!(
                     "HSK_WORKSPACE_DELETE_TRANSACTION_FAILED statement_index={statement_index} error={error}"
                 );
-                // MT-109 C1-FDELETE probe (test builds only, env-gated): evaluate the numbered guard
-                // copy a test defined, on this exact record-user connection and scope.
+                // MT-157 C1-FDELETE (test builds only): statement 10 is the checked anchor DELETE.
+                // The cascade test installs this diagnostic copy; evaluate it on this exact
+                // record-user connection after rollback. Other tests may not install the copy,
+                // in which case the probe error is diagnostic only; retain the original error.
                 #[cfg(test)]
-                if std::env::var_os("HSK_C1_FDELETE_PROBE").is_some() {
+                if statement_index == 10 || std::env::var_os("HSK_C1_FDELETE_PROBE").is_some() {
                     let verdict = match broker
                         .query("RETURN fn::c1_probe_workspace_delete($external);")
                         .bind(("external", probe_external))
@@ -597,7 +599,7 @@ COMMIT TRANSACTION;
                         Ok(mut probe) => format!("{:?}", probe.take::<Option<String>>(0)),
                         Err(probe_error) => format!("probe error: {probe_error}"),
                     };
-                    eprintln!("C1_FDELETE_ROUTE_PROBE statement_index={statement_index} verdict={verdict}");
+                    eprintln!("C1_FDELETE_ROUTE_PROBE phase=after-rollback statement_index={statement_index} verdict={verdict}");
                 }
                 return Err(error.into());
             }
@@ -734,7 +736,9 @@ mod cascade_guard_tests {
         let privileged_checks = query.replace("THROW 'HSK-403-PROTECTED-RESOURCE'", "RETURN false");
         for guard in privileged_checks.lines() {
             assert!(
-                include_str!("schema.surql").lines().any(|line| line == guard),
+                include_str!("schema.surql")
+                    .lines()
+                    .any(|line| line == guard),
                 "schema permission closure is missing declarative graph guard: {guard}"
             );
         }

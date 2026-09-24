@@ -3053,9 +3053,10 @@ pub(crate) mod tests {
             before
         );
 
-        // MT-109 C1-FDELETE probe (env-gated): install a numbered copy of the workspace-delete guard;
-        // the real delete route evaluates it on its own record-user connection if it fails.
-        if std::env::var_os("HSK_C1_FDELETE_PROBE").is_some() {
+        // MT-157 C1-FDELETE: install a diagnostic copy in this test's database. The failing
+        // anchor-delete path evaluates it after rollback on the same record-user connection;
+        // the production predicate and transaction remain unchanged.
+        {
             let schema = include_str!("../storage/surreal/schema.surql");
             let start = schema
                 .find("DEFINE FUNCTION OVERWRITE fn::mt120_workspace_delete($external: string) {")
@@ -3064,7 +3065,8 @@ pub(crate) mod tests {
             let end = rest[1..].find("\nDEFINE ").ok_or("guard end")? + 1;
             let mut clauses = 0usize;
             let mut probe = String::new();
-            for line in rest[..end].lines() {
+            let source_line = schema[..start].lines().count() + 1;
+            for (offset, line) in rest[..end].lines().enumerate() {
                 let mut line = line.replace(
                     "fn::mt120_workspace_delete($external",
                     "fn::c1_probe_workspace_delete($external",
@@ -3072,15 +3074,16 @@ pub(crate) mod tests {
                 while let Some(at) = line.find("RETURN false;") {
                     clauses += 1;
                     eprintln!(
-                        "C1_FDELETE_CLAUSE {clauses}: {}",
-                        line.trim().chars().take(200).collect::<String>()
+                        "C1_FDELETE_CLAUSE {clauses} schema.surql:{}: {}",
+                        source_line + offset,
+                        line.trim()
                     );
                     line.replace_range(
                         at..at + "RETURN false;".len(),
                         &format!("RETURN 'clause-{clauses}';"),
                     );
                 }
-                probe.push_str(&line);
+                probe.push_str(&line.replace("RETURN true;", "RETURN 'allowed';"));
                 probe.push('\n');
             }
             state
