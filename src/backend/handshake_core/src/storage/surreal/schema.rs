@@ -10129,15 +10129,10 @@ mod tests {
             "MT-141 line drifted: {MT141_PROVENANCE_REF_ASSERT_LINE}"
         );
         assert_eq!(
-            base
-                .matches(PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE)
-                .count(),
+            base.matches(PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE).count(),
             0
         );
-        assert_eq!(
-            base.matches(MT141_SAVED_SEARCH_PROJECTION_BLOCK).count(),
-            1
-        );
+        assert_eq!(base.matches(MT141_SAVED_SEARCH_PROJECTION_BLOCK).count(), 1);
         for (current, previous) in [
             (MT141_LOOM_PIN_ORDER_LINE, PRE_MT141_LOOM_PIN_ORDER_LINE),
             (
@@ -10160,10 +10155,7 @@ mod tests {
             );
             assert_eq!(base.matches(previous).count(), 0);
         }
-        assert_eq!(
-            base.matches(MT141_AI_EDIT_APPLIED_BINDING_LINES).count(),
-            1
-        );
+        assert_eq!(base.matches(MT141_AI_EDIT_APPLIED_BINDING_LINES).count(), 1);
         let pinned = pre_account_setup_schema()
             .replace(
                 MT141_PROVENANCE_REF_ASSERT_LINE,

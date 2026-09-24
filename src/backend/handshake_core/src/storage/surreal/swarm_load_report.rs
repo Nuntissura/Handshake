@@ -365,7 +365,11 @@ impl SwarmLoadReport {
             match self.operation_mix.get(&class) {
                 None => problems.push(format!("operation_mix is missing required class {class:?}")),
                 Some(entry) if entry.status == OperationRunStatus::Run => {
-                    let attempted = self.attempted_by_operation.get(&class).copied().unwrap_or(0);
+                    let attempted = self
+                        .attempted_by_operation
+                        .get(&class)
+                        .copied()
+                        .unwrap_or(0);
                     if attempted == 0 {
                         problems.push(format!(
                             "operation class {class:?} is marked run but attempted 0 operations"
@@ -403,7 +407,10 @@ impl SwarmLoadReport {
             }
         }
         for (name, value) in [
-            ("per_operation_timeout_ms", self.budgets.per_operation_timeout_ms),
+            (
+                "per_operation_timeout_ms",
+                self.budgets.per_operation_timeout_ms,
+            ),
             ("per_worker_timeout_ms", self.budgets.per_worker_timeout_ms),
             ("whole_test_timeout_ms", self.budgets.whole_test_timeout_ms),
         ] {
@@ -451,13 +458,17 @@ impl SwarmLoadReport {
 fn check_percentiles(field: &str, report: &PercentileReport, problems: &mut Vec<String>) {
     if let PercentileReport::Measured(percentiles) = report {
         if percentiles.sample_count == 0 {
-            problems.push(format!("{field} is measured with sample_count 0; use not_run"));
+            problems.push(format!(
+                "{field} is measured with sample_count 0; use not_run"
+            ));
         }
         let finite = [percentiles.p50_ms, percentiles.p95_ms, percentiles.p99_ms]
             .iter()
             .all(|value| value.is_finite() && *value >= 0.0);
         if !finite {
-            problems.push(format!("{field} percentiles must be finite and non-negative"));
+            problems.push(format!(
+                "{field} percentiles must be finite and non-negative"
+            ));
         }
     }
 }
@@ -476,7 +487,11 @@ fn check_rate(field: &str, rate: &Rate, problems: &mut Vec<String>) {
     }
 }
 
-fn collect_forbidden_strings(value: &serde_json::Value, path: &str, offending: &mut BTreeSet<String>) {
+fn collect_forbidden_strings(
+    value: &serde_json::Value,
+    path: &str,
+    offending: &mut BTreeSet<String>,
+) {
     match value {
         serde_json::Value::String(text) => {
             if let Some(fragment) = forbidden_fragment(text) {
@@ -491,7 +506,9 @@ fn collect_forbidden_strings(value: &serde_json::Value, path: &str, offending: &
         serde_json::Value::Object(fields) => {
             for (key, item) in fields {
                 if let Some(fragment) = forbidden_fragment(key) {
-                    offending.insert(format!("{path}.{key} key contains forbidden fragment {fragment:?}"));
+                    offending.insert(format!(
+                        "{path}.{key} key contains forbidden fragment {fragment:?}"
+                    ));
                 }
                 collect_forbidden_strings(item, &format!("{path}.{key}"), offending);
             }
@@ -704,7 +721,12 @@ mod tests {
         });
         assert_eq!(report.evaluate_budgets(), BudgetVerdict::Regression);
         let problems = report.validate().expect_err("stale verdict must fail");
-        assert!(problems.iter().any(|p| p.starts_with("budget_verdict Pass")), "{problems:?}");
+        assert!(
+            problems
+                .iter()
+                .any(|p| p.starts_with("budget_verdict Pass")),
+            "{problems:?}"
+        );
         report.budget_verdict = BudgetVerdict::Regression;
         assert_eq!(report.validate(), Ok(()));
 
@@ -716,7 +738,12 @@ mod tests {
 
         report.budgets.per_worker_timeout_ms = 0;
         let problems = report.validate().expect_err("zero budget must fail");
-        assert!(problems.iter().any(|p| p == "budgets.per_worker_timeout_ms must be > 0"), "{problems:?}");
+        assert!(
+            problems
+                .iter()
+                .any(|p| p == "budgets.per_worker_timeout_ms must be > 0"),
+            "{problems:?}"
+        );
     }
 
     #[test]
@@ -726,12 +753,23 @@ mod tests {
         let mut report = well_formed_report();
         report.effective_parallelism.wall_clock_ms = 0;
         let problems = report.validate().expect_err("zero wall clock must fail");
-        assert!(problems.iter().any(|p| p == "effective_parallelism wall_clock_ms must be > 0"), "{problems:?}");
+        assert!(
+            problems
+                .iter()
+                .any(|p| p == "effective_parallelism wall_clock_ms must be > 0"),
+            "{problems:?}"
+        );
         let mut report = well_formed_report();
         report.effective_parallelism.ratio = 1.0;
         let problems = report.validate().expect_err("inconsistent ratio must fail");
-        assert!(problems.iter().any(|p| p.starts_with("effective_parallelism ratio 1")), "{problems:?}");
-        let value = serde_json::to_value(FailureClass::ExpectedStaleOrConflict).expect("serializes");
+        assert!(
+            problems
+                .iter()
+                .any(|p| p.starts_with("effective_parallelism ratio 1")),
+            "{problems:?}"
+        );
+        let value =
+            serde_json::to_value(FailureClass::ExpectedStaleOrConflict).expect("serializes");
         assert_eq!(value, "expected_stale_or_conflict");
     }
 
@@ -750,7 +788,10 @@ mod tests {
             .insert(OperationClass::Delete, measured(1.0, 1.0, 1.0, 0));
         let problems = report.validate().expect_err("zero samples must fail");
         assert_eq!(problems.len(), 2, "{problems:?}");
-        assert!(problems.iter().all(|p| p.contains("sample_count 0")), "{problems:?}");
+        assert!(
+            problems.iter().all(|p| p.contains("sample_count 0")),
+            "{problems:?}"
+        );
 
         report.lock_wait_ms_p50_p95_p99 = PercentileReport::NotRun;
         report
@@ -773,8 +814,18 @@ mod tests {
             rate: 0.5,
         };
         let problems = report.validate().expect_err("bad rates must fail");
-        assert!(problems.iter().any(|p| p == "conflict_rate denominator must be > 0"), "{problems:?}");
-        assert!(problems.iter().any(|p| p.starts_with("retry_rate rate 0.5")), "{problems:?}");
+        assert!(
+            problems
+                .iter()
+                .any(|p| p == "conflict_rate denominator must be > 0"),
+            "{problems:?}"
+        );
+        assert!(
+            problems
+                .iter()
+                .any(|p| p.starts_with("retry_rate rate 0.5")),
+            "{problems:?}"
+        );
         assert!(Rate::new(3, 0).is_none());
     }
 
@@ -782,11 +833,25 @@ mod tests {
     fn validate_requires_every_required_operation_class() {
         let mut report = well_formed_report();
         report.operation_mix.remove(&OperationClass::Delete);
-        report.attempted_by_operation.insert(OperationClass::Create, 0);
-        report.succeeded_by_operation.insert(OperationClass::Create, 0);
+        report
+            .attempted_by_operation
+            .insert(OperationClass::Create, 0);
+        report
+            .succeeded_by_operation
+            .insert(OperationClass::Create, 0);
         let problems = report.validate().expect_err("missing class must fail");
-        assert!(problems.iter().any(|p| p.contains("missing required class Delete")), "{problems:?}");
-        assert!(problems.iter().any(|p| p.contains("Create is marked run but attempted 0")), "{problems:?}");
+        assert!(
+            problems
+                .iter()
+                .any(|p| p.contains("missing required class Delete")),
+            "{problems:?}"
+        );
+        assert!(
+            problems
+                .iter()
+                .any(|p| p.contains("Create is marked run but attempted 0")),
+            "{problems:?}"
+        );
 
         let mut report = well_formed_report();
         report.operation_mix.insert(
@@ -796,8 +861,12 @@ mod tests {
                 status: OperationRunStatus::NotRun,
             },
         );
-        report.attempted_by_operation.insert(OperationClass::Create, 0);
-        report.succeeded_by_operation.insert(OperationClass::Create, 0);
+        report
+            .attempted_by_operation
+            .insert(OperationClass::Create, 0);
+        report
+            .succeeded_by_operation
+            .insert(OperationClass::Create, 0);
         assert_eq!(report.validate(), Ok(()));
     }
 
@@ -815,14 +884,28 @@ mod tests {
             let mut report = well_formed_report();
             report.run_id = text.to_string();
             let problems = report.validate().expect_err(text);
-            assert!(problems.iter().any(|p| p.starts_with("$.run_id contains forbidden fragment")), "{problems:?}");
+            assert!(
+                problems
+                    .iter()
+                    .any(|p| p.starts_with("$.run_id contains forbidden fragment")),
+                "{problems:?}"
+            );
         }
         let mut report = well_formed_report();
-        report
-            .reopen_integrity_counts_and_hashes
-            .insert("/home/x".to_string(), IntegrityEntry { row_count: 1, content_hash: "h".to_string() });
+        report.reopen_integrity_counts_and_hashes.insert(
+            "/home/x".to_string(),
+            IntegrityEntry {
+                row_count: 1,
+                content_hash: "h".to_string(),
+            },
+        );
         let problems = report.validate().expect_err("forbidden map key must fail");
-        assert!(problems.iter().any(|p| p.contains("key contains forbidden fragment")), "{problems:?}");
+        assert!(
+            problems
+                .iter()
+                .any(|p| p.contains("key contains forbidden fragment")),
+            "{problems:?}"
+        );
     }
 
     #[test]
@@ -830,7 +913,9 @@ mod tests {
         let mut report = well_formed_report();
         report.reopen_integrity_counts_and_hashes.clear();
         report.remote_proof_status = RemoteProofStatus::Pass;
-        let problems = report.validate().expect_err("inconsistent verdicts must fail");
+        let problems = report
+            .validate()
+            .expect_err("inconsistent verdicts must fail");
         assert_eq!(problems.len(), 2, "{problems:?}");
     }
 
@@ -841,14 +926,17 @@ mod tests {
         let object = value.as_object().expect("report is an object");
         let actual: BTreeSet<&str> = object.keys().map(String::as_str).collect();
         for field in CONTRACT_FIELDS {
-            assert!(actual.contains(field), "contract field {field} missing from {actual:?}");
+            assert!(
+                actual.contains(field),
+                "contract field {field} missing from {actual:?}"
+            );
         }
-        let allowed: BTreeSet<&str> = CONTRACT_FIELDS
-            .into_iter()
-            .chain(EXTRA_FIELDS)
-            .collect();
+        let allowed: BTreeSet<&str> = CONTRACT_FIELDS.into_iter().chain(EXTRA_FIELDS).collect();
         let unexpected: Vec<&str> = actual.difference(&allowed).copied().collect();
-        assert!(unexpected.is_empty(), "unexpected serialised keys: {unexpected:?}");
+        assert!(
+            unexpected.is_empty(),
+            "unexpected serialised keys: {unexpected:?}"
+        );
         assert_eq!(object.len(), CONTRACT_FIELDS.len() + EXTRA_FIELDS.len());
 
         assert_eq!(value["engine_mode"], "embedded_rocks_db");
@@ -870,7 +958,10 @@ mod tests {
     #[test]
     fn nearest_rank_percentiles() {
         assert!(percentiles_from_samples(&mut []).is_none());
-        assert_eq!(percentile_report_from_samples(&mut []), PercentileReport::NotRun);
+        assert_eq!(
+            percentile_report_from_samples(&mut []),
+            PercentileReport::NotRun
+        );
 
         let mut samples: Vec<f64> = (1..=100).map(f64::from).rev().collect();
         let percentiles = percentiles_from_samples(&mut samples).expect("samples");
@@ -881,7 +972,10 @@ mod tests {
 
         let mut single = [7.5];
         let percentiles = percentiles_from_samples(&mut single).expect("samples");
-        assert_eq!((percentiles.p50_ms, percentiles.p95_ms, percentiles.p99_ms), (7.5, 7.5, 7.5));
+        assert_eq!(
+            (percentiles.p50_ms, percentiles.p95_ms, percentiles.p99_ms),
+            (7.5, 7.5, 7.5)
+        );
         assert_eq!(percentiles.sample_count, 1);
 
         let mut three = [30.0, 10.0, 20.0];

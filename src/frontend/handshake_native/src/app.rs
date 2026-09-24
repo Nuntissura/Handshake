@@ -22974,9 +22974,11 @@ impl HandshakeApp {
         self.model_session_launch_last_session_id = Some(session_id.clone());
         // MT-159: bind the current account session at launch time (login may happen after the
         // client was constructed).
-        let Some(client) = self.model_session_launch_client.clone().map(|client| {
-            client.with_authenticated_context(self.local_account.context.clone())
-        }) else {
+        let Some(client) = self
+            .model_session_launch_client
+            .clone()
+            .map(|client| client.with_authenticated_context(self.local_account.context.clone()))
+        else {
             let direct_status =
                 match backend_client::ModelSessionLaunchClient::direct_spawn_workspace(
                     backend_client::BACKEND_BASE_URL,

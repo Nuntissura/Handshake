@@ -578,7 +578,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_prune_respects_pinned_items() -> Result<(), Box<dyn Error>> {
-        let Some((db, flight_recorder, _events, _db_dir, workspace_dir, _backend)) = setup_test_db().await?
+        let Some((db, flight_recorder, _events, _db_dir, workspace_dir, _backend)) =
+            setup_test_db().await?
         else {
             return Ok(());
         };
@@ -624,7 +625,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_prune_respects_window() -> Result<(), Box<dyn Error>> {
-        let Some((db, flight_recorder, _events, _db_dir, workspace_dir, _backend)) = setup_test_db().await?
+        let Some((db, flight_recorder, _events, _db_dir, workspace_dir, _backend)) =
+            setup_test_db().await?
         else {
             return Ok(());
         };
@@ -660,7 +662,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_dry_run_does_not_delete() -> Result<(), Box<dyn Error>> {
-        let Some((db, flight_recorder, _events, _db_dir, workspace_dir, _backend)) = setup_test_db().await?
+        let Some((db, flight_recorder, _events, _db_dir, workspace_dir, _backend)) =
+            setup_test_db().await?
         else {
             return Ok(());
         };
@@ -698,7 +701,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_min_versions_constraint() -> Result<(), Box<dyn Error>> {
-        let Some((db, flight_recorder, _events, _db_dir, workspace_dir, _backend)) = setup_test_db().await?
+        let Some((db, flight_recorder, _events, _db_dir, workspace_dir, _backend)) =
+            setup_test_db().await?
         else {
             return Ok(());
         };
@@ -734,7 +738,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_flight_recorder_event_emitted() -> Result<(), Box<dyn Error>> {
-        let Some((db, flight_recorder, events, _db_dir, workspace_dir, _backend)) = setup_test_db().await?
+        let Some((db, flight_recorder, events, _db_dir, workspace_dir, _backend)) =
+            setup_test_db().await?
         else {
             return Ok(());
         };

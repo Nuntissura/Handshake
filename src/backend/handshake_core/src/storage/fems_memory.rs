@@ -457,39 +457,38 @@ async fn insert_memory_proposal_attempt(
             ));
         }
         let expected = receipt_for_stored_proposal(receipt, &stored)?;
-        let persisted = match event_ledger::get_by_idempotency(storage, &expected.idempotency_key)
-            .await?
-        {
-            Some(existing) => existing,
-            None => {
-                // AC-118-2 ORDERING. Validate the canonical artifact BEFORE writing anything.
-                // `build_memory_proposal_flight_recorder_event` is where the contract check lives,
-                // and it rejects an artifact whose persisted `proposal_id` is not a UUID. Healing
-                // first and validating afterwards would leave a receipt behind for a retry that is
-                // then rejected, which is exactly what the tripwire test forbids. `prepare_event`
-                // derives the candidate receipt without persisting it, so this probe is free.
-                let (probe, _) = event_ledger::prepare_event(expected.clone())?;
-                build_memory_proposal_flight_recorder_event(
-                    &stored,
-                    &probe,
-                    LegacyArtifactHeal::Allow,
-                )?;
-                // WP-KERNEL-012 MT-118 LEGACY HEAL. A proposal row persisted before receipt
-                // hardening can exist with no EventLedger receipt: the pre-upgrade crash window
-                // wrote the proposal and then died. Refusing the retry left that row permanently
-                // unusable, because every retry took this same branch.
-                //
-                // The heal is safe precisely because `receipt_for_stored_proposal` derives the
-                // receipt from DURABLE fields only: `_receipt_identity` when the row carries it,
-                // and otherwise the stored proposal's own persisted values. It never adopts the
-                // headers of whichever retry happens to arrive first, so two concurrent retries
-                // with different task/session headers derive the SAME receipt (AC-118-3, AC-118-4).
-                //
-                // `append` is keyed on `idempotency_key` and returns the existing row when one is
-                // already present, so a race here converges on one receipt rather than writing two.
-                event_ledger::append(storage, expected).await?
-            }
-        };
+        let persisted =
+            match event_ledger::get_by_idempotency(storage, &expected.idempotency_key).await? {
+                Some(existing) => existing,
+                None => {
+                    // AC-118-2 ORDERING. Validate the canonical artifact BEFORE writing anything.
+                    // `build_memory_proposal_flight_recorder_event` is where the contract check lives,
+                    // and it rejects an artifact whose persisted `proposal_id` is not a UUID. Healing
+                    // first and validating afterwards would leave a receipt behind for a retry that is
+                    // then rejected, which is exactly what the tripwire test forbids. `prepare_event`
+                    // derives the candidate receipt without persisting it, so this probe is free.
+                    let (probe, _) = event_ledger::prepare_event(expected.clone())?;
+                    build_memory_proposal_flight_recorder_event(
+                        &stored,
+                        &probe,
+                        LegacyArtifactHeal::Allow,
+                    )?;
+                    // WP-KERNEL-012 MT-118 LEGACY HEAL. A proposal row persisted before receipt
+                    // hardening can exist with no EventLedger receipt: the pre-upgrade crash window
+                    // wrote the proposal and then died. Refusing the retry left that row permanently
+                    // unusable, because every retry took this same branch.
+                    //
+                    // The heal is safe precisely because `receipt_for_stored_proposal` derives the
+                    // receipt from DURABLE fields only: `_receipt_identity` when the row carries it,
+                    // and otherwise the stored proposal's own persisted values. It never adopts the
+                    // headers of whichever retry happens to arrive first, so two concurrent retries
+                    // with different task/session headers derive the SAME receipt (AC-118-3, AC-118-4).
+                    //
+                    // `append` is keyed on `idempotency_key` and returns the existing row when one is
+                    // already present, so a race here converges on one receipt rather than writing two.
+                    event_ledger::append(storage, expected).await?
+                }
+            };
         validate_existing_proposal_receipt(&persisted, &stored)?;
         ensure_lifecycle_outbox(
             storage,
@@ -2280,20 +2279,14 @@ async fn run_proposal_review_transaction(
         .with_data_operation(move |database| {
             Box::pin(async move {
                 database
-                    .query_values_at(
-                        PROPOSAL_REVIEW_TRANSACTION,
-                        bindings,
-                        1,
-                    )
+                    .query_values_at(PROPOSAL_REVIEW_TRANSACTION, bindings, 1)
                     .await
             })
         })
         .await
         .map_err(|error| {
             if error.to_string().contains("HSK-FEMS-REVIEW-STATE") {
-                StorageError::Conflict(
-                    "memory proposal review lost its pending-review transition",
-                )
+                StorageError::Conflict("memory proposal review lost its pending-review transition")
             } else {
                 StorageError::from(error)
             }
@@ -3644,9 +3637,7 @@ async fn run_commit_transaction(
         .await
         .map_err(|error| {
             if error.to_string().contains("HSK-FEMS-COMMIT-STATE") {
-                StorageError::Conflict(
-                    "memory proposal commit lost its approved-state transition",
-                )
+                StorageError::Conflict("memory proposal commit lost its approved-state transition")
             } else {
                 StorageError::from(error)
             }
@@ -3672,8 +3663,7 @@ async fn create_commit_outbox_if_absent(
     let id = write.event_id.clone();
     let content = CommitOutboxContent::from(write);
     let created: Option<OutboxRow> =
-        anchored_create_if_absent(storage, COMMIT_OUTBOX_TABLE, &id, workspace_id, content)
-            .await?;
+        anchored_create_if_absent(storage, COMMIT_OUTBOX_TABLE, &id, workspace_id, content).await?;
     if created.is_none() {
         ensure_commit_outbox(
             storage,
@@ -4100,7 +4090,10 @@ mod workspace_write_anchor_tests {
                 "ANCHORED_CREATE_IF_ABSENT_STATEMENT",
                 ANCHORED_CREATE_IF_ABSENT_STATEMENT,
             ),
-            ("ANCHORED_ITEM_UPSERT_STATEMENT", ANCHORED_ITEM_UPSERT_STATEMENT),
+            (
+                "ANCHORED_ITEM_UPSERT_STATEMENT",
+                ANCHORED_ITEM_UPSERT_STATEMENT,
+            ),
         ] {
             assert_eq!(
                 statement.matches(WORKSPACE_WRITE_ANCHOR_UPSERT).count(),
@@ -4116,7 +4109,10 @@ mod workspace_write_anchor_tests {
                 .find("CREATE ")
                 .or_else(|| statement.find("UPSERT $record"))
                 .expect("statement creates or upserts a row");
-            assert!(anchor_at < first_create, "{name}: anchor must precede the row write");
+            assert!(
+                anchor_at < first_create,
+                "{name}: anchor must precede the row write"
+            );
         }
         let guard = PROPOSAL_INSERT_TRANSACTION
             .find("THROW 'HSK-MEM-WORKSPACE-MISSING'")
@@ -4128,6 +4124,9 @@ mod workspace_write_anchor_tests {
         let first = workspace_write_anchor("WS-1");
         let second = workspace_write_anchor("WS-1");
         assert_eq!(first.key, "WS-1");
-        assert_ne!(first.nonce, second.nonce, "a fresh nonce per attempt keeps the key written");
+        assert_ne!(
+            first.nonce, second.nonce,
+            "a fresh nonce per attempt keeps the key written"
+        );
     }
 }

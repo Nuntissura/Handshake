@@ -191,7 +191,10 @@ impl SurrealDatabase {
             .ok_or(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))?;
         if scope.workspace_id.as_deref() != Some(workspace_id)
             || scope.capability_id != "fs.read"
-            || !matches!(scope.action, super::resource_authority::ResourceAction::Read)
+            || !matches!(
+                scope.action,
+                super::resource_authority::ResourceAction::Read
+            )
         {
             return Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"));
         }
@@ -210,38 +213,46 @@ impl SurrealDatabase {
         source_scope: super::resource_authority::RecordUserScope,
     ) -> StorageResult<LoomCanvasPlacementCreateReceipt> {
         let placement_id = format!("LCP-{}", uuid::Uuid::now_v7().simple());
-        let metadata = self.mutation_metadata(ctx, &placement_id).await.map_err(|error| {
-            #[cfg(test)]
-            eprintln!("record-user-canvas-placement failure phase=mutation_metadata error={error}");
-            error
-        })?;
-        let result = self.guarded_storage_mutation(
-            vec![
-                LockKey::record(LOOM_BLOCKS_TABLE, placement.placed_block_id.clone()),
-                LockKey::record("loom_canvas_placements", placement_id.clone()),
-            ],
-            Replay::idempotent(format!(
-                "record-user-canvas-placement-create:{placement_id}:{}",
-                metadata.edit_event_id
-            )),
-            (placement_id, placement, metadata, source_scope),
-            |database, (placement_id, placement, metadata, source_scope)| {
-                Box::pin(async move {
-                    super::loom_canvas_store::place_record_user_canvas_block(
-                        &database,
-                        placement_id,
-                        placement,
-                        metadata,
-                        source_scope,
-                    )
-                    .await
-                })
-            },
-        )
-        .await;
+        let metadata = self
+            .mutation_metadata(ctx, &placement_id)
+            .await
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!(
+                    "record-user-canvas-placement failure phase=mutation_metadata error={error}"
+                );
+                error
+            })?;
+        let result = self
+            .guarded_storage_mutation(
+                vec![
+                    LockKey::record(LOOM_BLOCKS_TABLE, placement.placed_block_id.clone()),
+                    LockKey::record("loom_canvas_placements", placement_id.clone()),
+                ],
+                Replay::idempotent(format!(
+                    "record-user-canvas-placement-create:{placement_id}:{}",
+                    metadata.edit_event_id
+                )),
+                (placement_id, placement, metadata, source_scope),
+                |database, (placement_id, placement, metadata, source_scope)| {
+                    Box::pin(async move {
+                        super::loom_canvas_store::place_record_user_canvas_block(
+                            &database,
+                            placement_id,
+                            placement,
+                            metadata,
+                            source_scope,
+                        )
+                        .await
+                    })
+                },
+            )
+            .await;
         #[cfg(test)]
         if let Err(error) = &result {
-            eprintln!("record-user-canvas-placement failure phase=guarded_storage_mutation error={error}");
+            eprintln!(
+                "record-user-canvas-placement failure phase=guarded_storage_mutation error={error}"
+            );
         }
         result
     }
@@ -258,7 +269,10 @@ impl SurrealDatabase {
         let workspace_id = workspace_id.to_owned();
         let placement_id = placement_id.to_owned();
         self.guarded_storage_mutation(
-            vec![LockKey::record("loom_canvas_placements", placement_id.clone())],
+            vec![LockKey::record(
+                "loom_canvas_placements",
+                placement_id.clone(),
+            )],
             Replay::idempotent(format!(
                 "record-user-canvas-placement-remove:{placement_id}:{}",
                 metadata.edit_event_id

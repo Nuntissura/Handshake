@@ -371,7 +371,9 @@ fn delete_test_vault_lanes(store_path: &std::path::Path) {
     for (_, namespace, lane) in owned {
         match OsKeychainSecretsVault::new(namespace).delete(&lane) {
             Ok(()) | Err(SecretsVaultError::NoSecretForLane(_)) => {}
-            Err(error) => eprintln!("HANDSHAKE_TEST_VAULT_CLEANUP_FAILURE lane={lane} error={error}"),
+            Err(error) => {
+                eprintln!("HANDSHAKE_TEST_VAULT_CLEANUP_FAILURE lane={lane} error={error}")
+            }
         }
     }
 }
