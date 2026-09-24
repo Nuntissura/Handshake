@@ -4557,6 +4557,11 @@ impl RealNativeMcpBinding {
             root.is_absolute(),
             "HANDSHAKE_TEST_STAGE_BINDING_ROOT must be an absolute isolated root"
         );
+        // One binding file holds ONE process's token, PID and birth identity, and the owned backend
+        // verifies against exactly that file, so concurrent test processes (nextest, one runner root
+        // per lane) must not share it: each process publishes below its own subdirectory (run 51:
+        // op01..op04 contended for the shared swarm_mcp_binding.lock).
+        let root = root.join(format!("proc-{}", std::process::id()));
         std::fs::create_dir_all(root.join("handshake"))
             .unwrap_or_else(|error| panic!("create binding root {}: {error}", root.display()));
         let previous_env = std::env::var_os(NATIVE_BINDING_APP_DATA_ENV);
