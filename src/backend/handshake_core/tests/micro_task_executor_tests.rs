@@ -115,23 +115,21 @@ impl QueuedLlmClient {
 
 static TEST_SERIAL_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
-/// Set while a test has activated its own [`WorkspaceEnvGuard`] root.
-static WORKSPACE_GUARD_ACTIVE: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
-
-/// MT-158/MT-159 (run 50 "atomic write failed: os error 2 / os error 5"): tests without their own
-/// [`WorkspaceEnvGuard`] write runtime governance artifacts (fixed WP-TEST / MT ids) under the
-/// shared workspace root, and nextest runs each test in its own process, so the in-process
-/// TEST_SERIAL_LOCK and the workflow artifact write lock cannot order them. Give every such test
-/// process its own runtime governance root below the shared workspace root.
-fn isolate_process_governance_root() {
-    if WORKSPACE_GUARD_ACTIVE.load(std::sync::atomic::Ordering::SeqCst) {
-        return;
-    }
-    std::env::set_var(
-        "HANDSHAKE_GOVERNANCE_ROOT",
-        format!(".handshake/gov-test-{}", std::process::id()),
-    );
+/// MT-158/MT-159 (run 50 "atomic write failed: os error 2 / os error 5"): these tests write runtime
+/// governance artifacts at fixed paths (WP-TEST / MT ids) under the shared workspace root, and
+/// nextest runs each test in its own process, so the in-process TEST_SERIAL_LOCK and the workflow
+/// artifact write lock cannot order them. Every test state holds this exclusive cross-process file
+/// lock (std File::lock) for its lifetime, so the tests serialize across processes while their
+/// artifact paths stay exactly where the assertions expect them.
+fn acquire_process_serial_lock() -> std::io::Result<std::fs::File> {
+    let path = std::env::temp_dir().join("handshake-micro-task-executor-tests.lock");
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(path)?;
+    file.lock()?;
+    Ok(file)
 }
 
 struct WorkspaceEnvGuard {
@@ -145,7 +143,6 @@ impl WorkspaceEnvGuard {
         let prev_governance_root = std::env::var("HANDSHAKE_GOVERNANCE_ROOT").ok();
         std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", root);
         std::env::set_var("HANDSHAKE_GOVERNANCE_ROOT", ".handshake/gov");
-        WORKSPACE_GUARD_ACTIVE.store(true, std::sync::atomic::Ordering::SeqCst);
         Self {
             prev_workspace_root,
             prev_governance_root,
@@ -155,7 +152,6 @@ impl WorkspaceEnvGuard {
 
 impl Drop for WorkspaceEnvGuard {
     fn drop(&mut self) {
-        WORKSPACE_GUARD_ACTIVE.store(false, std::sync::atomic::Ordering::SeqCst);
         match &self.prev_workspace_root {
             Some(value) => std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", value),
             None => std::env::remove_var("HANDSHAKE_WORKSPACE_ROOT"),
@@ -218,7 +214,7 @@ impl LlmClient for QueuedLlmClient {
 async fn setup_state(
     llm_client: Arc<dyn LlmClient>,
 ) -> Result<Option<TestAppState>, Box<dyn std::error::Error>> {
-    isolate_process_governance_root();
+    let process_lock = acquire_process_serial_lock()?;
     let backend = embedded_test_backend().await?;
 
     let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
@@ -233,13 +229,17 @@ async fn setup_state(
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
     };
     seed_locus_work_packet(&state, "WP-TEST").await?;
-    Ok(Some(TestAppState { state, backend }))
+    Ok(Some(TestAppState {
+        state,
+        backend,
+        _process_lock: process_lock,
+    }))
 }
 
 async fn setup_state_without_seed(
     llm_client: Arc<dyn LlmClient>,
 ) -> Result<Option<TestAppState>, Box<dyn std::error::Error>> {
-    isolate_process_governance_root();
+    let process_lock = acquire_process_serial_lock()?;
     let backend = embedded_test_backend().await?;
 
     let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
@@ -255,12 +255,15 @@ async fn setup_state_without_seed(
             session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
         },
         backend,
+        _process_lock: process_lock,
     }))
 }
 
 struct TestAppState {
     state: AppState,
     backend: EmbeddedTestBackend,
+    /// Cross-process serialization; released when the test state drops.
+    _process_lock: std::fs::File,
 }
 
 impl std::ops::Deref for TestAppState {
