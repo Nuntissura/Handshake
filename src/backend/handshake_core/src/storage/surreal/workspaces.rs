@@ -558,6 +558,12 @@ COMMIT TRANSACTION;
                     %error,
                     "workspace delete transaction failed"
                 );
+                // MT-154 diagnostic (IV): test builds print the failing statement so a union run
+                // records it (owned_workspace_delete_cascades 403) without a focused rerun.
+                #[cfg(test)]
+                eprintln!(
+                    "HSK_WORKSPACE_DELETE_TRANSACTION_FAILED statement_index={statement_index} error={error}"
+                );
                 // MT-109 C1-FDELETE probe (test builds only, env-gated): evaluate the numbered guard
                 // copy a test defined, on this exact record-user connection and scope.
                 #[cfg(test)]
