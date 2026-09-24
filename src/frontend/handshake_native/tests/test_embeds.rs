@@ -1207,9 +1207,8 @@ fn mt014_traversal_and_scheme_refs_render_typed_chip() {
 
 // ── PT-002 (gated): real backend asset-resolve (NEEDS_MANAGED_RESOURCE_PROOF without a backend) ─
 
-/// Real-backend asset-resolve proof. Requires a LIVE Handshake-managed backend on
-/// 127.0.0.1:37501 with a SEEDED image asset whose id is `HANDSHAKE_TEST_ASSET_ID` in workspace
-/// `HANDSHAKE_TEST_WORKSPACE_ID`. OFF by default (`#[ignore]` + `integration` feature) so CI does
+/// Real-backend asset-resolve proof against the owned managed backend fixture; it seeds its own
+/// image asset in the fixture workspace through the production import route. OFF by default (`#[ignore]` + `integration` feature) so CI does
 /// not fail without a backend. Run:
 ///   cargo test -p handshake-native --features integration --test test_embeds -- --ignored real_image_resolve
 ///
@@ -1222,26 +1221,26 @@ fn mt014_traversal_and_scheme_refs_render_typed_chip() {
 #[cfg(feature = "integration")]
 fn real_image_resolve_against_live_backend() {
     let _gui_guard = embed_gui_test_guard();
-    use handshake_native::backend_client::BACKEND_BASE_URL;
     use handshake_native::rich_editor::embeds::asset_resolver::{
         resolve_one, MediaEmbedKind, ReqwestAssetFetcher,
     };
 
-    let workspace_id = std::env::var("HANDSHAKE_TEST_WORKSPACE_ID")
-        .expect("set HANDSHAKE_TEST_WORKSPACE_ID to a real workspace with a seeded image asset");
-    let asset_id = std::env::var("HANDSHAKE_TEST_ASSET_ID")
-        .expect("set HANDSHAKE_TEST_ASSET_ID to a real seeded image asset id");
-    let base_url = std::env::var("HANDSHAKE_TEST_DB_URL")
-        .unwrap_or_else(|_| BACKEND_BASE_URL.to_owned())
-        .trim_end_matches('/')
-        .to_owned();
+    // MT-154: the proof seeds its own workspace image through the owned managed backend (the same
+    // fixture and production import route as the hermetic MT-014 proof) instead of reading
+    // developer-supplied HANDSHAKE_TEST_WORKSPACE_ID / HANDSHAKE_TEST_ASSET_ID, which no runner sets.
+    let mut backend = backend_proof_support::require_live_backend();
+    let workspace_id = backend.workspace_id.clone();
+    let base_url = backend.base.trim_end_matches('/').to_owned();
+    let asset_id = seed_asset(&backend, &workspace_id, &sized_png(48, 24), "mt014-live-resolve.png");
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
         .build()
         .expect("managed asset proof tokio runtime");
-    let fetcher = Arc::new(ReqwestAssetFetcher::new(&base_url));
+    let fetcher = Arc::new(
+        ReqwestAssetFetcher::new(&base_url).with_authenticated_context(backend.account()),
+    );
     let resolved = rt
         .block_on(async {
             resolve_one(
@@ -1361,6 +1360,7 @@ fn real_image_resolve_against_live_backend() {
         decoded.size[1],
         path.display()
     );
+    backend.assert_cleanup();
 }
 
 // ── PT-002 REMEDIATION (FAIL_V2): NON-IGNORED hermetic real-backend seeded-asset proof ─────────
