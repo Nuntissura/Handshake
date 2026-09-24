@@ -394,12 +394,28 @@ COMMIT TRANSACTION;
                 authority_action: ledger_write.authority_action,
             };
 
-            let response = self
+            let mut response = self
                 .client
                 .query(statement)
                 .bind(SurrealValue::into_value(bindings))
                 .await?;
-            if let Err(error) = response.check() {
+            // A THROW aborts the transaction and every earlier slot then reads "The query was not
+            // executed due to a failed transaction"; `check()` returns that first slot and hides
+            // the THROWn code (HSK-403 silent-deny guard, revision conflict). Pick the meaningful
+            // error, as `decode_query_values` does.
+            let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+            errors.sort_by_key(|(statement_index, _)| *statement_index);
+            let meaningful = errors
+                .iter()
+                .position(|(_, error)| {
+                    !error
+                        .to_string()
+                        .to_ascii_lowercase()
+                        .contains("query was not executed due to a failed transaction")
+                })
+                .unwrap_or(0);
+            if !errors.is_empty() {
+                let (_, error) = errors.swap_remove(meaningful);
                 if error.to_string().contains(PREFERENCE_REVISION_CONFLICT)
                     && attempt + 1 < PREFERENCE_WRITE_MAX_ATTEMPTS
                 {
