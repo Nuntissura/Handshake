@@ -7,7 +7,7 @@
 //! reviewers hunt for:
 //!
 //!   1. READ-THROUGH: GET /loom/blocks/:id/transclusion resolves a block to its
-//!      SOURCE rich document (`loom_blocks.document_id` -> the rich document) and
+//!      SOURCE rich document (the same-ID LoomBlock projection) and
 //!      returns the SOURCE content_json + version (`resolved=true`).
 //!   2. EDIT-ROUTES-TO-SOURCE: editing the transcluded content via
 //!      `PUT /knowledge/documents/:source/save` mutates the SOURCE document, and
@@ -40,10 +40,6 @@ use handshake_core::flight_recorder::{
 use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
-use handshake_core::storage::knowledge::{KnowledgeStore, NewKnowledgeRichDocument};
-use handshake_core::storage::surreal::SurrealDatabase;
-use handshake_core::storage::{Database, NewDocument, NewLoomBlock, WriteContext};
-use handshake_core::storage::{LoomBlockContentType, LoomBlockDerived};
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
 use knowledge_ingestion_support::{open_embedded_store, EmbeddedKnowledgeStore};
@@ -121,8 +117,8 @@ impl LlmClient for NoopLlmClient {
 }
 
 /// Boot the real loom + document routes over loopback against the isolated
-/// schema. Both route groups share one AppState so a loom block's
-/// `document_id` resolves to a rich document created through the docs API.
+/// schema. Both route groups share one AppState so the same-ID LoomBlock
+/// projection resolves to a rich document created through the docs API.
 async fn test_state(store: &EmbeddedKnowledgeStore) -> AppState {
     let recorder = Arc::new(NoopRecorder);
     AppState {
@@ -161,84 +157,41 @@ fn doc_headers(req: reqwest::RequestBuilder, label: &str) -> reqwest::RequestBui
         .header("x-hsk-actor-kind", "operator")
 }
 
-/// Build a typed storage handle for setup that the HTTP surface cannot express
-/// (the `documents` anchor + a rich document anchored to it).
-async fn storage_for(store: &EmbeddedKnowledgeStore) -> SurrealDatabase {
-    store.db.clone()
-}
-
-/// Set up a SOURCE: a legacy `documents` row, a rich document anchored to it
-/// (the transclusion authority), and a LoomBlock whose `document_id` is that
-/// same legacy anchor. Returns (block_id, source_rich_document_id, version).
+/// Create the SOURCE and its same-ID Loom projection through the owner's real
+/// document route, which atomically grants access to that authority document.
+/// Returns (block_id, source_rich_document_id, version).
 async fn setup_source(
-    db: &SurrealDatabase,
+    base: &str,
+    http: &reqwest::Client,
     workspace_id: &str,
     text: &str,
 ) -> (String, String, i64) {
-    let ctx = WriteContext::human(None);
-    // 1. Legacy documents anchor (the FK target of loom_blocks.document_id).
-    let document = db
-        .create_document(
-            &ctx,
-            NewDocument {
-                workspace_id: workspace_id.to_string(),
-                title: "Transclusion source anchor".to_string(),
-            },
-        )
-        .await
-        .expect("create documents anchor");
-
-    // 2. The authority rich document anchored to that documents row.
-    let rich = db
-        .create_knowledge_rich_document(NewKnowledgeRichDocument {
-            workspace_id: workspace_id.to_string(),
-            document_id: Some(document.id.clone()),
-            title: "Transclusion source note".to_string(),
-            schema_version: "hsk_richdoc_v1".to_string(),
-            content_json: json!({
+    let response = doc_headers(http.post(format!("{base}/knowledge/documents")), "source")
+        .json(&json!({
+            "workspace_id": workspace_id,
+            "title": "Transclusion source note",
+            "content_json": {
                 "type": "doc",
                 "content": [
                     { "type": "paragraph", "content": [{ "type": "text", "text": text }] }
                 ]
-            }),
-            crdt_document_id: None,
-            crdt_snapshot_id: None,
-            promotion_receipt_event_id: None,
-            project_ref: None,
-            folder_ref: None,
-            authority_label: None,
-            owner_actor_kind: None,
-            owner_actor_id: None,
-        })
+            }
+        }))
+        .send()
         .await
-        .expect("create source rich document");
+        .expect("create owner-authorized source document");
+    let status = response.status();
+    let body = response.text().await.expect("source create response");
+    assert_eq!(status, 200, "source create must succeed: {body}");
+    let created: Value = serde_json::from_str(&body).expect("source create json");
+    let rich = &created["document"];
+    let document_id = rich["rich_document_id"]
+        .as_str()
+        .expect("source rich_document_id")
+        .to_string();
+    let version = rich["doc_version"].as_i64().expect("source doc_version");
 
-    // 3. The LoomBlock backed by that anchor (note resolves through it).
-    let block = db
-        .create_loom_block(
-            &ctx,
-            NewLoomBlock {
-                block_id: None,
-                workspace_id: workspace_id.to_string(),
-                content_type: LoomBlockContentType::Note,
-                document_id: Some(document.id.clone()),
-                asset_id: None,
-                title: Some("Transclusion source block".to_string()),
-                original_filename: None,
-                content_hash: None,
-                pinned: false,
-                journal_date: None,
-                imported_at: None,
-                derived: LoomBlockDerived::default(),
-            },
-        )
-        .await
-        .expect("create loom block backed by source doc");
-    db.bridge_loom_block_to_knowledge(&ctx, workspace_id, &block.block_id)
-        .await
-        .expect("bridge loom block");
-
-    (block.block_id, rich.rich_document_id, rich.doc_version)
+    (document_id.clone(), document_id, version)
 }
 
 async fn get_transclusion(
@@ -290,14 +243,11 @@ async fn mt258_transclusion_read_through_edit_routes_to_source_and_host_stays_co
     };
     let account = AccountFixture::install(&store.storage).await;
     let workspace_id = account.create_workspace(&test_state(&store).await).await;
-    let db = storage_for(&store).await;
     let (base, http) = server(&store, &account).await;
 
     // --- Source authority document + a LoomBlock that resolves to it ---------
-    // MT-109 C2: root seed (legacy documents anchor + rich document + create_loom_block) kept;
-    // the HTTP surface cannot express the legacy anchor, so these rows carry no account grant.
     let (block_id, source_document_id, source_v1) =
-        setup_source(&db, &workspace_id, "ORIGINAL source body").await;
+        setup_source(&base, &http, &workspace_id, "ORIGINAL source body").await;
 
     // --- 1. READ-THROUGH: resolves to the SOURCE document content ------------
     let resolved = get_transclusion(&base, &http, &workspace_id, &block_id).await;
