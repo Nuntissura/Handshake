@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED",
     "active": false,
     "depends_on": [],
     "blocks": [
@@ -63,7 +63,8 @@
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
     "next_actor": "WP_VALIDATOR",
     "status_before_remediation_v2": "PARTIAL_PENDING_OPERATOR_DECISION",
-    "prior_validator_verdict": "PARTIAL_V2"
+    "prior_validator_verdict": "PARTIAL_V2",
+    "blocked_on": "end-of-WP proof run per operator_decision_2026_09_24 (RED half (fix reverted, test must fail))"
   },
   "scope": {
     "summary": "Resolve the terminal working directory and the model-folder dialog seed from the operator's chosen workspace root instead of the Handshake process cwd.",
@@ -612,5 +613,12 @@
     "ruling": "Operator: PARTIAL_PENDING_OPERATOR_DECISION is not a legitimate status; set READY_FOR_VALIDATION. Remaining proof runs at WP end per operator_decision_2026_09_24.",
     "from_status": "PARTIAL_PENDING_OPERATOR_DECISION",
     "from_validator_verdict": "PARTIAL_V2"
+  },
+  "operator_status_ruling_2026_09_24_b": {
+    "at_utc": "2026-09-24T02:38:06.928Z",
+    "recorded_by": "INTEGRATION_VALIDATOR",
+    "ruling": "Operator: status BLOCKED (more accurate than READY_FOR_VALIDATION).",
+    "from_status": "READY_FOR_VALIDATION",
+    "blocked_on": "end-of-WP proof run per operator_decision_2026_09_24 (RED half (fix reverted, test must fail))"
   }
 }

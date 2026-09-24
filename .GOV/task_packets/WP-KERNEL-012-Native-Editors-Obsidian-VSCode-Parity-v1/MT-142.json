@@ -31,7 +31,7 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED",
     "depends_on": [
       "MT-136",
       "MT-137",
@@ -620,7 +620,8 @@
     "ready_for_validation_at_utc": "2026-09-11T11:19:40.452Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260910-073935",
     "prior_validator_verdict": "PARTIAL_PENDING_OPERATOR_DECISION",
-    "next_actor": "WP_VALIDATOR"
+    "next_actor": "WP_VALIDATOR",
+    "blocked_on": "end-of-WP proof run per operator_decision_2026_09_24 (PT-142-7 extended load rerun on an idle host, reusing the run50 binary (no build))"
   },
   "scope": {
     "summary": "Prove and harden the SurrealDB-only storage layer for parallel model swarms. Exercise concurrent point reads, range/search queries, creates, idempotent upserts, optimistic updates, deletes and multi-record projection transactions against a real embedded SurrealDB RocksDB store. Measure conflicts, retries, retry exhaustion, lock wait, operation latency and throughput. Replace the coarse process-global RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK in storage/surreal/knowledge.rs with record/workspace-keyed contention control where local coordination is useful and with atomic Surreal transactions plus in-transaction guards where correctness must survive independent clients or future remote deployment. A keyed in-process lock is only a local contention-shaping optimization; it MUST NOT be the sole correctness mechanism for uniqueness, compare-and-set, versioning, idempotency, ledger/projection atomicity or lost-update prevention. Preserve SurrealDB as the only database: no PostgreSQL or SQLite driver, fallback, fixture, syntax, environment variable, server spawn or compatibility path may be introduced.",
@@ -1779,5 +1780,12 @@
     "ruling": "Operator: PARTIAL_PENDING_OPERATOR_DECISION is not a legitimate status; set READY_FOR_VALIDATION. Remaining proof runs at WP end per operator_decision_2026_09_24.",
     "from_status": "PARTIAL_PENDING_OPERATOR_DECISION",
     "from_validator_verdict": "PARTIAL_PENDING_OPERATOR_DECISION"
+  },
+  "operator_status_ruling_2026_09_24_b": {
+    "at_utc": "2026-09-24T02:38:06.930Z",
+    "recorded_by": "INTEGRATION_VALIDATOR",
+    "ruling": "Operator: status BLOCKED (more accurate than READY_FOR_VALIDATION).",
+    "from_status": "READY_FOR_VALIDATION",
+    "blocked_on": "end-of-WP proof run per operator_decision_2026_09_24 (PT-142-7 extended load rerun on an idle host, reusing the run50 binary (no build))"
   }
 }
