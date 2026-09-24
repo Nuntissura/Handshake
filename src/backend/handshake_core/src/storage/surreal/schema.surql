@@ -6702,14 +6702,16 @@ FOR $owned IN $resources {
         RETURN false;
     };
 };
-FOR $document IN (SELECT rich_document_id FROM knowledge_rich_documents WHERE workspace_id = $workspace) {
+LET $workspace_delete_rows_1 = SELECT rich_document_id FROM knowledge_rich_documents WHERE workspace_id = $workspace;
+FOR $document IN $workspace_delete_rows_1 {
     IF array::len(SELECT id FROM protected_resources WHERE resource_kind = 'rich_document'
         AND external_resource_id = $document.rich_document_id AND parent_resource_id = $resource
         AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active') != 1 {
         RETURN false;
     };
 };
-FOR $block IN (SELECT block_id, source_rich_document_id, content_type, content_hash FROM loom_blocks WHERE workspace_id = $workspace) {
+LET $workspace_delete_rows_2 = SELECT block_id, source_rich_document_id, content_type, content_hash FROM loom_blocks WHERE workspace_id = $workspace;
+FOR $block IN $workspace_delete_rows_2 {
     IF $block.source_rich_document_id != NONE {
         IF record::id($block.source_rich_document_id) != $block.block_id OR $block.content_type != 'note'
             OR $block.source_rich_document_id.workspace_id != $workspace
@@ -6887,31 +6889,44 @@ IF array::len(SELECT id FROM fems_memory_commit_fr_outbox WHERE commit_id IN (SE
 IF array::len(SELECT id FROM fems_memory_lifecycle_fr_outbox WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
 IF array::len(SELECT id FROM fems_memory_lifecycle_fr_outbox WHERE proposal_id IN (SELECT VALUE id FROM fems_memory_proposals WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
 IF array::len(SELECT id FROM loom_block_view_fr_outbox WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
-FOR $source IN (SELECT id FROM knowledge_sources WHERE workspace_id = $workspace) { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'knowledge_source' AND external_resource_id = record::id($source.id) AND lifecycle_state = 'active') != 1 { RETURN false; }; };
-FOR $source IN (SELECT id FROM knowledge_code_files WHERE workspace_id = $workspace) { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'knowledge_code_file' AND external_resource_id = record::id($source.id) AND lifecycle_state = 'active') != 1 { RETURN false; }; };
-FOR $source IN (SELECT id FROM fems_memory_packs WHERE workspace_id = $workspace) { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'memory_pack' AND external_resource_id = $external AND lifecycle_state = 'active') != 1 { RETURN false; }; };
-FOR $source IN (SELECT id FROM fems_memory_proposals WHERE workspace_id = $workspace) { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'memory_proposal' AND external_resource_id = $external AND lifecycle_state = 'active') != 1 { RETURN false; }; };
-FOR $source IN (SELECT id FROM fems_memory_items WHERE workspace_id = $workspace) { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'memory_item' AND external_resource_id = $external AND lifecycle_state = 'active') != 1 { RETURN false; }; };
-FOR $source IN (SELECT id FROM fems_memory_commit_reports WHERE workspace_id = $workspace) { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'memory_commit_report' AND external_resource_id = $external AND lifecycle_state = 'active') != 1 { RETURN false; }; };
-    FOR $row IN (SELECT created_in_session_id FROM knowledge_source_roots WHERE workspace_id = $workspace) { IF $row.created_in_session_id = NONE OR $row.created_in_session_id.account_id != $account OR $row.created_in_session_id.access_space_id != $space { RETURN false; }; };
-    FOR $row IN (SELECT created_in_session_id FROM knowledge_index_runs WHERE workspace_id = $workspace) { IF $row.created_in_session_id = NONE OR $row.created_in_session_id.account_id != $account OR $row.created_in_session_id.access_space_id != $space { RETURN false; }; };
-    FOR $run IN (SELECT scope FROM knowledge_index_runs WHERE workspace_id = $workspace) {
+LET $workspace_delete_rows_3 = SELECT id FROM knowledge_sources WHERE workspace_id = $workspace;
+FOR $source IN $workspace_delete_rows_3 { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'knowledge_source' AND external_resource_id = record::id($source.id) AND lifecycle_state = 'active') != 1 { RETURN false; }; };
+LET $workspace_delete_rows_4 = SELECT id FROM knowledge_code_files WHERE workspace_id = $workspace;
+FOR $source IN $workspace_delete_rows_4 { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'knowledge_code_file' AND external_resource_id = record::id($source.id) AND lifecycle_state = 'active') != 1 { RETURN false; }; };
+LET $workspace_delete_rows_5 = SELECT id FROM fems_memory_packs WHERE workspace_id = $workspace;
+FOR $source IN $workspace_delete_rows_5 { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'memory_pack' AND external_resource_id = $external AND lifecycle_state = 'active') != 1 { RETURN false; }; };
+LET $workspace_delete_rows_6 = SELECT id FROM fems_memory_proposals WHERE workspace_id = $workspace;
+FOR $source IN $workspace_delete_rows_6 { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'memory_proposal' AND external_resource_id = $external AND lifecycle_state = 'active') != 1 { RETURN false; }; };
+LET $workspace_delete_rows_7 = SELECT id FROM fems_memory_items WHERE workspace_id = $workspace;
+FOR $source IN $workspace_delete_rows_7 { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'memory_item' AND external_resource_id = $external AND lifecycle_state = 'active') != 1 { RETURN false; }; };
+LET $workspace_delete_rows_8 = SELECT id FROM fems_memory_commit_reports WHERE workspace_id = $workspace;
+FOR $source IN $workspace_delete_rows_8 { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'memory_commit_report' AND external_resource_id = $external AND lifecycle_state = 'active') != 1 { RETURN false; }; };
+    LET $workspace_delete_rows_9 = SELECT created_in_session_id FROM knowledge_source_roots WHERE workspace_id = $workspace;
+    FOR $row IN $workspace_delete_rows_9 { IF $row.created_in_session_id = NONE OR $row.created_in_session_id.account_id != $account OR $row.created_in_session_id.access_space_id != $space { RETURN false; }; };
+    LET $workspace_delete_rows_10 = SELECT created_in_session_id FROM knowledge_index_runs WHERE workspace_id = $workspace;
+    FOR $row IN $workspace_delete_rows_10 { IF $row.created_in_session_id = NONE OR $row.created_in_session_id.account_id != $account OR $row.created_in_session_id.access_space_id != $space { RETURN false; }; };
+    LET $workspace_delete_rows_11 = SELECT scope FROM knowledge_index_runs WHERE workspace_id = $workspace;
+    FOR $run IN $workspace_delete_rows_11 {
         IF $run.scope.source_ids = NONE { RETURN false; };
         FOR $key IN $run.scope.source_ids {
             IF type::record('knowledge_sources', $key).workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', $key, 'delete', 'fs.write') { RETURN false; };
         };
     };
-    FOR $entity IN (SELECT * FROM knowledge_entities WHERE workspace_id = $workspace) {
+    LET $workspace_delete_rows_12 = SELECT * FROM knowledge_entities WHERE workspace_id = $workspace;
+    FOR $entity IN $workspace_delete_rows_12 {
         IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {
             IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };
         } ELSE IF $entity.primary_source_id = NONE OR $entity.primary_source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($entity.primary_source_id), 'delete', 'fs.write') { RETURN false; };
-        FOR $link IN (SELECT span_id FROM knowledge_entity_spans WHERE entity_id = $entity.id) {
+        LET $workspace_delete_rows_13 = SELECT span_id FROM knowledge_entity_spans WHERE entity_id = $entity.id;
+        FOR $link IN $workspace_delete_rows_13 {
             IF $link.span_id.source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($link.span_id.source_id), 'delete', 'fs.write') { RETURN false; };
         };
     };
-    FOR $edge IN (SELECT * FROM knowledge_edges WHERE workspace_id = $workspace) {
+    LET $workspace_delete_rows_14 = SELECT * FROM knowledge_edges WHERE workspace_id = $workspace;
+    FOR $edge IN $workspace_delete_rows_14 {
         IF $edge.source_entity_id.workspace_id != $workspace OR $edge.target_entity_id.workspace_id != $workspace { RETURN false; };
-        FOR $link IN (SELECT span_id FROM knowledge_edge_spans WHERE edge_id = $edge.id) {
+        LET $workspace_delete_rows_15 = SELECT span_id FROM knowledge_edge_spans WHERE edge_id = $edge.id;
+        FOR $link IN $workspace_delete_rows_15 {
             IF $link.span_id.source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($link.span_id.source_id), 'delete', 'fs.write') { RETURN false; };
         };
     };

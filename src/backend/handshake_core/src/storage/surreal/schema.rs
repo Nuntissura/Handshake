@@ -2601,7 +2601,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // 27528c0e71735b81fbaa798dabb9e35b3805a16166db450d86fec4baaa32c38f); kb-c5 run 05 (equals sha256 of
 // schema.surql). DECLARATIVE_SCHEMA_CATALOG_SHA256 is unchanged by this batch (kb-c5 run 05).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "d7f69584c809ae71dd25eddeecf5af626607ec24455dddb9bd2f67a0f35aecd1";
+    "f41a795462ecfce9f7fb183b4be1cd4f96ace10440d2f511c83ab7fcce3acd5b";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -2678,6 +2678,9 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT-154 re-pin after d6d43a87 applied DDL: independent fresh embedded stores at
 // 4ffda19b observed f8902e15... (MT-109/wpv-c3x/logs/round-4ffda19b.stderr.log:
 // 3224, 3240, 3258). Keep the canonical INFO comparison and predecessor pins intact.
+// MT-157 LET-bound workspace-delete rowsets: INFO re-pin UNRESOLVED. Retain the last
+// measured pin until the validator union runs mt139_current_schema_info_pin_matches_fresh_mem_catalog.
+// The generated source hash is updated; this INFO pin does not yet certify that changed schema.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
     "f8902e153103c1a6e6dd2549b9fe64f27fdaac27e2bc443c1ba9343728adfcdf";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
