@@ -278,10 +278,13 @@ impl SurrealDataContext<'_> {
                     workspace: RecordId::new(WORKSPACES_TABLE, id.to_owned()),
                     anchor: workspace_write_anchor(id),
                 },
-                // The final `DELETE $workspace RETURN BEFORE` result. One statement per body line;
-                // derived so an added cascade line (7e73eb03) cannot silently shift it onto
-                // `DELETE loom_blocks` and turn every trusted delete into NotFound("workspace").
-                WORKSPACE_DELETE_BODY.lines().count() - 1,
+                // The final `DELETE $workspace RETURN BEFORE` result. `take(index)` counts
+                // `BEGIN TRANSACTION` as statement 0 (as fems_memory PROPOSAL_INSERT_TRANSACTION and
+                // governance_check_store's index 3 do) and the body is one statement per line, so
+                // the last body statement is index `lines().count()`. Derived so an added cascade
+                // line (456dc63a, 7e73eb03) cannot shift it onto `DELETE loom_blocks` and turn every
+                // trusted delete into NotFound("workspace").
+                WORKSPACE_DELETE_BODY.lines().count(),
             )
             .await?;
         Ok(!deleted.is_empty())
