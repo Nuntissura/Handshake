@@ -25,7 +25,7 @@
   "title": "B18-MT-155-Authenticate-Product-Screenshot-Capture-Execute",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-24T03:54:46.533Z",
+  "updated_at_utc": "2026-09-24T07:23:23.098Z",
   "identity": {
     "mt_id": "MT-155",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,13 +41,13 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V3",
     "depends_on": [],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V3",
     "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
-    "validated_at_utc": "2026-09-24T03:54:46.533Z",
+    "validated_at_utc": "2026-09-24T07:23:23.098Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -1093,5 +1093,47 @@
     "rule": "CX-STATUS-001: implementer commit newer than last verdict -> READY_FOR_VALIDATION",
     "from_status": "FAIL_V2",
     "remediation_commit": "0dde33a1 (style(MT-155) rustfmt on 9 files; rustfmt --check clean at tip per KB-C5 check)"
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-C7V-20260923-2345",
+    "timestamp_utc": "2026-09-24T07:23:23.098Z",
+    "candidate_sha": "1097ef1c95845587dd57df1ba6f7a528d6c9cd03",
+    "verdict": "FAIL_V3",
+    "source_of_truth": "MT-155.proof.checks",
+    "reuse_rule": "CX-VAL-002: prior fe0949d8 FMT/CLIPPY results not reusable (relevant commits in range rustfmt'd files); executed fresh at 1097ef1c. No cargo check/clippy run on C: (policy); D: appeared idle (no cargo/rustc process found) but not self-scheduled since the verdict is already determined without it.",
+    "checks": [
+      {
+        "check_id": "MT-155-ROUTE-AUTH",
+        "result": "PASS 5/5"
+      },
+      {
+        "check_id": "MT-155-EXISTING",
+        "result": "PASS 8/8"
+      },
+      {
+        "check_id": "MT-155-KERNEL-LIB",
+        "result": "PASS 3/3"
+      },
+      {
+        "check_id": "MT-155-DIFF-CHECK",
+        "result": "PASS, exit 0, no output (git diff --check 0cfbff64..1097ef1c)"
+      },
+      {
+        "check_id": "MT-155-FMT",
+        "result": "FAIL: 1/119 changed files (0cfbff64..1097ef1c) has a diff - src/frontend/handshake_native/tests/test_embeds.rs. Check expects exit 0/no diff output unconditionally on every changed file (established in the fe0949d8 round - no owned_files carve-out).",
+        "log": "Handshake_Artifacts/WP-KERNEL-012/MT-155/wpv-c3x/logs/05-fmt-check-1097ef1c.log",
+        "failure_kind": "product (formatting)"
+      },
+      {
+        "check_id": "MT-155-CHECK-TESTS",
+        "result": "NOT_RUN this pass - not needed, FMT alone already determines FAIL"
+      },
+      {
+        "check_id": "MT-155-CLIPPY-CHANGED",
+        "result": "NOT_RUN this pass - needs D:, not self-scheduled since verdict already determined; D: appeared idle (no cargo/rustc process observed) if IV wants it run later"
+      }
+    ],
+    "verdict_basis": "FAIL fully determined by MT-155-FMT alone (1 changed file has a formatting diff)."
   }
 }
