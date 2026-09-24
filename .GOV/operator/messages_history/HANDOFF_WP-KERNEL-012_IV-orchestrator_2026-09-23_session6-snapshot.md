@@ -3,7 +3,7 @@
 ## 0a. Update 06:30 (supersedes §0 where they differ)
 
 - **Board: PASS 120, READY_FOR_VALIDATION 34, BLOCKED 4 (045 124 125 142, end-of-WP proof run), FAIL_V2 1 (157).**
-- Verdicts since 05:42: MT-155 FAIL_V2 (FMT-DIFF, gov `c8c67c25`), then READY after fmt fix `0dde33a1` (gov `a01fd356`).
+- Verdicts since 05:42: MT-155 FAIL_V2 (FMT-DIFF, gov `c8c67c25`), then READY_FOR_VALIDATION after fmt fix `0dde33a1` (gov `a01fd356`).
 - Product `feat/WP-KERNEL-012` = **`1097ef1c`**: `0dde33a1` rustfmt 9 files (MT-155) + per-process native-MCP binding root (MT-074, other_pillar op01-04); `1097ef1c` backend freshness guard drops non-existent `migrations/`, adds `assets/schemas/htc_v1.json`.
 - 27 older-format MTs got executable `proof_commands` (128 commands, unmapped ACs listed; gov `c97949ad`). Contract drifts found: MT-023/026/027 module paths are `graph::` not `loom::`; MT-034 filter matched 0 tests; MT-027 lacked surreal-test-support; MT-120 AC-120-4 expects 12 tests, file has 1; MT-121 named test no longer exists (inverted by MT-135); MT-074 OP tests no longer ignored/gated.
 - Run 51 native finished: 885 run, 847 pass, 38 fail. Run 51b (33 harness reruns, backend-bin copied to D:, sha256 identical): 1 pass, 25 fail (freshness guard `migrations/`, fixed in 1097ef1c), 7 TIMEOUT (global `managed-backend-fixture.lock` queueing past 300 s; fix = nextest test-group max-threads 1, slow-timeout 1200 s).
@@ -14,7 +14,7 @@
 ## 0. Update 05:42 (supersedes §1 and §4 where they differ)
 
 - **Board: PASS 120. READY_FOR_VALIDATION 34** (008 023 026 027 033 034 036 046 064 065 066 067 068 070 074 079 098 111 113 116 117 120 121 122 127 128 130 140 143 153 154 155 158 159). **FAIL_V2 1** (157). **BLOCKED 4** (045 124 125 142).
-- Run 50 verdicts (gov `8606d342`): MT-141 PASS_V6; MT-157 FAIL_V2 (`api::workspaces::tests::owned_workspace_delete_cascades_…` 403); MT-158 FAIL_V2 (route6 delete 403), then READY again at gov `7abc01e2` (builder commit newer than the verdict). MT-155 PASS was rejected (static checks not run); it stays READY.
+- Run 50 verdicts (gov `8606d342`): MT-141 PASS_V6; MT-157 FAIL_V2 (`api::workspaces::tests::owned_workspace_delete_cascades_…` 403); MT-158 FAIL_V2 (route6 delete 403), then READY_FOR_VALIDATION again at gov `7abc01e2` (builder commit newer than the verdict). MT-155 PASS was rejected (static checks not run); it stays READY_FOR_VALIDATION.
 - Verdicts are judged from each MT JSON's `proof` block (union.json is not authority; it mis-maps 033/034/036/046/064/065/068/074). Read results from the raw log; the validator's junit regex gave false positives.
 - Product `feat/WP-KERNEL-012` = **`2258707e`** (pushed). Since fe0949d8: e9775977, f5bd7885, 0a22ca37, f0b48f7d, 99a1fb8f, 3056f471, d0fef7ce, 61bef7c0, 3ef9002c, ee4f03b1, a5e8d456, e2d20baf, 2258707e (one commit per root cause; cargo check on D: only, none run as tests). Remediation records: MT-154 v3, MT-158 v2, MT-159 v3 (gov `7abc01e2`).
 - Staged, not pushed: `backend_proof_support` `RealNativeMcpBinding::publish` uses `<stage-binding root>/proc-<pid>` (fixes other_pillar op01–04 lock/overwrite). Waiting for D: after MT-155 static checks.
