@@ -25,7 +25,7 @@
   "title": "B18-MT-158-Locus-Job-Path-Runs-Under-The-Account-Session",
   "group": "B18",
   "created_at_utc": "2026-09-23T15:01:47.520Z",
-  "updated_at_utc": "2026-09-24T03:21:00.388Z",
+  "updated_at_utc": "2026-09-24T03:32:19.036Z",
   "identity": {
     "mt_id": "MT-158",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -49,13 +49,13 @@
     "question": "Locus job-path authority gap found by KERNEL_BUILDER-C4 (MT-154 residual): option A (new MT inside WP-KERNEL-012) vs the 012-bis refactor."
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-154"
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": null,
     "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
     "validated_at_utc": "2026-09-24T03:21:00.388Z",
     "completed_by": null,
@@ -71,7 +71,9 @@
       "from_status": "BLOCKED_ON_DEPENDENCY",
       "prior_validator_verdict": "BLOCKED_ON_DEPENDENCY",
       "reason": "dependency MT-154-WS-DELETE-INDEX fixed in 56573ecb (feat e85a69fc)"
-    }
+    },
+    "prior_validator_verdict": "FAIL_V2",
+    "next_actor": "WP_VALIDATOR"
   },
   "closure_unit": {
     "outcome": "A Locus job (job_kind locus_operation) can be created and resumed only through an authenticated account session holding the named workspace's write grant. The job and every Locus row it writes (work_packets, micro_tasks, mt_iterations, dependencies, the dependency-graph anchor) are written by the account's record user and are private to that account.",
@@ -1146,5 +1148,73 @@
       }
     ],
     "verdict_basis": "FAIL is fully determined by route6_document_soft_delete_tombstones_and_receipts alone (product-classified). micro_task_executor and mt136_proof_c failures are recorded but explicitly not used to decide this verdict per IV instruction."
+  },
+  "remediation_v2": {
+    "session": "KERNEL_BUILDER-C5-20260923-2250",
+    "executor_role": "KERNEL_BUILDER",
+    "base_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06",
+    "candidate_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "pushed_verified": "git ls-remote origin feat/WP-KERNEL-012 = 2258707eaba0f7518d1978a50b143b76445fc40f",
+    "source_failures": "run 50 (core) / run 51 (native) at fe0949d8: MT-109/wpv-c3x/logs/50-run-round-fe0949d8.log, 51-nextest-native-only.log",
+    "compile_gates": [
+      {
+        "proof_id": "KB-C5-08-core-check-tests",
+        "target": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target (D:)",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/08-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-09-core-check-tests",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/09-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-10-native-check-test_embeds",
+        "command": "cargo check --locked --features integration --test test_embeds",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/10-native-check-test_embeds.log"
+      },
+      {
+        "proof_id": "KB-C5-11-core-check-tests",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/11-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-12-core-check-tests",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/12-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-13-core-check-tests",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/13-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-14-native-check-drawer",
+        "command": "cargo check --locked --test test_drawer_item_actions",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/14-native-check-drawer.log"
+      }
+    ],
+    "test_runs": "builder runs no tests (Operator rule); validators run them on the candidate",
+    "updated_at_utc": "2026-09-24T03:32:19.036Z",
+    "status": "CANDIDATE_PUSHED",
+    "items": [
+      {
+        "commit": "3b23523a",
+        "failure": "micro_task_executor x4: atomic write failed os error 2/5",
+        "root_cause": "tests without their own WorkspaceEnvGuard wrote runtime governance artifacts (fixed WP-TEST/MT ids) under one shared workspace root from separate nextest processes; the in-process locks cannot order them",
+        "fix": "setup_state* set HANDSHAKE_GOVERNANCE_ROOT=.handshake/gov-test-<pid> unless the test activated its guard"
+      }
+    ],
+    "open": "route6 delete 403 (family F) remains open; diagnostic in MT-154 remediation (3056f471)"
+  },
+  "ready_for_validation_transition_c5": {
+    "at_utc": "2026-09-24T03:32:33.835Z",
+    "by": "INTEGRATION_VALIDATOR",
+    "rule": "Operator ruling 2026-09-24 / CX-STATUS-001: implementer commit newer than last verdict -> READY_FOR_VALIDATION",
+    "from_status": "FAIL_V2",
+    "remediation_ref": "remediation_v2 at 2258707e",
+    "note": "route6 (family F) still open; next union round re-judges"
   }
 }

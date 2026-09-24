@@ -25,7 +25,7 @@
   "title": "B18-MT-159-Remaining-Jobs-Routes-And-Job-Kinds-Under-The-Account-Session-And-Locus-Ids-Do-Not-Reveal-Existence",
   "group": "B18",
   "created_at_utc": "2026-09-23T16:43:28.779Z",
-  "updated_at_utc": "2026-09-23T23:52:39.079Z",
+  "updated_at_utc": "2026-09-24T03:32:19.036Z",
   "identity": {
     "mt_id": "MT-159",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -1008,6 +1008,65 @@
         "root_cause": "9552ca2b runs every job kind's workflow under the record-user scope; model_sessions (and checkpoints/messages) were PERMISSIONS NONE so the UPSERT was silently dropped",
         "fix": "schema.surql: model_sessions / model_session_checkpoints / model_session_messages get select via fn::mt154_job_access(job read fs.read|fr.read), create/update via fn::mt154_job_access(job update fs.write), delete NONE; job_id NONE stays root-only; byte-exact MT154_SCHEMA_DELTAS pairs; re-pin GENERATED 9107f275..., EXPECTED_SCHEMA_INFO 0c59fb08... (kb-c5 run 05)",
         "spec_basis": "IV ruling option (a): Master Spec 02-system-architecture.md:2773 (privileged sessions must not execute ordinary protected-resource flows); MT-159 scope (every job kind under the account session); checkpoints/messages widening accepted by IV"
+      }
+    ]
+  },
+  "remediation_v3": {
+    "session": "KERNEL_BUILDER-C5-20260923-2250",
+    "executor_role": "KERNEL_BUILDER",
+    "base_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06",
+    "candidate_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "pushed_verified": "git ls-remote origin feat/WP-KERNEL-012 = 2258707eaba0f7518d1978a50b143b76445fc40f",
+    "source_failures": "run 50 (core) / run 51 (native) at fe0949d8: MT-109/wpv-c3x/logs/50-run-round-fe0949d8.log, 51-nextest-native-only.log",
+    "compile_gates": [
+      {
+        "proof_id": "KB-C5-08-core-check-tests",
+        "target": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target (D:)",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/08-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-09-core-check-tests",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/09-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-10-native-check-test_embeds",
+        "command": "cargo check --locked --features integration --test test_embeds",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/10-native-check-test_embeds.log"
+      },
+      {
+        "proof_id": "KB-C5-11-core-check-tests",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/11-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-12-core-check-tests",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/12-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-13-core-check-tests",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/13-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-14-native-check-drawer",
+        "command": "cargo check --locked --test test_drawer_item_actions",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/14-native-check-drawer.log"
+      }
+    ],
+    "test_runs": "builder runs no tests (Operator rule); validators run them on the candidate",
+    "updated_at_utc": "2026-09-24T03:32:19.036Z",
+    "status": "CANDIDATE_PUSHED",
+    "items": [
+      {
+        "commit": "ee4f03b1",
+        "failure": "model_session_scheduler x7: job state Failed (no reason in log)",
+        "fix": "diagnostic only: completion asserts print status_reason",
+        "status": "OPEN (these tests run without a record-user scope, so the fe0949d8 model_session* permissions are not evaluated for them; cause UNVERIFIED)"
       }
     ]
   }

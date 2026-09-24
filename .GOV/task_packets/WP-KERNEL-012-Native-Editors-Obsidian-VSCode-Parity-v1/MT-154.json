@@ -25,7 +25,7 @@
   "title": "B18-MT-154-Non-Loom-Routes-Account-Session-Authority-And-Residuals",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-23T23:52:39.079Z",
+  "updated_at_utc": "2026-09-24T03:32:19.036Z",
   "identity": {
     "mt_id": "MT-154",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -2095,6 +2095,132 @@
         "fix": "diagnostic only (IV ruling): failure now reports DELETE status/body and follow-up GET; route6 remains OPEN",
         "spec_basis": "IV ruling 2026-09-24"
       }
+    ]
+  },
+  "remediation_v3": {
+    "session": "KERNEL_BUILDER-C5-20260923-2250",
+    "executor_role": "KERNEL_BUILDER",
+    "base_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06",
+    "candidate_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "pushed_verified": "git ls-remote origin feat/WP-KERNEL-012 = 2258707eaba0f7518d1978a50b143b76445fc40f",
+    "source_failures": "run 50 (core) / run 51 (native) at fe0949d8: MT-109/wpv-c3x/logs/50-run-round-fe0949d8.log, 51-nextest-native-only.log",
+    "compile_gates": [
+      {
+        "proof_id": "KB-C5-08-core-check-tests",
+        "target": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target (D:)",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/08-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-09-core-check-tests",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/09-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-10-native-check-test_embeds",
+        "command": "cargo check --locked --features integration --test test_embeds",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/10-native-check-test_embeds.log"
+      },
+      {
+        "proof_id": "KB-C5-11-core-check-tests",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/11-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-12-core-check-tests",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/12-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-13-core-check-tests",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/13-core-check-tests.log"
+      },
+      {
+        "proof_id": "KB-C5-14-native-check-drawer",
+        "command": "cargo check --locked --test test_drawer_item_actions",
+        "result": "exit 0",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/14-native-check-drawer.log"
+      }
+    ],
+    "test_runs": "builder runs no tests (Operator rule); validators run them on the candidate",
+    "updated_at_utc": "2026-09-24T03:32:19.036Z",
+    "status": "CANDIDATE_PUSHED",
+    "items": [
+      {
+        "commit": "e9775977",
+        "failure": "NotFound(\"workspace\") (memory proposal_delete_race, workspace_memory_cleanup, mt136 proof C, mt152_fems x2)",
+        "root_cause": "take(index) counts BEGIN TRANSACTION as 0; DELETE $workspace RETURN BEFORE is index lines().count(); 979230d6 set 10, 456dc63a/7e73eb03 added lines, 56573ecb (lines-1) stayed off by one",
+        "fix": "workspaces.rs index = WORKSPACE_DELETE_BODY.lines().count()"
+      },
+      {
+        "commit": "f5bd7885",
+        "failure": "owned_workspace_delete_cascades 403 (family G)",
+        "fix": "diagnostic only: HSK_WORKSPACE_DELETE_TRANSACTION_FAILED statement_index/error in test builds",
+        "status": "OPEN"
+      },
+      {
+        "commit": "0a22ca37",
+        "failure": "15 tests: LOCAL_ACCOUNT_TEST_FAILURE os_vault_operation Windows error 8 (Credential Manager full of test lanes)",
+        "fix": "store teardown deletes the vault lanes its logins recorded (cfg(all(test, os-keychain)))"
+      },
+      {
+        "commit": "99a1fb8f",
+        "failure": "preferences mt154_global_preference_is_private (failed-transaction slot instead of constant denial)",
+        "fix": "preference write selects the meaningful (THROWn) error instead of check()"
+      },
+      {
+        "commit": "3056f471",
+        "failure": "family F knowledge-document 403s (route6, mt032 x5, title race, swarm deleted_backlink / ci_profile, mt157 move, mt154_save_indexes, loom_transclusion)",
+        "fix": "diagnostic only: knowledge-transactionfailed statement lines print in surreal-test-support builds",
+        "status": "OPEN (route6 reproducer: DELETE 403, document still present)"
+      },
+      {
+        "commit": "f0b48f7d",
+        "failure": "resource_authority_tests direct_record_user_* (fn::mt154_workspace_receipt does not exist)",
+        "fix": "bounded authority bootstrap also defines the MT154 authority-block functions"
+      },
+      {
+        "commit": "d0fef7ce",
+        "failure": "schema_contract_is_wave_scoped (REFERENCE 408 vs 406)",
+        "fix": "count DDL lines only; REFERENCE_FIELD_COUNT 407 (already 407 at 0cfbff64); no schema change"
+      },
+      {
+        "commit": "61bef7c0",
+        "failure": "mt141/mt150 lineage (saved-search block rewritten by 625893e1), mt109_exact_predecessor rollback index 176 vs 764",
+        "fix": "lineage checks on restore_pre_mt154_schema(SCHEMA) (byte-equal to 0cfbff64 by emulation); injected THROW index derived"
+      },
+      {
+        "commit": "a5e8d456",
+        "failure": "local_account_setup_upgrade_preserves_revision_157 (1180... vs e9a0...), mt151_upgrade_statements_match_schema",
+        "root_cause": "C1-C3 loom_blocks permission rewrites had no revert pair; only difference to the 8d4ed30d pin",
+        "fix": "revision-157 chain restores the pinned loom_blocks statement; emulation reproduces revision-157, pre-MT-141 and pre-MT-150 pins; MT-151 DDL checked against revision-157 script"
+      },
+      {
+        "commit": "3ef9002c",
+        "failure": "native test_embeds real_image_resolve_against_live_backend required HANDSHAKE_TEST_WORKSPACE_ID/ASSET_ID",
+        "fix": "seeds its own asset on require_live_backend() via loom/import; authenticated fetcher; assert_cleanup"
+      },
+      {
+        "commit": "e2d20baf",
+        "failure": "memory_source_reads_require_exact_grants (mt109_loom_source_integrity HSK-403 on root move of the standalone block)",
+        "fix": "IV ruling option (a): standalone case asserts HSK-403 and an unchanged row; no schema change",
+        "reference_note": "mt109_loom_source_integrity's UPDATE branch (schema.surql ~480-484) is stricter than its own comment and than fn::mt153_loom_identity_unchanged (which returns true for $auth = NONE): it denies root/system moves too. Reference only, no change (IV ruling; Master Spec 02-system-architecture.md:2758/:2773)."
+      },
+      {
+        "commit": "2258707e",
+        "failure": "native test_drawer_item_actions successful_action_clears_error_and_shows_success_state (None)",
+        "fix": "pump frames until drawer_action_success() is Some or 10 s"
+      }
+    ],
+    "host_or_harness": [
+      "hard_isolation probes x2: 750 ms --help probe timeout under load",
+      "atelier_stealth_window x3: runner lacked HANDSHAKE_WORKSPACE_ROOT (validator harness fix)",
+      "code_nav mt045_lc06: reqwest TimedOut with draining store (load)",
+      "engine_conflict_retry_lane: 8 conflicts in 312 ms under Operator delete load (UNVERIFIED as load)",
+      "native swarm_edit_proof / folder_tree: live backend child not ready (backend-target infra)",
+      "memory credential exchange 403: keychain error 8"
     ]
   }
 }
