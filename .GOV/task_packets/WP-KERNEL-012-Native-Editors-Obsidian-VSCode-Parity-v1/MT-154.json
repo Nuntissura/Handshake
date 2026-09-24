@@ -41,13 +41,15 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-153"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": null,
+    "prior_validator_verdict": "FAIL_V1",
+    "next_actor": "WP_VALIDATOR",
     "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
     "validated_at_utc": "2026-09-24T07:21:13.185Z",
     "completed_by": null,
@@ -2222,6 +2224,52 @@
       "native swarm_edit_proof / folder_tree: live backend child not ready (backend-target infra)",
       "memory credential exchange 403: keychain error 8"
     ]
+  },
+  "remediation_v4": {
+    "session": "KERNEL_BUILDER-C5-20260923-2250",
+    "executor_role": "KERNEL_BUILDER",
+    "updated_at_utc": "2026-09-24T13:24:31.754Z",
+    "status": "CANDIDATE_PUSHED",
+    "batch_owner": "MT-154",
+    "covered_mts": ["MT-154"],
+    "base_sha": "9c13b642e50a909e9d0ea1246a050f6be74f18cc",
+    "candidate_sha": "86956b66e471d451dfdd6c8da13ae0a876337727",
+    "pushed_verified": "origin refs/heads/feat/WP-KERNEL-012; subsequently advanced by builder2 to 10eb7c1295f8ac39335a6b03598fa595a8195462",
+    "changed_files": [
+      "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+      "src/backend/handshake_core/src/api/knowledge_documents.rs"
+    ],
+    "items": [
+      {
+        "failure": "run52 mt032_save_and_rename_reject_search_projection_identity_collisions returned 500 for a foreign-workspace projection collision",
+        "fix": "Map typed loom_block_search_index record collisions to the existing opaque HSK-KRD-SEARCH-IDENTITY conflict only when that guard is declared; retain HSK-403 precedence and unrelated database errors."
+      },
+      {
+        "failure": "run52 document-create statement 15 target authorization returned HSK-403",
+        "fix": "Authorize exact same-workspace rich-document target projections through their table UPDATE permission using an unchanged backlink_count; retain existing nonce anchors, write-set fencing and transaction rollback."
+      },
+      {
+        "failure": "run52 mt157_move_empty_body_preserves_membership_and_batch_reports_per_item returned global 403 for a mixed authorized/unavailable batch",
+        "fix": "Keep authorization per item, return the existing unavailable-item denial without entering storage, and scope each authorized operation independently. All-unavailable and cross-account requests remain denied."
+      },
+      {
+        "failure": "run52 knowledge entity upsert returned no record",
+        "fix": "Already addressed by ancestor d6d43a878d0cfccc36f2cc4168259b8299dae83d allowing rich_document in both index-source authority functions; no duplicate change. Runtime confirmation pending."
+      }
+    ],
+    "compile_gates": [
+      {
+        "proof_id": "KB-C5-22-combined-knowledge-workspaces-check",
+        "command": "cargo check --locked -j 6 --tests --features app-runtime,surreal-test-support,test-utils",
+        "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target",
+        "result": "exit 0; 3m 50s; warnings only",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/22-combined-knowledge-workspaces-check.log",
+        "inputs": "Shared frozen five-file tree: both knowledge files plus builder2 api/workspaces.rs, storage/surreal/workspaces.rs and storage/surreal/schema.rs. All five SHA256 hashes unchanged before/after compilation; subsequently committed as 86956b66 and 10eb7c12."
+      }
+    ],
+    "test_runs": "No tests run by builder under explicit Operator instruction; cargo check --tests compiles only. Independent runtime proof belongs to the next coordinated validator union, not frozen 4ffda19b.",
+    "readiness_basis": "Operator-authorized CX-STATUS-001 transition after newer compiled/pushed remediation. Historical validation_v1 remains unchanged; no builder PASS or FAIL issued.",
+    "open": ["Independent runtime validation pending; historical FAIL_V1 remains evidence, not a verdict on this candidate."]
   },
   "validation_v1": {
     "schema_id": "hsk.mt_validation_verdict@1",
