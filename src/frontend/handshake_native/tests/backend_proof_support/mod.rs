@@ -882,9 +882,12 @@ fn assert_backend_binary_is_current_source(binary: &Path) {
         backend_root.join("build.rs"),
         backend_root.join("mechanical_engines.json"),
         backend_root.join("src"),
-        backend_root.join("migrations"),
         backend_root.join("schemas"),
+        // Repo-level file the backend compiles in (include_str! in src/mcp/gate.rs).
+        repo_root.join("assets/schemas/htc_v1.json"),
     ];
+    // `migrations/` is not a tracked backend input (absent from a clean export), so it is not listed:
+    // a missing listed input is a harness error, not staleness (native run 51b: 25 panics).
     while let Some(input) = inputs.pop() {
         let metadata = input.metadata().unwrap_or_else(|error| {
             panic!("inspect current-source input {}: {error}", input.display())
