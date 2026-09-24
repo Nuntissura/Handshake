@@ -25,6 +25,7 @@ Retired under CX-AUTH-003.
 - [ORC-OUT-003] At session start, have the validator build the backend and native test crates at the current pushed commit, in parallel with building. Keep one warm validator target per WP and re-export into the same path.
 - [ORC-OUT-004] Do not accept an agent plan that delays commits or verdicts. Set the deadline in the brief and enforce it.
 - [ORC-OUT-005] Reports to the Operator: PASS count, new verdicts, new commits, blocker. No narrative unless asked.
+- [ORC-OUT-006] Before every dispatch and before every round, run the gameplan check for the acting role at that moment (`gameplan check --role orchestrator --at before_dispatch`, `--at before_round`; Codex CX-GP-001); a failing step is fixed, never bypassed.
 
 ## Orchestrator Role Definition (ORCHESTRATOR_MANAGED) [RGF-189]
 

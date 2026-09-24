@@ -8,7 +8,8 @@
     "Value mapping from V1 labels: PASS_Vn -> phase passed / decision pass; FAIL_Vn -> needs_remediation / fail; PARTIAL -> validating / inconclusive plus a blockers[] entry on the MT.",
     "lifecycle.phase is authoritative; lifecycle.status is the derived label <DECISION>_V<n> kept for old readers.",
     "mt_plan.clusters fold into microtask_graph.parallel_groups; build_target stays inside architecture_binding for the single-crate reality.",
-    "Placeholders are REPLACE_ME or empty arrays; scope_waivers keep 012's waivers_granted names as aliases under _v1_alias."
+    "Placeholders are REPLACE_ME or empty arrays; scope_waivers keep 012's waivers_granted names as aliases under _v1_alias.",
+    "gameplan_ref names the WP gameplan .GOV/task_packets/<WP_ID>/gameplan.yaml, created and edited only with the gameplan skill; MT gameplans under gameplans/<MT_ID>.yaml inherit from it (CX-GP-001)."
   ],
   "instance_policy": {
     "omit_empty_optional_fields": true,
@@ -30,7 +31,8 @@
     "CX-CAP-001",
     "CX-LANE-001",
     "CX-VAL-001",
-    "CX-HOST-001"
+    "CX-HOST-001",
+    "CX-GP-001"
   ],
   "_rule_refs_replaces": [
     "contract_authority",
@@ -68,6 +70,7 @@
     "digest": null,
     "path": ".GOV/task_packets/{{WP_ID}}/refinement.json"
   },
+  "gameplan_ref": ".GOV/task_packets/{{WP_ID}}/gameplan.yaml",
   "authority_snapshot": {
     "governance_pin": {
       "commit": "REPLACE_ME",

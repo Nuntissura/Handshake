@@ -2,21 +2,38 @@
   "schema": "hsk.template_alignment@1",
   "template_pack": {
     "source": "Obsidian vault Handshake Creation Template",
+    "source_ref": "installed skill copy: ~/.claude/skills/hsrepotemplate/assets/handshake-creation-template/templates/ (pack 27)",
     "pack_id": "HANDSHAKE-PROJECT-BASE-v1",
-    "pack_version": 21,
+    "pack_version": 27,
     "template_files": [
       "templates/authority/CODEX.template.md",
       "templates/authority/BUILD-RULES.template.md",
       "templates/TEMPLATE-PACK.template.md",
       "templates/work-system/CODING-WORKFLOW.template.md",
-      "templates/work-system/RECEIPT.template.md"
+      "templates/work-system/RECEIPT.template.md",
+      "templates/work-system/MICROTASK.template.md",
+      "templates/work-system/WP-STATE.template.md",
+      "templates/work-system/GAMEPLAN.template.md",
+      "templates/work-system/ACTION-REGISTRY.template.md",
+      "templates/schemas/GAMEPLAN-SCHEMA.template.md",
+      "templates/schemas/MICROTASK-SCHEMA.template.md",
+      "templates/schemas/RECEIPT-SCHEMA.template.md",
+      "templates/schemas/WP-STATE-SCHEMA.template.md",
+      "templates/schemas/WP-CONTRACT-SCHEMA.template.md"
     ]
   },
   "repo_targets": {
     "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
-    "build_rules": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json@1.13.0",
+    "build_rules": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json@1.14.0",
     "microtask_template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
-    "activation_manager": ".GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md"
+    "work_packet_template": ".GOV/templates/WORK_PACKET_CONTRACT_TEMPLATE_V2.json",
+    "templates_readme": ".GOV/templates/README.md",
+    "activation_manager": ".GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md",
+    "orchestrator": ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
+    "kernel_builder": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    "coder": ".GOV/roles/coder/CODER_PROTOCOL.md",
+    "wp_validator": ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+    "integration_validator": ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md"
   },
   "mappings": [
     {
@@ -191,7 +208,7 @@
       "repo_id": "CX-VAL-005",
       "template_id": "CODEX-VAL-002",
       "kind": "codex",
-      "note": "run_all_tests_no_fail_fast with per-test timeout; results mapped to MTs from structured runner output (validation.result_extraction; handwritten, no script)"
+      "note": "run_all_tests_no_fail_fast with per-test timeout; results mapped to MTs from structured runner output (validation.result_extraction; handwritten, no script); KERNEL DIVERGES (Operator 2026-09-25): results mapped to MTs by hand, no script (script later)"
     },
     {
       "repo_id": "CX-VAL-005",
@@ -257,13 +274,139 @@
       "repo_id": "MT.submissions[]/verdicts[].test_run",
       "template_id": "RECEIPT.mechanical.test_run",
       "kind": "template_field",
-      "note": "{executed_count, failed_count, results_ref, failures[{test_name, mt_id, failure_kind}]}; filter field omitted, receipt class renamed failure_kind"
+      "note": "{executed_count, failed_count, results_ref, failures[{test_name, mt_id, failure_kind}]}; filter field omitted, receipt class renamed failure_kind; pack 27 adds candidate_commit, started_at, completed_at and failures[].artifact_ref (CX-VAL-009, CHK-RESULTS-FRESH-001)"
     },
     {
       "repo_id": "MT.execution.lane special_runs",
       "template_id": "CODING-WORKFLOW.validation.special_runs",
       "kind": "template_field",
       "note": "KERNEL DIVERGES (Operator 2026-09-24): MT lane value renamed extra_build (proofs declared in extra_build_proofs, run in one end-of-WP build)"
+    },
+    {
+      "repo_id": "CX-VAL-007",
+      "template_id": "CODEX-STEER-010",
+      "kind": "codex",
+      "note": "checked-in test entrypoint and its version-controlled config only; no run-time env vars, flags or wrappers; handoff/chat/brief never authority; environment change is a commit to the config (BR-TEST-ENTRY-001; action check CHK-TEST-ENTRYPOINT-001); canary clause from CODEX-VAL-006 (entrypoint on one test per package); repo field HBR test_environment_prerequisites.test_entrypoint"
+    },
+    {
+      "repo_id": "CX-VAL-008",
+      "template_id": "CHK-REMEDIATION-SHAPE-001",
+      "kind": "codex",
+      "note": "typed remediation on a failed verdict: WP-STATE remediation_fields (failed_acceptance_refs, failed_check_refs, artifact_refs, expected, observed, affected_code_refs, repair_direction, confirming_proof_refs); text fields <=120 chars in HT-WORK-GAMEPLAN-001.writing style (RECEIPT.limits.remediation_text_max_chars); CODEX-REMEDIATE-001; repo shape MT V2 verdicts[]._remediation_shape"
+    },
+    {
+      "repo_id": "CX-VAL-008",
+      "template_id": "CHK-DISTINCT-RESUBMISSION-001",
+      "kind": "codex",
+      "note": "resubmission after a failed verdict admitted only with a changed path in remediation.affected_code_refs, a changed relevant input digest or a new diagnosis_ref (CODING-WORKFLOW.resubmission_after_failed_verdict); two FAIL verdicts on one failure_class without a new diagnosis -> needs_new_approach (CODEX-STEER-007/008; repo CX-EXEC-013); repo field MT V2 submissions[].diagnosis_ref"
+    },
+    {
+      "repo_id": "CX-VAL-008",
+      "template_id": "CHK-DIAGNOSIS-SHAPE-001",
+      "kind": "codex",
+      "note": "diagnosis recorded once with id, one-line cause <=120 chars, evidence_refs and distinct_from listing every earlier diagnosis id on the MT; diagnosis_refs equal the ids in recording order; gameplan step source names the diagnosis (CODEX-STEER-008); KERNEL DIVERGES: recorded as the MT JSON blockers[].diagnosis (no wp_state.diagnoses array, no record_blocker action)"
+    },
+    {
+      "repo_id": "CX-VAL-009",
+      "template_id": "CHK-RESULTS-FRESH-001",
+      "kind": "codex",
+      "note": "verdict binds to the frozen candidate commit and this round's test_run (results_ref, candidate_commit, started_at, completed_at) per CODEX-VAL-006 and WP-STATE validation_batches; stale or foreign results are infrastructure, no verdict; KERNEL DIVERGES (Operator 2026-09-25): results mapped to MTs by hand, no script (script later), and no validation_batches record (batch_commit_ref on the verdict)"
+    },
+    {
+      "repo_id": "CX-VAL-009",
+      "template_id": "CHK-PROOF-INVALIDATED-001",
+      "kind": "codex",
+      "note": "round_freeze_reassessment clause of CODEX-VAL-007: every passed MT whose relevant_input_paths intersect the candidate diff re-enters ready_for_validation (proof_invalidated) with invalidated_by_commit = candidate; repo field MT V2 lifecycle.invalidated_by_commit; status READY_FOR_VALIDATION per CX-STATUS-001"
+    },
+    {
+      "repo_id": "CX-VAL-009",
+      "template_id": "CHK-VERDICT-FAILURE-KIND-001",
+      "kind": "codex",
+      "note": "failed-verdict clause of CODEX-VAL-004: a failed decision needs >= 1 product failure attributed to the MT in the round test_run; infrastructure-only or flaky-only records an infrastructure entry, no verdict, MT phase unchanged (repo CX-VAL-006 kept as is); failures[].artifact_ref from RECEIPT.mechanical.test_run"
+    },
+    {
+      "repo_id": "CX-VAL-009",
+      "template_id": "implementation_gates",
+      "kind": "codex",
+      "note": "ACTION-REGISTRY implementation_gates and CODEX-STEER-009: an implementer compile or static result counts only when receipt check_input_digest.before == after; command is project_profile.implementer_check; repo field HBR test_environment_prerequisites.implementer_check; recorded_in receipt fields deferred (no receipt collector)"
+    },
+    {
+      "repo_id": "CX-GP-001",
+      "template_id": "CODEX-GAMEPLAN-001",
+      "kind": "codex",
+      "note": "gameplan path .GOV/task_packets/<WP>/gameplan.yaml (MT: gameplans/<MT>.yaml, parent = WP gameplan; template path repo-governance/work-packets/active/<WP>/gameplan.yaml); skill-run (gameplan skill init/check/confirm; HT-WORK-GAMEPLAN-001, GAMEPLAN-SCHEMA handshake.gameplan.v1); hook-enforced (global pre-command hook blocks gated commands; CHK-GAMEPLAN-GATE-001, CHK-GAMEPLAN-SHAPE-001, WF-GAMEPLAN-001); KERNEL DIVERGES: no controller creates or evaluates it, the acting role runs the check by hand at before_dispatch/before_submit/before_round/before_verdict/before_merge; gate pointers ORC-OUT-006, KB-PROOF-007, CODER-PROOF-005, WPV-GP-001, IV-GP-001"
+    },
+    {
+      "repo_id": "ORC-OUT-006",
+      "template_id": "ORCH-INV-015",
+      "kind": "role_protocol",
+      "note": "orchestrator dispatches or resumes only after gameplan.gate.before_dispatch / on_resume (CHK-GAMEPLAN-GATE-001); repo pointer also covers before_round"
+    },
+    {
+      "repo_id": "KB-PROOF-007",
+      "template_id": "BUILD-INV-018",
+      "kind": "role_protocol",
+      "note": "builder submits only after gameplan.gate.before_submit; KERNEL DIVERGES (Operator): Kernel Builder keeps its combined packet-preparation and implementation authority (KB-AUTH-002) until Handshake exists"
+    },
+    {
+      "repo_id": "CODER-PROOF-005",
+      "template_id": "CODER-INV-016",
+      "kind": "role_protocol",
+      "note": "coder submits only after gameplan.gate.before_submit"
+    },
+    {
+      "repo_id": "WPV-GP-001",
+      "template_id": "WPV-INV-015",
+      "kind": "role_protocol",
+      "note": "wp_validator starts a round and records a verdict only after gameplan.gate.before_round / before_verdict"
+    },
+    {
+      "repo_id": "IV-GP-001",
+      "template_id": "IV-INV-007",
+      "kind": "role_protocol",
+      "note": "integration_validator merges only after gameplan.gate.before_merge"
+    },
+    {
+      "repo_id": "test_environment_prerequisites.test_entrypoint",
+      "template_id": "BUILD-RULES.project_profile.test_entrypoint",
+      "kind": "build_rule",
+      "note": "{command, config_files} only; rule_ref, location_ref and profiles not adopted; KERNEL DIVERGES: rest of project_profile deferred to the crate-split WP (Operator 2026-09-25)"
+    },
+    {
+      "repo_id": "test_environment_prerequisites.implementer_check",
+      "template_id": "BUILD-RULES.project_profile.implementer_check",
+      "kind": "build_rule",
+      "note": "{command, config_files} only; recorded_in receipt fields not adopted (no receipt collector); KERNEL DIVERGES: rest of project_profile deferred to the crate-split WP (Operator 2026-09-25)"
+    },
+    {
+      "repo_id": "WP.gameplan_ref / MT.gameplan_ref",
+      "template_id": "REPOSITORY-STRUCTURE.work_packet_anatomy gameplan.yaml + gameplans/<mt_id>.yaml",
+      "kind": "template_field",
+      "note": "path to the WP gameplan or the MT gameplan (parent = WP gameplan); template derives the path from the WP directory, repo names it explicitly because there is no controller"
+    },
+    {
+      "repo_id": "MT.verdicts[].remediation",
+      "template_id": "WP-STATE.stock_execution_state.remediation_fields",
+      "kind": "template_field",
+      "note": "typed object (_remediation_shape) with the eight template fields; required non-empty when decision is fail; text fields <=120 chars, gameplan writing style"
+    },
+    {
+      "repo_id": "MT.blockers[].diagnosis",
+      "template_id": "WP-STATE.stock_execution_state.diagnoses[] entry",
+      "kind": "template_field",
+      "note": "{diagnosis_id, cause, evidence_refs, distinct_from, recorded_at} (_diagnosis_shape); mt_id implicit in the MT file, receipt_event_ref omitted; KERNEL DIVERGES: one record per diagnosis in blockers[].diagnosis, no separate diagnoses[] array"
+    },
+    {
+      "repo_id": "MT.submissions[].diagnosis_ref",
+      "template_id": "WP-STATE.stock_execution_state.submission_fields.diagnosis_ref",
+      "kind": "template_field",
+      "note": "the diagnosis_id a resubmission after a fail verdict cites when the affected code is unchanged (CHK-DISTINCT-RESUBMISSION-001)"
+    },
+    {
+      "repo_id": "MT.lifecycle.invalidated_by_commit",
+      "template_id": "WP-STATE.microtasks[mt_id].invalidated_by_commit",
+      "kind": "template_field",
+      "note": "candidate commit whose diff intersected proof.relevant_input_paths at round freeze (CHK-PROOF-INVALIDATED-001)"
     }
   ],
   "skipped_as_duplicate": [
@@ -276,6 +419,13 @@
       "note": "destructive git actions already require same-turn authorization for the exact targets and consequences"
     }
   ],
+  "divergence_notes": [
+    "KERNEL DIVERGES (Operator 2026-09-25): results mapped to MTs by hand, no script (script later)",
+    "KERNEL DIVERGES: rest of project_profile deferred to the crate-split WP",
+    "KERNEL DIVERGES (Operator 2026-09-24, gov f6bbcaac): one union round covering all READY_FOR_VALIDATION MTs, never a build per MT; round starts when the fixes for open failures are pushed; extra_build_proofs run in one end-of-WP build; MT lane value extra_build",
+    "KERNEL DIVERGES: no Handshake controller; gameplan gate, closure-loop shapes and proof binding are checked by agents by hand (gameplan skill + global hook for gated commands); rounds_without_output, diagnosis and verdicts live in the MT JSON, not wp_state",
+    "KERNEL DIVERGES (Operator): Kernel Builder keeps combined packet-preparation and implementation authority until Handshake exists; WP-KERNEL-012 stays pinned (CX-GOV-PIN-001), pack 27 shapes apply to WPs activated after this change"
+  ],
   "governance_pin_semantics": "in-flight WPs judged under their pinned commit; template changes apply from the next WP",
-  "generated_at_utc": "2026-09-24T00:00:00.000Z"
+  "generated_at_utc": "2026-09-25T00:00:00.000Z"
 }

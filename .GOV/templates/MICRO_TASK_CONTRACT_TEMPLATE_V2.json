@@ -10,7 +10,11 @@
     "lifecycle.phase is authoritative; lifecycle.status is the derived label <DECISION>_V<n> kept for old readers.",
     "execution.lane: repo values PRODUCT_CODE_BACKEND and PRODUCT_CODE_BACKEND_PLUS_NATIVE map to implementation; operator decision pending (see _repo_lane_values).",
     "failure_class keeps the repo meaning: a cause id (e.g. C1V-088-GUARD-STALE). failure_kind is the separate product|infrastructure|flaky classification; only product failures become MT remediation (CX-VAL-006).",
-    "lifecycle.rounds_without_output counts wasted rounds and resets on a new pushed commit or new verdict; at 2 the phase becomes needs_new_approach (status label NEEDS_NEW_APPROACH) until a diagnosis in diagnosis_refs names a new cause (CX-EXEC-013)."
+    "lifecycle.rounds_without_output counts wasted rounds and resets on a new pushed commit or new verdict; at 2 the phase becomes needs_new_approach (status label NEEDS_NEW_APPROACH) until a diagnosis in diagnosis_refs names a new cause (CX-EXEC-013).",
+    "gameplan_ref names the gameplan this MT is gated by: the WP gameplan .GOV/task_packets/<WP_ID>/gameplan.yaml, or .GOV/task_packets/<WP_ID>/gameplans/<MT_ID>.yaml when the MT has its own steps (parent = the WP gameplan); created and edited only with the gameplan skill (CX-GP-001).",
+    "Closure loop (CX-VAL-008): a fail verdict carries a typed remediation (_remediation_shape); a resubmission after a fail changes a path in remediation.affected_code_refs or cites a new diagnosis_id in submissions[].diagnosis_ref, else it is not admitted; a diagnosis is recorded once as blockers[].diagnosis (_diagnosis_shape) and cited by lifecycle.diagnosis_refs in recording order. Text fields of these shapes are one line of at most 120 chars, gameplan writing style.",
+    "Proof binding (CX-VAL-009): verdicts[].test_run names the round candidate_commit, started_at and completed_at and one artifact_ref per failure; a fail decision needs at least one product failure_kind for this MT in that test_run; lifecycle.invalidated_by_commit records the round candidate whose diff intersected proof.relevant_input_paths and returned a passed MT to ready_for_validation. Every proof run uses the HBR test_entrypoint command and config only (CX-VAL-007).",
+    "The closure-loop fields (remediation, diagnosis, diagnosis_ref, test_run binding, invalidated_by_commit) are checked by agents by hand until Handshake exists."
   ],
   "instance_policy": {
     "omit_empty_optional_fields": true,
@@ -40,7 +44,11 @@
     "CX-EXEC-013",
     "CX-EXEC-014",
     "CX-VAL-005",
-    "CX-VAL-006"
+    "CX-VAL-006",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-GP-001"
   ],
   "_rule_refs_replaces": [
     "contract_authority",
@@ -72,6 +80,8 @@
     "wp_contract_revision": 1,
     "wp_contract_digest": null
   },
+  "gameplan_ref": ".GOV/task_packets/{{WP_ID}}/gameplan.yaml",
+  "_gameplan_ref_note": "Path to the WP gameplan, or to .GOV/task_packets/{{WP_ID}}/gameplans/{{MT_ID}}.yaml when this MT has its own steps (parent = the WP gameplan); gameplan skill only (CX-GP-001).",
   "context_capsule": {
     "specification_anchor_refs": [],
     "_specification_anchor_refs_entry_shape": {
@@ -241,6 +251,7 @@
     "status": "READY",
     "rounds_without_output": 0,
     "diagnosis_refs": [],
+    "invalidated_by_commit": null,
     "claim_ref": null,
     "last_submission_ref": null,
     "last_verdict_ref": null,
@@ -278,16 +289,22 @@
     "submitted_by": "REPLACE_ME",
     "submitted_at_utc": "REPLACE_ME",
     "relevant_input_paths": [],
+    "diagnosis_ref": null,
+    "_diagnosis_ref_note": "The diagnosis_id (blockers[].diagnosis) a resubmission after a fail verdict cites when it changes no path in remediation.affected_code_refs; null otherwise (CX-VAL-008).",
     "test_run": null,
     "_test_run_shape": {
       "executed_count": 0,
       "failed_count": 0,
       "results_ref": "REPLACE_ME",
+      "candidate_commit": "REPLACE_ME",
+      "started_at": "REPLACE_ME",
+      "completed_at": "REPLACE_ME",
       "failures": [
         {
           "test_name": "REPLACE_ME",
           "mt_id": "REPLACE_ME",
-          "failure_kind": "REPLACE_ME"
+          "failure_kind": "REPLACE_ME",
+          "artifact_ref": "REPLACE_ME"
         }
       ]
     },
@@ -320,15 +337,31 @@
       "executed_count": 0,
       "failed_count": 0,
       "results_ref": "REPLACE_ME",
+      "candidate_commit": "REPLACE_ME",
+      "started_at": "REPLACE_ME",
+      "completed_at": "REPLACE_ME",
       "failures": [
         {
           "test_name": "REPLACE_ME",
           "mt_id": "REPLACE_ME",
-          "failure_kind": "REPLACE_ME"
+          "failure_kind": "REPLACE_ME",
+          "artifact_ref": "REPLACE_ME"
         }
       ]
     },
+    "_test_run_note": "candidate_commit is the round's frozen candidate SHA; started_at and completed_at bound the run and must not precede the round start; a result from another commit or older than the round start is infrastructure, no verdict; artifact_ref is the exact log, junit or screenshot ref per failure (CX-VAL-009).",
     "remediation": null,
+    "_remediation_shape": {
+      "failed_acceptance_refs": [],
+      "failed_check_refs": [],
+      "artifact_refs": [],
+      "expected": "REPLACE_ME",
+      "observed": "REPLACE_ME",
+      "affected_code_refs": [],
+      "repair_direction": "REPLACE_ME",
+      "confirming_proof_refs": []
+    },
+    "_remediation_note": "Required (non-null, every field non-empty) when decision is fail; failed_acceptance_refs lie inside closure_unit.acceptance_refs; failed_check_refs name proof.checks[].check_id; expected, observed and repair_direction are one line of at most 120 chars in gameplan writing style; affected_code_refs are the paths a resubmission must change (CX-VAL-008).",
     "blocked_on_mt_ref": null,
     "batch_commit_ref": null,
     "proof_commit_ref": null,
@@ -358,6 +391,14 @@
       "flaky"
     ],
     "diagnosis": null,
+    "_diagnosis_shape": {
+      "diagnosis_id": "REPLACE_ME",
+      "cause": "REPLACE_ME",
+      "evidence_refs": [],
+      "distinct_from": [],
+      "recorded_at": "REPLACE_ME"
+    },
+    "_diagnosis_note": "A diagnosis is recorded once, here; cause is one line of at most 120 chars in gameplan writing style; distinct_from lists every earlier diagnosis_id on this MT; lifecycle.diagnosis_refs cites diagnosis_id values in recording order and gameplan step sources cite them (CX-VAL-008, CX-EXEC-013).",
     "raised_by": "REPLACE_ME",
     "raised_at_utc": "REPLACE_ME",
     "resolved_at_utc": null

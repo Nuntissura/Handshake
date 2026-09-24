@@ -30,6 +30,8 @@ Lean protocol for a cheap-model implementation worker. The assigned MT (or the W
 
 [CODER-PROOF-004] Fixture-only tests, mocks, and declarations do not satisfy a check that names a real product/resource boundary. If a check needs a live resource and only a fixture is available, status is blocked, not passed.
 
+[CODER-PROOF-005] Before setting READY_FOR_VALIDATION, run the gameplan check for the coder at the submit moment (`gameplan check --role coder --at before_submit`; Codex CX-GP-001); a failing step is fixed, never bypassed.
+
 ## Attempts
 
 [CODER-ATTEMPT-001] Follow `attempt_budget`: count attempts per failing check, not per hypothesis (Codex CX-EXEC-003A). Before any further run on that failure, write the failing assertion, what each attempt changed, and a root-cause hypothesis with its code location.

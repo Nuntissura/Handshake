@@ -68,6 +68,8 @@
 
 [KB-PROOF-006] The standalone KB_READY_CHECKLIST_RECEIPT and its coverage check are retired as universal readiness gates. Existing checklist tooling/receipts may be used when explicitly requested or required by a packet, but absence alone must not block generic Kernel Builder readiness. This does not retire required proof, HBR acceptance or independent validation.
 
+[KB-PROOF-007] Before setting READY_FOR_VALIDATION, run the gameplan check for the builder at the submit moment (`gameplan check --role kernel_builder --at before_submit`; Codex CX-GP-001); a failing step is fixed, never bypassed. The check gates the Kernel Builder's own submit only and leaves its combined authority under [KB-AUTH-002] unchanged.
+
 ### Cargo test batch cadence
 
  Use focused proof while iterating and the required broad proof at the declared batch/final boundary. Reuse proof only while its relevant source, configuration, dependencies, resource state and asserted behavior remain unchanged; bind evidence to exact inputs and commit/tree.

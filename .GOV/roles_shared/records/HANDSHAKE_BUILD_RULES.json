@@ -1,10 +1,10 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
-  "updated_at": "2026-09-24T00:00:00.000Z",
+  "updated_at": "2026-09-25T00:00:00.000Z",
   "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, Argus visual + operator-GUI verification, quiet/non-intrusive operation, in-product UserManual currency, UserManual diagnostic linkage, and account-bound ownership/visibility/privacy for every product resource. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
   "scope": {
     "trigger_phase": "build_time_and_handoff_time",
@@ -49,6 +49,14 @@
     "run_alone_tests": [],
     "shared_state_isolation": "per_test: tests sharing a database or directory isolate it per test or are listed in run_alone_tests",
     "canary_check": "REPLACE_ME: short environment check run before every expensive validation round; a canary failure is infrastructure (CX-VAL-005)",
+    "test_entrypoint": {
+      "command": "REPLACE_ME: the one checked-in test command every proof run uses; the canary is this command on one test per package (CX-VAL-007)",
+      "config_files": []
+    },
+    "implementer_check": {
+      "command": "REPLACE_ME: the cheapest permitted compile or static check an implementer runs between fixes, never a test run; counts only when the input digest is unchanged across the check (CX-EXEC-014, CX-VAL-009)",
+      "config_files": []
+    },
     "run_policy_note": "Only tests listed in flaky_tests get one recorded retry (CX-EXEC-014). Tests in run_alone_tests run serially, outside the parallel batch."
   },
   "citation_kinds": {
@@ -1807,6 +1815,11 @@
       "version": "1.13.0",
       "at_utc": "2026-09-24T00:00:00.000Z",
       "change": "Aligned with the operator's Handshake Creation Template pack v21 (template BR test_environment fields). Added flaky_tests, run_alone_tests, shared_state_isolation and a canary_check placeholder to test_environment_prerequisites; no rule text changed. Codex anchors: CX-EXEC-014 (one recorded retry only for listed flaky tests), CX-VAL-005 (canary before every round). Mapping recorded in .GOV/roles_shared/records/TEMPLATE_ALIGNMENT.json."
+    },
+    {
+      "version": "1.14.0",
+      "at_utc": "2026-09-25T00:00:00.000Z",
+      "change": "Aligned with the operator's Handshake Creation Template pack v27 (template BR project_profile.test_entrypoint and project_profile.implementer_check). Added test_entrypoint {command, config_files} and implementer_check {command, config_files} placeholders to test_environment_prerequisites next to canary_check; no rule text changed. The rest of project_profile is deferred to the crate-split WP (Operator decision 2026-09-25). Codex anchors: CX-VAL-007 (checked-in entrypoint and config only; canary is the entrypoint on one test per package), CX-VAL-009 (implementer check counts only with an unchanged input digest). Mapping recorded in .GOV/roles_shared/records/TEMPLATE_ALIGNMENT.json."
     }
   ]
 }
