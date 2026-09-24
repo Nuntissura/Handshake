@@ -1,5 +1,16 @@
 # SNAPSHOT + POSTMORTEM — WP-KERNEL-012 IV orchestration (session 6; updated 2026-09-24 05:42 local)
 
+## 0a. Update 06:30 (supersedes §0 where they differ)
+
+- **Board: PASS 120, READY_FOR_VALIDATION 34, BLOCKED 4 (045 124 125 142, end-of-WP proof run), FAIL_V2 1 (157).**
+- Verdicts since 05:42: MT-155 FAIL_V2 (FMT-DIFF, gov `c8c67c25`), then READY after fmt fix `0dde33a1` (gov `a01fd356`).
+- Product `feat/WP-KERNEL-012` = **`1097ef1c`**: `0dde33a1` rustfmt 9 files (MT-155) + per-process native-MCP binding root (MT-074, other_pillar op01-04); `1097ef1c` backend freshness guard drops non-existent `migrations/`, adds `assets/schemas/htc_v1.json`.
+- 27 older-format MTs got executable `proof_commands` (128 commands, unmapped ACs listed; gov `c97949ad`). Contract drifts found: MT-023/026/027 module paths are `graph::` not `loom::`; MT-034 filter matched 0 tests; MT-027 lacked surreal-test-support; MT-120 AC-120-4 expects 12 tests, file has 1; MT-121 named test no longer exists (inverted by MT-135); MT-074 OP tests no longer ignored/gated.
+- Run 51 native finished: 885 run, 847 pass, 38 fail. Run 51b (33 harness reruns, backend-bin copied to D:, sha256 identical): 1 pass, 25 fail (freshness guard `migrations/`, fixed in 1097ef1c), 7 TIMEOUT (global `managed-backend-fixture.lock` queueing past 300 s; fix = nextest test-group max-threads 1, slow-timeout 1200 s).
+- C1-FDELETE (open Operator decision, MT-079 remediation_v7): Owner workspace delete is refused (403) when the workspace holds a rich document, because knowledge_rich_document_versions has record-user `FOR delete NONE`. Builder traced MT-157's owned_workspace_delete_cascades to it (pre-existing). Master Spec is silent on cascade vs archive-first (spec check 06:1x). **Needs Operator decision.** Family F (document soft-delete 403: route6/MT-158, mt032 x5, title race, swarm, loom transclusion) is a different, undiagnosed cause; the knowledge diagnostic prints the failing statement next round.
+- Authority fixes (Operator "apply all except 2"), in this repo only: gov `f6bbcaac`, `2575ab92` (Codex CX-EXEC-005/008/011, CX-VAL-001/005/006, new CX-STATUS-001, CX-GIT-003, CX-984-014; WPV-OUT-004..007, WPV-DEP-001, WPV-STATUS-001, VPX-009; IV-OUT-003..005; KB-OUT-008/009; ORC-OUT-002; V2 templates `extra_build_proofs`, phase `blocked`, lane `extra_build`; TEMPLATE_ALIGNMENT divergence notes).
+- Run 52 (union round on 1097ef1c) is ON HOLD for IV-OUT-005: run-round.sh lacks `CARGO_INCREMENTAL=0` and `CARGO_PROFILE_TEST_DEBUG=line-tables-only`, target 193 GB > 150 GB cap (validator deleting its own C: target under CX-984-006), owned-backend test-group to be added to `$LANE/nextest.toml`.
+
 ## 0. Update 05:42 (supersedes §1 and §4 where they differ)
 
 - **Board: PASS 120. READY_FOR_VALIDATION 34** (008 023 026 027 033 034 036 046 064 065 066 067 068 070 074 079 098 111 113 116 117 120 121 122 127 128 130 140 143 153 154 155 158 159). **FAIL_V2 1** (157). **BLOCKED 4** (045 124 125 142).
