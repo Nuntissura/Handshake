@@ -15,7 +15,7 @@ V1 remains for WP-KERNEL-012 only. Do not migrate its `@1` files and do not auth
 
 V2 rules (each file's `_notes` states them): policy lives in `rule_refs` (Codex CX ids); the MT JSON is the status and recovery surface; digests are optional until Handshake exists; keys starting with `_` are author comments; V1 labels map as `PASS_Vn -> passed/pass`, `FAIL_Vn -> needs_remediation/fail`, `PARTIAL -> validating/inconclusive + blockers[] entry`.
 
-Three lane vocabularies exist and do not mix: the WP `workflow_lane` names the governance workflow that runs the packet (for example `ORCHESTRATOR_MANAGED`); MT `execution.lane` names the kind of MT work (`implementation`, `gui`, ..., `special_runs`); WP `runtime_lanes` declares product-internal parallel runtime lanes (CX-PILLAR-001).
+Three lane vocabularies exist and do not mix: the WP `workflow_lane` names the governance workflow that runs the packet (for example `ORCHESTRATOR_MANAGED`); MT `execution.lane` names the kind of MT work (`implementation`, `gui`, ..., `extra_build`); WP `runtime_lanes` declares product-internal parallel runtime lanes (CX-PILLAR-001).
 
 ## Markdown and other templates
 

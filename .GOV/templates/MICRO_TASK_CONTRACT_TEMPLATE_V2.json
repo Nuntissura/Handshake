@@ -128,7 +128,7 @@
       "documentation",
       "validation",
       "migration",
-      "special_runs"
+      "extra_build"
     ],
     "_repo_lane_values": {
       "PRODUCT_CODE_BACKEND": "implementation",
@@ -235,8 +235,7 @@
       "validating",
       "needs_remediation",
       "passed",
-      "blocked_on_dependency",
-      "needs_managed_resource_proof",
+      "blocked",
       "needs_new_approach"
     ],
     "status": "READY",

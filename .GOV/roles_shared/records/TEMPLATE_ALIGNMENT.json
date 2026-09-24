@@ -71,7 +71,7 @@
       "repo_id": "CX-VAL-001",
       "template_id": "CODEX-VAL-006",
       "kind": "codex",
-      "note": "frozen candidate commit per round, batch of at most five MTs ordered by exactness; PASS pass-line clause from CODEX-VAL-001"
+      "note": "frozen candidate commit per round; KERNEL DIVERGES (Operator 2026-09-24, gov f6bbcaac): one union round covering all READY MTs, never a build per MT; PASS pass-line clause from CODEX-VAL-001"
     },
     {
       "repo_id": "CX-VAL-002",
@@ -185,7 +185,7 @@
       "repo_id": "CX-VAL-005",
       "template_id": "CODEX-VAL-006",
       "kind": "codex",
-      "note": "round trigger 5 ready MTs or 120 minutes (CODING-WORKFLOW validation.round_trigger, round_max_wait_minutes), batch_scope build_unit, canary_before_round, broken_round_build"
+      "note": "KERNEL DIVERGES (Operator 2026-09-24, gov f6bbcaac): round starts when the fixes for open failures are pushed and covers all READY MTs (no 5-MT/120-min trigger); canary_before_round, broken_round_build"
     },
     {
       "repo_id": "CX-VAL-005",
@@ -197,7 +197,7 @@
       "repo_id": "CX-VAL-005",
       "template_id": "CODING-WORKFLOW.validation.special_runs",
       "kind": "codex",
-      "note": "performance/stress/durability runs in the special_runs lane on an idle host after the batch; round_outputs build-only-round-targets and clean after verdicts"
+      "note": "KERNEL DIVERGES (Operator 2026-09-24, gov f6bbcaac): proofs needing a non-union build are declared in extra_build_proofs at activation and run in one extra build at WP end; round_outputs build-only-round-targets and clean after verdicts"
     },
     {
       "repo_id": "CX-VAL-006",
@@ -263,7 +263,7 @@
       "repo_id": "MT.execution.lane special_runs",
       "template_id": "CODING-WORKFLOW.validation.special_runs",
       "kind": "template_field",
-      "note": "lane enum value for performance/stress/durability runs"
+      "note": "KERNEL DIVERGES (Operator 2026-09-24): MT lane value renamed extra_build (proofs declared in extra_build_proofs, run in one end-of-WP build)"
     }
   ],
   "skipped_as_duplicate": [
