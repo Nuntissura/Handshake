@@ -1,6 +1,6 @@
-# SNAPSHOT + POSTMORTEM — WP-KERNEL-012 IV orchestration (session 6; updated 2026-09-24 09:40 local)
+# SNAPSHOT + POSTMORTEM — WP-KERNEL-012 IV orchestration (session 6; updated 2026-09-24 09:30 local)
 
-## 0b. Update 09:40 (supersedes §0a, §0, §1 and §4 where they differ)
+## 0b. Update 09:30 (supersedes §0a, §0, §1 and §4 where they differ)
 
 - **Board: PASS 120, READY_FOR_VALIDATION 29, BLOCKED 4 (045 124 125 142, end-of-WP extra build), FAIL_V1 2 (153 154), FAIL_V2 2 (157 159), FAIL_V3 2 (155 158).**
   READY_FOR_VALIDATION: 008 023 026 027 033 034 036 046 064 065 066 067 068 070 074 079 098 111 113 116 117 120 121 122 127 128 130 140 143.
@@ -41,11 +41,18 @@
   - MT-128: its required native test hit the long-path infra failure. No PASS is possible (VPX-005), and no status change (CX-STATUS-001).
   - The 27 MTs from gov `c97949ad`: their commands are at the TOP-LEVEL key `proof_commands.commands` (not `proof.*`). 20 of them list `proof_commands.unmapped_acs` that need evidence before PASS (VPX-001). The validator was sent to judge them under those rules.
   - MT-033: no proof commands anywhere. Contract gap, Operator decision.
+- **Round coverage gap (validator, 09:30):** each of the 27 `proof_commands` MTs has at least one command whose binary/filter run 52 did NOT build (`NOT_IN_RUN52_TARGET_LIST`; per-MT table `wpv-c3x/sweep-legacy-commands.json`). So run 52 could not give any of them a PASS. The next round's build and test list must include every READY_FOR_VALIDATION MT's proof commands. Their run-52-covered commands showed no new product FAIL.
+- **Infra (validator):** create_model_run_job… plus 6 model_session_scheduler_tests fail with "git worktree add failed … not a git repository". The `git archive` export has no `.git`, so these cannot pass from the export. Harness fix needed before they can be judged.
+- **More product FAILs relayed:**
+  - HSK-403 in mt109_c3 saved view, ci_profile_16_workers load and deleted_backlink_target;
+  - schema fingerprint mismatch ×3 (expected 0c59fb08… vs observed 90ad804c…);
+  - schema_contract, cascade_guard "unsupported cascade declaration";
+  - engine_conflict_retry HSK-STORAGE-RETRY-EXHAUSTED.
 - **Open Operator decisions:**
   - (1) the 35 native infra failures: rerun on 1097ef1c binaries after the path fix, or the next union round (IV recommendation: next round, since the builder's backend fixes invalidate reuse under CX-VAL-002);
   - (2) MT-033 proof commands (IV recommendation: builder authors them, validator checks coverage);
   - (3) C1-FDELETE (cascade vs archive-first; MT-153/157).
-- Agents: validator `aca747cd82e46334e` (C: lane, run 52 verdicts); builder `ae8d04847c8258231` (D: target `Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target`, cargo check/clippy only, remediating the relayed FAILs; nothing pushed since 1097ef1c at 09:40).
+- Agents: validator `aca747cd82e46334e` (C: lane, run 52 verdicts); builder `ae8d04847c8258231` (D: target `Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target`, cargo check/clippy only, remediating the relayed FAILs; nothing pushed since 1097ef1c at 09:30; uncommitted edits in loom.rs, knowledge.rs, micro_task_executor_tests.rs, test_embeds.rs).
 - Disk: C: ~797 GB free (Operator cleanup). D: ~1808 GB free.
 
 ## 0a. Update 06:30 (supersedes §0 where they differ)
