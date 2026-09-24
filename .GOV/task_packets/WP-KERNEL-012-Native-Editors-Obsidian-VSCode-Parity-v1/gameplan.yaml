@@ -1,0 +1,54 @@
+schema_version: handshake.gameplan.v1
+template_version: 1
+kind: gameplan
+instance_policy:
+  omit_empty_optional_fields: true
+  policy_lives_in_rule_refs_not_instance_fields: true
+  schema_ref: repo-governance/schemas/gameplan.schema.yaml
+rule_refs: []
+writing: 'no prose; terse fragments; determinism > grammar; verb object [op value]'
+precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; correct the step'
+scope: wp
+assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
+parent: null
+generation: 1
+refs:
+  product_worktree_dir: {from: .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json, key: source_control.worktree_dir}
+expensive_actions:
+- {command_pattern: '\bgit\s+merge(?![-\w])(?!\s+--(?:abort|quit))|\bgh\s+pr\s+merge\b', at: before_merge}
+steps:
+- {id: GP-001, role: any, at: before_round, do: verify HEAD == remote(branch); fetch first, check: {type: git, head_equals_remote: true}, source: 'preset:build-round', state: active}
+- {id: GP-002, role: any, at: before_round, do: verify tree clean, check: {type: git, clean: true}, source: 'preset:build-round', state: active}
+- {id: GP-003, role: any, at: before_round, do: confirm heavy build|test processes on target disk == 0, check: {type: confirm}, source: 'preset:build-round', state: active}
+- {id: GP-004, role: any, at: before_round, do: verify free disk(CARGO_TARGET_DIR or repo) >= 50 GiB, check: {type: cmd, argv: [python, -c, 'import os,shutil,sys;g=shutil.disk_usage(os.environ.get(''CARGO_TARGET_DIR'') or ''.'').free/2**30;print(round(g,1),''GiB free'');sys.exit(0 if g>=float(''50'') else 1)'], expect_exit: 0, timeout_seconds: 15}, source: 'preset:build-round', state: active}
+- {id: GP-005, role: any, at: before_round, do: confirm deepest generated path < 260 chars or long paths enabled, check: {type: confirm}, source: 'preset:build-round', state: active}
+- {id: GP-006, role: any, at: before_round, do: confirm test entrypoint + config unchanged since last green round, check: {type: confirm}, source: 'preset:build-round', state: active}
+- {id: GP-007, role: any, at: before_round, do: forbid timeout wrapper around test entrypoint, check: {type: file, path: ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/run-round.sh, not_contains: 'timeout '}, source: 'preset:build-round', state: active}
+- {id: GP-008, role: any, at: before_round, do: record candidate SHA = pushed HEAD; later pushes -> next round, check: {type: confirm}, source: 'preset:build-round', state: active}
+- {id: GP-009, role: any, at: before_round, do: confirm env vars|config files read by changed code set for test run, check: {type: confirm}, source: 'preset:build-round', state: active}
+- {id: GP-010, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
+- {id: GP-011, role: any, at: on_resume, do: confirm statuses recounted from source records; memory counts == 0, check: {type: confirm}, source: 'preset:resume', state: active}
+- {id: GP-012, role: any, at: on_resume, do: confirm half-written records finished before new work, check: {type: confirm}, source: 'preset:resume', state: active}
+- {id: GP-013, role: any, at: before_merge, do: verify tree clean, check: {type: git, clean: true}, source: 'preset:merge', state: active}
+- {id: GP-014, role: any, at: before_merge, do: verify HEAD == remote(branch); fetch first, check: {type: git, head_equals_remote: true}, source: 'preset:merge', state: active}
+- {id: GP-015, role: any, at: before_merge, do: confirm test results|verdicts from current HEAD; stale == 0, check: {type: confirm}, source: 'preset:merge', state: active}
+- {id: GP-016, role: orchestrator, at: on_resume, do: run MT status recount from source JSON; ignore memory count, check: {type: cmd, argv: [python, -c, 'import glob,json,collections;c=collections.Counter(json.load(open(p,encoding=''utf-8'')).get(''lifecycle'',{}).get(''status'') for p in glob.glob(''.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-*.json'') if ''candidate-boundary'' not in p);print(dict(c))'], expect_exit: 0, timeout_seconds: 20}, source: 'W12-A03/A06: never claim old session count as live', state: active}
+- {id: GP-017, role: orchestrator, at: before_round, do: verify product worktree unstaged tree clean, check: {type: cmd, argv: [git, -C, '{ref:product_worktree_dir}', diff, --quiet], expect_exit: 0}, source: 'W12-A01/D01: product worktree cleanliness before round', state: active}
+- {id: GP-018, role: orchestrator, at: before_round, do: verify product worktree staged tree clean, check: {type: cmd, argv: [git, -C, '{ref:product_worktree_dir}', diff, --cached, --quiet], expect_exit: 0}, source: 'W12-A01/D01: product worktree cleanliness before round', state: active}
+- {id: GP-019, role: orchestrator, at: before_round, do: confirm product HEAD equals live remote tip and zero untracked files, check: {type: confirm}, source: 'W12-A01/D01: cross-repo SHA/untracked has no safe typed check', state: active}
+- {id: GP-020, role: orchestrator, at: before_round, do: forbid a running cargo.exe process before round launch, check: {type: cmd, argv: [tasklist, /FI, IMAGENAME eq cargo.exe], expect_output: No tasks are running, timeout_seconds: 15}, source: 'W12-C03/D01/FL11: measure host load before launch', state: active}
+- {id: GP-021, role: orchestrator, at: before_round, do: confirm all known pushed fixes are bundled before the next union round, check: {type: confirm}, source: 'FL28/W12-C02: no stale round while known fixes queue', state: active}
+- {id: GP-022, role: builder, at: before_round, do: 'confirm no shared-file edit happens during a live D: check', check: {type: confirm}, source: 'FL29/KB-CARGO-SHARED-001: source-hash lock for check duration', state: active}
+- {id: GP-023, role: builder, at: before_submit, do: verify last product commit excludes the .GOV path, check: {type: cmd, argv: [git, -C, '{ref:product_worktree_dir}', diff, --quiet, HEAD^, HEAD, --, .GOV], expect_exit: 0}, source: 'CX-212F/W12-C04: never include .GOV in a feature-branch commit', state: active}
+- {id: GP-024, role: wp_validator, at: before_round, do: verify the core nextest config file exists, check: {type: file, path: ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/nextest-core.toml, exists: true}, source: 'W12-D03: read both configs end to end before launch', state: active}
+- {id: GP-025, role: wp_validator, at: before_round, do: verify the native nextest config file exists, check: {type: file, path: ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/nextest.toml, exists: true}, source: 'W12-D03: read both configs end to end before launch', state: active}
+- {id: GP-026, role: wp_validator, at: before_round, do: forbid the native-only owned-backend group inside the core config, check: {type: file, path: ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/nextest-core.toml, not_contains: owned-backend}, source: 'W12-D03/FL21: core reader must not see the native-only group', state: active}
+- {id: GP-027, role: wp_validator, at: before_round, do: confirm env readers are traced against the entrypoint's actual exports, check: {type: confirm}, source: 'W12-D04/FL13: do not guess the env list', state: active}
+- {id: GP-028, role: wp_validator, at: before_round, do: 'confirm target bytes, headroom, and C: free are computed before launch', check: {type: confirm}, source: 'W12-D02/FL11: cap 150000000000 bytes; measure before launch', state: active}
+- {id: GP-029, role: wp_validator, at: before_round, do: confirm the warm target is never deleted or moved to satisfy the cap, check: {type: confirm}, source: 'FL18/FL19/CX-984-006: retain expensive compiled dependencies', state: active}
+- {id: GP-030, role: wp_validator, at: before_round, do: confirm one union round covers every READY MT and no per-MT test runs, check: {type: confirm}, source: 'CX-VAL-001/FL2: Operator one-union instruction', state: active}
+- {id: GP-031, role: wp_validator, at: before_round, do: confirm no canary_check gate applies to this pinned WP, check: {type: confirm}, source: 'operator: WP-012 excludes canary_check (W12-D05/CX-GOV-PIN-001)', state: active}
+- {id: GP-032, role: wp_validator, at: before_verdict, do: confirm a BLOCKED status names blocked_on and is not challenged, check: {type: confirm}, source: 'CX-STATUS-001/FL15/FL17/FL30: independent validator classifies', state: active}
+- {id: GP-033, role: wp_validator, at: before_verdict, do: confirm the verdict uses only this round's own JUnit for this candidate SHA, check: {type: confirm}, source: 'W12-E01/E02/FL7/FL8: exact export/binary provenance required', state: active}
+- {id: GP-034, role: integration_validator, at: before_merge, do: confirm extra_build_proofs run only at the WP-end grouped boundary, check: {type: confirm}, source: 'W12-F01/FL10/FL14: contract-declared end-of-WP builds only', state: active}
+- {id: GP-035, role: integration_validator, at: before_merge, do: confirm every required MT independently passed before integration review, check: {type: confirm}, source: 'W12-F01/CX-503B1: no PASS on pending or blocked required rows', state: active}
