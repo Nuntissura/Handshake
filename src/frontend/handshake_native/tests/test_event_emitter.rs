@@ -2256,6 +2256,9 @@ fn event_emitter_native_editor_round_trip() {
         cross_pane_undo_count, 1,
         "the backend-confirmed Canvas placement registered exactly one compensating undo"
     );
+    let undo_before = handshake_native::interop::InteractionBus::with_try_lock(&app_bus, |bus| {
+        bus.last_undo_transition().cloned()
+    });
     assert!(
         app_harness
             .state_mut()
@@ -2265,6 +2268,13 @@ fn event_emitter_native_editor_round_trip() {
             ),
         "mounted app Edit > Undo dispatch fires the real unified undo path"
     );
+    let undo_after = handshake_native::interop::InteractionBus::with_try_lock(&app_bus, |bus| {
+        (
+            bus.last_undo_transition().cloned(),
+            bus.pending_cross_pane_observation(),
+        )
+    });
+    eprintln!("MT036_UNDO_DISPATCH before={undo_before:?} after={undo_after:?}");
 
     let (event_ids, trace_id, _ledger_rows) = runtime.block_on(async {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
@@ -2309,7 +2319,9 @@ fn event_emitter_native_editor_round_trip() {
             }
             assert!(
                 std::time::Instant::now() < deadline,
-                "timed out waiting for three ordered production-emitter events; matching={matching:#?}; returned_rows={:#?}",
+                "timed out waiting for three ordered production-emitter events; undo_after={undo_after:?}; emitter_errors={:?}; available_permits={}; matching={matching:#?}; returned_rows={:#?}",
+                emitter.error_ring().entries(),
+                emitter.available_permits(),
                 rows.iter()
                     .map(|row| serde_json::json!({
                         "event_id": row["event_id"],

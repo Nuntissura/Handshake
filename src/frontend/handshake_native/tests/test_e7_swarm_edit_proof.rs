@@ -2562,6 +2562,7 @@ fn run_swarm_edit_live_conflict_merge_search_and_receipts() {
     let target_title = format!("SwarmProofTarget-{nonce}");
     let (target_document_id, document_id) = {
         let mut create_note = |note_title: &str, previous: Option<&str>| -> String {
+            let origin_state = app_harness.state().mounted_rich_state();
             let request = AgentRequest {
                 author_id: "editor.rich.insert-slash-command".to_owned(),
                 action: UiAction::ClickWithPayload {
@@ -2590,7 +2591,30 @@ fn run_swarm_edit_live_conflict_merge_search_and_receipts() {
                 }
                 assert!(
                     Instant::now() < create_deadline,
-                    "mounted slash-note create did not expose its backend id within five seconds"
+                    "mounted slash-note create did not expose its backend id within five seconds; {}",
+                    {
+                        let describe = |state: &Arc<Mutex<RichEditorState>>| {
+                            state.try_lock().map(|state| format!(
+                                "creating={} receipt={:?} create_error={:?} dispatch_error={:?}",
+                                state.wikilinks.is_creating(note_title),
+                                state.last_slash_created_document,
+                                state.wikilink_create_error,
+                                state.interop_error,
+                            )).unwrap_or_else(|error| format!("state unavailable: {error}"))
+                        };
+                        let projection = app_harness.root().children_recursive().filter_map(|node| {
+                            let access = node.accesskit_node();
+                            let id = access.author_id()?;
+                            (id.starts_with("editor.rich.created-document")
+                                || id.starts_with("rich-editor.loading.")
+                                || id.starts_with("rich-editor.document."))
+                                .then(|| (id.to_owned(), access.value(), access.label()))
+                        }).collect::<Vec<_>>();
+                        format!("origin=[{}] mounted=[{}] navigation={:?} projection={projection:?}",
+                            describe(&origin_state),
+                            describe(&app_harness.state().mounted_rich_state()),
+                            app_harness.state().quick_switcher_nav_status())
+                    }
                 );
                 std::thread::sleep(Duration::from_millis(10));
             }
