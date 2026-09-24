@@ -14,7 +14,7 @@
   "title": "E9-MT-065-FemsInteropProofSuite",
   "group": "E9",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-09-24T04:08:15.141Z",
+  "updated_at_utc": "2026-09-24T18:39:13.769Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-065.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V7",
     "active": false,
     "depends_on": [
       "MT-063",
@@ -33,10 +33,10 @@
       "MT-041"
     ],
     "blocks": [],
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V7",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
-    "validated_at_utc": "2026-09-16T23:19:50.728Z",
+    "validated_by": "WP_VALIDATOR-C3X-20260924",
+    "validated_at_utc": "2026-09-24T18:39:13.769Z",
     "claimed_by": "KERNEL_BUILDER-20260725-202657",
     "claimed_at_utc": "2026-07-25T23:09:01.4030151Z",
     "remediation_v3_in_progress": false,
@@ -1226,6 +1226,42 @@
     "status": "CLASSES_FIXED_STATIC_NEW_CLASSES_OPEN",
     "note": "This MT's validated classes have round-3 fixes (see failure_classes/REPRESENTATIVE_RUNS); live representatives now fail in newly exposed classes C1V-LOOM-CONTENT-TYPES / C1V-LEGACY-ROOT-CREATE-ROUTES / C1V-BACKEND-HARNESS-AUTH, so not READY.",
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "validation_v7": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V7",
+    "validated_by": "WP_VALIDATOR-C3X-20260924",
+    "validated_at_utc": "2026-09-24T18:39:13.769Z",
+    "candidate_sha": "2bf51103c24a7bd10c4d17a303e0c704c050453d",
+    "owning_mt": "MT-109",
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-065-C3X-001",
+        "command": "run-round.sh 2bf51103c24a7bd10c4d17a303e0c704c050453d; native cargo nextest run --locked --no-fail-fast --config-file nextest.toml --features integration,integration_tests,wgpu_screenshots --lib --test test_fems_interop_proofs [union targets]",
+        "mapped_contract_command": "PC-065-01: cargo test --locked --test test_fems_interop_proofs -- --test-threads=1 --nocapture (whole binary)",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "2bf51103c24a7bd10c4d17a303e0c704c050453d",
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-C3X-20260924",
+        "target_dir": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
+        "compiled_binary": "debug/deps/test_fems_interop_proofs-fa88120b4ecbd78f.exe",
+        "compiled_binary_sha256": "2F518A919A20C42740B7769E6FBAEBB97A060A6BC2FCD5BC557486293A3F7CE4",
+        "features": ["integration", "integration_tests", "wgpu_screenshots"],
+        "environment": "Owned D: WP/MT/owner artifacts and backend binary; C: warm Cargo target; owned-backend nextest group serialized; source archive marker equals candidate_sha",
+        "result": "FAIL: 22 executed, 11 passed, 11 failed, 0 skipped; native union 2893 tests, nextest exit 100; runner completed with fresh JUnit",
+        "junit_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-2bf51103c24a7bd10c4d17a303e0c704c050453d-native.xml",
+        "junit_sha256": "8FD591BF7FEC05D70DEA17778AE914DC7D685E83D44DA90154ABB710AF87A0D7",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/round-2bf51103.stderr.log",
+        "log_sha256": "A1048880DB02D4B6FE5F12690EE115148AF2A9BDD1D0E89C5B3F7D110A187BAA",
+        "covers": ["PC-065-01", "AC-065-01", "AC-065-02", "AC-065-03", "AC-065-04", "AC-065-05", "AC-065-07"]
+      }
+    ],
+    "unmapped_acs": {
+      "AC-065-06": "NOT_CREDITED: literal test-only diff gate conflicts with remediation_v4.scope_breach_disclosure (app.rs and manual_content_editors.rs in multi-MT commit b8b247ae); no operator waiver or attribution resolution is inferred here.",
+      "AC-065-08": "BUILD_PROVED: validator native cargo test --locked --no-run built the same test target at this SHA; compiler log has zero warning locations in test_fems_interop_proofs.rs. No redundant cargo build was run under WPV-CAD."
+    },
+    "finding": "All four named live FEMS proofs and seven other live cases panic at tests/test_fems_interop_proofs.rs:681: POST /workspaces returns an id, but the immediately following authenticated GET /workspaces does not show that id/name. Backend binding reports SurrealDB health ok; FEMS-specific assertions and PROOF-065-A through E were not reached. This is a proof-suite/owned-backend behavior defect, not a hardware waiver or PASS.",
+    "next_actor": "KERNEL_BUILDER (repair the owned workspace create/list proof path, then return READY on a later candidate)"
   },
   "proof_commands": {
     "schema": "hsk.mt_proof_commands@1",
