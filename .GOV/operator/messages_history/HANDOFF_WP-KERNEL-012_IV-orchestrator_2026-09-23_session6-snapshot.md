@@ -23,7 +23,7 @@
 - Rulings today: memory_source_reads option (a) test-only (spec silent; deny-by-default 02:2758, root must not run ordinary flows 02:2773); drawer poll fix; lineage rebuild in scope (`--lib` is required proof for MT-141/153–157); env writer check: nothing more to add to run-round.sh (`wpv-c3x/env-matrix.json`); test_embeds seeds its own asset.
 - Still open with the builder: family F (knowledge-document DELETE 403: route6, mt032 ×5, title race, swarm deleted_backlink + ci_profile, loom transclusion; the failing statement prints next round), G (owned_workspace_delete_cascades 403), model_session_scheduler ×7 (status_reason prints next round), engine_conflict_retry (load?).
 - Authority fixes applied (Operator "apply all except 2"): gov `f6bbcaac`: CX-EXEC-005/008/011, CX-VAL-001/005/006, new CX-STATUS-001 and CX-GIT-003, CX-984-014; WPV-OUT-004..007, WPV-DEP-001, WPV-STATUS-001, VPX-009; IV-OUT-003..005; ORC-OUT-002; KB-OUT-008/009; `extra_build_proofs` in WP/MT V2 templates. The vault template (Handshake Creation Template) update + skill sync is running in a background agent; not yet reported.
-- Next: run 51 finishes → harness rerun of the 26 (+ swarm_edit, folder_tree) with backend-bin on D: → verdicts for MTs whose proof tests are complete → builder pushes proc-pid fix → next union round (run 52) on the latest pushed SHA for all READY MTs.
+- Next: run 51 finishes → harness rerun of the 26 (+ swarm_edit, folder_tree) with backend-bin on D: → verdicts for MTs whose proof tests are complete → builder pushes proc-pid fix → next union round (run 52) on the latest pushed SHA for all READY_FOR_VALIDATION MTs.
 
 Purpose: recovery snapshot if this session is cut off. Read with `HANDOFF_WP-KERNEL-012_IV-orchestrator_2026-09-23_session6.md` (full rules, §4b correction). This file holds the live run state, today's work, the postmortem and the instruction gaps found.
 
@@ -80,7 +80,7 @@ Role: INTEGRATION VALIDATOR orchestrating sub-agents (KERNEL_BUILDER, WP_VALIDAT
 
 ## 5. The workflow now
 
-- One union round per candidate: one build per crate, one nextest per crate (slow-timeout 60 s × 5, 4 threads, JUnit), never wrapped in `timeout`. Operator rule: one cargo build for all READY MTs, never per MT.
+- One union round per candidate: one build per crate, one nextest per crate (slow-timeout 60 s × 5, 4 threads, JUnit), never wrapped in `timeout`. Operator rule: one cargo build for all READY_FOR_VALIDATION MTs, never per MT.
 - Builders: `cargo check`/clippy only, target on **D:**; push each commit as soon as it compiles; the IV relays every product FAIL.
 - Harness env from `run-round.sh` + `env-matrix.json`; a setup failure is never an MT verdict.
 - Disk: C: grant 150 GB (currently exceeded by the validator target), stop cargo below 192 GB free.

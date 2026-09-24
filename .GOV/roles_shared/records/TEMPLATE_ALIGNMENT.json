@@ -71,7 +71,7 @@
       "repo_id": "CX-VAL-001",
       "template_id": "CODEX-VAL-006",
       "kind": "codex",
-      "note": "frozen candidate commit per round; KERNEL DIVERGES (Operator 2026-09-24, gov f6bbcaac): one union round covering all READY MTs, never a build per MT; PASS pass-line clause from CODEX-VAL-001"
+      "note": "frozen candidate commit per round; KERNEL DIVERGES (Operator 2026-09-24, gov f6bbcaac): one union round covering all READY_FOR_VALIDATION MTs, never a build per MT; PASS pass-line clause from CODEX-VAL-001"
     },
     {
       "repo_id": "CX-VAL-002",
@@ -185,7 +185,7 @@
       "repo_id": "CX-VAL-005",
       "template_id": "CODEX-VAL-006",
       "kind": "codex",
-      "note": "KERNEL DIVERGES (Operator 2026-09-24, gov f6bbcaac): round starts when the fixes for open failures are pushed and covers all READY MTs (no 5-MT/120-min trigger); canary_before_round, broken_round_build"
+      "note": "KERNEL DIVERGES (Operator 2026-09-24, gov f6bbcaac): round starts when the fixes for open failures are pushed and covers all READY_FOR_VALIDATION MTs (no 5-MT/120-min trigger); canary_before_round, broken_round_build"
     },
     {
       "repo_id": "CX-VAL-005",
