@@ -1490,5 +1490,93 @@
     "by": "WP_VALIDATOR-D1V-20260923-2240",
     "reason": "TEST-SYNC-SWITCH-COVERAGE gap (Hang-A class), not a product defect",
     "corrected_at_utc": "2026-09-23T22:56:46.674Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-20260924",
+    "authored_at_utc": "2026-09-24T07:45:00Z",
+    "source_sha": "1097ef1c95845587dd57df1ba6f7a528d6c9cd03",
+    "gap_closed": "KB-OUT-007: name the MT-033 test binary and feature set for the shared union round",
+    "method": "Verified test functions in test_ckc_embed.rs and feature gates in handshake_native/Cargo.toml at source_sha; no test executed. The validator combines this target with every READY_FOR_VALIDATION MT in one union round.",
+    "live_backend_env": "The integration-gated tests require the validator's isolated Handshake-managed backend, HSK_TEST_BACKEND_BIN, HSK_TEST_BACKEND_TARGET_ROOT and WP/MT/owner-scoped artifact and runtime roots. The screenshot test additionally requires a real GPU and HANDSHAKE_GPU_SCREENSHOT=1.",
+    "commands": [
+      {
+        "id": "PC-033-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_ckc_embed -- --nocapture",
+        "test_binary": "test_ckc_embed",
+        "filter": "(whole binary; all feature-gated tests)",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-004",
+          "AC-005",
+          "AC-007"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_ckc_embed.rs",
+            "line": 1508,
+            "fn": "ac4_real_rich_selection_context_menu_routes_to_stage_in_mounted_shell",
+            "asserts": "mounted rich selection context menu routes the selection to Stage"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_ckc_embed.rs",
+            "line": 2350,
+            "fn": "ac5_atelier_side_panel_loads_from_live_backend",
+            "asserts": "fixture-owned backend seeds an Atelier batch and item; mounted panel displays batch, corpus and item after load"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_ckc_embed.rs",
+            "line": 2692,
+            "fn": "ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend",
+            "asserts": "live backend save/reload and canvas placement are exercised, with representation differences recorded in unmapped_acs"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_ckc_embed.rs",
+            "line": 1784,
+            "fn": "atelier_panel_screenshot",
+            "asserts": "feature-gated GPU screenshot and mounted visual inspection path executes"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_ckc_embed.rs",
+            "line": 2260,
+            "fn": "no_local_artifact_dir_in_default_suite",
+            "asserts": "whole binary retains the repo-local artifact hygiene assertion"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-001",
+        "reason": "Literal atelier_embed block is not asserted: current editor tests insert an hsLink atom. Contract semantics need reconciliation before PASS."
+      },
+      {
+        "ac": "AC-002",
+        "reason": "The live save/reload test checks an hsLink atom, not the literal atelier_embed block and attrs required by this AC."
+      },
+      {
+        "ac": "AC-003",
+        "reason": "The live Canvas test checks Loom placed_block_id, not a Canvas node with atelier_item_id through the literal PUT /canvas graph route."
+      },
+      {
+        "ac": "AC-006",
+        "reason": "Current AccessKit tests use GenericContainer/Click and do not assert the literal Region/StartDrag roles/actions required by this AC."
+      }
+    ],
+    "caveats": [
+      "PC-033-01 names target and feature coverage for the next shared validator union round; do not execute a standalone MT-033 cargo test.",
+      "A passing binary alone cannot close unmapped_acs or authorize MT-033 PASS."
+    ]
   }
 }
