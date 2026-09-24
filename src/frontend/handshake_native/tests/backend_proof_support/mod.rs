@@ -1689,6 +1689,25 @@ impl LiveBackend {
         )
     }
 
+    /// Explicit setup budget for long-running routes, still capped by the proof deadline.
+    pub fn post_json_with_timeout(
+        &self,
+        path: &str,
+        body: &serde_json::Value,
+        maximum: Duration,
+    ) -> serde_json::Value {
+        let label = format!("POST {path}");
+        let (status, text) = self.request_text_response_with_timeout(
+            self.ident(self.client.post(format!("{}{path}", self.base)))
+                .json(body),
+            &label,
+            maximum,
+        );
+        assert!((200..300).contains(&status), "{label} -> {status}: {text}");
+        serde_json::from_str(&text)
+            .unwrap_or_else(|error| panic!("{label} response not JSON ({error}): {text}"))
+    }
+
     /// POST through the legacy workspace API's human/operator identity vocabulary.
     pub fn post_workspace_json(&self, path: &str, body: &serde_json::Value) -> serde_json::Value {
         self.request_json(
@@ -2127,7 +2146,16 @@ impl LiveBackend {
         request: reqwest::RequestBuilder,
         label: &str,
     ) -> (u16, String) {
-        let timeout = proof_request_timeout(REQUEST_TIMEOUT).unwrap_or_else(|| {
+        self.request_text_response_with_timeout(request, label, REQUEST_TIMEOUT)
+    }
+
+    fn request_text_response_with_timeout(
+        &self,
+        request: reqwest::RequestBuilder,
+        label: &str,
+        maximum: Duration,
+    ) -> (u16, String) {
+        let timeout = proof_request_timeout(maximum).unwrap_or_else(|| {
             panic!("{label} cannot start after the command-wide proof deadline")
         });
         let result = self.rt.block_on(async {

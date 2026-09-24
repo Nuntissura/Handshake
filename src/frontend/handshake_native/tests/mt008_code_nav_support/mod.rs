@@ -2,6 +2,11 @@
 
 use std::path::{Component, Path, PathBuf};
 
+// Recorded live indexing reached ingestion projection at 14.6s, before reconciliation
+// and symbol indexing. Keep setup bounded without raising unrelated request budgets.
+#[cfg(feature = "integration")]
+const INDEX_SETUP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
 pub fn external_artifact_dir(subdir: &str) -> PathBuf {
     let root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
         .map(PathBuf::from)
@@ -62,9 +67,10 @@ impl CodeFixture {
         std::fs::write(path.join("lib.rs"),
             "/// Adds two numbers.\npub fn add(a: i32, b: i32) -> i32 { a + b }\npub fn caller() -> i32 { add(1, 2) }\n")
             .expect("write owned Rust source");
-        let indexed = backend.post_json(
+        let indexed = backend.post_json_with_timeout(
             &format!("/workspaces/{}/code-nav/index", backend.workspace_id),
             &serde_json::json!({"root_path": path.to_string_lossy()}),
+            INDEX_SETUP_TIMEOUT,
         );
         assert!(
             indexed["symbol_count"].as_u64().unwrap_or(0) >= 2,
@@ -105,9 +111,10 @@ impl CodeFixture {
         // reconciliation marks A's retained rows stale; neither source files nor artifacts move.
         let empty = self.source_dir.join("empty");
         std::fs::create_dir(&empty).expect("create empty owned reindex directory");
-        let indexed = self.backend.post_json(
+        let indexed = self.backend.post_json_with_timeout(
             &format!("/workspaces/{}/code-nav/index", self.backend.workspace_id),
             &serde_json::json!({"root_path": empty.to_string_lossy()}),
+            INDEX_SETUP_TIMEOUT,
         );
         assert_eq!(indexed["root_id"].as_str(), Some(self.root_id.as_str()));
         assert_eq!(indexed["files_ingested"].as_u64(), Some(0));
