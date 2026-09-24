@@ -2601,7 +2601,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // 27528c0e71735b81fbaa798dabb9e35b3805a16166db450d86fec4baaa32c38f); kb-c5 run 05 (equals sha256 of
 // schema.surql). DECLARATIVE_SCHEMA_CATALOG_SHA256 is unchanged by this batch (kb-c5 run 05).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "f41a795462ecfce9f7fb183b4be1cd4f96ace10440d2f511c83ab7fcce3acd5b";
+    "438b0d815c405be2ccc8ef8ee97e8440ef2ff26b2efeaf894a1ff8e51cb4f83d";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.

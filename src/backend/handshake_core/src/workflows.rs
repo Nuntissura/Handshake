@@ -15462,7 +15462,52 @@ async fn run_calendar_sync_job(
         },
     };
 
-    let result = match mex_runtime.execute(op).await {
+    // The job already inherits its HTTP record-user scope. Bind the receipt
+    // principal as well; AI mutation metadata still retains the job/workflow IDs.
+    let result = if let Some(scope) = crate::storage::surreal::current_record_user_scope() {
+        use crate::storage::surreal::resource_authority::{
+            AuthorizationRequest, ResourceAction, ResourceKind,
+        };
+        let workspace_id = op
+            .params
+            .get("workspace_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()))?;
+        if scope.workspace_id.as_deref() != Some(workspace_id)
+            || scope.capability_id != "fs.write"
+            || scope.action != ResourceAction::Create
+        {
+            return Err(WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()));
+        }
+        let decision = state
+            .surreal
+            .authorize_protected_resource(AuthorizationRequest {
+                session_token: scope.session_token,
+                channel_binding_hash: scope.channel_binding_hash,
+                capability_id: "fs.write".to_owned(),
+                resource_kind: ResourceKind::Workspace,
+                external_resource_id: workspace_id.to_owned(),
+                action: ResourceAction::Create,
+            })
+            .await
+            .map_err(|_| WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()))?;
+        if decision.resource_id != scope.resource_id || decision.session_id != scope.session_id {
+            return Err(WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()));
+        }
+        let actor: crate::kernel::KernelActor = serde_json::from_value(json!({
+            "kind": decision.actor_kind, "id": decision.actor_id,
+        }))
+        .map_err(|_| WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()))?;
+        crate::storage::surreal::event_ledger::with_loom_session_receipt(
+            actor,
+            workspace_id.to_owned(),
+            mex_runtime.execute(op),
+        )
+        .await
+    } else {
+        mex_runtime.execute(op).await
+    };
+    let result = match result {
         Ok(result) => result,
         Err(MexRuntimeError::Gate(denial)) => {
             let output = calendar_sync_denied_output(job, Some(workflow_run_id), &denial.reason);

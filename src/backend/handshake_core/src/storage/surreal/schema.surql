@@ -7172,11 +7172,20 @@ DEFINE FUNCTION OVERWRITE fn::mt154_workspace_event($event: string, $source: str
         OR fn::mt154_knowledge_event($event, $source, $aggregate, $aggregate_id, $payload, $capability, $action)
         OR fn::mt154_flight_recorder_event($event, $source, $aggregate, $aggregate_id, $payload, $capability, $action);
 };
--- Calendar: no calendar route appends a kernel_event_ledger receipt (PUT sources writes calendar_sources only;
--- the calendar_workflow mutation receipt + outbox are written by upsert_calendar_event, which no route reaches).
--- Deny-by-default until a record-user calendar route emits a receipt.
+-- Calendar sync jobs inherit the workspace Create scope and stamp the live session
+-- principal. Permit only their atomic mutation receipt; other calendar tuples deny.
 DEFINE FUNCTION OVERWRITE fn::mt154_calendar_event($event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $capability: string, $action: string) {
-    RETURN false;
+    RETURN $event = 'ATELIER_DOMAIN_EVENT_RECORDED' AND $source = 'calendar_workflow'
+        AND $aggregate = 'calendar_event' AND $aggregate_id != ''
+        AND $capability = 'fs.write' AND $action = 'create'
+        AND $payload.type = 'calendar_mutation' AND $payload.action = 'upsert_event'
+        AND $payload.event_id = $aggregate_id
+        AND $payload.workspace_id != NONE AND $payload.workspace_id != ''
+        AND $payload.source_id != NONE AND $payload.source_id != ''
+        AND $payload.job_id != NONE AND $payload.job_id != ''
+        AND $payload.workflow_id != NONE AND $payload.workflow_id != ''
+        AND $payload.edit_event_id != NONE AND $payload.edit_event_id != ''
+        AND $payload.actor_kind = 'AI' AND $payload.actor_id = 'calendar_sync';
 };
 -- Stage (MT-154 AC-154-5): the capture's allow decision + stored receipt (POST /workspaces/:ws/stage/artifacts,
 -- workspace fs.write/create), and the Stage canvas-card compensation receipt (MT-153 AC-153-7, workspace

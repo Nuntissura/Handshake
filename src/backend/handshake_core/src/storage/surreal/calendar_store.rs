@@ -414,7 +414,7 @@ async fn upsert_event_inner(
     let job_id = metadata.job_id.map(|value| value.to_string());
     let workflow_id = metadata.workflow_id.map(|value| value.to_string());
     let edit_event_id = metadata.edit_event_id.to_string();
-    let mutation_payload = serde_json::json!({
+    let mut mutation_payload = serde_json::json!({
         "type": "calendar_mutation",
         "action": "upsert_event",
         "workspace_id": workspace_id,
@@ -450,6 +450,7 @@ async fn upsert_event_inner(
         .map(serde_json::to_value)
         .transpose()?;
     let persisted_event_id = key_ref(&target_id)?.to_owned();
+    mutation_payload["event_id"] = Value::String(persisted_event_id.clone());
     let run_id = job_id
         .clone()
         .or_else(|| workflow_id.clone())
@@ -560,6 +561,13 @@ async fn upsert_event_inner(
                             Value::String(transaction.outbox.calendar_event_id.clone());
                         transaction.ledger.aggregate_id =
                             transaction.outbox.calendar_event_id.clone();
+                        transaction.ledger.payload["event_id"] =
+                            Value::String(transaction.outbox.calendar_event_id.clone());
+                        transaction.ledger.payload_hash = crate::kernel::context_bundle::sha256_hex(
+                            &crate::kernel::context_bundle::canonical_json_bytes(
+                                &transaction.ledger.payload,
+                            ),
+                        );
                         return run_event_transaction(storage, transaction)
                             .await
                             .map_err(map_calendar_transaction_error)
@@ -1291,13 +1299,19 @@ mod tests {
             outbox_rows(&storage, &workspace_id, &source_id).await.len(),
             2
         );
-        assert_eq!(
-            event_ledger::list_for_aggregate(&storage, "calendar_event", &left.id)
-                .await
-                .expect("read converged receipts")
-                .len(),
-            2
-        );
+        let receipts = event_ledger::list_for_aggregate(&storage, "calendar_event", &left.id)
+            .await
+            .expect("read converged receipts");
+        assert_eq!(receipts.len(), 2);
+        for receipt in receipts {
+            assert_eq!(receipt.payload["event_id"], receipt.aggregate_id);
+            assert_eq!(
+                receipt.payload_hash,
+                crate::kernel::context_bundle::sha256_hex(
+                    &crate::kernel::context_bundle::canonical_json_bytes(&receipt.payload),
+                ),
+            );
+        }
 
         let conflict = upsert_event(
             &storage,
