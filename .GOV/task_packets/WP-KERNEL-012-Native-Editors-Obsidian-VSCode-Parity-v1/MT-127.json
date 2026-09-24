@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED",
     "active": false,
     "depends_on": [],
     "blocks": [
@@ -49,6 +49,7 @@
     "validated_at_utc": "2026-09-23T23:38:21.613Z",
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
     "next_actor": "WP_VALIDATOR",
+    "blocked_on": "end-of-WP MT-127 AC-127-3 separate governed ignored proofs (including controlled interactive desktop), AC-127-4 exclusive-host fat-LTO release packaging, and AC-127-6 final same-configuration full native sweep",
     "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY",
     "ready_for_validation_transition": {
       "at_utc": "2026-09-23T23:27:08.158Z",
