@@ -11326,7 +11326,7 @@ mod tests {
             viewer,
         };
         let block_row = "RETURN (SELECT * FROM loom_blocks WHERE record::id(id) = $id)[0];";
-        let ws_blocks = "RETURN (SELECT * FROM loom_blocks WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id);";
+        let ws_blocks = "RETURN { rows: (SELECT * FROM loom_blocks WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id) };";
 
         // ---- blocks + pins + metrics ------------------------------------------------------
         let family = "blocks+pins+metrics";
@@ -11787,7 +11787,7 @@ mod tests {
             !m.row(edge_row, json!({"id": edge_id})).await.is_null(),
             "[{family}] canonical edge row"
         );
-        let edge_rows = "RETURN (SELECT * FROM loom_edges WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id);";
+        let edge_rows = "RETURN { rows: (SELECT * FROM loom_edges WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id) };";
         m.assert_write_denied(
             family,
             "POST",
@@ -12011,9 +12011,9 @@ mod tests {
             Some(1),
             "[{family}] {recents}"
         );
-        let recent_rows = "RETURN (SELECT * FROM knowledge_quick_switcher_recents WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id);";
+        let recent_rows = "RETURN { rows: (SELECT * FROM knowledge_quick_switcher_recents WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id) };";
         assert_eq!(
-            m.ws_row(recent_rows).await.as_array().map(Vec::len),
+            m.ws_row(recent_rows).await["rows"].as_array().map(Vec::len),
             Some(1),
             "[{family}] canonical recent row"
         );
@@ -12414,7 +12414,7 @@ mod tests {
             "PUT",
             "/loom/journals/2026-09-25",
             Value::Null,
-            "RETURN (SELECT * FROM loom_blocks WHERE workspace_id = type::record('workspaces', $ws) AND content_type = 'journal' ORDER BY id);",
+            "RETURN { rows: (SELECT * FROM loom_blocks WHERE workspace_id = type::record('workspaces', $ws) AND content_type = 'journal' ORDER BY id) };",
             StatusCode::UNAUTHORIZED,
             "HSK-401-LOOM-SESSION",
         )
