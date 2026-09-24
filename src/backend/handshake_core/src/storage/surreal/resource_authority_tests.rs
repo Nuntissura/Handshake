@@ -3152,7 +3152,19 @@ async fn memory_source_reads_require_exact_grants_and_preserve_derived_origin(
                 }
             }
             let foreign_workspace = database.create_workspace(&ctx, NewWorkspace { name: "Foreign source workspace".to_owned() }).await?;
-            for (table,id) in [cases[0], cases[1], cases[2], cases[4]] {
+            // MT-154 (IV ruling, option a): the standalone source-free Loom block cannot be moved to another
+            // workspace at all: mt109_loom_source_integrity denies it for every writer, root included
+            // (deny-by-default, Master Spec 02-system-architecture.md:2758/:2773). The move must fail with
+            // the constant denial and leave the row unchanged.
+            {
+                let (table, id) = cases[4];
+                let expected = source_probe_rows(storage, None, table, id).await?;
+                let moved = source_probe_query(storage, "UPDATE $record SET workspace_id = $other RETURN AFTER;", SourceProbeBindings { record: RecordId::new(table, id), other: Some(RecordId::new("workspaces", foreign_workspace.id.as_str())) }).await;
+                assert!(moved.as_ref().is_err_and(|error| error.to_string().contains("HSK-403-PROTECTED-RESOURCE")), "standalone Loom block workspace move must be denied: {moved:?}");
+                assert_eq!(source_probe_rows(storage, None, table, id).await?, expected, "denied move must leave the standalone block unchanged");
+                assert_eq!(source_probe_rows(storage, Some(scope.clone()), table, id).await?, expected, "denied move keeps the granted standalone block readable");
+            }
+            for (table,id) in [cases[0], cases[1], cases[2]] {
                 let expected = source_probe_rows(storage, None, table, id).await?;
                 let record = RecordId::new(table, id);
                 source_probe_query(storage, "UPDATE $record SET workspace_id = $other RETURN AFTER;", SourceProbeBindings { record: record.clone(), other: Some(RecordId::new("workspaces", foreign_workspace.id.as_str())) }).await?;
