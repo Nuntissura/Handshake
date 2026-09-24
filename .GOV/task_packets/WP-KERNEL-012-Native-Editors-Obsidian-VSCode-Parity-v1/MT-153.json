@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-23T23:52:39.079Z",
+  "updated_at_utc": "2026-09-24T07:21:13.185Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -49,9 +49,9 @@
       "MT-157"
     ],
     "active": true,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V1",
     "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
-    "validated_at_utc": "2026-09-23T23:38:21.613Z",
+    "validated_at_utc": "2026-09-24T07:21:13.185Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -2053,5 +2053,49 @@
         "spec_basis": "bounded test DDL is sliced from the compiled schema (no hand-written DDL)"
       }
     ]
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-C7V-20260923-2345",
+    "timestamp_utc": "2026-09-24T07:21:13.185Z",
+    "candidate_sha": "1097ef1c95845587dd57df1ba6f7a528d6c9cd03",
+    "verdict": "FAIL_V1",
+    "source_of_truth": "MT-153.proof.checks",
+    "reuse_rule": "CX-VAL-002/CX-EXEC-008: fe0949d8..1097ef1c diff touches src/backend/handshake_core/src/storage/surreal/schema.rs (MT-153-owned input), so no prior proof (none existed) is reusable; run52 (1097ef1c) evidence governs directly.",
+    "failing_checks": [
+      {
+        "check_id": "MT-153-ROUTE-MATRIX",
+        "result": "FAIL",
+        "test": "api::loom::tests::mt153_loom_route_family_authority_matrix",
+        "log_lines": [
+          1606,
+          1610,
+          1621
+        ],
+        "message": "panicked at srcapiloom.rs:11104:41: canonical re-read RETURN (SELECT * FROM loom_blocks WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id);: Tried to take only a single result from a query that contains multiple",
+        "failure_kind": "product"
+      },
+      {
+        "check_id": "MT-153-WORKSPACE-DELETE",
+        "result": "FAIL",
+        "test": "api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit",
+        "log_lines": [
+          4980
+        ],
+        "message": "owner delete: 403 Forbidden HSK-403-PROTECTED-RESOURCE (same systemic pattern reported across MT-157/158)",
+        "failure_kind": "product"
+      },
+      {
+        "check_id": "MT-153-LOOM-TARGETS",
+        "result": "FAIL",
+        "test": "loom_transclusion_tests::mt258_transclusion_read_through_edit_routes_to_source_and_host_stays_copy_free",
+        "message": "403 vs 200 expected, \"transclusion read-through must succeed\" (same systemic pattern)",
+        "failure_kind": "product"
+      }
+    ],
+    "not_evaluated": [
+      "MT-153-NATIVE-LOOM (requires a dedicated backend-bin build not covered by run52 as executed - not run, not needed since verdict is already determined by 3 other failing checks)"
+    ],
+    "log": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/61-core-only-1097ef1c.log"
   }
 }

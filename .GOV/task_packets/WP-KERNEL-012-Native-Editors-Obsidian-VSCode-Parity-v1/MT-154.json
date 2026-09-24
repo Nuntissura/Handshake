@@ -25,7 +25,7 @@
   "title": "B18-MT-154-Non-Loom-Routes-Account-Session-Authority-And-Residuals",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-24T03:32:19.036Z",
+  "updated_at_utc": "2026-09-24T07:21:13.185Z",
   "identity": {
     "mt_id": "MT-154",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,15 +41,15 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "depends_on": [
       "MT-153"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
-    "validated_by": null,
-    "validated_at_utc": null,
+    "validator_verdict": "FAIL_V1",
+    "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
+    "validated_at_utc": "2026-09-24T07:21:13.185Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -2222,5 +2222,34 @@
       "native swarm_edit_proof / folder_tree: live backend child not ready (backend-target infra)",
       "memory credential exchange 403: keychain error 8"
     ]
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-C7V-20260923-2345",
+    "timestamp_utc": "2026-09-24T07:21:13.185Z",
+    "candidate_sha": "1097ef1c95845587dd57df1ba6f7a528d6c9cd03",
+    "verdict": "FAIL_V1",
+    "source_of_truth": "MT-154.proof.checks",
+    "reuse_rule": "CX-VAL-002/CX-EXEC-008: fe0949d8..1097ef1c diff touches src/backend/handshake_core/src/storage/surreal/preferences.rs (MT-154-owned input); run52 evidence governs directly.",
+    "failing_checks": [
+      {
+        "check_id": "MT-154-KNOWLEDGE-DOCS",
+        "result": "FAIL",
+        "test": "knowledge_documents_api_tests::mt154_save_indexes_document_into_project_knowledge_index (+6 other failures in the same binary: mt032 family, mt157_move_empty_body_...)",
+        "message": "knowledge_index_error=\"database error: knowledge entity upsert returned no record\", knowledge_indexed=false (distinct from the 403 pattern; see also the 5 403-pattern failures in this binary)",
+        "failure_kind": "product"
+      },
+      {
+        "check_id": "MT-154-PREDECESSOR-PINS-UNCHANGED",
+        "result": "FAIL (per literal check definition)",
+        "command": "git diff fe0949d8..1097ef1c -- schema.rs | grep -E \"PRE_.*SHA256|PREDECESSOR_.*SHA256\"; test $? -eq 1",
+        "actual": "grep found 1 match (exit 0, check expects exit 1): an ADDED comment line \"with it the chain reproduces PRE_ACCOUNT_SETUP_GENERATED_SHA256 byte for byte\" - this is a comment mentioning the pin name, not a changed pin VALUE. Reporting verbatim per the check's literal text match definition rather than deciding myself it does not count; flagging for IV/Operator judgment on whether this is a true violation or a check-definition false positive.",
+        "failure_kind": "UNCLASSIFIED - reported for judgment, not counted as the deciding failure"
+      }
+    ],
+    "not_evaluated": [
+      "MT-154-NATIVE-DRAIN (requires a dedicated backend-bin build not covered by run52 as executed)"
+    ],
+    "log": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/61-core-only-1097ef1c.log"
   }
 }
