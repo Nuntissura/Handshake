@@ -1357,9 +1357,11 @@ fn meaningful_check(
         })
         .unwrap_or(0);
     let (statement_index, error) = errors.swap_remove(meaningful);
-    #[cfg(test)]
+    // Test builds and surreal-test-support integration binaries print the failing statement so a
+    // union run records it (MT-154 diagnostic, IV); the product build only returns the error.
+    #[cfg(any(test, feature = "surreal-test-support"))]
     eprintln!("knowledge-transactionfailed statement_index={statement_index} error={error}");
-    #[cfg(not(test))]
+    #[cfg(not(any(test, feature = "surreal-test-support")))]
     let _ = statement_index;
     Err(error.into())
 }
@@ -2578,7 +2580,7 @@ async fn create_owned_document_rows(
             1,
         );
     if let Err(error) = raw_execute(storage, statement, binds).await {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "surreal-test-support"))]
         eprintln!("owned-rich-document-create transactionfailed error={error}");
         return Err(error);
     }
