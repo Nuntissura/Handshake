@@ -45,15 +45,15 @@ Role: INTEGRATION VALIDATOR orchestrating sub-agents (KERNEL_BUILDER, WP_VALIDAT
 
 | Time | What | Ref |
 |---|---|---|
-| 01:20–01:50 | run44 killed by `timeout 3600`; run45 without env; 15 BLOCKED labels reverted; 30 remediated MTs → READY | gov `ded5358c` `70755cf1` `10a3fc9f` |
-| ~01:55 | Builder final commit `fe0949d8` (MT-159 model-session permissions, MT-153 Loom test-schema fn, one re-pin); records → READY | gov `60dc45c1` |
+| 01:20–01:50 | run44 killed by `timeout 3600`; run45 without env; 15 BLOCKED labels reverted; 30 remediated MTs → READY_FOR_VALIDATION | gov `ded5358c` `70755cf1` `10a3fc9f` |
+| ~01:55 | Builder final commit `fe0949d8` (MT-159 model-session permissions, MT-153 Loom test-schema fn, one re-pin); records → READY_FOR_VALIDATION | gov `60dc45c1` |
 | ~02:00 | run 50 launched | log 50 |
 | 02:40 | Workflow: validator→builder direct relay **reverted**; run-round.sh and builder-commits-before-pin-measure **kept** (Operator: keep if meaningful) | this file |
 | 03:05 | Slow build root cause measured: C: 235 ms/transfer, queue 15, VoxVulgi desktop.exe read 141.7 GB | — |
 | 03:55–04:05 | C: fell to 193 GB (stop line 192); builder C: target (47.5 GB) deleted with Operator approval → 229 GB | — |
 | 04:20 | 15 vault FAILs (Windows error 8): 100 leaked `handshake-local-accounts` credentials found (09-20..09-24 00:33) and deleted with Operator approval; no vault error since | — |
 | 04:25 | Builder `cargo check` on C: (PID 196544) stopped by the IV (forbidden); builder moved to D: | — |
-| 04:35–04:45 | MT-045/124/125/142: Operator keeps their proofs, run at WP end in one combined extra build (MT-142 no build); status → READY, then → BLOCKED per Operator | gov `9da51244` `57a39a70` `040adbcb` |
+| 04:35–04:45 | MT-045/124/125/142: Operator keeps their proofs, run at WP end in one combined extra build (MT-142 no build); status → READY_FOR_VALIDATION, then → BLOCKED per Operator | gov `9da51244` `57a39a70` `040adbcb` |
 | 04:45 | `HANDSHAKE_WORKSPACE_ROOT` added to run-round.sh; env-matrix trace `wpv-c3x/env-matrix.json` (writer check pending) | — |
 
 ## 3. Run 50 failures by root cause (builder triage, static)
@@ -100,7 +100,7 @@ Role: INTEGRATION VALIDATOR orchestrating sub-agents (KERNEL_BUILDER, WP_VALIDAT
 
 1. CX-EXEC-005 ("every test or long-running proof invocation a wall-clock timeout") reads as a whole-run wrapper and caused run44; CX-VAL-005 says per-test. Make it: per-test timeout via the runner only.
 2. CX-HOST-001 requires a host profile, none exists, nothing gates on it; HBR `canary_check` is still `REPLACE_ME`. A canary (env vars, disk free vs cap, OS credential count, competing heavy processes, target settings) would have caught run45, run 50's missing var, the vault, the disk and VoxVulgi.
-3. Status vocabulary is scattered (WPV-STATUS-001 incl. PARTIAL_PENDING_OPERATOR_DECISION, CX-EXEC-013 NEEDS_NEW_APPROACH, CX-503B1 BLOCKED) with no transition rules: remediation commit → READY; infrastructure failure → no change; waiting on a scheduled proof → BLOCKED + `blocked_on`.
+3. Status vocabulary is scattered (WPV-STATUS-001 incl. PARTIAL_PENDING_OPERATOR_DECISION, CX-EXEC-013 NEEDS_NEW_APPROACH, CX-503B1 BLOCKED) with no transition rules: remediation commit → READY_FOR_VALIDATION; infrastructure failure → no change; waiting on a scheduled proof → BLOCKED + `blocked_on`.
 4. The Operator's single-union-round rule is not written; CX-EXEC-008 (per MT), CX-VAL-001 (≤5 MTs) and CX-VAL-005 (5 MTs or 120 min) contradict it.
 5. Proofs needing a non-union build (release perf, RED halves) are not declared at activation; CX-VAL-005 `special_runs` leaves them for later. Declare them in the contract and schedule them into one end-of-WP build.
 6. CX-EXEC-011 ("plans are input, not authority over the approach") let the steering role change workflow; separate approach within a step from workflow (roles, statuses, procedure), which only the Operator changes.
