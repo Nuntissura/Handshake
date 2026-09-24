@@ -467,7 +467,12 @@ async fn model_run_persists_session_and_artifact_first_messages(
     assert!(matches!(run.status, JobState::Queued | JobState::Running));
 
     let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
-    assert_eq!(final_job.state, JobState::Completed);
+    assert_eq!(
+        final_job.state,
+        JobState::Completed,
+        "job did not complete (MT-159 diagnostic): status_reason={:?}",
+        final_job.status_reason
+    );
 
     let session = state.storage.get_model_session(&session_id).await?;
     assert_eq!(session.job_id, Some(job.job_id));
@@ -571,7 +576,12 @@ async fn trust001_external_system_role_is_downgraded_to_user_with_attribution(
 
     start_workflow_for_job(&state, job.clone()).await?;
     let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
-    assert_eq!(final_job.state, JobState::Completed);
+    assert_eq!(
+        final_job.state,
+        JobState::Completed,
+        "job did not complete (MT-159 diagnostic): status_reason={:?}",
+        final_job.status_reason
+    );
 
     let messages = state.storage.list_session_messages(&session_id).await?;
     let injected = messages
@@ -630,7 +640,12 @@ async fn trust002_cross_session_provenance_fields_are_persisted(
 
     start_workflow_for_job(&state, job.clone()).await?;
     let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
-    assert_eq!(final_job.state, JobState::Completed);
+    assert_eq!(
+        final_job.state,
+        JobState::Completed,
+        "job did not complete (MT-159 diagnostic): status_reason={:?}",
+        final_job.status_reason
+    );
 
     let messages = state.storage.list_session_messages(&session_id).await?;
     let routed = messages
@@ -815,7 +830,12 @@ async fn model_run_cloud_consent_allows_with_valid_bundle() -> Result<(), Box<dy
     assert!(matches!(run.status, JobState::Queued | JobState::Running));
 
     let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
-    assert_eq!(final_job.state, JobState::Completed);
+    assert_eq!(
+        final_job.state,
+        JobState::Completed,
+        "job did not complete (MT-159 diagnostic): status_reason={:?}",
+        final_job.status_reason
+    );
 
     let session = state.storage.get_model_session(&session_id).await?;
     assert_eq!(session.state, ModelSessionState::Completed);
@@ -907,9 +927,24 @@ async fn model_run_scheduler_queues_not_drop_and_dispatch_is_deterministic(
     let done_first = wait_for_terminal_job(&state, first.job_id, 180_000).await;
     let done_second = wait_for_terminal_job(&state, second.job_id, 180_000).await;
     let done_third = wait_for_terminal_job(&state, third.job_id, 180_000).await;
-    assert_eq!(done_first.state, JobState::Completed);
-    assert_eq!(done_second.state, JobState::Completed);
-    assert_eq!(done_third.state, JobState::Completed);
+    assert_eq!(
+        done_first.state,
+        JobState::Completed,
+        "job did not complete (MT-159 diagnostic): status_reason={:?}",
+        done_first.status_reason
+    );
+    assert_eq!(
+        done_second.state,
+        JobState::Completed,
+        "job did not complete (MT-159 diagnostic): status_reason={:?}",
+        done_second.status_reason
+    );
+    assert_eq!(
+        done_third.state,
+        JobState::Completed,
+        "job did not complete (MT-159 diagnostic): status_reason={:?}",
+        done_third.status_reason
+    );
 
     let events = state
         .flight_recorder
@@ -1184,7 +1219,12 @@ async fn session_observability_spans_bind_model_runs_and_tool_calls(
     assert!(matches!(run.status, JobState::Queued | JobState::Running));
 
     let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
-    assert_eq!(final_job.state, JobState::Completed);
+    assert_eq!(
+        final_job.state,
+        JobState::Completed,
+        "job did not complete (MT-159 diagnostic): status_reason={:?}",
+        final_job.status_reason
+    );
 
     let workflow_run_id = final_job
         .workflow_run_id
@@ -1944,7 +1984,12 @@ async fn model_run_spawn_announce_back_event_is_emitted_for_parented_completion(
     start_workflow_for_job(&state, child_job.clone()).await?;
 
     let terminal_job = wait_for_terminal_job(&state, child_job.job_id, 10_000).await;
-    assert_eq!(terminal_job.state, JobState::Completed);
+    assert_eq!(
+        terminal_job.state,
+        JobState::Completed,
+        "job did not complete (MT-159 diagnostic): status_reason={:?}",
+        terminal_job.status_reason
+    );
 
     let events = state
         .flight_recorder
