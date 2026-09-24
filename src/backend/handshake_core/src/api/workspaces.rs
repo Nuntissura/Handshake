@@ -3080,15 +3080,25 @@ pub(crate) mod tests {
                     );
                     line.replace_range(
                         at..at + "RETURN false;".len(),
-                        &format!("RETURN 'clause-{clauses}';"),
+                        &format!("THROW 'C1_FDELETE_CLAUSE_{clauses}';"),
                     );
                 }
-                probe.push_str(&line.replace("RETURN true;", "RETURN 'allowed';"));
+                probe.push_str(&line.replace("RETURN true;", "THROW 'C1_FDELETE_ALLOWED';"));
                 probe.push('\n');
             }
+            // Permission-predicate evaluation retains the broker identity but can read hidden
+            // fields. A top-level function call cannot reproduce that context (MT-157 F2).
+            probe.push_str(
+                "DEFINE TABLE c1_workspace_delete_probe SCHEMAFULL
+                    PERMISSIONS FOR select WHERE fn::c1_probe_workspace_delete(workspace_key)
+                    FOR create, update, delete NONE;
+                 DEFINE FIELD workspace_key ON c1_workspace_delete_probe TYPE string;
+                 CREATE type::record('c1_workspace_delete_probe', $workspace)
+                    SET workspace_key = $workspace;",
+            );
             state
                 .surreal
-                .test_admin_query_bound(probe, json!({}))
+                .test_admin_query_bound(probe, json!({"workspace": ws.clone()}))
                 .await?
                 .check()?;
         }

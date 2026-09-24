@@ -587,16 +587,21 @@ COMMIT TRANSACTION;
                 );
                 // MT-157 C1-FDELETE (test builds only): statement 10 is the checked anchor DELETE.
                 // The cascade test installs this diagnostic copy; evaluate it on this exact
-                // record-user connection after rollback. Other tests may not install the copy,
+                // record-user connection inside a SELECT permission predicate after rollback.
+                // This observes restored state, not the failed transaction's intermediate state.
+                // Other tests may not install the copy,
                 // in which case the probe error is diagnostic only; retain the original error.
                 #[cfg(test)]
                 if statement_index == 10 || std::env::var_os("HSK_C1_FDELETE_PROBE").is_some() {
                     let verdict = match broker
-                        .query("RETURN fn::c1_probe_workspace_delete($external);")
+                        .query("SELECT * FROM type::record('c1_workspace_delete_probe', $external);")
                         .bind(("external", probe_external))
                         .await
                     {
-                        Ok(mut probe) => format!("{:?}", probe.take::<Option<String>>(0)),
+                        Ok(probe) => match probe.check() {
+                            Err(probe_error) => format!("predicate marker/error: {probe_error}"),
+                            Ok(_) => "inconclusive: predicate emitted no marker".to_owned(),
+                        },
                         Err(probe_error) => format!("probe error: {probe_error}"),
                     };
                     eprintln!("C1_FDELETE_ROUTE_PROBE phase=after-rollback statement_index={statement_index} verdict={verdict}");
