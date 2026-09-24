@@ -49,13 +49,13 @@
     "question": "Locus job-path authority gap found by KERNEL_BUILDER-C4 (MT-154 residual): option A (new MT inside WP-KERNEL-012) vs the 012-bis refactor."
   },
   "lifecycle": {
-    "status": "FAIL_V3",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-154"
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": "FAIL_V3",
+    "validator_verdict": null,
     "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
     "validated_at_utc": "2026-09-24T07:17:06.256Z",
     "completed_by": null,
@@ -72,7 +72,7 @@
       "prior_validator_verdict": "BLOCKED_ON_DEPENDENCY",
       "reason": "dependency MT-154-WS-DELETE-INDEX fixed in 56573ecb (feat e85a69fc)"
     },
-    "prior_validator_verdict": "FAIL_V2",
+    "prior_validator_verdict": "FAIL_V3",
     "next_actor": "WP_VALIDATOR"
   },
   "closure_unit": {
@@ -1216,6 +1216,38 @@
     "from_status": "FAIL_V2",
     "remediation_ref": "remediation_v2 at 2258707e",
     "note": "route6 (family F) still open; next union round re-judges"
+  },
+  "remediation_v3": {
+    "session": "KERNEL_BUILDER-C5-20260923-2250",
+    "executor_role": "KERNEL_BUILDER",
+    "base_sha": "4ffda19b9e683f922ee1725d2826ca244d714423",
+    "candidate_sha": "9c13b642e50a909e9d0ea1246a050f6be74f18cc",
+    "pushed_verified": "git ls-remote origin feat/WP-KERNEL-012 = 9c13b642e50a909e9d0ea1246a050f6be74f18cc",
+    "source_failures": "61-core-only-1097ef1c.log:4968: route6 document soft-delete, knowledge-transactionfailed statement_index=1 HSK-403-PROTECTED-RESOURCE",
+    "changed_files": ["src/backend/handshake_core/src/storage/surreal/knowledge.rs"],
+    "fix": "Remove the direct record-user mt120_document_access call, which traverses SELECT-hidden protected_resources.external_resource_id. Mandatory tombstone UPDATE retains schema-event mt120_document_delete checks on both row versions, receipt identity checks and transaction rollback; caller/receipt bindings and revocation write anchors remain unchanged.",
+    "compile_gates": [
+      {
+        "proof_id": "KB-C5-21-document-delete-check",
+        "command": "cargo check --locked -j 6 --tests --features app-runtime,surreal-test-support,test-utils",
+        "target": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target",
+        "result": "exit 0; Finished dev profile in 13m 39s",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/21-document-delete-check.log"
+      }
+    ],
+    "test_runs": "No builder cargo tests per Operator instruction; runtime validation belongs to the independent validator's next union.",
+    "updated_at_utc": "2026-09-24T12:43:13.823Z",
+    "status": "CANDIDATE_PUSHED",
+    "open": "Runtime proof pending; no acceptance verdict issued."
+  },
+  "ready_for_validation_transition_9c13b642": {
+    "at_utc": "2026-09-24T12:43:13.823Z",
+    "by": "KERNEL_BUILDER on explicit Operator instruction",
+    "rule": "CX-STATUS-001: implementer commit newer than last verdict -> READY_FOR_VALIDATION",
+    "from_status": "FAIL_V3",
+    "prior_validator_verdict": "FAIL_V3",
+    "remediation_ref": "remediation_v3",
+    "note": "Validator confirmed no concurrent MT-158 edit. Frozen 4ffda19b round excludes MT-158 and is unchanged; 9c13b642 belongs to the next union. Active validator_verdict cleared per 7abc01e2 precedent; historical validation_v3 retained unchanged. Operator forbids builder cargo tests."
   },
   "validation_v3": {
     "schema_id": "hsk.mt_validation_verdict@1",
