@@ -8036,7 +8036,7 @@ mod tests {
                         })
                         .collect::<Vec<_>>()
                 );
-                // Response index 176 is the injected THROW immediately before the schema-state
+                // Response index 176 (before MT-154) is the injected THROW immediately before the schema-state
                 // UPDATE: three transaction/precondition statements, 144 authority statements,
                 // two Loom backfill statements, the two MT-150 `loom_edges` receipt DDL
                 // statements and the 25 MT-141 DDL statements (provenance-ref `asset_id` line, the
@@ -8049,12 +8049,26 @@ mod tests {
                     })
                     .map(|(index, error)| (*index, error.as_str()))
                     .collect::<Vec<_>>();
+                // Derived, not hard-coded (MT-154: schema_delta_upgrade_statements re-emits every
+                // MT-154 delta inside this transaction, so the absolute index moves with each schema
+                // batch). Only the schema-state UPDATE (cancelled) and the COMMIT may follow the
+                // THROW: it must be the third-to-last reported result.
+                let injected_index = rollback_errors
+                    .iter()
+                    .find(|(_, error)| error == "An error occurred: MT109_INJECTED_AUTHORITY_ROLLBACK")
+                    .map(|(index, _)| *index)
+                    .expect("injected rollback THROW must be reported");
+                assert_eq!(
+                    rollback_errors.last().map(|(index, _)| *index),
+                    Some(injected_index + 2),
+                    "the injected THROW must sit immediately before the schema-state UPDATE and COMMIT"
+                );
                 assert_eq!(
                     primary_errors,
                     vec![
-                        (176, "An error occurred: MT109_INJECTED_AUTHORITY_ROLLBACK"),
-                        (177, "The query was not executed due to a cancelled transaction"),
-                        (178, "Cannot COMMIT: the transaction was aborted due to a prior error"),
+                        (injected_index, "An error occurred: MT109_INJECTED_AUTHORITY_ROLLBACK"),
+                        (injected_index + 1, "The query was not executed due to a cancelled transaction"),
+                        (injected_index + 2, "Cannot COMMIT: the transaction was aborted due to a prior error"),
                     ],
                     "injected rollback did not fail at the exact pre-marker-update statement"
                 );
@@ -10092,19 +10106,22 @@ mod tests {
     /// `atelier_media_source_provenance_ref.asset_id` definition restored, proven byte-exact
     /// against `PRE_MT141_GENERATED_SURREALQL_SHA256`.
     fn mt141_pin_schema() -> String {
+        // The MT-141 lines are checked on the pre-MT-154 text: MT-154 rewrote the saved-search
+        // projection table (owner_account_id, record-user permissions) after MT-141.
+        let base = restore_pre_mt154_schema(SCHEMA.to_owned());
         assert_eq!(
-            SCHEMA.matches(MT141_PROVENANCE_REF_ASSERT_LINE).count(),
+            base.matches(MT141_PROVENANCE_REF_ASSERT_LINE).count(),
             1,
             "MT-141 line drifted: {MT141_PROVENANCE_REF_ASSERT_LINE}"
         );
         assert_eq!(
-            SCHEMA
+            base
                 .matches(PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE)
                 .count(),
             0
         );
         assert_eq!(
-            SCHEMA.matches(MT141_SAVED_SEARCH_PROJECTION_BLOCK).count(),
+            base.matches(MT141_SAVED_SEARCH_PROJECTION_BLOCK).count(),
             1
         );
         for (current, previous) in [
@@ -10123,14 +10140,14 @@ mod tests {
             ),
         ] {
             assert_eq!(
-                SCHEMA.matches(current).count(),
+                base.matches(current).count(),
                 1,
                 "MT-141 line drifted: {current}"
             );
-            assert_eq!(SCHEMA.matches(previous).count(), 0);
+            assert_eq!(base.matches(previous).count(), 0);
         }
         assert_eq!(
-            SCHEMA.matches(MT141_AI_EDIT_APPLIED_BINDING_LINES).count(),
+            base.matches(MT141_AI_EDIT_APPLIED_BINDING_LINES).count(),
             1
         );
         let pinned = pre_account_setup_schema()
@@ -10323,7 +10340,8 @@ mod tests {
         // provenance asset_id + 18 saved-search statements + pin_order + 2 quick-switcher
         // kinds + the block-view outbox block_id + 2 applied-binding fields (V2-R2).
         assert_eq!(upgrade.len(), 1 + 18 + 1 + 2 + 1 + 2);
-        let schema = statements(SCHEMA);
+        // Compared with the pre-MT-154 text; MT-154 re-emits its own rewrite of these tables.
+        let schema = statements(&restore_pre_mt154_schema(SCHEMA.to_owned()));
         for statement in &upgrade {
             assert!(
                 schema.iter().any(|s| s == statement),
