@@ -352,6 +352,40 @@ const CREATE_TRANSACTION: &str = "BEGIN TRANSACTION; \
     IF array::len($linked) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $linked; }; \
     COMMIT TRANSACTION;";
 
+async fn create_view_rows(
+    db: &SurrealDataContext<'_>,
+    bindings: CreateBindings,
+) -> StorageResult<Vec<MutationRow>> {
+    let mut response = db
+        .client
+        .query(CREATE_TRANSACTION)
+        .bind(bindings.into_value())
+        .await
+        .map_err(|error| map_err(error.into()))?;
+    let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+    errors.sort_by_key(|(index, _)| *index);
+    if !errors.is_empty() {
+        // Match decode_query_values: report the cause, not a cancelled sibling statement.
+        let meaningful = errors
+            .iter()
+            .position(|(_, error)| {
+                !error
+                    .to_string()
+                    .to_ascii_lowercase()
+                    .contains("query was not executed due to a failed transaction")
+            })
+            .unwrap_or(0);
+        let (statement_index, error) = errors.swap_remove(meaningful);
+        tracing::warn!(
+            statement_index,
+            error = %error,
+            "HSK_BLOCK_VIEW_CREATE_TRANSACTION_FAILED"
+        );
+        return Err(map_err(error.into()));
+    }
+    response.take(9).map_err(|error| map_err(error.into()))
+}
+
 #[cfg(any(test, feature = "surreal-test-support"))]
 impl SurrealStorage {
     async fn set_block_view_create_failpoint(&self, statement: &'static str) -> StorageResult<()> {
@@ -564,42 +598,39 @@ pub(crate) async fn create_block_view(
         proxy_asset_id: None,
         view_definition_json: definition_json,
     };
-    let rows = db
-        .query_values_at::<MutationRow, _>(
-            CREATE_TRANSACTION,
-            CreateBindings {
-                block: thing(BLOCKS, block_id),
-                content,
-                search: thing(SEARCH, block_id),
-                workspace: thing(WORKSPACES, workspace_id),
-                search_text: title.unwrap_or_default(),
-                entity: thing(ENTITIES, entity_id.clone()),
-                entity_id,
-                display_name,
-                detection_provenance: json!({
-                    "extractor": "loom_block_knowledge_bridge",
-                    "extractor_version": BRIDGE_EXTRACTOR_VERSION,
-                    "method": "mt177_bridge",
-                    "content_type": "view_def",
-                }),
-                bridge: thing(BRIDGES, block_id),
-                bridge_event,
-                mutation_event,
-                outbox: thing(OUTBOX, flight_event.event_id.to_string()),
-                outbox_content: OutboxContent {
-                    event_id: flight_event.event_id.to_string(),
-                    workspace_id: thing(WORKSPACES, workspace_id),
-                    block_id: thing(BLOCKS, block_id),
-                    operation: "create".to_owned(),
-                    event: flight_event_json,
-                    event_hash: flight_event_hash,
-                    created_at: Datetime::from(flight_event.timestamp),
-                },
+    let rows = create_view_rows(
+        db,
+        CreateBindings {
+            block: thing(BLOCKS, block_id),
+            content,
+            search: thing(SEARCH, block_id),
+            workspace: thing(WORKSPACES, workspace_id),
+            search_text: title.unwrap_or_default(),
+            entity: thing(ENTITIES, entity_id.clone()),
+            entity_id,
+            display_name,
+            detection_provenance: json!({
+                "extractor": "loom_block_knowledge_bridge",
+                "extractor_version": BRIDGE_EXTRACTOR_VERSION,
+                "method": "mt177_bridge",
+                "content_type": "view_def",
+            }),
+            bridge: thing(BRIDGES, block_id),
+            bridge_event,
+            mutation_event,
+            outbox: thing(OUTBOX, flight_event.event_id.to_string()),
+            outbox_content: OutboxContent {
+                event_id: flight_event.event_id.to_string(),
+                workspace_id: thing(WORKSPACES, workspace_id),
+                block_id: thing(BLOCKS, block_id),
+                operation: "create".to_owned(),
+                event: flight_event_json,
+                event_hash: flight_event_hash,
+                created_at: Datetime::from(flight_event.timestamp),
             },
-            9,
-        )
-        .await
-        .map_err(map_err)?;
+        },
+    )
+    .await?;
     if rows.first().map(|row| row.block_id.as_str()) != Some(block_id) {
         return Err(StorageError::Database(
             "loom block-view create returned no row".to_owned(),
