@@ -31,13 +31,13 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-116"
     ],
     "blocks": [],
-    "validator_verdict": "PARTIAL_V2",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260818-130753",
     "claimed_at_utc": "2026-08-18T15:40:00Z",
     "claim_note_2026_08_18": "Claimed by KERNEL_BUILDER-20260818-130753. The rate-limited prior session had already implemented the recorded correct-fix direction (per-row chip_row_spans in inline_view.rs + per-row pill/label painting in rich_editor_widget.rs, union rect preserved for pointer/AccessKit activation) and hardened the measurement harness; that work was preserved in checkpoint commit b1c9ae72. GREEN GPU proof run 2026-08-18: all 3 scenarios WRAPPED_LABEL_MATCHES_PILL_INSIDE_COLUMN (log Handshake_Artifacts/handshake-test/wp012-mt124-green-run.log), frames opened and described. RED-with-fix-disabled guard proof and pinned-toolchain rerun pending before READY_FOR_VALIDATION_V4.",
@@ -141,7 +141,8 @@
     "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
     "validated_at_utc": "2026-09-16T23:19:54.614Z",
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER"
+    "next_actor": "WP_VALIDATOR",
+    "prior_validator_verdict": "PARTIAL_V2"
   },
   "scope": {
     "summary": "Make the wikilink chip label wrap the same way its galley does, so a long chip inside a narrow reading column cannot paint outside the column with a mis-sized pill behind it.",
@@ -603,5 +604,12 @@
     "recorded_by": "INTEGRATION_VALIDATOR",
     "decision": "Operator: keep the required proof; run it at the end of WP-KERNEL-012 in one combined extra run (MT-045/124/125 share a single extra build; MT-142 needs no build). No further Operator decision pending.",
     "remaining_proof": "RED half (fix reverted, test must fail)"
+  },
+  "operator_status_ruling_2026_09_24": {
+    "at_utc": "2026-09-24T02:37:26.323Z",
+    "recorded_by": "INTEGRATION_VALIDATOR",
+    "ruling": "Operator: PARTIAL_PENDING_OPERATOR_DECISION is not a legitimate status; set READY_FOR_VALIDATION. Remaining proof runs at WP end per operator_decision_2026_09_24.",
+    "from_status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "from_validator_verdict": "PARTIAL_V2"
   }
 }

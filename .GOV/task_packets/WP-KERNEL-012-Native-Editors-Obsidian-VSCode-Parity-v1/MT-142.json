@@ -31,7 +31,7 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-136",
       "MT-137",
@@ -42,7 +42,7 @@
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260910-073935",
     "origin": "Created 2026-08-23 by an Operator-requested governance subagent. The Operator expects large SurrealDB datasets with parallel model swarms reading, writing, querying and mutating concurrently, and explicitly requested a dedicated concurrency/load MT to test, harden and expand that capability after the PostgreSQL-to-SurrealDB port lanes complete. Canonical ID evidence: the packet's MT-*.json discovery glob and direct file census contain contiguous MT-001 through MT-141 and no MT-142, making MT-142 the next valid WP-scoped ID.",
@@ -618,7 +618,9 @@
     ],
     "kernel_builder_self_correction_20260911": "The same provenance defect existed in my own runner scripts: every context line recorded a bare HEAD sha regardless of tree state, and those lines are cited as evidence throughout this microtask. Both runners now record <sha>-dirty(<n>) using crate-scoped dirtiness.",
     "ready_for_validation_at_utc": "2026-09-11T11:19:40.452Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260910-073935"
+    "ready_for_validation_by": "KERNEL_BUILDER-20260910-073935",
+    "prior_validator_verdict": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "next_actor": "WP_VALIDATOR"
   },
   "scope": {
     "summary": "Prove and harden the SurrealDB-only storage layer for parallel model swarms. Exercise concurrent point reads, range/search queries, creates, idempotent upserts, optimistic updates, deletes and multi-record projection transactions against a real embedded SurrealDB RocksDB store. Measure conflicts, retries, retry exhaustion, lock wait, operation latency and throughput. Replace the coarse process-global RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK in storage/surreal/knowledge.rs with record/workspace-keyed contention control where local coordination is useful and with atomic Surreal transactions plus in-transaction guards where correctness must survive independent clients or future remote deployment. A keyed in-process lock is only a local contention-shaping optimization; it MUST NOT be the sole correctness mechanism for uniqueness, compare-and-set, versioning, idempotency, ledger/projection atomicity or lost-update prevention. Preserve SurrealDB as the only database: no PostgreSQL or SQLite driver, fallback, fixture, syntax, environment variable, server spawn or compatibility path may be introduced.",
@@ -1770,5 +1772,12 @@
     "recorded_by": "INTEGRATION_VALIDATOR",
     "decision": "Operator: keep the required proof; run it at the end of WP-KERNEL-012 in one combined extra run (MT-045/124/125 share a single extra build; MT-142 needs no build). No further Operator decision pending.",
     "remaining_proof": "PT-142-7 extended load rerun on an idle host, reusing the run50 binary (no build)"
+  },
+  "operator_status_ruling_2026_09_24": {
+    "at_utc": "2026-09-24T02:37:26.328Z",
+    "recorded_by": "INTEGRATION_VALIDATOR",
+    "ruling": "Operator: PARTIAL_PENDING_OPERATOR_DECISION is not a legitimate status; set READY_FOR_VALIDATION. Remaining proof runs at WP end per operator_decision_2026_09_24.",
+    "from_status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "from_validator_verdict": "PARTIAL_PENDING_OPERATOR_DECISION"
   }
 }

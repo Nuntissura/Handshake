@@ -31,13 +31,13 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
     "blocks": [
       "MT-108"
     ],
-    "validator_verdict": "PARTIAL_V2",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260813-224157",
     "claimed_at_utc": "2026-08-13T22:45:30.000Z",
     "parallel_coder_agent": "019ffd4c-9165-7a22-912f-4230c3be9304",
@@ -61,8 +61,9 @@
     "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
     "validated_at_utc": "2026-09-16T23:19:54.810Z",
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER",
-    "status_before_remediation_v2": "PARTIAL_PENDING_OPERATOR_DECISION"
+    "next_actor": "WP_VALIDATOR",
+    "status_before_remediation_v2": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "prior_validator_verdict": "PARTIAL_V2"
   },
   "scope": {
     "summary": "Resolve the terminal working directory and the model-folder dialog seed from the operator's chosen workspace root instead of the Handshake process cwd.",
@@ -604,5 +605,12 @@
     "recorded_by": "INTEGRATION_VALIDATOR",
     "decision": "Operator: keep the required proof; run it at the end of WP-KERNEL-012 in one combined extra run (MT-045/124/125 share a single extra build; MT-142 needs no build). No further Operator decision pending.",
     "remaining_proof": "RED half (fix reverted, test must fail)"
+  },
+  "operator_status_ruling_2026_09_24": {
+    "at_utc": "2026-09-24T02:37:26.326Z",
+    "recorded_by": "INTEGRATION_VALIDATOR",
+    "ruling": "Operator: PARTIAL_PENDING_OPERATOR_DECISION is not a legitimate status; set READY_FOR_VALIDATION. Remaining proof runs at WP end per operator_decision_2026_09_24.",
+    "from_status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "from_validator_verdict": "PARTIAL_V2"
   }
 }
