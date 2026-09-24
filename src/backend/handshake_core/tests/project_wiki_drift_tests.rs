@@ -36,6 +36,9 @@ use handshake_core::storage::knowledge::{
     KnowledgeIndexingEligibility, KnowledgeProjectionKind, KnowledgeRebuildStatus,
     KnowledgeRootKind, KnowledgeStore, NewKnowledgeSourceRoot, NewKnowledgeWikiProjection,
 };
+use handshake_core::storage::surreal::resource_authority::{
+    ProvisionedIdentity, ResourceAction, ResourceGrantSpec, ResourceKind,
+};
 use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::Database;
 use serde_json::{json, Value};
@@ -444,6 +447,79 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
     let (base, _server) = start_server(handshake_core::api::loom::routes(state)).await;
     let http = account.client();
 
+    // Root-indexed fixtures have no source grants. A workspace grant alone must
+    // not make their unavailable hashes read as fresh on the record-user route.
+    let module_page = outcome
+        .pages
+        .iter()
+        .find(|p| p.title == "module: src/knowledge_code_index")
+        .expect("module page");
+    let ungranted_response = http
+        .get(format!(
+            "{base}/workspaces/{ws}/loom/wiki/{}",
+            module_page.projection_id
+        ))
+        .send()
+        .await
+        .expect("ungranted page send");
+    assert_eq!(ungranted_response.status(), 200);
+    let ungranted: Value = ungranted_response
+        .json()
+        .await
+        .expect("ungranted page json");
+    assert_eq!(ungranted["staleness_verdict"]["state"], "stale");
+    assert!(
+        ungranted["staleness_verdict"]["reasons"]
+            .as_array()
+            .expect("unavailable-source reasons")
+            .iter()
+            .any(|reason| reason["kind"] == "source"
+                && reason["id"] == seeded.sources[EDIT_TARGET]
+                && reason["change"] == "source_deleted"
+                && reason["current_content_hash"].is_null()),
+        "ungranted source must remain unavailable: {ungranted}"
+    );
+
+    // Provision only exact read authority for the three seeded sources, using
+    // the product registry/grant API; keep record-user evaluation unchanged.
+    let identity = ProvisionedIdentity {
+        account_id: account.account_id.clone(),
+        principal_id: account.principal_id.clone(),
+        access_space_id: account.access_space_id.clone(),
+    };
+    let storage = pg.db.storage();
+    let workspace_resource = storage
+        .register_workspace_resource(&identity, &ws)
+        .await
+        .expect("existing owner workspace resource");
+    for source_id in seeded.sources.values() {
+        let resource = storage
+            .register_protected_resource(
+                &identity,
+                ResourceKind::KnowledgeSource,
+                source_id,
+                Some(&workspace_resource.resource_id),
+                "private",
+            )
+            .await
+            .expect("register exact seeded source resource");
+        storage
+            .grant_resource(
+                &identity.account_id,
+                &identity.access_space_id,
+                ResourceGrantSpec {
+                    principal_id: identity.principal_id.clone(),
+                    resource_id: resource.resource_id,
+                    actions: vec![ResourceAction::Read],
+                    capability_ids: vec!["memory.read".to_string()],
+                    expires_at: None,
+                    delegation_chain: Vec::new(),
+                },
+            )
+            .await
+            .expect("grant owner exact source read");
+    }
+
     // ---- list serve path: EVERY page carries a verdict ----------------------
     let list: Value = http
         .get(format!("{base}/workspaces/{ws}/loom/wiki"))
@@ -480,11 +556,6 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
     );
 
     // ---- single-page serve path ---------------------------------------------
-    let module_page = outcome
-        .pages
-        .iter()
-        .find(|p| p.title == "module: src/knowledge_code_index")
-        .expect("module page");
     let single: Value = http
         .get(format!(
             "{base}/workspaces/{ws}/loom/wiki/{}",
@@ -496,7 +567,7 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         .json()
         .await
         .expect("get json");
-    assert_eq!(single["staleness_verdict"]["state"], "fresh");
+    assert_eq!(single["staleness_verdict"]["state"], "fresh", "{single}");
     assert_eq!(single["page_type"], "module");
 
     // ---- stale endpoint (verdict + derived bool) ------------------------------
