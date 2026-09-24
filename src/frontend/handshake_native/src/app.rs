@@ -4406,6 +4406,12 @@ struct PendingCanvasViewportMutation {
     action_generation: Option<u64>,
 }
 
+struct PendingCanvasMutation {
+    cell: crate::backend_client::CanvasBoardOpCell,
+    workspace_id: String,
+    canvas_block_id: String,
+}
+
 fn canvas_identity_matches(
     current: Option<&(String, String)>,
     workspace_id: &str,
@@ -6802,7 +6808,7 @@ pub struct HandshakeApp {
     /// into throwaway cells and never read): `Ok(())` reconciles by re-fetching the board; `Err` logs
     /// the typed failure AND re-fetches the board — the ROLLBACK that replaces the optimistic in-widget
     /// value with server truth (never a silently-kept fake success).
-    canvas_op_cells: Vec<crate::backend_client::CanvasBoardOpCell>,
+    canvas_op_cells: Vec<PendingCanvasMutation>,
     /// WP-KERNEL-012 MT-021/042 REMEDIATION: the in-flight GRAPH edge-mutation (`POST /loom/edges` /
     /// `DELETE /loom/edges/:id`) result cells. On resolve: `Ok` re-fetches the graph so the mutated
     /// edge set replaces the rendered one; `Err` logs the typed failure and ALSO re-fetches (rollback
@@ -31420,7 +31426,11 @@ impl HandshakeApp {
                             self.mt042_graph_open_completion.operation_generation =
                                 Some(self.mt042_graph_open_completion.generation);
                         }
-                        self.canvas_op_cells.push(cell);
+                        self.canvas_op_cells.push(PendingCanvasMutation {
+                            cell,
+                            workspace_id: workspace_id.clone(),
+                            canvas_block_id: canvas_block_id.clone(),
+                        });
                     }
                     CanvasDispatch::CreatedPlacement {
                         spec,
@@ -33134,17 +33144,28 @@ impl HandshakeApp {
             self.canvas_removal_cells = removal_unresolved;
 
             let mut unresolved = Vec::new();
-            for cell in std::mem::take(&mut self.canvas_op_cells) {
+            for pending in std::mem::take(&mut self.canvas_op_cells) {
+                let pending_key = (
+                    pending.workspace_id.clone(),
+                    pending.canvas_block_id.clone(),
+                );
+                let pending_is_current = canvas_identity_matches(
+                    current_board_key.as_ref(),
+                    &pending.workspace_id,
+                    &pending.canvas_block_id,
+                );
+                let cell = &pending.cell;
                 let is_mt042_cell = self.mt042_graph_open_completion.operation_cell_identity
-                    == Some(Arc::as_ptr(&cell) as usize)
+                    == Some(Arc::as_ptr(cell) as usize)
                     && self.mt042_graph_open_completion.operation_generation
                         == Some(self.mt042_graph_open_completion.generation);
-                match cell.lock().ok().and_then(|mut c| c.take()) {
+                let outcome = cell.lock().ok().and_then(|mut c| c.take());
+                match outcome {
                     Some(Ok(())) => {
                         if is_mt042_cell {
                             self.mt042_graph_open_completion.operation_outcome = Some(Ok(()));
                         }
-                        resolved_any = true;
+                        resolved_any |= pending_is_current;
                     }
                     Some(Err(msg)) => {
                         if is_mt042_cell {
@@ -33154,12 +33175,18 @@ impl HandshakeApp {
                         tracing::warn!(
                             "canvas mutation failed (re-fetching board = rollback of the optimistic value): {msg}"
                         );
-                        if let Ok(mut board) = self.editor_mounts.secondary.canvas_board.lock() {
-                            board.error = Some(msg);
+                        // Keep the failed write visible after the authoritative rollback reload.
+                        // Attribute it to the dispatch board, not a subsequently mounted board.
+                        self.canvas_board_errors.insert(pending_key, msg.clone());
+                        if pending_is_current {
+                            if let Ok(mut board) = self.editor_mounts.secondary.canvas_board.lock()
+                            {
+                                board.error = Some(msg);
+                            }
                         }
-                        resolved_any = true;
+                        resolved_any |= pending_is_current;
                     }
-                    None => unresolved.push(cell),
+                    None => unresolved.push(pending),
                 }
             }
             self.canvas_op_cells = unresolved;
