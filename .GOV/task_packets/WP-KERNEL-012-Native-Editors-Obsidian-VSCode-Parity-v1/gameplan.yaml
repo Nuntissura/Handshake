@@ -12,6 +12,8 @@ scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
 generation: 1
+confirm_binding:
+  ref: product_worktree_dir
 refs:
   product_worktree_dir: {from: .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json, key: source_control.worktree_dir}
 expensive_actions:
@@ -33,8 +35,8 @@ steps:
 - {id: GP-014, role: any, at: before_merge, do: verify HEAD == remote(branch); fetch first, check: {type: git, head_equals_remote: true}, source: 'preset:merge', state: active}
 - {id: GP-015, role: any, at: before_merge, do: confirm test results|verdicts from current HEAD; stale == 0, check: {type: confirm}, source: 'preset:merge', state: active}
 - {id: GP-016, role: orchestrator, at: on_resume, do: run MT status recount from source JSON; ignore memory count, check: {type: cmd, argv: [python, -c, 'import glob,json,collections;c=collections.Counter(json.load(open(p,encoding=''utf-8'')).get(''lifecycle'',{}).get(''status'') for p in glob.glob(''.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-*.json'') if ''candidate-boundary'' not in p);print(dict(c))'], expect_exit: 0, timeout_seconds: 20}, source: 'W12-A03/A06: never claim old session count as live', state: active}
-- {id: GP-017, role: orchestrator, at: before_round, do: verify product worktree unstaged tree clean, check: {type: cmd, argv: [git, -C, '{ref:product_worktree_dir}', diff, --quiet], expect_exit: 0}, source: 'W12-A01/D01: product worktree cleanliness before round', state: active}
-- {id: GP-018, role: orchestrator, at: before_round, do: verify product worktree staged tree clean, check: {type: cmd, argv: [git, -C, '{ref:product_worktree_dir}', diff, --cached, --quiet], expect_exit: 0}, source: 'W12-A01/D01: product worktree cleanliness before round', state: active}
+- {id: GP-017, role: orchestrator, at: before_round, do: verify product worktree unstaged tree clean, check: {type: cmd, argv: [git, -C, '{ref:product_worktree_dir}', diff, --quiet], expect_exit: 0}, source: 'W12-A01/D01: product worktree cleanliness before round', state: retired}
+- {id: GP-018, role: orchestrator, at: before_round, do: verify product worktree staged tree clean, check: {type: cmd, argv: [git, -C, '{ref:product_worktree_dir}', diff, --cached, --quiet], expect_exit: 0}, source: 'W12-A01/D01: product worktree cleanliness before round', state: retired}
 - {id: GP-019, role: orchestrator, at: before_round, do: confirm product HEAD equals live remote tip and zero untracked files, check: {type: confirm}, source: 'W12-A01/D01: cross-repo SHA/untracked has no safe typed check', state: active}
 - {id: GP-020, role: orchestrator, at: before_round, do: forbid a running cargo.exe process before round launch, check: {type: cmd, argv: [tasklist, /FI, IMAGENAME eq cargo.exe], expect_output: No tasks are running, timeout_seconds: 15}, source: 'W12-C03/D01/FL11: measure host load before launch', state: active}
 - {id: GP-021, role: orchestrator, at: before_round, do: confirm all known pushed fixes are bundled before the next union round, check: {type: confirm}, source: 'FL28/W12-C02: no stale round while known fixes queue', state: active}
@@ -53,3 +55,4 @@ steps:
 - {id: GP-034, role: integration_validator, at: before_merge, do: confirm extra_build_proofs run only at the WP-end grouped boundary, check: {type: confirm}, source: 'W12-F01/FL10/FL14: contract-declared end-of-WP builds only', state: retired}
 - {id: GP-035, role: integration_validator, at: before_merge, do: confirm every required MT independently passed before integration review, check: {type: confirm}, source: 'W12-F01/CX-503B1: no PASS on pending or blocked required rows', state: retired}
 - {id: GP-036, role: wp_validator, at: before_round, do: forbid timeout wrapper line in run-round.sh; comments excluded, check: {type: cmd, argv: [python, -c, 'import re,sys;t=open(sys.argv[1],encoding=''utf-8'',errors=''replace'').read();sys.exit(1 if re.search(r''^[ \t]*timeout[ \t]+[0-9]'',t,re.M) else 0)', ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/run-round.sh], expect_exit: 0}, source: 'replaces GP-007 (comment false positive); FL: run 44 killed by timeout 3600', state: active}
+- {id: GP-037, role: orchestrator, at: before_round, do: verify product worktree clean incl. untracked, check: {type: git, repo_ref: product_worktree_dir, clean: true, include_untracked: true}, source: W12-A01/D01; replaces GP-017/018 (tracked only), state: active}
