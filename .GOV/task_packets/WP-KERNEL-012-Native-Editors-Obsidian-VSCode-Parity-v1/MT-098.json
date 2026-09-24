@@ -25,7 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED",
+    "blocked_on": "PC-098-05 ignored MT-108 Argus real-server loop requires bounded process-observation supervisor; canonical runner starts its own Cargo test and cannot run inside the no-extra-build union round",
     "active": false,
     "depends_on": [
       "MT-097"

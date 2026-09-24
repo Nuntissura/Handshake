@@ -25,7 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED",
+    "blocked_on": "PC-068-02 ignored live Locus proof requires the contract-named bounded external supervisor (tests/run_mt068_locus_proof.ps1); schedule supervised proof without an additional Cargo build in the active union round",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt068",
       "mode": "VERIFY_AND_PROVE",

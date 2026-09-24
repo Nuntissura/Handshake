@@ -30,7 +30,8 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED",
+    "blocked_on": "PC-140-06 includes the ignored live Locus proof requiring the bounded external supervisor also named by MT-068 PC-068-02; schedule supervised proof without an additional Cargo build in the active union round",
     "depends_on": [],
     "blocks": [
       "MT-108"
