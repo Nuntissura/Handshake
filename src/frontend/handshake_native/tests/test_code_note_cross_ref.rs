@@ -85,27 +85,39 @@ mod interconnect_support;
 
 // ── Artifact hygiene (CX-212E, disk-agnostic) ────────────────────────────────────────────────────────
 
-/// The one approved external artifact root (CX-212E), resolved from the compile-time worktree layout.
-/// An explicit override must equal that root so a typo cannot create a second sibling artifact tree.
+/// Use only the runner's verified external root and assigned owner, never the exported source tree.
 #[allow(dead_code)]
 fn external_artifact_dir(subdir: &str) -> PathBuf {
-    let approved_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(4)
-        .expect("handshake_native manifest is nested below the Handshake Worktrees root")
-        .join("Handshake_Artifacts");
     let root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
         .map(PathBuf::from)
-        .unwrap_or_else(|| approved_root.clone());
+        .expect("runner must supply the verified HANDSHAKE_ARTIFACTS_ROOT");
     assert!(
         root.is_absolute(),
         "HANDSHAKE_ARTIFACTS_ROOT must be absolute so artifact placement never depends on process CWD"
     );
-    assert_eq!(
-        root, approved_root,
-        "HANDSHAKE_ARTIFACTS_ROOT must equal the manifest-derived Handshake_Artifacts root"
+    assert!(
+        root.is_dir(),
+        "the verified artifact root must already exist"
     );
-    root.join("handshake-test").join(subdir)
+    let root = root.canonicalize().expect("resolve verified artifact root");
+    let owner = std::env::var_os("HANDSHAKE_TEST_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .expect("runner must supply the assigned artifact owner");
+    assert!(owner.is_absolute() && owner.is_dir());
+    let owner = owner
+        .canonicalize()
+        .expect("resolve assigned artifact owner");
+    let relative = owner
+        .strip_prefix(&root)
+        .expect("owner must be inside verified artifact root");
+    assert!(
+        relative.components().count() >= 3,
+        "owner must include WP/MT/owner isolation"
+    );
+    assert!(Path::new(subdir)
+        .components()
+        .all(|part| matches!(part, std::path::Component::Normal(_))));
+    owner.join(subdir)
 }
 
 struct ExternalSourceFixture {
