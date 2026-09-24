@@ -14,7 +14,7 @@
   "title": "E10-MT-066-StageRouteAndCaptureInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-066.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1704,5 +1704,186 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-066-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_stage_interop -- --test-threads=1 --nocapture",
+        "test_binary": "test_stage_interop",
+        "filter": "(whole binary)",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-004",
+          "AC-005",
+          "AC-006",
+          "AC-007",
+          "AC-008"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 1107,
+            "fn": "route_payload_from_selection_and_canvas_node",
+            "asserts": "payload shape for selection and canvas node"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 1204,
+            "fn": "route_to_stage_prebuilds_fr_receipt_and_stages_content",
+            "asserts": "FR receipt shape; pane receives routed content"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 1276,
+            "fn": "live_route_round_trip_real_surrealdb",
+            "asserts": "live route_to_stage FR row, capture, embed, readback"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 2041,
+            "fn": "mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent",
+            "asserts": "live canvas embed-back structured and idempotent"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 2510,
+            "fn": "embed_back_inserts_mt014_nodeview_with_provenance",
+            "asserts": "MT-014 embed with matching sha256 provenance"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 2575,
+            "fn": "embed_back_endpoint_absent_404",
+            "asserts": "404 -> EmbedBackEndpointAbsent"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 2609,
+            "fn": "embed_back_endpoint_absent_501",
+            "asserts": "501 -> EmbedBackEndpointAbsent"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 2633,
+            "fn": "embed_back_blocker_surfaces_no_fake_embed",
+            "asserts": "blocker fabricates no embed"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 2740,
+            "fn": "stage_pane_accesskit_nodes_present",
+            "asserts": "stage-pane nodes with roles"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 2857,
+            "fn": "single_route_command_id_plus_embed_command",
+            "asserts": "one route command id plus embed command"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 2913,
+            "fn": "product_api_only_and_shared_backend_client",
+            "asserts": "no SQLite; shared backend client only"
+          }
+        ]
+      },
+      {
+        "id": "PC-066-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib interop::stage_interop::tests:: && cargo test --locked --lib stage_pane::tests::",
+        "test_binary": "handshake_native (lib)",
+        "filter": "interop::stage_interop::tests:: ; stage_pane::tests::",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-001",
+          "AC-003",
+          "AC-004"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/interop/stage_interop.rs",
+            "line": 1123,
+            "fn": "build_from_text_range_selection",
+            "asserts": "TextRange builds payload"
+          },
+          {
+            "ignored": false,
+            "file": "src/interop/stage_interop.rs",
+            "line": 1168,
+            "fn": "build_from_canvas_node_payload",
+            "asserts": "canvas node builds payload"
+          },
+          {
+            "ignored": false,
+            "file": "src/interop/stage_interop.rs",
+            "line": 1244,
+            "fn": "embed_back_builds_mt014_hslink_with_provenance",
+            "asserts": "MT-014 hsLink with provenance"
+          },
+          {
+            "ignored": false,
+            "file": "src/interop/stage_interop.rs",
+            "line": 1287,
+            "fn": "embed_back_endpoint_absent_is_typed_blocker",
+            "asserts": "typed blocker"
+          }
+        ]
+      },
+      {
+        "id": "PC-066-03",
+        "cwd": "src/backend/handshake_core",
+        "command": "cargo test --locked --features app-runtime,surreal-test-support,test-utils --test wp_kernel_012_native_editor_routes_tests route2_stage_artifact_create_and_resolve -- --exact",
+        "test_binary": "wp_kernel_012_native_editor_routes_tests",
+        "filter": "route2_stage_artifact_create_and_resolve",
+        "features": [
+          "app-runtime",
+          "surreal-test-support",
+          "test-utils"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-003",
+          "AC-004"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/wp_kernel_012_native_editor_routes_tests.rs",
+            "line": 1829,
+            "fn": "route2_stage_artifact_create_and_resolve",
+            "asserts": "POST/GET stage artifacts incl. unknown id and absent workspace"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": []
   }
 }

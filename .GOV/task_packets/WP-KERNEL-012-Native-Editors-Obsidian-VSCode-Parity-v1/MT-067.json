@@ -14,7 +14,7 @@
   "title": "E10-MT-067-CalendarDailyNoteAndActivityInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-067.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1424,5 +1424,201 @@
     "candidate_sha": "0cfbff649c08ae260ac53eb866293b2bc273137d",
     "status_change": "none",
     "recorded_at_utc": "2026-09-23T09:50:35.693Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-067-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_calendar_interop -- --test-threads=1 --nocapture",
+        "test_binary": "test_calendar_interop",
+        "filter": "(whole binary)",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-1",
+          "AC-2",
+          "AC-3",
+          "AC-4",
+          "AC-5",
+          "AC-6",
+          "AC-7"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 1324,
+            "fn": "open_or_create_is_idempotent_and_delegates",
+            "asserts": "same DocId twice; delegates to MT-019 service"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 1370,
+            "fn": "open_or_create_daily_note_is_idempotent_against_real_backend_live",
+            "asserts": "live idempotent open-or-create"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 3061,
+            "fn": "event_chip_click_emits_focus_calendar_event_on_bus",
+            "asserts": "chip click emits focus-calendar-event"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 2217,
+            "fn": "canonical_localhost_argus_inspects_navigates_and_freshly_reobserves_calendar_event",
+            "asserts": "Argus inspects chip and navigates"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 3120,
+            "fn": "activity_strip_renders_read_only_chips_and_no_write",
+            "asserts": "read-only chips, no write"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 3190,
+            "fn": "activity_spans_404_is_typed_blocker_and_panel_stays_alive",
+            "asserts": "404 -> EndpointUnavailable, panel alive"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 3271,
+            "fn": "mounted_host_preserves_event_when_activity_fetch_fails",
+            "asserts": "binding survives failed activity fetch"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 3348,
+            "fn": "product_api_only_no_backend_edit",
+            "asserts": "GET-only, no sqlx/rusqlite/diesel"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 3469,
+            "fn": "daily_journal_panel_accesskit_nodes_present",
+            "asserts": "panel/chip/strip nodes with roles"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 3612,
+            "fn": "daily_note_command_ids_registered",
+            "asserts": "daily-note command ids registered"
+          }
+        ]
+      },
+      {
+        "id": "PC-067-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib interop::calendar_interop::tests:: && cargo test --locked --lib graph::daily_journal_panel::tests::",
+        "test_binary": "handshake_native (lib)",
+        "filter": "interop::calendar_interop::tests:: ; graph::daily_journal_panel::tests::",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-1",
+          "AC-3",
+          "AC-4",
+          "AC-5"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/interop/calendar_interop.rs",
+            "line": 869,
+            "fn": "open_or_create_is_idempotent_and_delegates",
+            "asserts": "idempotent delegation"
+          },
+          {
+            "ignored": false,
+            "file": "src/interop/calendar_interop.rs",
+            "line": 1082,
+            "fn": "read_paths_are_documented_routes",
+            "asserts": "documented GET routes only"
+          },
+          {
+            "ignored": false,
+            "file": "src/interop/calendar_interop.rs",
+            "line": 1113,
+            "fn": "endpoint_unavailable_is_distinct_typed_blocker",
+            "asserts": "distinct EndpointUnavailable"
+          },
+          {
+            "ignored": false,
+            "file": "src/graph/daily_journal_panel.rs",
+            "line": 866,
+            "fn": "set_activity_unavailable_preserves_resolved_event",
+            "asserts": "unavailable activity keeps event"
+          },
+          {
+            "ignored": false,
+            "file": "src/graph/daily_journal_panel.rs",
+            "line": 879,
+            "fn": "set_event_with_spans_holds_read_only_view",
+            "asserts": "read-only span view"
+          }
+        ]
+      },
+      {
+        "id": "PC-067-03",
+        "cwd": "src/backend/handshake_core",
+        "command": "cargo test --locked --features app-runtime,surreal-test-support,test-utils --test wp_kernel_012_native_editor_routes_tests mt067_",
+        "test_binary": "wp_kernel_012_native_editor_routes_tests",
+        "filter": "mt067_",
+        "features": [
+          "app-runtime",
+          "surreal-test-support",
+          "test-utils"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-2",
+          "AC-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/wp_kernel_012_native_editor_routes_tests.rs",
+            "line": 2438,
+            "fn": "mt067_calendar_event_populates_daily_note_doc_id",
+            "asserts": "calendar events carry daily_note_doc_id"
+          },
+          {
+            "ignored": false,
+            "file": "tests/wp_kernel_012_native_editor_routes_tests.rs",
+            "line": 2498,
+            "fn": "mt067_activity_span_create_and_query_round_trip",
+            "asserts": "activity-spans POST/GET round trip"
+          },
+          {
+            "ignored": false,
+            "file": "tests/wp_kernel_012_native_editor_routes_tests.rs",
+            "line": 2602,
+            "fn": "mt067_storage_boundary_rejects_invalid_temporal_rows_without_authority_residue",
+            "asserts": "invalid temporal rows rejected, no residue"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [],
+    "ac_numbering": "positional (contract lists ACs without ids)"
   }
 }

@@ -22,7 +22,7 @@
   "title": "B3-MT-111-Frontend-FlightRecorder-Callers-To-Workspace-Scoped-Authorized-Routes",
   "group": "B-Backend-Contract",
   "created_at_utc": "2026-08-05T12:42:00.438Z",
-  "updated_at_utc": "2026-09-23T23:43:15.504Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1039,5 +1039,150 @@
       ]
     },
     "recorded_at_utc": "2026-09-23T06:14:41.580Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-111-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_flight_recorder_authz -- --exact mt111_flight_recorder_authorization_boundary_real_surrealdb --nocapture",
+        "env": "HANDSHAKE_TEST_STAGE_BINDING_ROOT=<isolated abs root>; HSK_TEST_BACKEND_BIN=<built handshake_core.exe>",
+        "test_binary": "test_flight_recorder_authz",
+        "filter": "mt111_flight_recorder_authorization_boundary_real_surrealdb",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-111-1",
+          "AC-111-2",
+          "AC-111-3",
+          "AC-111-4",
+          "AC-111-5",
+          "AC-111-7"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_flight_recorder_authz.rs",
+            "line": 74,
+            "fn": "mt111_flight_recorder_authorization_boundary_real_surrealdb",
+            "asserts": "401 no session; 403 ACTOR-SPOOF / WORKSPACE with no row; 403 CAPABILITY unscoped read; scoped emitter post lands with server attribution; MissingSessionBinding in error ring"
+          }
+        ]
+      },
+      {
+        "id": "PC-111-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_event_emitter -- --exact post_body_matches_verified_native_editor_schema ingest_url_is_workspace_scoped_and_credential_comes_from_the_on_disk_binding",
+        "test_binary": "test_event_emitter",
+        "filter": "2 exact names",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-111-1",
+          "AC-111-2",
+          "AC-111-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_event_emitter.rs",
+            "line": 621,
+            "fn": "post_body_matches_verified_native_editor_schema",
+            "asserts": "body omits actor_id/actor_kind/workspace_id"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_event_emitter.rs",
+            "line": 686,
+            "fn": "ingest_url_is_workspace_scoped_and_credential_comes_from_the_on_disk_binding",
+            "asserts": "workspace-scoped URL; x-hsk-session-token header"
+          }
+        ]
+      },
+      {
+        "id": "PC-111-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib -- --exact event_emitter::tests::ingest_url_is_workspace_scoped_from_the_event",
+        "test_binary": "handshake_native (lib)",
+        "filter": "event_emitter::tests::ingest_url_is_workspace_scoped_from_the_event",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-111-1"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/event_emitter.rs",
+            "line": 1798,
+            "fn": "ingest_url_is_workspace_scoped_from_the_event",
+            "asserts": "url_for is workspace scoped"
+          }
+        ]
+      },
+      {
+        "id": "PC-111-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_event_emitter -- --exact event_emitter_native_editor_round_trip --nocapture",
+        "env": "HSK_TEST_BACKEND_BIN=<built handshake_core.exe>",
+        "test_binary": "test_event_emitter",
+        "filter": "event_emitter_native_editor_round_trip",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-111-4",
+          "AC-111-5",
+          "AC-111-7"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_event_emitter.rs",
+            "line": 1929,
+            "fn": "event_emitter_native_editor_round_trip",
+            "asserts": "mounted app emits via production emitter with real binding; read back via GET ?wsid="
+          }
+        ]
+      },
+      {
+        "id": "PC-111-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_manual_content -- --exact mt104_topics_exist_and_include_no_context_runtime_facts",
+        "test_binary": "test_manual_content",
+        "filter": "mt104_topics_exist_and_include_no_context_runtime_facts",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-111-6"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_manual_content.rs",
+            "line": 610,
+            "fn": "mt104_topics_exist_and_include_no_context_runtime_facts",
+            "asserts": "manual FR topic contains session header, 401/403 codes, scoped POST path"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-111-1",
+        "reason": "PT-111-2 'zero references to removed unscoped paths in src/frontend/**' is a grep proof"
+      },
+      {
+        "ac": "AC-111-4",
+        "reason": "no test drives app.rs's own FR pane read with ?wsid="
+      }
+    ]
   }
 }

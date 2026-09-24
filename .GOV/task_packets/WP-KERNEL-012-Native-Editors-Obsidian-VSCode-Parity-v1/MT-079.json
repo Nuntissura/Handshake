@@ -14,7 +14,7 @@
   "title": "E11-MT-079-AppHostMount-EditorPaneFactories",
   "group": "E11 Shell host-mount (app.rs convergence)",
   "created_at_utc": "2026-06-25T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-079.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2696,5 +2696,267 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-079-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_app_host_mount -- --exact editors_render_live_in_app_tree_and_screenshot editor_mounts_thread_session_context code_pane_undo_dispatches_through_bus shell_navigator_opens_mounted_editor_panes rich_pending_events_drain_and_route rich_pending_events_drain_while_document_is_loading mounted_tag_event_resolves_canonical_name_to_real_hub_id",
+        "test_binary": "test_app_host_mount",
+        "filter": "7 exact names",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-079-1",
+          "AC-079-2",
+          "AC-079-3",
+          "AC-079-4",
+          "AC-079-5"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount.rs",
+            "line": 158,
+            "fn": "editors_render_live_in_app_tree_and_screenshot",
+            "asserts": "live tree contains code and rich editor author ids"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount.rs",
+            "line": 220,
+            "fn": "editor_mounts_thread_session_context",
+            "asserts": "workspace and session threaded into mounts"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount.rs",
+            "line": 257,
+            "fn": "code_pane_undo_dispatches_through_bus",
+            "asserts": "undo via bus reverts panel text"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount.rs",
+            "line": 325,
+            "fn": "shell_navigator_opens_mounted_editor_panes",
+            "asserts": "open_document/open_code_symbol -> Opened"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount.rs",
+            "line": 347,
+            "fn": "rich_pending_events_drain_and_route",
+            "asserts": "WikilinkActivated drained after a frame"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount.rs",
+            "line": 386,
+            "fn": "rich_pending_events_drain_while_document_is_loading",
+            "asserts": "drained while loading"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount.rs",
+            "line": 416,
+            "fn": "mounted_tag_event_resolves_canonical_name_to_real_hub_id",
+            "asserts": "TagActivated resolves to tag-hub-rust"
+          }
+        ]
+      },
+      {
+        "id": "PC-079-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_app_host_mount mt079_",
+        "test_binary": "test_app_host_mount",
+        "filter": "mt079_",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-079-1",
+          "AC-079-3",
+          "AC-079-4",
+          "AC-079-5"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount.rs",
+            "line": 3450,
+            "fn": "mt079_mounted_editor_panes_canonical_argus_lifecycle",
+            "asserts": "Argus lifecycle over mounted code and rich panes"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount.rs",
+            "line": 4136,
+            "fn": "mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus",
+            "asserts": "menu bar opens editor surfaces exactly once"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount.rs",
+            "line": 4359,
+            "fn": "mt079_code_pane_command_bus_canonical_argus",
+            "asserts": "code pane bus actions observed via Argus"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount.rs",
+            "line": 4632,
+            "fn": "mt079_rich_pending_events_canonical_argus",
+            "asserts": "rich pending events routed via Argus"
+          }
+        ]
+      },
+      {
+        "id": "PC-079-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib -- --exact editor_pane_factories::tests::session_context_is_bound_only_with_workspace_and_runtime editor_pane_factories::tests::code_mount_pane_type_and_unbound_stays_unwired editor_pane_factories::tests::code_mount_threads_runtime_and_workspace_when_bound editor_pane_factories::tests::rich_mount_threads_context_and_drains_events",
+        "test_binary": "handshake_native (lib)",
+        "filter": "4 exact paths",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-079-2",
+          "AC-079-5"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/editor_pane_factories.rs",
+            "line": 3442,
+            "fn": "session_context_is_bound_only_with_workspace_and_runtime",
+            "asserts": "bound only with workspace and runtime"
+          },
+          {
+            "ignored": false,
+            "file": "src/editor_pane_factories.rs",
+            "line": 3631,
+            "fn": "code_mount_pane_type_and_unbound_stays_unwired",
+            "asserts": "unbound mount unwired"
+          },
+          {
+            "ignored": false,
+            "file": "src/editor_pane_factories.rs",
+            "line": 3646,
+            "fn": "code_mount_threads_runtime_and_workspace_when_bound",
+            "asserts": "bound mount receives runtime + workspace"
+          },
+          {
+            "ignored": false,
+            "file": "src/editor_pane_factories.rs",
+            "line": 3863,
+            "fn": "rich_mount_threads_context_and_drains_events",
+            "asserts": "rich mount threads context, drains events"
+          }
+        ]
+      },
+      {
+        "id": "PC-079-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_app_host_mount_secondary -- --exact secondary_panes_render_live_in_app_tree_and_screenshot canvas_resize_event_routes_to_host graph_depth_changed_requeries_with_new_backlink_depth outgoing_links_click_routes_to_nav relevant_memory_shows_endpoint_missing_empty_state code_text_node_exposes_swarm_edit_actions code_text_setvalue_dispatch_mutates_buffer",
+        "test_binary": "test_app_host_mount_secondary",
+        "filter": "7 exact names",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-079-6",
+          "AC-079-7"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount_secondary.rs",
+            "line": 199,
+            "fn": "secondary_panes_render_live_in_app_tree_and_screenshot",
+            "asserts": "canvas/graph/side panes render real subtrees"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount_secondary.rs",
+            "line": 308,
+            "fn": "canvas_resize_event_routes_to_host",
+            "asserts": "ResizePlacement drained by host"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount_secondary.rs",
+            "line": 344,
+            "fn": "graph_depth_changed_requeries_with_new_backlink_depth",
+            "asserts": "requery carries new backlink_depth"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount_secondary.rs",
+            "line": 3510,
+            "fn": "outgoing_links_click_routes_to_nav",
+            "asserts": "outgoing link click reaches nav queue"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount_secondary.rs",
+            "line": 3568,
+            "fn": "relevant_memory_shows_endpoint_missing_empty_state",
+            "asserts": "typed-blocker empty state without backend"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount_secondary.rs",
+            "line": 3722,
+            "fn": "code_text_node_exposes_swarm_edit_actions",
+            "asserts": "editor.code.text advertises SetValue/ReplaceSelectedText"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount_secondary.rs",
+            "line": 3752,
+            "fn": "code_text_setvalue_dispatch_mutates_buffer",
+            "asserts": "SetValue mutates buffer"
+          }
+        ]
+      },
+      {
+        "id": "PC-079-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_theme -- --exact no_hardcoded_color32_outside_theme_module",
+        "test_binary": "test_theme",
+        "filter": "no_hardcoded_color32_outside_theme_module",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-079-7"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_theme.rs",
+            "line": 525,
+            "fn": "no_hardcoded_color32_outside_theme_module",
+            "asserts": "no Color32 literal outside theme/palette.rs"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-079-7",
+        "reason": "'no new backend endpoint / src/backend untouched / no SQLite' is a diff or grep proof; only CONTROL-4 is a test"
+      },
+      {
+        "ac": "AC-079-8",
+        "reason": "build + clippy + full-suite gate; no single test"
+      }
+    ]
   }
 }

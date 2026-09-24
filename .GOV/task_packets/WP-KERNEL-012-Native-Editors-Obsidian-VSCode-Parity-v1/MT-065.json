@@ -14,7 +14,7 @@
   "title": "E9-MT-065-FemsInteropProofSuite",
   "group": "E9",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-065.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1226,5 +1226,102 @@
     "status": "CLASSES_FIXED_STATIC_NEW_CLASSES_OPEN",
     "note": "This MT's validated classes have round-3 fixes (see failure_classes/REPRESENTATIVE_RUNS); live representatives now fail in newly exposed classes C1V-LOOM-CONTENT-TYPES / C1V-LEGACY-ROOT-CREATE-ROUTES / C1V-BACKEND-HARNESS-AUTH, so not READY.",
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-065-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_fems_interop_proofs -- --test-threads=1 --nocapture",
+        "test_binary": "test_fems_interop_proofs",
+        "filter": "(whole binary)",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-065-01",
+          "AC-065-02",
+          "AC-065-03",
+          "AC-065-04",
+          "AC-065-05",
+          "AC-065-07"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_fems_interop_proofs.rs",
+            "line": 2561,
+            "fn": "proof_fems_01_memorypack_render",
+            "asserts": "live MemoryPack items rendered in panel AccessKit subtree"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_fems_interop_proofs.rs",
+            "line": 2732,
+            "fn": "proof_fems_02_propose_creates_proposal_and_event",
+            "asserts": "proposal via GET memory/proposals + matching FR-EVT-MEM-001"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_fems_interop_proofs.rs",
+            "line": 3775,
+            "fn": "proof_fems_03_swarm_drives_fems_via_accesskit",
+            "asserts": "FEMS flow driven only via AccessKit ids / Argus"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_fems_interop_proofs.rs",
+            "line": 4205,
+            "fn": "proof_fems_04_procedural_proposal_stays_review_gated",
+            "asserts": "stays pending, nothing committed"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_fems_interop_proofs.rs",
+            "line": 2336,
+            "fn": "proof_fems_05_reuses_shell_and_harness",
+            "asserts": "reuses WP-011 and MT-063/064 surfaces"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_fems_interop_proofs.rs",
+            "line": 2392,
+            "fn": "proof_fems_03_swarm_id_stability",
+            "asserts": "FEMS author_ids deterministic"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_fems_interop_proofs.rs",
+            "line": 2418,
+            "fn": "proof_fems_uses_product_api_only",
+            "asserts": "no legacy DB client or SQLite bypass"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_fems_interop_proofs.rs",
+            "line": 2506,
+            "fn": "proof_fems_04_review_gate_invariant_fixture_half",
+            "asserts": "every class built review-gated"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-065-06",
+        "reason": "diff gate (only the test file may change)"
+      },
+      {
+        "ac": "AC-065-08",
+        "reason": "build/warnings gate (cargo build --tests)"
+      }
+    ]
   }
 }

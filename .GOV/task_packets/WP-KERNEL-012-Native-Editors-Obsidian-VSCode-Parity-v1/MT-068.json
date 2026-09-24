@@ -14,7 +14,7 @@
   "title": "E10-MT-068-LocusWorkPacketCrossReferenceInterop",
   "group": "E10 Interop edges (cross-pillar force multipliers)",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-068.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1249,5 +1249,220 @@
     "status": "CLASSES_FIXED_STATIC_NEW_CLASSES_OPEN",
     "note": "This MT's validated classes have round-3 fixes (see failure_classes/REPRESENTATIVE_RUNS); live representatives now fail in newly exposed classes C1V-LOOM-CONTENT-TYPES / C1V-LEGACY-ROOT-CREATE-ROUTES / C1V-BACKEND-HARNESS-AUTH, so not READY.",
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-068-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_locus_interop -- --test-threads=1 --nocapture",
+        "test_binary": "test_locus_interop",
+        "filter": "(all non-ignored)",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-004",
+          "AC-005",
+          "AC-006",
+          "AC-007",
+          "AC-008",
+          "AC-009",
+          "AC-010"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_locus_interop.rs",
+            "line": 817,
+            "fn": "ac001_parse_locus_ref_wp_and_mt",
+            "asserts": "parse wp/mt refs; invalid scheme None"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_locus_interop.rs",
+            "line": 930,
+            "fn": "ac002_resolve_locus_ref_resolved_record_projection",
+            "asserts": "LocusRecord.title non-empty"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_locus_interop.rs",
+            "line": 895,
+            "fn": "ac002_resolve_locus_ref_route_absent_is_typed_blocker",
+            "asserts": "absent route -> LocusReadApiUnavailable"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_locus_interop.rs",
+            "line": 1742,
+            "fn": "ac003_click_locus_ref_chip_dispatches_open_locus_ref",
+            "asserts": "chip click dispatches open-locus-ref"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_locus_interop.rs",
+            "line": 1870,
+            "fn": "ac004_reverse_lookup_lists_referencing_documents",
+            "asserts": "reverse lookup lists the doc, deduped"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_locus_interop.rs",
+            "line": 2790,
+            "fn": "ac004_reverse_lookup_case_robust_against_real_backend_live",
+            "asserts": "live mixed-case locus ref found"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_locus_interop.rs",
+            "line": 2052,
+            "fn": "ac005_typed_blocker_distinct_from_live_404_and_chip_greys",
+            "asserts": "typed blocker differs from 404; chip greys"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_locus_interop.rs",
+            "line": 2126,
+            "fn": "ac006_locus_ref_node_round_trips_content_json",
+            "asserts": "locus_ref attrs round trip"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_locus_interop.rs",
+            "line": 2175,
+            "fn": "ac007_reuses_mt032_normalizer_and_mt034_machinery_no_duplicates",
+            "asserts": "no duplicate parser/normalizer/node"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_locus_interop.rs",
+            "line": 2261,
+            "fn": "ac008_accesskit_ids_present_with_roles_no_duplicates",
+            "asserts": "unique ids with roles"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_locus_interop.rs",
+            "line": 2614,
+            "fn": "ac009_read_only_no_legacy_store_mutation",
+            "asserts": "read-only, no store mutation"
+          }
+        ]
+      },
+      {
+        "id": "PC-068-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_locus_interop resolve_locus_ref_against_real_surrealdb_live -- --ignored --exact --test-threads=1 --nocapture",
+        "test_binary": "test_locus_interop",
+        "filter": "resolve_locus_ref_against_real_surrealdb_live (IGNORED; --ignored)",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-002",
+          "AC-004",
+          "AC-006"
+        ],
+        "evidence": [
+          {
+            "ignored": true,
+            "file": "tests/test_locus_interop.rs",
+            "line": 973,
+            "fn": "resolve_locus_ref_against_real_surrealdb_live",
+            "asserts": "live WP/MT titles; saved attrs; persisted reverse lookup (canonical runner tests/run_mt068_locus_proof.ps1)"
+          }
+        ]
+      },
+      {
+        "id": "PC-068-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib interop::locus_interop::tests::",
+        "test_binary": "handshake_native (lib)",
+        "filter": "interop::locus_interop::tests::",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-001",
+          "AC-005",
+          "AC-007"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/interop/locus_interop.rs",
+            "line": 726,
+            "fn": "parse_locus_ref_wp_and_mt_uri_forms",
+            "asserts": "URI forms parse"
+          },
+          {
+            "ignored": false,
+            "file": "src/interop/locus_interop.rs",
+            "line": 778,
+            "fn": "parse_locus_ref_rejects_invalid",
+            "asserts": "invalid -> None"
+          },
+          {
+            "ignored": false,
+            "file": "src/interop/locus_interop.rs",
+            "line": 800,
+            "fn": "normalize_is_the_single_shared_key",
+            "asserts": "one shared normalizer"
+          },
+          {
+            "ignored": false,
+            "file": "src/interop/locus_interop.rs",
+            "line": 818,
+            "fn": "read_api_unavailable_is_distinct_typed_blocker",
+            "asserts": "distinct typed blocker"
+          }
+        ]
+      },
+      {
+        "id": "PC-068-04",
+        "cwd": "src/backend/handshake_core",
+        "command": "cargo test --locked --features app-runtime,surreal-test-support,test-utils --test wp_kernel_012_native_editor_routes_tests route1_locus_",
+        "test_binary": "wp_kernel_012_native_editor_routes_tests",
+        "filter": "route1_locus_",
+        "features": [
+          "app-runtime",
+          "surreal-test-support",
+          "test-utils"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-002"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/wp_kernel_012_native_editor_routes_tests.rs",
+            "line": 1712,
+            "fn": "route1_locus_work_packet_resolve",
+            "asserts": "GET locus work packet resolves"
+          },
+          {
+            "ignored": false,
+            "file": "tests/wp_kernel_012_native_editor_routes_tests.rs",
+            "line": 1785,
+            "fn": "route1_locus_micro_task_resolve",
+            "asserts": "GET locus microtask resolves"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [],
+    "caveats": [
+      "MT-066/068 live proofs and the MT-067 Argus test check the source tree git SHA; a dirty worktree may fail them"
+    ]
   }
 }

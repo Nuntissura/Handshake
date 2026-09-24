@@ -14,7 +14,7 @@
   "title": "E8-MT046-InterconnectionScenarioProofs",
   "group": "E8 Parity + interconnection proof",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-046.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1162,5 +1162,268 @@
     "status": "CLASSES_FIXED_STATIC_NEW_CLASSES_OPEN",
     "note": "This MT's validated classes have round-3 fixes (see failure_classes/REPRESENTATIVE_RUNS); live representatives now fail in newly exposed classes C1V-LOOM-CONTENT-TYPES / C1V-LEGACY-ROOT-CREATE-ROUTES / C1V-BACKEND-HARNESS-AUTH, so not READY.",
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-046-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_interconnect_ckc_to_note interconnect_ -- --test-threads=1 --nocapture",
+        "test_binary": "test_interconnect_ckc_to_note",
+        "filter": "interconnect_",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-03",
+          "AC-04",
+          "AC-05",
+          "AC-06"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_ckc_to_note.rs",
+            "line": 382,
+            "fn": "interconnect_ic01_ckc_image_into_note",
+            "asserts": "IC-01 reloaded HS_images hsLink ref==asset_id; GET asset 200, missing 404; save returns EventLedger receipt"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_ckc_to_note.rs",
+            "line": 452,
+            "fn": "interconnect_ic02_ckc_video_into_note",
+            "asserts": "IC-02 video embed hsLink survives save/reload"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_ckc_to_note.rs",
+            "line": 511,
+            "fn": "interconnect_ic03_ckc_moodboard_on_canvas",
+            "asserts": "IC-03 moodboard placement present in board GET"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_ckc_to_note.rs",
+            "line": 614,
+            "fn": "interconnect_ic04_ckc_character_wikilink_backlink",
+            "asserts": "IC-04 character backlinks contain the note block"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_ckc_to_note.rs",
+            "line": 156,
+            "fn": "interconnect_ic05_route_selection_to_stage",
+            "asserts": "IC-05 route-to-stage updates stage.selection.preview label (no backend)"
+          }
+        ]
+      },
+      {
+        "id": "PC-046-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_interconnect_note_code_crossref interconnect_ -- --test-threads=1 --nocapture",
+        "test_binary": "test_interconnect_note_code_crossref",
+        "filter": "interconnect_",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-03",
+          "AC-07",
+          "AC-08"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_note_code_crossref.rs",
+            "line": 179,
+            "fn": "interconnect_ic06_open_code_block_from_note",
+            "asserts": "IC-06 note symbol link opens code pane at file+range, focus moves"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_note_code_crossref.rs",
+            "line": 342,
+            "fn": "interconnect_ic07_reference_code_symbol_from_note",
+            "asserts": "IC-07 copy-as-note-reference writes symbol link; persists after save/reload"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_note_code_crossref.rs",
+            "line": 760,
+            "fn": "interconnect_ic08_shared_find_replace",
+            "asserts": "IC-08 shared find returns code and note hits"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_note_code_crossref.rs",
+            "line": 996,
+            "fn": "interconnect_ic09_diagnostic_note_reference",
+            "asserts": "IC-09 diagnostic related-info chip navigates to the note"
+          }
+        ]
+      },
+      {
+        "id": "PC-046-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_interconnect_loom_backlink_search interconnect_ -- --test-threads=1 --nocapture",
+        "test_binary": "test_interconnect_loom_backlink_search",
+        "filter": "interconnect_",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-03",
+          "AC-09",
+          "AC-10",
+          "AC-11"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_loom_backlink_search.rs",
+            "line": 257,
+            "fn": "interconnect_ic10_backlink_cross_surface",
+            "asserts": "IC-10 loom_B backlinks contain loom_A after save"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_loom_backlink_search.rs",
+            "line": 315,
+            "fn": "interconnect_ic11_search_v2_across_surfaces",
+            "asserts": "IC-11 search-v2 hits both blocks, facets both types"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_loom_backlink_search.rs",
+            "line": 473,
+            "fn": "interconnect_ic12_graph_cross_surface_edges",
+            "asserts": "IC-12 graph contains the cross-surface edge"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_loom_backlink_search.rs",
+            "line": 674,
+            "fn": "interconnect_ic13_ai_link_suggestion",
+            "asserts": "IC-13 AI suggestion accepted or fail-closed typed no-model outcome"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_loom_backlink_search.rs",
+            "line": 898,
+            "fn": "interconnect_ic14_quick_switcher_both_editors",
+            "asserts": "IC-14 quick switcher returns both editors"
+          }
+        ]
+      },
+      {
+        "id": "PC-046-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_interconnect_shared_undo_ledger interconnect_ -- --test-threads=1 --nocapture",
+        "test_binary": "test_interconnect_shared_undo_ledger",
+        "filter": "interconnect_",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-03",
+          "AC-12",
+          "AC-13",
+          "AC-14"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_shared_undo_ledger.rs",
+            "line": 385,
+            "fn": "interconnect_ic15_undo_rich_editor",
+            "asserts": "IC-15 shared-bus undo + persist removes EDIT_A from backend body"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_shared_undo_ledger.rs",
+            "line": 545,
+            "fn": "interconnect_ic16_undo_code_editor",
+            "asserts": "IC-16 code undo restores buffer"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_shared_undo_ledger.rs",
+            "line": 774,
+            "fn": "interconnect_ic17_event_ledger_records",
+            "asserts": "IC-17 >=2 KNOWLEDGE_RICH_DOCUMENT_SAVED events with correct payloads"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_shared_undo_ledger.rs",
+            "line": 647,
+            "fn": "interconnect_ic18_undo_scope_policy",
+            "asserts": "IC-18 undo reverts only the last edited surface"
+          }
+        ]
+      },
+      {
+        "id": "PC-046-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_interconnect_ckc_to_note ic01_ic02_ic04_ckc_embed_atom_shape_round_trips -- --exact && cargo test --locked --test test_interconnect_loom_backlink_search -- --exact ic12_graph_renders_two_nodes_without_panic typed_no_model_skip_classifier_is_fail_closed",
+        "test_binary": "test_interconnect_ckc_to_note,test_interconnect_loom_backlink_search",
+        "filter": "exact names",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-04",
+          "AC-11"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_ckc_to_note.rs",
+            "line": 334,
+            "fn": "ic01_ic02_ic04_ckc_embed_atom_shape_round_trips",
+            "asserts": "CKC hsLink atom shape round trip"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_loom_backlink_search.rs",
+            "line": 419,
+            "fn": "ic12_graph_renders_two_nodes_without_panic",
+            "asserts": "force layout places two nodes distinctly"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_interconnect_loom_backlink_search.rs",
+            "line": 869,
+            "fn": "typed_no_model_skip_classifier_is_fail_closed",
+            "asserts": "IC-13 no-model classifier fails closed"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-01",
+        "reason": "static: 4 files + manifest exist"
+      },
+      {
+        "ac": "AC-02",
+        "reason": "manifest has 18 entries with required fields; no dedicated test"
+      },
+      {
+        "ac": "AC-15",
+        "reason": "static JSON: 0 FAIL entries in manifest after a run"
+      },
+      {
+        "ac": "AC-16",
+        "reason": "idempotency = running PC-046-01..04 twice; no test asserts it"
+      }
+    ],
+    "ac_numbering": "positional (contract lists ACs without ids)",
+    "caveats": [
+      "supplemental_mt046_argus_* are #[ignore] and run only under tests/run_mt046_interconnect_proof.ps1; no AC needs them"
+    ]
   }
 }

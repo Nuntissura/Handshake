@@ -14,7 +14,7 @@
   "title": "E11-MT-070-WireEditorContextMenusAndNavigationBus",
   "group": "E11",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:43:15.504Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-070.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1500,5 +1500,410 @@
     "fixed_here": "item 5 create-note drain diagnosed: not the account gate; confirm never reaches the panel (still red)",
     "status_change": "none (other open classes remain)",
     "recorded_at_utc": "2026-09-23T08:35:42.548Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-070-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_context_menu_surfaces mt070_",
+        "test_binary": "test_context_menu_surfaces",
+        "filter": "mt070_",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-070-1",
+          "AC-070-2",
+          "AC-070-4",
+          "AC-070-5",
+          "AC-070-7",
+          "AC-070-9"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 833,
+            "fn": "mt070_editor_body_menu_renders_menuitems_with_stable_ids",
+            "asserts": "editor-body Menu with required MenuItems and stable ctx-menu.* ids"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 886,
+            "fn": "mt070_activating_rename_fires_real_rename_action",
+            "asserts": "Rename fires RenameSymbol"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 895,
+            "fn": "mt070_activating_quick_fix_fires_real_quick_fix_action",
+            "asserts": "Quick Fix fires QuickFix"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 904,
+            "fn": "mt070_activating_format_selection_fires_real_format_action",
+            "asserts": "Format Selection fires FormatSelection"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 913,
+            "fn": "mt070_activating_peek_fires_real_goto_def_action",
+            "asserts": "Peek fires PeekDefinition"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 924,
+            "fn": "mt070_activating_create_note_fires_real_create_note_action",
+            "asserts": "Create note fires CreateNoteFromLink"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 964,
+            "fn": "mt070_node_menu_actions_dispatch_to_real_handlers",
+            "asserts": "node menu dispatches Reveal/Open to NavigationTargets"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 1016,
+            "fn": "mt070_no_required_entry_is_a_dead_handler",
+            "asserts": "every required id resolves to an action"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 1080,
+            "fn": "mt070_node_menu_enabled_state_matches_action_resolution_for_every_availability",
+            "asserts": "enabled iff action resolves; disabled carries reason"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 1134,
+            "fn": "mt070_argus_dispatch_seam_observes_and_enforces_stage_route_availability",
+            "asserts": "MCP seam enforces Route-to-Stage availability"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 1376,
+            "fn": "mt070_mounted_canvas_argus_routes_exact_source_into_stage",
+            "asserts": "Argus canvas node routes exact source to Stage"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 1576,
+            "fn": "mt070_mounted_editor_body_localhost_argus_action_matrix",
+            "asserts": "Argus editor-body action matrix applies"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 1967,
+            "fn": "mt070_two_canvas_panes_retain_one_localhost_menu_owner_and_route_exact_origin",
+            "asserts": "two canvas panes: one menu owner, exact origin routed"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 2101,
+            "fn": "mt070_two_graph_panes_localhost_action_channel_routes_owner_and_route_stays_disabled",
+            "asserts": "graph menu routes to owner; Route-to-Stage disabled"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 2285,
+            "fn": "mt070_mounted_editor_body_localhost_argus_disabled_matrix_is_truthful",
+            "asserts": "unavailable entries disabled with truthful reasons"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 2467,
+            "fn": "mt070_mounted_canvas_pending_and_failed_projection_argus_disables_all_actions",
+            "asserts": "actions disabled while projection pending/failed"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 2603,
+            "fn": "mt070_mounted_canvas_localhost_argus_open_reveal_create_matrix",
+            "asserts": "Open/Reveal/Create-note dispatch to real handlers"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 2971,
+            "fn": "mt070_editor_action_ids_reuse_existing_registry",
+            "asserts": "ids reuse the existing registry author_ids"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 3023,
+            "fn": "mt070_unavailable_entry_is_disabled_not_dead_enabled",
+            "asserts": "no-target entries rendered disabled"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 3071,
+            "fn": "mt070_every_canonical_argus_action_is_terminally_bound_before_finish",
+            "asserts": "source scan: terminal predicate before finish"
+          }
+        ]
+      },
+      {
+        "id": "PC-070-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_editor_body_context_menu",
+        "test_binary": "test_editor_body_context_menu",
+        "filter": "(whole binary)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-070-1",
+          "AC-070-2",
+          "AC-070-9"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_editor_body_context_menu.rs",
+            "line": 100,
+            "fn": "live_editor_body_right_click_shows_five_typed_entries_plus_copy_ref",
+            "asserts": "real CodeEditorPanel shows 5 entries plus copy-ref"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_editor_body_context_menu.rs",
+            "line": 143,
+            "fn": "live_editor_body_menu_rename_opens_the_inline_rename_input",
+            "asserts": "Rename opens inline rename input"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_editor_body_context_menu.rs",
+            "line": 166,
+            "fn": "live_editor_body_menu_copy_as_note_reference_stages_the_real_ref",
+            "asserts": "copy-as-note-reference stages real ref"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_editor_body_context_menu.rs",
+            "line": 204,
+            "fn": "live_editor_body_menu_copy_as_note_reference_is_disabled_for_unsaved_buffer",
+            "asserts": "disabled for unsaved buffer"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_editor_body_context_menu.rs",
+            "line": 249,
+            "fn": "live_editor_body_menu_create_note_stages_the_link_title",
+            "asserts": "create-note stages MT-057 intent"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_editor_body_context_menu.rs",
+            "line": 278,
+            "fn": "create_note_from_link_requires_ready_resolver_and_rejects_existing_title",
+            "asserts": "unavailable when resolver unknown or title exists"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_editor_body_context_menu.rs",
+            "line": 344,
+            "fn": "duplicate_title_live_context_menu_disables_create_and_stages_no_intent",
+            "asserts": "duplicate title disables create"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_editor_body_context_menu.rs",
+            "line": 354,
+            "fn": "duplicate_alias_live_context_menu_disables_create_and_stages_no_intent",
+            "asserts": "duplicate alias disables create"
+          }
+        ]
+      },
+      {
+        "id": "PC-070-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_navigation_bus",
+        "test_binary": "test_navigation_bus",
+        "filter": "(whole binary)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-070-3",
+          "AC-070-4",
+          "AC-070-6"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_navigation_bus.rs",
+            "line": 82,
+            "fn": "quick_switcher_target_routes_into_correct_pane_by_id",
+            "asserts": "OpenNote routes into pane-b"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_navigation_bus.rs",
+            "line": 129,
+            "fn": "code_symbol_target_opens_mounted_code_pane",
+            "asserts": "EditorAtSymbol focuses pane-a"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_navigation_bus.rs",
+            "line": 150,
+            "fn": "code_location_target_applies_byte_offset_in_requested_pane",
+            "asserts": "cursor at byte 7 in pane-a"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_navigation_bus.rs",
+            "line": 171,
+            "fn": "unknown_pane_focus_returns_pane_not_found_never_panics",
+            "asserts": "unknown pane -> PaneNotFound, no mutation"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_navigation_bus.rs",
+            "line": 232,
+            "fn": "graph_node_menu_action_dispatches_through_navigation_bus",
+            "asserts": "graph RevealNode lands a LoomBlock tab"
+          }
+        ]
+      },
+      {
+        "id": "PC-070-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib navigation_bus::tests::",
+        "test_binary": "handshake_native (lib)",
+        "filter": "navigation_bus::tests::",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-070-6"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/navigation_bus.rs",
+            "line": 353,
+            "fn": "dispatch_routes_each_target_to_its_navigator_seam",
+            "asserts": "each target delegates to its seam"
+          },
+          {
+            "ignored": false,
+            "file": "src/navigation_bus.rs",
+            "line": 425,
+            "fn": "dispatch_returns_pane_not_found_for_closed_pane",
+            "asserts": "closed pane -> PaneNotFound"
+          },
+          {
+            "ignored": false,
+            "file": "src/navigation_bus.rs",
+            "line": 463,
+            "fn": "dispatch_surfaces_editor_pane_not_mounted",
+            "asserts": "unmounted editor typed error"
+          },
+          {
+            "ignored": false,
+            "file": "src/navigation_bus.rs",
+            "line": 487,
+            "fn": "pane_id_accessor_matches_variant",
+            "asserts": "pane_id() matches variant"
+          }
+        ]
+      },
+      {
+        "id": "PC-070-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_quick_switcher mt070_",
+        "test_binary": "test_quick_switcher",
+        "filter": "mt070_",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-070-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_quick_switcher.rs",
+            "line": 305,
+            "fn": "mt070_mounted_quick_switcher_localhost_argus_navigates_with_fresh_post_state",
+            "asserts": "Argus quick-switcher confirm opens doc, dismisses dialog"
+          }
+        ]
+      },
+      {
+        "id": "PC-070-06",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_app_host_mount -- --exact code_pane_create_note_from_link_routes_through_host_drain",
+        "test_binary": "test_app_host_mount",
+        "filter": "code_pane_create_note_from_link_routes_through_host_drain",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-070-2"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount.rs",
+            "line": 463,
+            "fn": "code_pane_create_note_from_link_routes_through_host_drain",
+            "asserts": "Create note from link drained into MT-057 create path"
+          }
+        ]
+      },
+      {
+        "id": "PC-070-07",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_context_menu_surfaces --test test_navigation_bus",
+        "test_binary": "test_context_menu_surfaces + test_navigation_bus",
+        "filter": "(both whole binaries)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-070-8"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_context_menu_surfaces.rs",
+            "line": 833,
+            "fn": "mt070_editor_body_menu_renders_menuitems_with_stable_ids",
+            "asserts": "representative; AC-070-8 requires both whole binaries green"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-070-7",
+        "reason": "'no new context-menu infrastructure / built only via the WP-011 builder' is a diff proof; only id reuse is tested (mt070_editor_action_ids_reuse_existing_registry)"
+      }
+    ]
   }
 }

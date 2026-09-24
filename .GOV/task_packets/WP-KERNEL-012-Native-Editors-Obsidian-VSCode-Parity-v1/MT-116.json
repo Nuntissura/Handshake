@@ -22,7 +22,7 @@
   "title": "E6-MT-116-Fix-Cross-Reference-Chip-Pill-Width-So-Long-Ids-Render-Inside-Their-Pill",
   "group": "E6-Interop",
   "created_at_utc": "2026-08-06T12:50:39.525Z",
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1206,5 +1206,164 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-116-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib rich_editor::renderer::rich_editor_widget::mt116_chip_metric_tests::",
+        "test_binary": "handshake_native (lib)",
+        "filter": "rich_editor::renderer::rich_editor_widget::mt116_chip_metric_tests::",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-116-1"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/rich_editor/renderer/rich_editor_widget.rs",
+            "line": 6500,
+            "fn": "mt116_chip_font_size_tracks_the_galley_not_the_base_constant",
+            "asserts": "chip spec font_size equals galley size (spec value, not paint call)"
+          }
+        ]
+      },
+      {
+        "id": "PC-116-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_mt116_chip_pill_containment -- --test-threads=1 --nocapture",
+        "test_binary": "test_mt116_chip_pill_containment",
+        "filter": "(whole binary)",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-116-1",
+          "AC-116-2",
+          "AC-116-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_mt116_chip_pill_containment.rs",
+            "line": 681,
+            "fn": "mt116_chip_label_is_contained_in_and_fills_its_pill_at_non_default_font_sizes",
+            "asserts": "pixel check: 44-char ids inside and filling pill at non-default sizes; before/after frame hashes differ; typed DEFERRED without GPU env"
+          }
+        ]
+      },
+      {
+        "id": "PC-116-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_code_note_cross_ref -- --test-threads=1",
+        "test_binary": "test_code_note_cross_ref",
+        "filter": "(whole binary, MT-034 regression)",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-116-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 948,
+            "fn": "ac2_click_code_ref_chip_dispatches_open_code_symbol",
+            "asserts": "code-ref chip click dispatches open-code-symbol"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 2345,
+            "fn": "ac4_unresolved_code_ref_chip_renders_without_panic",
+            "asserts": "unresolved chip renders"
+          }
+        ]
+      },
+      {
+        "id": "PC-116-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_locus_interop -- --test-threads=1",
+        "test_binary": "test_locus_interop",
+        "filter": "(whole binary, MT-068 regression)",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-116-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_locus_interop.rs",
+            "line": 1742,
+            "fn": "ac003_click_locus_ref_chip_dispatches_open_locus_ref",
+            "asserts": "locus chip click dispatches"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_locus_interop.rs",
+            "line": 2052,
+            "fn": "ac005_typed_blocker_distinct_from_live_404_and_chip_greys",
+            "asserts": "typed blocker; chip greys"
+          }
+        ]
+      },
+      {
+        "id": "PC-116-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_other_pillar_interop_proofs -- --test-threads=1",
+        "test_binary": "test_other_pillar_interop_proofs",
+        "filter": "(whole binary, MT-074 regression)",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-116-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 3711,
+            "fn": "other_pillar_op03_locus_resolve_reverse_other_pillar_interop",
+            "asserts": "MT-074 locus chip scenario"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-116-2",
+        "reason": "opening and describing the PNG frames is a manual inspection step"
+      },
+      {
+        "ac": "AC-116-3",
+        "reason": "contract also names test_e7_knowledge_accesskit_argus, test_stage_interop, test_ckc_embed and test_block_collection_view as regression suites; their fns were not enumerated for this AC"
+      }
+    ]
   }
 }

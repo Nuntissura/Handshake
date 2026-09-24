@@ -22,7 +22,7 @@
   "title": "E10-MT-117-Add-Stage-And-Calendar-Completion-Observers-So-Their-Actions-Terminalize-Applied",
   "group": "E10-Interop",
   "created_at_utc": "2026-08-06T18:54:28.437Z",
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1197,5 +1197,184 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-117-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib app::mt117_bounded_completion_tests::",
+        "test_binary": "handshake_native (lib)",
+        "filter": "app::mt117_bounded_completion_tests::",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-117-1",
+          "AC-117-2"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/app.rs",
+            "line": 41007,
+            "fn": "mt117_declaration_semantic_round_trips_into_its_expectation",
+            "asserts": "declaration semantic round-trips into expectation"
+          },
+          {
+            "ignored": false,
+            "file": "src/app.rs",
+            "line": 41024,
+            "fn": "mt117_author_ids_respect_the_mt113_bounded_token_budget",
+            "asserts": "observer ids within MT-113 budget"
+          },
+          {
+            "ignored": false,
+            "file": "src/app.rs",
+            "line": 41050,
+            "fn": "mt117_pending_observer_never_terminalizes_the_receipt",
+            "asserts": "Pending never terminalizes"
+          },
+          {
+            "ignored": false,
+            "file": "src/app.rs",
+            "line": 41066,
+            "fn": "mt117_bounded_window_publishes_a_typed_rejection_instead_of_hanging_pending",
+            "asserts": "bounded window -> typed rejection"
+          },
+          {
+            "ignored": false,
+            "file": "src/app.rs",
+            "line": 41115,
+            "fn": "mt117_applied_requires_the_exact_generation_transition",
+            "asserts": "Applied only on exact generation transition"
+          }
+        ]
+      },
+      {
+        "id": "PC-117-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_other_pillar_interop_proofs -- --test-threads=1 --nocapture",
+        "test_binary": "test_other_pillar_interop_proofs",
+        "filter": "(whole binary; PT-117-1 matrix needs HANDSHAKE_ARGUS_MATRIX_RUN_ID)",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-117-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 2904,
+            "fn": "other_pillar_op01_stage_route_embed_back_other_pillar_interop",
+            "asserts": "Stage route + embed-back via Argus"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 3346,
+            "fn": "other_pillar_op02_calendar_bind_activity_span_other_pillar_interop",
+            "asserts": "Calendar bind + ActivitySpan via Argus"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 3711,
+            "fn": "other_pillar_op03_locus_resolve_reverse_other_pillar_interop",
+            "asserts": "Locus resolve/reverse"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 1440,
+            "fn": "other_pillar_op04_swarm_accesskit_other_pillar_interop",
+            "asserts": "swarm AccessKit"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 2348,
+            "fn": "other_pillar_every_canonical_action_binds_a_terminal_predicate",
+            "asserts": "source gate: terminal predicates"
+          }
+        ]
+      },
+      {
+        "id": "PC-117-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_calendar_interop -- --test-threads=1",
+        "test_binary": "test_calendar_interop",
+        "filter": "(whole binary, PT-117-2)",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-117-2"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 1370,
+            "fn": "open_or_create_daily_note_is_idempotent_against_real_backend_live",
+            "asserts": "journal date nav terminalizes; open/create idempotent live"
+          }
+        ]
+      },
+      {
+        "id": "PC-117-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_stage_interop -- --test-threads=1",
+        "test_binary": "test_stage_interop",
+        "filter": "(whole binary, PT-117-2)",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-117-2"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 2041,
+            "fn": "mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent",
+            "asserts": "mounted Stage embed-back idempotent"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-117-3",
+        "reason": "static git check: canonical_argus_driver.rs unmodified, finish() not weakened"
+      },
+      {
+        "ac": "AC-117-5",
+        "reason": "no test proves identical product behaviour with no Argus binding open"
+      },
+      {
+        "ac": "AC-117-4",
+        "reason": "partial: op01-op03 call finish(), not finish_require_no_indeterminate(); the 13/13 applied count only appears in the matrix artifact (HANDSHAKE_ARGUS_MATRIX_RUN_ID), no test asserts it"
+      }
+    ]
   }
 }

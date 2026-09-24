@@ -778,7 +778,7 @@
     "next_actor": "KERNEL_BUILDER",
     "no_context_instruction": "FAIL_V1 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V2."
   },
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "remediation_v2": {
     "session": "KERNEL_BUILDER-C1",
     "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
@@ -1137,5 +1137,189 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-143-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests --test test_calendar_interop mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue -- --exact --test-threads=1",
+        "test_binary": "test_calendar_interop",
+        "filter": "mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-143-2",
+          "AC-143-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 2648,
+            "fn": "mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue",
+            "asserts": "next-day click during held GET: state reaches second date (NoEvent), old date 1 GET, 0 native FR posts (loopback mock)"
+          }
+        ]
+      },
+      {
+        "id": "PC-143-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests --test test_calendar_interop -- --test-threads=1",
+        "test_binary": "test_calendar_interop",
+        "filter": "(all)",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-143-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 1370,
+            "fn": "open_or_create_daily_note_is_idempotent_against_real_backend_live",
+            "asserts": "live journal proof on owned backend"
+          }
+        ]
+      },
+      {
+        "id": "PC-143-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib rich_editor::daily_notes::date_nav::tests::mt143_date_nav_controls_stay_inside_the_journal_pane -- --exact",
+        "test_binary": "handshake_native (lib)",
+        "filter": "rich_editor::daily_notes::date_nav::tests::mt143_date_nav_controls_stay_inside_the_journal_pane",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-143-6"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/rich_editor/daily_notes/date_nav.rs",
+            "line": 475,
+            "fn": "mt143_date_nav_controls_stay_inside_the_journal_pane",
+            "asserts": "216px pane: every control inside clip, date readable"
+          }
+        ]
+      },
+      {
+        "id": "PC-143-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests --test test_stage_interop -- --test-threads=1",
+        "test_binary": "test_stage_interop",
+        "filter": "(all)",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-143-5"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 1276,
+            "fn": "live_route_round_trip_real_surrealdb",
+            "asserts": "Stage regression live"
+          }
+        ]
+      },
+      {
+        "id": "PC-143-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests --test test_other_pillar_interop_proofs -- --test-threads=1",
+        "test_binary": "test_other_pillar_interop_proofs",
+        "filter": "(all)",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-143-5"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 3346,
+            "fn": "other_pillar_op02_calendar_bind_activity_span_other_pillar_interop",
+            "asserts": "calendar/journal regression live"
+          }
+        ]
+      },
+      {
+        "id": "PC-143-06",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests --test test_author_id_budget -- --test-threads=1",
+        "test_binary": "test_author_id_budget",
+        "filter": "(all)",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-143-5"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_author_id_budget.rs",
+            "line": 60,
+            "fn": "mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+            "asserts": "MT-113 regression"
+          }
+        ]
+      },
+      {
+        "id": "PC-143-07",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests --lib",
+        "test_binary": "handshake_native (lib)",
+        "filter": "(full lib suite)",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-143-5"
+        ],
+        "evidence": []
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-143-1",
+        "reason": "per-frame measurement (node id, rect, state across the click) is an artifact capture (PT-143-1); no test records it"
+      },
+      {
+        "ac": "AC-143-3",
+        "reason": "partial: no manual test asserts the new UserManual paragraph (manual_content_editors.rs ~1993-2000)"
+      },
+      {
+        "ac": "AC-143-4",
+        "reason": "partial: 'green for the right reason' needs diff review plus the PT-143-4 RED capture"
+      }
+    ]
   }
 }

@@ -22,7 +22,7 @@
   "title": "B7-MT-120-Make-Document-Saved-Attribution-Enforceable-By-Authenticating-The-Save-Route",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T20:32:17.598Z",
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1051,5 +1051,173 @@
     "candidate_sha": "0cfbff649c08ae260ac53eb866293b2bc273137d",
     "status_change": "none",
     "recorded_at_utc": "2026-09-23T09:50:35.693Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-120-01",
+        "cwd": "src/backend/handshake_core",
+        "command": "cargo test --locked --features app-runtime,surreal-test-support,test-utils --test knowledge_documents_api_tests mt120_ -- --test-threads=1",
+        "test_binary": "knowledge_documents_api_tests",
+        "filter": "mt120_",
+        "features": [
+          "app-runtime",
+          "surreal-test-support",
+          "test-utils"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-120-1",
+          "AC-120-2"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/knowledge_documents_api_tests.rs",
+            "line": 3476,
+            "fn": "mt120_unauthenticated_caller_cannot_forge_the_reserved_native_principal",
+            "asserts": "reserved native principal cannot be forged without a session"
+          },
+          {
+            "ignored": false,
+            "file": "tests/knowledge_documents_api_tests.rs",
+            "line": 3547,
+            "fn": "mt120_invalid_session_token_is_401_and_never_downgrades_to_the_header_identity",
+            "asserts": "invalid token fails closed, no header fallback"
+          },
+          {
+            "ignored": false,
+            "file": "tests/knowledge_documents_api_tests.rs",
+            "line": 3607,
+            "fn": "mt120_authenticated_save_stamps_derived_principal_without_rebinding_actor_id",
+            "asserts": "authenticated save stamps derived principal; declared_actor_id kept (e85a69fc)"
+          }
+        ]
+      },
+      {
+        "id": "PC-120-02",
+        "cwd": "src/backend/handshake_core",
+        "command": "cargo test --locked --features app-runtime,surreal-test-support,test-utils --lib api::flight_recorder::tests::document_saved_receipt_",
+        "test_binary": "handshake_core (lib)",
+        "filter": "api::flight_recorder::tests::document_saved_receipt_",
+        "features": [
+          "app-runtime",
+          "surreal-test-support",
+          "test-utils"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-120-2"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/api/flight_recorder.rs",
+            "line": 4110,
+            "fn": "document_saved_receipt_minted_by_another_principal_is_unclaimable",
+            "asserts": "principal B cannot claim A's receipt"
+          },
+          {
+            "ignored": false,
+            "file": "src/api/flight_recorder.rs",
+            "line": 4155,
+            "fn": "document_saved_receipt_without_minted_by_principal_is_unclaimable",
+            "asserts": "absent minted_by_principal fails closed"
+          }
+        ]
+      },
+      {
+        "id": "PC-120-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests --test test_e7_swarm_edit_proof swarm_edit_live_conflict_merge_search_and_receipts -- --exact --test-threads=1",
+        "test_binary": "test_e7_swarm_edit_proof",
+        "filter": "swarm_edit_live_conflict_merge_search_and_receipts",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-120-3",
+          "AC-120-5"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_e7_swarm_edit_proof.rs",
+            "line": 3928,
+            "fn": "swarm_edit_live_conflict_merge_search_and_receipts",
+            "asserts": "live two-actor save/merge/search with attributed receipts"
+          }
+        ]
+      },
+      {
+        "id": "PC-120-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests --test test_flight_recorder_authz -- --test-threads=1",
+        "test_binary": "test_flight_recorder_authz",
+        "filter": "(whole binary)",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-120-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_flight_recorder_authz.rs",
+            "line": 74,
+            "fn": "mt111_flight_recorder_authorization_boundary_real_surrealdb",
+            "asserts": "FR authorization negative boundary live"
+          }
+        ]
+      },
+      {
+        "id": "PC-120-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests --test test_event_emitter event_emitter_native_editor_round_trip -- --exact --test-threads=1",
+        "test_binary": "test_event_emitter",
+        "filter": "event_emitter_native_editor_round_trip",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-120-5",
+          "AC-120-6"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_event_emitter.rs",
+            "line": 1929,
+            "fn": "event_emitter_native_editor_round_trip",
+            "asserts": "three mirrored emissions incl. document_saved ingested live"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-120-4",
+        "reason": "AC says 12 tests; test_flight_recorder_authz.rs has one #[test] fn at HEAD, so 'unchanged at 12' cannot be proven as written"
+      },
+      {
+        "ac": "AC-120-6",
+        "reason": "'NO edit to the test' conflicts with ac_120_6_disposition (account-wiring edits allowed); governance decision"
+      }
+    ]
   }
 }

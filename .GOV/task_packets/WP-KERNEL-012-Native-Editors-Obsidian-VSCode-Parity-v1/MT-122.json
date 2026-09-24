@@ -22,7 +22,7 @@
   "title": "E12-MT-122-Bound-Find-In-Files-Static-Chrome-And-Result-Rows-So-Neither-Pushes-Content-Off-Pane",
   "group": "E12-Search",
   "created_at_utc": "2026-08-12T11:42:00Z",
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-122.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1098,5 +1098,163 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-122-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane -- --exact",
+        "test_binary": "handshake_native (lib)",
+        "filter": "find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-122-0",
+          "AC-122-1",
+          "AC-122-4",
+          "AC-122-5"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6800,
+            "fn": "mt122_result_row_badge_stays_inside_the_find_pane",
+            "asserts": "420px pane: static row fits, pane bounded, title overflows and truncates, badge inside clip, row one Click node at unchanged id"
+          }
+        ]
+      },
+      {
+        "id": "PC-122-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib find_in_files::tests::mt119_saved_search_controls_stay_inside_the_find_pane -- --exact",
+        "test_binary": "handshake_native (lib)",
+        "filter": "find_in_files::tests::mt119_saved_search_controls_stay_inside_the_find_pane",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-122-0"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6495,
+            "fn": "mt119_saved_search_controls_stay_inside_the_find_pane",
+            "asserts": "at 420px, bookmark/restore/remove controls inside pane"
+          }
+        ]
+      },
+      {
+        "id": "PC-122-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests --test test_find_in_files find_in_files_screenshot -- --test-threads=1",
+        "test_binary": "test_find_in_files",
+        "filter": "find_in_files_screenshot (selects both screenshot tests)",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-122-1",
+          "AC-122-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_find_in_files.rs",
+            "line": 1420,
+            "fn": "find_in_files_screenshot",
+            "asserts": "mounted frame rendered and saved (typed DEFERRED when headless)"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_find_in_files.rs",
+            "line": 4209,
+            "fn": "find_in_files_screenshot_long_title_narrow_pane_mt122",
+            "asserts": "PT-122-1 long-title 420x640 frame saved; no pixel assertion on badge"
+          }
+        ]
+      },
+      {
+        "id": "PC-122-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib find_in_files::tests::mt113_",
+        "test_binary": "handshake_native (lib)",
+        "filter": "find_in_files::tests::mt113_",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-122-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 5980,
+            "fn": "mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize",
+            "asserts": "PT-122-3 regression: ids in budget"
+          },
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6256,
+            "fn": "mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity",
+            "asserts": "routes resolve to exact identity"
+          },
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6298,
+            "fn": "mt113_long_query_bookmark_remove_publishes_an_observable_completion_token",
+            "asserts": "completion token published"
+          }
+        ]
+      },
+      {
+        "id": "PC-122-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests --test test_author_id_budget mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query -- --exact --test-threads=1",
+        "test_binary": "test_author_id_budget",
+        "filter": "mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-122-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_author_id_budget.rs",
+            "line": 60,
+            "fn": "mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+            "asserts": "PT-122-3 mounted proof terminalizes live"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-122-2",
+        "reason": "no test asserts the elide tooltip / title recovery (relies on egui show_tooltip_when_elided default, find_in_files.rs:3963)"
+      },
+      {
+        "ac": "AC-122-3",
+        "reason": "partial: 'inspected, described, re-baselined with reason' needs a human to open the PNG"
+      }
+    ]
   }
 }

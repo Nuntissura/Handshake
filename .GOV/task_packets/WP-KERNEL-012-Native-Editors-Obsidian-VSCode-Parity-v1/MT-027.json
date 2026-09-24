@@ -14,7 +14,7 @@
   "title": "E3-MT027-BlockCollectionViews",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-027.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1977,5 +1977,262 @@
     "candidate_sha": "0cfbff649c08ae260ac53eb866293b2bc273137d",
     "status_change": "none",
     "recorded_at_utc": "2026-09-23T09:50:35.693Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-027-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib graph::block_collection_view::tests::",
+        "test_binary": "handshake_native (lib)",
+        "filter": "graph::block_collection_view::tests::",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC2",
+          "AC4",
+          "AC5",
+          "AC10"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/graph/block_collection_view.rs",
+            "line": 2839,
+            "fn": "flip_direction_same_field_toggles_asc_desc",
+            "asserts": "same-field sort toggles asc/desc"
+          },
+          {
+            "ignored": false,
+            "file": "src/graph/block_collection_view.rs",
+            "line": 2887,
+            "fn": "bucket_key_journal_date_uses_value_or_undated",
+            "asserts": "bucketKey for journal_date"
+          },
+          {
+            "ignored": false,
+            "file": "src/graph/block_collection_view.rs",
+            "line": 2949,
+            "fn": "card_move_tags_handle_untagged_lane",
+            "asserts": "UNTAGGED sentinel in add/remove tags"
+          },
+          {
+            "ignored": false,
+            "file": "src/graph/block_collection_view.rs",
+            "line": 3150,
+            "fn": "calendar_buckets_empty_result_is_empty",
+            "asserts": "no calendar buckets for empty result"
+          }
+        ]
+      },
+      {
+        "id": "PC-027-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_block_collection_view -- --exact table_renders_three_rows_with_titles table_sort_click_emits_backend_sort_then_toggles kanban_card_drag_emits_card_move_then_requery_lands_card calendar_renders_two_day_buckets calendar_date_range_validates_then_emits kind_switch_emits_kind_change new_view_creates_and_switches empty_states_render_without_panic client_update_view_wraps_definition client_card_move_top_level_tags client_create_view_body",
+        "test_binary": "test_block_collection_view",
+        "filter": "exact list (11)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC1",
+          "AC2",
+          "AC3",
+          "AC4",
+          "AC5",
+          "AC6",
+          "AC7",
+          "AC8",
+          "AC9",
+          "AC10"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_block_collection_view.rs",
+            "line": 299,
+            "fn": "table_renders_three_rows_with_titles",
+            "asserts": "3 bcv.table.row.* nodes with titles"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_block_collection_view.rs",
+            "line": 380,
+            "fn": "table_sort_click_emits_backend_sort_then_toggles",
+            "asserts": "sort header emits sort, second click toggles"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_block_collection_view.rs",
+            "line": 516,
+            "fn": "kanban_card_drag_emits_card_move_then_requery_lands_card",
+            "asserts": "card drag emits add/remove tags; requery lands card"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_block_collection_view.rs",
+            "line": 674,
+            "fn": "calendar_renders_two_day_buckets",
+            "asserts": "2 bcv.calendar.day.* buckets"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_block_collection_view.rs",
+            "line": 815,
+            "fn": "calendar_date_range_validates_then_emits",
+            "asserts": "date range validated then emitted"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_block_collection_view.rs",
+            "line": 460,
+            "fn": "kind_switch_emits_kind_change",
+            "asserts": "kind switcher emits kind change"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_block_collection_view.rs",
+            "line": 726,
+            "fn": "new_view_creates_and_switches",
+            "asserts": "'+ New view' creates and switches"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_block_collection_view.rs",
+            "line": 860,
+            "fn": "empty_states_render_without_panic",
+            "asserts": "empty table/kanban/calendar render"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_block_collection_view.rs",
+            "line": 1012,
+            "fn": "client_update_view_wraps_definition",
+            "asserts": "updateBlockView body wraps definition"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_block_collection_view.rs",
+            "line": 1038,
+            "fn": "client_card_move_top_level_tags",
+            "asserts": "card-move top-level add/remove tags"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_block_collection_view.rs",
+            "line": 1056,
+            "fn": "client_create_view_body",
+            "asserts": "createBlockView body"
+          }
+        ]
+      },
+      {
+        "id": "PC-027-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration --test test_block_collection_view block_collection_views_live_surrealdb_self_seed_full_round_trip -- --exact",
+        "test_binary": "test_block_collection_view",
+        "filter": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "features": [
+          "integration"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC1",
+          "AC2",
+          "AC3",
+          "AC4",
+          "AC5",
+          "AC6",
+          "AC7",
+          "AC8",
+          "AC9",
+          "AC10"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_block_collection_view.rs",
+            "line": 2072,
+            "fn": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+            "asserts": "live managed SurrealDB round trip via production BlockViewClient + mounted view (AC coverage per doc comment)"
+          }
+        ]
+      },
+      {
+        "id": "PC-027-04",
+        "cwd": "src/backend/handshake_core",
+        "command": "cargo test --locked --features surreal-test-support,test-utils --test loom_block_collection_views_tests -- --exact table_sort_by_typed_column_is_correct_across_a_page_boundary kanban_move_via_real_tag_edges_reflects_in_requery_and_embedded_store free_kanban_places_shared_tag_cards_once_each calendar_buckets_by_journal_date_with_date_filter resort_persists_into_view_definition saved_view_creation_is_idempotent_and_authority_backed",
+        "test_binary": "loom_block_collection_views_tests",
+        "filter": "exact list (6)",
+        "features": [
+          "surreal-test-support",
+          "test-utils"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC2",
+          "AC4",
+          "AC5",
+          "AC6",
+          "AC8"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/loom_block_collection_views_tests.rs",
+            "line": 650,
+            "fn": "table_sort_by_typed_column_is_correct_across_a_page_boundary",
+            "asserts": "backend table sort correct across a page boundary"
+          },
+          {
+            "ignored": false,
+            "file": "tests/loom_block_collection_views_tests.rs",
+            "line": 739,
+            "fn": "kanban_move_via_real_tag_edges_reflects_in_requery_and_embedded_store",
+            "asserts": "kanban move via real tag edges reflects in requery"
+          },
+          {
+            "ignored": false,
+            "file": "tests/loom_block_collection_views_tests.rs",
+            "line": 850,
+            "fn": "free_kanban_places_shared_tag_cards_once_each",
+            "asserts": "shared-tag cards placed once each"
+          },
+          {
+            "ignored": false,
+            "file": "tests/loom_block_collection_views_tests.rs",
+            "line": 944,
+            "fn": "calendar_buckets_by_journal_date_with_date_filter",
+            "asserts": "calendar buckets by journal_date with date filter"
+          },
+          {
+            "ignored": false,
+            "file": "tests/loom_block_collection_views_tests.rs",
+            "line": 1016,
+            "fn": "resort_persists_into_view_definition",
+            "asserts": "resort persisted into view definition"
+          },
+          {
+            "ignored": false,
+            "file": "tests/loom_block_collection_views_tests.rs",
+            "line": 237,
+            "fn": "saved_view_creation_is_idempotent_and_authority_backed",
+            "asserts": "saved view creation idempotent and authority-backed"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [],
+    "caveats": [
+      "contract module path loom::block_collection_view does not exist; real path graph::block_collection_view",
+      "contract core command used --features test-utils only; Cargo.toml requires surreal-test-support,test-utils"
+    ]
   }
 }

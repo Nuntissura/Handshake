@@ -14,7 +14,7 @@
   "title": "U2-MT-098-ChatboxPaneBesideWorksurface",
   "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-098.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2794,5 +2794,168 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-098-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --test test_runtime_chat_pane -- --exact live_default_tree_contains_runtime_chat_beside_editors_and_screenshot",
+        "test_binary": "test_runtime_chat_pane",
+        "filter": "live_default_tree_contains_runtime_chat_beside_editors_and_screenshot",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-098-1",
+          "AC-098-2",
+          "AC-098-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_runtime_chat_pane.rs",
+            "line": 823,
+            "fn": "live_default_tree_contains_runtime_chat_beside_editors_and_screenshot",
+            "asserts": "default panes code/wiki/chat; chat region, input, disabled send; EndpointMissing /chat; render .expect() (fails without HANDSHAKE_GPU_SCREENSHOT=1)"
+          }
+        ]
+      },
+      {
+        "id": "PC-098-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_runtime_chat_pane -- --exact runtime_chat_real_post_maps_router_404_to_typed_endpoint_missing runtime_chat_non_fallback_responses_keep_distinct_typed_failures registered_route_bare_semantic_404_is_not_misclassified_as_missing_route duplicate_send_and_stale_delivery_cannot_mutate_active_generation live_type_and_click_after_dropped_injected_runtime_uses_app_owned_worker mt098_mounted_chat_pane_canonical_argus_state_coverage",
+        "test_binary": "test_runtime_chat_pane",
+        "filter": "6 exact names",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-098-1",
+          "AC-098-3",
+          "AC-098-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_runtime_chat_pane.rs",
+            "line": 418,
+            "fn": "runtime_chat_real_post_maps_router_404_to_typed_endpoint_missing",
+            "asserts": "404 router -> EndpointMissing /chat, no synthesized reply"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_runtime_chat_pane.rs",
+            "line": 493,
+            "fn": "runtime_chat_non_fallback_responses_keep_distinct_typed_failures",
+            "asserts": "distinct typed errors"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_runtime_chat_pane.rs",
+            "line": 541,
+            "fn": "registered_route_bare_semantic_404_is_not_misclassified_as_missing_route",
+            "asserts": "semantic 404 stays HttpStatus{404}"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_runtime_chat_pane.rs",
+            "line": 582,
+            "fn": "duplicate_send_and_stale_delivery_cannot_mutate_active_generation",
+            "asserts": "duplicate/stale cannot mutate generation"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_runtime_chat_pane.rs",
+            "line": 656,
+            "fn": "live_type_and_click_after_dropped_injected_runtime_uses_app_owned_worker",
+            "asserts": "type+send surfaces EndpointMissing, no fabricated turn"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_runtime_chat_pane.rs",
+            "line": 1082,
+            "fn": "mt098_mounted_chat_pane_canonical_argus_state_coverage",
+            "asserts": "Argus covers send/unavailable/retry/cancel/focus/recovery"
+          }
+        ]
+      },
+      {
+        "id": "PC-098-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_app_host_mount -- --exact mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus",
+        "test_binary": "test_app_host_mount",
+        "filter": "mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-098-1"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_app_host_mount.rs",
+            "line": 4136,
+            "fn": "mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus",
+            "asserts": "open-runtime-chat opens exactly one RuntimeChat tab"
+          }
+        ]
+      },
+      {
+        "id": "PC-098-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_theme -- --exact no_hardcoded_color32_outside_theme_module",
+        "test_binary": "test_theme",
+        "filter": "no_hardcoded_color32_outside_theme_module",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-098-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_theme.rs",
+            "line": 525,
+            "fn": "no_hardcoded_color32_outside_theme_module",
+            "asserts": "no Color32 literal outside palette"
+          }
+        ]
+      },
+      {
+        "id": "PC-098-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_runtime_chat_pane -- --ignored --exact mt108_argus_runtime_chat_real_server_loop",
+        "test_binary": "test_runtime_chat_pane",
+        "filter": "mt108_argus_runtime_chat_real_server_loop (IGNORED; runner-only)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-098-1",
+          "AC-098-3"
+        ],
+        "evidence": [
+          {
+            "ignored": true,
+            "file": "tests/test_runtime_chat_pane.rs",
+            "line": 113,
+            "fn": "mt108_argus_runtime_chat_real_server_loop",
+            "asserts": "MT-108 runner-only real-server Argus loop (needs MT-108 supervisor)"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-098-5",
+        "reason": "compile/build/clippy/full-suite/png gate; no test function"
+      }
+    ]
   }
 }

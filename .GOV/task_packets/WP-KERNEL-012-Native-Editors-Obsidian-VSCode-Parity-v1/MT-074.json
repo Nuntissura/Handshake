@@ -14,7 +14,7 @@
   "title": "E10-MT-074-OtherPillarInteropProofSuite",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-074.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1172,5 +1172,151 @@
     "status": "CLASSES_FIXED_STATIC_NEW_CLASSES_OPEN",
     "note": "This MT's validated classes have round-3 fixes (see failure_classes/REPRESENTATIVE_RUNS); live representatives now fail in newly exposed classes C1V-LOOM-CONTENT-TYPES / C1V-LEGACY-ROOT-CREATE-ROUTES / C1V-BACKEND-HARNESS-AUTH, so not READY.",
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-074-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_other_pillar_interop_proofs other_pillar_interop -- --nocapture",
+        "test_binary": "test_other_pillar_interop_proofs",
+        "filter": "other_pillar_interop (the 4 OP scenarios)",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-074-1",
+          "AC-074-3",
+          "AC-074-4",
+          "AC-074-5",
+          "AC-074-6",
+          "AC-074-10"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 2904,
+            "fn": "other_pillar_op01_stage_route_embed_back_other_pillar_interop",
+            "asserts": "OP-01 live route-to-Stage + embed-back, sha256 matches, STAGE FR events"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 3346,
+            "fn": "other_pillar_op02_calendar_bind_activity_span_other_pillar_interop",
+            "asserts": "OP-02 daily note bound to CalendarEvent, ActivitySpan, calendar FR events"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 3711,
+            "fn": "other_pillar_op03_locus_resolve_reverse_other_pillar_interop",
+            "asserts": "OP-03 locus resolve + reverse lookup + FR events"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 1440,
+            "fn": "other_pillar_op04_swarm_accesskit_other_pillar_interop",
+            "asserts": "OP-04 all edges via AccessKit author_id through canonical Argus"
+          }
+        ]
+      },
+      {
+        "id": "PC-074-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_other_pillar_interop_proofs -- --exact unit_op01_stage_payload_and_embed_projection other_pillar_runtime_readiness_manifest other_pillar_every_canonical_action_binds_a_terminal_predicate other_pillar_fr_route_resolved fixture_writes_use_typed_product_apis other_pillar_no_local_store_no_fake_db other_pillar_reuses_interop_modules_no_glue other_pillar_surface_anchor",
+        "test_binary": "test_other_pillar_interop_proofs",
+        "filter": "8 exact names",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-074-2",
+          "AC-074-3",
+          "AC-074-7",
+          "AC-074-9"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 1329,
+            "fn": "unit_op01_stage_payload_and_embed_projection",
+            "asserts": "payload + embed hsLink carry sha256 provenance"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 2189,
+            "fn": "other_pillar_runtime_readiness_manifest",
+            "asserts": "manifest has 4 PASS entries bound to runtime verdict; zero FAIL/BLOCKED"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 2348,
+            "fn": "other_pillar_every_canonical_action_binds_a_terminal_predicate",
+            "asserts": "source scan terminal predicates"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 2453,
+            "fn": "other_pillar_fr_route_resolved",
+            "asserts": "backend router declares interop and workspace-scoped FR routes"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 2531,
+            "fn": "fixture_writes_use_typed_product_apis",
+            "asserts": "fixtures use typed product APIs"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 2774,
+            "fn": "other_pillar_no_local_store_no_fake_db",
+            "asserts": "no sqlite/mock/in-memory db tokens"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 2815,
+            "fn": "other_pillar_reuses_interop_modules_no_glue",
+            "asserts": "reuses MT-066/067/068 modules, no glue"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 3980,
+            "fn": "other_pillar_surface_anchor",
+            "asserts": "OP ids map to manifest"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-074-8",
+        "reason": "diff proof (no files under src/** or src/backend/** edited)"
+      },
+      {
+        "ac": "AC-074-10",
+        "reason": "idempotency needs PC-074-01 run twice; no dedicated test"
+      }
+    ],
+    "ac_numbering": "positional (contract lists ACs without ids)",
+    "caveats": [
+      "contract says OP tests are #[ignore] + integration-gated; at HEAD they are neither"
+    ]
   }
 }

@@ -14,7 +14,7 @@
   "title": "E5-MT-036-UnifiedEventLedgerExtensionSeams",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-036.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1362,5 +1362,200 @@
     "status": "CLASSES_FIXED_STATIC_NEW_CLASSES_OPEN",
     "note": "This MT's validated classes have round-3 fixes (see failure_classes/REPRESENTATIVE_RUNS); live representatives now fail in newly exposed classes C1V-LOOM-CONTENT-TYPES / C1V-LEGACY-ROOT-CREATE-ROUTES / C1V-BACKEND-HARNESS-AUTH, so not READY.",
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-036-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features wgpu_screenshots --test test_event_emitter event_emitter_native_editor_round_trip -- --exact --nocapture",
+        "test_binary": "test_event_emitter",
+        "filter": "event_emitter_native_editor_round_trip",
+        "features": [
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-007"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_event_emitter.rs",
+            "line": 1929,
+            "fn": "event_emitter_native_editor_round_trip",
+            "asserts": "live: GET /api/flight_recorder shows undo_fired, canvas_node_placed, document_saved from mounted app; FlightRecorderPane loads via Argus"
+          }
+        ]
+      },
+      {
+        "id": "PC-036-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_event_emitter -- --exact post_body_matches_verified_native_editor_schema failed_emit_lands_in_error_ring failed_post_with_runtime_lands_in_error_ring surface_extension_seam_is_object_safe registry_dispatches_to_mock_surface flight_recorder_pane_lists_event undo_paths_emit_undo_fired_exactly_once_with_scope",
+        "test_binary": "test_event_emitter",
+        "filter": "exact list (7)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-001",
+          "AC-003",
+          "AC-004",
+          "AC-006",
+          "AC-007"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_event_emitter.rs",
+            "line": 621,
+            "fn": "post_body_matches_verified_native_editor_schema",
+            "asserts": "POST body matches hsk.native_editor schema"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_event_emitter.rs",
+            "line": 710,
+            "fn": "failed_emit_lands_in_error_ring",
+            "asserts": "NoRuntime emit error lands in error ring"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_event_emitter.rs",
+            "line": 727,
+            "fn": "failed_post_with_runtime_lands_in_error_ring",
+            "asserts": "failed POST lands in error ring, no panic"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_event_emitter.rs",
+            "line": 756,
+            "fn": "surface_extension_seam_is_object_safe",
+            "asserts": "seam trait object-safe"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_event_emitter.rs",
+            "line": 771,
+            "fn": "registry_dispatches_to_mock_surface",
+            "asserts": "mock surface receives selection and document_saved callbacks"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_event_emitter.rs",
+            "line": 808,
+            "fn": "flight_recorder_pane_lists_event",
+            "asserts": "FlightRecorderPane lists fr-event-* item (injected rows)"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_event_emitter.rs",
+            "line": 1802,
+            "fn": "undo_paths_emit_undo_fired_exactly_once_with_scope",
+            "asserts": "undo paths emit undo_fired exactly once"
+          }
+        ]
+      },
+      {
+        "id": "PC-036-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib -- event_emitter::tests:: surface_extension_seam::tests:: flight_recorder_pane::tests::",
+        "test_binary": "handshake_native (lib)",
+        "filter": "event_emitter::tests:: surface_extension_seam::tests:: flight_recorder_pane::tests::",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-004",
+          "AC-006",
+          "AC-007"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/event_emitter.rs",
+            "line": 1990,
+            "fn": "failed_post_lands_in_error_ring_no_panic",
+            "asserts": "failed POST lands in error ring, no panic"
+          },
+          {
+            "ignored": false,
+            "file": "src/event_emitter.rs",
+            "line": 1974,
+            "fn": "emit_without_runtime_records_no_runtime_error_and_does_not_panic",
+            "asserts": "emit without runtime records error, no panic"
+          },
+          {
+            "ignored": false,
+            "file": "src/surface_extension_seam.rs",
+            "line": 199,
+            "fn": "registered_mock_surface_receives_selection_and_event_callbacks",
+            "asserts": "registry mock receives both callbacks"
+          },
+          {
+            "ignored": false,
+            "file": "src/flight_recorder_pane.rs",
+            "line": 707,
+            "fn": "load_now_transitions_to_loaded_with_rows",
+            "asserts": "pane moves to Loaded with rows"
+          }
+        ]
+      },
+      {
+        "id": "PC-036-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo check --locked",
+        "test_binary": "(compile gate)",
+        "filter": "",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-005"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/surface_extension_seam.rs",
+            "line": 231,
+            "fn": "trait_is_object_safe",
+            "asserts": "compile-level object safety of the seam trait"
+          }
+        ]
+      },
+      {
+        "id": "PC-036-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked event_emitter -- --nocapture",
+        "test_binary": "all targets",
+        "filter": "event_emitter",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-008"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_event_emitter.rs",
+            "line": 1485,
+            "fn": "event_emitter_workspace_revisit_preserves_original_emitter_session_generation",
+            "asserts": "one of the tests selected by the name filter"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [],
+    "caveats": [
+      "event_emitter_native_editor_round_trip needs a live backend and wgpu_screenshots; without the feature it writes incomplete-proof.json instead of failing"
+    ]
   }
 }

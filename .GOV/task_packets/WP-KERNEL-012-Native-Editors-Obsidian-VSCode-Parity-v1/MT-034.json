@@ -14,7 +14,7 @@
   "title": "E5-MT-034-CodeNoteCrossRefs",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-034.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1694,5 +1694,200 @@
     "status": "CLASSES_FIXED_STATIC_NEW_CLASSES_OPEN",
     "note": "This MT's validated classes have round-3 fixes (see failure_classes/REPRESENTATIVE_RUNS); live representatives now fail in newly exposed classes C1V-LOOM-CONTENT-TYPES / C1V-LEGACY-ROOT-CREATE-ROUTES / C1V-BACKEND-HARNESS-AUTH, so not READY.",
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-034-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_code_note_cross_ref -- --exact ac1_code_wikilink_parses_to_code_hs_link ac1_code_ref_atom_round_trips_content_json_with_symbol_id ac2_click_code_ref_chip_dispatches_open_code_symbol ac2_live_shell_routes_code_ref_event_to_mounted_code_pane ac2_live_shell_routes_literal_path_symbol_code_ref_to_mounted_code_pane ac3_reverse_lookup_queries_the_persisted_code_ref_label ac3_code_pane_dwell_loads_note_refs_panel ac3_note_refs_panel_lists_and_opens_a_note ac3_live_shell_note_refs_row_click_opens_document_tab ac4_unresolved_code_ref_chip_renders_without_panic ac4_resolve_error_maps_unresolved ac4_stale_source_is_typed_and_never_navigates_silently ac4_opaque_source_id_without_symbol_key_path_is_unresolved ac4_entity_lookup_rejects_a_different_backend_symbol_identity ac5_code_symbol_search_dialog_accesskit_ids_present",
+        "test_binary": "test_code_note_cross_ref",
+        "filter": "exact list (15)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-004",
+          "AC-005"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 913,
+            "fn": "ac1_code_ref_atom_round_trips_content_json_with_symbol_id",
+            "asserts": "symbol_entity_id survives content_json round trip"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 948,
+            "fn": "ac2_click_code_ref_chip_dispatches_open_code_symbol",
+            "asserts": "chip click dispatches open-code-symbol"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 1025,
+            "fn": "ac2_live_shell_routes_code_ref_event_to_mounted_code_pane",
+            "asserts": "code pane visible range contains line_start (mock symbol server)"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 1164,
+            "fn": "ac2_live_shell_routes_literal_path_symbol_code_ref_to_mounted_code_pane",
+            "asserts": "literal path code-ref resolves and scrolls"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 1502,
+            "fn": "ac3_code_pane_dwell_loads_note_refs_panel",
+            "asserts": "dwell loads NoteRefsPanel"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 1672,
+            "fn": "ac3_note_refs_panel_lists_and_opens_a_note",
+            "asserts": "panel lists and opens a note"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 2345,
+            "fn": "ac4_unresolved_code_ref_chip_renders_without_panic",
+            "asserts": "unresolved chip renders greyed, no panic"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 2390,
+            "fn": "ac4_resolve_error_maps_unresolved",
+            "asserts": "404 resolve maps to unresolved"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 2515,
+            "fn": "ac5_code_symbol_search_dialog_accesskit_ids_present",
+            "asserts": "code-symbol-search Dialog AccessKit ids"
+          }
+        ]
+      },
+      {
+        "id": "PC-034-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib interop::cross_ref::tests::",
+        "test_binary": "handshake_native (lib)",
+        "filter": "interop::cross_ref::tests::",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-004"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/interop/cross_ref.rs",
+            "line": 1342,
+            "fn": "app_error_404_maps_to_not_found",
+            "asserts": "404 maps to NotFound"
+          },
+          {
+            "ignored": false,
+            "file": "src/interop/cross_ref.rs",
+            "line": 1308,
+            "fn": "cross_ref_error_kind_strings_and_unresolved_flag",
+            "asserts": "error kinds set unresolved flag"
+          }
+        ]
+      },
+      {
+        "id": "PC-034-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration --test test_code_note_cross_ref live_backend::v2_self_seeded_surrealdb_code_ref_round_trip_navigation_and_note_refs -- --exact",
+        "test_binary": "test_code_note_cross_ref",
+        "filter": "live_backend::v2_self_seeded_surrealdb_code_ref_round_trip_navigation_and_note_refs",
+        "features": [
+          "integration"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-001",
+          "AC-002",
+          "AC-003"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 2727,
+            "fn": "v2_self_seeded_surrealdb_code_ref_round_trip_navigation_and_note_refs",
+            "asserts": "live: saved and reloaded doc keeps code hsLink refValue==symbol_id; navigation; NoteRefsPanel lists doc"
+          }
+        ]
+      },
+      {
+        "id": "PC-034-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features wgpu_screenshots --test test_code_note_cross_ref mt034_canonical_argus_create_open_and_reveal -- --exact",
+        "test_binary": "test_code_note_cross_ref",
+        "filter": "mt034_canonical_argus_create_open_and_reveal",
+        "features": [
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-002",
+          "AC-005"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 1818,
+            "fn": "mt034_canonical_argus_create_open_and_reveal",
+            "asserts": "canonical Argus create/open/reveal; visible range contains line_start (GPU)"
+          }
+        ]
+      },
+      {
+        "id": "PC-034-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_code_note_cross_ref -- --nocapture",
+        "test_binary": "test_code_note_cross_ref",
+        "filter": "(whole binary)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-006"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_code_note_cross_ref.rs",
+            "line": 2560,
+            "fn": "no_local_artifact_dir_under_crate",
+            "asserts": "crate has no local artifact dir; whole binary is the AC-006 proof"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [],
+    "caveats": [
+      "contract filter 'code_note_cross_ref' matches no test fn (0 tests); PC-034-05 uses --test test_code_note_cross_ref"
+    ]
   }
 }

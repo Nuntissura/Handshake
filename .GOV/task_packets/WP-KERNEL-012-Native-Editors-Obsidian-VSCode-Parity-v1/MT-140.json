@@ -803,7 +803,7 @@
     "next_actor": "KERNEL_BUILDER",
     "no_context_instruction": "FAIL_V1 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V2."
   },
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "remediation_v2": {
     "session": "KERNEL_BUILDER-C1",
     "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
@@ -1126,5 +1126,220 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-140-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests --test test_stage_interop -- --test-threads=1",
+        "test_binary": "test_stage_interop",
+        "filter": "(all)",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-140-1",
+          "AC-140-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 1276,
+            "fn": "live_route_round_trip_real_surrealdb",
+            "asserts": "live route round trip via product APIs"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 2041,
+            "fn": "mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent",
+            "asserts": "embed-back idempotent live"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 3145,
+            "fn": "mt066_canvas_board_evidence_does_not_block_product_cleanup",
+            "asserts": "workspace delete cleans canvas board evidence"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 3150,
+            "fn": "mt066_stage_card_bridge_evidence_does_not_block_product_cleanup",
+            "asserts": "workspace delete cleans stage-card bridge evidence"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_stage_interop.rs",
+            "line": 2913,
+            "fn": "product_api_only_and_shared_backend_client",
+            "asserts": "product API only; SQLite tripwire"
+          }
+        ]
+      },
+      {
+        "id": "PC-140-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests --test test_calendar_interop -- --test-threads=1",
+        "test_binary": "test_calendar_interop",
+        "filter": "(all)",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-140-1",
+          "AC-140-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 1370,
+            "fn": "open_or_create_daily_note_is_idempotent_against_real_backend_live",
+            "asserts": "live journal identity idempotent"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 3348,
+            "fn": "product_api_only_no_backend_edit",
+            "asserts": "product API only; SQLite/diesel/sqlx tripwire"
+          }
+        ]
+      },
+      {
+        "id": "PC-140-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests --test test_flight_recorder_authz -- --test-threads=1",
+        "test_binary": "test_flight_recorder_authz",
+        "filter": "(all)",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-140-1",
+          "AC-140-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_flight_recorder_authz.rs",
+            "line": 74,
+            "fn": "mt111_flight_recorder_authorization_boundary_real_surrealdb",
+            "asserts": "FR authorization boundary live"
+          }
+        ]
+      },
+      {
+        "id": "PC-140-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests --test test_other_pillar_interop_proofs -- --exact fixture_writes_use_typed_product_apis other_pillar_no_local_store_no_fake_db",
+        "test_binary": "test_other_pillar_interop_proofs",
+        "filter": "2 exact names",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-140-1"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 2531,
+            "fn": "fixture_writes_use_typed_product_apis",
+            "asserts": "typed product fixture paths present"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 2774,
+            "fn": "other_pillar_no_local_store_no_fake_db",
+            "asserts": "no local store or fake DB"
+          }
+        ]
+      },
+      {
+        "id": "PC-140-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests --test test_e7_swarm_edit_proof -- --test-threads=1",
+        "test_binary": "test_e7_swarm_edit_proof",
+        "filter": "(all)",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-140-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_e7_swarm_edit_proof.rs",
+            "line": 3928,
+            "fn": "swarm_edit_live_conflict_merge_search_and_receipts",
+            "asserts": "live swarm edit proof (binary named by the contract)"
+          }
+        ]
+      },
+      {
+        "id": "PC-140-06",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests --test test_locus_interop -- --test-threads=1",
+        "test_binary": "test_locus_interop",
+        "filter": "(all; add --ignored for the runner-only live proof)",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-140-4"
+        ],
+        "evidence": [
+          {
+            "ignored": true,
+            "file": "tests/test_locus_interop.rs",
+            "line": 973,
+            "fn": "resolve_locus_ref_against_real_surrealdb_live",
+            "asserts": "runner-only live Locus proof (needs --ignored and supervisor)"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-140-2",
+        "reason": "no in-tree test scans tests/ for PostgreSQL/psql/SQLite/PG-DSN language; only per-file tripwires. Manual grep at HEAD finds hits only in the 9 listed tripwire files and 0 for run_fixture_sql / pg_proof_support"
+      },
+      {
+        "ac": "AC-140-3",
+        "reason": "rename R099 history is a git check; consumer imports proven only by compilation"
+      },
+      {
+        "ac": "AC-140-1",
+        "reason": "partial: 'equivalent strength' mapping of the 13 former call sites is a diff review (PT-140-3)"
+      }
+    ]
   }
 }

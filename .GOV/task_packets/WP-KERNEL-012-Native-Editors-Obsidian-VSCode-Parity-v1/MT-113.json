@@ -22,7 +22,7 @@
   "title": "E5-MT-113-Bound-Author-Id-Composition-So-User-Content-Cannot-Silently-Disable-Completion-Tokens",
   "group": "E5-Interconnection",
   "created_at_utc": "2026-08-05T20:19:25.344Z",
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1328,5 +1328,219 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-113-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib find_in_files::tests::mt113_",
+        "test_binary": "handshake_native (lib)",
+        "filter": "find_in_files::tests::mt113_",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-113-1",
+          "AC-113-2",
+          "AC-113-5"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 5980,
+            "fn": "mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize",
+            "asserts": "PT-113-1 property: composed ids stay in budget, token serializes"
+          },
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6075,
+            "fn": "mt113_measured_regression_inputs_now_compose_in_budget",
+            "asserts": "measured regression inputs compose in budget"
+          },
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6112,
+            "fn": "mt113_every_route_that_fits_is_byte_identical_to_the_legacy_composition",
+            "asserts": "fitting routes keep legacy bytes"
+          },
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6186,
+            "fn": "mt113_bookmark_stable_id_is_byte_identical_where_it_fits_and_still_dedups",
+            "asserts": "bookmark stable_id unchanged where it fits, dedups"
+          },
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6232,
+            "fn": "mt113_bounded_routes_stay_injective_across_both_regimes",
+            "asserts": "bounded routes injective in both regimes"
+          },
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6256,
+            "fn": "mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity",
+            "asserts": "bounded routes resolve to exact identity"
+          },
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6298,
+            "fn": "mt113_long_query_bookmark_remove_publishes_an_observable_completion_token",
+            "asserts": "long-query remove publishes completion token"
+          },
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6396,
+            "fn": "mt113_mt029_exact_reversibility_contract_is_unchanged",
+            "asserts": "MT-029 reversibility unchanged"
+          },
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6422,
+            "fn": "mt113_baseline_long_query_bookmark_remove_completion_token_is_silently_dropped",
+            "asserts": "baseline witness: legacy dropped token"
+          },
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6445,
+            "fn": "mt113_baseline_twenty_three_character_query_is_the_first_failing_input",
+            "asserts": "baseline witness: 23-char first failing input"
+          }
+        ]
+      },
+      {
+        "id": "PC-113-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib mcp::action::tests::mt113_",
+        "test_binary": "handshake_native (lib)",
+        "filter": "mcp::action::tests::mt113_",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-113-3",
+          "AC-113-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/mcp/action.rs",
+            "line": 4801,
+            "fn": "mt113_over_budget_pending_target_is_loud_at_authoring_time",
+            "asserts": "debug_assert fires for over-budget pending_target (should_panic, debug builds)"
+          },
+          {
+            "ignored": false,
+            "file": "src/mcp/action.rs",
+            "line": 4817,
+            "fn": "mt113_over_budget_observer_author_id_is_loud_at_authoring_time",
+            "asserts": "debug_assert fires for over-budget observer id"
+          },
+          {
+            "ignored": false,
+            "file": "src/mcp/action.rs",
+            "line": 4833,
+            "fn": "mt113_completion_unavailable_marker_names_the_failure_at_the_proof_surface",
+            "asserts": "typed completion-unavailable marker visible"
+          },
+          {
+            "ignored": false,
+            "file": "src/mcp/action.rs",
+            "line": 4935,
+            "fn": "mt113_author_budget_is_the_stricter_of_the_two_so_siblings_cannot_diverge",
+            "asserts": "author budget <= context budget"
+          }
+        ]
+      },
+      {
+        "id": "PC-113-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_find_in_files accesskit_result_ids_are_utf8_injective_and_exactly_reversible -- --exact",
+        "test_binary": "test_find_in_files",
+        "filter": "accesskit_result_ids_are_utf8_injective_and_exactly_reversible",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-113-2"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_find_in_files.rs",
+            "line": 346,
+            "fn": "accesskit_result_ids_are_utf8_injective_and_exactly_reversible",
+            "asserts": "result ids UTF-8 injective and exactly reversible"
+          }
+        ]
+      },
+      {
+        "id": "PC-113-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib find_in_files::tests::result_author_id_is_injective_and_reversible -- --exact",
+        "test_binary": "handshake_native (lib)",
+        "filter": "find_in_files::tests::result_author_id_is_injective_and_reversible",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-113-2"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 5705,
+            "fn": "result_author_id_is_injective_and_reversible",
+            "asserts": "in-crate reversibility of slash/UTF-8 ids"
+          }
+        ]
+      },
+      {
+        "id": "PC-113-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_author_id_budget mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query -- --exact --test-threads=1 --nocapture",
+        "test_binary": "test_author_id_budget",
+        "filter": "mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-113-5"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_author_id_budget.rs",
+            "line": 60,
+            "fn": "mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+            "asserts": "cfg(integration): mounted long-query bookmark save+remove over real Argus terminalizes; fresh GET confirms removal"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-113-6",
+        "reason": "no test; static check that find_in_files.rs and mcp/action.rs contain no new Uuid/now_v7/new_v4 mint site"
+      }
+    ]
   }
 }

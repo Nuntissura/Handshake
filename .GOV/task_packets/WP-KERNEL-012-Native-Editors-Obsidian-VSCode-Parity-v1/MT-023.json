@@ -14,7 +14,7 @@
   "title": "E3-MT023-TagsTagHubs",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-023.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1512,5 +1512,221 @@
     "candidate_sha": "0cfbff649c08ae260ac53eb866293b2bc273137d",
     "status_change": "none",
     "recorded_at_utc": "2026-09-23T09:50:35.693Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-023-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib graph::tags_panel::tests::",
+        "test_binary": "handshake_native (lib)",
+        "filter": "graph::tags_panel::tests::",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC2",
+          "AC8"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/graph/tags_panel.rs",
+            "line": 1184,
+            "fn": "filtered_tags_prefix_match",
+            "asserts": "client-side prefix filter over tag titles"
+          },
+          {
+            "ignored": false,
+            "file": "src/graph/tags_panel.rs",
+            "line": 1365,
+            "fn": "empty_tags_is_empty",
+            "asserts": "empty tag set stays empty"
+          }
+        ]
+      },
+      {
+        "id": "PC-023-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_tags_panel -- --exact proof2_three_tag_rows_present proof3_search_filter_narrows_rows ac3_tag_click_fires_open_tag ac8_empty_no_tags proof4_hub_page_title_and_members ac5_member_click_fires_open_member proof5_add_tag_selects_candidate_and_fires_edge proof5_tag_edge_request_shape",
+        "test_binary": "test_tags_panel",
+        "filter": "exact list (8)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC1",
+          "AC2",
+          "AC3",
+          "AC4",
+          "AC5",
+          "AC6",
+          "AC7",
+          "AC8"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_tags_panel.rs",
+            "line": 157,
+            "fn": "proof2_three_tag_rows_present",
+            "asserts": "3 seeded tags produce 3 tags.row.* AccessKit nodes"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_tags_panel.rs",
+            "line": 211,
+            "fn": "proof3_search_filter_narrows_rows",
+            "asserts": "typing into tags.search narrows rows"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_tags_panel.rs",
+            "line": 255,
+            "fn": "ac3_tag_click_fires_open_tag",
+            "asserts": "row click fires open_tag with block_id"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_tags_panel.rs",
+            "line": 279,
+            "fn": "ac8_empty_no_tags",
+            "asserts": "empty state shows 'No tags', no panic"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_tags_panel.rs",
+            "line": 328,
+            "fn": "proof4_hub_page_title_and_members",
+            "asserts": "hub title and tag-hub.member.* nodes"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_tags_panel.rs",
+            "line": 367,
+            "fn": "ac5_member_click_fires_open_member",
+            "asserts": "member click fires on_open with member block_id"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_tags_panel.rs",
+            "line": 391,
+            "fn": "proof5_add_tag_selects_candidate_and_fires_edge",
+            "asserts": "add-tag popup selects candidate, fires tag-edge event"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_tags_panel.rs",
+            "line": 462,
+            "fn": "proof5_tag_edge_request_shape",
+            "asserts": "edge request is POST /loom/edges edge_type 'tag'"
+          }
+        ]
+      },
+      {
+        "id": "PC-023-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration --test test_tags_panel tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip -- --exact",
+        "test_binary": "test_tags_panel",
+        "filter": "tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip",
+        "features": [
+          "integration"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC1",
+          "AC2",
+          "AC3",
+          "AC4",
+          "AC5",
+          "AC6",
+          "AC7",
+          "AC8"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_tags_panel.rs",
+            "line": 755,
+            "fn": "tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip",
+            "asserts": "live mounted Tags pane round trip with fresh-client persistence recheck (AC coverage per doc comment)"
+          }
+        ]
+      },
+      {
+        "id": "PC-023-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration --test test_tags_panel_argus mt023_",
+        "test_binary": "test_tags_panel_argus",
+        "filter": "mt023_",
+        "features": [
+          "integration"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC4",
+          "AC7",
+          "AC8"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_tags_panel_argus.rs",
+            "line": 208,
+            "fn": "mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve",
+            "asserts": "mounted tags panel inspect/steer/reobserve via canonical Argus"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_tags_panel_argus.rs",
+            "line": 487,
+            "fn": "mt023_mounted_tags_panel_empty_state_canonical_argus",
+            "asserts": "empty mounted tags panel exposes no tags.row.* nodes"
+          }
+        ]
+      },
+      {
+        "id": "PC-023-05",
+        "cwd": "src/backend/handshake_core",
+        "command": "cargo test --locked --features surreal-test-support,test-utils --test loom_atomic_receipt_tests mt023_",
+        "test_binary": "loom_atomic_receipt_tests",
+        "filter": "mt023_",
+        "features": [
+          "surreal-test-support",
+          "test-utils"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC6"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/loom_atomic_receipt_tests.rs",
+            "line": 847,
+            "fn": "mt023_tag_edge_create_appends_atomic_receipt_and_survives_restart",
+            "asserts": "tag edge create appends atomic receipt, persists across restart"
+          },
+          {
+            "ignored": false,
+            "file": "tests/loom_atomic_receipt_tests.rs",
+            "line": 913,
+            "fn": "mt023_tag_edge_create_rolls_back_when_ledger_append_fails",
+            "asserts": "tag edge create rolls back when ledger append fails"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [],
+    "caveats": [
+      "contract module path loom::tags_panel does not exist; real path graph::tags_panel",
+      "canonical Argus tests need the stage binding env"
+    ]
   }
 }

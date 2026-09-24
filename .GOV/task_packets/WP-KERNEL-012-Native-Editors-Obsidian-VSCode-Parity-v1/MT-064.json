@@ -14,7 +14,7 @@
   "title": "E9-MT-064-FemsMemoryWriteProposalFromEditor",
   "group": "E9",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-064.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1172,5 +1172,221 @@
     "status": "CLASSES_FIXED_STATIC_NEW_CLASSES_OPEN",
     "note": "This MT's validated classes have round-3 fixes (see failure_classes/REPRESENTATIVE_RUNS); live representatives now fail in newly exposed classes C1V-LOOM-CONTENT-TYPES / C1V-LEGACY-ROOT-CREATE-ROUTES / C1V-BACKEND-HARNESS-AUTH, so not READY.",
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-064-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_memory_proposal -- --test-threads=1",
+        "test_binary": "test_memory_proposal",
+        "filter": "(whole binary)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-004",
+          "AC-005",
+          "AC-006",
+          "AC-007",
+          "AC-008",
+          "AC-009",
+          "AC-010"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_memory_proposal.rs",
+            "line": 179,
+            "fn": "build_proposal_full_provenance",
+            "asserts": "class + full provenance; content_hash 64-hex equals loom hash"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_memory_proposal.rs",
+            "line": 242,
+            "fn": "procedural_review_gated",
+            "asserts": "Procedural proposal review_gated"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_memory_proposal.rs",
+            "line": 277,
+            "fn": "missing_endpoint_blocker",
+            "asserts": "404 -> MissingEndpoint, no fallback write"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_memory_proposal.rs",
+            "line": 331,
+            "fn": "propose_creates_proposal_via_endpoint",
+            "asserts": "mock endpoint POST body, pending_review ack, memory_write_proposed payload"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_memory_proposal.rs",
+            "line": 425,
+            "fn": "backend_owned_proposal_event_is_not_rejected_by_frontend_emitter_scope",
+            "asserts": "backend FR event id accepted via MT-036 emitter"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_memory_proposal.rs",
+            "line": 470,
+            "fn": "propose_dialog_accesskit_nodes_present",
+            "asserts": "dialog, class radios, confirm button with roles"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_memory_proposal.rs",
+            "line": 601,
+            "fn": "read_no_direct_commit_site",
+            "asserts": "no direct memory commit/write route in production source"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_memory_proposal.rs",
+            "line": 654,
+            "fn": "propose_dialog_id_is_in_declared_identities",
+            "asserts": "dialog id registered"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_memory_proposal.rs",
+            "line": 684,
+            "fn": "palette_command_has_real_dispatch_arm",
+            "asserts": "fems.propose_to_memory real dispatch arm"
+          }
+        ]
+      },
+      {
+        "id": "PC-064-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib fems::memory_proposal::tests::",
+        "test_binary": "handshake_native (lib)",
+        "filter": "fems::memory_proposal::tests::",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-006",
+          "AC-008",
+          "AC-010"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/fems/memory_proposal.rs",
+            "line": 1783,
+            "fn": "build_proposal_sets_class_and_full_provenance_from_text_range",
+            "asserts": "provenance from TextRange"
+          },
+          {
+            "ignored": false,
+            "file": "src/fems/memory_proposal.rs",
+            "line": 1814,
+            "fn": "content_hash_reuses_loom_primitive_and_matches_block_hash",
+            "asserts": "hash equals loom hash"
+          },
+          {
+            "ignored": false,
+            "file": "src/fems/memory_proposal.rs",
+            "line": 1838,
+            "fn": "review_gated_is_always_true_hard_true_for_procedural",
+            "asserts": "review_gated always true"
+          },
+          {
+            "ignored": false,
+            "file": "src/fems/memory_proposal.rs",
+            "line": 1958,
+            "fn": "propose_command_descriptor_is_palette_driven",
+            "asserts": "palette-driven, no keybind"
+          },
+          {
+            "ignored": false,
+            "file": "src/fems/memory_proposal.rs",
+            "line": 1972,
+            "fn": "shared_bus_command_captures_workspace_versioned_selection",
+            "asserts": "reads SharedSelection"
+          },
+          {
+            "ignored": false,
+            "file": "src/fems/memory_proposal.rs",
+            "line": 2011,
+            "fn": "submit_body_shape_is_review_gated_proposal",
+            "asserts": "review-gated body"
+          }
+        ]
+      },
+      {
+        "id": "PC-064-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_memory_proposal_argus mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve -- --exact --test-threads=1 --nocapture",
+        "test_binary": "test_memory_proposal_argus",
+        "filter": "mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-004",
+          "AC-007",
+          "AC-008"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_memory_proposal_argus.rs",
+            "line": 473,
+            "fn": "mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve",
+            "asserts": "Argus proposal persists in live SurrealDB; FR-EVT-MEM-001 in live FR"
+          }
+        ]
+      },
+      {
+        "id": "PC-064-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_fems_interop_proofs -- --exact proof_fems_02_propose_creates_proposal_and_event proof_fems_duplicate_submission_replays_one_proposal_and_one_event --test-threads=1 --nocapture",
+        "test_binary": "test_fems_interop_proofs",
+        "filter": "exact names",
+        "features": [],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-004"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_fems_interop_proofs.rs",
+            "line": 2732,
+            "fn": "proof_fems_02_propose_creates_proposal_and_event",
+            "asserts": "live proposal row + correlated FR-EVT-MEM-001"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_fems_interop_proofs.rs",
+            "line": 2870,
+            "fn": "proof_fems_duplicate_submission_replays_one_proposal_and_one_event",
+            "asserts": "duplicate submit -> exactly one proposal and one event"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-009",
+        "reason": "diff gate (no src/backend changes, no new endpoints, no SQLite); read_no_direct_commit_site covers only the no-alternate-store part"
+      }
+    ]
   }
 }

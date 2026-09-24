@@ -22,7 +22,7 @@
   "title": "E11-MT-121-Size-The-MCP-Snapshot-Viewport-So-Model-Visible-Bounds-Describe-The-Real-Window",
   "group": "E11-Argus",
   "created_at_utc": "2026-08-12T11:40:00Z",
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-121.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1024,5 +1024,184 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-121-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_mcp_snapshot_viewport -- --test-threads=1 --nocapture",
+        "test_binary": "test_mcp_snapshot_viewport",
+        "filter": "(whole binary: mt121_* and mt135_*)",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-121-1",
+          "AC-121-2",
+          "AC-121-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_mcp_snapshot_viewport.rs",
+            "line": 119,
+            "fn": "mt121_published_bounds_lie_within_the_declared_live_viewport",
+            "asserts": "PT-121-1 bounds within declared live viewport"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_mcp_snapshot_viewport.rs",
+            "line": 155,
+            "fn": "mt121_published_bounds_match_the_rendered_frame_for_a_real_surface",
+            "asserts": "PT-121-3 bounds match rendered frame"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_mcp_snapshot_viewport.rs",
+            "line": 223,
+            "fn": "mt121_headless_capture_declares_the_documented_fallback_viewport",
+            "asserts": "headless declares DeclaredFallback"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_mcp_snapshot_viewport.rs",
+            "line": 529,
+            "fn": "mt121_repeat_headless_capture_does_not_launder_the_fallback_into_a_live_claim",
+            "asserts": "repeat headless still DeclaredFallback"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_mcp_snapshot_viewport.rs",
+            "line": 276,
+            "fn": "mt135_memory_backed_context_menu_is_visible_to_the_sized_capture_pass",
+            "asserts": "AC-121-4 answer: memory-backed menus visible (MT-135)"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_mcp_snapshot_viewport.rs",
+            "line": 471,
+            "fn": "mt135_manual_agent_tool_reference_matches_capture_pass_truth",
+            "asserts": "manual agent tool reference matches capture truth"
+          }
+        ]
+      },
+      {
+        "id": "PC-121-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib mt113_",
+        "test_binary": "handshake_native (lib)",
+        "filter": "mt113_",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-121-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/find_in_files.rs",
+            "line": 6396,
+            "fn": "mt113_mt029_exact_reversibility_contract_is_unchanged",
+            "asserts": "author_id identity unchanged"
+          }
+        ]
+      },
+      {
+        "id": "PC-121-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_author_id_budget -- --test-threads=1 --nocapture",
+        "test_binary": "test_author_id_budget",
+        "filter": "(whole binary)",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-121-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_author_id_budget.rs",
+            "line": 60,
+            "fn": "mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+            "asserts": "PT-121-2 MT-113 mounted proof green"
+          }
+        ]
+      },
+      {
+        "id": "PC-121-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_find_in_files -- --test-threads=1 --nocapture",
+        "test_binary": "test_find_in_files",
+        "filter": "(whole binary, MT-029 baselines)",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-121-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_find_in_files.rs",
+            "line": 520,
+            "fn": "accesskit_tree_has_all_contract_author_ids",
+            "asserts": "all contract author_ids present"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_find_in_files.rs",
+            "line": 1181,
+            "fn": "pane_opens_via_registry_and_renders_real_panel",
+            "asserts": "mounted pane renders"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_find_in_files.rs",
+            "line": 1420,
+            "fn": "find_in_files_screenshot",
+            "asserts": "HBR-VIS screenshot"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_find_in_files.rs",
+            "line": 1639,
+            "fn": "find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_roundtrip",
+            "asserts": "cfg(integration) live search/replace/bookmark"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-121-5",
+        "reason": "manual viewport wording (src/manual_content_editors.rs:2330) has no test; static check"
+      },
+      {
+        "ac": "AC-121-3",
+        "reason": "partial: no test asserts role/value/tree shape unchanged vs before the fix"
+      }
+    ],
+    "caveats": [
+      "mt121_memory_backed_context_menu_remains_invisible_to_the_sized_capture_pass named in the contract no longer exists; MT-135 inverted it"
+    ]
   }
 }

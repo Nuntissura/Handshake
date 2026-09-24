@@ -22,7 +22,7 @@
   "title": "R2-MT-127-Own-The-AC-108-3-Red-Surface-Measured-By-The-Full-187-Binary-Sweep",
   "group": "R2-Capstone",
   "created_at_utc": "2026-08-13T00:40:00Z",
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-127.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -3003,5 +3003,205 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-127-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --no-fail-fast --features integration,integration_tests,wgpu_screenshots -- --test-threads=1",
+        "test_binary": "all handshake-native targets (AC-108-3 sweep)",
+        "filter": "(none)",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-127-6"
+        ],
+        "evidence": []
+      },
+      {
+        "id": "PC-127-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests --test test_drawer_integration -- --ignored --test-threads=1",
+        "test_binary": "test_drawer_integration",
+        "filter": "(all; --ignored)",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-127-3"
+        ],
+        "evidence": [
+          {
+            "ignored": true,
+            "file": "tests/test_drawer_integration.rs",
+            "line": 27,
+            "fn": "notes_card_badge_count_is_at_least_one_from_real_surrealdb",
+            "asserts": "badge count >=1 from real SurrealDB (backend on 127.0.0.1:37501, HSK_TEST_WORKSPACE_ID)"
+          },
+          {
+            "ignored": true,
+            "file": "tests/test_drawer_integration.rs",
+            "line": 81,
+            "fn": "stow_dispatch_tags_block_into_stash_hub_on_real_surrealdb",
+            "asserts": "Stow accepted 2xx (needs HSK_TEST_BLOCK_ID)"
+          }
+        ]
+      },
+      {
+        "id": "PC-127-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_focus_audit_live -- --ignored --test-threads=1",
+        "test_binary": "test_focus_audit_live",
+        "filter": "(all; --ignored; Windows interactive desktop)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-127-3"
+        ],
+        "evidence": [
+          {
+            "ignored": true,
+            "file": "tests/test_focus_audit_live.rs",
+            "line": 687,
+            "fn": "live_focus_and_keyboard_audit_is_quiet_under_swarm",
+            "asserts": "live Win32 audit: no focus steal or keyboard leak under swarm"
+          }
+        ]
+      },
+      {
+        "id": "PC-127-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_mt108_argus_matrix -- --ignored --test-threads=1",
+        "test_binary": "test_mt108_argus_matrix",
+        "filter": "(all; --ignored; runner tests/run_mt108_argus_proof.ps1)",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-127-3"
+        ],
+        "evidence": [
+          {
+            "ignored": true,
+            "file": "tests/test_mt108_argus_matrix.rs",
+            "line": 73,
+            "fn": "mt108_argus_manifest_surface_route",
+            "asserts": "MT-108 runner-only matrix row"
+          },
+          {
+            "ignored": true,
+            "file": "tests/test_mt108_argus_matrix.rs",
+            "line": 290,
+            "fn": "mt108_argus_wiki_projection_headless_route",
+            "asserts": "MT-108 headless wiki route"
+          }
+        ]
+      },
+      {
+        "id": "PC-127-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_no_silent_hang_end_to_end -- --ignored --test-threads=1",
+        "test_binary": "test_no_silent_hang_end_to_end",
+        "filter": "(all; --ignored)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-127-3"
+        ],
+        "evidence": [
+          {
+            "ignored": true,
+            "file": "tests/test_no_silent_hang_end_to_end.rs",
+            "line": 138,
+            "fn": "in_app_stall_and_real_child_stall_are_both_reported_in_bounded_time",
+            "asserts": "MT-106 capstone: in-app and child stalls reported in bounded time"
+          }
+        ]
+      },
+      {
+        "id": "PC-127-06",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,wgpu_screenshots --test test_e7_knowledge_accesskit_argus -- --test-threads=1",
+        "test_binary": "test_e7_knowledge_accesskit_argus",
+        "filter": "(all)",
+        "features": [
+          "integration",
+          "wgpu_screenshots"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-127-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_e7_knowledge_accesskit_argus.rs",
+            "line": 422,
+            "fn": "mt042_v4_canonical_argus_complete_runtime_proof",
+            "asserts": "binary populated; MT-042 canonical Argus proof"
+          }
+        ]
+      },
+      {
+        "id": "PC-127-07",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test bundled_deps_audit -- --test-threads=1 && cargo test --locked --test installer_build_smoke -- --test-threads=1",
+        "test_binary": "bundled_deps_audit; installer_build_smoke",
+        "filter": "(all)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-127-4"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/bundled_deps_audit.rs",
+            "line": 104,
+            "fn": "bundle_contains_all_required_deps_and_no_system_webview",
+            "asserts": "bundle has required deps, no system webview, no postgres (release build)"
+          },
+          {
+            "ignored": false,
+            "file": "tests/installer_build_smoke.rs",
+            "line": 111,
+            "fn": "installer_builds_single_artifact_and_self_check_passes",
+            "asserts": "installer single artifact + self-check (fat-LTO release)"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-127-1",
+        "reason": "governance output (route each failing binary to an owning MT); PC-127-01 supplies input only"
+      },
+      {
+        "ac": "AC-127-2",
+        "reason": "typed-blocker recording for environmental entries is governance"
+      },
+      {
+        "ac": "AC-127-5",
+        "reason": "'no assertion weakened' needs diff review"
+      }
+    ]
   }
 }

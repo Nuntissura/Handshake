@@ -22,7 +22,7 @@
   "title": "E10-MT-130-Resolve-The-Calendar-Chip-Value-Contract-Two-Readers-Cannot-Both-Be-Satisfied",
   "group": "E10-Interop",
   "created_at_utc": "2026-08-13T09:40:00Z",
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-130.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -635,5 +635,206 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-130-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests --test test_other_pillar_interop_proofs other_pillar_op0 -- --test-threads=1",
+        "test_binary": "test_other_pillar_interop_proofs",
+        "filter": "other_pillar_op0",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-130-2"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 2904,
+            "fn": "other_pillar_op01_stage_route_embed_back_other_pillar_interop",
+            "asserts": "OP-01 live Argus with terminal predicates"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 3346,
+            "fn": "other_pillar_op02_calendar_bind_activity_span_other_pillar_interop",
+            "asserts": "OP-02 event chip activates exact calendar event"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 3711,
+            "fn": "other_pillar_op03_locus_resolve_reverse_other_pillar_interop",
+            "asserts": "OP-03 locus chip applied"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 1440,
+            "fn": "other_pillar_op04_swarm_accesskit_other_pillar_interop",
+            "asserts": "OP-04 swarm matrix incl. event chip and locus chip applied"
+          }
+        ]
+      },
+      {
+        "id": "PC-130-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests --test test_other_pillar_interop_proofs other_pillar_every_canonical_action_binds_a_terminal_predicate -- --exact",
+        "test_binary": "test_other_pillar_interop_proofs",
+        "filter": "other_pillar_every_canonical_action_binds_a_terminal_predicate",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-130-2",
+          "AC-130-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_other_pillar_interop_proofs.rs",
+            "line": 2348,
+            "fn": "other_pillar_every_canonical_action_binds_a_terminal_predicate",
+            "asserts": "source scan: terminal predicate before finish()"
+          }
+        ]
+      },
+      {
+        "id": "PC-130-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib mcp::action::tests::reserved_token_parser_is_bounded_and_rejects_unknown_fields_without_claiming_applied -- --exact",
+        "test_binary": "handshake_native (lib)",
+        "filter": "mcp::action::tests::reserved_token_parser_is_bounded_and_rejects_unknown_fields_without_claiming_applied",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-130-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/mcp/action.rs",
+            "line": 4347,
+            "fn": "reserved_token_parser_is_bounded_and_rejects_unknown_fields_without_claiming_applied",
+            "asserts": "closed token parser rejects unknown fields, never claims applied"
+          }
+        ]
+      },
+      {
+        "id": "PC-130-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib app::mt117_bounded_completion_tests::",
+        "test_binary": "handshake_native (lib)",
+        "filter": "app::mt117_bounded_completion_tests::",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-130-2",
+          "AC-130-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/app.rs",
+            "line": 41007,
+            "fn": "mt117_declaration_semantic_round_trips_into_its_expectation",
+            "asserts": "semantic value round-trips"
+          },
+          {
+            "ignored": false,
+            "file": "src/app.rs",
+            "line": 41050,
+            "fn": "mt117_pending_observer_never_terminalizes_the_receipt",
+            "asserts": "pending never terminalizes"
+          },
+          {
+            "ignored": false,
+            "file": "src/app.rs",
+            "line": 41115,
+            "fn": "mt117_applied_requires_the_exact_generation_transition",
+            "asserts": "applied requires exact generation transition"
+          }
+        ]
+      },
+      {
+        "id": "PC-130-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration,integration_tests --test test_calendar_interop daily_journal_panel_accesskit_nodes_present -- --exact",
+        "test_binary": "test_calendar_interop",
+        "filter": "daily_journal_panel_accesskit_nodes_present",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-130-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 3469,
+            "fn": "daily_journal_panel_accesskit_nodes_present",
+            "asserts": "chip binds calendar_event_id at top level or in semantic_value (MT-130)"
+          }
+        ]
+      },
+      {
+        "id": "PC-130-06",
+        "cwd": "src/frontend/handshake_native",
+        "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --locked --features integration,integration_tests --test test_calendar_interop open_or_create_daily_note_is_idempotent_against_real_backend_live -- --exact --test-threads=1",
+        "test_binary": "test_calendar_interop",
+        "filter": "open_or_create_daily_note_is_idempotent_against_real_backend_live",
+        "features": [
+          "integration",
+          "integration_tests"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-130-3"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_calendar_interop.rs",
+            "line": 1370,
+            "fn": "open_or_create_daily_note_is_idempotent_against_real_backend_live",
+            "asserts": "chip fields read under either placement (lines 1921, 1953)"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [
+      {
+        "ac": "AC-130-1",
+        "reason": "operator decision record (operator_decision_20260914); governance"
+      },
+      {
+        "ac": "AC-130-2",
+        "reason": "partial: no test asserts the exact applied/indeterminate counts; ops call finish(), counts come from the receipt artifact"
+      },
+      {
+        "ac": "remaining_obligation:UserManual",
+        "reason": "no manual test asserts the chip value contract"
+      }
+    ]
   }
 }

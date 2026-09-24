@@ -14,7 +14,7 @@
   "title": "E3-MT026-CanvasBoardLoomBlocks",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:43:15.504Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-026.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1292,5 +1292,294 @@
     "candidate_sha": "0cfbff649c08ae260ac53eb866293b2bc273137d",
     "status_change": "none",
     "recorded_at_utc": "2026-09-23T09:50:35.693Z"
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-026-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --lib graph::canvas_board::tests::",
+        "test_binary": "handshake_native (lib)",
+        "filter": "graph::canvas_board::tests::",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC3",
+          "AC4",
+          "AC7",
+          "AC10"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "src/graph/canvas_board.rs",
+            "line": 4120,
+            "fn": "transform_round_trips_under_1px",
+            "asserts": "screen<->canvas transform round trip under 1px"
+          },
+          {
+            "ignored": false,
+            "file": "src/graph/canvas_board.rs",
+            "line": 4143,
+            "fn": "drop_position_is_canvas_space",
+            "asserts": "drop position converted to canvas space"
+          },
+          {
+            "ignored": false,
+            "file": "src/graph/canvas_board.rs",
+            "line": 4179,
+            "fn": "zoom_steps_clamp_and_round",
+            "asserts": "zoom clamps to [0.25,4.0]"
+          },
+          {
+            "ignored": false,
+            "file": "src/graph/canvas_board.rs",
+            "line": 4246,
+            "fn": "edge_event_maps_mode_to_ids",
+            "asserts": "edge mode maps to source/target ids"
+          },
+          {
+            "ignored": false,
+            "file": "src/graph/canvas_board.rs",
+            "line": 4306,
+            "fn": "empty_board_has_no_cards",
+            "asserts": "empty board has no cards"
+          }
+        ]
+      },
+      {
+        "id": "PC-026-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_canvas_board -- --exact canvas_accesskit_placements_and_toolbar canvas_zoom_label_and_buttons canvas_pan_buttons canvas_add_card canvas_drop_to_place_via_drag_payload canvas_group_two canvas_semantic_edge canvas_visual_edge_mode canvas_remove_placement canvas_removal_receipt_requires_absence_and_source_block_retention canvas_empty_no_stale_text canvas_screenshot_has_card client_viewport_body_is_board_state_wrapped client_place_block_body client_create_card_body client_semantic_and_visual_edge_bodies",
+        "test_binary": "test_canvas_board",
+        "filter": "exact list (16)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC1",
+          "AC2",
+          "AC3",
+          "AC4",
+          "AC5",
+          "AC6",
+          "AC7",
+          "AC8",
+          "AC9",
+          "AC10"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 164,
+            "fn": "canvas_accesskit_placements_and_toolbar",
+            "asserts": "toolbar ids and canvas.placement.* nodes"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 227,
+            "fn": "canvas_zoom_label_and_buttons",
+            "asserts": "zoom label and zoom buttons"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 261,
+            "fn": "canvas_pan_buttons",
+            "asserts": "pan buttons shift pan"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 290,
+            "fn": "canvas_add_card",
+            "asserts": "'+ Text card' emits create-card"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 410,
+            "fn": "canvas_drop_to_place_via_drag_payload",
+            "asserts": "drag payload drop emits place-block"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 473,
+            "fn": "canvas_group_two",
+            "asserts": "'Group (2)' shares a group id"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 521,
+            "fn": "canvas_semantic_edge",
+            "asserts": "semantic edge flow emits source/target"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 597,
+            "fn": "canvas_visual_edge_mode",
+            "asserts": "visual edge mode"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 622,
+            "fn": "canvas_remove_placement",
+            "asserts": "remove 'x' removes placement"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 1037,
+            "fn": "canvas_removal_receipt_requires_absence_and_source_block_retention",
+            "asserts": "removal requires placement absence and source block retention"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 1242,
+            "fn": "canvas_empty_no_stale_text",
+            "asserts": "empty board, no stale text, no panic"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 1274,
+            "fn": "canvas_screenshot_has_card",
+            "asserts": "screenshot shows a card"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 1371,
+            "fn": "client_viewport_body_is_board_state_wrapped",
+            "asserts": "viewport persistence request shape"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 1397,
+            "fn": "client_place_block_body",
+            "asserts": "placeBlockOnCanvas body"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 1428,
+            "fn": "client_create_card_body",
+            "asserts": "createCanvasCard body"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 1568,
+            "fn": "client_semantic_and_visual_edge_bodies",
+            "asserts": "createLoomEdge and addCanvasVisualEdge bodies"
+          }
+        ]
+      },
+      {
+        "id": "PC-026-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration --test test_canvas_board canvas_board_live_surrealdb_self_seeds_mounted_round_trip -- --exact",
+        "test_binary": "test_canvas_board",
+        "filter": "canvas_board_live_surrealdb_self_seeds_mounted_round_trip",
+        "features": [
+          "integration"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC1",
+          "AC2",
+          "AC3",
+          "AC4",
+          "AC5",
+          "AC6",
+          "AC7",
+          "AC8",
+          "AC9",
+          "AC10"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board.rs",
+            "line": 1828,
+            "fn": "canvas_board_live_surrealdb_self_seeds_mounted_round_trip",
+            "asserts": "live mounted canvas round trip with fresh-client recheck (AC coverage per doc comment)"
+          }
+        ]
+      },
+      {
+        "id": "PC-026-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration --test test_canvas_board_argus mt026_",
+        "test_binary": "test_canvas_board_argus",
+        "filter": "mt026_",
+        "features": [
+          "integration"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC6",
+          "AC7",
+          "AC9",
+          "AC10"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board_argus.rs",
+            "line": 238,
+            "fn": "mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve",
+            "asserts": "mounted canvas inspect/steer/mutate/reobserve via canonical Argus"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board_argus.rs",
+            "line": 642,
+            "fn": "mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges",
+            "asserts": "semantic and visual edges persist"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board_argus.rs",
+            "line": 884,
+            "fn": "mt026_mounted_canvas_canonical_argus_move_placement",
+            "asserts": "moved placement x/y persists"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board_argus.rs",
+            "line": 1047,
+            "fn": "mt026_mounted_canvas_canonical_argus_group_placements",
+            "asserts": "shared group id persists"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_canvas_board_argus.rs",
+            "line": 1222,
+            "fn": "mt026_mounted_canvas_empty_state_canonical_argus",
+            "asserts": "zero-placement board, no cards, no panic"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [],
+    "caveats": [
+      "contract module path loom::canvas_board does not exist; real path graph::canvas_board"
+    ]
   }
 }

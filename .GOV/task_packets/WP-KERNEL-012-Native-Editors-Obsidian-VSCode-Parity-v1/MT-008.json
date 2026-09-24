@@ -14,7 +14,7 @@
   "title": "E1-MT-008-LspClient",
   "group": "E1 Code editor (VS Code parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-23T23:40:44.783Z",
+  "updated_at_utc": "2026-09-24T04:08:15.141Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-008.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1545,5 +1545,257 @@
       }
     ],
     "iv_disposition": "Not an MT verdict: run45 failures were the validator harness missing env (IV-owned setup). Status restored to READY_FOR_VALIDATION by INTEGRATION_VALIDATOR at 2026-09-23T23:40:44.783Z."
+  },
+  "proof_commands": {
+    "schema": "hsk.mt_proof_commands@1",
+    "authored_by": "KERNEL_BUILDER-C5-20260923-2250",
+    "authored_at_utc": "2026-09-24T04:08:15.141Z",
+    "source_sha": "2258707eaba0f7518d1978a50b143b76445fc40f",
+    "gap_closed": "KB-OUT-007: MT-specific executable proof commands (previously only shared boilerplate)",
+    "method": "each test fn verified by grep at source_sha (file:line); features from Cargo.toml [[test]] required-features and in-file cfg(feature) gates; nothing executed",
+    "live_backend_env": "requires_live_backend=true commands need HSK_TEST_BACKEND_BIN + HSK_TEST_BACKEND_TARGET_ROOT (<Artifacts>/WP/MT/owner/target), HANDSHAKE_TEST_STAGE_BINDING_ROOT, a WP/MT/owner-shaped HANDSHAKE_ARTIFACTS_ROOT or HANDSHAKE_TEST_ARTIFACTS_ROOT; GPU frames need HANDSHAKE_GPU_SCREENSHOT=1 (else typed DEFERRED). Owned-backend proofs share one global managed-backend-fixture.lock: run them serialized (nextest test-group max-threads=1) with a slow-timeout >= 1200 s",
+    "core_env": "handshake_core tests need HANDSHAKE_SURREAL_TEST_STORE_ROOT below HANDSHAKE_ARTIFACTS_ROOT; HANDSHAKE_TEST_SURREAL_SYNC=never for fsync-free test stores",
+    "commands": [
+      {
+        "id": "PC-008-01",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration --test test_code_nav_client live_backend::",
+        "test_binary": "test_code_nav_client",
+        "filter": "live_backend::",
+        "features": [
+          "integration"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-001",
+          "AC-002",
+          "AC-003"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_code_nav_client.rs",
+            "line": 509,
+            "fn": "ac001_lookup_symbols_returns_populated_live_symbol",
+            "asserts": "lookup_symbols(ws,'add',5) returns seeded 'add' with symbol_kind, definition.line_start>0, staleness populated"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_code_nav_client.rs",
+            "line": 545,
+            "fn": "ac002_get_symbol_returns_populated_live_definition",
+            "asserts": "get_symbol(entity) returns display_name 'add' and definition.line_start>0"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_code_nav_client.rs",
+            "line": 570,
+            "fn": "ac003_get_references_returns_populated_live_caller",
+            "asserts": "get_references total>=1 and callers include 'caller'"
+          }
+        ]
+      },
+      {
+        "id": "PC-008-02",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_lsp_client lsp_client_graceful",
+        "test_binary": "test_lsp_client",
+        "filter": "lsp_client_graceful",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-004"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_lsp_client.rs",
+            "line": 981,
+            "fn": "lsp_client_graceful_unconfigured_is_not_running",
+            "asserts": "unconfigured LspClient not running"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_lsp_client.rs",
+            "line": 1018,
+            "fn": "lsp_client_graceful_all_methods_return_empty_without_server",
+            "asserts": "all LSP methods return empty/None without a server, no panic"
+          }
+        ]
+      },
+      {
+        "id": "PC-008-03",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_lsp_client lsp_publish_diagnostics_notification_",
+        "test_binary": "test_lsp_client",
+        "filter": "lsp_publish_diagnostics_notification_",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-008"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_lsp_client.rs",
+            "line": 1418,
+            "fn": "lsp_publish_diagnostics_notification_is_routed_to_channel",
+            "asserts": "mock server publishDiagnostics routed to the diagnostics channel"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_lsp_client.rs",
+            "line": 1548,
+            "fn": "lsp_publish_diagnostics_notification_reaches_panel_gutter",
+            "asserts": "mock error diagnostic reaches the panel gutter via push_diagnostics"
+          }
+        ]
+      },
+      {
+        "id": "PC-008-04",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_completion_hover_accesskit -- --exact ac005_completion_popup_emits_listbox_and_item_nodes ac005_completion_keyboard_select_and_accept_inserts ac005_accesskit_click_accepts_completion_and_post_action_state_is_observable ac006_hover_tooltip_contains_identifier ac006_accesskit_click_go_to_definition_moves_caret_and_closes_hover ac007_staleness_check_pushes_gutter_diagnostic_marker",
+        "test_binary": "test_completion_hover_accesskit",
+        "filter": "exact list (6)",
+        "features": [],
+        "requires_live_backend": false,
+        "covers": [
+          "AC-005",
+          "AC-006",
+          "AC-007"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_completion_hover_accesskit.rs",
+            "line": 342,
+            "fn": "ac005_completion_popup_emits_listbox_and_item_nodes",
+            "asserts": "completion popup ListBox AccessKit node with item nodes"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_completion_hover_accesskit.rs",
+            "line": 420,
+            "fn": "ac005_completion_keyboard_select_and_accept_inserts",
+            "asserts": "keyboard select + accept inserts completion"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_completion_hover_accesskit.rs",
+            "line": 475,
+            "fn": "ac005_accesskit_click_accepts_completion_and_post_action_state_is_observable",
+            "asserts": "AccessKit click accepts completion, post-action state observable"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_completion_hover_accesskit.rs",
+            "line": 530,
+            "fn": "ac006_hover_tooltip_contains_identifier",
+            "asserts": "hover Tooltip node contains the identifier"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_completion_hover_accesskit.rs",
+            "line": 599,
+            "fn": "ac006_accesskit_click_go_to_definition_moves_caret_and_closes_hover",
+            "asserts": "go-to-definition from hover moves caret, closes hover"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_completion_hover_accesskit.rs",
+            "line": 688,
+            "fn": "ac007_staleness_check_pushes_gutter_diagnostic_marker",
+            "asserts": "after staleness check a gutter diagnostic marker exists (wgpu)"
+          }
+        ]
+      },
+      {
+        "id": "PC-008-05",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration --test test_completion_hover_accesskit -- --exact ac005_live_backend_completion_reaches_accesskit_and_stale_gutter ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc",
+        "test_binary": "test_completion_hover_accesskit",
+        "filter": "exact list (2)",
+        "features": [
+          "integration"
+        ],
+        "requires_live_backend": true,
+        "covers": [
+          "AC-005",
+          "AC-006",
+          "AC-007"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_completion_hover_accesskit.rs",
+            "line": 160,
+            "fn": "ac005_live_backend_completion_reaches_accesskit_and_stale_gutter",
+            "asserts": "live completion reaches ListBox item plus stale gutter marker"
+          },
+          {
+            "ignored": false,
+            "file": "tests/test_completion_hover_accesskit.rs",
+            "line": 257,
+            "fn": "ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc",
+            "asserts": "live hover Tooltip carries definition and doc for 'add'"
+          }
+        ]
+      },
+      {
+        "id": "PC-008-06",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --test test_lsp_client real_language_server_end_to_end_runtime_proof -- --exact",
+        "test_binary": "test_lsp_client",
+        "filter": "real_language_server_end_to_end_runtime_proof",
+        "features": [],
+        "requires_live_backend": false,
+        "requires": "clangd on PATH or HANDSHAKE_REAL_LSP_SERVER",
+        "covers": [
+          "AC-005",
+          "AC-006",
+          "AC-008"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_lsp_client.rs",
+            "line": 1936,
+            "fn": "real_language_server_end_to_end_runtime_proof",
+            "asserts": "real clangd: didOpen/didChange, diagnostics, hover, completion"
+          }
+        ]
+      },
+      {
+        "id": "PC-008-07",
+        "cwd": "src/frontend/handshake_native",
+        "command": "cargo test --locked --features integration --test test_completion_hover_accesskit mt008_mounted_real_lsp_canonical_argus -- --exact",
+        "test_binary": "test_completion_hover_accesskit",
+        "filter": "mt008_mounted_real_lsp_canonical_argus",
+        "features": [
+          "integration"
+        ],
+        "requires_live_backend": false,
+        "requires": "clangd on PATH or HANDSHAKE_REAL_LSP_SERVER",
+        "covers": [
+          "AC-005",
+          "AC-006",
+          "AC-008"
+        ],
+        "evidence": [
+          {
+            "ignored": false,
+            "file": "tests/test_completion_hover_accesskit.rs",
+            "line": 1325,
+            "fn": "mt008_mounted_real_lsp_canonical_argus",
+            "asserts": "mounted HandshakeApp: clangd diagnostics/hover/completion inspected and steered via canonical Argus"
+          }
+        ]
+      }
+    ],
+    "unmapped_acs": [],
+    "caveats": [
+      "live tests need HANDSHAKE_TEST_DB_URL, HANDSHAKE_TEST_WORKSPACE_ID, HANDSHAKE_TEST_CODE_SYMBOL_ENTITY_ID",
+      "ac007 staleness test uses .wgpu() (GPU)"
+    ]
   }
 }
