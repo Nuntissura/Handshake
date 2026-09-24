@@ -6756,9 +6756,9 @@ IF array::len(SELECT id FROM knowledge_passage_evidence WHERE passage_id IN (SEL
 IF array::len(SELECT id FROM knowledge_retrieval_traces WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM knowledge_semantic_catalog_entries WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM loom_block_knowledge_bridge WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM loom_canvas_boards WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM loom_canvas_placements WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM loom_canvas_visual_edges WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_boards WHERE (workspace_id = $workspace OR block_id.workspace_id = $workspace) AND (workspace_id = $workspace AND block_id.workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_placements WHERE (workspace_id = $workspace OR canvas_block_id.workspace_id = $workspace OR placed_block_id.workspace_id = $workspace) AND (workspace_id = $workspace AND canvas_block_id.workspace_id = $workspace AND placed_block_id.workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_visual_edges WHERE (workspace_id = $workspace OR canvas_block_id.workspace_id = $workspace OR from_placement_id.workspace_id = $workspace OR to_placement_id.workspace_id = $workspace) AND (workspace_id = $workspace AND canvas_block_id.workspace_id = $workspace AND from_placement_id.workspace_id = $workspace AND to_placement_id.workspace_id = $workspace AND from_placement_id.canvas_block_id = canvas_block_id AND to_placement_id.canvas_block_id = canvas_block_id) != true) > 0 { RETURN false; };
 IF array::len(SELECT id FROM documents WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
 IF array::len(SELECT id FROM blocks WHERE document_id IN (SELECT VALUE id FROM documents WHERE workspace_id = $workspace) AND (document_id IN (SELECT VALUE id FROM documents WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
 IF array::len(SELECT id FROM canvases WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
@@ -6950,7 +6950,7 @@ DEFINE FUNCTION OVERWRITE fn::mt120_document_delete($document: string, $workspac
     RETURN true;
 };
 DEFINE FUNCTION OVERWRITE fn::mt120_index_source_read($source: option<record<knowledge_sources>>, $workspace: record<workspaces>) {
-    RETURN $source != NONE AND $source.workspace_id = $workspace AND $source.source_kind = 'file'
+    RETURN $source != NONE AND $source.workspace_id = $workspace AND $source.source_kind IN ['file', 'rich_document']
         AND fn::mt109_source_read('knowledge_source', record::id($source), record::id($workspace), 'workspace', record::id($workspace));
 };
 DEFINE FUNCTION OVERWRITE fn::mt120_entity_read($entity: record<knowledge_entities>) {
@@ -7044,7 +7044,7 @@ DEFINE FUNCTION OVERWRITE fn::mt120_nav_quiet_row($row: object, $write: bool) {
 DEFINE FIELD OVERWRITE created_in_session_id ON TABLE knowledge_source_roots TYPE option<record<authenticated_sessions>> PERMISSIONS FOR select, create FULL FOR update NONE;
 DEFINE FIELD OVERWRITE created_in_session_id ON TABLE knowledge_index_runs TYPE option<record<authenticated_sessions>> PERMISSIONS FOR select, create FULL FOR update NONE;
 DEFINE FUNCTION OVERWRITE fn::mt120_index_source_write($source: option<record<knowledge_sources>>, $workspace: record<workspaces>) {
-    RETURN $source != NONE AND $source.workspace_id = $workspace AND $source.source_kind = 'file'
+    RETURN $source != NONE AND $source.workspace_id = $workspace AND $source.source_kind IN ['file', 'rich_document']
         AND fn::mt109_has_grant('knowledge_source', record::id($source), 'update', 'memory.propose')
         AND fn::mt109_has_workspace_access(record::id($workspace), 'read', 'memory.read');
 };
