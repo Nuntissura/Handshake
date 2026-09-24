@@ -12162,7 +12162,7 @@ mod tests {
         m.assert_receipts(family, since, true).await;
         let card = m
             .owner_ok(
-                family,
+                "canvas/text-card",
                 "POST",
                 &format!("/loom/canvas-boards/{canvas_id}/cards"),
                 json!({"title": "MT153 text card", "body": "card body", "x": 40.0, "y": 40.0, "w": 200.0, "h": 120.0}),
@@ -12173,19 +12173,61 @@ mod tests {
             .unwrap()
             .to_owned();
         // AC-153-7: the Stage path runs under the account session and record-user scope.
-        let stage_provenance = |artifact: &str| {
-            json!({
-                "schema_id": LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
-                "artifact_id": artifact,
-                "sha256": "a".repeat(64),
-                "manifest_ref": format!("mt153-manifest-{artifact}"),
-                "causal_action_id": format!("mt153-action-{artifact}"),
-            })
+        // Seed real capture authority, as in loom_canvas_board_tests; invented provenance
+        // is correctly rejected before the Stage card can exercise route authorization.
+        // This is fixture setup only: all card/compensation requests below remain record-user HTTP.
+        use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
+        use crate::storage::stage_artifacts::{NewStageCaptureArtifact, StageArtifactStore};
+        let stage_receipt = |event_type, key: &str| {
+            NewKernelEvent::builder(
+                "mt153-stage-fixture",
+                "mt153-stage-fixture-session",
+                event_type,
+                KernelActor::Operator("mt153-stage-fixture".to_owned()),
+            )
+            .aggregate("stage_capture_artifact", "pending")
+            .idempotency_key(key)
+            .correlation_id("mt153-stage-capture")
+            .source_component("mt153_route_matrix")
+            .payload(json!({"proof": "stage_capture_fixture"}))
+            .build()
+            .expect("Stage fixture receipt")
         };
-        let stage_card = |artifact: &str| {
-            let provenance = stage_provenance(artifact);
+        let capture = StageArtifactStore::new(m.state.surreal.clone())
+            .insert_stage_artifact(NewStageCaptureArtifact {
+                workspace_id: m.ws.clone(),
+                content_kind: "canvas_node".to_owned(),
+                label: "MT153 capture".to_owned(),
+                content_type: "text/plain".to_owned(),
+                content_json: json!({"text": "MT153 capture"}),
+                content_bytes: b"MT153 capture".to_vec(),
+                source_ref: None,
+                idempotency_key: "mt153-stage-capture".to_owned(),
+                request_hash: format!("{:x}", Sha256::digest(b"MT153 capture")),
+                actor_kind: "operator".to_owned(),
+                actor_id: "mt153-stage-fixture".to_owned(),
+                correlation_id: "mt153-stage-capture".to_owned(),
+                approval_id: "mt153-fixture-approval".to_owned(),
+                decision_receipt: stage_receipt(
+                    KernelEventType::ToolDecisionRecorded,
+                    "mt153-stage-decision",
+                ),
+                receipt: stage_receipt(KernelEventType::ArtifactStored, "mt153-stage-stored"),
+            })
+            .await
+            .expect("persist authoritative Stage capture fixture")
+            .artifact;
+        let stage_provenance = json!({
+            "schema_id": LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
+            "artifact_id": capture.artifact_id,
+            "sha256": capture.content_sha256,
+            "manifest_ref": capture.manifest_ref,
+            "causal_action_id": capture.correlation_id,
+        });
+        let stage_card = || {
+            let provenance = &stage_provenance;
             json!({
-                "title": format!("Stage capture {artifact}"),
+                "title": format!("Stage capture {}", capture.artifact_id),
                 "body": provenance.to_string(),
                 "x": 60.0, "y": 60.0, "w": 200.0, "h": 120.0,
                 "stage_provenance": provenance,
@@ -12194,10 +12236,10 @@ mod tests {
         let since = m.ledger_sequence().await;
         let staged = m
             .owner_ok(
-                family,
+                "canvas/stage-card",
                 "POST",
                 &format!("/loom/canvas-boards/{canvas_id}/cards"),
-                stage_card("mt153-artifact"),
+                stage_card(),
             )
             .await;
         m.assert_receipts(family, since, false).await;
@@ -12267,12 +12309,12 @@ mod tests {
             (
                 "POST",
                 format!("/loom/canvas-boards/{canvas_id}/cards"),
-                stage_card("mt153-intruder"),
+                stage_card(),
             ),
             (
                 "POST",
                 format!("/loom/canvas-boards/{canvas_id}/stage-cards/{stage_placement}/compensate"),
-                json!({"placed_block_id": stage_block, "stage_provenance": stage_provenance("mt153-artifact")}),
+                json!({"placed_block_id": stage_block, "stage_provenance": stage_provenance}),
             ),
         ] {
             m.assert_write_denied(family, method, &path, body, canvas_rows)
@@ -12289,8 +12331,10 @@ mod tests {
             .owner_ok(
                 family,
                 "POST",
-                &format!("/loom/canvas-boards/{canvas_id}/stage-cards/{stage_placement}/compensate"),
-                json!({"placed_block_id": stage_block, "stage_provenance": stage_provenance("mt153-artifact")}),
+                &format!(
+                    "/loom/canvas-boards/{canvas_id}/stage-cards/{stage_placement}/compensate"
+                ),
+                json!({"placed_block_id": stage_block, "stage_provenance": stage_provenance}),
             )
             .await;
         assert_eq!(
