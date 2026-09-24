@@ -68,8 +68,9 @@ fn mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query() {
     };
     use handshake_native::find_in_files::{
         bookmark_remove_author_id, bookmark_restore_author_id, parse_bookmark_state, KindFilter,
-        SearchBookmark, BOOKMARK_COMPLETION_AUTHOR_ID, BOOKMARK_STATUS_AUTHOR_ID,
-        MAX_COMPLETION_TARGET_AUTHOR_BYTES, QUERY_AUTHOR_ID, SAVE_BOOKMARK_AUTHOR_ID,
+        SearchBookmark, BOOKMARK_COMPLETION_AUTHOR_ID, BOOKMARK_RETRY_AUTHOR_ID,
+        BOOKMARK_STATUS_AUTHOR_ID, MAX_COMPLETION_TARGET_AUTHOR_BYTES, QUERY_AUTHOR_ID,
+        SAVE_BOOKMARK_AUTHOR_ID,
     };
     use screenshot_harness::ScreenshotHarness as Harness;
 
@@ -211,6 +212,27 @@ fn mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query() {
     );
 
     // 2. Save the bookmark through the production control; the persisted PUT is real.
+    // Mount starts an asynchronous bookmark GET. Query SetValue completion does
+    // not establish that this load settled; never steer its disabled Save button.
+    let mut save_ready = false;
+    let mut readiness_tree = serde_json::Value::Null;
+    for _ in 0..400 {
+        ui_harness.run_steps(1);
+        readiness_tree = argus.inspect(&mut ui_harness);
+        assert!(
+            !json_has_author_id(&readiness_tree, BOOKMARK_RETRY_AUTHOR_ID),
+            "initial bookmark load failed: {readiness_tree}"
+        );
+        save_ready = json_node_by_author_id(&readiness_tree, SAVE_BOOKMARK_AUTHOR_ID)
+            .and_then(|node| node.get("disabled"))
+            .and_then(serde_json::Value::as_bool)
+            == Some(false);
+        if save_ready {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    assert!(save_ready, "bookmark load did not settle: {readiness_tree}");
     argus.click_expect_applied_and_reinspect(&mut ui_harness, SAVE_BOOKMARK_AUTHOR_ID);
     for _ in 0..400 {
         ui_harness.run_steps(1);
@@ -281,13 +303,25 @@ fn mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query() {
     // CX-212E: the ONE MT-113 artifact folder under the external test root. `interconnect_support`'s
     // helper is MT-046-rooted, so this proof resolves its own subdir instead of nesting under another
     // MT's tree (no sibling artifact folders, nothing inside the repo).
-    let frame_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(4)
-        .expect("native crate must live below a worktree root")
-        .join("Handshake_Artifacts")
-        .join("handshake-test")
-        .join("wp-kernel-012-mt-113");
+    let artifact_root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+        .map(std::path::PathBuf::from)
+        .expect("runner must supply the verified artifact root");
+    let owner_root = std::env::var_os("HANDSHAKE_TEST_ARTIFACTS_ROOT")
+        .map(std::path::PathBuf::from)
+        .expect("runner must supply the assigned artifact owner");
+    assert!(artifact_root.is_absolute() && owner_root.is_absolute());
+    let artifact_root = artifact_root
+        .canonicalize()
+        .expect("verified artifact root");
+    let owner_root = owner_root.canonicalize().expect("assigned artifact owner");
+    let relative_owner = owner_root
+        .strip_prefix(&artifact_root)
+        .expect("artifact owner must be inside verified root");
+    assert!(
+        relative_owner.components().count() >= 3,
+        "WP/MT/owner isolation"
+    );
+    let frame_dir = owner_root.join("wp-kernel-012-mt-113").join(&unique);
     std::fs::create_dir_all(&frame_dir).expect("create MT-113 frame directory");
     let before_frame = ui_harness
         .render_proof_frame("MT-113 long-query bookmark row mounted before Remove")
