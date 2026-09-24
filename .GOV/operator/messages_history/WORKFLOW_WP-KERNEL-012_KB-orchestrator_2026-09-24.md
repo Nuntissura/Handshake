@@ -100,6 +100,96 @@ The Handshake Creation Template skill was consulted only as a shape/check refere
 
 </topic>
 
+<topic id="verified-command-cards" wp="WP-KERNEL-012" updated_at="2026-09-24">
+
+## Command cards — re-verify live paths and inputs before use
+
+These are examples for the *existing* Windows/Git-Bash lanes, not permission to launch another round or test. The validator owns the runner commands, the builders own check/clippy, and the orchestrator owns only read-only inspection and its explicit governance commit. Do not run the launch card while a round is active. `C:\Program Files\Git\bin\bash.exe`, the runner and both warm targets existed on 2026-09-24; verify again on resume. [Codex CX-EXEC-009/CX-VAL-001/CX-SAFE-002; KB-OUT-008]
+
+```powershell
+# Run from wt-gov-kernel. Read-only roots and branch checks; no guessed cwd fallback.
+$worktrees = (Resolve-Path -LiteralPath '..').Path
+$product = Join-Path $worktrees 'wtc-native-editors-v1'
+$kernel = (Get-Location).Path
+$artifacts = Join-Path $worktrees 'Handshake_Artifacts'
+$lane = Join-Path $artifacts 'WP-KERNEL-012\MT-109\wpv-c3x'
+$target = 'C:\.target\WP-KERNEL-012\MT-109\wpv-c3x\target-r52'
+$builderTarget = Join-Path $artifacts 'WP-KERNEL-012\MT-154\kb-c5\target'
+@($product,$artifacts,$lane,$target,$builderTarget) | ForEach-Object { Resolve-Path -LiteralPath $_ }
+git -C $kernel status --short --branch
+git -C $product status --short --branch
+git -C $product rev-parse HEAD
+git -C $product ls-remote origin refs/heads/feat/WP-KERNEL-012
+git -C $product worktree list
+Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'cargo|rustc|nextest' } |
+    Select-Object ProcessId,Name,ParentProcessId,CreationDate,CommandLine
+```
+
+The next two checks are read-only; use exact canonical `MT-###.json`, and measure target bytes **before** asking the validator to launch. Account for a new archive (~0.26 GiB observed for each of `export-2bf51103` and `export-4ffda19b`) plus changed crate/test artifacts; do not claim the unused cap is a guaranteed build budget. [Codex CX-STATUS-001/CX-984-014; runner `check_target_cap`]
+
+```powershell
+$packet = Join-Path $kernel '.GOV\task_packets\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1'
+Get-ChildItem -LiteralPath $packet -File |
+    Where-Object { $_.Name -match '^MT-\d{3}\.json$' } |
+    ForEach-Object { (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json).lifecycle.status } |
+    Group-Object | Sort-Object Name | Select-Object Name,Count
+$targetBytes = (Get-ChildItem -LiteralPath $target -Recurse -File | Measure-Object Length -Sum).Sum
+$capBytes = 150000000000
+[pscustomobject]@{ TargetBytes=$targetBytes; HeadroomBytes=$capBytes-$targetBytes;
+                    CFreeBytes=(Get-PSDrive C).Free }
+```
+
+The builder check card is a **compile/static** card, not a test command. Select the actual changed crate/feature/test targets from the MT and source diff; serialize all D: Cargo work. The example below checks a named native test target without linking/running it. Run only when the builder owns D:, from the product worktree, with a stable source tree. Do not run it from C: or replace it with `cargo test`. [Operator 2026-09-24; KB-OUT-002/008; Codex CX-984-002]
+
+```powershell
+$env:CARGO_TARGET_DIR = $builderTarget
+$env:CARGO_INCREMENTAL = '0'
+$env:CARGO_PROFILE_DEV_DEBUG = 'line-tables-only'
+$env:CARGO_PROFILE_TEST_DEBUG = 'line-tables-only'
+$env:TMP = Join-Path $artifacts 'WP-KERNEL-012\MT-154\kb-c5\tmp'
+$env:TEMP = $env:TMP
+cargo check --locked --manifest-path (Join-Path $product 'src\frontend\handshake_native\Cargo.toml') `
+    --features integration,integration_tests,wgpu_screenshots --test test_author_id_budget
+# After the builder inspects the exact diff and compile exit:
+# git -C $product commit -m '<MT scope and change>' -- <explicit product paths>
+# git -C $product push origin HEAD:refs/heads/feat/WP-KERNEL-012
+# git -C $product ls-remote origin refs/heads/feat/WP-KERNEL-012
+```
+
+The validator's round card is shown for audit, **not** for the orchestrator/builder to execute. `run-round.sh` currently hardcodes `$target` and ignores `RUN_ROUND_TARGET`; the validator must verify/fix that discrepancy *after the running round* before using the Operator's variable contract. Preflight the script, both configs, every config reader, env/path length and cap first. Launch hidden with redirected logs and retain returned PID/start/command; never put a whole-run timeout around it. [Operator RUN_ROUND_TARGET direction; IV-OUT-005; Codex CX-VAL-001/004; runner header/`TARGET`]
+
+```powershell
+$sha = git -C $product rev-parse HEAD
+if ($sha -notmatch '^[0-9a-f]{40}$') { throw 'full candidate SHA required' }
+$runner = Join-Path $lane 'run-round.sh'
+$gitBash = 'C:\Program Files\Git\bin\bash.exe'
+Get-Content -LiteralPath $runner -Raw                 # inspect, do not skip
+Get-Content -LiteralPath (Join-Path $lane 'nextest-core.toml') -Raw
+Get-Content -LiteralPath (Join-Path $lane 'nextest.toml') -Raw
+# Only the assigned validator, after completed preflight and when no round is live:
+# $job = Start-Process -WindowStyle Hidden -FilePath $gitBash `
+#     -ArgumentList ('"{0}" {1}' -f $runner,$sha) -PassThru `
+#     -RedirectStandardOutput (Join-Path $lane ('logs\round-{0}.stdout.log' -f $sha.Substring(0,8))) `
+#     -RedirectStandardError (Join-Path $lane ('logs\round-{0}.stderr.log' -f $sha.Substring(0,8)))
+# $job | Select-Object Id,StartTime,Path
+```
+
+During the run, read the current log tail and process state without relaunching Cargo. At completion the validator reads both JUnit files, named MT proof lines and export/binary provenance before any verdict; grep counts alone never issue a verdict. [KB-STEER-004; Codex CX-EXEC-008/CX-VAL-001/004; WPV-OUT-006]
+
+```powershell
+$short = $sha.Substring(0,8)
+Get-Content -LiteralPath (Join-Path $lane ("logs\round-$short.stderr.log")) -Tail 30
+Get-Content -LiteralPath (Join-Path $lane ("logs\round-$short.stdout.log")) -Tail 15
+Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'cargo|rustc|nextest' } |
+    Select-Object ProcessId,Name,ParentProcessId,CreationDate,CommandLine
+# After round completion only:
+# Test-Path -LiteralPath (Join-Path $lane ("junit-$sha-core.xml"))
+# Test-Path -LiteralPath (Join-Path $lane ("junit-$sha-native.xml"))
+# Get-FileHash -Algorithm SHA256 -LiteralPath <exact log or JUnit path>
+```
+
+</topic>
+
 <topic id="failure-log" wp="WP-KERNEL-012" updated_at="2026-09-24">
 
 ## G. Failures to avoid — observed, not a replacement rulebook
