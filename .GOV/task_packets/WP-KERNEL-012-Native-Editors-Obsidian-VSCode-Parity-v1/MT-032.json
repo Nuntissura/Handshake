@@ -14,7 +14,7 @@
   "title": "E5-MT-032-EverythingIsLoomBlockBacklinks",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-31T21:07:13.6817583Z",
+  "updated_at_utc": "2026-09-24T15:56:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PASS_V4",
+    "status": "BLOCKED",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -37,7 +37,9 @@
       "MT-034",
       "MT-044"
     ],
-    "validator_verdict": "PASS_V4",
+    "validator_verdict": null,
+    "prior_validator_verdict": "PASS_V4",
+    "blocked_on": "MT-032 delete transaction database-context repair: frozen 2bf51103 union knowledge_documents_api_tests cases 60, 61, 65, and 67 return 500 with statement_index=1 'Specify a database to use'; Builder1 owns the named product fix",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-31T21:07:13.6817583Z",
