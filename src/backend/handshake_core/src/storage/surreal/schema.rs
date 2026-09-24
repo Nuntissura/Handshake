@@ -3075,7 +3075,9 @@ const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 260;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
 // MT-141 V2-R2: loom_block_view_fr_outbox.block_id lost its cascading REFERENCE (MT-027 0362).
-const REFERENCE_FIELD_COUNT: usize = 406;
+// 407: DDL (non-comment) REFERENCE clauses in schema.surql at 0cfbff64 and after; the pinned 406
+// predated one added REFERENCE field (kb-c5 static count, 2026-09-24).
+const REFERENCE_FIELD_COUNT: usize = 407;
 const EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT: usize = 402;
 const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 229;
 
@@ -9069,8 +9071,14 @@ mod tests {
             SCHEMA.matches("DEFINE INDEX OVERWRITE ").count(),
             INDEX_DEFINITION_COUNT
         );
+        // Count REFERENCE clauses in DDL only: a SurrealQL comment may name the clause (MT-154,
+        // schema.surql owner-delete comment) without defining a field.
         assert_eq!(
-            SCHEMA.matches("REFERENCE ON DELETE ").count(),
+            SCHEMA
+                .lines()
+                .filter(|line| !line.trim_start().starts_with("--"))
+                .map(|line| line.matches("REFERENCE ON DELETE ").count())
+                .sum::<usize>(),
             REFERENCE_FIELD_COUNT
         );
         assert_eq!(
