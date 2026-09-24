@@ -617,22 +617,47 @@ COMMIT TRANSACTION;
         token: &str,
         channel_hash: &str,
     ) -> Result<Vec<Workspace>, super::resource_authority::ResourceAuthorityError> {
-        use super::resource_authority::{SigninParams, AUTHORITY_ACCESS_METHOD};
+        use super::resource_authority::{
+            AuthorizationRequest, ResourceAction, ResourceAuthorityError, ResourceKind, SigninParams,
+            AUTHORITY_ACCESS_METHOD,
+        };
         use sha2::{Digest, Sha256};
         use surrealdb::opt::auth::Record;
         let namespace = self.config().namespace().to_owned();
         let database = self.config().database().to_owned();
         let token_hash = hex::encode(Sha256::digest(token.as_bytes()));
         let channel_binding_hash = Some(channel_hash.to_owned());
-        self.with_lease(move |client| Box::pin(async move {
+        let candidates: Vec<Workspace> = self.with_lease(move |client| Box::pin(async move {
             let ordinary = client.clone();
             ordinary.use_ns(namespace.clone()).use_db(database.clone()).await?;
             ordinary.signin(Record { namespace, database, access: AUTHORITY_ACCESS_METHOD.to_owned(),
                 params: SigninParams { token_hash, channel_binding_hash } }).await?;
-            let mut result = ordinary.query("SELECT * FROM workspaces WHERE fn::mt109_has_workspace_access(record::id(id), 'read', 'fs.read') ORDER BY created_at, id;").await?.check()?;
+            // Table RLS evaluates grants with permission-predicate visibility. A normal WHERE
+            // invocation instead sees protected_resources.external_resource_id as NONE.
+            let mut result = ordinary.query("SELECT * FROM workspaces ORDER BY created_at, id;").await?.check()?;
             let rows: Vec<WorkspaceRecord> = result.take(0)?;
             rows.into_iter().map(TryInto::try_into).collect()
-        })).await.map_err(Into::into)
+        })).await?;
+        let mut visible = Vec::with_capacity(candidates.len());
+        for workspace in candidates {
+            // Table RLS also admits memory/fr readers; this route still requires fs.read.
+            match self
+                .authorize_protected_resource(AuthorizationRequest {
+                    session_token: token.to_owned(),
+                    channel_binding_hash: Some(channel_hash.to_owned()),
+                    capability_id: "fs.read".to_owned(),
+                    resource_kind: ResourceKind::Workspace,
+                    external_resource_id: workspace.id.clone(),
+                    action: ResourceAction::Read,
+                })
+                .await
+            {
+                Ok(_) => visible.push(workspace),
+                Err(ResourceAuthorityError::Denied { .. }) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(visible)
     }
 
     pub async fn create_workspace(

@@ -684,7 +684,7 @@ impl LiveBackend {
                 .into_iter()
                 .flatten()
                 .any(|workspace| { workspace["id"] == workspace_id && workspace["name"] == name }),
-            "the created workspace must be immediately visible through the product list projection"
+            "the created workspace must be immediately visible through the product list projection: expected id={workspace_id} name={name:?}; list={workspaces}"
         );
         println!(
             "MT-065 product identity bound: workspace_id={workspace_id} observed through create and list APIs backed by SurrealDB"
