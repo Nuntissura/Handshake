@@ -3,8 +3,8 @@
 //! These egui_kittest tests drive the panel's REAL public completion/hover/staleness API and inspect
 //! the LIVE AccessKit tree + rendered state — the same nodes a swarm agent reads out-of-process and the
 //! same pixels an operator sees. Standalone tests isolate rendering and interaction semantics. With
-//! `--features integration`, strict live tests consume the managed-SurrealDB fixture values from
-//! `HANDSHAKE_TEST_DB_URL` and `HANDSHAKE_TEST_WORKSPACE_ID`, drive the real async CodeNavClient path,
+//! `--features integration`, strict live tests seed their own authenticated managed-SurrealDB workspace,
+//! drive the real async CodeNavClient path,
 //! and require populated backend data to reach the AccessKit popup/tooltip and stale gutter marker.
 //!
 //! AC-005 / PT-005: trigger completion -> the live tree contains `code_editor_completion_popup`
@@ -20,6 +20,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use egui_kittest::kittest::NodeT;
+#[path = "mt008_code_nav_support/mod.rs"]
+mod mt008_code_nav_support;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
@@ -55,20 +57,14 @@ fn hover_target(line: u32) -> CodeNavigationLocation {
 }
 
 #[cfg(feature = "integration")]
-fn live_fixture() -> (String, String) {
-    let base_url = std::env::var("HANDSHAKE_TEST_DB_URL")
-        .expect("MT-008 live UI proof requires HANDSHAKE_TEST_DB_URL from the ready fixture");
-    assert!(
-        base_url.starts_with("http://") || base_url.starts_with("https://"),
-        "HANDSHAKE_TEST_DB_URL must be the fixture HTTP base URL; got {base_url:?}"
-    );
-    let workspace_id = std::env::var("HANDSHAKE_TEST_WORKSPACE_ID")
-        .expect("MT-008 live UI proof requires HANDSHAKE_TEST_WORKSPACE_ID from the ready fixture");
-    (base_url, workspace_id)
+fn live_fixture() -> mt008_code_nav_support::CodeFixture {
+    let fixture = mt008_code_nav_support::CodeFixture::new();
+    fixture.mark_stale();
+    fixture
 }
 
 fn external_artifact_dir(subdir: &str) -> PathBuf {
-    Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
+    mt008_code_nav_support::external_artifact_dir(subdir)
 }
 
 fn assert_no_local_test_output() {
@@ -103,8 +99,31 @@ fn stale_add_lookup_body() -> String {
 fn spawn_one_lookup_server() -> (String, std::thread::JoinHandle<String>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind MT-008 lookup mock server");
     let base_url = format!("http://{}", listener.local_addr().expect("local addr"));
+    listener
+        .set_nonblocking(true)
+        .expect("bound mock accept wait");
     let handle = std::thread::spawn(move || {
-        let (mut stream, _) = listener.accept().expect("accept lookup request");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let mut stream = loop {
+            match listener.accept() {
+                Ok((stream, _)) => break stream,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    assert!(
+                        std::time::Instant::now() < deadline,
+                        "mock lookup request not received within 10s"
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                Err(error) => panic!("accept lookup request: {error}"),
+            }
+        };
+        stream.set_nonblocking(false).expect("blocking mock stream");
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(10)))
+            .expect("bound mock read wait");
+        stream
+            .set_write_timeout(Some(std::time::Duration::from_secs(10)))
+            .expect("bound mock write wait");
         let mut request = Vec::new();
         let mut buf = [0_u8; 1024];
         loop {
@@ -130,6 +149,22 @@ fn spawn_one_lookup_server() -> (String, std::thread::JoinHandle<String>) {
         request_text
     });
     (base_url, handle)
+}
+
+// Explicit identity only for this file's isolated mock HTTP servers, never the live fixture.
+fn mock_account_context(base: &str) -> Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext =
+        serde_json::from_value(serde_json::json!({
+            "account_id": "mock-account", "principal_id": "mock-principal",
+            "session_id": "mock-session", "access_space_id": "mock-space",
+            "session_token": "a".repeat(64)
+        }))
+        .expect("mock identity");
+    Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
 }
 
 /// Two synthetic completion items (the shape the code-nav lookup yields), so the popup-render +
@@ -158,7 +193,7 @@ fn synthetic_completions() -> Vec<CompletionItem> {
 #[cfg(feature = "integration")]
 #[test]
 fn ac005_live_backend_completion_reaches_accesskit_and_stale_gutter() {
-    let (base_url, workspace_id) = live_fixture();
+    let mut fixture = live_fixture();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
@@ -166,8 +201,8 @@ fn ac005_live_backend_completion_reaches_accesskit_and_stale_gutter() {
         .expect("build MT-008 live completion runtime");
     let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
     panel.set_runtime(runtime.handle().clone());
-    panel.set_workspace_id(workspace_id);
-    panel.set_code_nav_client(CodeNavClient::new(base_url));
+    panel.set_workspace_id(fixture.backend.workspace_id.clone());
+    panel.set_code_nav_client(fixture.client());
 
     let panel_ui = Arc::clone(&panel);
     let mut harness = Harness::builder()
@@ -250,12 +285,13 @@ fn ac005_live_backend_completion_reaches_accesskit_and_stale_gutter() {
     drop(harness);
     drop(panel);
     runtime.shutdown_timeout(std::time::Duration::from_secs(2));
+    fixture.cleanup();
 }
 
 #[cfg(feature = "integration")]
 #[test]
 fn ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc() {
-    let (base_url, workspace_id) = live_fixture();
+    let mut fixture = live_fixture();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
@@ -263,8 +299,8 @@ fn ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc() {
         .expect("build MT-008 live hover runtime");
     let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
     panel.set_runtime(runtime.handle().clone());
-    panel.set_workspace_id(workspace_id);
-    panel.set_code_nav_client(CodeNavClient::new(base_url));
+    panel.set_workspace_id(fixture.backend.workspace_id.clone());
+    panel.set_code_nav_client(fixture.client());
 
     let panel_ui = Arc::clone(&panel);
     let mut harness = Harness::builder()
@@ -334,6 +370,7 @@ fn ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc() {
     drop(harness);
     drop(panel);
     runtime.shutdown_timeout(std::time::Duration::from_secs(2));
+    fixture.cleanup();
 }
 
 // ── AC-005 / PT-005: completion popup ListBox + item nodes ─────────────────────────────────────────
@@ -864,7 +901,10 @@ fn completion_fallback_lookup_queues_raw_symbols_for_staleness() {
     let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
     panel.set_runtime(rt.handle().clone());
     panel.set_workspace_id("ws-test");
-    panel.set_code_nav_client(CodeNavClient::new(base_url));
+    let account = mock_account_context(&base_url);
+    panel.set_code_nav_client(
+        CodeNavClient::new(base_url).with_authenticated_context(Some(account)),
+    );
 
     panel.trigger_completion(rt.handle(), "add");
 
@@ -920,7 +960,10 @@ fn hover_fallback_lookup_queues_raw_symbols_for_staleness() {
     let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
     panel.set_runtime(rt.handle().clone());
     panel.set_workspace_id("ws-test");
-    panel.set_code_nav_client(CodeNavClient::new(base_url));
+    let account = mock_account_context(&base_url);
+    panel.set_code_nav_client(
+        CodeNavClient::new(base_url).with_authenticated_context(Some(account)),
+    );
 
     panel.trigger_hover(rt.handle(), "add");
 

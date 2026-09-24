@@ -9,12 +9,12 @@
 //!
 //! 2. LIVE-BACKEND (`--features integration`, AC-001/002/003): the CodeNavClient binds the REAL running
 //!    handshake_core code-nav API backed by Handshake-managed SurrealDB. The existing
-//!    `mt249_code_intelligence_fixture` seeds `add` plus its `caller` through the real CodeIndexEngine
-//!    and prints the base URL, workspace id, and symbol entity id. The runner supplies those values as
-//!    `HANDSHAKE_TEST_DB_URL`, `HANDSHAKE_TEST_WORKSPACE_ID`, and
-//!    `HANDSHAKE_TEST_CODE_SYMBOL_ENTITY_ID`. Missing fixture values are a hard test failure when the
-//!    integration feature is explicitly enabled; empty results and typed 404s are never accepted as
-//!    populated-content proof.
+//!    The shared MT008 fixture seeds `add` and `caller` through the authenticated code-index route
+//!    in its own managed workspace. Empty results and typed 404s are never populated-content proof.
+
+#[cfg(feature = "integration")]
+#[path = "mt008_code_nav_support/mod.rs"]
+mod mt008_code_nav_support;
 
 use handshake_native::code_editor::code_nav::{
     code_symbol_staleness_label, markdown_for_symbol, preferred_symbol_for_identifier,
@@ -497,45 +497,20 @@ fn mock_account_context(
 
 // ── LIVE-BACKEND (--features integration): the REAL handshake_core code-nav binding ────────────────
 //
-// These consume the ready values printed by the real managed-SurrealDB fixture. The integration feature
-// is the explicit resource gate; once enabled, every required value and every populated result is strict.
+// Each test seeds an isolated real account-owned workspace through the product HTTP boundary.
 
 #[cfg(feature = "integration")]
 mod live_backend {
-    use handshake_native::code_editor::code_nav::CodeNavClient;
-
-    struct Fixture {
-        base_url: String,
-        workspace_id: String,
-        symbol_entity_id: String,
-    }
-
-    fn required_env(name: &str) -> String {
-        std::env::var(name)
-            .unwrap_or_else(|_| panic!("MT-008 live proof requires {name} from the ready fixture"))
-    }
-
-    fn fixture() -> Fixture {
-        let base_url = required_env("HANDSHAKE_TEST_DB_URL");
-        assert!(
-            base_url.starts_with("http://") || base_url.starts_with("https://"),
-            "HANDSHAKE_TEST_DB_URL must be the fixture HTTP base URL; got {base_url:?}"
-        );
-        Fixture {
-            base_url,
-            workspace_id: required_env("HANDSHAKE_TEST_WORKSPACE_ID"),
-            symbol_entity_id: required_env("HANDSHAKE_TEST_CODE_SYMBOL_ENTITY_ID"),
-        }
-    }
+    use crate::mt008_code_nav_support::CodeFixture;
 
     /// AC-001: the native client consumes the populated real-backend lookup result.
-    #[tokio::test]
-    async fn ac001_lookup_symbols_returns_populated_live_symbol() {
-        let fixture = fixture();
-        let client = CodeNavClient::new(&fixture.base_url);
-        let matches = client
-            .lookup_symbols(&fixture.workspace_id, "add", 5)
-            .await
+    #[test]
+    fn ac001_lookup_symbols_returns_populated_live_symbol() {
+        let mut fixture = CodeFixture::new();
+        let client = fixture.client();
+        let matches = fixture
+            .runtime
+            .block_on(client.lookup_symbols(&fixture.backend.workspace_id, "add", 5))
             .expect("AC-001 live lookup succeeds");
         let add = matches
             .iter()
@@ -562,16 +537,17 @@ mod live_backend {
             add.symbol_kind,
             add.definition.as_ref().and_then(|definition| definition.line_start)
         );
+        fixture.cleanup();
     }
 
     /// AC-002: detail returns the seeded symbol and its definition span.
-    #[tokio::test]
-    async fn ac002_get_symbol_returns_populated_live_definition() {
-        let fixture = fixture();
-        let client = CodeNavClient::new(&fixture.base_url);
-        let response = client
-            .get_symbol(&fixture.symbol_entity_id)
-            .await
+    #[test]
+    fn ac002_get_symbol_returns_populated_live_definition() {
+        let mut fixture = CodeFixture::new();
+        let client = fixture.client();
+        let response = fixture
+            .runtime
+            .block_on(client.get_symbol(&fixture.symbol_entity_id))
             .expect("AC-002 live symbol detail succeeds");
         assert_eq!(response.symbol.symbol_entity_id, fixture.symbol_entity_id);
         assert_eq!(response.symbol.display_name, "add");
@@ -587,16 +563,17 @@ mod live_backend {
             "AC-002 populated live hover/detail: display_name={} definition.line_start={line_start}",
             response.symbol.display_name
         );
+        fixture.cleanup();
     }
 
     /// AC-003: `add` has the real indexed `caller` incoming edge.
-    #[tokio::test]
-    async fn ac003_get_references_returns_populated_live_caller() {
-        let fixture = fixture();
-        let client = CodeNavClient::new(&fixture.base_url);
-        let references = client
-            .get_references(&fixture.symbol_entity_id)
-            .await
+    #[test]
+    fn ac003_get_references_returns_populated_live_caller() {
+        let mut fixture = CodeFixture::new();
+        let client = fixture.client();
+        let references = fixture
+            .runtime
+            .block_on(client.get_references(&fixture.symbol_entity_id))
             .expect("AC-003 live references succeeds");
         assert!(references.total() >= 1, "at least one caller or callee");
         assert!(
@@ -617,5 +594,6 @@ mod live_backend {
             references.callees.len(),
             references.total()
         );
+        fixture.cleanup();
     }
 }
