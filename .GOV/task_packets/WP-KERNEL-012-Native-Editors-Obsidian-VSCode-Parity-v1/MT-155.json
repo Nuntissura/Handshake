@@ -41,11 +41,11 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": null,
     "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
     "validated_at_utc": "2026-09-24T03:54:46.533Z",
     "completed_by": null,
@@ -60,7 +60,9 @@
       "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/authority-audit/authority_scope.md (IN_WP/OUT_OF_WP classification against base 97a22310)",
       ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json remediation_v24 (KERNEL_BUILDER-C2 round 5: what is already fixed) and remediation_v25 (KERNEL_BUILDER-C3 round 6, in progress)"
     ],
-    "audit_refs_note": "The two audit files live in an Operator session scratchpad and are not durable; every row this MT relies on is copied into scope.routes / implementation_steps, so the MT is executable without them."
+    "audit_refs_note": "The two audit files live in an Operator session scratchpad and are not durable; every row this MT relies on is copied into scope.routes / implementation_steps, so the MT is executable without them.",
+    "prior_validator_verdict": "FAIL_V2",
+    "next_actor": "WP_VALIDATOR"
   },
   "closure_unit": {
     "outcome": "POST /kernel/product_screenshot_capture/execute only runs for an authenticated account session that holds the screenshot-capture capability; everyone else is denied before any process starts, and an authorized run is attributable to the session principal and its child process is always reclaimed.",
@@ -1084,5 +1086,12 @@
       "src/frontend/handshake_native/src/app.rs"
     ],
     "correction_note_2026_09_24": "IV rejected initial PASS_V2: MT-155-FMT expected result is literally \"exit 0, no diff output\" for rustfmt --check on each changed .rs file - there is no owned_files carve-out in the check definition. 5 diffs among the 112 changed files (0cfbff64..fe0949d8) means this check did not meet its expected result, regardless of whether the 5 files are MT-155-owned. Corrected from PASS_V2 to FAIL_V2."
+  },
+  "ready_for_validation_transition_fmt": {
+    "at_utc": "2026-09-24T03:58:56.145Z",
+    "by": "INTEGRATION_VALIDATOR",
+    "rule": "CX-STATUS-001: implementer commit newer than last verdict -> READY_FOR_VALIDATION",
+    "from_status": "FAIL_V2",
+    "remediation_commit": "0dde33a1 (style(MT-155) rustfmt on 9 files; rustfmt --check clean at tip per KB-C5 check)"
   }
 }
