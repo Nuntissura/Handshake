@@ -41,11 +41,23 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "FAIL_V3",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V3",
+    "validator_verdict": null,
+    "ready_status_repair": {
+      "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
+      "rule": "CX-STATUS-001",
+      "fix_commit": "582c97b2157887f9fffcc3e5155cfd5634a353ee",
+      "fix_committed_at": "2026-09-24T09:44:13+02:00",
+      "prior_verdict_at_utc": "2026-09-24T07:23:23.098Z",
+      "pushed_candidate": "9c13b642e50a909e9d0ea1246a050f6be74f18cc",
+      "remediation": "Two rustfmt-only line-wrap changes in test_embeds.rs, included in frozen 4ffda19b; file-level rustfmt --edition 2021 --check passed in this builder context.",
+      "compile_evidence": "Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/10-native-check-test_embeds.log: cargo check --locked --features integration --test test_embeds, exit 0 (00-lane.txt), Finished dev profile in 4m 01s. Existing compilation reused for formatting-only change per Operator instruction; no claim of a fresh post-format test_embeds build.",
+      "push_evidence": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 9c13b642e50a909e9d0ea1246a050f6be74f18cc",
+      "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
+    },
     "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
     "validated_at_utc": "2026-09-24T07:23:23.098Z",
     "completed_by": null,
@@ -61,7 +73,7 @@
       ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json remediation_v24 (KERNEL_BUILDER-C2 round 5: what is already fixed) and remediation_v25 (KERNEL_BUILDER-C3 round 6, in progress)"
     ],
     "audit_refs_note": "The two audit files live in an Operator session scratchpad and are not durable; every row this MT relies on is copied into scope.routes / implementation_steps, so the MT is executable without them.",
-    "prior_validator_verdict": "FAIL_V2",
+    "prior_validator_verdict": "FAIL_V3",
     "next_actor": "WP_VALIDATOR"
   },
   "closure_unit": {

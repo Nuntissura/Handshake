@@ -50,13 +50,27 @@
     "source": "MT-158 remediation_v1.residual_risks (KERNEL_BUILDER-C4)"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-158"
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": null,
+    "prior_validator_verdict": "FAIL_V2",
+    "next_actor": "WP_VALIDATOR",
+    "ready_status_repair": {
+      "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
+      "rule": "CX-STATUS-001",
+      "fix_commit": "b41a0d7187266280ab4184123b2b9d29ee559e16",
+      "fix_committed_at": "2026-09-24T09:48:24+02:00",
+      "prior_verdict_at_utc": "2026-09-24T07:22:02.607Z",
+      "pushed_candidate": "9c13b642e50a909e9d0ea1246a050f6be74f18cc",
+      "remediation": "Replace gov-test-PID override with cross-process fixture locking, retaining expected path prefixes; included in frozen 4ffda19b.",
+      "compile_evidence": "Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/21-document-delete-check.log: cargo check --locked -j 6 --tests --features app-runtime,surreal-test-support,test-utils; Finished dev profile in 13m 39s; compiled candidate 9c13b642 (MT-158 remediation_v3).",
+      "push_evidence": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 9c13b642e50a909e9d0ea1246a050f6be74f18cc",
+      "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
+    },
     "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
     "validated_at_utc": "2026-09-24T07:22:02.607Z",
     "completed_by": null,

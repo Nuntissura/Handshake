@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -49,7 +49,21 @@
       "MT-157"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": null,
+    "prior_validator_verdict": "FAIL_V1",
+    "next_actor": "WP_VALIDATOR",
+    "ready_status_repair": {
+      "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
+      "rule": "CX-STATUS-001",
+      "fix_commit": "3496f18e114e0bcd7fa28b1de5946b5316d45cf2",
+      "fix_committed_at": "2026-09-24T09:47:51+02:00",
+      "prior_verdict_at_utc": "2026-09-24T07:21:13.185Z",
+      "pushed_candidate": "9c13b642e50a909e9d0ea1246a050f6be74f18cc",
+      "remediation": "Route matrix wraps full Loom row sets in a single rows object; fix is included in frozen 4ffda19b. Other recorded failures remain subject to independent validation.",
+      "compile_evidence": "Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/21-document-delete-check.log: cargo check --locked -j 6 --tests --features app-runtime,surreal-test-support,test-utils; Finished dev profile in 13m 39s; compiled candidate 9c13b642 (MT-158 remediation_v3).",
+      "push_evidence": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 9c13b642e50a909e9d0ea1246a050f6be74f18cc",
+      "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
+    },
     "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
     "validated_at_utc": "2026-09-24T07:21:13.185Z",
     "completed_by": null,
