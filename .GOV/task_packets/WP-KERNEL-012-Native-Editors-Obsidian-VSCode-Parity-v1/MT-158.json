@@ -25,7 +25,7 @@
   "title": "B18-MT-158-Locus-Job-Path-Runs-Under-The-Account-Session",
   "group": "B18",
   "created_at_utc": "2026-09-23T15:01:47.520Z",
-  "updated_at_utc": "2026-09-24T03:32:19.036Z",
+  "updated_at_utc": "2026-09-24T07:17:06.256Z",
   "identity": {
     "mt_id": "MT-158",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -49,15 +49,15 @@
     "question": "Locus job-path authority gap found by KERNEL_BUILDER-C4 (MT-154 residual): option A (new MT inside WP-KERNEL-012) vs the 012-bis refactor."
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V3",
     "depends_on": [
       "MT-154"
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V3",
     "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
-    "validated_at_utc": "2026-09-24T03:21:00.388Z",
+    "validated_at_utc": "2026-09-24T07:17:06.256Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T15:01:47.520Z",
@@ -1216,5 +1216,23 @@
     "from_status": "FAIL_V2",
     "remediation_ref": "remediation_v2 at 2258707e",
     "note": "route6 (family F) still open; next union round re-judges"
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-C7V-20260923-2345",
+    "timestamp_utc": "2026-09-24T07:17:06.256Z",
+    "candidate_sha": "1097ef1c95845587dd57df1ba6f7a528d6c9cd03",
+    "verdict": "FAIL_V3",
+    "source_of_truth": "MT-158.proof.checks",
+    "failing_check": "MT-158-REGRESSION (wp_kernel_012_native_editor_routes_tests)",
+    "failing_test": "route6_document_soft_delete_tombstones_and_receipts",
+    "log_lines": [
+      4954,
+      4958
+    ],
+    "message": "operator delete did not report deleted=true: DELETE status=403 Forbidden body={\"error\":\"HSK-403-PROTECTED-RESOURCE\"}; follow-up GET status=200 OK",
+    "failure_kind": "product",
+    "note": "Identical failure at fe0949d8 (validation_v2) and now 1097ef1c - regression persists across this SHA range despite src/backend/handshake_core/src/api/authority.rs and storage/surreal/workspaces.rs both being touched in fe0949d8..1097ef1c.",
+    "log": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/61-core-only-1097ef1c.log"
   }
 }
