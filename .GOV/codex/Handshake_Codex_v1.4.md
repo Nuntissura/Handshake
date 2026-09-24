@@ -76,6 +76,8 @@
 
 [CX-GIT-001] No agent, test or tool creates a worktree or branch, directly or indirectly. Compare the worktree and branch inventory before and after every run; a new entry is a defect of that run, the verdict names the offending test, and the stray ref is removed by native Git after the preservation check.
 
+[CX-GIT-003] A test removes everything it creates outside the artifact root before it ends, on success and on failure: OS credential-store entries, registry keys, temp files, processes, ports. Leftovers counted after a round are a test defect routed to the implementer; clearing another test's leftovers from a shared OS store needs Operator approval.
+
 [CX-GIT-002] Every commit names explicit paths; a bare commit over previously staged content is forbidden. A push targets an existing declared branch and never force-pushes. A clean tree is reported as clean, never committed.
 
 [CX-SAFE-001] Do not stop, kill, restart, suspend or otherwise disrupt a process this session did not start without identifying its exact PID and consequences and receiving `PROCESS_STOP_APPROVED:<comma-separated-PIDs>` for that unchanged target list.
@@ -104,7 +106,7 @@
 
 [CX-EXEC-003A] Count attempts per failing check or assertion, not per hypothesis; a new explanation for the same failure does not reset the count. Before any further run on that failure, record in the existing task state the failing assertion, what each attempt changed, a root-cause hypothesis with its code location and the intended fix; then at most one probe run and one confirming run.
 
-[CX-EXEC-005] Give every test or long-running proof invocation a wall-clock timeout. Record an expiry as TIMEOUT, distinct from pass and fail; a force-stopped process is never recorded as a result.
+[CX-EXEC-005] Timeouts are per test, set in the test runner's configuration (for Rust: nextest slow-timeout with terminate-after). Never wrap a whole build, test run or round script in a wall-clock `timeout`; a killed run yields no results for the tests it never reached. Record a per-test expiry as TIMEOUT, distinct from pass and fail; a force-stopped process is never recorded as a result.
 
 [CX-EXEC-004] Batch related repairs within approved scope before expensive validation. During implementation, run focused proof when it determines the next edit; run required acceptance proof on stable batch inputs before readiness or PASS. A rerun requires changed relevant inputs, invalid/missing evidence, or a distinct evidence-based hypothesis. A new agent/session, MT boundary or report alone does not justify a rerun; reuse valid independent evidence under the assigned validator protocol.
 
@@ -114,13 +116,13 @@
 
 [CX-EXEC-007] Implementers commit and push per MT as soon as the changed code compiles. Proof and validation always name a pushed commit, never a dirty tree. Holding compiled work uncommitted until a batch is fully proven is forbidden.
 
-[CX-EXEC-008] Validation is per MT from its named proof commands, with each verdict recorded as soon as its evidence is complete. Broad or full suites run only at the WP boundary, after the MTs pass.
+[CX-EXEC-008] Verdicts are per MT, judged from each MT JSON's own proof commands (never from a derived index), and recorded as soon as that MT's evidence is complete. The evidence comes from the union round in [CX-VAL-001], never from a build per MT. Broad or full suites run only at the WP boundary, after the MTs pass.
 
 [CX-EXEC-009] Any agent or command expected to run over 2 minutes runs in the background, polled at least every 60 s, so steering takes effect within a minute. A long foreground wait is a brief defect.
 
 [CX-EXEC-010] A role that steers agents gives each one a required output (commit or verdict) per 20–30 minutes. It checks outputs every 10 minutes, demands output after 20 minutes without any, and after 30 minutes replaces the agent with a fresh one that resumes from the ledger.
 
-[CX-EXEC-011] Handoff step lists and agent plans are input, not authority over the approach. Each dispatch states the commit or verdict it will produce and by when, derived from the assigned outcome.
+[CX-EXEC-011] Handoff step lists and agent plans are input, not authority over the technical approach within a step. Workflow is the Operator's alone: which role does what, which statuses exist and when they change, round procedure, relay paths and approval points. A steering role never changes workflow on its own; it proposes the change and waits. Each dispatch states the commit or verdict it will produce and by when, derived from the assigned outcome.
 
 [CX-EXEC-012] A remediation pass fixes failures already recorded in an MT/WP (validator findings, failing tests, named blockers); the recorded failure and its stated remediation are the specification. Flow: read the failure, inspect the named code, fix, commit and push, run that MT's proof commands, record the result. Verification against the failure, current code and proof output still applies; broad research, refinements/red-team, risk/ROI listing and new audits or analysis runs do not, unless the same fix has failed twice (CX-EXEC-003).
 
@@ -128,7 +130,7 @@
 
 [CX-EXEC-014] Only the MT's named proof commands run, once per candidate commit; implementers, including the kernel builder, run compile and static checks only. Reruns on an unchanged commit, extra diagnostics, hang checks, duplicate confirmations and new tests or check scripts require a recorded remediation naming them. The only automatic retry is one recorded retry for a test on the HBR `flaky_tests` list.
 
-[CX-VAL-001] A validation round freezes one pushed candidate commit at round start; later commits queue for the next round and never restart a running build. A batch holds at most five MTs, ordered by exactness of their named tests. PASS requires that every required check's result line in the hashed log reads pass.
+[CX-VAL-001] A validation round freezes one pushed candidate commit at round start; later commits queue for the next round and never restart a running build. A round is one union round: one build and one test-runner invocation per crate or package, covering every READY_FOR_VALIDATION MT at once. Never build per MT. PASS requires that every required check's result line in the hashed log reads pass.
 
 [CX-VAL-002] Proof reuse across commits requires the original proof's recorded relevant input paths and an empty intersection between those paths and the diff from the proof commit to the candidate commit; the reused verdict names both commits.
 
@@ -136,9 +138,11 @@
 
 [CX-VAL-004] Process identity is PID plus start time plus command line, recorded at launch; a bare PID is never an identity. A command expected to run over 2 minutes appends a running record before launch naming the command, commit, target path and expected outputs. On resume, read the host restart evidence before attributing a stopped job to a crash; a host restart triggers resume, not remediation.
 
-[CX-VAL-005] A validation round starts when 5 MTs are ready or 120 minutes have passed, never waiting for all; MTs sharing a build unit share a round. The HBR `canary_check` runs first; a canary failure is infrastructure, starts no round and yields no MT verdicts. Build only the round's test targets; if the round build breaks, rebuild without the offending MT's commits and fail that MT. Run every test without fail-fast under a per-test timeout, map results to MTs from the runner's structured output, and clean the round's outputs after verdicts are recorded. Performance, stress and durability runs go to the `special_runs` lane on an idle host after the batch.
+[CX-VAL-005] A validation round starts when the implementer's fixes for the open failures are pushed, and covers all READY_FOR_VALIDATION MTs ([CX-VAL-001]). The HBR `canary_check` runs first; a canary failure is infrastructure, starts no round and yields no MT verdicts. Build only the round's test targets; if the round build breaks, rebuild without the offending MT's commits and fail that MT. Run every test without fail-fast under a per-test timeout ([CX-EXEC-005]), map results to MTs from the runner's structured output, and clean the round's outputs after verdicts are recorded. A test runner's non-zero exit after a completed run means tests failed; round scripts treat it as a result, never as a script error that aborts the remaining steps. Proofs that need a build other than the union build (release profile, fix reverted, idle host) are declared in the contract's `extra_build_proofs` at activation and all run in one extra build at the end of the WP.
 
-[CX-VAL-006] Every failure carries `failure_kind` product, infrastructure or flaky; `failure_class` remains the cause id. Only product failures become MT remediation. A failing test owned by no MT is attributed by narrowing over the round's MT commits.
+[CX-VAL-006] Every failure carries `failure_kind` product, infrastructure or flaky; `failure_class` remains the cause id. Only product failures become MT remediation. An infrastructure failure (harness setup, host load, environment) changes no MT status. Classify from evidence in the failure output, never from timing correlation alone. A failing test owned by no MT is attributed by narrowing over the round's MT commits.
+
+[CX-STATUS-001] MT `lifecycle.status` takes only these values: READY_FOR_VALIDATION, PASS_Vn, FAIL_Vn, BLOCKED (with `lifecycle.blocked_on` naming the exact item) and NEEDS_NEW_APPROACH ([CX-EXEC-013]). Transitions: an implementer commit newer than the MT's last verdict makes it READY_FOR_VALIDATION; a validator verdict sets PASS_Vn or FAIL_Vn; waiting on a scheduled proof run or a named open fix sets BLOCKED; an infrastructure failure changes nothing. No role invents another status; a needed new status is an Operator decision.
 
 [CX-HOST-001] Every project declares its test environment in a machine-local host profile outside Codex law: runtime roots, database sync mode, default check timeouts, the hang procedure of dump and stack walk before any kill, and a tools manifest. A check run outside the declared environment is a defect, not a result.
 
@@ -158,7 +162,7 @@
 
 [CX-984-002] Every WP must have its own `<WP_ID>/` subfolder beneath the sole root. MT work uses `<WP_ID>/<MT_ID>/<OWNER_SLUG>/`; packet-level work without an MT uses `<WP_ID>/<OWNER_SLUG>/`. Cargo targets, caches, logs, coverage, TMP and TEMP belong below that owner. Concurrent owners must not share mutable output. Run at most one build per physical disk at a time.
 
-[CX-984-014] The Operator may grant a capped, WP-scoped build-output location on another disk. The grant covers only the build target directory (`CARGO_TARGET_DIR` or equivalent), must be recorded with its path and size cap, stays within that cap, and is cleaned when the WP closes. Test runtime stores, TMP/TEMP, workspaces, logs and evidence remain under the sole root.
+[CX-984-014] The Operator may grant a capped, WP-scoped build-output location on another disk. The grant covers only the build target directory (`CARGO_TARGET_DIR` or equivalent), must be recorded with its path and size cap, stays within that cap, and is cleaned when the WP closes. The steering role checks the target size against the cap before every round. Validation builds keep targets small: incremental compilation off (`CARGO_INCREMENTAL=0`) and debug info limited to line tables (`CARGO_PROFILE_DEV_DEBUG` and `CARGO_PROFILE_TEST_DEBUG` = `line-tables-only`). Test runtime stores, TMP/TEMP, workspaces, logs and evidence remain under the sole root.
 
 [CX-984-006] Routine cleanup under this rule is authorized without a separate approval. Clean no-longer-needed owned output after each run; after a WP is validated PASS, clean its remaining disposable output before integration. First verify resolved paths stay inside that WP and no active process uses the targets. Preserve required review evidence and still-needed reuse with an explicit retention reason; remove retained output when that need ends. Remove the WP folder when empty, never the artifact root or another WP's output. The parent checks delegated cleanup; another owner's active or retained output requires coordination before removal.
 

@@ -195,7 +195,20 @@
       "measurement_not_attempt"
     ],
     "independent_review_required": false,
-    "relevant_input_paths": []
+    "relevant_input_paths": [],
+    "extra_build_proofs": [],
+    "_extra_build_proofs_entry_shape": {
+      "proof_ref": "REPLACE_ME",
+      "build_kind": "REPLACE_ME",
+      "_build_kind_enum": [
+        "release_profile",
+        "fix_reverted",
+        "idle_host"
+      ],
+      "command_or_method": "REPLACE_ME",
+      "reason": "REPLACE_ME"
+    },
+    "_extra_build_proofs_note": "Codex CX-VAL-005: proofs that need a build other than the union validation build are declared here at activation and all run in one extra build at the end of the WP. Empty list when none."
   },
   "user_manual_obligation": {
     "required": true,

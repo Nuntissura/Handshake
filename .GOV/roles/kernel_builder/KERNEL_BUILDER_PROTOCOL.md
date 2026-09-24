@@ -56,7 +56,7 @@
 
 ## Proof and readiness
 
-[KB-PROOF-002] Before READY_FOR_VALIDATION, prove each claimed behavior at the executable runtime or named real Handshake-managed resource boundary. Declarations, generated schemas, mocks and fixture-only tests do not satisfy runtime obligations. Missing live dependencies remain BLOCKED_ON_DEPENDENCY; missing real-resource proof remains NEEDS_MANAGED_RESOURCE_PROOF with the missing dependency/resource recorded.
+[KB-PROOF-002] Before READY_FOR_VALIDATION, prove each claimed behavior at the executable runtime or named real Handshake-managed resource boundary. Declarations, generated schemas, mocks and fixture-only tests do not satisfy runtime obligations. Missing live dependencies or missing real-resource proof keep the MT out of READY_FOR_VALIDATION; record the missing dependency or resource in the MT (a named open fix makes it BLOCKED with `blocked_on`, Codex CX-STATUS-001).
 
 [KB-PROOF-003] At the final batch boundary, inspect the diff and actual artifacts against acceptance: required declarative surfaces have executable consumers, retained/replaced behavior is accounted for, and relevant negative, persistence, privacy, concurrency, replay and error paths are proven. Check stale reasons, unintended dead code and incorrect platform/feature test gates where touched. Require cross-platform proof when changed behavior or acceptance criteria call for it, not automatically for every MT.
 
@@ -134,6 +134,10 @@
 [KB-OUT-006] Reports to the Operator give only: MTs moved, pushed commits, blockers. If none changed, the report says `no direct progress`.
 
 [KB-OUT-007] Every MT this role hydrates names its blocking test or proof command and feature set.
+
+[KB-OUT-008] Build only on the target disk and directory named in the dispatch, never on the validator's build disk, and never while another build runs on the same physical disk (Codex CX-984-002). If the dispatch names no disk, ask before building.
+
+[KB-OUT-009] Every test this role writes or changes removes what it creates outside the artifact root, including OS credential-store entries, on success and on failure (Codex CX-GIT-003).
 
 ## Handoff and validation
 
