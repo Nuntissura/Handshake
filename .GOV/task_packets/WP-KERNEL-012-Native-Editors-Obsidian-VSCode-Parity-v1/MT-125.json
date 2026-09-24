@@ -598,5 +598,11 @@
       "check": "git apply --check exit 0 at the candidate (not applied)"
     },
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "operator_decision_2026_09_24": {
+    "at_utc": "2026-09-24T02:35:44.255Z",
+    "recorded_by": "INTEGRATION_VALIDATOR",
+    "decision": "Operator: keep the required proof; run it at the end of WP-KERNEL-012 in one combined extra run (MT-045/124/125 share a single extra build; MT-142 needs no build). No further Operator decision pending.",
+    "remaining_proof": "RED half (fix reverted, test must fail)"
   }
 }

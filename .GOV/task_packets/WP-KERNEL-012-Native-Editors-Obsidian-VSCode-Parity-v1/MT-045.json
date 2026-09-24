@@ -1101,5 +1101,11 @@
     "status": "VERIFIED_NO_CODE_GAP",
     "static_verification": "Perf manifest writes are external (perf_proof_support/mod.rs manifest_path under $HANDSHAKE_ARTIFACTS_ROOT/WP-KERNEL-012/MT-045/<HSK_MT045_RUN_ID>/); tracked tests/perf_proof/perf_manifest.json read-only. Remaining PASS gate is the Operator-authorized release supervisor run (unchanged).",
     "recorded_at_utc": "2026-09-22T20:51:09.293Z"
+  },
+  "operator_decision_2026_09_24": {
+    "at_utc": "2026-09-24T02:35:44.003Z",
+    "recorded_by": "INTEGRATION_VALIDATOR",
+    "decision": "Operator: keep the required proof; run it at the end of WP-KERNEL-012 in one combined extra run (MT-045/124/125 share a single extra build; MT-142 needs no build). No further Operator decision pending.",
+    "remaining_proof": "release-profile supervisor perf run (20 perf proofs)"
   }
 }
