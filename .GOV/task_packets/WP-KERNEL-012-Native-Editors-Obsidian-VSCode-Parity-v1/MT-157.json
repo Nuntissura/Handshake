@@ -25,7 +25,7 @@
   "title": "B18-MT-157-Durable-Debugger-Breakpoints-Under-Account-Session",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-24T03:21:00.388Z",
+  "updated_at_utc": "2026-09-24T13:25:12.6577147Z",
   "identity": {
     "mt_id": "MT-157",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,13 +41,32 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-153"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": null,
+    "prior_validator_verdict": "FAIL_V2",
+    "next_actor": "WP_VALIDATOR",
+    "ready_for_validation_transition_10eb7c12": {
+      "at_utc": "2026-09-24T13:25:12.6577147Z",
+      "by": "KERNEL_BUILDER on explicit Operator instruction",
+      "rule": "CX-STATUS-001: newer compiled/pushed implementer commit queues the next union; no acceptance verdict",
+      "candidate_sha": "10eb7c1295f8ac39335a6b03598fa595a8195462",
+      "batch_fix_sha": "86956b66e471d451dfdd6c8da13ae0a876337727",
+      "changed_files": [
+        "src/backend/handshake_core/src/api/workspaces.rs",
+        "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema.rs"
+      ],
+      "remediation": "Re-pin current schema INFO to independently observed f8902e153103c1a6e6dd2549b9fe64f27fdaac27e2bc443c1ba9343728adfcdf; automatically install the test-only numbered workspace-delete predicate copy and report statement-10 failures on the same account-scoped connection after rollback. Product authorization unchanged.",
+      "open": "C1-FDELETE exact false predicate remains unproven. Next combined union must run owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit; C1_FDELETE_CLAUSE maps to schema source lines and C1_FDELETE_ROUTE_PROBE reports the post-rollback observation. Diagnostic commit is not a proven cascade fix.",
+      "compile_evidence": "Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/22-combined-knowledge-workspaces-check.log: shared cargo check --locked -j 6 --tests --features app-runtime,surreal-test-support,test-utils, exit 0, Finished dev profile in 3m 50s; all three source hashes matched the compiled tree before commit.",
+      "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 10eb7c1295f8ac39335a6b03598fa595a8195462",
+      "test_runs": "No builder tests or additional Cargo; runtime verdict belongs to next independent combined union. Historical validation retained."
+    },
     "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
     "validated_at_utc": "2026-09-24T03:21:00.388Z",
     "completed_by": null,
