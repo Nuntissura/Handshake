@@ -529,8 +529,13 @@ fn successful_action_clears_error_and_shows_success_state() {
         cap.request_line, "POST /workspaces/ws-1/loom/edges HTTP/1.1",
         "the real Stow request reached the wire"
     );
-    for _ in 0..8 {
+    // Pump until the off-thread result is folded in (bounded): a fixed frame count raced the
+    // delivery under load (run 51).
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while harness.state().drawer_action_success().is_none() && std::time::Instant::now() < deadline
+    {
         harness.run();
+        std::thread::sleep(std::time::Duration::from_millis(10));
     }
 
     assert_eq!(
