@@ -1747,7 +1747,6 @@ fn ac3_live_shell_note_refs_row_click_opens_document_tab() {
         queries: std::sync::Mutex::new(Vec::new()),
     });
     let backend_dyn: std::sync::Arc<dyn FindNotesSearch> = backend.clone();
-    code_panel.set_find_notes_backend(backend_dyn);
     code_panel.set_show_note_refs(true);
     code_panel.set_note_refs_dwell_threshold(std::time::Duration::from_millis(0));
     code_panel.set_text("fn main() { let total = MyStruct::new(); }\n");
@@ -1759,6 +1758,7 @@ fn ac3_live_shell_note_refs_row_click_opens_document_tab() {
         CodeNavClient::new(lookup_base.clone())
             .with_authenticated_context(Some(mock_account_context(&lookup_base))),
     );
+    code_panel.set_find_notes_backend(backend_dyn);
     let offset = code_panel
         .buffer()
         .to_string()
@@ -1851,10 +1851,10 @@ fn mt034_canonical_argus_create_open_and_reveal() {
 
     let (base_url, server) =
         spawn_argus_code_symbol_server(symbol_id, symbol_name, &file_path, line_start_one_based);
-    // Keep the create phase isolated from unrelated wikilink persistence: only the code-ref runtime
-    // is installed until the chip exists. The full shell backend is bound before navigation, then the
-    // visible rich pane enters Reading mode through its production control.
+    // Account binding starts background shell reads, so bind its fixture origin first.
+    // The visible rich pane enters Reading mode through its production control below.
     let (mut app, runtime) = code_note_editor_shell_with_runtime(false);
+    app.set_backend_base_url_for_test(&base_url, runtime.handle().clone());
     app.bind_initial_account(mock_account_context(&base_url))
         .expect("bind isolated code-ref fixture");
     app.set_active_pane_for_test(Some(PaneId::from("pane-b")));
@@ -2810,6 +2810,7 @@ mod live_backend {
                 .header("x-hsk-actor-kind", "validation_runner")
                 .header("x-hsk-kernel-task-run-id", "KTR-MT034-V2")
                 .header("x-hsk-session-run-id", "SR-MT034-V2")
+                .timeout(std::time::Duration::from_secs(60))
                 .json(&serde_json::json!({"root_path": root_path.clone()}))
                 .send()
                 .await
@@ -3287,15 +3288,17 @@ mod live_backend {
             // to the stale persisted line.
             std::fs::remove_file(&source_path).expect("remove indexed source for stale proof");
             let stale_index_body: serde_json::Value = runtime.block_on(async {
-                let response = http
-                    .post(format!(
+                let response = live
+                    .backend
+                    .authenticated(http.post(format!(
                         "{}/workspaces/{workspace_id}/code-nav/index",
                         live.base
-                    ))
+                    )))
                     .header("x-hsk-actor-id", "mt034-managed-proof")
                     .header("x-hsk-actor-kind", "validation_runner")
                     .header("x-hsk-kernel-task-run-id", "KTR-MT034-V3-STALE")
                     .header("x-hsk-session-run-id", "SR-MT034-V3-STALE")
+                    .timeout(std::time::Duration::from_secs(60))
                     .json(&serde_json::json!({"root_path": root_path.clone()}))
                     .send()
                     .await
