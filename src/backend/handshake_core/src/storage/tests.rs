@@ -338,10 +338,50 @@ fn combine_test_body_and_cleanup(
     }
 }
 
+/// Test-only record of every OS-vault lane a login wrote (api::authority `store_session_secret`):
+/// (store path, vault namespace, lane). Login tests rarely log out, so without this every test
+/// session left a `<session>.handshake-local-accounts-<hash>` credential behind until the Windows
+/// Credential Manager refused further writes (error 8).
+#[cfg(all(test, feature = "os-keychain"))]
+static TEST_VAULT_LANES: StdMutex<Vec<(PathBuf, String, String)>> = StdMutex::new(Vec::new());
+
+#[cfg(all(test, feature = "os-keychain"))]
+pub(crate) fn record_test_vault_lane(store_path: PathBuf, namespace: String, lane: String) {
+    if let Ok(mut lanes) = TEST_VAULT_LANES.lock() {
+        lanes.push((store_path, namespace, lane));
+    }
+}
+
+/// Deletes every recorded OS-vault lane of the store at `store_path` (best effort: a lane
+/// already removed by logout is fine; a failure is reported, never a verdict).
+#[cfg(all(test, feature = "os-keychain"))]
+fn delete_test_vault_lanes(store_path: &std::path::Path) {
+    use crate::model_runtime::cloud::secrets_vault::{
+        OsKeychainSecretsVault, SecretsVault, SecretsVaultError,
+    };
+    let owned = match TEST_VAULT_LANES.lock() {
+        Ok(mut lanes) => {
+            let (owned, rest): (Vec<_>, Vec<_>) =
+                lanes.drain(..).partition(|(path, _, _)| path == store_path);
+            *lanes = rest;
+            owned
+        }
+        Err(_) => return,
+    };
+    for (_, namespace, lane) in owned {
+        match OsKeychainSecretsVault::new(namespace).delete(&lane) {
+            Ok(()) | Err(SecretsVaultError::NoSecretForLane(_)) => {}
+            Err(error) => eprintln!("HANDSHAKE_TEST_VAULT_CLEANUP_FAILURE lane={lane} error={error}"),
+        }
+    }
+}
+
 pub(crate) async fn shutdown_and_remove_test_store(
     storage: SurrealStorage,
     data_dir: PathBuf,
 ) -> StorageResult<()> {
+    #[cfg(all(test, feature = "os-keychain"))]
+    delete_test_vault_lanes(storage.config().path());
     let shutdown = storage.shutdown().await;
     drop(storage);
     if let Err(error) = shutdown {

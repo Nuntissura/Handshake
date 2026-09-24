@@ -1262,6 +1262,16 @@ async fn store_session_secret(
             account_lifecycle_probe(state, "vault_delete").await?;
         }
         let key = session_id.to_owned();
+        // Test builds record every written lane so the store teardown deletes it
+        // (storage::tests::shutdown_and_remove_test_store).
+        #[cfg(test)]
+        if token.is_some() {
+            crate::storage::tests::record_test_vault_lane(
+                config.path().to_path_buf(),
+                namespace.clone(),
+                key.clone(),
+            );
+        }
         run_session_vault_operation(move || {
             let vault = OsKeychainSecretsVault::new(namespace);
             match token {
