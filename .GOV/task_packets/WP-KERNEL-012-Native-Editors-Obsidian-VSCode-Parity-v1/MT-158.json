@@ -25,7 +25,7 @@
   "title": "B18-MT-158-Locus-Job-Path-Runs-Under-The-Account-Session",
   "group": "B18",
   "created_at_utc": "2026-09-23T15:01:47.520Z",
-  "updated_at_utc": "2026-09-23T23:43:15.504Z",
+  "updated_at_utc": "2026-09-24T03:21:00.388Z",
   "identity": {
     "mt_id": "MT-158",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -49,15 +49,15 @@
     "question": "Locus job-path authority gap found by KERNEL_BUILDER-C4 (MT-154 residual): option A (new MT inside WP-KERNEL-012) vs the 012-bis refactor."
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V2",
     "depends_on": [
       "MT-154"
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": null,
-    "validated_by": "WP_VALIDATOR-D1V-20260923-2240",
-    "validated_at_utc": "2026-09-23T22:31:51.277Z",
+    "validator_verdict": "FAIL_V2",
+    "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
+    "validated_at_utc": "2026-09-24T03:21:00.388Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T15:01:47.520Z",
@@ -1059,5 +1059,92 @@
     "reason": "MT-154-WS-DELETE-INDEX blocks REGRESSION proof; all MT-own checks pass",
     "at_utc": "2026-09-23T22:31:51.277Z",
     "by": "WP_VALIDATOR-D1V-20260923-2240"
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-C7V-20260923-2345",
+    "timestamp_utc": "2026-09-24T03:21:00.388Z",
+    "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06",
+    "verdict": "FAIL_V2",
+    "source_of_truth": "MT-158.proof.checks (not union.json); all results from raw-log PASS/FAIL/TIMEOUT lines in Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/50-run-round-fe0949d8.log.",
+    "checks": [
+      {
+        "check_id": "MT-158-REGRESSION (wp_kernel_012_native_editor_routes_tests)",
+        "result": "FAIL",
+        "test": "route6_document_soft_delete_tombstones_and_receipts",
+        "log_lines": [
+          8420,
+          8424
+        ],
+        "message": "operator delete did not report deleted=true: DELETE status=403 Forbidden body={\"error\":\"HSK-403-PROTECTED-RESOURCE\"}; follow-up GET status=200 OK",
+        "failure_kind": "product"
+      },
+      {
+        "check_id": "MT-158-REGRESSION (micro_task_executor_tests)",
+        "result": "4 FAIL",
+        "tests": [
+          "micro_task_executor_emits_model_swap_events_on_model_change (line 7798)",
+          "micro_task_executor_emits_model_swap_timeout_and_rollback_on_runtime_timeout (line 7816)",
+          "micro_task_executor_generates_distillation_candidate_after_escalation_success (line 7836)",
+          "micro_task_executor_persists_locus_lifecycle_and_session_occupancy (line 7855)"
+        ],
+        "message_pattern": "Error: Terminal(\"atomic write failed: io error: ...\") (os error 2 x3, os error 5 x1)",
+        "failure_kind": "UNCLASSIFIED per IV instruction 2026-09-24 - builder is tracing the atomic-write path; not used to decide this verdict"
+      },
+      {
+        "check_id": "MT-158-REGRESSION (storage::surreal::mt136_database_surface_proof_c)",
+        "result": "FAIL",
+        "test": "storage::surreal::mt136_database_surface_proof_c::tests::uncovered_database_methods_use_real_durable_surreal_state",
+        "log_lines": [
+          6683,
+          6687
+        ],
+        "message": "MT136_PROOF_CLEANUP_FAILURE database error: shutdown failed...still draining operations after 30000 ms",
+        "failure_kind": "UNCLASSIFIED - distinct shutdown-drain shape, not the 403 pattern, not yet investigated"
+      },
+      {
+        "check_id": "MT-158-ISOLATION",
+        "result": "PASS 2/2",
+        "log_lines": [
+          8107,
+          8108
+        ]
+      },
+      {
+        "check_id": "MT-158-REGRESSION (mt151_early_lock_release_race_tests)",
+        "result": "PASS 3/3",
+        "log_lines": [
+          8052,
+          8053,
+          8054
+        ]
+      },
+      {
+        "check_id": "MT-158-REGRESSION (mt154_non_loom_route_authority_tests)",
+        "result": "PASS 13/13 (includes the 2 MT-158-ISOLATION tests)"
+      },
+      {
+        "check_id": "MT-158-PINS",
+        "result": "PASS (same 7 schema pin tests as MT-157-PIN-CONFIRM, shared lib run)",
+        "log_lines": [
+          6824,
+          6851,
+          6853,
+          6879,
+          6966,
+          6986,
+          6987
+        ]
+      },
+      {
+        "check_id": "MT-158-CHECK-SETS",
+        "result": "NOT_RUN_THIS_ROUND (3 feature-set compile checks)"
+      },
+      {
+        "check_id": "MT-158-CLIPPY",
+        "result": "NOT_RUN_THIS_ROUND"
+      }
+    ],
+    "verdict_basis": "FAIL is fully determined by route6_document_soft_delete_tombstones_and_receipts alone (product-classified). micro_task_executor and mt136_proof_c failures are recorded but explicitly not used to decide this verdict per IV instruction."
   }
 }

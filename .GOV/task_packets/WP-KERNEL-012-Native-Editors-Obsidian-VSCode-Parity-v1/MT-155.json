@@ -25,7 +25,7 @@
   "title": "B18-MT-155-Authenticate-Product-Screenshot-Capture-Execute",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-23T18:56:17.805Z",
+  "updated_at_utc": "2026-09-24T03:19:11.071Z",
   "identity": {
     "mt_id": "MT-155",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -1027,5 +1027,33 @@
     },
     "reuse_note": "Proof on these 4 non-DB checks carries forward to the next SHA only if the relevant crate inputs (0cfbff64..0caf1c10 diff scope, features, toolchain) are unchanged (VPX-004); re-verify when the new candidate SHA lands.",
     "note": "lifecycle.status and validator_verdict intentionally NOT modified by this partial block; MT remains READY_FOR_VALIDATION pending DB-dependent checks and pin re-confirm."
+  },
+  "validation_v_c7v_re_derived": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-C7V-20260923-2345",
+    "timestamp_utc": "2026-09-24T03:17:20.157Z",
+    "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06",
+    "verdict": "PASS_V_C7V",
+    "note": "re-derived from this MT JSON proof block (not union.json) per IV instruction 2026-09-24; all PASS/FAIL determined by direct grep of logs/50-run-round-fe0949d8.log raw PASS/FAIL/TIMEOUT lines, NOT the junit-fe0949d8-core.xml regex parse, which was found to produce false positives on 3 separate checks (api::debug_adapter::fixture_shutdown_drains_live_un_deleted_session_within_sla, storage::surreal::mt136_database_surface_proof_a, api::kernel::tests::derives_session_spawn_records_from_runtime_model_sessions all showed FAIL in my junit XML regex parse but PASS in the raw log - raw log is authoritative).",
+    "checks": [
+      {
+        "check_id": "MT-155-ROUTE-AUTH",
+        "result": "PASS 5/5",
+        "log": "logs/50-run-round-fe0949d8.log"
+      },
+      {
+        "check_id": "MT-155-EXISTING",
+        "result": "PASS 8/8 (kernel_product_screenshot_capture_tests)",
+        "log": "logs/50-run-round-fe0949d8.log"
+      },
+      {
+        "check_id": "MT-155-KERNEL-LIB",
+        "result": "PASS 3/3 (api::kernel::tests:: derives_session_spawn_records_from_runtime_model_sessions, projects_session_spawn_tree_runtime_records_for_dcc, trigger_dcc_action_requires_catalog_preview_gate)",
+        "log": "logs/50-run-round-fe0949d8.log"
+      }
+    ],
+    "outstanding": "CHECK-TESTS/CLIPPY-CHANGED/FMT/DIFF-CHECK not independently re-executed this round; candidate_sha changed from prior validated SHA - flagging for IV whether reuse is valid or a fresh run is required before final commit.",
+    "attempt_only_not_final": true,
+    "reason_reverted": "CHECK-TESTS/CLIPPY-CHANGED/FMT/DIFF-CHECK not executed this round; these are required checks in MT-155.proof.checks. Reverted to READY_FOR_VALIDATION per IV 2026-09-24 pending those static checks on the D: lane."
   }
 }

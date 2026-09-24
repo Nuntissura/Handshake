@@ -25,7 +25,7 @@
   "title": "B18-MT-157-Durable-Debugger-Breakpoints-Under-Account-Session",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-23T18:56:17.805Z",
+  "updated_at_utc": "2026-09-24T03:21:00.388Z",
   "identity": {
     "mt_id": "MT-157",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,15 +41,15 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V2",
     "depends_on": [
       "MT-153"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
-    "validated_by": null,
-    "validated_at_utc": null,
+    "validator_verdict": "FAIL_V2",
+    "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
+    "validated_at_utc": "2026-09-24T03:21:00.388Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -1120,5 +1120,88 @@
     },
     "reuse_note": "Proof on these 4 non-DB checks carries forward to the next SHA only if the relevant crate inputs (0cfbff64..0caf1c10 diff scope, features, toolchain) are unchanged (VPX-004); re-verify when the new candidate SHA lands.",
     "note": "lifecycle.status and validator_verdict intentionally NOT modified by this partial block; MT remains READY_FOR_VALIDATION pending DB-dependent checks and pin re-confirm."
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-C7V-20260923-2345",
+    "timestamp_utc": "2026-09-24T03:21:00.388Z",
+    "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06",
+    "verdict": "FAIL_V2",
+    "source_of_truth": "MT-157.proof.checks (not union.json); all results from raw-log PASS/FAIL/TIMEOUT lines in Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/50-run-round-fe0949d8.log (junit-fe0949d8-core.xml regex parse found unreliable, not used).",
+    "checks": [
+      {
+        "check_id": "MT-157-WORKSPACE-DELETE",
+        "result": "FAIL",
+        "test": "api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit",
+        "log_lines": [
+          4987,
+          4992
+        ],
+        "message": "Error: \"owner delete: 403 Forbidden HSK-403-PROTECTED-RESOURCE\"",
+        "failure_kind": "product"
+      },
+      {
+        "check_id": "MT-157-BREAKPOINTS",
+        "result": "PASS 5/5",
+        "log_lines": [
+          8120,
+          8122,
+          8123,
+          8134,
+          8147
+        ]
+      },
+      {
+        "check_id": "MT-157-MT136-NO-REGRESSION",
+        "result": "PASS",
+        "test": "storage::surreal::mt136_database_surface_proof_a::mt136_database_surface_proof_a",
+        "log_lines": [
+          6701
+        ]
+      },
+      {
+        "check_id": "MT-157-DEBUG-ADAPTER-LIB",
+        "result": "PASS 2/2",
+        "log_lines": [
+          4521,
+          4522
+        ]
+      },
+      {
+        "check_id": "MT-157-PIN-CONFIRM",
+        "result": "PASS 7/7",
+        "log_lines": [
+          6824,
+          6851,
+          6853,
+          6879,
+          6966,
+          6986,
+          6987
+        ]
+      },
+      {
+        "check_id": "MT-157-BUILD-LIB",
+        "result": "PASS (implied: core lib compiled and ran 2634 tests in run50)",
+        "note": "not independently re-run as a standalone --no-run check this round"
+      },
+      {
+        "check_id": "MT-157-CHECK-TESTS",
+        "result": "NOT_RUN_THIS_ROUND"
+      },
+      {
+        "check_id": "MT-157-CLIPPY-CHANGED",
+        "result": "NOT_RUN_THIS_ROUND"
+      },
+      {
+        "check_id": "MT-157-FMT",
+        "result": "NOT_RUN_THIS_ROUND"
+      },
+      {
+        "check_id": "MT-157-DIFF-CHECK",
+        "result": "NOT_RUN_THIS_ROUND"
+      }
+    ],
+    "verdict_basis": "FAIL is fully determined by MT-157-WORKSPACE-DELETE alone (a required check failed with a product-classified defect); the NOT_RUN_THIS_ROUND static checks do not change a FAIL verdict and are not blocking this determination."
   }
 }
