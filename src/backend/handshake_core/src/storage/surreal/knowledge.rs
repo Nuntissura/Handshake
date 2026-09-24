@@ -310,8 +310,21 @@ fn map_guarded_err(
     if rendered.contains("HSK-403-PROTECTED-RESOURCE") {
         return StorageError::Guard("HSK-403-PROTECTED-RESOURCE");
     }
+    // A foreign-workspace search projection is hidden from the scoped SELECT,
+    // so CREATE detects its occupied identity instead of the SQL guard. Preserve
+    // the same opaque conflict without exposing the record or widening access.
+    let search_identity_collision = match &error {
+        SurrealStorageError::Database(error) => matches!(
+            error.already_exists_details(),
+            Some(surrealdb::types::AlreadyExistsError::Record { id })
+                if id.starts_with("loom_block_search_index:")
+        ),
+        _ => false,
+    };
     for (code, to_error) in guards {
-        if rendered.contains(code) {
+        if rendered.contains(code)
+            || (search_identity_collision && *code == "HSK-KRD-SEARCH-IDENTITY")
+        {
             return to_error();
         }
     }
@@ -2562,7 +2575,11 @@ async fn create_owned_document_rows(
     let guard = "IF $creator != $auth.id OR !fn::mt109_live_session() { THROW 'HSK-403-PROTECTED-RESOURCE'; };";
     let authority_rows = "CREATE $owned_resource SET resource_kind = 'rich_document', external_resource_id = $doc_id, owner_account_id = $creator.account_id, created_by_principal_id = $creator.principal_id, created_in_session_id = $creator.id, creator_grant_id = $owned_grant, access_space_id = $creator.access_space_id, parent_resource_id = $parent, schema_version = 1, lifecycle_state = 'active', policy_version = $creator.policy_version, classification = 'account_private', storage_locator_hash = $locator_hash, created_at = time::now(), updated_at = time::now(); CREATE $owned_grant SET account_id = $creator.account_id, principal_id = $creator.principal_id, access_space_id = $creator.access_space_id, resource_id = $owned_resource, actions = ['read', 'create', 'update', 'delete'], capability_ids = ['fs.read', 'fs.write'], delegation_chain = $creator.delegation_chain, status = 'active', grant_version = 1, policy_version = $creator.policy_version, expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now();";
     let early_required_rows = "IF array::len((SELECT VALUE id FROM knowledge_rich_documents WHERE rich_document_id = $doc_id AND workspace_id = $workspace AND content_sha256 = $doc_content_sha256 AND doc_version = 1 AND created_in_session_id = $creator)) != 1 OR array::len((SELECT VALUE id FROM $owned_resource WHERE resource_kind = 'rich_document' AND owner_account_id = $creator.account_id AND created_by_principal_id = $creator.principal_id AND created_in_session_id = $creator AND creator_grant_id = $owned_grant AND access_space_id = $creator.access_space_id AND parent_resource_id = $parent AND lifecycle_state = 'active')) != 1 OR array::len((SELECT VALUE id FROM $owned_grant WHERE account_id = $creator.account_id AND principal_id = $creator.principal_id AND access_space_id = $creator.access_space_id AND resource_id = $owned_resource AND actions = ['read', 'create', 'update', 'delete'] AND capability_ids = ['fs.read', 'fs.write'] AND delegation_chain = $creator.delegation_chain AND status = 'active')) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };";
-    let target_guard = "FOR $target IN $affected_blocks { IF $target != $doc_id AND !fn::mt120_document_access($target, record::id($workspace), 'update', 'fs.write') { THROW 'HSK-403-PROTECTED-RESOURCE'; }; };";
+    // Direct calls to mt120_document_access cannot read hidden authority fields
+    // under record-user permissions. Revalidate target write authority through
+    // the exact rich-document projection's table permission instead. This no-op
+    // preserves its counters; a silent denial must abort the entire create.
+    let target_guard = "FOR $target IN $affected_blocks { IF $target != $doc_id { IF array::len((UPDATE type::record('loom_blocks', $target) SET backlink_count = backlink_count WHERE workspace_id = $workspace AND block_id = $target AND content_type = 'note' AND source_rich_document_id = type::record('knowledge_rich_documents', $target) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; };";
     let anchors = "LET $creator_account = $creator.account_id; LET $creator_principal = $creator.principal_id; LET $creator_space = $creator.access_space_id; IF $authorizing_grant = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator_account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator_principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator_space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $parent SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $authorizing_grant SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };";
     let required_rows = "IF array::len((SELECT VALUE id FROM $owned_resource)) != 1 OR array::len((SELECT VALUE id FROM $owned_grant)) != 1 OR array::len((SELECT VALUE id FROM knowledge_rich_documents WHERE rich_document_id = $doc_id AND content_sha256 = $doc_content_sha256 AND doc_version = 1)) != 1 OR array::len((SELECT VALUE id FROM knowledge_rich_document_versions WHERE rich_document_id = type::record('knowledge_rich_documents', $doc_id) AND doc_version = 1 AND content_sha256 = $doc_content_sha256)) != 1 OR array::len((SELECT VALUE id FROM loom_blocks WHERE block_id = $doc_id AND source_rich_document_id = type::record('knowledge_rich_documents', $doc_id) AND content_hash = $doc_content_sha256)) != 1 OR array::len((SELECT VALUE id FROM loom_block_search_index WHERE block_id = type::record('loom_blocks', $doc_id) AND search_text = $doc_search_text)) != 1 OR array::len((SELECT VALUE id FROM knowledge_rich_document_title_anchors WHERE anchor_key = $anchor_key_current AND last_rich_document_id = $doc_id AND claim_nonce = $anchor_nonce_current)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; FOR $row IN $backlink_rows { IF array::len((SELECT VALUE id FROM knowledge_document_backlinks WHERE backlink_id = $row.backlink_id AND source_document_id = type::record('knowledge_rich_documents', $doc_id))) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; FOR $row IN $loom_edge_rows { IF array::len((SELECT VALUE id FROM loom_edges WHERE edge_id = $row.relationship_id AND source_document_id = $doc_id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; };";
     let statement = statement
@@ -6514,6 +6531,59 @@ impl SurrealDatabase {
                 "knowledge idempotency result ref kind is not valid for rich document save",
             )),
         }
+    }
+}
+
+#[cfg(test)]
+mod guarded_error_tests {
+    use super::*;
+
+    fn record_collision(id: &str) -> SurrealStorageError {
+        surrealdb::Error::already_exists(
+            "record collision".to_owned(),
+            surrealdb::types::AlreadyExistsError::Record {
+                id: id.to_owned(),
+            },
+        )
+        .into()
+    }
+
+    #[test]
+    fn hidden_search_projection_collision_preserves_identity_conflict() {
+        assert!(matches!(
+            map_guarded_err(
+                record_collision("loom_block_search_index:`KRD-foreign`"),
+                &LOOM_IDENTITY_GUARDS,
+            ),
+            StorageError::Conflict("rich document LoomBlock search projection identity mismatch")
+        ));
+    }
+
+    #[test]
+    fn unrelated_collisions_and_undeclared_guards_are_not_reclassified() {
+        for id in [
+            "knowledge_entities:KEN-1",
+            "loom_block_search_index_other:KRD-1",
+        ] {
+            assert!(matches!(
+                map_guarded_err(record_collision(id), &LOOM_IDENTITY_GUARDS),
+                StorageError::Database(_)
+            ));
+        }
+        assert!(matches!(
+            map_guarded_err(record_collision("loom_block_search_index:KRD-1"), &[]),
+            StorageError::Database(_)
+        ));
+        let denied = surrealdb::Error::already_exists(
+            "HSK-403-PROTECTED-RESOURCE".to_owned(),
+            surrealdb::types::AlreadyExistsError::Record {
+                id: "loom_block_search_index:KRD-1".to_owned(),
+            },
+        );
+        assert!(matches!(
+            map_guarded_err(denied.into(), &LOOM_IDENTITY_GUARDS),
+            StorageError::Guard("HSK-403-PROTECTED-RESOURCE")
+        ));
     }
 }
 

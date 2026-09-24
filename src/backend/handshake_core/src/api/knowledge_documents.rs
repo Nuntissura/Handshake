@@ -298,15 +298,36 @@ async fn document_authority(State(state): State<AppState>, mut request: Request,
     let denial = || crate::api::authority::constant_denial().into_response();
     let path = request.uri().path().trim_start_matches("/knowledge/documents").to_owned();
     let read = request.method() == Method::GET;
-    let mut batch_documents = Vec::new();
     let (kind, external, action) = if path == "/batch" {
         let (parts, body) = request.into_parts();
         let bytes = match axum::body::to_bytes(body, 8 * 1024 * 1024).await { Ok(bytes) => bytes, Err(_) => return denial() };
         let batch = match serde_json::from_slice::<BatchBody>(&bytes) { Ok(batch) => batch, Err(_) => return denial() };
         if batch.operations.is_empty() || batch.operations.len() > BATCH_MAX_OPERATIONS { return denial(); }
-        batch_documents = batch.operations.iter().map(|operation| operation.document_id().to_owned()).collect();
         request = Request::from_parts(parts, axum::body::Body::from(bytes));
-        (ResourceKind::RichDocument, batch_documents[0].clone(), ResourceAction::Update)
+        let mut authorities = std::collections::BTreeMap::new();
+        for operation in &batch.operations {
+            let document = operation.document_id();
+            if authorities.contains_key(document) { continue; }
+            let Ok(mut item) = crate::api::authority::authorize_request(
+                &state, request.headers(), "fs.write", ResourceKind::RichDocument,
+                document, ResourceAction::Update,
+            ).await else { continue; };
+            let Ok(Some(workspace)) = state.surreal.authorized_document_workspace(
+                &item.resource_id, &item.account_id, &item.access_space_id,
+            ).await else { continue; };
+            item.record_user_scope.workspace_id = Some(workspace);
+            authorities.insert(document.to_owned(), item);
+        }
+        // Do not distinguish missing resources from inaccessible ones. A wholly
+        // unauthorized request retains the constant denial; mixed batches report
+        // unavailable items without ever executing them under another item's scope.
+        let Some(authority) = authorities.values().next().cloned() else { return denial(); };
+        let scope = authority.record_user_scope.clone();
+        return DOCUMENT_BATCH_AUTHORITIES.scope(authorities, DOCUMENT_STATE.scope(
+            state.clone(), DOCUMENT_AUTHORITY.scope(authority,
+                state.surreal.with_record_user_scope(scope, next.run(request)),
+            ),
+        )).await;
     } else if path.starts_with("/embeds/") {
         if crate::api::authority::authenticated_session(&state, request.headers()).await.is_err() { return denial(); }
         let embed = path.trim_start_matches("/embeds/").split('/').next().unwrap_or("");
@@ -346,16 +367,8 @@ async fn document_authority(State(state): State<AppState>, mut request: Request,
         };
     }
     let scope = authority.record_user_scope.clone();
-    let mut batch = std::collections::BTreeMap::new();
-    for document in batch_documents {
-        let mut item = match crate::api::authority::authorize_request(&state, request.headers(), "fs.write",
-            ResourceKind::RichDocument, &document, ResourceAction::Update).await { Ok(item) => item, Err(error) => return error.into_response() };
-        item.record_user_scope.workspace_id = match state.surreal.authorized_document_workspace(
-            &item.resource_id, &item.account_id, &item.access_space_id).await { Ok(Some(workspace)) => Some(workspace), _ => return denial() };
-        batch.insert(document, item);
-    }
-    DOCUMENT_BATCH_AUTHORITIES.scope(batch, DOCUMENT_STATE.scope(state.clone(), DOCUMENT_AUTHORITY.scope(authority,
-        state.surreal.with_record_user_scope(scope, next.run(request))))).await
+    DOCUMENT_STATE.scope(state.clone(), DOCUMENT_AUTHORITY.scope(authority,
+        state.surreal.with_record_user_scope(scope, next.run(request)))).await
 }
 
 type ApiError = (StatusCode, Json<Value>);
@@ -2077,7 +2090,18 @@ async fn batch_documents(
         let document_id = operation.document_id().to_string();
         let op_name = operation.op_name();
         let authority = DOCUMENT_BATCH_AUTHORITIES.try_with(|items| items.get(&document_id).cloned())
-            .ok().flatten().ok_or_else(crate::api::authority::constant_denial)?;
+            .map_err(|_| crate::api::authority::constant_denial())?;
+        let Some(authority) = authority else {
+            failed += 1;
+            results.push(json!({
+                "document_id": document_id,
+                "op": op_name,
+                "ok": false,
+                "error": "not_found",
+                "detail": "HSK-403-PROTECTED-RESOURCE",
+            }));
+            continue;
+        };
         let scope = authority.record_user_scope.clone();
         DOCUMENT_AUTHORITY.scope(authority, state.surreal.with_record_user_scope(scope, async {
         let outcome: Result<crate::storage::knowledge::KnowledgeRichDocument, StorageError> =
