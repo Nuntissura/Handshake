@@ -431,7 +431,9 @@ async fn code_nav_http_500_is_typed_error_not_empty_success() {
         b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
             .to_vec(),
     );
+    let context = mock_account_context(&base_url);
     let error = CodeNavClient::new(base_url)
+        .with_authenticated_context(Some(context))
         .lookup_symbols("ws-negative", "add", 5)
         .await
         .expect_err("HTTP 500 must not become an empty successful lookup");
@@ -450,7 +452,9 @@ async fn code_nav_malformed_json_is_typed_error_not_empty_success() {
         String::from_utf8_lossy(body)
     );
     let (base_url, server) = spawn_code_nav_response(response.into_bytes());
+    let context = mock_account_context(&base_url);
     let error = CodeNavClient::new(base_url)
+        .with_authenticated_context(Some(context))
         .lookup_symbols("ws-negative", "add", 5)
         .await
         .expect_err("malformed JSON must not become an empty successful lookup");
@@ -463,12 +467,32 @@ async fn code_nav_dropped_connection_is_typed_error_not_empty_success() {
     use handshake_native::code_editor::code_nav::CodeNavClient;
 
     let (base_url, server) = spawn_code_nav_response(Vec::new());
+    let context = mock_account_context(&base_url);
     let error = CodeNavClient::new(base_url)
+        .with_authenticated_context(Some(context))
         .lookup_symbols("ws-negative", "add", 5)
         .await
         .expect_err("dropped connection must not become an empty successful lookup");
     server.join().expect("drop server exits");
     assert!(!error.to_string().trim().is_empty());
+}
+
+// Explicit identity for these isolated mock HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext =
+        serde_json::from_value(serde_json::json!({
+            "account_id": "mock-account", "principal_id": "mock-principal",
+            "session_id": "mock-session", "access_space_id": "mock-space",
+            "session_token": "a".repeat(64)
+        }))
+        .expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
 }
 
 // ── LIVE-BACKEND (--features integration): the REAL handshake_core code-nav binding ────────────────

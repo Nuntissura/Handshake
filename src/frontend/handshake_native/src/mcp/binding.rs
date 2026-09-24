@@ -1246,23 +1246,40 @@ mod tests {
             }
         }
 
-        let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .ancestors()
-            .nth(3)
-            .expect("handshake_native remains below the repository root");
-        let artifacts_root = repo_root
-            .parent()
-            .expect("repository worktree has a parent")
-            .join("Handshake_Artifacts");
+        let artifacts_root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+            .map(std::path::PathBuf::from)
+            .expect("runner must supply the verified artifact root");
         assert!(
-            artifacts_root.is_dir(),
+            artifacts_root.is_absolute() && artifacts_root.is_dir(),
             "the authorized external Handshake_Artifacts root must already exist: {}",
             artifacts_root.display()
         );
-        let mt_root = artifacts_root
-            .join("WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1")
-            .join("MT-129");
-        std::fs::create_dir_all(&mt_root).expect("create external MT-129 artifact directory");
+        let artifacts_root = artifacts_root
+            .canonicalize()
+            .expect("resolve artifact root");
+        let mt_root = std::env::var_os("HANDSHAKE_TEST_ARTIFACTS_ROOT")
+            .map(std::path::PathBuf::from)
+            .expect("runner must supply the assigned artifact owner");
+        assert!(mt_root.is_absolute() && mt_root.is_dir());
+        let mt_root = mt_root.canonicalize().expect("resolve artifact owner");
+        let relative_owner = mt_root
+            .strip_prefix(&artifacts_root)
+            .expect("assigned owner must be inside the verified artifact root");
+        assert!(
+            relative_owner.components().count() >= 3,
+            "owner must include WP/MT/owner isolation"
+        );
+
+        // The governed nextest runner isolates each test in its own process. Move this test's
+        // CWD to its assigned owner so a C: source export still exercises a relative D: path.
+        struct RestoreCwd(std::path::PathBuf);
+        impl Drop for RestoreCwd {
+            fn drop(&mut self) {
+                std::env::set_current_dir(&self.0).expect("restore test CWD");
+            }
+        }
+        let _cwd = RestoreCwd(std::env::current_dir().expect("original test CWD"));
+        std::env::set_current_dir(&mt_root).expect("enter assigned artifact owner");
         static NEXT_ENVELOPE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let sequence = NEXT_ENVELOPE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let timestamp = std::time::SystemTime::now()
@@ -1278,10 +1295,8 @@ mod tests {
         let envelope_name = envelope
             .file_name()
             .expect("temporary envelope has a final component");
-        let relative_envelope = std::path::PathBuf::from(
-            r"..\..\..\..\Handshake_Artifacts\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\MT-129",
-        )
-        .join(envelope_name);
+        let relative_envelope = std::path::PathBuf::from(".").join(envelope_name);
+        assert!(relative_envelope.is_relative());
         let mut deep_tail = std::path::PathBuf::from("live");
         while envelope
             .join(&deep_tail)
