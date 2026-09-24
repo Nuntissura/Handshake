@@ -2490,6 +2490,15 @@ fn pre_canvas_receipt_schema() -> String {
     predecessor
 }
 
+/// The `loom_blocks` table statement exactly as the revision-157 pin (8d4ed30d) shipped it. The MT-109
+/// C1-C3 Loom record-user permission rewrites (01df5ebf, ec34c88e, a1e18d79) have no revert pair in the
+/// revision-157 chain, so [`pre_account_setup_schema`] restores the whole statement (kb-c5 emulation:
+/// with it the chain reproduces PRE_ACCOUNT_SETUP_GENERATED_SHA256 byte for byte).
+#[cfg(test)]
+const PRE_ACCOUNT_SETUP_LOOM_BLOCKS_TABLE: &str = r#"DEFINE TABLE OVERWRITE loom_blocks SCHEMAFULL
+    PERMISSIONS FOR select WHERE (source_rich_document_id = NONE AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'workspace', record::id(workspace_id))) OR (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'rich_document', record::id(source_rich_document_id)) AND fn::mt109_source_read('rich_document', record::id(source_rich_document_id), record::id(workspace_id), 'workspace', record::id(workspace_id)) AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256)
+                FOR create, update, delete NONE;"#;
+
 #[cfg(test)]
 fn pre_account_setup_schema() -> String {
     // MT-154 is reverted first so every block removal below sees the 0cfbff64 text it matches.
@@ -2509,6 +2518,8 @@ fn pre_account_setup_schema() -> String {
     for (old, current) in MT120_DOCUMENT_TABLE_UPGRADES.iter().rev() {
         previous = previous.replace(current, old);
     }
+    let (start, end) = schema_table_definition_bounds(&previous, "loom_blocks");
+    previous.replace_range(start..end, PRE_ACCOUNT_SETUP_LOOM_BLOCKS_TABLE);
     previous
 }
 /// Stable v1 lineage identifier retained so existing embedded stores remain readable after the
@@ -8924,7 +8935,10 @@ mod tests {
             MT151_JOURNAL_KEY_AND_GRAPH_ANCHOR_UPGRADE_STATEMENTS,
         ));
         assert_eq!(upgrade.len(), 9);
-        let schema = statements(SCHEMA);
+        // Compared with the revision-157 script (after MT-151, before the MT-109 C1-C3 / MT-154
+        // permission rewrites of storage_graph_anchors and loom_blocks); later waves re-emit their own
+        // versions of these statements.
+        let schema = statements(&pre_account_setup_schema());
         for statement in &upgrade {
             assert!(
                 schema
