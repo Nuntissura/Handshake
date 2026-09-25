@@ -6,16 +6,16 @@
 //! server-derived rather than client-supplied. `src/frontend/**` was a forbidden path for MT-109, so its
 //! callers were left broken. This suite proves the repaired client, and proves it WITHOUT weakening,
 //! bypassing, feature-gating, or stubbing any part of that boundary — every request here presents the
-//! same real on-disk native-MCP binding credential a real client presents.
+//! same real account session and native-channel binding a real client presents.
 //!
 //! | Acceptance criterion | Proof |
 //! |---|---|
 //! | AC-111-1 (scoped ingest path) | `mt111_flight_recorder_authorization_boundary_real_surrealdb` step 6 posts through the production emitter to `POST /api/workspaces/{id}/flight_recorder/native_editor_event` and the row lands. |
-//! | AC-111-2 (genuine credential + typed absence) | step 1 (401 without the header), step 7 (`EmitError::MissingSessionBinding` when the binding is gone — surfaced in the operator-visible error ring, never a silent drop). |
+//! | AC-111-2 (genuine credential + typed absence) | step 1 (401 without account credentials), step 7 (typed missing-account error), step 8 (removed channel binding yields typed 401); failures stay visible in the error ring. |
 //! | AC-111-3 (no client-authored identity) | step 2 (`403 HSK-403-FR-ACTOR-SPOOF` and NO durable row), step 3 (`403 HSK-403-FR-WORKSPACE` and NO durable row), step 6 (the persisted row carries SERVER-derived attribution). |
-//! | AC-111-4 (scoped read) | step 4 (unscoped read with a valid credential is `403 HSK-403-FR-CAPABILITY`), step 5 (scoped read without a credential is `401`). |
+//! | AC-111-4 (scoped read) | step 4 (unscoped read with a valid credential is `403 HSK-403-PROTECTED-RESOURCE`), step 5 (scoped read without a credential is `401`). |
 //! | AC-111-5 (live runtime proof) | the whole test: real backend, real SurrealDB, real workspace, production emitter. |
-//! | AC-111-7 (honest harness) | every read here uses [`live_binding_session_token`], read from the REAL published binding. |
+//! | AC-111-7 (honest harness) | every authorized request uses the fixture's real account session and bound native channel. |
 //!
 //! ## Running it
 //!
@@ -31,22 +31,17 @@
 //! cargo test --test test_flight_recorder_authz -- --nocapture
 //! ```
 //!
-//! `HANDSHAKE_TEST_STAGE_BINDING_ROOT` is mandatory: it both forces `backend_proof_support` to own its
-//! backend child and gives this proof a private app-data root. The child inherits the redirected
-//! `%LOCALAPPDATA%`, so BOTH processes resolve the SAME `swarm_mcp_binding.json` — which is what makes
-//! the credential real rather than mocked.
+//! `HANDSHAKE_TEST_STAGE_BINDING_ROOT` is mandatory: it forces an owned backend child and a private
+//! app-data root. The fixture provisions a real account session bound to the published native channel.
 
 #[path = "backend_proof_support/mod.rs"]
 mod backend_proof_support;
 
 use handshake_native::event_emitter::{
-    EmitError, NativeEditorEvent, NativeEditorEventEmitter, UndoScope, HSK_HEADER_SESSION_TOKEN,
-    NATIVE_EDITOR_SCHEMA_VERSION,
+    EmitError, NativeEditorEvent, NativeEditorEventEmitter, UndoScope, NATIVE_EDITOR_SCHEMA_VERSION,
 };
 
-/// AC-111-7: read the token from the REAL published binding, exactly as the mounted native client
-/// does. This never weakens the gate - a missing, forged, or stale binding still fails closed.
-use backend_proof_support::{live_flight_recorder_session_token as live_binding_session_token, RealNativeMcpBinding, NATIVE_BINDING_APP_DATA_ENV as APP_DATA_ENV};
+use backend_proof_support::{LiveBackend, RealNativeMcpBinding};
 
 fn native_editor_body(event_id: &str, extra: serde_json::Value) -> serde_json::Value {
     let mut body = serde_json::json!({
@@ -122,12 +117,11 @@ fn mt111_flight_recorder_authorization_boundary_real_surrealdb() {
     // ── Step 2 (AC-111-3 negative): a deliberately spoofed actor_id -> 403 before any durable write ─
     let spoofed_event_id = uuid::Uuid::new_v4().to_string();
     let (status, body) = runtime.block_on(async {
-        let response = http
-            .post(&ingest_url)
-            .header(HSK_HEADER_SESSION_TOKEN, binding.token())
+        let response = backend
+            .authenticated(http.post(&ingest_url))
             .json(&native_editor_body(
                 &spoofed_event_id,
-                serde_json::json!({"actor_id": "hsk:native_editor:human"}),
+                serde_json::json!({"actor_id": "not-the-authenticated-principal"}),
             ))
             .send()
             .await
@@ -145,9 +139,8 @@ fn mt111_flight_recorder_authorization_boundary_real_surrealdb() {
     // ── Step 3 (AC-111-3 negative): a body workspace_id that disagrees with the path -> 403 ────────
     let cross_workspace_event_id = uuid::Uuid::new_v4().to_string();
     let (status, body) = runtime.block_on(async {
-        let response = http
-            .post(&ingest_url)
-            .header(HSK_HEADER_SESSION_TOKEN, binding.token())
+        let response = backend
+            .authenticated(http.post(&ingest_url))
             .json(&native_editor_body(
                 &cross_workspace_event_id,
                 serde_json::json!({"workspace_id": "some-other-workspace"}),
@@ -168,9 +161,8 @@ fn mt111_flight_recorder_authorization_boundary_real_surrealdb() {
     // ── Step 4 (AC-111-4): an UNSCOPED read, even with a valid credential, requires fr.read.global
     //    which is granted to NO profile -> always 403. This is exactly why the shell must scope. ────
     let (status, body) = runtime.block_on(async {
-        let response = http
-            .get(format!("{base}/api/flight_recorder"))
-            .header(HSK_HEADER_SESSION_TOKEN, binding.token())
+        let response = backend
+            .authenticated(http.get(format!("{base}/api/flight_recorder")))
             .send()
             .await
             .expect("unscoped recorder read reaches the backend");
@@ -182,7 +174,7 @@ fn mt111_flight_recorder_authorization_boundary_real_surrealdb() {
         status, 403,
         "AC-111-4: an unscoped read escalates to fr.read.global, which no profile holds"
     );
-    assert_eq!(body["error"], "HSK-403-FR-CAPABILITY");
+    assert_eq!(body["error"], "HSK-403-PROTECTED-RESOURCE");
 
     // ── Step 5 (AC-111-2 negative, read side): a scoped read without a credential -> 401 ───────────
     let status = runtime.block_on(async {
@@ -201,8 +193,13 @@ fn mt111_flight_recorder_authorization_boundary_real_surrealdb() {
 
     // ── Step 6 (AC-111-1/2/3/5 positive): the PRODUCTION emitter lands a durable row with
     //    SERVER-derived attribution, read back through the scoped path. ───────────────────────────
-    let emitter =
-        NativeEditorEventEmitter::production(workspace_id.clone(), base.clone(), runtime.handle().clone());
+    let emitter = NativeEditorEventEmitter::production_with_authenticated_context(
+        workspace_id.clone(),
+        base.clone(),
+        runtime.handle().clone(),
+        Default::default(),
+        backend.account(),
+    );
     let persisted = runtime.block_on(async {
         emitter
             .emit_persisted(
@@ -218,20 +215,19 @@ fn mt111_flight_recorder_authorization_boundary_real_surrealdb() {
     });
     let persisted = persisted.unwrap_or_else(|error| {
         panic!(
-            "AC-111-2: the production transport must authenticate with the live binding, but the \
+            "AC-111-2: the production transport must authenticate with the account session, but the \
              emit failed: {error}"
         )
     });
 
-    let row = poll_scoped_recorder_row(&runtime, &http, &base, &workspace_id, &persisted.event_id);
+    let row = poll_scoped_recorder_row(&runtime, &http, &backend, &workspace_id, &persisted.event_id);
     let server_actor_id = row["actor_id"]
         .as_str()
         .expect("persisted recorder row carries an actor_id")
         .to_owned();
-    assert!(
-        server_actor_id.starts_with("handshake-native:"),
-        "AC-111-3: attribution must be SERVER-derived from the authenticated binding, got \
-         {server_actor_id}"
+    assert_eq!(
+        server_actor_id, backend.account_context.principal_id,
+        "AC-111-3: attribution must be the authenticated account principal"
     );
     assert_ne!(
         server_actor_id, "caller-supplied-actor-that-is-not-authority",
@@ -256,9 +252,8 @@ fn mt111_flight_recorder_authorization_boundary_real_surrealdb() {
         &cross_workspace_event_id,
     ] {
         let rows = runtime.block_on(async {
-            let response = http
-                .get(format!("{base}/api/flight_recorder"))
-                .header(HSK_HEADER_SESSION_TOKEN, binding.token())
+            let response = backend
+                .authenticated(http.get(format!("{base}/api/flight_recorder")))
                 .query(&[("wsid", workspace_id.as_str())])
                 .send()
                 .await
@@ -277,12 +272,8 @@ fn mt111_flight_recorder_authorization_boundary_real_surrealdb() {
         );
     }
 
-    // ── Step 7 (AC-111-2): with the binding GONE the emit is a TYPED, operator-visible failure that
-    //    names the exact credential file — never a silent drop, and never an unauthenticated retry. ─
-    let missing_root = std::env::temp_dir().join(format!("hsk-mt111-nobinding-{}", uuid::Uuid::new_v4().simple()));
-    std::fs::create_dir_all(&missing_root).expect("create empty app-data root");
-    let previous_app_data = std::env::var_os(APP_DATA_ENV);
-    std::env::set_var(APP_DATA_ENV, &missing_root);
+    // ── Step 7 (AC-111-2): without an account session the emit is a TYPED, operator-visible
+    //    failure — never a silent drop, and never an unauthenticated retry. ─────────────────────
     let unbound_emitter =
         NativeEditorEventEmitter::production(workspace_id.clone(), base.clone(), runtime.handle().clone());
     let unbound = runtime.block_on(async {
@@ -298,21 +289,13 @@ fn mt111_flight_recorder_authorization_boundary_real_surrealdb() {
             )
             .await
     });
-    match previous_app_data {
-        Some(previous) => std::env::set_var(APP_DATA_ENV, previous),
-        None => std::env::remove_var(APP_DATA_ENV),
-    }
-    let _ = std::fs::remove_dir_all(&missing_root);
     match unbound {
         Err(EmitError::MissingSessionBinding { path, reason }) => {
-            assert!(
-                path.contains("swarm_mcp_binding.json"),
-                "the typed failure names the exact credential file, got {path}"
-            );
-            assert!(!reason.trim().is_empty(), "the typed failure carries a reason");
+            assert!(path.is_empty(), "no account session has no binding path");
+            assert_eq!(reason, "Account login required");
         }
         other => panic!(
-            "AC-111-2: a missing native-MCP binding must surface as a typed MissingSessionBinding \
+            "AC-111-2: a missing account session must surface as a typed MissingSessionBinding \
              error, got {other:?}"
         ),
     }
@@ -324,6 +307,52 @@ fn mt111_flight_recorder_authorization_boundary_real_surrealdb() {
             .any(|entry| matches!(entry.error, EmitError::MissingSessionBinding { .. })),
         "AC-111-2: the failure must be visible to the operator in the shared error ring the \
          FlightRecorderPane renders"
+    );
+
+    // ── Step 8 (AC-111-2): a valid account session cannot outlive its native channel binding. ──
+    let held_binding = binding
+        .binding_path()
+        .with_extension(format!("held-{}", uuid::Uuid::new_v4().simple()));
+    std::fs::rename(binding.binding_path(), &held_binding).expect("hold fixture-owned binding");
+    let channel_event = NativeEditorEvent::undo_fired(
+        UndoScope::Local,
+        "pane-mt111",
+        "actor",
+        workspace_id.clone(),
+    );
+    let channel_event_id = channel_event.event_id.clone();
+    let channel_emitter = NativeEditorEventEmitter::production_with_authenticated_context(
+        workspace_id.clone(),
+        base.clone(),
+        runtime.handle().clone(),
+        Default::default(),
+        backend.account(),
+    );
+    let channel_result = runtime.block_on(async {
+        channel_emitter
+            .emit_persisted(channel_event, std::time::Duration::from_secs(20))
+            .await
+    });
+    std::fs::rename(&held_binding, binding.binding_path()).expect("restore fixture-owned binding");
+    assert!(
+        matches!(&channel_result, Err(EmitError::SessionRejected { status: 401, error_code })
+            if error_code == "HSK-401-FR-SESSION"),
+        "AC-111-2: removed channel binding must deny the account session, got {channel_result:?}"
+    );
+    let rows = runtime.block_on(async {
+        backend
+            .authenticated(http.get(format!("{base}/api/flight_recorder")))
+            .query(&[("wsid", workspace_id.as_str())])
+            .send()
+            .await
+            .expect("scoped read after restoring channel binding")
+            .json::<Vec<serde_json::Value>>()
+            .await
+            .expect("scoped recorder read returns a JSON array")
+    });
+    assert!(
+        !rows.iter().any(|row| row["payload"]["client_event_id"].as_str() == Some(channel_event_id.as_str())),
+        "AC-111-2: rejected channel event must not leave a durable row"
     );
 
     // Product workspace deletion owns scoped projection cleanup. The fixture then reaps its isolated
@@ -345,16 +374,15 @@ fn json_null() -> serde_json::Value {
 fn poll_scoped_recorder_row(
     runtime: &tokio::runtime::Runtime,
     http: &reqwest::Client,
-    base: &str,
+    backend: &LiveBackend,
     workspace_id: &str,
     event_id: &str,
 ) -> serde_json::Value {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
     loop {
         let rows = runtime.block_on(async {
-            let response = http
-                .get(format!("{base}/api/flight_recorder"))
-                .header(HSK_HEADER_SESSION_TOKEN, live_binding_session_token())
+            let response = backend
+                .authenticated(http.get(format!("{}/api/flight_recorder", backend.base)))
                 .query(&[("wsid", workspace_id)])
                 .send()
                 .await
