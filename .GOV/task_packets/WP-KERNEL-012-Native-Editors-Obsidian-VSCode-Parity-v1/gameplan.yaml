@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 15
+generation: 16
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -67,3 +67,4 @@ steps:
 - {id: GP-046, role: builder, at: before_round, do: verify PendingChild take returns Child for restart, check: {type: file, path: ../wtc-native-editors-v1/src/frontend/handshake_native/tests/backend_proof_support/mod.rs, contains: fn take(mut self) -> Child}, source: 'failed check: tuple return broke restart_owned; compile confirms call site', state: active}
 - {id: GP-047, role: orchestrator, at: before_submit, do: confirm approved 86 vault targets match manifest hash; live owners == 0; unapproved targets retained, check: {type: confirm}, source: 'CX-GIT-003: Operator approved exact86 manifest 03E01A7F; no other credential deletion', state: active}
 - {id: GP-048, role: orchestrator, at: before_dispatch, do: confirm reported cleanup defects traced through caller and callee before builder dispatch, check: {type: confirm}, source: 'review mistake: logout callee already sets retention flag; parent flagged nonexistent Drop gap', state: active}
+- {id: GP-049, role: wp_validator, at: before_round, do: confirm bulk C cache copy throughput budget and forbid triple source hashing, check: {type: confirm}, source: 'wasted retention: 12 files in 7min; saturated C; 3x source hash', state: active}
