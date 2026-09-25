@@ -892,6 +892,71 @@
     "status_effect": "none; READY_FOR_VALIDATION and null validator_verdict retained under CX-STATUS-003",
     "residual_uncertainty": "The two MT-032 owned child logs were not separately retained; their exact individual startup substep is bounded to pre-listen exit. A distinct current-candidate run is required to exercise MT-032 acceptance assertions."
   },
+  "remediation_v10": {
+    "diagnosis_id": "MT032-OWNED-FIXTURE-VAULT-TEARDOWN-ORDER",
+    "batch_owner": "MT-032",
+    "covered_mts": ["MT-032"],
+    "base_commit": "1cdfde383ed4e30895f94552ce1b5f4873200ae8",
+    "operator_direction": "2026-09-25: deliberate with agents, implement all MT failures, cheap checks, update gameplan, then one validation run",
+    "failure_ref": "validation_v9",
+    "cause": "Failure diagnostics reap the owned backend before logout; startup/dead-backend paths need exact vault cleanup",
+    "code_refs": [
+      "src/frontend/handshake_native/tests/backend_proof_support/mod.rs::retain_failure_diagnostics",
+      "src/frontend/handshake_native/tests/backend_proof_support/mod.rs::PendingChild",
+      "src/frontend/handshake_native/tests/backend_proof_support/mod.rs::LiveBackend::drop"
+    ],
+    "repair_scope": ["src/frontend/handshake_native/tests/backend_proof_support/mod.rs"],
+    "scope_basis": "Shared fixture repair strictly required by the Operator-requested MT-032 remediation; acceptance unchanged",
+    "repair_direction": "Logout before reap; after reap remove only this fixture's proven OS-vault entries; preserve evidence on failure",
+    "distinct_from": ["SHARED_SURREAL_SCHEMA_INFO_PIN_BOOTSTRAP", "MT-032 core delete/search identity repair"],
+    "attempt_history_refs": ["validation_v7", "validation_v8", "validation_v9"],
+    "low_cost_checks": [
+      "Independent review of ownership, pre-login failure, dead backend, exact identity, cleanup verification and retention",
+      "Native cargo check --tests on existing D target only; unchanged input digest before/after",
+      "One unique real-vault write/read/delete probe with verified absence after authorized residue recovery"
+    ],
+    "historical_residue": {
+      "operator_approval": "Approve the exact 86 credentials",
+      "manifest_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/mt032-vault-cleanup-candidates.json",
+      "manifest_sha256": "03E01A7FE80E82945CDDBDA4F08E9645290D0E4B5ACE7115E1EC608B4CA940BC",
+      "verified_at_utc": "2026-09-25T17:02:27.5100076Z",
+      "preflight": "86 unique exact targets; namespace hashes and retained-store containment verified; 86 owner reports checked; no live original owner",
+      "deletion_method": "cmdkey.exe /delete:<exact approved target>; no wildcard deletion",
+      "approved_deleted": 86,
+      "approved_remaining": 0,
+      "unapproved_before": 233,
+      "unapproved_missing_after": 0,
+      "all_targets_after": 233,
+      "preserved": "14 unmatched Handshake entries, all other credentials, all test data and build caches; approved manifest unchanged"
+    },
+    "implementation_commit": "e9538602d8cb7633ed23a70315d5fb24a6cf8634",
+    "candidate_commit": "14bd43499e87e5982a4ecde52dd3d70c6069ee61",
+    "builder_check": {
+      "command": "cargo check --locked --tests --features integration,integration_tests -j 1",
+      "target_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target",
+      "exit_code": 0,
+      "duration": "1m20s",
+      "source_git_blob_before_after": "f03ca17e9ea9f35214ba9f2dc928acf808b38a79",
+      "builder_session": "19847",
+      "tests_run": false
+    },
+    "format_check": {
+      "exit_code": 0,
+      "scope": "rustfmt --check on the changed helper only",
+      "source_git_blob": "7ff28af56bb2bf0e433b3de9d76ac634d8b4230d",
+      "compile_reuse_basis": "Formatting e9538602 produces the exact candidate source blob; no semantic change or repeat compile"
+    },
+    "vault_preflight": {
+      "owner": "WP_VALIDATOR",
+      "receipt_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/gp043-vault-probe-a36792fe-cd8c-4a97-a230-8e3588208bfe.json",
+      "receipt_sha256": "78B209248D57FD55A50C9B4A689F7986FEBDB7DF126A69DF0990A0AB255A1F23",
+      "completed_at_utc": "2026-09-25T17:07:41.5865660Z",
+      "result": "PASS: unique absent target; real CRED_TYPE_GENERIC/CRED_PERSIST_ENTERPRISE write, read, byte equality, delete and verified absence",
+      "scope_limit": "Host preflight only; not MT acceptance or proof that every production backend session will succeed"
+    },
+    "validation_limit": "One independent union after reviewed pushed fix, vault preflight and measured C-cap budget pass",
+    "status_effect": "none; prior infrastructure verdict and lifecycle status retained"
+  },
   "validation_v9": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "decision": "inconclusive",

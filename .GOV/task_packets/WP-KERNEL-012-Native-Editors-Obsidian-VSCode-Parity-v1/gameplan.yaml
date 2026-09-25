@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 9
+generation: 15
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -62,3 +62,8 @@ steps:
 - {id: GP-041, role: wp_validator, at: before_round, do: confirm JUnit source paths match export-local crate targets, check: {type: confirm}, source: 'infra: frozen 3596 wrapper exit 4 from shared-target JUnit guess', state: active}
 - {id: GP-042, role: builder, at: before_round, do: verify native manifest exists in standalone crate, check: {type: file, path: ../wtc-native-editors-v1/src/frontend/handshake_native/Cargo.toml, exists: true}, source: 'mistake: native check launched from repo without root manifest', state: active}
 - {id: GP-043, role: wp_validator, at: before_round, do: confirm fresh OS vault credential write|read|delete == success; orphan == 0, check: {type: confirm}, source: 'infra: 1cdfde38 session vault write Windows error 8; cmdkey probe exit 1', state: active}
+- {id: GP-044, role: builder, at: before_round, do: verify restart PendingChild take returns Child, check: {type: file, path: ../wtc-native-editors-v1/src/frontend/handshake_native/tests/backend_proof_support/mod.rs, contains: Some(pending.take())}, source: 'failed check: PendingChild tuple broke restart_owned', state: retired}
+- {id: GP-045, role: wp_validator, at: before_round, do: confirm fixture vault cleanup ownership|startup|failure reviewed; open findings == 0, check: {type: confirm}, source: 'MT032-OWNED-FIXTURE-VAULT-TEARDOWN-ORDER: diagnostics reaped backend before logout', state: active}
+- {id: GP-046, role: builder, at: before_round, do: verify PendingChild take returns Child for restart, check: {type: file, path: ../wtc-native-editors-v1/src/frontend/handshake_native/tests/backend_proof_support/mod.rs, contains: fn take(mut self) -> Child}, source: 'failed check: tuple return broke restart_owned; compile confirms call site', state: active}
+- {id: GP-047, role: orchestrator, at: before_submit, do: confirm approved 86 vault targets match manifest hash; live owners == 0; unapproved targets retained, check: {type: confirm}, source: 'CX-GIT-003: Operator approved exact86 manifest 03E01A7F; no other credential deletion', state: active}
+- {id: GP-048, role: orchestrator, at: before_dispatch, do: confirm reported cleanup defects traced through caller and callee before builder dispatch, check: {type: confirm}, source: 'review mistake: logout callee already sets retention flag; parent flagged nonexistent Drop gap', state: active}
