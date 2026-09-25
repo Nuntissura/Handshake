@@ -7,7 +7,7 @@
     "This artifact owns the WP origin; the WP contract points here through refinement_ref and does not repeat origin.",
     "applicability.not_triggered_by includes remediation: a remediation round reuses the existing refinement and does not open a new one.",
     "hbr_pillar_review keeps the V1 pillar review inside matrix_resolution; red_team and reusable_solution_discovery live under refinement.reality_check.",
-    "Value mapping for MT labels referenced here: PASS_Vn -> passed/pass; FAIL_Vn -> needs_remediation/fail; PARTIAL -> validating/inconclusive plus a blockers[] entry on the MT.",
+    "Value mapping for MT labels referenced here: PASS_Vn -> passed/passed; FAIL_Vn -> needs_remediation/failed; PARTIAL -> validating/inconclusive plus a blockers[] entry on the MT; BLOCKED -> blocked/blocked (CX-STATUS-003).",
     "Placeholders are REPLACE_ME or empty arrays."
   ],
   "instance_policy": {

@@ -6,14 +6,15 @@
     "Policy prose lives in rule_refs (Codex CX ids), never in instance fields; keys starting with '_' are author comments and are ignored by readers.",
     "execution.depends_on is the only depends_on; lifecycle.depends_on and dependencies.depends_on are removed.",
     "Versioned validation_vN / remediation_vN blocks become verdicts[] and submissions[]; verdicts[].payload keeps the existing hsk.mt_validation_verdict@1 write-up.",
-    "Value mapping from V1 labels: PASS_Vn -> phase passed / decision pass; FAIL_Vn -> needs_remediation / fail; PARTIAL -> validating / inconclusive plus a blockers[] entry.",
-    "lifecycle.phase is authoritative; lifecycle.status is the derived label <DECISION>_V<n> kept for old readers.",
+    "Value mapping from V1 labels: PASS_Vn -> phase passed / decision passed; FAIL_Vn -> needs_remediation / failed; PARTIAL -> validating / inconclusive plus a blockers[] entry; BLOCKED -> blocked / blocked, with blocked_on_mt_ref when the blocker kind is dependency (CX-STATUS-003).",
+    "lifecycle.phase is authoritative; lifecycle.status is the derived CX-STATUS-001 label (PASS_Vn, FAIL_Vn, BLOCKED, NEEDS_NEW_APPROACH) kept for old readers (CX-STATUS-003).",
     "execution.lane: repo values PRODUCT_CODE_BACKEND and PRODUCT_CODE_BACKEND_PLUS_NATIVE map to implementation; operator decision pending (see _repo_lane_values).",
     "failure_class keeps the repo meaning: a cause id (e.g. C1V-088-GUARD-STALE). failure_kind is the separate product|infrastructure|flaky classification; only product failures become MT remediation (CX-VAL-006).",
     "lifecycle.rounds_without_output counts wasted rounds and resets on a new pushed commit or new verdict; at 2 the phase becomes needs_new_approach (status label NEEDS_NEW_APPROACH) until a diagnosis in diagnosis_refs names a new cause (CX-EXEC-013).",
     "gameplan_ref names the gameplan this MT is gated by: the WP gameplan .GOV/task_packets/<WP_ID>/gameplan.yaml, or .GOV/task_packets/<WP_ID>/gameplans/<MT_ID>.yaml when the MT has its own steps (parent = the WP gameplan); created and edited only with the gameplan skill (CX-GP-001).",
     "Closure loop (CX-VAL-008): a fail verdict carries a typed remediation (_remediation_shape); a resubmission after a fail changes a path in remediation.affected_code_refs or cites a new diagnosis_id in submissions[].diagnosis_ref, else it is not admitted; a diagnosis is recorded once as blockers[].diagnosis (_diagnosis_shape) and cited by lifecycle.diagnosis_refs in recording order. Text fields of these shapes are one line of at most 120 chars, gameplan writing style.",
-    "Proof binding (CX-VAL-009): verdicts[].test_run names the round candidate_commit, started_at and completed_at and one artifact_ref per failure; a fail decision needs at least one product failure_kind for this MT in that test_run; lifecycle.invalidated_by_commit records the round candidate whose diff intersected proof.relevant_input_paths and returned a passed MT to ready_for_validation. Every proof run uses the HBR test_entrypoint command and config only (CX-VAL-007).",
+    "Proof binding (CX-VAL-009): verdicts[].test_run names the round candidate_commit, started_at and completed_at and one artifact_ref per failure; a failed decision needs at least one product failure_kind for this MT in that test_run; lifecycle.invalidated_by_commit records the round candidate whose diff intersected proof.relevant_input_paths and returned a passed MT to ready_for_validation. Every proof run uses the HBR test_entrypoint command and config only (CX-VAL-007).",
+    "Retry routes and counters: a released claim clears lifecycle.claim_ref (phase ready); a blocked verdict with blocker kind dependency sets blocked_on_mt_ref and lifecycle.blocked_on (CX-STATUS-002); attempt_budget.max_fix_rounds_per_mt failed verdicts, then a fix_budget_exhausted blocker and an Operator decision before a new claim (CX-EXEC-015). submissions[].final_status is the implementer's status, never a verdict.",
     "The closure-loop fields (remediation, diagnosis, diagnosis_ref, test_run binding, invalidated_by_commit) are checked by agents by hand until Handshake exists."
   ],
   "instance_policy": {
@@ -48,7 +49,12 @@
     "CX-VAL-007",
     "CX-VAL-008",
     "CX-VAL-009",
-    "CX-GP-001"
+    "CX-GP-001",
+    "CX-GP-002",
+    "CX-EXEC-015",
+    "CX-VAL-010",
+    "CX-STATUS-002",
+    "CX-STATUS-003"
   ],
   "_rule_refs_replaces": [
     "contract_authority",
@@ -122,6 +128,7 @@
   },
   "attempt_budget": {
     "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
     "post_diagnosis_runs": {
       "probe": 1,
       "confirm": 1
@@ -249,6 +256,7 @@
       "needs_new_approach"
     ],
     "status": "READY",
+    "blocked_on": null,
     "rounds_without_output": 0,
     "diagnosis_refs": [],
     "invalidated_by_commit": null,
@@ -291,6 +299,11 @@
     "relevant_input_paths": [],
     "diagnosis_ref": null,
     "_diagnosis_ref_note": "The diagnosis_id (blockers[].diagnosis) a resubmission after a fail verdict cites when it changes no path in remediation.affected_code_refs; null otherwise (CX-VAL-008).",
+    "final_status": null,
+    "_final_status_enum": [
+      "ready_for_validation",
+      "blocked"
+    ],
     "test_run": null,
     "_test_run_shape": {
       "executed_count": 0,
@@ -319,9 +332,10 @@
     "validated_at_utc": "REPLACE_ME",
     "decision": "REPLACE_ME",
     "_decision_enum": [
-      "pass",
-      "fail",
-      "inconclusive"
+      "passed",
+      "failed",
+      "inconclusive",
+      "blocked"
     ],
     "acceptance_refs": [],
     "evidence_refs": [],
@@ -361,8 +375,9 @@
       "repair_direction": "REPLACE_ME",
       "confirming_proof_refs": []
     },
-    "_remediation_note": "Required (non-null, every field non-empty) when decision is fail; failed_acceptance_refs lie inside closure_unit.acceptance_refs; failed_check_refs name proof.checks[].check_id; expected, observed and repair_direction are one line of at most 120 chars in gameplan writing style; affected_code_refs are the paths a resubmission must change (CX-VAL-008).",
+    "_remediation_note": "Required (non-null, every field non-empty) when decision is failed; failed_acceptance_refs lie inside closure_unit.acceptance_refs; failed_check_refs name proof.checks[].check_id; expected, observed and repair_direction are one line of at most 120 chars in gameplan writing style; affected_code_refs are the paths a resubmission must change (CX-VAL-008).",
     "blocked_on_mt_ref": null,
+    "_blocked_on_mt_ref_note": "Required when decision is blocked and the blocker kind is dependency: the open MT that owns the causing fix (CX-STATUS-002).",
     "batch_commit_ref": null,
     "proof_commit_ref": null,
     "payload": {
@@ -378,6 +393,7 @@
       "managed_resource_proof",
       "operator_decision",
       "attempt_budget_exhausted",
+      "fix_budget_exhausted",
       "scope",
       "environment"
     ],

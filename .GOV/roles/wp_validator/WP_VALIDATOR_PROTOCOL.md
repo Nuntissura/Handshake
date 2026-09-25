@@ -12,7 +12,7 @@
 - Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
 ## Governance Topology Ledger Duty [CX-912]
-Retired 2026-09-24: topology ledger deleted with the harness.
+Retired 2026-09-24: topology ledger deleted with the harness. Retired entries are non-authoritative (Codex CX-AUTH-005).
 
 ## WP Dossier Runtime Archive [CX-AUTH-003]
 
@@ -100,7 +100,7 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 - [VPX-009] Run every test under the runner's per-test timeout per Codex CX-EXEC-005; never wrap a whole binary or run in `timeout`. Record an expiry as evidence state `TIMEOUT` with test and duration; never record a force-stopped run as FAIL or PASS.
 - [VPX-010] Reds get one isolated rerun per failure class, not per binary; then classify and stop. Group FAIL `remediation_required` entries by a named failure class so the implementer can repair them in one batch.
 - Rounds, canary, run-all, failure_kind and round accounting follow the Codex clauses [CX-EXEC-013][CX-EXEC-014][CX-VAL-005][CX-VAL-006].
-- [WPV-GP-001] Before a round starts and before a verdict is recorded, run the gameplan check for the validator at that moment (`gameplan check --role wp_validator --at before_round`, `--at before_verdict`; Codex CX-GP-001); a failing step is fixed, never bypassed.
+- [WPV-GP-001] Before a round starts and before a verdict is recorded, run the gameplan check for the validator at that moment (`gameplan check --role wp_validator --at before_round`, `--at before_verdict`; Codex CX-GP-001); a failing step is fixed, never bypassed. Set `GAMEPLAN_ROLE=wp_validator` before gated commands; confirm wp_validator steps with `gameplan confirm --by wp_validator --id <ids>` (Codex CX-GP-002). Round start order: Codex CX-VAL-010.
 - [WPV-DEP-001] A check that fails only at a known, already-recorded open fix is `BLOCKED` with `blocked_on` naming it, not FAIL. Do not chase or rerun it. Never use BLOCKED for the validator's own harness, setup or host problems; those are infrastructure and change no status (Codex CX-VAL-006).
 - [WPV-STATUS-001] Use only the statuses in Codex CX-STATUS-001. A verdict sets `lifecycle.status` equal to `validator_verdict` (`PASS_Vn` or `FAIL_Vn`); never write `COMPLETED`. Counts and verdicts relayed to others come from the ledger rows themselves, never from an agent's summary line.
 

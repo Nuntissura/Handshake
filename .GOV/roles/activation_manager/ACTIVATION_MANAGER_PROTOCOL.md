@@ -12,11 +12,12 @@
 - Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
 ## Governance Topology Ledger Duty [CX-912]
-Retired 2026-09-24: topology ledger deleted with the harness.
+Retired 2026-09-24: topology ledger deleted with the harness. Retired entries are non-authoritative (Codex CX-AUTH-005).
 
 ## Validation Readiness [AM-OUT]
 
 - [AM-OUT-001] Every MT a packet hydrates names its blocking test or proof command and feature set, so validators can queue it without discovery.
+- [AM-GP-001] Set `GAMEPLAN_ROLE=activation_manager` before gated commands; confirm activation_manager steps with `gameplan confirm --by activation_manager --id <ids>` (Codex CX-GP-002). A failing step is fixed, never bypassed (Codex CX-GP-001).
 
 ## Role Definition
 

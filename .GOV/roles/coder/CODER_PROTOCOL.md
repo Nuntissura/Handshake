@@ -1,6 +1,6 @@
 # Coder Protocol
 
-Lean protocol for a cheap-model implementation worker. The assigned MT (or the WP when no MT exists) is the whole working contract. No repomem, no `just` gates, no ACP handshake, no receipts/dossiers/protocol-ack (Codex CX-AUTH-002/003).
+Lean protocol for a cheap-model implementation worker. The assigned MT (or the WP when no MT exists) is the whole working contract. No repomem, no `just` gates, no ACP handshake, no receipts/dossiers/protocol-ack (Codex CX-AUTH-002/003). Retired entries are non-authoritative (Codex CX-AUTH-005).
 
 ## Authority
 
@@ -30,7 +30,7 @@ Lean protocol for a cheap-model implementation worker. The assigned MT (or the W
 
 [CODER-PROOF-004] Fixture-only tests, mocks, and declarations do not satisfy a check that names a real product/resource boundary. If a check needs a live resource and only a fixture is available, status is blocked, not passed.
 
-[CODER-PROOF-005] Before setting READY_FOR_VALIDATION, run the gameplan check for the coder at the submit moment (`gameplan check --role coder --at before_submit`; Codex CX-GP-001); a failing step is fixed, never bypassed.
+[CODER-PROOF-005] Before setting READY_FOR_VALIDATION, run the gameplan check for the coder at the submit moment (`gameplan check --role coder --at before_submit`; Codex CX-GP-001); a failing step is fixed, never bypassed. Set `GAMEPLAN_ROLE=coder` before gated commands; confirm coder steps with `gameplan confirm --by coder --id <ids>` (Codex CX-GP-002).
 
 ## Attempts
 

@@ -5,8 +5,8 @@
     "Paperwork is handwritten in this repo; digests, activation_id and controller-derived refs are optional (null) until Handshake exists.",
     "Policy prose lives in rule_refs (Codex CX ids), never in instance fields; keys starting with '_' are author comments and are ignored by readers.",
     "mt_state is the single MT projection; mt_plan.mt_status, tracker.mt_status and microtasks.authored_count are removed.",
-    "Value mapping from V1 labels: PASS_Vn -> phase passed / decision pass; FAIL_Vn -> needs_remediation / fail; PARTIAL -> validating / inconclusive plus a blockers[] entry on the MT.",
-    "lifecycle.phase is authoritative; lifecycle.status is the derived label <DECISION>_V<n> kept for old readers.",
+    "Value mapping from V1 labels: PASS_Vn -> phase passed / decision passed; FAIL_Vn -> needs_remediation / failed; PARTIAL -> validating / inconclusive plus a blockers[] entry on the MT; BLOCKED -> blocked / blocked (CX-STATUS-003).",
+    "lifecycle.phase is authoritative; lifecycle.status is the derived label kept for old readers (CX-STATUS-003).",
     "mt_plan.clusters fold into microtask_graph.parallel_groups; build_target stays inside architecture_binding for the single-crate reality.",
     "Placeholders are REPLACE_ME or empty arrays; scope_waivers keep 012's waivers_granted names as aliases under _v1_alias.",
     "gameplan_ref names the WP gameplan .GOV/task_packets/<WP_ID>/gameplan.yaml, created and edited only with the gameplan skill; MT gameplans under gameplans/<MT_ID>.yaml inherit from it (CX-GP-001)."
@@ -32,7 +32,10 @@
     "CX-LANE-001",
     "CX-VAL-001",
     "CX-HOST-001",
-    "CX-GP-001"
+    "CX-GP-001",
+    "CX-PROOF-005",
+    "CX-STATUS-003",
+    "CX-GP-002"
   ],
   "_rule_refs_replaces": [
     "contract_authority",
@@ -477,7 +480,15 @@
     "current_main_compatibility_status": "NOT_RUN",
     "workflow_lane": "REPLACE_ME",
     "execution_owner": "REPLACE_ME",
-    "activation_status": "NOT_ACTIVATED"
+    "activation_status": "NOT_ACTIVATED",
+    "integration_verdict": null,
+    "_integration_verdict_enum": [
+      "passed",
+      "failed",
+      "inconclusive",
+      "blocked"
+    ],
+    "_integration_verdict_note": "Recorded only by the Integration Validator in fresh context; passed moves validating -> merge_pending only after every required MT passed on the same candidate commit (CX-PROOF-005)."
   },
   "mt_state": {},
   "_mt_state_entry_shape": {

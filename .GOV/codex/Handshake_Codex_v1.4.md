@@ -24,6 +24,8 @@
 
 [CX-AUTH-004] The archived Codex and its disposition map are rollback/reference material, not active authority. Retired rules and archived incident narratives must not be reintroduced through old citations.
 
+[CX-AUTH-005] Role retirement: in every role protocol, template and record, superseded or retired entries are non-authoritative; current shared rules always outrank them.
+
 ## Product boundaries
 
 [CX-003-VIS] Build one handmade, user-owned, local-first, AI-native creative and execution workspace with interconnected surfaces and libraries, shared typed state, and parallel model/Operator work. Reuse current Handshake implementations unless inspected evidence justifies replacement.
@@ -98,6 +100,8 @@
 
 [CX-PROOF-002] Implementers may submit READY_FOR_VALIDATION, never self-certify COMPLETED or issue independent validator verdicts. The assigned independent validator owns acceptance and integration judgment; tests and advisory sub-agent reviews remain implementation evidence.
 
+[CX-PROOF-005] Only the recorded Integration Validator, in fresh context, records the whole-WP integration verdict and performs the merge; the Orchestrator or any coordinating role never does. No reviewer judges its own submission. An MT verdict alone never authorizes a merge; a WP moves to merge_pending only on a passed integration verdict recorded after every required MT passed on the same candidate commit.
+
 [CX-EXEC-001] Prioritize product repairs and acceptance outcomes. Builds, diagnostics, authority rereading and coordination must enable a specific next implementation or acceptance decision; activity volume and process liveness are not deliverable progress. Once a blocking defect is established, repair it within role authority or route the exact finding to its implementer; further investigation must resolve an uncertainty needed for the repair.
 
 [CX-EXEC-002] Read applicable authority once per revision and scope; reopen affected sections only for changed instructions/scope or a specific unresolved question. Use existing task state and proof references; these execution rules require no new tests, receipts, reports or tracking files.
@@ -130,6 +134,8 @@
 
 [CX-EXEC-014] Only the MT's named proof commands run, once per candidate commit; implementers, including the kernel builder, run compile and static checks only. Reruns on an unchanged commit, extra diagnostics, hang checks, duplicate confirmations and new tests or check scripts require a recorded remediation naming them. The only automatic retry is one recorded retry for a test on the HBR `flaky_tests` list.
 
+[CX-EXEC-015] Counter precedence: after each round or verdict on an MT, evaluate in this order; the first counter at its limit acts; values are recorded or derived from records, never self-assessed. (1) Fix budget: failed verdicts on the MT, any cause, limit 3 (`attempt_budget.max_fix_rounds_per_mt`): record a `fix_budget_exhausted` blocker and escalate; no new claim until an Operator decision is recorded. (2) Consecutive failed verdicts on one `failure_class` without a new diagnosis, limit 2: NEEDS_NEW_APPROACH ([CX-VAL-008]). (3) `rounds_without_output`, limit 2: NEEDS_NEW_APPROACH ([CX-EXEC-013]). (4) The same infrastructure `failure_class` in two rounds: no round on affected MTs until a pushed commit changes the test entrypoint config or the declared test environment ([CX-VAL-007]); that commit is the fix, never another round or a diagnosis. (5) The same blocker outside one MT's rounds: [CX-EXEC-003].
+
 [CX-VAL-001] A validation round freezes one pushed candidate commit at round start; later commits queue for the next round and never restart a running build. A round is one union round: one build and one test-runner invocation per crate or package, covering every READY_FOR_VALIDATION MT at once. Never build per MT. PASS requires that every required check's result line in the hashed log reads pass.
 
 [CX-VAL-002] Proof reuse across commits requires the original proof's recorded relevant input paths and an empty intersection between those paths and the diff from the proof commit to the candidate commit; the reused verdict names both commits.
@@ -148,9 +154,17 @@
 
 [CX-VAL-009] Proof binding: a verdict binds to the exact candidate SHA and this round's results (`results_ref`, `candidate_commit`, `started_at`, `completed_at`, an `artifact_ref` per failure). Results from another commit or older than the round start are infrastructure, never a verdict, except proof reused under [CX-VAL-002], whose reused verdict names both commits. At round freeze every PASS MT whose relevant input paths intersect the candidate diff returns to READY_FOR_VALIDATION and is included in the round ([CX-VAL-002]). A FAIL verdict requires at least one product failure ([CX-VAL-006]); an implementer's compile or static result counts only when the input digest before the check equals the digest after it.
 
+[CX-VAL-010] Round start: the WP Validator opens every round, in this order: gameplan check `before_round` ([CX-GP-001]); freeze the pushed candidate commit ([CX-VAL-001]); return invalidated PASS MTs to READY_FOR_VALIDATION ([CX-VAL-009]); run the canary through the test entrypoint ([CX-VAL-007]); open the round with the running record ([CX-VAL-004]) naming candidate commit, start time and covered MT ids. A canary failure is recorded as infrastructure and opens no round. Other roles dispatch rounds, never open them.
+
 [CX-STATUS-001] MT `lifecycle.status` takes only these values: READY_FOR_VALIDATION, PASS_Vn, FAIL_Vn, BLOCKED (with `lifecycle.blocked_on` naming the exact item) and NEEDS_NEW_APPROACH ([CX-EXEC-013]). Transitions: an implementer commit newer than the MT's last verdict makes it READY_FOR_VALIDATION; a validator verdict sets PASS_Vn or FAIL_Vn; waiting on a scheduled proof run or a named open fix sets BLOCKED; an infrastructure failure changes nothing. No role invents another status; a needed new status is an Operator decision.
 
+[CX-STATUS-002] MT retry routes beyond [CX-STATUS-001]: a released claim clears `lifecycle.claim_ref` and returns the MT to phase ready with its work pushed or otherwise recoverable, status unchanged. A `blocked` verdict with blocker kind `dependency` names the open blocking MT in the verdict's `blocked_on_mt_ref` and in `lifecycle.blocked_on`; the MT becomes BLOCKED, is not a FAIL, gets no remediation and is not rerun while that MT is open.
+
+[CX-STATUS-003] Verdict vocabulary: a verdict decision is passed, failed, inconclusive or blocked. Status labels ([CX-STATUS-001]) derive from it: passed -> PASS_Vn; failed -> FAIL_Vn; inconclusive -> status unchanged, submission retained, exact blocker recorded; blocked -> BLOCKED ([CX-STATUS-002]). NEEDS_NEW_APPROACH is a counter outcome ([CX-EXEC-015]), never a decision. Legacy decisions pass, fail and PARTIAL (read as inconclusive) stay in historic records; do not rewrite them.
+
 [CX-GP-001] Every active WP keeps a gameplan at `.GOV/task_packets/<WP>/gameplan.yaml` (MT-specific steps in `gameplans/<MT>.yaml` with the WP gameplan as parent), created and edited only with the `gameplan` skill; a `.gameplan-active` pointer to it sits at the root of every worktree where builds or rounds run. Before dispatch, submit, a validation round, a verdict and a merge, the acting role runs `gameplan check --role <role> --at <moment>`; a failing step is fixed, never bypassed, and the global hook enforces the check for gated commands. After a mistake, an infrastructure failure or a wasted round, a step naming the cause is added before the next attempt. The gameplan holds preparation checks only; this Codex, the role protocols, the WP contract and the MT JSON win on conflict, and the step is corrected. Applies to WPs activated after this rule; WP-KERNEL-012 only by Operator decision ([CX-GOV-PIN-001]).
+
+[CX-GP-002] One gameplan per WP, shared by all agents; MT gameplans inherit via parent ([CX-GP-001]). Each agent sets env `GAMEPLAN_ROLE=<its role>` before gated commands; the hook then evaluates only that role's steps plus role `any`; unset evaluates all roles (fail-closed). Role-scoped confirm steps are confirmed with `gameplan confirm --by <role> --id <ids>`; a confirmation's `by` equals the step role. Every write carries the gameplan generation; on a generation conflict re-read and retry, never overwrite. The retry guard is shared per gameplan. Roles: orchestrator, kernel_builder (skill alias of builder), coder, wp_validator, integration_validator, activation_manager.
 
 [CX-HOST-001] Every project declares its test environment in a machine-local host profile outside Codex law: runtime roots, database sync mode, default check timeouts, the hang procedure of dump and stack walk before any kill, and a tools manifest. A check run outside the declared environment is a defect, not a result.
 

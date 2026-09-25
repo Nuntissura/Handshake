@@ -12,7 +12,7 @@
 - Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
 ## Governance Topology Ledger Duty [CX-912]
-Retired 2026-09-24: topology ledger deleted with the harness.
+Retired 2026-09-24: topology ledger deleted with the harness. Retired entries are non-authoritative (Codex CX-AUTH-005).
 
 ## WP Dossier Runtime Archive [CX-AUTH-003]
 
@@ -25,7 +25,7 @@ Retired under CX-AUTH-003.
 - [ORC-OUT-003] At session start, have the validator build the backend and native test crates at the current pushed commit, in parallel with building. Keep one warm validator target per WP and re-export into the same path.
 - [ORC-OUT-004] Do not accept an agent plan that delays commits or verdicts. Set the deadline in the brief and enforce it.
 - [ORC-OUT-005] Reports to the Operator: PASS count, new verdicts, new commits, blocker. No narrative unless asked.
-- [ORC-OUT-006] Before every dispatch and before every round, run the gameplan check for the acting role at that moment (`gameplan check --role orchestrator --at before_dispatch`, `--at before_round`; Codex CX-GP-001); a failing step is fixed, never bypassed.
+- [ORC-OUT-006] Before every dispatch and before every round, run the gameplan check for the acting role at that moment (`gameplan check --role orchestrator --at before_dispatch`, `--at before_round`; Codex CX-GP-001); a failing step is fixed, never bypassed. Set `GAMEPLAN_ROLE=orchestrator` before gated commands; confirm orchestrator steps with `gameplan confirm --by orchestrator --id <ids>` (Codex CX-GP-002).
 
 ## Orchestrator Role Definition (ORCHESTRATOR_MANAGED) [RGF-189]
 

@@ -2,9 +2,9 @@
   "schema": "hsk.template_alignment@1",
   "template_pack": {
     "source": "Obsidian vault Handshake Creation Template",
-    "source_ref": "installed skill copy: ~/.claude/skills/hsrepotemplate/assets/handshake-creation-template/templates/ (pack 27)",
+    "source_ref": "Obsidian vault IS_main/1 - Brainstorm/Handshake Creation Template/templates/ (pack 31; packs 28-30 = vault commits 39226e1, cd1a564, ffc5f71; pack 31 read from the working tree)",
     "pack_id": "HANDSHAKE-PROJECT-BASE-v1",
-    "pack_version": 27,
+    "pack_version": 31,
     "template_files": [
       "templates/authority/CODEX.template.md",
       "templates/authority/BUILD-RULES.template.md",
@@ -19,14 +19,24 @@
       "templates/schemas/MICROTASK-SCHEMA.template.md",
       "templates/schemas/RECEIPT-SCHEMA.template.md",
       "templates/schemas/WP-STATE-SCHEMA.template.md",
-      "templates/schemas/WP-CONTRACT-SCHEMA.template.md"
+      "templates/schemas/WP-CONTRACT-SCHEMA.template.md",
+      "templates/work-system/WORK-PACKET.template.md",
+      "templates/work-system/REFINEMENT-ENRICHMENT.template.md",
+      "templates/schemas/ROLE-PROFILE-SCHEMA.template.md",
+      "templates/roles/ORCHESTRATOR.template.md",
+      "templates/roles/BUILDER.template.md",
+      "templates/roles/CODER.template.md",
+      "templates/roles/WP-VALIDATOR.template.md",
+      "templates/roles/INTEGRATION-VALIDATOR.template.md",
+      "templates/roles/ACTIVATION-MANAGER.template.md"
     ]
   },
   "repo_targets": {
     "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
-    "build_rules": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json@1.14.0",
+    "build_rules": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json@1.15.0",
     "microtask_template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
     "work_packet_template": ".GOV/templates/WORK_PACKET_CONTRACT_TEMPLATE_V2.json",
+    "refinement_template": ".GOV/templates/REFINEMENT_CONTRACT_TEMPLATE_V2.json",
     "templates_readme": ".GOV/templates/README.md",
     "activation_manager": ".GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md",
     "orchestrator": ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
@@ -407,6 +417,156 @@
       "template_id": "WP-STATE.microtasks[mt_id].invalidated_by_commit",
       "kind": "template_field",
       "note": "candidate commit whose diff intersected proof.relevant_input_paths at round freeze (CHK-PROOF-INVALIDATED-001)"
+    },
+    {
+      "repo_id": "CX-VAL-009",
+      "template_id": "CODEX-VAL-007 (pack 28)",
+      "kind": "codex",
+      "note": "reused proof under CX-VAL-002 exempt from round freshness; landed in gov b0563f0a"
+    },
+    {
+      "repo_id": "CX-GP-002",
+      "template_id": "CODEX-GAMEPLAN-002",
+      "kind": "codex",
+      "note": "model_operated: one gameplan per WP shared by all agents; env GAMEPLAN_ROLE scopes hook evaluation to that role + any, unset = all roles (fail-closed); `gameplan confirm --by <role> --id <ids>`, by equals step role; generation-checked writes, conflict = re-read and retry; retry guard per gameplan; kernel_builder is a gameplan-skill alias of builder; handshake_managed clause not adopted (no controller)"
+    },
+    {
+      "repo_id": "CX-AUTH-005",
+      "template_id": "CODEX-ROLE-RETIRE-001",
+      "kind": "codex",
+      "note": "role-profile retirement_policy: superseded or retired entries non-authoritative; current shared rules outrank them; extended to templates and records"
+    },
+    {
+      "repo_id": "CX-PROOF-005",
+      "template_id": "CODEX model_operated role_authorization.integration_review_condition + independent_review_condition",
+      "kind": "codex",
+      "note": "only the recorded integration validator in fresh context records the integration verdict and merges (IV-INV-001); coordinator never; no reviewer judges its own submission (CHK-INDEPENDENT-VERDICT-001 manual)"
+    },
+    {
+      "repo_id": "CX-PROOF-005",
+      "template_id": "CODEX model_operated transition_registry.verdict_scope",
+      "kind": "codex",
+      "note": "MT verdict changes only that MT; WP validating -> merge_pending only on a passed integration verdict after all required MT passes on the same candidate; ACTION-REGISTRY record_validation_verdict: an MT verdict alone never authorizes merge"
+    },
+    {
+      "repo_id": "CX-STATUS-002",
+      "template_id": "CODEX-MODE-MT-001 release_claim + CODING-WORKFLOW lifecycle.transitions blocked_on_dependency",
+      "kind": "codex",
+      "note": "release_claim in_progress -> ready with recoverable work (claim_ref cleared); blocked verdict with blocker type dependency names the open MT in blocked_on_mt_ref, not a fail, not rerun (blocked_on_dependency_is_not_rerun); ACTION-REGISTRY blocked_decision_requires_blocked_on_mt_ref"
+    },
+    {
+      "repo_id": "CX-EXEC-015",
+      "template_id": "CODING-WORKFLOW.steering.run_accounting.counter_precedence",
+      "kind": "codex",
+      "note": "ordered: max_fix_rounds_per_unit 3 (CHK-FIX-BUDGET-001: fix_budget_exhausted blocker, Operator decision before a new claim), failed_verdicts_same_cause_limit 2, rounds_without_output_limit 2 (CHK-NEW-APPROACH-001), repeated_infrastructure_cause occurrences_limit 2 (CHK-REPEATED-INFRA-001, CODEX-STEER-007), execution.repeated_failure_threshold (CX-EXEC-003)"
+    },
+    {
+      "repo_id": "CX-VAL-010",
+      "template_id": "ACTION-REGISTRY start_validation_round",
+      "kind": "codex",
+      "note": "wp_validator only: before_round gate, freeze pushed candidate, proof_invalidated, canary through the test entrypoint, open round; canary failure = infrastructure, no round; CODEX model_operated operating_protocol.round_ownership; KERNEL DIVERGES: round recorded as the CX-VAL-004 running record, no validation_batches entry"
+    },
+    {
+      "repo_id": "CX-STATUS-003",
+      "template_id": "ACTION-REGISTRY record_validation_verdict.decision_values",
+      "kind": "codex",
+      "note": "decisions passed|failed|inconclusive|blocked; CX-STATUS-001 labels derive from them; legacy pass/fail/PARTIAL records not rewritten"
+    },
+    {
+      "repo_id": "ORC-OUT-006",
+      "template_id": "ORCHESTRATOR model_operated",
+      "kind": "role_protocol",
+      "note": "gameplan_role_env GAMEPLAN_ROLE=orchestrator, gameplan_confirm_by orchestrator (CX-GP-002)"
+    },
+    {
+      "repo_id": "KB-PROOF-007",
+      "template_id": "BUILDER model_operated",
+      "kind": "role_protocol",
+      "note": "gameplan_role_env GAMEPLAN_ROLE=kernel_builder (alias of builder), gameplan_confirm_by kernel_builder (CX-GP-002)"
+    },
+    {
+      "repo_id": "CODER-PROOF-005",
+      "template_id": "CODER model_operated",
+      "kind": "role_protocol",
+      "note": "gameplan_role_env GAMEPLAN_ROLE=coder, gameplan_confirm_by coder (CX-GP-002)"
+    },
+    {
+      "repo_id": "WPV-GP-001",
+      "template_id": "WP-VALIDATOR model_operated",
+      "kind": "role_protocol",
+      "note": "gameplan_role_env GAMEPLAN_ROLE=wp_validator, gameplan_confirm_by wp_validator (CX-GP-002)"
+    },
+    {
+      "repo_id": "IV-GP-001",
+      "template_id": "INTEGRATION-VALIDATOR model_operated",
+      "kind": "role_protocol",
+      "note": "gameplan_role_env GAMEPLAN_ROLE=integration_validator, gameplan_confirm_by integration_validator (CX-GP-002)"
+    },
+    {
+      "repo_id": "AM-GP-001",
+      "template_id": "ACTIVATION-MANAGER model_operated",
+      "kind": "role_protocol",
+      "note": "gameplan_role_env GAMEPLAN_ROLE=activation_manager, gameplan_confirm_by activation_manager (CX-GP-002)"
+    },
+    {
+      "repo_id": "role protocols retirement lines (ORC, KB-AUTH-003, CODER header, WPV, IV, AM)",
+      "template_id": "role templates retirement_policy: CODEX-ROLE-RETIRE-001",
+      "kind": "role_protocol",
+      "note": "cite CX-AUTH-005"
+    },
+    {
+      "repo_id": "WPV-GP-001",
+      "template_id": "WP-VALIDATOR registered_mutation_actions start_validation_round",
+      "kind": "role_protocol",
+      "note": "points to CX-VAL-010 round start order"
+    },
+    {
+      "repo_id": "IV-GP-001",
+      "template_id": "INTEGRATION-VALIDATOR IV-INV-001 exclusive_final_verdict_authority",
+      "kind": "role_protocol",
+      "note": "points to CX-PROOF-005"
+    },
+    {
+      "repo_id": "MT.verdicts[].decision / WP.lifecycle.integration_verdict",
+      "template_id": "ACTION-REGISTRY record_validation_verdict.decision_values",
+      "kind": "template_field",
+      "note": "enum passed|failed|inconclusive|blocked (was pass|fail|inconclusive); V1 labels PASS_Vn->passed, FAIL_Vn->failed, PARTIAL->inconclusive, BLOCKED->blocked; also REFINEMENT V2 mapping note"
+    },
+    {
+      "repo_id": "MT.verdicts[].blocked_on_mt_ref + MT.lifecycle.blocked_on",
+      "template_id": "WP-STATE verdicts[].blocked_on_mt_ref",
+      "kind": "template_field",
+      "note": "lifecycle.blocked_on (named by CX-STATUS-001) added to the MT V2 template"
+    },
+    {
+      "repo_id": "MT.attempt_budget.max_fix_rounds_per_mt",
+      "template_id": "CODING-WORKFLOW.steering.max_fix_rounds_per_unit",
+      "kind": "template_field",
+      "note": "3; renamed per_mt (kernel unit = MT)"
+    },
+    {
+      "repo_id": "MT.blockers[].kind fix_budget_exhausted",
+      "template_id": "wp_state.blockers[type==fix_budget_exhausted]",
+      "kind": "template_field",
+      "note": "CHK-FIX-BUDGET-001 by hand"
+    },
+    {
+      "repo_id": "MT.submissions[].final_status",
+      "template_id": "RECEIPT.semantic.final_status",
+      "kind": "template_field",
+      "note": "implementer status ready_for_validation|blocked, never a verdict (CHK-FINAL-STATUS-001 by hand)"
+    },
+    {
+      "repo_id": "MT.execution.depends_on / MT.proof.checks[]",
+      "template_id": "mt.dependencies / mt.proof.required_checks",
+      "kind": "template_field",
+      "note": "unchanged; every kernel proof.checks[] entry is a required check"
+    },
+    {
+      "repo_id": "HBR-PRIV-005, HBR-MAN-001, HBR-MAN-004",
+      "template_id": "BUILD-RULES pack 30 hedge replacement",
+      "kind": "build_rule",
+      "note": "'where/when applicable' -> explicit required_if; no obligation added or removed (HBR 1.15.0)"
     }
   ],
   "skipped_as_duplicate": [
@@ -417,6 +577,13 @@
         "CX-118"
       ],
       "note": "destructive git actions already require same-turn authorization for the exact targets and consequences"
+    },
+    {
+      "template_id": "BR-REMEDIATE-001",
+      "covered_by": [
+        "CX-EXEC-012"
+      ],
+      "note": "pack 30 makes it a pointer to CODEX-REMEDIATE-001; the kernel remediation rule is CX-EXEC-012; HBR has no remediation rule"
     }
   ],
   "divergence_notes": [
@@ -424,7 +591,15 @@
     "KERNEL DIVERGES: rest of project_profile deferred to the crate-split WP",
     "KERNEL DIVERGES (Operator 2026-09-24, gov f6bbcaac): one union round covering all READY_FOR_VALIDATION MTs, never a build per MT; round starts when the fixes for open failures are pushed; extra_build_proofs run in one end-of-WP build; MT lane value extra_build",
     "KERNEL DIVERGES: no Handshake controller; gameplan gate, closure-loop shapes and proof binding are checked by agents by hand (gameplan skill + global hook for gated commands); rounds_without_output, diagnosis and verdicts live in the MT JSON, not wp_state",
-    "KERNEL DIVERGES (Operator): Kernel Builder keeps combined packet-preparation and implementation authority until Handshake exists; WP-KERNEL-012 stays pinned (CX-GOV-PIN-001), pack 27 shapes apply to WPs activated after this change"
+    "KERNEL DIVERGES (Operator): Kernel Builder keeps combined packet-preparation and implementation authority until Handshake exists; WP-KERNEL-012 stays pinned (CX-GOV-PIN-001), pack 27 shapes apply to WPs activated after this change",
+    "KERNEL DIVERGES: no action registry (template ACTION-REGISTRY); start_validation_round, release_claim, record_validation_verdict, record_integration_verdict and merge_wp are role steps under CX-VAL-010, CX-STATUS-002, CX-STATUS-003 and CX-PROOF-005",
+    "KERNEL DIVERGES: no role-profile schema (template ROLE-PROFILE-SCHEMA model_operated, retirement_policy); role protocols carry GAMEPLAN_ROLE pointers (CX-GP-002) and cite CX-AUTH-005",
+    "KERNEL DIVERGES: the gameplan schema (template GAMEPLAN-SCHEMA incl. pack 29 confirm_binding and other-worktree git checks) is owned by the global gameplan skill, no kernel file",
+    "KERNEL DIVERGES: validate_artifacts.py not adopted; these checks are manual, by the acting role: CHK-FIX-BUDGET-001, CHK-FINAL-STATUS-001, CHK-WRITE-SCOPE-001, CHK-HALF-WRITTEN-VERDICT, CHK-STATUS-EQUALS-VERDICT, CHK-ZERO-TEST-RUN, CHK-NEW-APPROACH-001, CHK-REPEATED-INFRA-001, CHK-INDEPENDENT-VERDICT-001, CHK-MODULE-BUILD-UNIT-001",
+    "KERNEL DIVERGES: receipts stay legacy wp_receipt@1 (WP_RECEIPTS_TEMPLATE, unchanged); implementer status lives in MT submissions[].final_status and lifecycle.status, not receipt.semantic.final_status",
+    "KERNEL DIVERGES: MT phase blocked (label BLOCKED) with blocked_on_mt_ref and lifecycle.blocked_on replaces template phase blocked_on_dependency",
+    "KERNEL DIVERGES: HBR has no remediation or core-effect rule; BR-REMEDIATE-001 maps to CX-EXEC-012, BR-CORE-EFFECT-001 has no HBR equivalent",
+    "WP-KERNEL-012 stays pinned (CX-GOV-PIN-001); pack 28-31 shapes (CX-GP-002, CX-AUTH-005, CX-PROOF-005, CX-EXEC-015, CX-VAL-010, CX-STATUS-002/003, V2 verdict vocabulary, HBR 1.15.0) apply to WPs activated after this change"
   ],
   "governance_pin_semantics": "in-flight WPs judged under their pinned commit; template changes apply from the next WP",
   "generated_at_utc": "2026-09-25T00:00:00.000Z"

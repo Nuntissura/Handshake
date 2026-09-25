@@ -12,7 +12,7 @@
 - Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
 ## Governance Topology Ledger Duty [CX-912]
-Retired 2026-09-24: topology ledger deleted with the harness.
+Retired 2026-09-24: topology ledger deleted with the harness. Retired entries are non-authoritative (Codex CX-AUTH-005).
 
 ## WP Dossier Runtime Archive [CX-AUTH-003]
 
@@ -108,7 +108,7 @@ Write sequence:
 - [VPX-008] Reuse compatible build artifacts across MTs and validators with exclusive mutable-target ownership. Rebuild only when changed build inputs or missing/invalid artifacts require it; a commit identifier change, new session, status/report edit or MT boundary alone is not a rebuild reason. Reuse proof separately under [VPX-004]; a warm build does not itself prove test execution.
 - [IV-VPX-REF-001] WP Validator protocol rules [VPX-009], [VPX-010], [WPV-DEP-001], [WPV-STATUS-001] and [WPV-ART-006] apply equally to Integration Validator proof and verdicts.
 - Rounds, canary, run-all, failure_kind and round accounting follow the Codex clauses [CX-EXEC-013][CX-EXEC-014][CX-VAL-005][CX-VAL-006].
-- [IV-GP-001] Before a merge, run the gameplan check for the Integration Validator at the merge moment (`gameplan check --role integration_validator --at before_merge`; Codex CX-GP-001); a failing step is fixed, never bypassed.
+- [IV-GP-001] Before a merge, run the gameplan check for the Integration Validator at the merge moment (`gameplan check --role integration_validator --at before_merge`; Codex CX-GP-001); a failing step is fixed, never bypassed. Set `GAMEPLAN_ROLE=integration_validator` before gated commands; confirm integration_validator steps with `gameplan confirm --by integration_validator --id <ids>` (Codex CX-GP-002). Integration verdict and merge authority: Codex CX-PROOF-005.
 
 ## Inter-Role Wire Discipline [CX-914] (HARD)
 

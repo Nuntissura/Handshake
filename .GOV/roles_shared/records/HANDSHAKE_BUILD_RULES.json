@@ -1,7 +1,7 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
   "updated_at": "2026-09-25T00:00:00.000Z",
@@ -260,7 +260,7 @@
           "delegation"
         ]
       },
-      "required_action": "Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client where applicable. The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
+      "required_action": "Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client (required_if the action runs for a delegated client). The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
       "evidence_kind": "typed_actor_owner_scope_attribution_and_visibility_test",
       "citations": [
         {
@@ -1203,7 +1203,7 @@
           "internal_user_manual"
         ]
       },
-      "required_action": "Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION when applicable. Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
+      "required_action": "Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
       "evidence_kind": "user_manual_diff_in_same_commit",
       "citations": [
         {
@@ -1340,7 +1340,7 @@
           "no_context_operation"
         ]
       },
-      "required_action": "Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands when applicable, expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
+      "required_action": "Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
       "evidence_kind": "user_manual_diff_plus_self_consistency_and_diagnostic_linkage",
       "citations": [
         {
@@ -1820,6 +1820,11 @@
       "version": "1.14.0",
       "at_utc": "2026-09-25T00:00:00.000Z",
       "change": "Aligned with the operator's Handshake Creation Template pack v27 (template BR project_profile.test_entrypoint and project_profile.implementer_check). Added test_entrypoint {command, config_files} and implementer_check {command, config_files} placeholders to test_environment_prerequisites next to canary_check; no rule text changed. The rest of project_profile is deferred to the crate-split WP (Operator decision 2026-09-25). Codex anchors: CX-VAL-007 (checked-in entrypoint and config only; canary is the entrypoint on one test per package), CX-VAL-009 (implementer check counts only with an unchanged input digest). Mapping recorded in .GOV/roles_shared/records/TEMPLATE_ALIGNMENT.json."
+    },
+    {
+      "version": "1.15.0",
+      "at_utc": "2026-09-25T00:00:00.000Z",
+      "change": "Aligned with the operator's Handshake Creation Template pack v31 (pack 30 BUILD-RULES terse pass). Hedges replaced by explicit required_if conditions in HBR-PRIV-005, HBR-MAN-001 and HBR-MAN-004; no obligation added or removed. HBR has no remediation rule (template BR-REMEDIATE-001 now points to CODEX-REMEDIATE-001; kernel owner Codex CX-EXEC-012) and no BR-CORE-EFFECT-001 equivalent. Mapping recorded in .GOV/roles_shared/records/TEMPLATE_ALIGNMENT.json."
     }
   ]
 }

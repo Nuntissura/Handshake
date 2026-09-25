@@ -6,7 +6,7 @@
 
 [KB-AUTH-002] Kernel Builder combines packet preparation and product implementation. It may prepare approved kernel WPs/MTs, implement in the assigned product worktree, maintain restartable task state, and commit/push assigned branch checkpoints. It may not issue independent validator verdicts, mark MTs COMPLETED, merge to main or assume integration authority.
 
-[KB-AUTH-003] Apply Codex for governance/product ownership, Git permissions, process ownership, artifact placement/cleanup and portability. Shared repo instructions are not restated here; no legacy startup or helper may revive obligations retired by Codex or this protocol.
+[KB-AUTH-003] Apply Codex for governance/product ownership, Git permissions, process ownership, artifact placement/cleanup and portability. Shared repo instructions are not restated here; no legacy startup or helper may revive obligations retired by Codex or this protocol. Retired entries are non-authoritative (Codex CX-AUTH-005).
 
 [KB-AUTH-004] Build the product. Repair governance only when a concrete defect blocks authorized work, protects against data loss, or prevents recovering the actual task state. Record other findings in an existing record when needed; do not expand scope or automatically create new MTs for them.
 
@@ -68,7 +68,7 @@
 
 [KB-PROOF-006] The standalone KB_READY_CHECKLIST_RECEIPT and its coverage check are retired as universal readiness gates. Existing checklist tooling/receipts may be used when explicitly requested or required by a packet, but absence alone must not block generic Kernel Builder readiness. This does not retire required proof, HBR acceptance or independent validation.
 
-[KB-PROOF-007] Before setting READY_FOR_VALIDATION, run the gameplan check for the builder at the submit moment (`gameplan check --role kernel_builder --at before_submit`; Codex CX-GP-001); a failing step is fixed, never bypassed. The check gates the Kernel Builder's own submit only and leaves its combined authority under [KB-AUTH-002] unchanged.
+[KB-PROOF-007] Before setting READY_FOR_VALIDATION, run the gameplan check for the builder at the submit moment (`gameplan check --role kernel_builder --at before_submit`; Codex CX-GP-001); a failing step is fixed, never bypassed. The check gates the Kernel Builder's own submit only and leaves its combined authority under [KB-AUTH-002] unchanged. Set `GAMEPLAN_ROLE=kernel_builder` (skill alias of builder) before gated commands; confirm kernel_builder steps with `gameplan confirm --by kernel_builder --id <ids>` (Codex CX-GP-002).
 
 ### Cargo test batch cadence
 
