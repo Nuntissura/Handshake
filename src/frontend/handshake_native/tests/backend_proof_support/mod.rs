@@ -432,7 +432,9 @@ struct OwnedVaultScope {
 
 impl OwnedVaultScope {
     fn capture(data_dir: &Path) -> Result<Self, String> {
-        let runtime_root = data_dir.parent().ok_or("owned data directory has no parent")?;
+        let runtime_root = data_dir
+            .parent()
+            .ok_or("owned data directory has no parent")?;
         let canonical_root = validate_owned_runtime_root(runtime_root)?;
         let store = data_dir.join(EMBEDDED_STORE_DIRECTORY);
         reject_reparse_chain(&store, runtime_root)?;
@@ -441,18 +443,25 @@ impl OwnedVaultScope {
         if !canonical_store.starts_with(&canonical_root) {
             return Err("owned embedded store escaped its validated runtime root".to_owned());
         }
-        let identity = serde_json::to_vec(&(
-            store.to_string_lossy(),
-            "handshake",
-            "primary",
-        )).map_err(|error| format!("serialize owned installation identity: {error}"))?;
-        let hash = Sha256::digest(identity).iter().map(|byte| format!("{byte:02x}")).collect::<String>();
+        let identity = serde_json::to_vec(&(store.to_string_lossy(), "handshake", "primary"))
+            .map_err(|error| format!("serialize owned installation identity: {error}"))?;
+        let hash = Sha256::digest(identity)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
         let namespace = format!("handshake-local-accounts-{hash}");
         let baseline = owned_vault_targets(&namespace)?;
         if !baseline.is_empty() {
-            return Err("new fixture installation namespace already contains vault credentials".to_owned());
+            return Err(
+                "new fixture installation namespace already contains vault credentials".to_owned(),
+            );
         }
-        Ok(Self { data_dir: data_dir.to_path_buf(), runtime_root: runtime_root.to_path_buf(), namespace, baseline })
+        Ok(Self {
+            data_dir: data_dir.to_path_buf(),
+            runtime_root: runtime_root.to_path_buf(),
+            namespace,
+            baseline,
+        })
     }
 
     fn cleanup_after_reap(&self) -> Result<(), String> {
@@ -472,7 +481,10 @@ impl OwnedVaultScope {
         }
         let remaining = owned_vault_targets(&self.namespace)?;
         if !remaining.is_subset(&self.baseline) {
-            return Err("owned installation vault absence remains unverified after exact deletion".to_owned());
+            return Err(
+                "owned installation vault absence remains unverified after exact deletion"
+                    .to_owned(),
+            );
         }
         Ok(())
     }
@@ -489,7 +501,12 @@ struct CredentialPrefix {
 #[cfg(windows)]
 #[link(name = "Advapi32")]
 unsafe extern "system" {
-    fn CredEnumerateW(filter: *const u16, flags: u32, count: *mut u32, credentials: *mut *mut *mut CredentialPrefix) -> i32;
+    fn CredEnumerateW(
+        filter: *const u16,
+        flags: u32,
+        count: *mut u32,
+        credentials: *mut *mut *mut CredentialPrefix,
+    ) -> i32;
     fn CredDeleteW(target: *const u16, kind: u32, flags: u32) -> i32;
     fn CredFree(buffer: *mut std::ffi::c_void);
 }
@@ -508,8 +525,11 @@ fn owned_vault_targets(namespace: &str) -> Result<HashSet<String>, String> {
     // installation namespace can be passed to CredDeleteW below; credential blobs are never read.
     if unsafe { CredEnumerateW(std::ptr::null(), 0, &mut count, &mut credentials) } == 0 {
         let error = std::io::Error::last_os_error();
-        return if error.raw_os_error() == Some(1168) { Ok(HashSet::new()) }
-            else { Err(format!("enumerate owned vault targets: {error}")) };
+        return if error.raw_os_error() == Some(1168) {
+            Ok(HashSet::new())
+        } else {
+            Err(format!("enumerate owned vault targets: {error}"))
+        };
     }
     let result = (|| {
         let suffix = format!(".{namespace}");
@@ -520,11 +540,15 @@ fn owned_vault_targets(namespace: &str) -> Result<HashSet<String>, String> {
                 continue;
             }
             let name = unsafe { (*credential).target_name };
-            if name.is_null() { continue; }
+            if name.is_null() {
+                continue;
+            }
             // The OS owns this null-terminated target; do not impose a fixture-specific bound
             // on unrelated user credentials returned by enumeration.
             let length = unsafe { lstrlenW(name) };
-            if length < 0 { return Err("invalid vault target length".to_owned()); }
+            if length < 0 {
+                return Err("invalid vault target length".to_owned());
+            }
             let length = length as usize;
             let target = String::from_utf16(unsafe { std::slice::from_raw_parts(name, length) })
                 .map_err(|_| "vault target name is not UTF-16".to_owned())?;
@@ -533,7 +557,9 @@ fn owned_vault_targets(namespace: &str) -> Result<HashSet<String>, String> {
             let folded = target.to_ascii_lowercase();
             if let Some(session) = folded.strip_suffix(&suffix) {
                 if uuid::Uuid::parse_str(session).is_err() {
-                    return Err("owned installation contains unexpected credential target".to_owned());
+                    return Err(
+                        "owned installation contains unexpected credential target".to_owned()
+                    );
                 }
                 targets.insert(target);
             }
@@ -547,7 +573,10 @@ fn owned_vault_targets(namespace: &str) -> Result<HashSet<String>, String> {
 #[cfg(windows)]
 fn delete_owned_vault_target(target: &str) -> Result<(), String> {
     use std::os::windows::ffi::OsStrExt;
-    let wide = std::ffi::OsStr::new(target).encode_wide().chain(Some(0)).collect::<Vec<_>>();
+    let wide = std::ffi::OsStr::new(target)
+        .encode_wide()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
     if unsafe { CredDeleteW(wide.as_ptr(), 1, 0) } == 0 {
         let error = std::io::Error::last_os_error();
         if error.raw_os_error() != Some(1168) {
@@ -574,7 +603,10 @@ struct PendingChild {
 
 impl PendingChild {
     fn new(child: Child) -> Self {
-        Self { child: Some(child), vault_scope: None }
+        Self {
+            child: Some(child),
+            vault_scope: None,
+        }
     }
 
     fn child_mut(&mut self) -> &mut Child {
@@ -812,8 +844,10 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
         wait_for_health(&rt, &client, &base, pending.child_mut(), startup_deadline);
         #[cfg(windows)]
         {
-            pending.vault_scope = Some(OwnedVaultScope::capture(&data_dir)
-                .expect("capture owned installation vault baseline before Owner setup"));
+            pending.vault_scope = Some(
+                OwnedVaultScope::capture(&data_dir)
+                    .expect("capture owned installation vault baseline before Owner setup"),
+            );
         }
         owned_backend = Some(pending);
         owned_binary = Some(binary);
@@ -1757,11 +1791,16 @@ impl LiveBackend {
             kill_and_reap(child, "clean up fixture-owned backend");
             *self.owned_backend.get_mut() = None;
         }
-        let vault_cleanup = self.owned_vault_scope.as_ref().map(OwnedVaultScope::cleanup_after_reap);
+        let vault_cleanup = self
+            .owned_vault_scope
+            .as_ref()
+            .map(OwnedVaultScope::cleanup_after_reap);
         if let Some(result) = vault_cleanup {
             if let Err(error) = result {
                 self.preserve_runtime_roots.set(true);
-                panic!("owned installation OS-vault cleanup remains unverified after reap: {error}");
+                panic!(
+                    "owned installation OS-vault cleanup remains unverified after reap: {error}"
+                );
             }
             self.owned_vault_scope.take();
         }
