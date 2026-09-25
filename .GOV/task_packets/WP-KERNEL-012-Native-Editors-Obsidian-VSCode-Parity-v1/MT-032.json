@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "BLOCKED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -39,7 +39,7 @@
     ],
     "validator_verdict": null,
     "prior_validator_verdict": "PASS_V4",
-    "blocked_on": "MT-032 delete transaction database-context repair: frozen 2bf51103 union knowledge_documents_api_tests cases 60, 61, 65, and 67 return 500 with statement_index=1 'Specify a database to use'; Builder1 owns the named product fix",
+    "blocked_on": null,
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-31T21:07:13.6817583Z",
@@ -122,13 +122,13 @@
     "remediation_v3_in_progress": false,
     "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-29T22:54:51.5094833Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260728-221208",
-    "ready_for_validation_reason": "MT-032 FAIL_V2 remediation is committed at product source 9332ea522b17a6cb1faf8931ab6b51407670c74c. Real PostgreSQL proves document/LoomBlock identity, A-to-B backlink projection, canonical content hash, missing 404, stale 409 without mutation, and persistence through an owned backend restart. The mounted native path passes canonical Argus inspect, stable-id click, and fresh exact-source observation; internal_diagnostics and the Palmistry ring receive the same typed stalled-operation event; the UserManual now records the shipped three-tier posture. Official V3 validation remains pending.",
-    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "ready_for_validation_at_utc": "2026-09-25T02:52:56Z",
+    "ready_for_validation_by": "KERNEL_BUILDER",
+    "ready_for_validation_reason": "Operator-authorized submission under CX-021, CX-STATUS-001 and CX-EXEC-014: runtime tests belong exclusively to the independent validator; conflicting implementer-runtime readiness clauses do not apply. Candidate 3596f28de1cfe2f06ce07c705e63eb839e2fd8c2 is clean and verified at live origin/feat/WP-KERNEL-012. It contains repair 9d8bcff78f57984a70bdaaf55880e65cf39afb6d for the four frozen-2bf51103 delete failures at statement_index=1 ('Specify a database to use'): database-context guard block plus authorized Canvas cleanup. All three repair files are unchanged since that commit. Existing ../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/32-knowledge-delete-check.log ends with successful compilation in 3m 42s. Existing 33-knowledge-delete-clippy.log failed with crate-wide diagnostics outside the repaired lines and no knowledge_documents_api_tests.rs diagnostic; no repair-specific static blocker was evidenced. Builder before_submit gameplan check passed 1/1 with GAMEPLAN_ROLE=kernel_builder. Prior PASS_V4 is historical context only. The named fix is pushed; its runtime outcome remains unproven pending the single union round covering all READY MTs. No product edit or validator verdict issued in this submission.",
+    "proof_status": "INDEPENDENT_RUNTIME_VALIDATION_PENDING",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_INDEPENDENT_DIAGNOSTICS_SCOPE_ARGUS_RETRY_AND_RUNTIME_CLEANUP_REVIEWS_NO_REMAINING_PRODUCT_BLOCKER",
-    "ready_for_validation_summary": "MT-032 V3 is ready for independent validation from committed product source 9332ea52. The real PostgreSQL/restart, canonical Argus/WGPU, diagnostics Tier2/Tier3, manual, client, contention-retry, and full 16-test proof surfaces are green. Fixture-owned runtime roots and owned processes are reclaimed; the existing PostgreSQL service is unchanged. validator_verdict is PENDING_V3 and completed_by remains null.",
-    "external_resource_proof_status": "PASS_V3_REAL_POSTGRESQL",
+    "ready_for_validation_summary": "Submit pushed candidate 3596f28d with delete repair 9d8bcff7 to the independent validator's next union round. READY is admission only; no current runtime success or PASS claimed. validator_verdict and completed_by remain null; historical verdicts and proof records are preserved.",
+    "external_resource_proof_status": "INDEPENDENT_RUNTIME_VALIDATION_PENDING",
     "historical_missing_resource_superseded_v3": {
       "status": "SUPERSEDED_BY_V3_REAL_POSTGRESQL_PROOF",
       "superseded_at_utc": "2026-07-29T22:54:51.5094833Z",
