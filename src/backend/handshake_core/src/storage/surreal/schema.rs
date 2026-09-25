@@ -2678,11 +2678,12 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT-154 re-pin after d6d43a87 applied DDL: independent fresh embedded stores at
 // 4ffda19b observed f8902e15... (MT-109/wpv-c3x/logs/round-4ffda19b.stderr.log:
 // 3224, 3240, 3258). Keep the canonical INFO comparison and predecessor pins intact.
-// MT-157 LET-bound workspace-delete rowsets: INFO re-pin UNRESOLVED. Retain the last
-// measured pin until the validator union runs mt139_current_schema_info_pin_matches_fresh_mem_catalog.
-// The generated source hash is updated; this INFO pin does not yet certify that changed schema.
+// MT-157 LET-bound workspace-delete rowsets and the later calendar receipt predicate:
+// the frozen 3596f28d union independently measured this current INFO fingerprint in
+// mt109_authority_catalog_pins_are_deterministic and mt139_current_schema_info_pin_matches_fresh_mem_catalog.
+// Historical predecessor pins remain unchanged.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "f8902e153103c1a6e6dd2549b9fe64f27fdaac27e2bc443c1ba9343728adfcdf";
+    "2d73f2833f64ca761aec0d18f03f577e290688dc3293ceb6728e5545cb1b145b";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
