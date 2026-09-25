@@ -891,5 +891,51 @@
     "basis": "Both SHA-named JUnits match export-local source hashes, contain the full selected 222/2917 cases, and postdate the round start. The export marker equals the frozen commit. No MT-032 assertion failure is established; product commit 1cdfde38 is queued for a separate round.",
     "status_effect": "none; READY_FOR_VALIDATION and null validator_verdict retained under CX-STATUS-003",
     "residual_uncertainty": "The two MT-032 owned child logs were not separately retained; their exact individual startup substep is bounded to pre-listen exit. A distinct current-candidate run is required to exercise MT-032 acceptance assertions."
+  },
+  "validation_v9": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR",
+    "validated_at_utc": "2026-09-25T15:32:31Z",
+    "candidate_commit": "1cdfde383ed4e30895f94552ce1b5f4873200ae8",
+    "round_started_at_utc": "2026-09-25T13:01:21.9512404Z",
+    "round_completed_at_utc": "2026-09-25T15:29:58Z",
+    "failure_kind": "infrastructure",
+    "failure_class": "OWNED_BACKEND_OS_VAULT_SESSION_WRITE_WINDOWS_ERROR_8",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/round-1cdfde38.stderr.log",
+    "export_marker_ref": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-1cdfde38.sha",
+    "backend_binary_sha256": "51A1D5FACE85EBEA4DDCA5D6FB08D448461EFE5F4D544CC091CD8F92DDC85D2B",
+    "proof_records": [
+      {
+        "id": "WPV-C3X-1CDFDE38-MT032-CORE",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-1cdfde383ed4e30895f94552ce1b5f4873200ae8-core.xml",
+        "sha256": "DB89E1B09A015FF487A76E0393951BA244730B50A54D8EAFAF9FF8AF952952EE",
+        "result": "222 testcase nodes, 3 failures outside MT-032; all 10 named MT-032 core cases passed, including atomic delete and search-identity collision delete."
+      },
+      {
+        "id": "WPV-C3X-1CDFDE38-MT032-NATIVE",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-1cdfde383ed4e30895f94552ce1b5f4873200ae8-native.xml",
+        "sha256": "55A86DD6802B6DC8EF7C09346C0302D97AB00409DDF27835C93709F9ED97161E",
+        "result": "2917 testcase nodes, 63 failures; test_loom_address 24 cases, 22 passed and 2 live cases failed at session exchange before feature assertions.",
+        "failure": "Cases 2685/2686: NATIVE_AUTH_PROOF phase=session-exchange status=403 Forbidden; backend_proof_support/mod.rs:709 Account authentication denied."
+      },
+      {
+        "id": "WPV-C3X-1CDFDE38-MT032-VAULT-OWNED-RESTART",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-f4695e9bde01c641/db69243c-51ae-437c-88d6-db24c0433ce0/backend.stdout.log",
+        "sha256": "FB8B7DA8CF067831488D4A0A857B7D5A672D452970CD48BAC586F868544C789C",
+        "result": "15:21:00Z local_account_session_vault_write_failed phase=session_exchange_vault_write keychain_backend=true windows_error_code=Some(8)."
+      },
+      {
+        "id": "WPV-C3X-1CDFDE38-MT032-VAULT-SELF-SEEDED",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-82bb3467f7114d41/5b7c12df-21c0-483f-b754-c8443fff5b7a/backend.stdout.log",
+        "sha256": "4EE4E7BCBCB7E53CC00A9C241E9E7AAB661A6BAAB5B4513444CBF083893D2608",
+        "result": "15:21:33Z local_account_session_vault_write_failed phase=session_exchange_vault_write keychain_backend=true windows_error_code=Some(8)."
+      }
+    ],
+    "proof_record_ids": ["WPV-C3X-1CDFDE38-MT032-CORE", "WPV-C3X-1CDFDE38-MT032-NATIVE", "WPV-C3X-1CDFDE38-MT032-VAULT-OWNED-RESTART", "WPV-C3X-1CDFDE38-MT032-VAULT-SELF-SEEDED"],
+    "blocker": "Both owned MT-032 live backends fail real OS-vault session writes with Windows error 8; session exchange returns 403 before backlink/hash/restart/UI assertions. No signed infrastructure waiver or independent live acceptance proof exists.",
+    "basis": "Both SHA-named JUnits match export-local source hashes, postdate their start markers, and contain all 222/2917 selected cases. Export marker equals candidate SHA; each failed live case has a test-specific retained backend vault marker. before_verdict gameplan passed 2/2. Core delete repair passes, but native live acceptance is unexercised.",
+    "status_effect": "none; READY_FOR_VALIDATION and null validator_verdict retained under CX-STATUS-003/CX-VAL-006",
+    "residual_uncertainty": "Windows error 8 identifies the real keychain write substep, not the ultimate host cause. No MT-032 live feature assertion or product failure is established; PASS requires independent live proof or an authorized waiver."
   }
 }
