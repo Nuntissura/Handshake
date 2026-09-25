@@ -1036,6 +1036,39 @@ fn spawn_mock(
     (base_url, handle)
 }
 
+/// Account binding can start unrelated shell reads; keep the isolated 404 mock
+/// alive until the operator's Stage capture POST is the request observed.
+fn spawn_stage_absent_mock() -> (String, std::thread::JoinHandle<String>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind Stage mock");
+    listener.set_nonblocking(true).expect("nonblocking Stage mock");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    let handle = std::thread::spawn(move || {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
+            assert!(std::time::Instant::now() < deadline, "Stage capture POST never reached mock");
+            let (mut stream, _) = match listener.accept() {
+                Ok(connection) => connection,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    continue;
+                }
+                Err(error) => panic!("accept Stage mock: {error}"),
+            };
+            let request_line = read_request_line(&mut stream);
+            let body = r#"{"error":"no stage route in this build"}"#;
+            let response = format!(
+                "HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+                body.len()
+            );
+            stream.write_all(response.as_bytes()).expect("reply Stage mock");
+            if request_line.starts_with("POST ") && request_line.contains("/stage/artifacts") {
+                return request_line;
+            }
+        }
+    });
+    (base_url, handle)
+}
+
 /// Read one HTTP request's request line off the stream (a GET has no body).
 fn read_request_line(stream: &mut std::net::TcpStream) -> String {
     let mut buf = Vec::new();
@@ -2937,7 +2970,8 @@ fn product_api_only_and_shared_backend_client() {
     // The stage_interop client reuses the shared backend pool + base url (no second HTTP stack).
     let interop_src = include_str!("../src/interop/stage_interop.rs");
     assert!(
-        interop_src.contains("x-hsk-session-token")
+        interop_src.contains("account.authorize(")
+            && interop_src.contains("with_authenticated_context")
             && !interop_src.contains("x-hsk-actor-kind")
             && !interop_src.contains("native-stage-action:"),
         "Stage must authenticate with the server-validated native session and must not assert actor privilege or fabricate approval ids"
@@ -2975,10 +3009,7 @@ fn embed_stage_capture_operator_path_surfaces_endpoint_absent() {
 
     // A mock backend that answers the capture POST with 404, so the live off-thread operation resolves to
     // the honest EmbedBackEndpointAbsent typed blocker.
-    let (base_url, server) = spawn_mock(
-        "HTTP/1.1 404 Not Found",
-        serde_json::json!({"error": "no stage route in this build"}),
-    );
+    let (base_url, server) = spawn_stage_absent_mock();
 
     // A runtime-injected shell (so the shell's off-thread embed-back spawn has a handle), pointed at the
     // mock server for the Stage embed-back read ONLY (production uses BACKEND_BASE_URL).
@@ -2994,6 +3025,8 @@ fn embed_stage_capture_operator_path_surfaces_endpoint_absent() {
     }));
     app.set_runtime_handle(runtime.handle().clone());
     app.set_stage_embed_back_base_url_for_test(&base_url);
+    app.bind_initial_account(mock_account_context(&base_url))
+        .expect("bind isolated Stage mock account");
     // Seed routed content so the round-trip surface is a real round-trip (the embed-back button enabled).
     app.mounted_stage().lock().unwrap().set_content_correlated(
         StageContent::Selection("routed selection".to_owned(), "pane-rich:0-16".to_owned()),
