@@ -856,5 +856,40 @@
     "basis": "Fresh SHA-bound JUnits match export-local source hashes and postdate their start markers. Core collision repair passed. Native live acceptance remains unexercised; the observed failure is in shared proof setup, not an MT-032 behavior assertion.",
     "status_effect": "none; READY_FOR_VALIDATION and null validator_verdict retained under CX-STATUS-003/CX-VAL-006",
     "residual_uncertainty": "Core tests exposed a separate os_vault_operation Windows error code 8 during session exchange, but native 403 does not independently establish that same backend substep or a host-hardware waiver. No PASS or product FAIL is issued for MT-032."
+  },
+  "validation_v8": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR",
+    "validated_at_utc": "2026-09-25T12:56:00Z",
+    "candidate_commit": "584858e6142091145c087a97429d056005fecbac",
+    "round_started_at_utc": "2026-09-25T11:23:12.5435410Z",
+    "round_completed_at_utc": "2026-09-25T12:53:17Z",
+    "failure_kind": "product",
+    "failure_class": "SHARED_SURREAL_SCHEMA_INFO_PIN_BOOTSTRAP",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/round-584858e6.stderr.log",
+    "export_marker_ref": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-584858e6.sha",
+    "backend_binary_sha256": "8D7F746FB543ED7BBFE2190429200D9AC2B373166DCFCB9EE7052EFFB966CC38",
+    "proof_records": [
+      {
+        "id": "WPV-C3X-584858E6-MT032-CORE",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-584858e6142091145c087a97429d056005fecbac-core.xml",
+        "sha256": "92B9AB65ADF0594D58E9FF84D2DDA3BE747A29F0ACCE93E4EAD4148579989366",
+        "result": "222 testcase nodes, 179 failures; all 10 named MT-032 core cases failed at knowledge_ingestion_support/mod.rs:85 before behavior assertions.",
+        "failure": "HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH expected=2d73f2833f64ca761aec0d18f03f577e290688dc3293ceb6728e5545cb1b145b observed=bdd0242dc7ccaf392239ec162264433b928db37bfdaf4f0380559bd177d144a2; mt139 fresh-memory catalog test independently printed the observed value."
+      },
+      {
+        "id": "WPV-C3X-584858E6-MT032-NATIVE",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-584858e6142091145c087a97429d056005fecbac-native.xml",
+        "sha256": "066E6D6E96E1EFEEB22536FD0915DBF7B5125EA4CD5276031E427161CF6F09BE",
+        "result": "2917 testcase nodes, 63 failures; test_loom_address 24 cases, 22 passed and 2 live cases failed before listen and before assertions.",
+        "failure": "Cases 2685 and 2686: backend_proof_support/mod.rs:1166 owned handshake_core exited before listen report with exit code 1. A retained owned backend stdout log for the same frozen native round records the current INFO fingerprint mismatch at startup."
+      }
+    ],
+    "proof_record_ids": ["WPV-C3X-584858E6-MT032-CORE", "WPV-C3X-584858E6-MT032-NATIVE"],
+    "blocker": "Frozen candidate's current Surreal catalog pin differs from the fresh-memory catalog; isolated core stores and owned native backends cannot start, so MT-032 delete/backlink/hash/restart behavior is unexercised.",
+    "basis": "Both SHA-named JUnits match export-local source hashes, contain the full selected 222/2917 cases, and postdate the round start. The export marker equals the frozen commit. No MT-032 assertion failure is established; product commit 1cdfde38 is queued for a separate round.",
+    "status_effect": "none; READY_FOR_VALIDATION and null validator_verdict retained under CX-STATUS-003",
+    "residual_uncertainty": "The two MT-032 owned child logs were not separately retained; their exact individual startup substep is bounded to pre-listen exit. A distinct current-candidate run is required to exercise MT-032 acceptance assertions."
   }
 }
