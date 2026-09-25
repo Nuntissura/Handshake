@@ -14,7 +14,7 @@
   "title": "E5-MT-032-EverythingIsLoomBlockBacklinks",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-24T15:56:57Z",
+  "updated_at_utc": "2026-09-25T08:33:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V6",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -37,7 +37,7 @@
       "MT-034",
       "MT-044"
     ],
-    "validator_verdict": "FAIL_V6",
+    "validator_verdict": null,
     "prior_validator_verdict": "PASS_V4",
     "blocked_on": null,
     "status_before_v1": "READY_FOR_VALIDATION",
@@ -122,12 +122,12 @@
     "remediation_v3_in_progress": false,
     "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-09-25T02:52:56Z",
+    "ready_for_validation_at_utc": "2026-09-25T08:33:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER",
-    "ready_for_validation_reason": "Operator-authorized submission under CX-021, CX-STATUS-001 and CX-EXEC-014: runtime tests belong exclusively to the independent validator; conflicting implementer-runtime readiness clauses do not apply. Candidate 3596f28de1cfe2f06ce07c705e63eb839e2fd8c2 is clean and verified at live origin/feat/WP-KERNEL-012. It contains repair 9d8bcff78f57984a70bdaaf55880e65cf39afb6d for the four frozen-2bf51103 delete failures at statement_index=1 ('Specify a database to use'): database-context guard block plus authorized Canvas cleanup. All three repair files are unchanged since that commit. Existing ../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/32-knowledge-delete-check.log ends with successful compilation in 3m 42s. Existing 33-knowledge-delete-clippy.log failed with crate-wide diagnostics outside the repaired lines and no knowledge_documents_api_tests.rs diagnostic; no repair-specific static blocker was evidenced. Builder before_submit gameplan check passed 1/1 with GAMEPLAN_ROLE=kernel_builder. Prior PASS_V4 is historical context only. The named fix is pushed; its runtime outcome remains unproven pending the single union round covering all READY MTs. No product edit or validator verdict issued in this submission.",
+    "ready_for_validation_reason": "Operator-directed submission under CX-STATUS-001 and CX-EXEC-014. Product candidate 3b22f4157cf47e6619b06f39a951e7be6ff3831d is clean and pushed at origin/feat/WP-KERNEL-012. It includes a146ec70 delete search-identity collision repair and 3b22f415 failure-only native auth phase/status diagnostics. The frozen FAIL_V6 candidate 1c5214bc failed the core collision assertion and both native Loom-address proofs before their assertions; those results remain historical. The collision repair has D-target compile evidence, not independent runtime proof. The auth denial's exact failing route and cause remain unknown; the diagnostic commit is not a behavioral fix. GP-022 was confirmed for this candidate with GAMEPLAN_ROLE=builder. READY submits both cases to the next independent union round; no PASS, runtime success, or completion is claimed.",
     "proof_status": "INDEPENDENT_RUNTIME_VALIDATION_PENDING",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_INDEPENDENT_DIAGNOSTICS_SCOPE_ARGUS_RETRY_AND_RUNTIME_CLEANUP_REVIEWS_NO_REMAINING_PRODUCT_BLOCKER",
-    "ready_for_validation_summary": "Submit pushed candidate 3596f28d with delete repair 9d8bcff7 to the independent validator's next union round. READY is admission only; no current runtime success or PASS claimed. validator_verdict and completed_by remain null; historical verdicts and proof records are preserved.",
+    "ready_for_validation_summary": "Submit clean pushed candidate 3b22f415, including a146ec70 collision repair and failure-only auth diagnostics, to the next independent union round. Native auth root cause is unresolved; READY is admission only. Current validator_verdict and completed_by are null; FAIL_V6 and earlier verdict records remain historical.",
     "external_resource_proof_status": "INDEPENDENT_RUNTIME_VALIDATION_PENDING",
     "historical_missing_resource_superseded_v3": {
       "status": "SUPERSEDED_BY_V3_REAL_POSTGRESQL_PROOF",
