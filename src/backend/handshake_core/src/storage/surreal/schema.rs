@@ -2779,7 +2779,7 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // mt109_authority_catalog_pins_are_deterministic and mt139_current_schema_info_pin_matches_fresh_mem_catalog.
 // Historical predecessor pins remain unchanged.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "2d73f2833f64ca761aec0d18f03f577e290688dc3293ceb6728e5545cb1b145b";
+    "bdd0242dc7ccaf392239ec162264433b928db37bfdaf4f0380559bd177d144a2";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
