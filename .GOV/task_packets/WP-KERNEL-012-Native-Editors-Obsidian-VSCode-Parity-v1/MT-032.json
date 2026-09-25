@@ -822,5 +822,39 @@
     "basis": "Frozen core collision-delete test reached its assertion and returned HTTP 200 instead of required 409. Native live Loom-address/restart assertions were not reached because shared proof-account login was denied.",
     "remediation_required": ["Repair delete search-identity collision response and atomicity on the next pushed candidate.", "Resolve shared proof-account authentication so both live Loom-address tests reach their assertions."],
     "residual_uncertainty": "No PASS claim for native backlink, content hash, restart, mounted UI, or final candidate. Later product commits are not included in this frozen result."
+  },
+  "validation_v7": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR",
+    "validated_at_utc": "2026-09-25T11:03:31Z",
+    "candidate_commit": "3b22f4157cf47e6619b06f39a951e7be6ff3831d",
+    "round_started_at_utc": "2026-09-25T08:40:48.8350464Z",
+    "round_completed_at_utc": "2026-09-25T11:01:14.9431632Z",
+    "failure_kind": "infrastructure",
+    "failure_class": "SHARED_PROOF_ACCOUNT_SESSION_EXCHANGE_403_PREASSERTION",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/round-3b22f415.stderr.log",
+    "export_marker_ref": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-3b22f415.sha",
+    "backend_binary_sha256": "1DA3439DC2A3393F9076BEA6AF84928DAF652EA7DFC99947FEF114ACA9AA6D55",
+    "proof_records": [
+      {
+        "id": "WPV-C3X-3B22F415-MT032-CORE",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-3b22f4157cf47e6619b06f39a951e7be6ff3831d-core.xml",
+        "sha256": "D5AC633ED27E24F008A35EC256EC07E1171A79F8D52C7D7DF1DAAACD144CBDD2",
+        "result": "222 testcase nodes, 4 failures; all 10 named MT-032 core cases passed. Atomic delete 79.100s; search-identity collision delete 26.223s."
+      },
+      {
+        "id": "WPV-C3X-3B22F415-MT032-NATIVE",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-3b22f4157cf47e6619b06f39a951e7be6ff3831d-native.xml",
+        "sha256": "9CEA77EC181F34C5A9541A338390A7700F994DB38998C6AB96CCCA8A19CA8472",
+        "result": "2917 testcase nodes, 63 failures; test_loom_address 24 cases, 22 passed and 2 live cases failed before assertions.",
+        "failure": "Cases 2685 and 2686: NATIVE_AUTH_PROOF phase=session-exchange status=403 Forbidden; backend_proof_support/mod.rs:709 Account authentication denied."
+      }
+    ],
+    "proof_record_ids": ["WPV-C3X-3B22F415-MT032-CORE", "WPV-C3X-3B22F415-MT032-NATIVE"],
+    "blocker": "Shared owned-backend proof-account session exchange returns 403 before MT-032 live backlink/hash/UI/restart assertions. Exact native backend substep is not proven by the HTTP status.",
+    "basis": "Fresh SHA-bound JUnits match export-local source hashes and postdate their start markers. Core collision repair passed. Native live acceptance remains unexercised; the observed failure is in shared proof setup, not an MT-032 behavior assertion.",
+    "status_effect": "none; READY_FOR_VALIDATION and null validator_verdict retained under CX-STATUS-003/CX-VAL-006",
+    "residual_uncertainty": "Core tests exposed a separate os_vault_operation Windows error code 8 during session exchange, but native 403 does not independently establish that same backend substep or a host-hardware waiver. No PASS or product FAIL is issued for MT-032."
   }
 }
