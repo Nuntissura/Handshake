@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V6",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -37,7 +37,7 @@
       "MT-034",
       "MT-044"
     ],
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V6",
     "prior_validator_verdict": "PASS_V4",
     "blocked_on": null,
     "status_before_v1": "READY_FOR_VALIDATION",
@@ -785,5 +785,42 @@
     "blocked_status_not_used_reason": "CX-STATUS-002 requires an exact open blocking MT; MT-139 is PASS_V1 and the pin repair is queued as a newer product commit",
     "runner_defect": "Wrapper exited 4 after looking for JUnit under shared C target; fresh export-local JUnits were independently hashed and copied. Exit 4 is infrastructure, not a product verdict.",
     "residual_uncertainty": "Frozen candidate never exercised the delete repair or real live native persistence assertions; queued product changes require a new round."
+  },
+  "validation_v6": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V6",
+    "validated_by": "WP_VALIDATOR",
+    "validated_at_utc": "2026-09-25T08:09:03Z",
+    "candidate_commit": "1c5214bc47c7555047aaa08f279a6c79394f8bdb",
+    "round_started_at_utc": "2026-09-25T05:13:14Z",
+    "round_completed_at_utc": "2026-09-25T08:03:45Z",
+    "failure_kind": "product",
+    "failure_class": "MT032_DELETE_SEARCH_IDENTITY_COLLISION_RETURNS_200",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/round-1c5214bc.stderr.log",
+    "export_marker_ref": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-1c5214bc.sha",
+    "backend_binary_sha256": "5172D45C44A10359D622ED60C63782AF43309A1871C0BE07E61368B2F89CF468",
+    "proof_records": [
+      {
+        "id": "WPV-C3X-1C5214BC-MT032-CORE",
+        "candidate_commit": "1c5214bc47c7555047aaa08f279a6c79394f8bdb",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-1c5214bc47c7555047aaa08f279a6c79394f8bdb-core.xml",
+        "sha256": "EBCFB863A61850C8128CE240F525E09996A2A767FC24310201D7DF0B00C201FB",
+        "result": "222 tests; 4 failures. MT-032 collision case failed; other three required delete/rich-document cases passed.",
+        "failure": "knowledge_documents_api_tests.rs:1201 expected 409, observed 200; statement_index=6 HSK-KRD-SEARCH-IDENTITY"
+      },
+      {
+        "id": "WPV-C3X-1C5214BC-MT032-NATIVE",
+        "candidate_commit": "1c5214bc47c7555047aaa08f279a6c79394f8bdb",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-1c5214bc47c7555047aaa08f279a6c79394f8bdb-native.xml",
+        "sha256": "76D815B6FED5A7FFB506F3FE3F911D37BF0F94D5843A481FBCFEDC5735FA1830",
+        "result": "2917 tests; 56 failures. test_loom_address 24 tests, 2 live failures before backlink/hash assertions.",
+        "blocker": "backend_proof_support/mod.rs:709 proof account login/session exchange: Account authentication denied"
+      }
+    ],
+    "proof_record_ids": ["WPV-C3X-1C5214BC-MT032-CORE", "WPV-C3X-1C5214BC-MT032-NATIVE"],
+    "basis": "Frozen core collision-delete test reached its assertion and returned HTTP 200 instead of required 409. Native live Loom-address/restart assertions were not reached because shared proof-account login was denied.",
+    "remediation_required": ["Repair delete search-identity collision response and atomicity on the next pushed candidate.", "Resolve shared proof-account authentication so both live Loom-address tests reach their assertions."],
+    "residual_uncertainty": "No PASS claim for native backlink, content hash, restart, mounted UI, or final candidate. Later product commits are not included in this frozen result."
   }
 }
