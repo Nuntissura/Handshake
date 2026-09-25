@@ -226,6 +226,10 @@ pub async fn login(
         .send()
         .await
         .map_err(|_| "Backend unavailable")?;
+    #[cfg(feature = "integration")]
+    if !credential.status().is_success() {
+        eprintln!("NATIVE_AUTH_PROOF phase=owner-login status={}", credential.status());
+    }
     let credential = checked_json(credential).await?;
     let response = channel_request(
         client.post(format!("{backend}/authority/session")),
@@ -240,6 +244,10 @@ pub async fn login(
     .send()
     .await
     .map_err(|_| "Backend unavailable")?;
+    #[cfg(feature = "integration")]
+    if !response.status().is_success() {
+        eprintln!("NATIVE_AUTH_PROOF phase=session-exchange status={}", response.status());
+    }
     let context: AuthenticatedContext = serde_json::from_value(checked_json(response).await?)
         .map_err(|_| "Invalid session response")?;
     context.bind(backend, channel)
