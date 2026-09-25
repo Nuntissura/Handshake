@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 1
+generation: 2
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -56,3 +56,4 @@ steps:
 - {id: GP-035, role: integration_validator, at: before_merge, do: confirm every required MT independently passed before integration review, check: {type: confirm}, source: 'W12-F01/CX-503B1: no PASS on pending or blocked required rows', state: retired}
 - {id: GP-036, role: wp_validator, at: before_round, do: forbid timeout wrapper line in run-round.sh; comments excluded, check: {type: cmd, argv: [python, -c, 'import re,sys;t=open(sys.argv[1],encoding=''utf-8'',errors=''replace'').read();sys.exit(1 if re.search(r''^[ \t]*timeout[ \t]+[0-9]'',t,re.M) else 0)', ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/run-round.sh], expect_exit: 0}, source: 'replaces GP-007 (comment false positive); FL: run 44 killed by timeout 3600', state: active}
 - {id: GP-037, role: orchestrator, at: before_round, do: verify product worktree clean incl. untracked, check: {type: git, repo_ref: product_worktree_dir, clean: true, include_untracked: true}, source: W12-A01/D01; replaces GP-017/018 (tracked only), state: active}
+- {id: GP-038, role: orchestrator, at: before_dispatch, do: verify product HEAD == remote(branch), check: {type: git, repo_ref: product_worktree_dir, head_equals_remote: true}, source: 'CX-GP-001: orchestrator dispatch gate missing', state: active}
