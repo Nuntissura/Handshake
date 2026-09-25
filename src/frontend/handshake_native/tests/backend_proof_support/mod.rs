@@ -20,6 +20,7 @@
 #![allow(dead_code)]
 
 use std::cell::{Cell, RefCell};
+use std::collections::HashSet;
 use std::error::Error as StdError;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
@@ -106,6 +107,7 @@ pub struct LiveBackend {
     /// (`HANDSHAKE_STAGE_BINDING_FILE`), reused verbatim by `restart_owned`.
     owned_binding_file: Option<PathBuf>,
     owned_data_dir: Option<PathBuf>,
+    owned_vault_scope: Option<OwnedVaultScope>,
     owned_runtime_roots: Vec<PathBuf>,
     retained_failure_receipt: RefCell<Option<PathBuf>>,
     preserve_runtime_roots: Cell<bool>,
@@ -418,28 +420,183 @@ fn proof_request_timeout(maximum: Duration) -> Option<Duration> {
     (!remaining.is_zero()).then(|| maximum.min(remaining))
 }
 
-struct PendingChild(Option<Child>);
+// The backend hashes (absolute store path, namespace, database) in authority::store_session_secret.
+// A UUID runtime root gives this proof a private installation namespace; a baseline prevents a
+// pre-existing credential from ever becoming a cleanup target.
+struct OwnedVaultScope {
+    data_dir: PathBuf,
+    runtime_root: PathBuf,
+    namespace: String,
+    baseline: HashSet<String>,
+}
+
+impl OwnedVaultScope {
+    fn capture(data_dir: &Path) -> Result<Self, String> {
+        let runtime_root = data_dir.parent().ok_or("owned data directory has no parent")?;
+        let canonical_root = validate_owned_runtime_root(runtime_root)?;
+        let store = data_dir.join(EMBEDDED_STORE_DIRECTORY);
+        reject_reparse_chain(&store, runtime_root)?;
+        let canonical_store = std::fs::canonicalize(&store)
+            .map_err(|error| format!("canonicalize owned embedded store: {error}"))?;
+        if !canonical_store.starts_with(&canonical_root) {
+            return Err("owned embedded store escaped its validated runtime root".to_owned());
+        }
+        let identity = serde_json::to_vec(&(
+            store.to_string_lossy(),
+            "handshake",
+            "primary",
+        )).map_err(|error| format!("serialize owned installation identity: {error}"))?;
+        let hash = Sha256::digest(identity).iter().map(|byte| format!("{byte:02x}")).collect::<String>();
+        let namespace = format!("handshake-local-accounts-{hash}");
+        let baseline = owned_vault_targets(&namespace)?;
+        if !baseline.is_empty() {
+            return Err("new fixture installation namespace already contains vault credentials".to_owned());
+        }
+        Ok(Self { data_dir: data_dir.to_path_buf(), runtime_root: runtime_root.to_path_buf(), namespace, baseline })
+    }
+
+    fn cleanup_after_reap(&self) -> Result<(), String> {
+        // Recheck the filesystem authority immediately before touching the OS vault.
+        let canonical_root = validate_owned_runtime_root(&self.runtime_root)?;
+        let store = self.data_dir.join(EMBEDDED_STORE_DIRECTORY);
+        reject_reparse_chain(&store, &self.runtime_root)?;
+        if !std::fs::canonicalize(&store)
+            .map_err(|error| format!("canonicalize owned store after reap: {error}"))?
+            .starts_with(canonical_root)
+        {
+            return Err("owned store escaped its runtime root after reap".to_owned());
+        }
+        let current = owned_vault_targets(&self.namespace)?;
+        for target in current.difference(&self.baseline) {
+            delete_owned_vault_target(target)?;
+        }
+        let remaining = owned_vault_targets(&self.namespace)?;
+        if !remaining.is_subset(&self.baseline) {
+            return Err("owned installation vault absence remains unverified after exact deletion".to_owned());
+        }
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+#[repr(C)]
+struct CredentialPrefix {
+    flags: u32,
+    kind: u32,
+    target_name: *const u16,
+}
+
+#[cfg(windows)]
+#[link(name = "Advapi32")]
+unsafe extern "system" {
+    fn CredEnumerateW(filter: *const u16, flags: u32, count: *mut u32, credentials: *mut *mut *mut CredentialPrefix) -> i32;
+    fn CredDeleteW(target: *const u16, kind: u32, flags: u32) -> i32;
+    fn CredFree(buffer: *mut std::ffi::c_void);
+}
+
+#[cfg(windows)]
+#[link(name = "Kernel32")]
+unsafe extern "system" {
+    fn lstrlenW(string: *const u16) -> i32;
+}
+
+#[cfg(windows)]
+fn owned_vault_targets(namespace: &str) -> Result<HashSet<String>, String> {
+    let mut count = 0;
+    let mut credentials = std::ptr::null_mut();
+    // A null filter is read-only enumeration. Only exact, validated targets in the private
+    // installation namespace can be passed to CredDeleteW below; credential blobs are never read.
+    if unsafe { CredEnumerateW(std::ptr::null(), 0, &mut count, &mut credentials) } == 0 {
+        let error = std::io::Error::last_os_error();
+        return if error.raw_os_error() == Some(1168) { Ok(HashSet::new()) }
+            else { Err(format!("enumerate owned vault targets: {error}")) };
+    }
+    let result = (|| {
+        let suffix = format!(".{namespace}");
+        let mut targets = HashSet::new();
+        for index in 0..count as usize {
+            let credential = unsafe { *credentials.add(index) };
+            if credential.is_null() || unsafe { (*credential).kind } != 1 {
+                continue;
+            }
+            let name = unsafe { (*credential).target_name };
+            if name.is_null() { continue; }
+            // The OS owns this null-terminated target; do not impose a fixture-specific bound
+            // on unrelated user credentials returned by enumeration.
+            let length = unsafe { lstrlenW(name) };
+            if length < 0 { return Err("invalid vault target length".to_owned()); }
+            let length = length as usize;
+            let target = String::from_utf16(unsafe { std::slice::from_raw_parts(name, length) })
+                .map_err(|_| "vault target name is not UTF-16".to_owned())?;
+            // Credential Manager target identity is case-insensitive; retain the OS spelling
+            // for exact deletion while matching our ASCII namespace without case sensitivity.
+            let folded = target.to_ascii_lowercase();
+            if let Some(session) = folded.strip_suffix(&suffix) {
+                if uuid::Uuid::parse_str(session).is_err() {
+                    return Err("owned installation contains unexpected credential target".to_owned());
+                }
+                targets.insert(target);
+            }
+        }
+        Ok(targets)
+    })();
+    unsafe { CredFree(credentials.cast()) };
+    result
+}
+
+#[cfg(windows)]
+fn delete_owned_vault_target(target: &str) -> Result<(), String> {
+    use std::os::windows::ffi::OsStrExt;
+    let wide = std::ffi::OsStr::new(target).encode_wide().chain(Some(0)).collect::<Vec<_>>();
+    if unsafe { CredDeleteW(wide.as_ptr(), 1, 0) } == 0 {
+        let error = std::io::Error::last_os_error();
+        if error.raw_os_error() != Some(1168) {
+            return Err(format!("delete exact owned vault target: {error}"));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn owned_vault_targets(_namespace: &str) -> Result<HashSet<String>, String> {
+    Err("owned OS-vault enumeration is not implemented on this platform".to_owned())
+}
+
+#[cfg(not(windows))]
+fn delete_owned_vault_target(_target: &str) -> Result<(), String> {
+    Err("owned OS-vault deletion is not implemented on this platform".to_owned())
+}
+
+struct PendingChild {
+    child: Option<Child>,
+    vault_scope: Option<OwnedVaultScope>,
+}
 
 impl PendingChild {
     fn new(child: Child) -> Self {
-        Self(Some(child))
+        Self { child: Some(child), vault_scope: None }
     }
 
     fn child_mut(&mut self) -> &mut Child {
-        self.0.as_mut().expect("pending child exists")
+        self.child.as_mut().expect("pending child exists")
     }
 
     fn take(mut self) -> Child {
-        self.0.take().expect("pending child exists")
+        self.child.take().expect("pending child exists")
     }
 }
 
 impl Drop for PendingChild {
     fn drop(&mut self) {
-        if let Some(child) = self.0.as_mut() {
+        if let Some(child) = self.child.as_mut() {
             if let Err(error) = force_kill_tree_and_reap(child, "drop pending fixture backend") {
                 eprintln!("FATAL: {error}");
                 std::process::abort();
+            }
+            if let Some(scope) = self.vault_scope.as_ref() {
+                if let Err(error) = scope.cleanup_after_reap() {
+                    eprintln!("WARN: pending owned fixture vault cleanup unverified; runtime evidence retained: {error}");
+                }
             }
         }
     }
@@ -653,6 +810,11 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
         let startup_deadline = bounded_command_deadline(STARTUP_TIMEOUT);
         base = wait_for_listen_report(pending.child_mut(), &report_path, startup_deadline);
         wait_for_health(&rt, &client, &base, pending.child_mut(), startup_deadline);
+        #[cfg(windows)]
+        {
+            pending.vault_scope = Some(OwnedVaultScope::capture(&data_dir)
+                .expect("capture owned installation vault baseline before Owner setup"));
+        }
         owned_backend = Some(pending);
         owned_binary = Some(binary);
         owned_binding_file = Some(binding_file.clone());
@@ -709,6 +871,13 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
             .expect("proof account login and persisted session exchange"),
         )
     });
+    let (owned_child, owned_vault_scope) = match owned_backend {
+        Some(mut pending) => {
+            let scope = pending.vault_scope.take();
+            (Some(pending.take()), scope)
+        }
+        None => (None, None),
+    };
     let mut backend = LiveBackend {
         account_logout_complete: Cell::new(false),
         base,
@@ -717,10 +886,11 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
         _native_binding: native_binding,
         client,
         rt,
-        owned_backend: RefCell::new(owned_backend.map(PendingChild::take)),
+        owned_backend: RefCell::new(owned_child),
         owned_binary,
         owned_binding_file,
         owned_data_dir,
+        owned_vault_scope,
         owned_runtime_roots,
         retained_failure_receipt: RefCell::new(None),
         preserve_runtime_roots: Cell::new(false),
@@ -1587,18 +1757,28 @@ impl LiveBackend {
             kill_and_reap(child, "clean up fixture-owned backend");
             *self.owned_backend.get_mut() = None;
         }
+        let vault_cleanup = self.owned_vault_scope.as_ref().map(OwnedVaultScope::cleanup_after_reap);
+        if let Some(result) = vault_cleanup {
+            if let Err(error) = result {
+                self.preserve_runtime_roots.set(true);
+                panic!("owned installation OS-vault cleanup remains unverified after reap: {error}");
+            }
+            self.owned_vault_scope.take();
+        }
         if let Some((workspace_id, result)) = workspace_cleanup {
             match result {
-                Ok(status) => assert!(
-                    (200..300).contains(&status) || status == 404,
-                    "managed fixture workspace cleanup {workspace_id} returned {status}"
-                ),
-                Err(payload) => std::panic::resume_unwind(payload),
+                Ok(status) if (200..300).contains(&status) || status == 404 => {}
+                Ok(status) => {
+                    self.preserve_runtime_roots.set(true);
+                    panic!("managed fixture workspace cleanup {workspace_id} returned {status}");
+                }
+                Err(payload) => {
+                    self.preserve_runtime_roots.set(true);
+                    std::panic::resume_unwind(payload);
+                }
             }
         }
-        account_cleanup.expect(
-            "fixture session and OS-vault entry must be revoked before cleanup is complete",
-        );
+        account_cleanup.expect("fixture account/session logout must complete; OS-vault fallback alone does not prove revocation");
     }
 
     /// Complete the normal proof teardown and atomically publish the one active backend runtime set.
@@ -1650,6 +1830,10 @@ impl LiveBackend {
                 format!("fixture-owned backend pid {owned_pid} was not reaped after termination")
             })?;
         *self.owned_backend.get_mut() = None;
+        if let Some(scope) = self.owned_vault_scope.as_ref() {
+            scope.cleanup_after_reap()?;
+        }
+        self.owned_vault_scope.take();
         account_cleanup?;
 
         let outcome = publish_success_runtime_diagnostics(
@@ -2202,6 +2386,11 @@ impl LiveBackend {
         }
 
         let health = self.immediate_health_snapshot();
+        if self.owned_backend.borrow().is_some() {
+            if let Err(error) = self.logout_account_bounded() {
+                eprintln!("WARN: pre-reap owned fixture logout unverified; exact vault cleanup follows: {error}");
+            }
+        }
         let mut stable_logs = false;
         let mut process = {
             let mut child_slot = self.owned_backend.borrow_mut();
@@ -2297,6 +2486,14 @@ impl LiveBackend {
             }
             receipt
         };
+        if stable_logs {
+            if let Some(scope) = self.owned_vault_scope.as_ref() {
+                if let Err(error) = scope.cleanup_after_reap() {
+                    self.preserve_runtime_roots.set(true);
+                    eprintln!("WARN: retained owned fixture vault cleanup unverified: {error}");
+                }
+            }
+        }
         if process["owned"] == true {
             let executable = self
                 .owned_binary
@@ -3736,6 +3933,7 @@ mod failure_diagnostic_tests {
                 owned_binary: None,
                 owned_binding_file: None,
                 owned_data_dir: None,
+                owned_vault_scope: None,
                 owned_runtime_roots: vec![runtime_root.to_path_buf()],
                 retained_failure_receipt: RefCell::new(None),
                 preserve_runtime_roots: Cell::new(false),
@@ -4046,6 +4244,7 @@ mod failure_diagnostic_tests {
             owned_binary: None,
             owned_binding_file: None,
             owned_data_dir: None,
+            owned_vault_scope: None,
             owned_runtime_roots: Vec::new(),
             retained_failure_receipt: RefCell::new(None),
             preserve_runtime_roots: Cell::new(false),
@@ -4082,16 +4281,20 @@ mod failure_diagnostic_tests {
 
 impl Drop for LiveBackend {
     fn drop(&mut self) {
-        if thread::panicking() && self.retained_failure_receipt.get_mut().is_none() {
+        let already_panicking = thread::panicking();
+        let mut cleanup_failed = false;
+        if already_panicking && self.retained_failure_receipt.get_mut().is_none() {
             match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 self.retain_failure_diagnostics("panic_drop", "unwind", "live-backend-drop", None)
             })) {
                 Ok(Ok(_)) => {}
                 Ok(Err(error)) => {
+                    cleanup_failed = true;
                     self.preserve_runtime_roots.set(true);
                     eprintln!("WARN: retain MT-045 backend failure diagnostics: {error}");
                 }
                 Err(_) => {
+                    cleanup_failed = true;
                     self.preserve_runtime_roots.set(true);
                     eprintln!(
                         "WARN: MT-045 backend failure diagnostic capture panicked; preserving original runtime roots"
@@ -4108,11 +4311,15 @@ impl Drop for LiveBackend {
                     self.workspace_id.clear();
                 }
                 Ok(status) => {
+                    cleanup_failed = true;
+                    self.preserve_runtime_roots.set(true);
                     eprintln!(
                         "WARN: managed fixture workspace cleanup {workspace_id} returned {status}"
                     );
                 }
                 Err(_) => {
+                    cleanup_failed = true;
+                    self.preserve_runtime_roots.set(true);
                     eprintln!(
                         "WARN: managed fixture workspace cleanup {workspace_id} panicked during Drop"
                     );
@@ -4120,6 +4327,7 @@ impl Drop for LiveBackend {
             }
         }
         if let Err(error) = self.logout_account_bounded() {
+            cleanup_failed = true;
             eprintln!("WARN: {error}");
         }
         let mut owned_backend_reaped = false;
@@ -4130,6 +4338,15 @@ impl Drop for LiveBackend {
             }
             *self.owned_backend.get_mut() = None;
             owned_backend_reaped = true;
+        }
+        if self.owned_backend.get_mut().is_none() {
+            if let Some(scope) = self.owned_vault_scope.as_ref() {
+                if let Err(error) = scope.cleanup_after_reap() {
+                    cleanup_failed = true;
+                    self.preserve_runtime_roots.set(true);
+                    eprintln!("WARN: Drop owned fixture vault cleanup unverified: {error}");
+                }
+            }
         }
         if owned_backend_reaped && !self.workspace_id.is_empty() {
             // The HTTP delete above did not clear the workspace, and the owning process is now gone,
@@ -4146,6 +4363,7 @@ impl Drop for LiveBackend {
                     if containment["containment_verified"] == true {
                         self.workspace_id.clear();
                     } else {
+                        cleanup_failed = true;
                         self.preserve_runtime_roots.set(true);
                         eprintln!(
                             "WARN: post-reap Drop embedded-store containment failed and source evidence is preserved: {containment}"
@@ -4153,6 +4371,7 @@ impl Drop for LiveBackend {
                     }
                 }
                 None => {
+                    cleanup_failed = true;
                     self.preserve_runtime_roots.set(true);
                     eprintln!(
                         "WARN: owned backend reaped with workspace cleanup pending but no runtime root"
@@ -4175,6 +4394,9 @@ impl Drop for LiveBackend {
                     std::process::abort();
                 }
             }
+        }
+        if cleanup_failed && !already_panicking {
+            panic!("managed fixture cleanup failed; owned runtime evidence retained");
         }
     }
 }
