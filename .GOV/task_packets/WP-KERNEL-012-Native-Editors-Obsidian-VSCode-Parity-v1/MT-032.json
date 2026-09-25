@@ -760,5 +760,30 @@
     "pass_basis": "All MT-032 product acceptance boundaries were independently exercised from current HEAD on real PostgreSQL, including terminal canonical interaction proof and restart recovery. No product blocker remained.",
     "remediation_required": false,
     "residual_uncertainty": "WP-level HBR closure and recorded scope-waiver paperwork remain integration/governance concerns, not an MT-032 product-correctness blocker under the Operator's product-first validation instruction."
+  },
+  "validation_v5": {
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR",
+    "reviewed_at_utc": "2026-09-25T04:59:51Z",
+    "candidate_commit": "3596f28de1cfe2f06ce07c705e63eb839e2fd8c2",
+    "round_started_at_utc": "2026-09-25T03:11:07.3539674Z",
+    "round_completed_at_utc": "2026-09-25T04:54:35.7828740Z",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/round-3596f28d.stderr.log",
+    "core_junit_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-3596f28de1cfe2f06ce07c705e63eb839e2fd8c2-core.xml",
+    "core_junit_sha256": "A07C524F39AB928AB6028A3310D6F0E3BCAAE2990D4D96C711236C5FEAEA20B1",
+    "native_junit_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-3596f28de1cfe2f06ce07c705e63eb839e2fd8c2-native.xml",
+    "native_junit_sha256": "E7E7D348ACB2F03CFCEE0B7BACB7E1D4A5C49264CB99C2D9D17163834C5B65D0",
+    "failure_kind": "product",
+    "failure_class": "SHARED_SURREAL_SCHEMA_INFO_PIN_BOOTSTRAP",
+    "blocker": "Current schema INFO pin expected f8902e15 but observed 2d73f283; isolated core store and owned native backend abort before MT-032 persistence assertions",
+    "own_proof": {
+      "core_delete_cases": "4 selected, 4 failed at knowledge_ingestion_support/mod.rs:85 before delete assertions",
+      "native_loom_address": "35 selected, 33 passed, 2 live SurrealDB cases failed before backend listen",
+      "required_next": "Fresh candidate: four core delete cases reach and pass assertions; both native live Loom address/backlink/hash/restart cases pass with fresh JUnit and binary/export provenance"
+    },
+    "status_effect": "none; READY_FOR_VALIDATION and null validator_verdict retained under CX-STATUS-003",
+    "blocked_status_not_used_reason": "CX-STATUS-002 requires an exact open blocking MT; MT-139 is PASS_V1 and the pin repair is queued as a newer product commit",
+    "runner_defect": "Wrapper exited 4 after looking for JUnit under shared C target; fresh export-local JUnits were independently hashed and copied. Exit 4 is infrastructure, not a product verdict.",
+    "residual_uncertainty": "Frozen candidate never exercised the delete repair or real live native persistence assertions; queued product changes require a new round."
   }
 }
