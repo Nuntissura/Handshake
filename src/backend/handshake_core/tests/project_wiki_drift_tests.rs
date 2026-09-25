@@ -414,10 +414,15 @@ async fn mt242_no_change_recompile_yields_zero_stale() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
+    eprintln!("MT242 serve backend begin");
     let pg = manual_test_backend().await.expect("embedded test backend");
+    eprintln!("MT242 serve backend ready");
     let account = AccountFixture::install(pg.db.storage()).await;
+    eprintln!("MT242 serve account ready");
     let owned_workspace_id = account.create_workspace(&app_state_for(&pg.db).await).await;
+    eprintln!("MT242 serve workspace ready");
     let seeded = seed_workspace_in(&pg, owned_workspace_id).await;
+    eprintln!("MT242 serve sources ready");
     let compiler = compiler_for(&pg);
     let outcome = compiler
         .bootstrap(
@@ -427,6 +432,7 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         )
         .await
         .expect("bootstrap");
+    eprintln!("MT242 serve bootstrap ready");
     let ws = seeded.workspace_id.clone();
 
     // A legacy UNSTAMPED row (pre-0300 shape, written through the old upsert).
@@ -442,9 +448,11 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         })
         .await
         .expect("legacy unstamped row");
+    eprintln!("MT242 serve legacy ready");
 
     let state = app_state_for(&pg.db).await;
     let (base, _server) = start_server(handshake_core::api::loom::routes(state)).await;
+    eprintln!("MT242 serve server ready");
     let http = account.client();
 
     // Root-indexed fixtures have no source grants. A workspace grant alone must
@@ -454,6 +462,7 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         .iter()
         .find(|p| p.title == "module: src/knowledge_code_index")
         .expect("module page");
+    eprintln!("MT242 serve ungranted GET begin");
     let ungranted_response = http
         .get(format!(
             "{base}/workspaces/{ws}/loom/wiki/{}",
@@ -462,6 +471,7 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         .send()
         .await
         .expect("ungranted page send");
+    eprintln!("MT242 serve ungranted GET end");
     assert_eq!(ungranted_response.status(), 200);
     let ungranted: Value = ungranted_response
         .json()
@@ -488,11 +498,14 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         access_space_id: account.access_space_id.clone(),
     };
     let storage = pg.db.storage();
+    eprintln!("MT242 serve workspace resource begin");
     let workspace_resource = storage
         .register_workspace_resource(&identity, &ws)
         .await
         .expect("existing owner workspace resource");
+    eprintln!("MT242 serve workspace resource end");
     for source_id in seeded.sources.values() {
+        eprintln!("MT242 serve source register begin");
         let resource = storage
             .register_protected_resource(
                 &identity,
@@ -503,6 +516,8 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
             )
             .await
             .expect("register exact seeded source resource");
+        eprintln!("MT242 serve source register end");
+        eprintln!("MT242 serve source grant begin");
         storage
             .grant_resource(
                 &identity.account_id,
@@ -518,9 +533,11 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
             )
             .await
             .expect("grant owner exact source read");
+        eprintln!("MT242 serve source grant end");
     }
 
     // ---- list serve path: EVERY page carries a verdict ----------------------
+    eprintln!("MT242 serve list GET begin");
     let list: Value = http
         .get(format!("{base}/workspaces/{ws}/loom/wiki"))
         .send()
@@ -529,6 +546,7 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         .json()
         .await
         .expect("list json");
+    eprintln!("MT242 serve list GET end");
     let pages = list["pages"].as_array().expect("pages array");
     assert!(
         pages.len() >= outcome.pages.len(),
@@ -556,6 +574,7 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
     );
 
     // ---- single-page serve path ---------------------------------------------
+    eprintln!("MT242 serve single GET begin");
     let single: Value = http
         .get(format!(
             "{base}/workspaces/{ws}/loom/wiki/{}",
@@ -567,10 +586,12 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         .json()
         .await
         .expect("get json");
+    eprintln!("MT242 serve single GET end");
     assert_eq!(single["staleness_verdict"]["state"], "fresh", "{single}");
     assert_eq!(single["page_type"], "module");
 
     // ---- stale endpoint (verdict + derived bool) ------------------------------
+    eprintln!("MT242 serve stale GET begin");
     let stale: Value = http
         .get(format!(
             "{base}/workspaces/{ws}/loom/wiki/{}/stale",
@@ -582,11 +603,15 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         .json()
         .await
         .expect("stale json");
+    eprintln!("MT242 serve stale GET end");
     assert_eq!(stale["stale"], false);
     assert_eq!(stale["verdict"]["state"], "fresh");
 
     // ---- edit the real source -> the SERVED verdict flips to stale -----------
+    eprintln!("MT242 serve reindex begin");
     let (source_id, _new_hash) = edit_and_reindex(&seeded).await;
+    eprintln!("MT242 serve reindex end");
+    eprintln!("MT242 serve edited GET begin");
     let single_after: Value = http
         .get(format!(
             "{base}/workspaces/{ws}/loom/wiki/{}",
@@ -598,6 +623,7 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         .json()
         .await
         .expect("get-after json");
+    eprintln!("MT242 serve edited GET end");
     assert_eq!(single_after["staleness_verdict"]["state"], "stale");
     let reasons = single_after["staleness_verdict"]["reasons"]
         .as_array()
@@ -610,6 +636,7 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
     );
 
     // ---- legacy unstamped single serve + stale endpoint ------------------------
+    eprintln!("MT242 serve legacy GET begin");
     let legacy_single: Value = http
         .get(format!(
             "{base}/workspaces/{ws}/loom/wiki/{}",
@@ -621,7 +648,9 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         .json()
         .await
         .expect("legacy get json");
+    eprintln!("MT242 serve legacy GET end");
     assert_eq!(legacy_single["staleness_verdict"]["state"], "unstamped");
+    eprintln!("MT242 serve legacy stale GET begin");
     let legacy_stale: Value = http
         .get(format!(
             "{base}/workspaces/{ws}/loom/wiki/{}/stale",
@@ -633,6 +662,7 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         .json()
         .await
         .expect("legacy stale json");
+    eprintln!("MT242 serve legacy stale GET end");
     assert_eq!(
         legacy_stale["stale"], true,
         "unstamped pages are fail-closed stale, never fresh"
@@ -641,6 +671,7 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
     // ---- compile serve path (POST returns the page WITH its verdict) ----------
     // MT-109 C3: the compile route runs as the account record user, so its cited block is created
     // by the account through the product route (a root-created block has no account grant).
+    eprintln!("MT242 serve block POST begin");
     let block_json: Value = http
         .post(format!("{base}/workspaces/{ws}/loom/blocks"))
         .json(&json!({"content_type": "note", "title": "Drift API note wiki drift api test block"}))
@@ -650,10 +681,12 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         .json()
         .await
         .expect("account block json");
+    eprintln!("MT242 serve block POST end");
     let block_id = block_json["block_id"]
         .as_str()
         .expect("account block id")
         .to_owned();
+    eprintln!("MT242 serve compile POST begin");
     let compiled: Value = http
         .post(format!("{base}/workspaces/{ws}/loom/wiki"))
         .json(&json!({"title": "Drift API topic", "block_ids": [block_id]}))
@@ -663,6 +696,7 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         .json()
         .await
         .expect("compile json");
+    eprintln!("MT242 serve compile POST end");
     assert_eq!(
         compiled["staleness_verdict"]["state"], "fresh",
         "the compile serve path attaches the verdict too"

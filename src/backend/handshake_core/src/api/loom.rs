@@ -11067,7 +11067,10 @@ mod tests {
             uri: &str,
             body: Value,
         ) -> (StatusCode, Value) {
-            loom_create_request(&self.router, method, uri, headers, body).await
+            eprintln!("MT153 route begin {method} {uri}");
+            let result = loom_create_request(&self.router, method, uri, headers, body).await;
+            eprintln!("MT153 route end {method} {uri} {}", result.0);
+            result
         }
 
         /// (a) owner positive: the route returns its success status.
@@ -11083,12 +11086,14 @@ mod tests {
 
         /// Admin re-read of canonical rows (verification only; never a product flow).
         async fn row(&self, query: &str, bindings: Value) -> Value {
+            eprintln!("MT153 row begin {}", query.chars().take(64).collect::<String>());
             let mut response = self
                 .state
                 .surreal
                 .test_admin_query_bound(query.to_owned(), bindings)
                 .await
                 .unwrap_or_else(|error| panic!("canonical re-read {query}: {error}"));
+            eprintln!("MT153 row end {}", query.chars().take(64).collect::<String>());
             response
                 .take::<Option<Value>>(0)
                 .unwrap_or_else(|error| panic!("canonical re-read {query}: {error}"))
@@ -11100,6 +11105,7 @@ mod tests {
         }
 
         async fn ledger_sequence(&self) -> i64 {
+            eprintln!("MT153 ledger begin");
             let mut response = self
                 .state
                 .surreal
@@ -11108,6 +11114,7 @@ mod tests {
                 )
                 .await
                 .expect("ledger sequence read");
+            eprintln!("MT153 ledger end");
             response
                 .take::<Vec<Value>>(0)
                 .expect("ledger sequences")
@@ -11118,6 +11125,7 @@ mod tests {
         }
 
         async fn receipts_since(&self, since: i64) -> Vec<Value> {
+            eprintln!("MT153 receipts begin {since}");
             let mut response = self
                 .state
                 .surreal
@@ -11127,6 +11135,7 @@ mod tests {
                 )
                 .await
                 .expect("workspace receipts read");
+            eprintln!("MT153 receipts end {since}");
             response.take::<Vec<Value>>(0).expect("workspace receipts")
         }
 
@@ -11293,13 +11302,18 @@ mod tests {
     #[tokio::test]
     async fn mt153_loom_route_family_authority_matrix() {
         use base64::Engine as _;
+        eprintln!("MT153 setup begin");
         let binding = LoomCreateBinding::new();
         let (state, _store) = setup_state().await.unwrap();
+        eprintln!("MT153 setup state ready");
         let (router, owner, ws) = owned_loom_session(&state, &binding).await;
+        eprintln!("MT153 setup owner ready");
         let router = router.merge(crate::api::kernel::routes(state.clone()));
         let principal = owner["x-hsk-actor-id"].to_str().unwrap().to_owned();
         let other = c3_other_account(&state, &binding).await;
+        eprintln!("MT153 setup other ready");
         let viewer = mt153_viewer(&state, &binding, &principal, &ws).await;
+        eprintln!("MT153 setup viewer ready");
         let mut anonymous = HeaderMap::new();
         anonymous.insert(
             "x-hsk-channel-binding-token",
@@ -11320,6 +11334,7 @@ mod tests {
 
         // ---- blocks + pins + metrics ------------------------------------------------------
         let family = "blocks+pins+metrics";
+        eprintln!("MT153 family {family}");
         let note = c3_block(&m.router, &m.owner, &ws, "note", "MT153 Zephyrine note").await;
         let loose = c3_block(&m.router, &m.owner, &ws, "note", "MT153 loose note").await;
         let since = m.ledger_sequence().await;
@@ -11439,6 +11454,7 @@ mod tests {
 
         // ---- folders ------------------------------------------------------------------------
         let family = "folders";
+        eprintln!("MT153 family {family}");
         let since = m.ledger_sequence().await;
         let folder = m
             .owner_ok(
@@ -11546,6 +11562,7 @@ mod tests {
 
         // ---- wiki + overlays + bootstrap/drift/fanout --------------------------------------
         let family = "wiki+overlays";
+        eprintln!("MT153 family {family}");
         let page = m
             .owner_ok(
                 family,
@@ -11640,6 +11657,7 @@ mod tests {
 
         // ---- markdown import + asset import -------------------------------------------------
         let family = "markdown import + asset import";
+        eprintln!("MT153 family {family}");
         let since = m.ledger_sequence().await;
         let imported = m
             .owner_ok(
@@ -11701,6 +11719,7 @@ mod tests {
 
         // ---- AC-153-6: every LoomBlockContentType through the scoped create route ----------
         let family = "content types";
+        eprintln!("MT153 family {family}");
         for (kind, body) in [
             (
                 "note",
@@ -11745,6 +11764,7 @@ mod tests {
 
         // ---- tags + edges -------------------------------------------------------------------
         let family = "tags+edges";
+        eprintln!("MT153 family {family}");
         let hub = c3_block(&m.router, &m.owner, &ws, "tag_hub", "mt153-hub").await;
         let spare_hub = c3_block(&m.router, &m.owner, &ws, "tag_hub", "mt153-spare").await;
         let since = m.ledger_sequence().await;
@@ -11816,6 +11836,7 @@ mod tests {
 
         // ---- assets + tiers -----------------------------------------------------------------
         let family = "assets+tiers";
+        eprintln!("MT153 family {family}");
         m.owner_ok(family, "GET", &format!("/assets/{asset_id}"), Value::Null)
             .await;
         let (status, bytes) = c3_raw_request(
@@ -11858,6 +11879,7 @@ mod tests {
 
         // ---- collections --------------------------------------------------------------------
         let family = "collections";
+        eprintln!("MT153 family {family}");
         let since = m.ledger_sequence().await;
         let collection = m
             .owner_ok(
@@ -11923,6 +11945,7 @@ mod tests {
 
         // ---- views + graph + search + visual-debug ------------------------------------------
         let family = "views+graph+search";
+        eprintln!("MT153 family {family}");
         let since = m.ledger_sequence().await;
         let reads = [
             ("GET", "/loom/views/all".to_owned(), Value::Null),
@@ -11984,6 +12007,7 @@ mod tests {
 
         // ---- quick-switcher -----------------------------------------------------------------
         let family = "quick-switcher";
+        eprintln!("MT153 family {family}");
         let since = m.ledger_sequence().await;
         m.owner_ok(
             family,
@@ -12020,6 +12044,7 @@ mod tests {
 
         // ---- AI jobs + suggestions ----------------------------------------------------------
         let family = "AI jobs+suggestions";
+        eprintln!("MT153 family {family}");
         let since = m.ledger_sequence().await;
         let job = m
             .owner_ok(
@@ -12084,6 +12109,7 @@ mod tests {
 
         // ---- canvas viewport / cards / stage-cards / placements / visual-edges ------------
         let family = "canvas";
+        eprintln!("MT153 family {family}");
         let canvas = m
             .owner_ok(
                 family,
@@ -12360,6 +12386,7 @@ mod tests {
 
         // ---- block-view definitions + results -----------------------------------------------
         let family = "block-view definitions";
+        eprintln!("MT153 family {family}");
         let view_id = Uuid::now_v7().to_string();
         let definition = serde_json::to_value(mt027_view_definition()).unwrap();
         let since = m.ledger_sequence().await;
@@ -12431,6 +12458,7 @@ mod tests {
 
         // ---- daily journal (MT-111 status split: no session 401, other account 403) ---------
         let family = "daily journal";
+        eprintln!("MT153 family {family}");
         let since = m.ledger_sequence().await;
         let journal = m
             .owner_ok(family, "PUT", "/loom/journals/2026-09-23", Value::Null)
