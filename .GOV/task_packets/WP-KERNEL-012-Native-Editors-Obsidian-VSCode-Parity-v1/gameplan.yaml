@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 7
+generation: 8
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -60,3 +60,4 @@ steps:
 - {id: GP-039, role: wp_validator, at: before_round, do: confirm MT-032 selected and JUnit sources use C target, check: {type: confirm}, source: 'preflight: omitted MT-032 and wrong JUnit source', state: retired}
 - {id: GP-040, role: wp_validator, at: before_round, do: confirm Git Bash script argument uses literal forward slash path, check: {type: confirm}, source: 'launch: PowerShell regex path replacement failed', state: active}
 - {id: GP-041, role: wp_validator, at: before_round, do: confirm JUnit source paths match export-local crate targets, check: {type: confirm}, source: 'infra: frozen 3596 wrapper exit 4 from shared-target JUnit guess', state: active}
+- {id: GP-042, role: builder, at: before_round, do: verify native manifest exists in standalone crate, check: {type: file, path: ../wtc-native-editors-v1/src/frontend/handshake_native/Cargo.toml, exists: true}, source: 'mistake: native check launched from repo without root manifest', state: active}
