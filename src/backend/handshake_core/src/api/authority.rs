@@ -1244,7 +1244,9 @@ async fn store_session_secret(
 ) -> Result<(), (StatusCode, Json<Value>)> {
     #[cfg(feature = "os-keychain")]
     {
-        use crate::model_runtime::cloud::secrets_vault::{OsKeychainSecretsVault, SecretsVault};
+        use crate::model_runtime::cloud::secrets_vault::{
+            OsKeychainSecretsVault, SecretsVault, SecretsVaultError,
+        };
         use sha2::{Digest, Sha256};
         // Namespace includes this installation's storage root; independent installations and
         // proof databases cannot overwrite each other's OS credentials.
@@ -1262,6 +1264,7 @@ async fn store_session_secret(
             account_lifecycle_probe(state, "vault_delete").await?;
         }
         let key = session_id.to_owned();
+        let is_write = token.is_some();
         // Test builds record every written lane so the store teardown deletes it
         // (storage::tests::shutdown_and_remove_test_store).
         #[cfg(test)]
@@ -1281,6 +1284,21 @@ async fn store_session_secret(
         })
         .await?
         .map_err(|error| {
+            if is_write {
+                let windows_error_code = match &error {
+                    SecretsVaultError::KeychainBackend(message) => message
+                        .strip_prefix("Platform secure storage failure: Windows error code ")
+                        .and_then(|code| code.parse::<u32>().ok()),
+                    _ => None,
+                };
+                tracing::error!(
+                    target: "handshake_core::local_account_vault",
+                    phase = "session_exchange_vault_write",
+                    keychain_backend = matches!(&error, SecretsVaultError::KeychainBackend(_)),
+                    ?windows_error_code,
+                    "local_account_session_vault_write_failed"
+                );
+            }
             #[cfg(test)]
             eprintln!("LOCAL_ACCOUNT_TEST_FAILURE phase=os_vault_operation error={error}");
             let _ = error;
