@@ -2432,6 +2432,12 @@ fn schema_delta_upgrade_statements() -> String {
             schema_statements_enclosing(current, &mut spans);
         }
     }
+    // The later MT-157 rowset binding changed the existing workspace-delete
+    // definition after the MT-154 pairs were recorded. Upgrades must re-emit it.
+    schema_statements_enclosing(
+        "LET $workspace_delete_rows_1 = SELECT rich_document_id FROM knowledge_rich_documents WHERE workspace_id = $workspace;",
+        &mut spans,
+    );
     for (start, end) in spans {
         if block.as_ref().is_some_and(|range| range.contains(&start)) {
             continue;
@@ -2441,6 +2447,59 @@ fn schema_delta_upgrade_statements() -> String {
     }
     statements
 }
+
+#[cfg(test)]
+const PRE_MT154_WORKSPACE_DELETE_GUARDS: &str = r#"-- Legacy generic sources have no account-bound resource kind in this producer; never delete them by workspace membership alone.
+IF array::len(SELECT id FROM documents WHERE workspace_id = $workspace) > 0
+    OR array::len(SELECT id FROM assets WHERE workspace_id = $workspace) > 0
+    OR array::len(SELECT id FROM canvases WHERE workspace_id = $workspace) > 0 {
+    RETURN false;
+};
+IF array::len(SELECT id FROM atelier_intake_item_loom_projection WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM ai_bronze_records WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM ai_silver_records WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM assets WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM blocks WHERE document_id IN (SELECT VALUE id FROM documents WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM calendar_activity_spans WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM calendar_events WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM calendar_sources WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM canvas_edges WHERE canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM canvas_nodes WHERE canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM canvases WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM documents WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_claim_conflicts WHERE claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_claim_spans WHERE claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_claims WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_code_scip_imports WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_context_bundle_items WHERE bundle_id IN (SELECT VALUE id FROM knowledge_context_bundles WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_context_bundles WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_debug_breakpoints WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_bridge_decisions WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_conflict_detection_findings WHERE job_id IN (SELECT VALUE id FROM knowledge_memory_conflict_detection_jobs WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_conflict_detection_jobs WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_conflict_resolution_jobs WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_facts WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_ontology_aliases WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_ontology_terms WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_passages WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_passage_evidence WHERE passage_id IN (SELECT VALUE id FROM knowledge_memory_passages WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_quick_switcher_recents WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_retrieval_traces WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_semantic_catalog_entries WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_wiki_projections WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_ai_suggestions WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_block_knowledge_bridge WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_boards WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_placements WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_visual_edges WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_collection_members WHERE collection_id IN (SELECT VALUE id FROM loom_collections WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_collections WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_folder_members WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_folders WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_wiki_overlays WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM media_asset_tiers WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM stage_capture_artifacts WHERE workspace_id = $workspace) > 0 { RETURN false; };
+"#;
 
 #[cfg(test)]
 fn restore_pre_mt154_schema(mut source: String) -> String {
@@ -2454,6 +2513,42 @@ fn restore_pre_mt154_schema(mut source: String) -> String {
     for (current, previous) in MT154_SCHEMA_DELTAS {
         source = source.replace(current, previous);
     }
+    // MT-157 bound each workspace-delete SELECT before its FOR loop. The 158/159
+    // predecessors predate that change; restore their inline SELECTs exactly.
+    for index in 1..=15 {
+        let rowset = format!("$workspace_delete_rows_{index}");
+        let binding = format!("LET {rowset} = ");
+        let start = source
+            .find(&binding)
+            .expect("MT-157 workspace-delete rowset binding must exist");
+        let line_start = source[..start].rfind('\n').map_or(0, |offset| offset + 1);
+        let indent = &source[line_start..start];
+        let select_end = source[start..]
+            .find(";\n")
+            .map(|offset| start + offset)
+            .expect("rowset SELECT must end before its FOR loop");
+        let select = &source[start + binding.len()..select_end];
+        let loop_start = select_end + 2 + indent.len();
+        let loop_head = source[loop_start..]
+            .split_once(" IN ")
+            .expect("rowset must have a following FOR loop")
+            .0;
+        assert!(loop_head.starts_with("FOR $"));
+        let current = format!("{indent}{binding}{select};\n{indent}{loop_head} IN {rowset}");
+        assert_eq!(source.matches(&current).count(), 1, "rowset must be unique");
+        let previous = format!("{indent}{loop_head} IN ({select})");
+        source = source.replacen(&current, &previous, 1);
+    }
+    // Restore the pre-MT-154 workspace-delete guard catalog, retaining the
+    // exact historical 158/159 fixture while current guards remain unchanged.
+    let start = source
+        .find("-- Legacy generic sources have no account-bound resource kind")
+        .expect("pre-MT-154 workspace-delete guard start must exist");
+    let end = source[start..]
+        .find("IF array::len(SELECT id FROM documents WHERE workspace_id IN (SELECT VALUE id FROM workspaces")
+        .map(|offset| start + offset)
+        .expect("pre-MT-154 workspace-delete guard end must exist");
+    source.replace_range(start..end, PRE_MT154_WORKSPACE_DELETE_GUARDS);
     source
 }
 /// Exact revision-159 catalog: the current schema with the MT-154, MT-109 C3/C2, standalone Loom
