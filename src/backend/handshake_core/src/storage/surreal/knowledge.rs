@@ -2115,6 +2115,10 @@ impl SurrealDatabase {
                     AND block_id = $block AND content_type = 'note')) != 1 { \
                 THROW 'HSK-KRD-SEARCH-IDENTITY'; \
             }; \
+            IF array::len((SELECT id FROM $search)) = 0 { \
+                CREATE $search CONTENT { block_id: $block, workspace_id: $workspace, \
+                    content_type: 'note', search_text: '' } RETURN NONE; \
+            }; \
             LET $affected_blocks = array::distinct(array::union( \
                 (SELECT VALUE target_block_id FROM loom_edges WHERE workspace_id = $workspace \
                     AND source_block_id = $block AND target_block_id != $block), \
