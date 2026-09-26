@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 51
+generation: 52
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -96,3 +96,4 @@ steps:
 - {id: GP-075, role: builder, at: before_round, do: confirm retained sibling types keep required imports after owner extraction, check: {type: confirm}, source: 'compile: retained GuardError lost thiserror::Error import when StorageError moved', state: active}
 - {id: GP-076, role: orchestrator, at: before_submit, do: 'confirm pushed candidate, compile inputs and independent review bind to submission', check: {type: confirm}, source: 'resume: exact86 vault cleanup completed; consumed approval cannot be repeated for submission', state: active}
 - {id: GP-077, role: wp_validator, at: before_round, do: confirm C byte total sums per-file Length rather than array Length, check: {type: confirm}, source: 'capacity: transient count used array Length instead of file byte sum', state: active}
+- {id: GP-078, role: wp_validator, at: before_submit, do: confirm enabled automatic binary PDB aliases enter remaining cap forecast, check: {type: confirm}, source: 'capacity: omitted six auto-built fixture PDB pairs regrow 11.258GB logical', state: active}
