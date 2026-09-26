@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 40
+generation: 43
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -87,3 +87,6 @@ steps:
 - {id: GP-066, role: orchestrator, at: before_dispatch, do: confirm gameplan confirmation notes <= 120 chars, check: {type: confirm}, source: 'mistake: oversized confirm note rejected before dispatch', state: active}
 - {id: GP-067, role: orchestrator, at: before_round, do: confirm coder admission and complete output after model capacity failure, check: {type: confirm}, source: 'infra: Astra initial read-only turn ended with selected model at capacity', state: active}
 - {id: GP-068, role: wp_validator, at: before_round, do: confirm extracted crate coverage and adapter dependency direction before union, check: {type: confirm}, source: 'MT032-DOCUMENT-EXTRACTION-20260926: new crates absent from existing union selection', state: active}
+- {id: GP-069, role: builder, at: before_round, do: confirm installed 1.97.1 formatter and compiler paths before check, check: {type: confirm}, source: 'infra: default stable toolchain lacked rustfmt', state: active}
+- {id: GP-070, role: builder, at: before_round, do: confirm extracted manifests declare copied code dependencies without external version changes, check: {type: confirm}, source: 'review: extracted retry used undeclared getrandom', state: active}
+- {id: GP-071, role: builder, at: before_round, do: confirm tracked extraction diff preserves original UTF-8 text, check: {type: confirm}, source: 'review: default encoding rewrote unrelated comments as mojibake', state: active}
