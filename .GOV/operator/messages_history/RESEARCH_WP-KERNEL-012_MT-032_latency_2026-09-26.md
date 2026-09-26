@@ -48,8 +48,33 @@ Counterfactuals: removing the candidate document workspace predicate would admit
 
 The CLI's local memory endpoint disables authentication; root-only results cannot establish record-user permission equivalence. WPV therefore ran both a root-only selector comparison (702ms) and a small owned loopback server with simplified record permissions (1365ms). Old/new outputs matched for ordering, empty/None/missing/deleted selectors, owned records, cross-workspace denial and revoked records. The candidate preserved foreign Loom rows for the existing caller to reject. These fixtures do not reproduce the full product grant/fence model or Rust binding transport. The tiny candidate plan's SourceExpr was not faster than the original workspace IndexScan; no latency benefit is claimed. Actual inputs/results/hashes and failed fixture setup corrections are in `MT-032.remediation_v12.cheap_checks.result`. All owned diagnostic processes were reaped; no foreign process stopped.
 
-The source reduction compiled on the warm D target in 552s with unchanged pre/post digest across 1,228 inputs, then was committed/pushed as `49eac54e03d2a94abf5aa3ced025e2947f9adc8b`. No new target, manifest, dependency, profile or expensive test was used for these checks. One final union remains pending; no diagnostic dependency or synthetic fixture substitutes for it.
+The source reduction compiled on the warm D target in 552s with unchanged pre/post digest across 1,228 inputs, then was committed/pushed as `49eac54e03d2a94abf5aa3ced025e2947f9adc8b`. No new target, manifest, dependency, profile or expensive test was used for these checks. The single final union has now completed; no diagnostic dependency or synthetic fixture substitutes for its results.
 
-Agents: resumed builder Astra/medium `01a0d677-2c57-7813-9075-c273d1c4637f`; independent WP Validator Sol/medium `01a0db0c-e4d4-73a0-be7d-33ebb18bff84`; read-only researcher Luna/medium `01a0dd58-85bd-7793-8004-583920f7b12d`. The D compile, push and cheap comparisons are complete. Next: launch the single final union after preflight and report the outcome regardless of result. Task state and authorization remain in MT JSON.
+Agents: resumed builder Astra/medium `01a0d677-2c57-7813-9075-c273d1c4637f`; independent WP Validator Sol/medium `01a0db0c-e4d4-73a0-be7d-33ebb18bff84`; read-only researcher Luna/medium `01a0dd58-85bd-7793-8004-583920f7b12d`. The D compile, push, cheap comparisons and one final union are complete. Task state, independent verdicts and authorization remain in MT JSON.
+
+</topic>
+
+<topic id="final-union-outcome" wp="WP-KERNEL-012" updated_at="2026-09-26">
+
+## Result and unresolved boundaries
+
+The clean-export `49eac54e` union completed at 2026-09-26T15:40:57Z: core 221/223 passed; native 2908/2952 passed, 44 failed, 309 skipped. Both completed invocations returned nextest 100. Native execution took 6207.400s; core took 4227.949s. This is completed failing proof, not a launch/configuration abort. MT-032's dedicated native target passed 22/24; both required live cases still failed. No second run or deadline increase was used.
+
+Evidence under `../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/`: native `junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml`, SHA256 `B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C`; core suffix `-core.xml`, SHA256 `CD420357013FF59A89EA4440C394A8951404DD3700A75D7D066C385D118B7897`. The native executable `test_loom_address-424a802415922a9d.exe` hash is `DD26BD0615FC6F21EA9E978F810F70339B3BAF089FA07502CC11520DCF3659D7`; its dependency metadata names the exact `export-49eac54e` manifest, whose marker equals the full candidate. Phase capture `logs/mt032-phase-watch-49eac54e03d2a94abf5aa3ced025e2947f9adc8b.jsonl` has SHA256 `607D863BFCC28E8F02260C08577D4A6A5E46A5E104099E84E2348C074CD94547` after the observer exited.
+
+- Owned restart: PUT save failed at request send with `TimedOut`, not connect/body/decode failure. Request `e0c33158-8b97-4798-8347-3fcd1bb677d6` completed transaction in 5069ms and receipt in 2645ms; backlinks began at 7.750s with no terminal marker. The required restart/hash/backlink assertions were not reached.
+- Self-seeded proof: creating A without a link failed at request send with `is_timeout=true`. Request `c58124c5-d656-4352-8383-43884e924ed4` completed transaction in 5362ms, receipt in 2636ms and embeds in 12ms; indexing began at 8.041s with no terminal marker. Preceding B creation completed in 9462ms. These observations do not constitute a controlled latency comparison with the prior candidate.
+
+The independent validator reconciled 68 observer events with 68 events in the two retained source logs. The coder separately inspected both source logs and the current patch; the parent opened the captured events, final native JUnit, executable hash and dependency metadata. `MT-032.remediation_v12.union_observation` retains the detailed observation and source-log hashes; the final independent verdict belongs in the MT's validation record, not this document.
+
+## Why the patch was insufficient; next source decision
+
+`knowledge.rs:5353` still acquires the keyed mutation lock/retry before `replace_backlinks_attempt` (`:5861`). That attempt still reads the source and two prior-state surfaces, resolves targets, rewrites backlinks/edges and recomputes counts. The current save contains a KRD-ID link: empty-candidate skips do not cover its nonempty target; exact-record selection applies only if execution reaches that branch. The outer phase marker cannot identify which inner operation remains unfinished.
+
+`knowledge_documents.rs:710` still awaits source lookup, possible source provisioning/stale marking and entity upsert. The None-path skip and exact source reread do not remove provisioning, authority-fence work or entity mutation. This is the unfinished boundary in create A, distinct from save backlinks.
+
+Next investigation must distinguish these inner awaits and their lock/retry/authorization costs before selecting another repair. Existing evidence does not select a guard/query for removal, prove SIGNIN dominance, establish a deadlock or establish hardware causation. Do not remove live authorization, detach required postcommit work, increase deadlines or repeat the unchanged union. GP-064 records the two-boundary distinction before the next repair dispatch; it changes no acceptance criterion and grants no additional run.
+
+The repair preserved compile/query-shape compatibility but did not deliver MT-032 acceptance. Cheap selector equality was useful negative-path feedback, not performance proof. Warm caches survived; no target wipe occurred. The parent separately missed MT-136's complete proof floor during prelaunch, and the validator's draft MT-153 failure-kind enum required correction before commit; neither mistake is a hardware explanation for these MT-032 timeouts. The [handoff](HANDOFF_WP-KERNEL-012_KB-orchestrator_2026-09-24_session7.md) records the final MT disposition and remaining proof gaps.
 
 </topic>
