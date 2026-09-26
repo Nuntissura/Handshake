@@ -4,6 +4,57 @@ file_kind: operator_handoff
 updated_at: 2026-09-26
 ---
 
+<topic id="next-session-first-refactor-and-mt032" wp="WP-KERNEL-012" updated_at="2026-09-26">
+
+## Read first: next-session goal and limits
+
+Operator direction, 2026-09-26: "ok record it in the handoff, include what it doesnt proof. i will start a new session and start working on the first reafactor and also solve mt 032. as goal."
+
+The next-session goal is the first bounded document-subsystem crate refactor AND resolution of MT-032 through independent passing validation. Extraction alone is not completion. This session records the direction only: no refactor, repair, build, test, agent dispatch or status change was started. The earlier single-union cycle remains consumed; its dated stop statements describe that cycle, not a rejection of the Operator's new next-session goal. This handoff is context, not a contract amendment, new proof policy or fresh run budget.
+
+### Inspected dependency boundary
+
+MT-032 belongs to WP-KERNEL-012; its declared dependencies are MT-031 (command bus), MT-021 (graph) and MT-022 (canvas). Its runtime crosses existing `handshake_native` and `handshake_core` crates; Handshake is not literally one crate. Relative source paths below are from the assigned product checkout `../wtc-native-editors-v1`.
+
+```text
+handshake_native: editor/canvas/graph + Loom address/resolver/backlink panel
+  -> HTTP -> handshake_core: document routes + request authorization
+  -> document transaction -> durable receipt
+  -> backlink/embed/index work -> authenticated SurrealDB storage
+  -> transaction guards, permissions, keyed mutation locks and bounded retries
+```
+
+Inspected anchors: `src/frontend/handshake_native/src/loom_address.rs`; `src/frontend/handshake_native/tests/test_loom_address.rs` (self-seeded and owned-restart cases); backend `src/backend/handshake_core/src/lib.rs::AppState`; `api/knowledge_documents.rs::index_document_into_knowledge_index` and create/save handlers; `knowledge_document/mod.rs`; `storage/surreal/knowledge.rs::replace_knowledge_document_backlinks` / `replace_backlinks_attempt`; `storage/surreal/database.rs::SurrealDatabase`. AppState also carries unrelated services such as the LLM client. The existing knowledge_document module already groups the document model, block tree, links, embeds and permission logic.
+
+### Proposed first extraction, not a finalized crate contract
+
+The candidate boundary is RichDocument operations; no new canonical crate name or path has been selected. Candidate contents: document model/block-tree/link interpretation, create/save orchestration, backlink/embed derivation, document-to-knowledge indexing orchestration, operation-level diagnostics and focused tests. External services remain explicit: authenticated storage/session access, live authorization, durable receipt/EventLedger writing, shared transaction/lock/retry infrastructure and the HTTP host. Editor/canvas/graph widgets stay native clients; unrelated backend features stay outside.
+
+Critical feasibility condition: moving only orchestration leaves the failing database implementation inside the large core crate. Independently building repairs to that implementation requires an independently buildable relevant storage adapter and shared infrastructure that do not depend back on the whole application. Moving all transitive dependencies into the new crate would recreate the monolith. Exact adapter/type ownership and the compile graph remain to be designed and verified; the assessment did not prove that this is a simple file move or that one new crate is sufficient.
+
+MT-032's current scope explicitly forbids backend edits; previous necessary backend work was owned through MT-154. On next-session activation, reconcile the Operator's refactor goal with the owning typed scope/approval record before changing paths (KB-PREP-001/003, KB-IMPL-001). Preserve the existing behavior and acceptance requirements. The Operator's handoff request did not ask this session to rewrite contracts or launch implementation, and the broader planned modularization is not silently discarded or folded into this first extraction.
+
+### Failure baseline and what extraction does not prove
+
+Baseline candidate `49eac54e03d2a94abf5aa3ced025e2947f9adc8b`; independent MT-032 `FAIL_V11`, native target 22/24. Create A completes transaction (5362ms), receipt (2636ms) and embeds (12ms), then begins indexing at 8.041s before the 10s client deadline. Save A completes transaction (5069ms) and receipt (2645ms), then begins backlinks at 7.750s before the 15s client deadline. Neither unfinished phase has a captured terminal marker. Current MT JSON and [latency research](RESEARCH_WP-KERNEL-012_MT-032_latency_2026-09-26.md) own detailed findings and evidence pointers.
+
+- A crate move does not prove either timeout fixed, identify the dominant inner await, or establish deadlock, hardware causation or a hardware waiver.
+- Compilation, dependency separation, query-equivalence fixtures and component tests do not prove native HTTP deadline compliance, live permission enforcement, durable receipts/backlinks/hashes, restart survival or mounted UI behavior.
+- Passing core tests do not substitute for native tests with explicit 10s/15s deadlines; a healthy health route does not prove document operations finish.
+- Fewer dependencies in a proposed diagram do not prove smaller builds, faster iteration, reduced link time, lower disk usage or actual cache hits. Measure the resulting compile graph and costs; do not promise a speedup.
+- Retained compiler artifacts do not prove current-source binaries; historical green tests do not survive changed relevant inputs automatically. Extraction is not an MT PASS, WP PASS or integration approval.
+- A smaller crate does not waive live authorization, transaction guards, synchronous required completion, existing deadlines, independent validation or required production-boundary/union proof. No detached indexing, cached-auth shortcut or longer deadline was approved by this discussion.
+
+The next repair decision still needs evidence distinguishing inner backlink lock/retry/source/prior-state/target/write/count work from index lookup/provisioning/stale/entity work. Structural extraction and behavioral repair should remain attributable so the next validator can distinguish relocation from the actual fix. No unchanged expensive round is justified merely because a session or crate is new.
+
+### Restart and cache continuity
+
+Next actor: the new session's KERNEL_BUILDER, using the current live authority and typed contracts, the gameplan skill with role-specific `GAMEPLAN_ROLE` / `--by`, a retained builder context and an independent WP_VALIDATOR. Existing agent/model, disk, monitoring and proof rules remain below; inspect live state rather than assuming old handles are active. No monitoring was reactivated for this documentation-only turn.
+
+Preserve both warm targets and required evidence. New crate boundaries may invalidate application outputs but are not grounds for a target wipe; compatible dependency reuse remains conditional on actual toolchain/features/profile/configuration. The last observed C target was 134,827,296,882 bytes against the 150,000,000,000-byte cap, not a current launch measurement. Recalculate before costly work. Cargo supports package-specific selection and shared workspace outputs, not automatic independence or guaranteed speedup: [Cargo workspaces](https://doc.rust-lang.org/cargo/reference/workspaces.html), [Cargo targets](https://doc.rust-lang.org/cargo/reference/cargo-targets.html).
+
+</topic>
+
 <topic id="live-state" wp="WP-KERNEL-012" updated_at="2026-09-26">
 
 # WP-KERNEL-012 — restart handoff: one acceptance priority, shared repairs, union validation
