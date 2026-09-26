@@ -50,6 +50,6 @@ The CLI's local memory endpoint disables authentication; root-only results canno
 
 The source reduction compiled on the warm D target in 552s with unchanged pre/post digest across 1,228 inputs, then was committed/pushed as `49eac54e03d2a94abf5aa3ced025e2947f9adc8b`. No new target, manifest, dependency, profile or expensive test was used for these checks. One final union remains pending; no diagnostic dependency or synthetic fixture substitutes for it.
 
-Agents: resumed builder Astra/medium `01a0d677-2c57-7813-9075-c273d1c4637f`; independent WP Validator Sol/medium `01a0db0c-e4d4-73a0-be7d-33ebb18bff84`; read-only researcher Luna/medium `01a0dd58-85bd-7793-8004-583920f7b12d`. Next: finish the one D compile, push, obtain independent cheap comparison, then one final union and outcome report regardless of result. Task state and authorization remain in MT JSON.
+Agents: resumed builder Astra/medium `01a0d677-2c57-7813-9075-c273d1c4637f`; independent WP Validator Sol/medium `01a0db0c-e4d4-73a0-be7d-33ebb18bff84`; read-only researcher Luna/medium `01a0dd58-85bd-7793-8004-583920f7b12d`. The D compile, push and cheap comparisons are complete. Next: launch the single final union after preflight and report the outcome regardless of result. Task state and authorization remain in MT JSON.
 
 </topic>

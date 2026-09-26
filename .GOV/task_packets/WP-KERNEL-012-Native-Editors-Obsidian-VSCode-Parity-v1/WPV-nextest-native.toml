@@ -1,0 +1,28 @@
+[profile.default]
+slow-timeout = { period = "60s", terminate-after = 5 }
+test-threads = 1
+
+[profile.default.junit]
+path = "junit.xml"
+
+# The owned-backend proofs (require_live_backend / require_reachable_backend,
+# via start_product_backend in backend_proof_support/mod.rs) share ONE global
+# file lock (<artifacts>/managed-backend-fixture.lock) held for each test's
+# whole run; a waiter may queue up to FIXTURE_LOCK_TIMEOUT = 1200s
+# (backend_proof_support/mod.rs:53, :593). Under the default 60s/terminate-after=5
+# profile this produced 7 TIMEOUTs in run51b (2026-09-24) - not hangs, just
+# lock-queue waits exceeding 60s x5=300s. Serialize these binaries into one
+# test-group (max-threads=1, so nextest never even tries to run two of them
+# concurrently) with a slow-timeout matching FIXTURE_LOCK_TIMEOUT so a genuine
+# long wait is not misreported as a failure, while terminate-after=1 still
+# catches a true hang. Only binaries that call require_live_backend() or
+# require_reachable_backend() belong here. MT-008's test_code_nav_client and
+# test_completion_hover_accesskit use mt008_code_nav_support, which calls
+# require_live_backend() for their live proofs. Global test-threads remains 1.
+[test-groups.owned-backend]
+max-threads = 1
+
+[[profile.default.overrides]]
+filter = 'binary(test_app_host_mount) | binary(test_author_id_budget) | binary(test_backend_down_responsive) | binary(test_block_collection_view) | binary(test_calendar_interop) | binary(test_canvas_board) | binary(test_canvas_board_argus) | binary(test_canvas_sections_resize) | binary(test_ckc_embed) | binary(test_code_actions) | binary(test_code_editor_panel) | binary(test_code_nav_client) | binary(test_code_note_cross_ref) | binary(test_completion_hover_accesskit) | binary(test_daily_notes) | binary(test_diagnostics_panel) | binary(test_diff_editor_panel) | binary(test_e7_knowledge_accesskit) | binary(test_e7_knowledge_accesskit_argus) | binary(test_e7_swarm_edit_proof) | binary(test_editor_preference_records) | binary(test_editor_settings_section_renders) | binary(test_embeds) | binary(test_event_emitter) | binary(test_fems_interop_proofs) | binary(test_find_bar_accesskit) | binary(test_find_in_files) | binary(test_flight_recorder_authz) | binary(test_fold_accesskit) | binary(test_folder_tree) | binary(test_folder_tree_argus) | binary(test_font_coverage) | binary(test_formatting) | binary(test_formatting_toolbar) | binary(test_graph_controls) | binary(test_graph_view) | binary(test_graph_view_argus) | binary(test_gutter) | binary(test_ime_composition) | binary(test_inline_tags) | binary(test_interconnect_ckc_to_note) | binary(test_interconnect_loom_backlink_search) | binary(test_interconnect_note_code_crossref) | binary(test_interconnect_shared_undo_ledger) | binary(test_intl_segmentation) | binary(test_layout_persistence) | binary(test_line_ops) | binary(test_locus_interop) | binary(test_loom_address) | binary(test_loom_search_v2) | binary(test_manual_pane_editors) | binary(test_markdown_render) | binary(test_memory_proposal_argus) | binary(test_menu_wireup) | binary(test_minimap) | binary(test_model_session_launch) | binary(test_multi_cursor_accesskit) | binary(test_notes_end_to_end) | binary(test_notes_only_default) | binary(test_other_pillar_interop_proofs) | binary(test_outgoing_links) | binary(test_outline) | binary(test_parity_knowledge) | binary(test_parity_rich_editor) | binary(test_parity_search) | binary(test_perf_large_code) | binary(test_perf_large_knowledge) | binary(test_perf_large_rich) | binary(test_properties) | binary(test_rails) | binary(test_reading_mode) | binary(test_relevant_memory) | binary(test_rename_inline_input) | binary(test_resource_counters) | binary(test_rich_editor_save) | binary(test_rich_editor_widget) | binary(test_rich_find_replace) | binary(test_rtl_complex) | binary(test_screenshot_deferred_marker) | binary(test_settings_dialog) | binary(test_sidebar_panel) | binary(test_sidebar_panel_argus) | binary(test_signature_help) | binary(test_slash_commands) | binary(test_stage_interop) | binary(test_status_bar_editor_segments) | binary(test_sticky_scroll) | binary(test_symbol_palette) | binary(test_tags_panel) | binary(test_tags_panel_argus) | binary(test_three_tier_end_to_end) | binary(test_undo_scope) | binary(test_wiki_page_panel) | binary(test_wiki_page_panel_argus) | binary(test_wikilink_resolver) | binary(test_wikilinks)'
+test-group = 'owned-backend'
+slow-timeout = { period = "1200s", terminate-after = 1 }
