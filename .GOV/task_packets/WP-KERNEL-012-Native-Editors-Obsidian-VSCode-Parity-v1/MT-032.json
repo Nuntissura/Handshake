@@ -911,7 +911,24 @@
       "research": "01a0dd58-85bd-7793-8004-583920f7b12d"
     },
     "known_failure": "Native save/create exceed 15s/10s deadlines; internal transaction/receipt/backlink cost remains unresolved",
-    "next_action": "Source-bound datastore diagnosis and independent option review; then smallest safe repair and one union",
+    "diagnoses": [{
+      "diagnosis_id": "MT032-DOCUMENT-CANDIDATE-QUERY-AMPLIFICATION",
+      "cause": "Empty lookups and table sources add permission-bearing queries to serial document and indexing paths",
+      "code_refs": ["knowledge.rs::owned_source_upsert_rows", "knowledge.rs::resolve_backlink_rows", "knowledge.rs::read_live_rich_document"],
+      "evidence_refs": ["remediation_v11.diagnostic_result", "RESEARCH_WP-KERNEL-012_MT-032_latency_2026-09-26.md"],
+      "distinct_from": ["MT032-POST-CAPTURE-AUTHENTICATED-DROP", "MT032-CREATE-ERROR-ERASURE"],
+      "causality_limit": "Extra queries are evidenced; their contribution and native deadline compliance are not yet measured"
+    }],
+    "repair_direction": "Skip provably empty source/candidate reads; use schema-constrained record IDs; retain permissions and write guards",
+    "cheap_checks": {
+      "authorized_by": "remediation_v12.operator_decision",
+      "engine": "SurrealDB 3.2.0 official standalone CLI",
+      "owner_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/sql-advisory",
+      "requested_cases": ["exact record-array selection and ordering", "missing/deleted target", "cross-workspace or denied record"],
+      "acceptance_credit": false,
+      "runner": "WP_VALIDATOR"
+    },
+    "next_action": "Stable-input D compile and push; independent cheap query comparison; then one gated union",
     "validation_runs_completed": 0,
     "status_effect": "none; last independent verdict remains FAIL_V10 until actual repair submission"
   },
