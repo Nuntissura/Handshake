@@ -2225,6 +2225,19 @@
       "memory credential exchange 403: keychain error 8"
     ]
   },
+  "mt032_phase_diagnostic_dependency": {
+    "operator_decision_ref": "MT-032.remediation_v11.operator_decision",
+    "recorded_at_utc": "2026-09-26T02:01:43Z",
+    "batch_owner": "MT-154",
+    "covered_mts": ["MT-154", "MT-032"],
+    "base_commit": "bc0153f187140026d7818bfd6f8f2225583ac9e8",
+    "assigned_builder": "01a0d677-2c57-7813-9075-c273d1c4637f",
+    "owned_paths": ["src/backend/handshake_core/src/api/knowledge_documents.rs"],
+    "scope": "Sanitized correlated phase boundaries for authorization and create/save awaits; preserve runtime behavior",
+    "excluded": ["SQL or document content logging", "credentials", "timeout increases", "guessed persistence fixes"],
+    "proof_route": "MT-032 approved single diagnostic replay; subsequent acceptance remains independent union",
+    "status_effect": "none; diagnostic dependency is not an MT-154 acceptance submission"
+  },
   "remediation_v4": {
     "session": "KERNEL_BUILDER-C5-20260923-2250",
     "executor_role": "KERNEL_BUILDER",

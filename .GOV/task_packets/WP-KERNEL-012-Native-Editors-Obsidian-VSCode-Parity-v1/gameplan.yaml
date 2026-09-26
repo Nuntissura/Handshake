@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 20
+generation: 22
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -68,7 +68,8 @@ steps:
 - {id: GP-047, role: orchestrator, at: before_submit, do: confirm approved 86 vault targets match manifest hash; live owners == 0; unapproved targets retained, check: {type: confirm}, source: 'CX-GIT-003: Operator approved exact86 manifest 03E01A7F; no other credential deletion', state: active}
 - {id: GP-048, role: orchestrator, at: before_dispatch, do: confirm reported cleanup defects traced through caller and callee before builder dispatch, check: {type: confirm}, source: 'review mistake: logout callee already sets retention flag; parent flagged nonexistent Drop gap', state: active}
 - {id: GP-049, role: wp_validator, at: before_round, do: confirm bulk C cache copy throughput budget and forbid triple source hashing, check: {type: confirm}, source: 'wasted retention: 12 files in 7min; saturated C; 3x source hash', state: active}
-- {id: GP-050, role: wp_validator, at: before_round, do: confirm MT032 live save timeout cause traced and repair reviewed before next union, check: {type: confirm}, source: 'FAIL_V10 14bd: healthy owned backend PUT knowledge document save timed out', state: active}
+- {id: GP-050, role: wp_validator, at: before_round, do: confirm MT032 live save timeout cause traced and repair reviewed before next union, check: {type: confirm}, source: 'FAIL_V10 14bd: healthy owned backend PUT knowledge document save timed out', state: retired}
 - {id: GP-051, role: wp_validator, at: before_round, do: confirm MT032 create A proof reports transport|status|decode|document failure branch, check: {type: confirm}, source: 'FAIL_V10 14bd: create_rich_document returned None and erased exact failing substep', state: active}
 - {id: GP-052, role: orchestrator, at: before_dispatch, do: verify launcher PID and full child tree before declaring no round or requesting interruption, check: {type: confirm}, source: 'orchestration mistake: cargo-only snapshot missed live launcher; false restart concern', state: active}
 - {id: GP-053, role: builder, at: before_round, do: confirm shared helper negative fixtures and post-logout cleanup preserve the primary failure, check: {type: confirm}, source: 'FAIL_V10 14bd: negative fixture lacked store path; Drop reused inactive account after failure capture', state: active}
+- {id: GP-054, role: wp_validator, at: before_round, do: confirm union save cause and repair reviewed OR approved MT032 phase probe unused; record which action, check: {type: confirm}, source: Operator approved MT032-V11-BOUNDED-PHASE-DIAGNOSTIC; replaces GP-050 only for one named probe, state: active}

@@ -990,6 +990,15 @@
       "executed": false
     },
     "validation_limit": "One independent union only after all recorded MT failures are repaired and cheap review passes",
+    "operator_decision": {
+      "request_id": "MT032-V11-BOUNDED-PHASE-DIAGNOSTIC",
+      "recorded_at_utc": "2026-09-26T02:01:43Z",
+      "operator_text": "approved",
+      "scope": "Sanitized backend phase diagnostics under MT-154 ownership; one focused replay of both named failures",
+      "build_permission": "Build affected backend/native binaries from frozen pushed export; reuse warm targets; C cap unchanged",
+      "limits": "No SQL/content/credential logging; no broader tests; diagnostic is not validation; one union follows actual fixes",
+      "probe_runs_completed": 0
+    },
     "status_effect": "none; partial repair is not a validation submission; FAIL_V10 remains the last independent verdict"
   },
   "remediation_v10": {
