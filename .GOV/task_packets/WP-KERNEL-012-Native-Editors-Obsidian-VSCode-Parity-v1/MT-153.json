@@ -2191,7 +2191,8 @@
       "INDEPENDENT_FINDINGS": ["Required owner route abort", "Required no-regression served-verdict test timeout"],
       "RESIDUAL_UNCERTAINTY": ["Internal stack-overflow location unknown", "Edited GET send versus body-decode await unresolved", "CPU advancement is not hardware causation", "No privacy breach inferred from an unreached denial assertion"]
     },
-    "pending_checks": ["MT-153-NATIVE-LOOM continues in same union; no PASS or substitute credit"],
+    "pending_checks": [],
+    "native_completion": {"candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","completed_at":"2026-09-26T15:40:57.0864701Z","check":"MT-153-NATIVE-LOOM","disposition":"Required native block-view/canvas/E7 regression targets not green; owning MT027/026/042 records carry precise primary findings. Existing FAILV2 remains independently determined by core failures; no new verdict or duplicated remediation.","provenance_ref":"MT-032.json#validation_v11.input_provenance"},
     "attempt_disposition": "FAIL recorded from own product proof; no retry/new probe authorized; cumulative MT attempt budget retained",
     "next_actor": "KERNEL_BUILDER via parent steering; diagnosis/remediation only after frozen union completes",
     "verdict_events": [

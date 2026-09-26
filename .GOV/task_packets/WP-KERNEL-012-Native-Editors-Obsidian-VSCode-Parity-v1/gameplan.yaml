@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 36
+generation: 37
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -83,3 +83,4 @@ steps:
 - {id: GP-062, role: wp_validator, at: before_verdict, do: confirm MT136 own proof floor covered or leave unclosed; A/B/C alone cannot establish PASS, check: {type: confirm}, source: 'prelaunch miss: MT136 PT136-3 and close/reopen requirements omitted from coverage review', state: active}
 - {id: GP-063, role: wp_validator, at: before_verdict, do: confirm current verdict failure kinds are product|infrastructure|flaky, check: {type: confirm}, source: draft used product_proof_boundary; CX-VAL-006 requires canonical failure-kind enum, state: active}
 - {id: GP-064, role: orchestrator, at: before_dispatch, do: confirm next repair distinguishes save-backlinks and create-index failures in current source, check: {type: confirm}, source: 'fail: 49e MT032 save/create timeouts survive query-only reduction', state: active}
+- {id: GP-065, role: wp_validator, at: before_verdict, do: confirm cheap review-only proof gaps inspected or exact unavailable artifacts recorded, check: {type: confirm}, source: 'WPV-OUT-006; review mistake: no extra tests treated as no cheap inspections', state: active}
