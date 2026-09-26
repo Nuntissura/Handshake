@@ -988,6 +988,21 @@
       "acceptance_limit": "Source reductions compiled; native latency improvement and full product permission equivalence unproven"
     },
     "next_action": "Independent prelaunch coverage/cap checks; freeze pushed candidate and run one union",
+    "retention_decision": {
+      "actor": "KERNEL_BUILDER orchestrator",
+      "authority": "CX-984-006; Operator partial cleanup instruction: preserve reusable target content, never wipe the target",
+      "exact_manifest_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/core-retention-proposal-49eac54e.json",
+      "exact_manifest_sha256": "6681A17287E89F21E8788335DF78135E70486CF2280190061E307C2DA6477462",
+      "count": 54,
+      "bytes": 36726816768,
+      "targets": "Only listed hashed core-test final PDBs with changed core dependency; all paths inside the granted target",
+      "preserve": "Every EXE, native output, library/object/compiler cache, fingerprint, export, log, JUnit and ambiguous unhashed PDB",
+      "consequence": "Historical core-test debug symbols are discarded; EXEs/evidence remain; affected future tests already need relink",
+      "linker_caveat": "Program PDBs can be LINK input/output; do not describe these as never inputs. No ILK; retain object/library PDBs",
+      "required_before_action": "Verify exact manifest hash, resolved containment, unchanged targets and no active user; gameplan check",
+      "required_after_action": "Remeasure actual target bytes and forecast peak with scratch/added targets before GP-028 and launch",
+      "result": "PENDING_WPV_OWNED_CLEANUP"
+    },
     "validation_runs_completed": 0,
     "status_effect": "READY_FOR_VALIDATION admission under CX-STATUS-001; no PASS or completion; FAIL_V10 retained historically"
   },

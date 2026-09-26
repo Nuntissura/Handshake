@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 32
+generation: 33
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -79,3 +79,4 @@ steps:
 - {id: GP-058, role: orchestrator, at: before_dispatch, do: verify product remote tip fetched through its explicit tracking refspec, check: {type: git, repo_ref: product_worktree_dir, head_equals_remote: true}, source: 'dispatch mistake: kernel fetch refspec excludes feature; failed GP038 was not honored', state: active}
 - {id: GP-059, role: wp_validator, at: before_round, do: 'confirm pinned 3.2 query selectors, ordering and denied cases compared before union', check: {type: confirm}, source: 'MT032-V12: exact record arrays need cheap boundary and negative checks', state: active}
 - {id: GP-060, role: wp_validator, at: before_round, do: 'confirm alternate source repair reviewed, cheap comparisons complete and latency unknowns recorded', check: {type: confirm}, source: CX-GP-001; MT032 V12 Operator alternative implementation and one final union supersede GP056, state: active}
+- {id: GP-061, role: wp_validator, at: before_submit, do: 'confirm exact PDB list, containment, no users and preserved reuse before listed-file cleanup', check: {type: confirm}, source: CX-984-006; cap forecast exceeds 150 GB; only invalidated final core-test symbols are disposable, state: active}
