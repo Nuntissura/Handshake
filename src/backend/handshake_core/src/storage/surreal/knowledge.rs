@@ -6594,6 +6594,27 @@ impl handshake_document::surreal::DocumentQuery for SurrealStorage {
         .map(SurrealValue::into_value)
     }
 
+    async fn rows_pair<A: SurrealValue + Send + 'static, B: SurrealValue + Send + 'static>(
+        &self,
+        statement: String,
+        binds: Binds,
+    ) -> StorageResult<(Vec<A>, Vec<B>)> {
+        #[cfg(any(test, feature = "surreal-test-support"))]
+        let _ = KNOWLEDGE_QUERY_COUNT.try_with(|count| count.set(count.get() + 1));
+        self.with_data_operation(move |database| {
+            Box::pin(async move {
+                let mut query = database.client.query(statement);
+                for (name, value) in binds {
+                    query = query.bind((name, value));
+                }
+                let mut response = meaningful_check(query.await?)?;
+                Ok((response.take(0)?, response.take(1)?))
+            })
+        })
+        .await
+        .map_err(map_err)
+    }
+
     async fn rows<R: SurrealValue + Send + 'static>(
         &self,
         statement: String,

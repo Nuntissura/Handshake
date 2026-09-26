@@ -18,6 +18,12 @@ pub trait DocumentQuery: Send + Sync {
         workspace_id: &str,
     ) -> StorageResult<SurrealValueData>;
 
+    async fn rows_pair<A: SurrealValue + Send + 'static, B: SurrealValue + Send + 'static>(
+        &self,
+        statement: String,
+        binds: Binds,
+    ) -> StorageResult<(Vec<A>, Vec<B>)>;
+
     async fn rows<R: SurrealValue + Send + 'static>(
         &self,
         statement: String,
@@ -430,34 +436,30 @@ pub async fn read_prior_backlink_state(
     workspace_key: &str,
     source_document_id: &str,
 ) -> StorageResult<(HashMap<String, String>, Vec<String>)> {
-    let prior_rows: Vec<PriorBacklinkRecord> = query_rows(
-        storage,
-        "SELECT relationship_id, target FROM knowledge_document_backlinks \
-         WHERE source_document_id = type::record('knowledge_rich_documents', $source_key) \
-         ORDER BY relationship_id ASC;",
-        vec![b("source_key", source_document_id.to_owned())],
-    )
-    .await?;
+    let (prior_rows, prior_loom_targets): (Vec<PriorBacklinkRecord>, Vec<RecordId>) = storage
+        .rows_pair(
+            "SELECT relationship_id, target FROM knowledge_document_backlinks \
+             WHERE source_document_id = type::record('knowledge_rich_documents', $source_key) \
+             ORDER BY relationship_id ASC; \
+             SELECT VALUE target_block_id FROM loom_edges \
+             WHERE workspace_id = $workspace \
+               AND source_block_id = type::record('loom_blocks', $source_key) \
+               AND string::starts_with(edge_id, 'KDLNK-') \
+               AND last_actor_kind = 'SYSTEM' \
+               AND last_actor_id = 'knowledge_rich_document_backlink_projection' \
+               AND edit_event_id = '00000000-0000-0000-0000-000000000000' \
+               AND source_document_id = $source_key;"
+                .to_owned(),
+            vec![
+                b("workspace", thing(WORKSPACES_TABLE, workspace_key)),
+                b("source_key", source_document_id.to_owned()),
+            ],
+        )
+        .await?;
     let prior_by_relationship: HashMap<String, String> = prior_rows
         .into_iter()
         .map(|row| (row.relationship_id, row.target))
         .collect();
-    let prior_loom_targets: Vec<RecordId> = query_rows(
-        storage,
-        "SELECT VALUE target_block_id FROM loom_edges \
-         WHERE workspace_id = $workspace \
-           AND source_block_id = type::record('loom_blocks', $source_key) \
-           AND string::starts_with(edge_id, 'KDLNK-') \
-           AND last_actor_kind = 'SYSTEM' \
-           AND last_actor_id = 'knowledge_rich_document_backlink_projection' \
-           AND edit_event_id = '00000000-0000-0000-0000-000000000000' \
-           AND source_document_id = $source_key;",
-        vec![
-            b("workspace", thing(WORKSPACES_TABLE, workspace_key)),
-            b("source_key", source_document_id.to_owned()),
-        ],
-    )
-    .await?;
     let prior_loom_targets = prior_loom_targets
         .into_iter()
         .map(record_key)
@@ -685,14 +687,10 @@ pub async fn owned_source_upsert_rows(
             "CONTENT { created_in_session_id: $creator, source_id:",
         );
     let authority = storage.source_authority_sql();
-    let sql = format!("BEGIN TRANSACTION; {mutation} {authority} IF array::len((UPDATE knowledge_sources SET content_hash = $content_hash WHERE source_id = $result_id AND workspace_id = $workspace RETURN VALUE id)) != 1 {{ THROW 'HSK-403-PROTECTED-RESOURCE'; }}; COMMIT TRANSACTION;");
-    storage.execute(sql, binds.clone()).await?;
-    query_rows(
-        storage,
-        "SELECT * FROM type::record('knowledge_sources', $result_id) WHERE source_id = $result_id AND workspace_id = $workspace;",
-        binds,
-    )
-    .await
+    let sql = format!("BEGIN TRANSACTION; {mutation} {authority} IF array::len((UPDATE knowledge_sources SET content_hash = $content_hash WHERE source_id = $result_id AND workspace_id = $workspace RETURN VALUE id)) != 1 {{ THROW 'HSK-403-PROTECTED-RESOURCE'; }}; SELECT * FROM type::record('knowledge_sources', $result_id) WHERE source_id = $result_id AND workspace_id = $workspace; COMMIT TRANSACTION;");
+    // BEGIN, mutation IF, authority FOR, count fence IF, SELECT, COMMIT.
+    // The host checks every result, including COMMIT, before decoding slot 4.
+    storage.rows(sql, binds, 4, None).await
 }
 
 pub async fn get_knowledge_source_by_document_id(
