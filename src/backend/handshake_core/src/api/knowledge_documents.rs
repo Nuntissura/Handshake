@@ -291,9 +291,72 @@ tokio::task_local! {
     static DOCUMENT_AUTHORITY: crate::api::authority::AuthorizedResourceContext;
     static DOCUMENT_STATE: AppState;
     static DOCUMENT_BATCH_AUTHORITIES: std::collections::BTreeMap<String, crate::api::authority::AuthorizedResourceContext>;
+    static DOCUMENT_PHASE_REQUEST_ID: uuid::Uuid;
 }
 
-async fn document_authority(State(state): State<AppState>, mut request: Request, next: Next) -> Response {
+// MT032-V11: correlation is generated here, never taken from a header or document. Observations
+// contain fixed tags and timing only; the original future/result and error handling are unchanged.
+async fn observe_document_phase<T>(
+    phase: &'static str,
+    future: impl std::future::Future<Output = T>,
+    failed: impl FnOnce(&T) -> bool,
+) -> T {
+    let observation = DOCUMENT_PHASE_REQUEST_ID
+        .try_with(|request_id| (*request_id, std::time::Instant::now()))
+        .ok();
+    if let Some((request_id, _)) = observation {
+        tracing::info!(
+            target: "handshake_core::knowledge_documents_api",
+            request_id = %request_id, phase, event = "begin", elapsed_ms = 0_u64,
+            "MT032_DOCUMENT_PHASE"
+        );
+    }
+    let result = future.await;
+    if let Some((request_id, started)) = observation {
+        tracing::info!(
+            target: "handshake_core::knowledge_documents_api",
+            request_id = %request_id, phase,
+            event = if failed(&result) { "error" } else { "end" },
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            "MT032_DOCUMENT_PHASE"
+        );
+    }
+    result
+}
+
+async fn document_authority(
+    State(state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    let phase =
+        if request.method() == Method::POST && request.uri().path() == "/knowledge/documents" {
+            "create_request"
+        } else if request.method() == Method::PUT
+            && request.uri().path().starts_with("/knowledge/documents/")
+            && request.uri().path().ends_with("/save")
+        {
+            "save_request"
+        } else {
+            return document_authority_inner(State(state), request, next).await;
+        };
+    DOCUMENT_PHASE_REQUEST_ID
+        .scope(
+            uuid::Uuid::new_v4(),
+            observe_document_phase(
+                phase,
+                document_authority_inner(State(state), request, next),
+                |response| !response.status().is_success(),
+            ),
+        )
+        .await
+}
+
+async fn document_authority_inner(
+    State(state): State<AppState>,
+    mut request: Request,
+    next: Next,
+) -> Response {
     use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
     let denial = || crate::api::authority::constant_denial().into_response();
     let path = request.uri().path().trim_start_matches("/knowledge/documents").to_owned();
@@ -341,8 +404,15 @@ async fn document_authority(State(state): State<AppState>, mut request: Request,
             }
         } else {
             let (parts, body) = request.into_parts();
-            let bytes = match axum::body::to_bytes(body, 8 * 1024 * 1024).await {
-                Ok(bytes) => bytes, Err(_) => return denial(),
+            let bytes = match observe_document_phase(
+                "create_body",
+                axum::body::to_bytes(body, 8 * 1024 * 1024),
+                Result::is_err,
+            )
+            .await
+            {
+                Ok(bytes) => bytes,
+                Err(_) => return denial(),
             };
             let workspace = serde_json::from_slice::<Value>(&bytes).ok()
                 .and_then(|body| body.get("workspace_id").and_then(Value::as_str).map(str::to_owned));
@@ -356,14 +426,37 @@ async fn document_authority(State(state): State<AppState>, mut request: Request,
         (ResourceKind::RichDocument, document.to_owned(), if read { ResourceAction::Read } else if request.method() == Method::DELETE && !path.trim_start_matches('/' ).contains('/') { ResourceAction::Delete } else { ResourceAction::Update })
     };
     let is_document = kind == ResourceKind::RichDocument;
-    let mut authority = match crate::api::authority::authorize_request(&state, request.headers(),
-        if read { "fs.read" } else { "fs.write" }, kind, &external, action).await {
-        Ok(authority) => authority, Err(error) => return error.into_response(),
+    let mut authority = match observe_document_phase(
+        "middleware_authorize",
+        crate::api::authority::authorize_request(
+            &state,
+            request.headers(),
+            if read { "fs.read" } else { "fs.write" },
+            kind,
+            &external,
+            action,
+        ),
+        Result::is_err,
+    )
+    .await
+    {
+        Ok(authority) => authority,
+        Err(error) => return error.into_response(),
     };
     if is_document {
-        authority.record_user_scope.workspace_id = match state.surreal.authorized_document_workspace(
-            &authority.resource_id, &authority.account_id, &authority.access_space_id).await {
-            Ok(Some(workspace)) => Some(workspace), _ => return denial(),
+        authority.record_user_scope.workspace_id = match observe_document_phase(
+            "middleware_workspace_lookup",
+            state.surreal.authorized_document_workspace(
+                &authority.resource_id,
+                &authority.account_id,
+                &authority.access_space_id,
+            ),
+            |result| !matches!(result, Ok(Some(_))),
+        )
+        .await
+        {
+            Ok(Some(workspace)) => Some(workspace),
+            _ => return denial(),
         };
     }
     let scope = authority.record_user_scope.clone();
@@ -1042,13 +1135,21 @@ async fn create_document(
         owner_actor_kind: Some(ctx.actor_kind.as_str().to_string()),
         owner_actor_id: Some(actor_id_of(&ctx.actor)),
     };
-    let created_result = if body.create_if_title_absent {
-        db.create_knowledge_rich_document_if_title_absent(new_document).await
-    } else {
-        db.create_knowledge_rich_document(new_document)
-            .await
-            .map(|created| (created, true))
-    };
+    let created_result = observe_document_phase(
+        "create_transaction",
+        async {
+            if body.create_if_title_absent {
+                db.create_knowledge_rich_document_if_title_absent(new_document)
+                    .await
+            } else {
+                db.create_knowledge_rich_document(new_document)
+                    .await
+                    .map(|created| (created, true))
+            }
+        },
+        Result::is_err,
+    )
+    .await;
     let (created, document_created) = match created_result {
         Ok(created) => created,
         Err(error) => {
@@ -1073,12 +1174,16 @@ async fn create_document(
 
     // ---- post-commit (MT-149): the create above is committed; the steps
     // below are best-effort and RECORDED, never an error for a committed write.
-    let (receipt, receipt_error) = record_receipt_non_fatal(
-        state.storage.as_ref(),
-        &ctx,
-        KernelEventType::KnowledgeRichDocumentSaved,
-        &created.rich_document_id,
-        json!({"event": "created", "doc_version": created.doc_version}),
+    let (receipt, receipt_error) = observe_document_phase(
+        "create_receipt",
+        record_receipt_non_fatal(
+            state.storage.as_ref(),
+            &ctx,
+            KernelEventType::KnowledgeRichDocumentSaved,
+            &created.rich_document_id,
+            json!({"event": "created", "doc_version": created.doc_version}),
+        ),
+        |result| result.1.is_some(),
     )
     .await;
 
@@ -1094,12 +1199,15 @@ async fn create_document(
     .ok();
     if let Some(created_tree) = created_tree {
         if let Ok(validated) = validate_block_embeds(&created_tree) {
-            match db
-                .replace_knowledge_document_embeds(
+            match observe_document_phase(
+                "create_embeds",
+                db.replace_knowledge_document_embeds(
                     &created.rich_document_id,
                     embed_upserts(&created.rich_document_id, &validated),
-                )
-                .await
+                ),
+                Result::is_err,
+            )
+            .await
             {
                 Ok(persisted) => embeds_persisted = persisted.len(),
                 Err(err) => {
@@ -1120,7 +1228,12 @@ async fn create_document(
     let mut knowledge_indexed = false;
     let mut knowledge_index_error: Option<String> = None;
     if ctx.require(DocumentAction::Index).is_ok() {
-        (knowledge_indexed, knowledge_index_error) = index_document_non_fatal(&db, &created).await;
+        (knowledge_indexed, knowledge_index_error) = observe_document_phase(
+            "create_index",
+            index_document_non_fatal(&db, &created),
+            |result| result.1.is_some(),
+        )
+        .await;
     }
 
     Ok(Json(json!({
@@ -1436,27 +1549,37 @@ async fn save_document(
         .iter()
         .map(|reference| reference.target.clone())
         .collect();
-    let crdt_document_id =
-        validated_save_crdt_document_id(&db, &document_id, body.crdt_document_id.as_deref())
-            .await?;
+    let crdt_document_id = observe_document_phase(
+        "save_crdt_lookup",
+        validated_save_crdt_document_id(&db, &document_id, body.crdt_document_id.as_deref()),
+        Result::is_err,
+    )
+    .await?;
 
     #[cfg(any(test, feature = "surreal-test-support"))]
-    pause_document_test_point(
-        &document_id,
-        KnowledgeDocumentTestPausePoint::SaveBeforeMutation,
+    observe_document_phase(
+        "save_test_pause",
+        pause_document_test_point(
+            &document_id,
+            KnowledgeDocumentTestPausePoint::SaveBeforeMutation,
+        ),
+        |_| false,
     )
     .await;
-    let saved = db
-        .save_knowledge_rich_document_version(
+    let saved = observe_document_phase(
+        "save_transaction",
+        db.save_knowledge_rich_document_version(
             &document_id,
             body.expected_version,
             body.content_json.clone(),
             crdt_document_id.as_deref(),
             body.crdt_snapshot_id.as_deref(),
             body.promotion_receipt_event_id.as_deref(),
-        )
-        .await
-        .map_err(storage_error)?;
+        ),
+        Result::is_err,
+    )
+    .await
+    .map_err(storage_error)?;
 
     // ---- post-commit (MT-149): nothing below may error a committed save. ----
     // WP-KERNEL-012 MT-120: when (and only when) the caller authenticated a live native-MCP session,
@@ -1481,12 +1604,16 @@ async fn save_document(
             );
         }
     }
-    let (receipt, receipt_error) = record_receipt_non_fatal(
-        state.storage.as_ref(),
-        &ctx,
-        KernelEventType::KnowledgeRichDocumentSaved,
-        &saved.rich_document_id,
-        receipt_payload,
+    let (receipt, receipt_error) = observe_document_phase(
+        "save_receipt",
+        record_receipt_non_fatal(
+            state.storage.as_ref(),
+            &ctx,
+            KernelEventType::KnowledgeRichDocumentSaved,
+            &saved.rich_document_id,
+            receipt_payload,
+        ),
+        |result| result.1.is_some(),
     )
     .await;
 
@@ -1526,9 +1653,12 @@ async fn save_document(
             if inject_backlink_failure {
                 backlinks_error = Some("MT-141 injected post-commit backlink failure".to_owned());
             } else {
-                match db
-                    .replace_knowledge_document_backlinks(&saved.rich_document_id, upserts)
-                    .await
+                match observe_document_phase(
+                    "save_backlinks",
+                    db.replace_knowledge_document_backlinks(&saved.rich_document_id, upserts),
+                    Result::is_err,
+                )
+                .await
                 {
                     Ok(persisted) => backlinks_persisted = persisted.len(),
                     Err(err) => {
@@ -1552,12 +1682,15 @@ async fn save_document(
             if inject_embed_failure {
                 embeds_error = Some("MT-141 injected post-commit embed failure".to_owned());
             } else {
-                match db
-                    .replace_knowledge_document_embeds(
+                match observe_document_phase(
+                    "save_embeds",
+                    db.replace_knowledge_document_embeds(
                         &saved.rich_document_id,
                         embed_upserts(&saved.rich_document_id, &validated_embeds),
-                    )
-                    .await
+                    ),
+                    Result::is_err,
+                )
+                .await
                 {
                     Ok(persisted) => embeds_persisted = persisted.len(),
                     Err(err) => {
@@ -1573,8 +1706,12 @@ async fn save_document(
             }
             // MT-154: the document is indexed into the Project Knowledge
             // Index (source row + title entity; staleness on content change).
-            (knowledge_indexed, knowledge_index_error) =
-                index_document_non_fatal(&db, &saved).await;
+            (knowledge_indexed, knowledge_index_error) = observe_document_phase(
+                "save_index",
+                index_document_non_fatal(&db, &saved),
+                |result| result.1.is_some(),
+            )
+            .await;
         }
         Err(_) => {
             backlinks_skipped_reason = Some(format!("{}_index_denied", ctx.actor_kind.as_str()));
