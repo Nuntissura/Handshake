@@ -24,8 +24,10 @@
     "status": "NOT_GENERATED_BY_DEFAULT",
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
+  "validation_v8": {"schema_id":"hsk.mt_validation_verdict@1","decision":"blocked","verdict":"BLOCKED","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:51:00Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","blocker_kind":"dependency","blocked_on_mt_ref":"MT-032.json","blocking_mt_refs":["MT-032.json"],"basis":"Required CKC live proof stops at POST knowledge/documents timeout already recorded in MT032; literal atelier_embed/Canvas/role gaps remain uncredited","required_test_observations":[{"test":"ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend","target":"handshake-native::test_ckc_embed","message":"thread 'ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend' (203384) panicked at tests\\test_ckc_embed.rs:2754:27","elapsed_seconds":56.242,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend"}],"remaining_proof_gaps":[{"ac":"AC-001","reason":"Literal atelier_embed block is not asserted: current editor tests insert an hsLink atom. Contract semantics need reconciliation before PASS."},{"ac":"AC-002","reason":"The live save/reload test checks an hsLink atom, not the literal atelier_embed block and attrs required by this AC."},{"ac":"AC-003","reason":"The live Canvas test checks Loom placed_block_id, not a Canvas node with atelier_item_id through the literal PUT /canvas graph route."},{"ac":"AC-006","reason":"Current AccessKit tests use GenericContainer/Click and do not assert the literal Region/StartDrag roles/actions required by this AC."}],"runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"Same single union; no rerun while dependency open; no own remediation or PASS","verdict_events":[{"event":"accepted","idempotency_key":"MT-033-49eac54e-union-blocked-v8","at_utc":"2026-09-26T15:51:00Z","payload_ref":"MT-033.json#validation_v8","decision":"blocked"},{"event":"completed","idempotency_key":"MT-033-49eac54e-union-blocked-v8","at_utc":"2026-09-26T15:53:23Z","state_ref":"MT-033.json#lifecycle","decision":"blocked"}]},
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED",
+    "blocked_on": "MT-032",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -36,10 +38,10 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": null,
+    "validator_verdict": "BLOCKED",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-D1V-20260923-2240",
-    "validated_at_utc": "2026-09-23T22:56:36.060Z",
+    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
+    "validated_at_utc": "2026-09-26T15:51:00Z",
     "claimed_by": "KERNEL_BUILDER-20260728-221208",
     "claimed_at_utc": "2026-07-29T23:05:48.0444200Z",
     "claim_takeover_note_2026_07_29": "KERNEL_BUILDER-20260728-221208 claimed the exact FAIL_V2 remediation: exercise the real CKC embed drag-in and Route-to-Stage interop with persistence/receipt readback and typed unavailable/error behavior; then prove the mounted Atelier panel and route controls through canonical Argus stable-target inspection, safe steering, fresh post-action observation, screenshot/tree evidence, and the canonical UserManual path. Historical validator verdict remains FAIL_V2 until independent V3 validation.",

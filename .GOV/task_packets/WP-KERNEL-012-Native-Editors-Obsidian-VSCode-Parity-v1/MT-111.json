@@ -30,8 +30,10 @@
   "markdown_projection": {
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
+  "validation_v2": {"schema_id":"hsk.mt_validation_verdict@1","decision":"blocked","verdict":"BLOCKED","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:51:00Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","blocker_kind":"dependency","blocked_on_mt_ref":"MT-036.json","blocking_mt_refs":["MT-036.json"],"basis":"Same required emission proof completed functional assertions then failed workspace DELETE cleanup recorded in MT036; no authorization semantic failure inferred","required_test_observations":[{"test":"event_emitter_native_editor_round_trip","target":"handshake-native::test_event_emitter","message":"thread 'event_emitter_native_editor_round_trip' (187508) panicked at tests\\test_event_emitter.rs:2768:14","elapsed_seconds":129.675,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#event_emitter_native_editor_round_trip"}],"remaining_proof_gaps":[{"ac":"AC-111-1","reason":"PT-111-2 'zero references to removed unscoped paths in src/frontend/**' is a grep proof"},{"ac":"AC-111-4","reason":"no test drives app.rs's own FR pane read with ?wsid="}],"runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"Same single union; no rerun while dependency open; no own remediation or PASS","verdict_events":[{"event":"accepted","idempotency_key":"MT-111-49eac54e-union-blocked-v2","at_utc":"2026-09-26T15:51:00Z","payload_ref":"MT-111.json#validation_v2","decision":"blocked"},{"event":"completed","idempotency_key":"MT-111-49eac54e-union-blocked-v2","at_utc":"2026-09-26T15:53:23Z","state_ref":"MT-111.json#lifecycle","decision":"blocked"}]},
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED",
+    "blocked_on": "MT-036",
     "active": false,
     "depends_on": [
       "MT-109"
@@ -39,7 +41,7 @@
     "blocks": [
       "MT-066"
     ],
-    "validator_verdict": null,
+    "validator_verdict": "BLOCKED",
     "claimed_by": null,
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
@@ -104,8 +106,8 @@
       },
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
     },
-    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
-    "validated_at_utc": "2026-09-16T23:19:52.985Z",
+    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
+    "validated_at_utc": "2026-09-26T15:51:00Z",
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
     "next_actor": "WP_VALIDATOR",
     "ready_for_validation_transition_2": {

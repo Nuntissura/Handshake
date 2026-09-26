@@ -30,8 +30,10 @@
   "markdown_projection": {
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
+  "validation_v3": {"schema_id":"hsk.mt_validation_verdict@1","decision":"blocked","verdict":"BLOCKED","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:51:00Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","blocker_kind":"dependency","blocked_on_mt_ref":"MT-066.json","blocking_mt_refs":["MT-066.json","MT-067.json","MT-032.json"],"basis":"Required Stage/Calendar/OP runtime matrix stopped at recorded open fixes; no applied13/13 or no-Argus proof inferred","required_test_observations":[{"test":"open_or_create_daily_note_is_idempotent_against_real_backend_live","target":"handshake-native::test_calendar_interop","message":"thread 'open_or_create_daily_note_is_idempotent_against_real_backend_live' (161160) panicked at tests\\test_calendar_interop.rs:481:9","elapsed_seconds":82.55,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#open_or_create_daily_note_is_idempotent_against_real_backend_live"},{"test":"other_pillar_op01_stage_route_embed_back_other_pillar_interop","target":"handshake-native::test_other_pillar_interop_proofs","message":"thread 'other_pillar_op01_stage_route_embed_back_other_pillar_interop' (209968) panicked at tests\\test_other_pillar_interop_proofs.rs:3069:9","elapsed_seconds":82.218,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#other_pillar_op01_stage_route_embed_back_other_pillar_interop"},{"test":"other_pillar_op03_locus_resolve_reverse_other_pillar_interop","target":"handshake-native::test_other_pillar_interop_proofs","message":"thread 'other_pillar_op03_locus_resolve_reverse_other_pillar_interop' (196532) panicked at tests\\backend_proof_support\\mod.rs:1708:14","elapsed_seconds":80.081,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#other_pillar_op03_locus_resolve_reverse_other_pillar_interop"},{"test":"other_pillar_op04_swarm_accesskit_other_pillar_interop","target":"handshake-native::test_other_pillar_interop_proofs","message":"thread 'other_pillar_op04_swarm_accesskit_other_pillar_interop' (214836) panicked at tests\\test_other_pillar_interop_proofs.rs:1592:9","elapsed_seconds":82.067,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#other_pillar_op04_swarm_accesskit_other_pillar_interop"},{"test":"mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent","target":"handshake-native::test_stage_interop","message":"thread 'mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent' (198976) panicked at tests\\test_stage_interop.rs:668:17","elapsed_seconds":81.035,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent"}],"remaining_proof_gaps":[{"ac":"AC-117-3","reason":"static git check: canonical_argus_driver.rs unmodified, finish() not weakened"},{"ac":"AC-117-5","reason":"no test proves identical product behaviour with no Argus binding open"},{"ac":"AC-117-4","reason":"partial: op01-op03 call finish(), not finish_require_no_indeterminate(); the 13/13 applied count only appears in the matrix artifact (HANDSHAKE_ARGUS_MATRIX_RUN_ID), no test asserts it"}],"runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"Same single union; no rerun while dependency open; no own remediation or PASS","verdict_events":[{"event":"accepted","idempotency_key":"MT-117-49eac54e-union-blocked-v3","at_utc":"2026-09-26T15:51:00Z","payload_ref":"MT-117.json#validation_v3","decision":"blocked"},{"event":"completed","idempotency_key":"MT-117-49eac54e-union-blocked-v3","at_utc":"2026-09-26T15:53:23Z","state_ref":"MT-117.json#lifecycle","decision":"blocked"}]},
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED",
+    "blocked_on": "MT-066",
     "active": false,
     "depends_on": [
       "MT-066",
@@ -39,7 +41,7 @@
       "MT-074"
     ],
     "blocks": [],
-    "validator_verdict": null,
+    "validator_verdict": "BLOCKED",
     "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
@@ -233,8 +235,8 @@
     },
     "ready_for_validation_v4_at_utc": "2026-09-03T17:47:54.146Z",
     "ready_for_validation_v4_by": "KERNEL_BUILDER-20260903-170735",
-    "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
-    "validated_at_utc": "2026-09-23T23:38:21.613Z",
+    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
+    "validated_at_utc": "2026-09-26T15:51:00Z",
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
     "next_actor": "WP_VALIDATOR",
     "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY",
