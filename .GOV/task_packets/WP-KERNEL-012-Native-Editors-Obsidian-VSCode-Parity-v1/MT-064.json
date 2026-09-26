@@ -24,8 +24,9 @@
     "status": "NOT_GENERATED_BY_DEFAULT",
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
+  "validation_v7": {"schema_id":"hsk.mt_validation_verdict@1","decision":"failed","verdict":"FAIL_V7","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:48:02Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-064.scope.acceptance_criteria/proof_targets and own proof_commands","proof_records":[{"executor_role":"WP_VALIDATOR","command_ref":"MT-032.json#remediation_v12.union_entrypoint_binding","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","freshness":"Full49e archive marker; native JUnit15:40:56Z after13:57:25Z invocation marker; export/copy hashes equal","binaries":[{"path":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52\\debug\\deps\\test_memory_proposal_argus-ce7a09977a8915e0.exe","target":"test_memory_proposal_argus","sha256":"C53F7475C0D57DB564A4F8A11C466213FD93EB6996AEC5B5143033D93CAE7DFB"}],"runner_sha256":"6DCA6F19DF0C51F04677DA9E8E51F852394A466DC8EFC21455F15233B756E8AC","exit_code":100}],"failing_checks":[{"check_ids":["PC-064-03"],"test":"mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve","target":"handshake-native::test_memory_proposal_argus","elapsed_seconds":47.628,"failure_kind":"product","failure_class":"PROPOSAL_OWNED_CODE_INDEX_403","message":"thread 'mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve' (204344) panicked at tests\\test_memory_proposal_argus.rs:312:9","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve"}],"classification_basis":"Required mounted live proposal proof stopped at seed code-nav index403; no missing account inferred; precise write guard unknown","proof_floor_disposition":{"required_checks":["PC-064-03"],"unmapped_acs":[{"ac":"AC-009","reason":"diff gate (no src/backend changes, no new endpoints, no SQLite); read_no_direct_commit_site covers only the no-alternate-store part"}],"remaining_proofs":"Not credited toward PASS; own required product failure establishes FAIL without claiming other floors complete"},"adversarial_review":{"DIFF_ATTACK_SURFACES":["Record-user/runtime persistence boundaries can fail while component tests pass"],"INDEPENDENT_CHECKS_RUN":["Opened own fresh JUnit and retained primary/secondary failure output","Verified actual union compile-selected EXE hashes"],"COUNTERFACTUAL_CHECKS":["Removing the assertion named by thread 'mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve' (204344) panicked at tests\\test_memory_proposal_argus.rs:312:9 would conceal the required boundary failure"],"BOUNDARY_PROBES":["Required mounted live proposal proof stopped at seed code-nav index403; no missing account inferred; precise write guard unknown"],"NEGATIVE_PATH_CHECKS":["Failure capture/cleanup output inspected separately; secondary failure does not replace primary"],"INDEPENDENT_FINDINGS":["PROPOSAL_OWNED_CODE_INDEX_403"],"RESIDUAL_UNCERTAINTY":["Exact internal root cause unresolved; no hardware/load causal attribution","No whole-MT PASS or full-WP completion"]},"remediation_required":["Diagnose named primary boundary with preserved authorization, deadlines and own acceptance; no midcandidate fix or retry in this consumed cycle"],"attempt_disposition":"One final union consumed; historical verdicts preserved; no new run","verdict_events":[{"event":"accepted","idempotency_key":"MT-064-49eac54e-union-v7","at_utc":"2026-09-26T15:48:02Z","payload_ref":"MT-064.json#validation_v7","decision":"failed"},{"event":"completed","idempotency_key":"MT-064-49eac54e-union-v7","at_utc":"2026-09-26T15:49:30Z","state_ref":"MT-064.json#lifecycle","decision":"failed"}]},
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V7",
     "active": false,
     "depends_on": [
       "MT-063"
@@ -33,10 +34,10 @@
     "blocks": [
       "MT-074"
     ],
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V7",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
-    "validated_at_utc": "2026-09-16T23:19:50.487Z",
+    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
+    "validated_at_utc": "2026-09-26T15:48:02Z",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt064",
       "mode": "VERIFY_AND_PROVE",
