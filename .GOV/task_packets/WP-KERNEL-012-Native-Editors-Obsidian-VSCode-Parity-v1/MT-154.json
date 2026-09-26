@@ -2268,6 +2268,7 @@
           "src/backend/handshake_core/Cargo.lock",
           "src/frontend/handshake_native/Cargo.lock",
           "src/backend/handshake_core/src/lib.rs",
+          "src/backend/handshake_core/src/kernel/context_bundle.rs (canonical hash helper relocation/reexports only)",
           "src/backend/handshake_core/src/knowledge_document/**",
           "src/backend/handshake_core/src/api/knowledge_documents.rs",
           "src/backend/handshake_core/src/storage/mod.rs",
@@ -2296,6 +2297,12 @@
           ],
           "direction": "core -> document -> storage_support; no back dependency on core",
           "attribution": "Separate structural relocation from behavioral repair"
+        },
+        "canonical_hash_relocation": {
+          "source": "src/backend/handshake_core/src/kernel/context_bundle.rs:45-100",
+          "destination": "handshake_storage_support::canonical_json",
+          "reason": "Document block tree/backlink/storage consume these helpers; move the single implementation and retain core reexports",
+          "unchanged": "ContextBundle structure and validation; hash byte semantics"
         },
         "excluded": [
           "native UI",
