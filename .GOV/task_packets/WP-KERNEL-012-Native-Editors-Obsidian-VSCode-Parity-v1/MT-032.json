@@ -892,6 +892,62 @@
     "status_effect": "none; READY_FOR_VALIDATION and null validator_verdict retained under CX-STATUS-003",
     "residual_uncertainty": "The two MT-032 owned child logs were not separately retained; their exact individual startup substep is bounded to pre-listen exit. A distinct current-candidate run is required to exercise MT-032 acceptance assertions."
   },
+  "remediation_v11": {
+    "batch_owner": "MT-032",
+    "covered_mts": ["MT-032"],
+    "base_commit": "14bd43499e87e5982a4ecde52dd3d70c6069ee61",
+    "failure_ref": "validation_v10",
+    "operator_decision": {
+      "recorded_at_utc": "2026-09-26T00:16:45Z",
+      "scope": "Renew MT-032 remediation after V10; preserve all earlier attempt history and acceptance",
+      "direction": "Agents diagnose and deliberate; repair all MT failures; gameplan and cheap review; one validation run",
+      "handoff_ref": ".GOV/operator/messages_history/HANDOFF_WP-KERNEL-012_KB-orchestrator_2026-09-24_session7.md"
+    },
+    "repair_scope": [
+      "src/frontend/handshake_native/tests/test_loom_address.rs",
+      "src/frontend/handshake_native/tests/backend_proof_support/mod.rs"
+    ],
+    "scope_basis": "Recorded V10 remediation; shared helper is necessary for MT-032 owned-backend proof",
+    "diagnoses": [
+      {
+        "diagnosis_id": "MT032-POST-CAPTURE-AUTHENTICATED-DROP",
+        "cause": "Failure capture logs out and reaps; Drop then calls authenticated workspace delete with the inactive account",
+        "code_refs": ["backend_proof_support/mod.rs::retain_failure_diagnostics", "LiveBackend::drop", "LiveBackend::authenticated"],
+        "evidence_refs": ["validation_v10.secondary_failures", "validation_v10.proof_records[2]"],
+        "repair": "Verify owned post-reap containment before skipping impossible authenticated delete; retain primary failure",
+        "distinct_from": ["MT032-OWNED-FIXTURE-VAULT-TEARDOWN-ORDER"]
+      },
+      {
+        "diagnosis_id": "MT032-NEGATIVE-FIXTURE-DROP-ASSERTION",
+        "cause": "The intentional two-503 fixture has no owned data directory and does not assert its expected cleanup failure",
+        "code_refs": ["backend_proof_support/mod.rs::failure_diagnostic_tests::public_success_api_retains_workspace_identity_and_retries_delete_after_non_success"],
+        "evidence_refs": ["validation_v10.secondary_failures"],
+        "repair": "Assert strict Drop failure and retained evidence/reaped child; do not fabricate a store or weaken cleanup",
+        "distinct_from": ["MT032-POST-CAPTURE-AUTHENTICATED-DROP"]
+      },
+      {
+        "diagnosis_id": "MT032-CREATE-ERROR-ERASURE",
+        "cause": "create_rich_document maps transport, HTTP status, JSON decode and missing-document errors to None",
+        "code_refs": ["test_loom_address.rs::create_rich_document"],
+        "evidence_refs": ["validation_v10.primary_failures"],
+        "repair": "Preserve the exact failure branch; original create-A cause remains unknown until supported by evidence",
+        "distinct_from": ["MT032_LIVE_DOCUMENT_SAVE_REQUEST_TIMEOUT"]
+      }
+    ],
+    "unresolved": ["PUT-save stall cause", "Exact underlying create-A failure"],
+    "low_cost_checks": [
+      "Independent caller/callee, ownership, negative-fixture and primary-error preservation review",
+      "Stable-input cargo check --locked --tests on existing D builder target only; no implementer tests",
+      "Source-bound review of save/create repairs before GP-050 and GP-051 confirmation"
+    ],
+    "research_refs": [
+      "https://docs.rs/reqwest/0.12.28/reqwest/struct.ClientBuilder.html#method.timeout",
+      "https://tokio.rs/tokio/tutorial/shared-state"
+    ],
+    "research_disposition": "Retain bounded request deadlines; trace actual lock ownership; no unsupported timeout or dependency change",
+    "validation_limit": "One independent union only after all recorded MT failures are repaired and cheap review passes",
+    "status_effect": "none; FAIL_V10 retained pending a newer implementer submission"
+  },
   "remediation_v10": {
     "diagnosis_id": "MT032-OWNED-FIXTURE-VAULT-TEARDOWN-ORDER",
     "batch_owner": "MT-032",
