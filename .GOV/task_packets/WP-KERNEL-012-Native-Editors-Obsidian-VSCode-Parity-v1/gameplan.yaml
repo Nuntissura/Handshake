@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 43
+generation: 44
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -90,3 +90,4 @@ steps:
 - {id: GP-069, role: builder, at: before_round, do: confirm installed 1.97.1 formatter and compiler paths before check, check: {type: confirm}, source: 'infra: default stable toolchain lacked rustfmt', state: active}
 - {id: GP-070, role: builder, at: before_round, do: confirm extracted manifests declare copied code dependencies without external version changes, check: {type: confirm}, source: 'review: extracted retry used undeclared getrandom', state: active}
 - {id: GP-071, role: builder, at: before_round, do: confirm tracked extraction diff preserves original UTF-8 text, check: {type: confirm}, source: 'review: default encoding rewrote unrelated comments as mojibake', state: active}
+- {id: GP-072, role: builder, at: before_round, do: confirm moved self-test imports and cross-crate test-support visibility before compile, check: {type: confirm}, source: 'compile: moved keyed-lock test lacked futures dev dependency and helper visibility', state: active}
