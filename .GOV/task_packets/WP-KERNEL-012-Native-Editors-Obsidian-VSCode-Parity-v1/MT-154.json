@@ -2225,6 +2225,21 @@
       "memory credential exchange 403: keychain error 8"
     ]
   },
+  "mt032_behavioral_remediation_request": {
+    "request_id": "MT032-V11-BACKEND-BEHAVIORAL-REMEDIATION",
+    "requested_by": "KERNEL_BUILDER",
+    "evidence_ref": "MT-032.remediation_v11.diagnostic_result",
+    "review_ref": "MT-032.remediation_v11.post_probe_review",
+    "blocked_action": "Backend behavioral repair beyond the approved sanitized instrumentation",
+    "authority_refs": ["MT-032.scope.forbidden_paths", "MT-032.remediation_v11.operator_decision", "KB-IMPL-005/006"],
+    "requested_scope": "MT-154-owned behavioral remediation of authenticated RichDocument create/save latency; exact diff reviewed before build",
+    "success": "Both native cases complete within existing 10s/15s deadlines with all required durable and authority proofs preserved",
+    "constraints": ["No timeout increase", "No weakened authority or revocation checks", "No guessed concurrent authority writes", "No cache deletion", "No second diagnostic replay"],
+    "proof_route": "Source-backed repair, existing D compile/static checks and independent cheap review, then the one unused required union",
+    "risk": "No safe complete fix identified yet; serial latency observed but internal cost cause and concurrent-write equivalence unproved",
+    "operator_decision": null,
+    "status_effect": "none; no claim, readiness, verdict or implementation authority inferred"
+  },
   "mt032_phase_diagnostic_dependency": {
     "operator_decision_ref": "MT-032.remediation_v11.operator_decision",
     "recorded_at_utc": "2026-09-26T02:01:43Z",

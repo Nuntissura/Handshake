@@ -1052,6 +1052,18 @@
       "next_action": "Inspect index implementation and caller cancellation with retained evidence; no second diagnostic replay",
       "acceptance_effect": "none; diagnostic only; independent union remains unused; FAIL_V10 unchanged"
     },
+    "post_probe_review": {
+      "builder": "01a0d677-2c57-7813-9075-c273d1c4637f",
+      "independent_reviewer": "01a0db0c-e4d4-73a0-be7d-33ebb18bff84",
+      "source_commit": "d9277d04f03490f9ceac1c9f4684e02757d8d43a",
+      "core_native_difference": "Both authenticated record-user routes; core Owner client has no explicit native 10s/15s deadline",
+      "safe_but_insufficient_candidate": "Skip relative_path=None source lookup whose predicate requires non-NONE; creation only, cannot fix both failures",
+      "unaccepted_candidate": "Request-local join of receipt/index/backlinks-then-embeds after commit; no detached work or auth caching",
+      "independent_findings": "Index provisioning changes authority fences also read by receipt authorization; conflicts, revocation/cancellation behavior and latency benefit unproved",
+      "disposition": "No safe deterministic behavioral repair established; no patch or new run from this proposal",
+      "next_actor": "Operator scope decision in MT-154.mt032_behavioral_remediation_request",
+      "status_effect": "none; FAIL_V10 unchanged"
+    },
     "status_effect": "none; partial repair is not a validation submission; FAIL_V10 remains the last independent verdict"
   },
   "remediation_v10": {
