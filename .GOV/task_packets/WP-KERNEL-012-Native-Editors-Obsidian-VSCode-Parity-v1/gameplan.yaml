@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 34
+generation: 35
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -81,3 +81,4 @@ steps:
 - {id: GP-060, role: wp_validator, at: before_round, do: 'confirm alternate source repair reviewed, cheap comparisons complete and latency unknowns recorded', check: {type: confirm}, source: CX-GP-001; MT032 V12 Operator alternative implementation and one final union supersede GP056, state: active}
 - {id: GP-061, role: wp_validator, at: before_submit, do: 'confirm exact PDB list, containment, no users and preserved reuse before listed-file cleanup', check: {type: confirm}, source: CX-984-006; cap forecast exceeds 150 GB; only invalidated final core-test symbols are disposable, state: active}
 - {id: GP-062, role: wp_validator, at: before_verdict, do: confirm MT136 own proof floor covered or leave unclosed; A/B/C alone cannot establish PASS, check: {type: confirm}, source: 'prelaunch miss: MT136 PT136-3 and close/reopen requirements omitted from coverage review', state: active}
+- {id: GP-063, role: wp_validator, at: before_verdict, do: confirm current verdict failure kinds are product|infrastructure|flaky, check: {type: confirm}, source: draft used product_proof_boundary; CX-VAL-006 requires canonical failure-kind enum, state: active}

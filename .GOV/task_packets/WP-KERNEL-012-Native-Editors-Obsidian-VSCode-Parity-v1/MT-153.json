@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V2",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -49,9 +49,9 @@
       "MT-157"
     ],
     "active": true,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V2",
     "prior_validator_verdict": "FAIL_V1",
-    "next_actor": "WP_VALIDATOR",
+    "next_actor": "KERNEL_BUILDER",
     "ready_status_repair": {
       "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
       "rule": "CX-STATUS-001",
@@ -64,8 +64,9 @@
       "push_evidence": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 9c13b642e50a909e9d0ea1246a050f6be74f18cc",
       "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
     },
-    "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
-    "validated_at_utc": "2026-09-24T07:21:13.185Z",
+    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
+    "validated_at_utc": "2026-09-26T13:59:58.7355023Z",
+    "validated_commit": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -2111,5 +2112,91 @@
       "MT-153-NATIVE-LOOM (requires a dedicated backend-bin build not covered by run52 as executed - not run, not needed since verdict is already determined by 3 other failing checks)"
     ],
     "log": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/61-core-only-1097ef1c.log"
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V2",
+    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
+    "validated_at_utc": "2026-09-26T13:59:58.7355023Z",
+    "candidate_commit": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
+    "candidate_sha": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
+    "started_at": "2026-09-26T12:09:56.9854857Z",
+    "completed_at": "2026-09-26T13:57:25.3991433Z",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-core.xml",
+    "owning_mt": "MT-109",
+    "source_of_truth": "MT-153.proof.checks and closure_unit.acceptance_criteria",
+    "proof_records": [
+      {
+        "proof_id": "PR-MT153-49E-CORE-001",
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-SOL-MEDIUM",
+        "candidate_commit": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
+        "command_ref": "MT-032.json#remediation_v12.union_entrypoint_binding",
+        "command": "Frozen union core nextest --locked --no-fail-fast; one invocation; app-runtime,surreal-test-support,test-utils",
+        "runner_sha256": "6DCA6F19DF0C51F04677DA9E8E51F852394A466DC8EFC21455F15233B756E8AC",
+        "mapped_checks": ["MT-153-ROUTE-MATRIX", "MT-153-LOOM-TARGETS"],
+        "junit_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-core.xml",
+        "junit_sha256": "CD420357013FF59A89EA4440C394A8951404DD3700A75D7D066C385D118B7897",
+        "freshness": "Core marker12:46:39.2251258Z < JUnit13:57:25.3991433Z; export-local original and D copy hashes equal",
+        "export_marker": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-49eac54e.sha equals full candidate",
+        "binaries": [
+          {"path": "debug/deps/handshake_core-c27f78bb650c9bcb.exe", "sha256": "DE81BE1FCDEF5ED8B0E8A325AA90BD154F2FBD432A551243E6B8208021C25529"},
+          {"path": "debug/deps/project_wiki_drift_tests-fd2c705dfaae7d17.exe", "sha256": "703D260A78D18DB7E176DC88D78A0B7ABD4BE83725764F6D50734CBBFD497C7D"}
+        ],
+        "target_dir": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
+        "log_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-49eac54e.stderr.log",
+        "exit_code": 100,
+        "result": {"tests": 223, "passed": 221, "failures": 2, "errors": 0},
+        "log_hash_disposition": "Live append-only native stage still running; core JUnit is complete and immutable; no final live-log hash yet"
+      }
+    ],
+    "failing_checks": [
+      {
+        "check_id": "MT-153-ROUTE-MATRIX",
+        "failed_acceptance_refs": ["AC-153-5"],
+        "test": "api::loom::tests::mt153_loom_route_family_authority_matrix",
+        "failure_class": "MT153_ASSET_IMPORT_STACK_OVERFLOW",
+        "failure_kind": "product",
+        "classification_basis": "Real owner route abort0xc00000fd after successful markdown import; not a harness setup failure",
+        "elapsed_seconds": 75.106,
+        "message": "Owned asset-import route aborts with0xc00000fd stack overflow before owner success/canonical-row assertions",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-core.xml#api::loom::tests::mt153_loom_route_family_authority_matrix",
+        "log_lines": [3860, 3861, 4284, 4286, 4288],
+        "affected_code_refs": ["src/backend/handshake_core/src/api/loom.rs:11674-11691"],
+        "repair_direction": "Trace owned asset-import request stack; preserve account authorization and canonical asset/receipt assertions"
+      },
+      {
+        "check_id": "MT-153-LOOM-TARGETS",
+        "failed_acceptance_refs": ["no regression"],
+        "test": "project_wiki_drift_tests::mt242_verdict_attached_on_every_serve_path_fail_closed",
+        "failure_class": "MT153_WIKI_EDITED_GET_TIMEOUT",
+        "failure_kind": "product",
+        "classification_basis": "Ready real backend completed source reindex but required served verdict request did not complete; cause unresolved",
+        "elapsed_seconds": 300.098,
+        "message": "After reindex end, edited wiki GET has no end marker; required fresh-to-stale served verdict is not reached",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-core.xml#mt242_verdict_attached_on_every_serve_path_fail_closed",
+        "log_lines": [4497, 4498, 4534, 4535, 4536, 4538],
+        "affected_code_refs": ["src/backend/handshake_core/tests/project_wiki_drift_tests.rs:614-627"],
+        "repair_direction": "Trace edited wiki GET through send/decode await; retain fail-closed verdict and current bounds"
+      }
+    ],
+    "adversarial_review": {
+      "risk": "HIGH",
+      "DIFF_ATTACK_SURFACES": ["Record-user authority and derived indexing remain mandatory after knowledge selector reductions"],
+      "INDEPENDENT_CHECKS_RUN": ["Opened own core JUnit and both failure streams", "Matched export/copy hashes, marker freshness and current compiled EXE hashes"],
+      "COUNTERFACTUAL_CHECKS": ["Removing owner_ok asset-import assertion in api/loom.rs would conceal failure before canonical asset verification", "Removing edited GET/stale-verdict assertion in project_wiki_drift_tests.rs would conceal failure of served staleness propagation"],
+      "BOUNDARY_PROBES": ["Authenticated owner asset import reached real HTTP route; markdown import200 preceded asset-import abort", "Real edited source reindexed; subsequent served wiki GET never reached response assertion"],
+      "NEGATIVE_PATH_CHECKS": ["Matrix asset-import anonymous/cross/viewer branches after owner operation not reached; not credited"],
+      "INDEPENDENT_FINDINGS": ["Required owner route abort", "Required no-regression served-verdict test timeout"],
+      "RESIDUAL_UNCERTAINTY": ["Internal stack-overflow location unknown", "Edited GET send versus body-decode await unresolved", "CPU advancement is not hardware causation", "No privacy breach inferred from an unreached denial assertion"]
+    },
+    "pending_checks": ["MT-153-NATIVE-LOOM continues in same union; no PASS or substitute credit"],
+    "attempt_disposition": "FAIL recorded from own product proof; no retry/new probe authorized; cumulative MT attempt budget retained",
+    "next_actor": "KERNEL_BUILDER via parent steering; diagnosis/remediation only after frozen union completes",
+    "verdict_events": [
+      {"event": "accepted", "idempotency_key": "MT153-49eac54e-union-v2", "at_utc": "2026-09-26T13:59:58.7355023Z", "payload_ref": "MT-153.json#validation_v2", "decision": "failed"},
+      {"event": "completed", "idempotency_key": "MT153-49eac54e-union-v2", "at_utc": "2026-09-26T14:01:31.5837420Z", "state_ref": "MT-153.json#lifecycle", "decision": "failed"}
+    ]
   }
 }
