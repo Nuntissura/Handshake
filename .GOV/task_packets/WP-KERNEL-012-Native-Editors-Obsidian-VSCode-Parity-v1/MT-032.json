@@ -1500,9 +1500,18 @@
         "older_native_retention_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-obsolete-native-ec596eec/manifest.json",
         "older_native_retention_sha256": "6EA6A907FF4625343E9D2381AE8E39F43A2F4D1F9C1260982113828CEF3345F3",
         "older_native_retained_bytes": 11132280832,
-        "older_native_removal_status": "NOT_AUTHORIZED_NOT_REMOVED",
+        "older_native_removal_status": "COMPLETED_EXACT50_APPROVED_OLD_NATIVE_PDB_REMOVAL",
         "gameplan_cause": "GP-078",
-        "truth_boundary": "capacity preparation provides no MT acceptance credit"
+        "truth_boundary": "capacity preparation provides no MT acceptance credit",
+        "older_native_removal_result_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-obsolete-native-ec596eec/removal-result.json",
+        "older_native_removed_bytes": 11132280832,
+        "post_removal_observation": {
+          "at_utc": "2026-09-26T20:04:08.9609173Z",
+          "target_bytes": 117655613257,
+          "headroom_bytes": 32344386743,
+          "active_phase": "core union build",
+          "provisioned_peak_margin_is_not_bound": true
+        }
       }
     }
   }
