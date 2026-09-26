@@ -25,7 +25,7 @@
   "title": "B18-MT-154-Non-Loom-Routes-Account-Session-Authority-And-Residuals",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-24T07:21:13.185Z",
+  "updated_at_utc": "2026-09-26T18:14:25.574050Z",
   "identity": {
     "mt_id": "MT-154",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -2244,7 +2244,127 @@
       "scope": "Necessary source-backed backend remediation of MT-032 create/save latency under MT-154 ownership",
       "constraints": "Preserve authenticated record permissions, revocation, existing deadlines and required proof; one final union"
     },
-    "status_effect": "none; renewed implementation authority recorded; no acceptance verdict inferred"
+    "status_effect": "none; renewed implementation authority recorded; no acceptance verdict inferred",
+    "renewed_assignments": [
+      {
+        "id": "MT032-DOCUMENT-EXTRACTION-20260926",
+        "authorized_by": "OPERATOR",
+        "source": "Live pasted request 2026-09-26: first bounded document-subsystem crate refactor AND independently validated MT-032 PASS",
+        "base_product_commit": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
+        "governance_pin_unchanged": "896f4e15",
+        "batch_owner": "MT-154",
+        "covered_mts": [
+          "MT-154",
+          "MT-032"
+        ],
+        "goal": [
+          "Bounded RichDocument crate extraction including independently buildable relevant storage adapter",
+          "Resolve both MT032 native failures and obtain independent PASS under full existing acceptance"
+        ],
+        "allowed_product_paths": [
+          "src/backend/handshake_document/**",
+          "src/backend/handshake_storage_support/**",
+          "src/backend/handshake_core/Cargo.toml",
+          "src/backend/handshake_core/Cargo.lock",
+          "src/frontend/handshake_native/Cargo.lock",
+          "src/backend/handshake_core/src/lib.rs",
+          "src/backend/handshake_core/src/knowledge_document/**",
+          "src/backend/handshake_core/src/api/knowledge_documents.rs",
+          "src/backend/handshake_core/src/storage/mod.rs",
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/database.rs",
+          "src/backend/handshake_core/src/storage/surreal/keyed_lock.rs",
+          "src/backend/handshake_core/src/storage/surreal/retry.rs",
+          "src/backend/handshake_core/src/user_manual/**"
+        ],
+        "scope_override": [
+          "MT154 no-new-crates restriction overridden only for these two internal path dependencies and necessary lock updates",
+          "Packet backend prohibition overridden only for this MT154-owned document slice",
+          "MT032 backend prohibition remains: backend owned by MT154"
+        ],
+        "owner": "document_coder Astra medium; sole product and shared compile-graph editor",
+        "boundary": {
+          "document": "RichDocument models, block/link/embed/backlink derivation, operations/diagnostics, relevant Surreal SQL/rows behind authenticated transport",
+          "support": "Existing StorageError, keyed locks and generic retry only; preserve canonical ownership through core reexports",
+          "core_retains": [
+            "HTTP/AppState",
+            "Live authorization/SIGNIN/engine lifecycle adapter",
+            "EventLedger receipt adapter",
+            "Unrelated services"
+          ],
+          "direction": "core -> document -> storage_support; no back dependency on core",
+          "attribution": "Separate structural relocation from behavioral repair"
+        },
+        "excluded": [
+          "native UI",
+          "unrelated MT repair",
+          "whole-app modularization",
+          "new external dependency versions",
+          "cached authentication",
+          "weaker permissions/transactions",
+          "longer deadlines",
+          "detached required indexing",
+          "branches/worktrees",
+          "cache wipes",
+          "spec edits"
+        ],
+        "acceptance_preserved": [
+          "Full MT032 proof including 10s/15s native deadlines, backlinks/hash, restart, mounted Argus",
+          "Live record permissions, authority fences, durable receipts, rollback, bounded lock/retry/cancellation",
+          "MT154 full original acceptance remains; slice is not whole MT154 completion"
+        ],
+        "attempt_history": {
+          "preserve": true,
+          "latest_verdict": "MT032.validation_v11 FAIL_V11",
+          "prior_union": "49e completed 2026-09-26T15:40:57Z; consumed",
+          "stale_fields": "V12 zero validation count and PREPARED entrypoint are historical; validation_v11 completion controls",
+          "no_counter_reset": true,
+          "next_runs": "Changed source and written diagnosis plus gameplan/attempt gates; no unchanged rerun or automatic extra probe"
+        },
+        "proof_route": {
+          "builder": "D warm target check/clippy/static only, stable inputs, explicit-path commit/push",
+          "validator": "Sol sole test/verdict author; pushed clean git-archive union all READY and invalidated proofs; map each own contract",
+          "builder_target": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target",
+          "validator_target": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
+          "cap_bytes": 150000000000,
+          "no_host_profile_canary": true
+        },
+        "broader_planned_work": "Preserved unchanged; not superseded, discarded or absorbed",
+        "research_basis": {
+          "spec_refs": [
+            ".GOV/spec/SPEC_CURRENT.md",
+            ".GOV/spec/master-spec-v02.206/INDEX.json",
+            ".GOV/spec/master-spec-v02.206/spec-modules/12-end-of-file-appendices.md#12.7"
+          ],
+          "sources": [
+            "https://doc.rust-lang.org/cargo/reference/workspaces.html",
+            "https://surrealdb.com/docs/learn/querying/concepts-and-guides/query-optimisation",
+            "https://github.com/surrealdb/surrealdb/blob/main/Cargo.toml",
+            ".GOV/operator/messages_history/RESEARCH_WP-KERNEL-012_MT-032_latency_2026-09-26.md"
+          ],
+          "patterns": [
+            "Explicit independent packages with shared compatible target reuse",
+            "Domain/SQL below app with narrow injected authenticated capabilities"
+          ],
+          "rejected": [
+            "Orchestration-only relocation",
+            "Adapter depends on core",
+            "Move all transitive services into new monolith",
+            "Prior selector optimization as established timeout fix"
+          ],
+          "risks_mitigations": [
+            "Preserve typed errors/reexports and compile consumers",
+            "Keep auth/fences/order/cancellation guarantees; independent negative/real-resource proof",
+            "Dominant await unmeasured; sanitized phases, no hardware/deadlock claims",
+            "Measure candidate growth before union; preserve caches"
+          ],
+          "validation": "Dependency/source review; compile/static new crates and consumers; independent union native deadline/durable/Argus proof; no speedup claim without measurement"
+        },
+        "recorded_at_utc": "2026-09-26T18:14:25.574050Z"
+      }
+    ]
   },
   "mt032_phase_diagnostic_dependency": {
     "operator_decision_ref": "MT-032.remediation_v11.operator_decision",

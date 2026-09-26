@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-23T16:17:20.741Z",
+  "updated_at_utc": "2026-09-26T18:14:25.574050Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -166,6 +166,15 @@
       "EXPANSION - Structured settings + menu completion + manual delivered: editor-specific Settings sections persist via the existing typed embedded-SurrealDB-backed /workspaces/:id/settings API, and the built-in User Manual documents the editor workflows and every agent AccessKit author_id + MCP swarm tool (HBR-MAN) (MT-072..MT-073).",
       "EXPANSION - All interop MTs treat any missing handshake_core endpoint (FEMS pack/proposals, Stage embed-back, Calendar activity-spans, Locus read) as a TYPED BLOCKER with a visible empty-state and a no-silent-no-op test; zero backend edits; SQLite and PostgreSQL are forbidden everywhere in the current WP contract.",
       "STORAGE AND DURABILITY - All editor persistence, settings, tests, fixtures, and proofs use only the typed embedded-SurrealDB/EventLedger path. Each stateful proof uses an isolated WP-scoped store and demonstrates close/reopen durability with typed readback; every Cargo invocation uses an owner-scoped target under ../Handshake_Artifacts/handshake-cargo-target/."
+    ],
+    "authorized_exceptions": [
+      {
+        "id": "MT032-DOCUMENT-EXTRACTION-20260926",
+        "owner_mt": "MT-154",
+        "approval_ref": "MT-154.mt032_behavioral_remediation_request.renewed_assignments[MT032-DOCUMENT-EXTRACTION-20260926]",
+        "scope": "Bounded RichDocument crate extraction and MT032 latency repair",
+        "original_scope_and_broader_work_preserved": true
+      }
     ]
   },
   "interconnection_contract": {
