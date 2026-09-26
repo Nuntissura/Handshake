@@ -102,6 +102,7 @@ pub struct LiveBackend {
     client: reqwest::Client,
     rt: tokio::runtime::Runtime,
     owned_backend: RefCell<Option<Child>>,
+    owned_backend_reaped_after_failure: Cell<bool>,
     owned_binary: Option<PathBuf>,
     /// Exact native-MCP binding file the owned backend verifies channel credentials against
     /// (`HANDSHAKE_STAGE_BINDING_FILE`), reused verbatim by `restart_owned`.
@@ -921,6 +922,7 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
         client,
         rt,
         owned_backend: RefCell::new(owned_child),
+        owned_backend_reaped_after_failure: Cell::new(false),
         owned_binary,
         owned_binding_file,
         owned_data_dir,
@@ -1682,6 +1684,7 @@ impl LiveBackend {
         );
         self.base = new_base.clone();
         *self.owned_backend.get_mut() = Some(pending.take());
+        self.owned_backend_reaped_after_failure.set(false);
         self.owned_data_dir = Some(replacement_data_dir);
         self.assert_healthy();
         assert_eq!(
@@ -2522,6 +2525,8 @@ impl LiveBackend {
             };
             if clear_child {
                 *child_slot = None;
+                self.owned_backend_reaped_after_failure.set(true);
+                self.preserve_runtime_roots.set(true);
             }
             receipt
         };
@@ -2681,7 +2686,24 @@ fn verify_owned_store_containment_after_reap(
     let containing_runtime_root = owned_runtime_roots
         .iter()
         .find(|root| data_dir.starts_with(root));
-    let containment_verified = containing_runtime_root.is_some();
+    let containment = (|| -> Result<(), String> {
+        let runtime_root = containing_runtime_root.ok_or_else(|| {
+            format!(
+                "embedded store data dir {} escaped every fixture-owned runtime root {:?}",
+                data_dir.display(),
+                owned_runtime_roots
+            )
+        })?;
+        let canonical_root = validate_owned_runtime_root(runtime_root)?;
+        reject_reparse_chain(&store_path, runtime_root)?;
+        let canonical_store = std::fs::canonicalize(&store_path)
+            .map_err(|error| format!("canonicalize owned embedded store after reap: {error}"))?;
+        if !canonical_store.starts_with(&canonical_root) {
+            return Err("embedded store escaped its validated owned runtime root".to_owned());
+        }
+        Ok(())
+    })();
+    let containment_verified = containment.is_ok();
     let status = if !containment_verified {
         "failed"
     } else if workspace_id.is_empty() {
@@ -2700,11 +2722,7 @@ fn verify_owned_store_containment_after_reap(
         "data_dir_inside_runtime_root": containment_verified,
         "store_path": store_path,
         "store_path_present": store_path.exists(),
-        "error": (!containment_verified).then(|| format!(
-            "embedded store data dir {} escaped every fixture-owned runtime root {:?}",
-            data_dir.display(),
-            owned_runtime_roots
-        )),
+        "error": containment.err(),
     })
 }
 
@@ -3969,6 +3987,7 @@ mod failure_diagnostic_tests {
                     .build()
                     .expect("build live success test runtime"),
                 owned_backend: RefCell::new(Some(child)),
+                owned_backend_reaped_after_failure: Cell::new(false),
                 owned_binary: None,
                 owned_binding_file: None,
                 owned_data_dir: None,
@@ -4084,6 +4103,13 @@ mod failure_diagnostic_tests {
     #[cfg(windows)]
     #[test]
     fn public_success_api_retains_workspace_identity_and_retries_delete_after_non_success() {
+        use std::os::windows::io::{AsHandle, AsRawHandle};
+
+        #[link(name = "Kernel32")]
+        extern "system" {
+            fn WaitForSingleObject(handle: *mut std::ffi::c_void, milliseconds: u32) -> u32;
+        }
+
         let listener =
             std::net::TcpListener::bind("127.0.0.1:0").expect("bind non-success cleanup server");
         let address = listener.local_addr().expect("non-success server address");
@@ -4107,6 +4133,14 @@ mod failure_diagnostic_tests {
             "retry-workspace".to_owned(),
             false,
         );
+        let child_handle = backend
+            .owned_backend
+            .borrow()
+            .as_ref()
+            .expect("negative fixture owns its child")
+            .as_handle()
+            .try_clone_to_owned()
+            .expect("retain exact owned process handle across Drop");
         let error = backend
             .assert_cleanup_and_publish_runtime_diagnostics(&scenario)
             .expect_err("non-success workspace cleanup rejects publication");
@@ -4114,8 +4148,23 @@ mod failure_diagnostic_tests {
         assert_eq!(backend.workspace_id, "retry-workspace");
         assert!(backend.preserve_runtime_roots.get());
         assert!(backend.owned_backend.borrow().is_some());
-        drop(backend);
+        let dropped = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| drop(backend)))
+            .expect_err("two failed deletes and no store containment must fail cleanup");
+        let message = dropped
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .or_else(|| dropped.downcast_ref::<&str>().copied());
+        assert_eq!(
+            message,
+            Some("managed fixture cleanup failed; owned runtime evidence retained")
+        );
         server.join().expect("cleanup retry server");
+        // SAFETY: the cloned owned process handle stays valid through this non-blocking query.
+        assert_eq!(
+            unsafe { WaitForSingleObject(child_handle.as_raw_handle(), 0) },
+            0,
+            "failed cleanup must still stop and reap its exact owned child"
+        );
         assert!(
             runtime_root.exists(),
             "failed cleanup preserves source root"
@@ -4280,6 +4329,7 @@ mod failure_diagnostic_tests {
                 .build()
                 .expect("build attached-boundary runtime"),
             owned_backend: RefCell::new(None),
+            owned_backend_reaped_after_failure: Cell::new(false),
             owned_binary: None,
             owned_binding_file: None,
             owned_data_dir: None,
@@ -4341,7 +4391,21 @@ impl Drop for LiveBackend {
                 }
             }
         }
-        if !self.workspace_id.is_empty() {
+        let reaped_after_failure = self.owned_backend_reaped_after_failure.get();
+        if reaped_after_failure {
+            // Failure capture already attempted logout and confirmed this owned child reaped.
+            // Containment is not HTTP deletion or session revocation; never credit it as success.
+            cleanup_failed = true;
+            self.preserve_runtime_roots.set(true);
+            let containment = verify_owned_store_containment_after_reap(
+                &self.workspace_id,
+                &self.owned_runtime_roots,
+                self.owned_data_dir.as_deref(),
+            );
+            if containment["containment_verified"] != true {
+                eprintln!("WARN: failure-reaped owned store containment unverified: {containment}");
+            }
+        } else if !self.workspace_id.is_empty() {
             let workspace_id = self.workspace_id.clone();
             match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 self.delete_workspace(&workspace_id)
@@ -4365,9 +4429,11 @@ impl Drop for LiveBackend {
                 }
             }
         }
-        if let Err(error) = self.logout_account_bounded() {
-            cleanup_failed = true;
-            eprintln!("WARN: {error}");
+        if !reaped_after_failure {
+            if let Err(error) = self.logout_account_bounded() {
+                cleanup_failed = true;
+                eprintln!("WARN: {error}");
+            }
         }
         let mut owned_backend_reaped = false;
         if let Some(child) = self.owned_backend.get_mut().as_mut() {

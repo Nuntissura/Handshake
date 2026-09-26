@@ -2125,8 +2125,104 @@ fn live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash() {
     backend.assert_cleanup();
 }
 
-/// Create a rich document via the live backend knowledge-document API, returning the response JSON
-/// (carrying `document_id` + `block_id`).
+#[cfg(feature = "integration")]
+enum RichDocumentCreateError {
+    Transport {
+        phase: &'static str,
+        status: Option<u16>,
+        source: reqwest::Error,
+    },
+    HttpStatus {
+        status: u16,
+        body: serde_json::Value,
+    },
+    Decode {
+        status: u16,
+        source: serde_json::Error,
+    },
+    DocumentField {
+        status: u16,
+        shape: &'static str,
+    },
+}
+
+#[cfg(feature = "integration")]
+impl std::fmt::Debug for RichDocumentCreateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, f)
+    }
+}
+
+#[cfg(feature = "integration")]
+impl std::fmt::Display for RichDocumentCreateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "POST /knowledge/documents ")?;
+        match self {
+            Self::Transport {
+                phase,
+                status,
+                source,
+            } => write!(
+                f,
+                "phase={phase} status={status:?} is_timeout={} is_connect={} is_body={} is_decode={} error={source:?}",
+                source.is_timeout(),
+                source.is_connect(),
+                source.is_body(),
+                source.is_decode()
+            ),
+            Self::HttpStatus { status, body } => {
+                write!(f, "phase=http_status status={status} sanitized_body={body}")
+            }
+            Self::Decode { status, source } => {
+                write!(f, "phase=json_decode status={status} error={source}")
+            }
+            Self::DocumentField { status, shape } => {
+                write!(f, "phase=document_field status={status} expected=object observed={shape}")
+            }
+        }
+    }
+}
+
+#[cfg(feature = "integration")]
+fn rich_document_error_body(bytes: &[u8], truncated: bool) -> serde_json::Value {
+    let parsed = serde_json::from_slice::<serde_json::Value>(bytes).ok();
+    // Retain only the backend's public error-code vocabulary. Arbitrary detail/reason strings can
+    // echo submitted document content; neither they nor unknown response fields enter proof logs.
+    let code = parsed.as_ref().and_then(|body| {
+        [
+            body.get("error"),
+            body.get("code"),
+            body.pointer("/error/code"),
+        ]
+        .into_iter()
+        .flatten()
+        .filter_map(serde_json::Value::as_str)
+        .find(|value| {
+            matches!(
+                *value,
+                "bad_request"
+                    | "not_found"
+                    | "forbidden"
+                    | "conflict"
+                    | "internal_error"
+                    | "receipt_build_failed"
+            ) || (value.starts_with("HSK-")
+                && value.len() <= 96
+                && value
+                    .bytes()
+                    .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'-'))
+        })
+    });
+    serde_json::json!({
+        "captured_bytes": bytes.len(),
+        "truncated": truncated,
+        "valid_json": parsed.is_some(),
+        "error_code": code,
+        "other_fields": "redacted",
+    })
+}
+
+/// Create a rich document, retaining the exact failure phase without logging document content.
 #[cfg(feature = "integration")]
 async fn create_rich_document(
     account_context: &handshake_native::local_account::AuthenticatedContext,
@@ -2135,25 +2231,74 @@ async fn create_rich_document(
     workspace_id: &str,
     title: &str,
     content_json: serde_json::Value,
-) -> Option<serde_json::Value> {
+) -> Result<serde_json::Value, RichDocumentCreateError> {
     let url = format!("{base_url}/knowledge/documents");
     let body = serde_json::json!({
         "workspace_id": workspace_id,
         "title": title,
         "content_json": content_json,
     });
-    let resp = with_rich_doc_headers(account_context, client.post(&url).json(&body))
+    let mut resp = with_rich_doc_headers(account_context, client.post(&url).json(&body))
         .send()
         .await
-        .ok()?;
-    if !resp.status().is_success() {
-        return None;
+        .map_err(|source| RichDocumentCreateError::Transport {
+            phase: "request_send",
+            status: source.status().map(|status| status.as_u16()),
+            source,
+        })?;
+    let status = resp.status();
+    if !status.is_success() {
+        const MAX_ERROR_BODY_BYTES: usize = 4096;
+        let mut bytes = Vec::new();
+        let mut truncated = false;
+        while let Some(chunk) =
+            resp.chunk()
+                .await
+                .map_err(|source| RichDocumentCreateError::Transport {
+                    phase: "response_body",
+                    status: Some(status.as_u16()),
+                    source,
+                })?
+        {
+            let remaining = MAX_ERROR_BODY_BYTES - bytes.len();
+            bytes.extend_from_slice(&chunk[..chunk.len().min(remaining)]);
+            if chunk.len() > remaining {
+                truncated = true;
+                break;
+            }
+        }
+        return Err(RichDocumentCreateError::HttpStatus {
+            status: status.as_u16(),
+            body: rich_document_error_body(&bytes, truncated),
+        });
     }
-    resp.json::<serde_json::Value>()
+    let bytes = resp
+        .bytes()
         .await
-        .ok()?
-        .get("document")
-        .cloned()
+        .map_err(|source| RichDocumentCreateError::Transport {
+            phase: "response_body",
+            status: Some(status.as_u16()),
+            source,
+        })?;
+    let response = serde_json::from_slice::<serde_json::Value>(&bytes).map_err(|source| {
+        RichDocumentCreateError::Decode {
+            status: status.as_u16(),
+            source,
+        }
+    })?;
+    let shape = match response.get("document") {
+        Some(document @ serde_json::Value::Object(_)) => return Ok(document.clone()),
+        None => "missing",
+        Some(serde_json::Value::Null) => "null",
+        Some(serde_json::Value::Bool(_)) => "boolean",
+        Some(serde_json::Value::Number(_)) => "number",
+        Some(serde_json::Value::String(_)) => "string",
+        Some(serde_json::Value::Array(_)) => "array",
+    };
+    Err(RichDocumentCreateError::DocumentField {
+        status: status.as_u16(),
+        shape,
+    })
 }
 
 // Explicit identity for this file's isolated mock HTTP servers only.
