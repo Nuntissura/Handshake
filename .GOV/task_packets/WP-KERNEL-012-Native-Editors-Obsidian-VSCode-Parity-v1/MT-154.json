@@ -2237,8 +2237,13 @@
     "constraints": ["No timeout increase", "No weakened authority or revocation checks", "No guessed concurrent authority writes", "No cache deletion", "No second diagnostic replay"],
     "proof_route": "Source-backed repair, existing D compile/static checks and independent cheap review, then the one unused required union",
     "risk": "No safe complete fix identified yet; serial latency observed but internal cost cause and concurrent-write equivalence unproved",
-    "operator_decision": null,
-    "status_effect": "none; no claim, readiness, verdict or implementation authority inferred"
+    "operator_decision": {
+      "recorded_at_utc": "2026-09-26T10:53:54Z",
+      "decision_ref": "MT-032.remediation_v12.operator_decision",
+      "scope": "Necessary source-backed backend remediation of MT-032 create/save latency under MT-154 ownership",
+      "constraints": "Preserve authenticated record permissions, revocation, existing deadlines and required proof; one final union"
+    },
+    "status_effect": "none; renewed implementation authority recorded; no acceptance verdict inferred"
   },
   "mt032_phase_diagnostic_dependency": {
     "operator_decision_ref": "MT-032.remediation_v11.operator_decision",

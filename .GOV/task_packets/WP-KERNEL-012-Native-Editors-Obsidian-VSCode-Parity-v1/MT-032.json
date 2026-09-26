@@ -892,6 +892,29 @@
     "status_effect": "none; READY_FOR_VALIDATION and null validator_verdict retained under CX-STATUS-003",
     "residual_uncertainty": "The two MT-032 owned child logs were not separately retained; their exact individual startup substep is bounded to pre-listen exit. A distinct current-candidate run is required to exercise MT-032 acceptance assertions."
   },
+  "remediation_v12": {
+    "batch_owner": "MT-032",
+    "covered_mts": ["MT-032", "MT-154"],
+    "base_commit": "d9277d04f03490f9ceac1c9f4684e02757d8d43a",
+    "failure_ref": "validation_v10",
+    "operator_decision": {
+      "recorded_at_utc": "2026-09-26T10:53:54Z",
+      "operator_text": "spin up agents and find a the cause of failures or another way to implement it the mt, research online and document it, link the documentation in the handoff, do cheap none expensive tests when possible. you are allowed to download dependencies in the gov runtime worktree for diagnosing, debate with agents and push for progress, use the gameplan skill, do a single validator run at the end and give an overview of what went wrong and right, where we stand now, what to do next, no matter the validation result",
+      "scope": "Diagnose and repair MT-032 failures, including necessary backend latency repair under MT-154 ownership",
+      "limits": "Existing auth/deadlines/proof retained; cheap checks; one final union; warm caches and C cap retained",
+      "authority_refs": ["CX-021", "KB-IMPL-003", "MT-154.mt032_behavioral_remediation_request"],
+      "dependency_download_scope": "Existing ../gov_runtime only; non-interactive diagnostic dependencies"
+    },
+    "agents": {
+      "builder": "01a0d677-2c57-7813-9075-c273d1c4637f",
+      "validator": "01a0db0c-e4d4-73a0-be7d-33ebb18bff84",
+      "research": "01a0dd58-85bd-7793-8004-583920f7b12d"
+    },
+    "known_failure": "Native save/create exceed 15s/10s deadlines; internal transaction/receipt/backlink cost remains unresolved",
+    "next_action": "Source-bound datastore diagnosis and independent option review; then smallest safe repair and one union",
+    "validation_runs_completed": 0,
+    "status_effect": "none; last independent verdict remains FAIL_V10 until actual repair submission"
+  },
   "remediation_v11": {
     "batch_owner": "MT-032",
     "covered_mts": ["MT-032"],
