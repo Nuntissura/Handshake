@@ -60,21 +60,18 @@ use tokio::sync::Notify;
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::knowledge_document::backlink::DocumentLinkReferences;
 use crate::knowledge_document::block_tree::BlockTree;
-use crate::knowledge_document::embed::{validate_block_embeds, ValidatedBlockEmbed};
+use crate::knowledge_document::embed::validate_block_embeds;
 use crate::knowledge_document::import::{import_snippet, ImportFormat};
 use crate::knowledge_document::permission::{
     DocumentAction, DocumentActorKind, DocumentPermission,
 };
 use crate::knowledge_document::projection::{render_projection, ProjectionFormat};
-use crate::storage::knowledge::{
-    KnowledgeEntityKind, KnowledgePermissionScope, KnowledgeRedactionState, KnowledgeRichDocument,
-    KnowledgeSourceKind, KnowledgeStore, NewKnowledgeEntity, NewKnowledgeRichDocument,
-    NewKnowledgeSource, UpsertKnowledgeDocumentBacklink, UpsertKnowledgeDocumentEmbed,
-    UpsertKnowledgeRichDocumentDraft,
-};
+use crate::storage::knowledge::*;
 use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::AppState;
+use handshake_document::diagnostics::{observe_document_phase, DOCUMENT_PHASE_REQUEST_ID};
+use handshake_document::operations::{embed_upserts, index_document_non_fatal, SaveDocumentBody};
 
 const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
 const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
@@ -92,7 +89,7 @@ const HSK_HEADER_CORRELATION_ID: &str = "x-hsk-correlation-id";
 /// Recorder derives its own process principal from `stage::capture_context`. Those are deliberately
 /// different values, so receipt ownership needs its own server-written anchor: this field. It is
 /// written ONLY from an authenticated session and is never accepted from the request body.
-pub const SAVE_RECEIPT_MINTED_BY_PRINCIPAL_FIELD: &str = "minted_by_principal";
+pub use handshake_document::operations::SAVE_RECEIPT_MINTED_BY_PRINCIPAL_FIELD;
 
 /// The actor-id namespace `stage::capture_context` mints (`handshake-native:{pid}:{fingerprint}`).
 /// A client may not declare an id in this namespace unless it authenticated AS that exact principal.
@@ -283,7 +280,10 @@ pub fn routes(state: AppState) -> Router {
             post(move_document),
         )
         .route("/knowledge/documents/batch", post(batch_documents))
-        .route_layer(middleware::from_fn_with_state(state.clone(), document_authority))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            document_authority,
+        ))
         .with_state(state)
 }
 
@@ -291,37 +291,6 @@ tokio::task_local! {
     static DOCUMENT_AUTHORITY: crate::api::authority::AuthorizedResourceContext;
     static DOCUMENT_STATE: AppState;
     static DOCUMENT_BATCH_AUTHORITIES: std::collections::BTreeMap<String, crate::api::authority::AuthorizedResourceContext>;
-    static DOCUMENT_PHASE_REQUEST_ID: uuid::Uuid;
-}
-
-// MT032-V11: correlation is generated here, never taken from a header or document. Observations
-// contain fixed tags and timing only; the original future/result and error handling are unchanged.
-async fn observe_document_phase<T>(
-    phase: &'static str,
-    future: impl std::future::Future<Output = T>,
-    failed: impl FnOnce(&T) -> bool,
-) -> T {
-    let observation = DOCUMENT_PHASE_REQUEST_ID
-        .try_with(|request_id| (*request_id, std::time::Instant::now()))
-        .ok();
-    if let Some((request_id, _)) = observation {
-        tracing::info!(
-            target: "handshake_core::knowledge_documents_api",
-            request_id = %request_id, phase, event = "begin", elapsed_ms = 0_u64,
-            "MT032_DOCUMENT_PHASE"
-        );
-    }
-    let result = future.await;
-    if let Some((request_id, started)) = observation {
-        tracing::info!(
-            target: "handshake_core::knowledge_documents_api",
-            request_id = %request_id, phase,
-            event = if failed(&result) { "error" } else { "end" },
-            elapsed_ms = started.elapsed().as_millis() as u64,
-            "MT032_DOCUMENT_PHASE"
-        );
-    }
-    result
 }
 
 async fn document_authority(
@@ -359,42 +328,95 @@ async fn document_authority_inner(
 ) -> Response {
     use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
     let denial = || crate::api::authority::constant_denial().into_response();
-    let path = request.uri().path().trim_start_matches("/knowledge/documents").to_owned();
+    let path = request
+        .uri()
+        .path()
+        .trim_start_matches("/knowledge/documents")
+        .to_owned();
     let read = request.method() == Method::GET;
     let (kind, external, action) = if path == "/batch" {
         let (parts, body) = request.into_parts();
-        let bytes = match axum::body::to_bytes(body, 8 * 1024 * 1024).await { Ok(bytes) => bytes, Err(_) => return denial() };
-        let batch = match serde_json::from_slice::<BatchBody>(&bytes) { Ok(batch) => batch, Err(_) => return denial() };
-        if batch.operations.is_empty() || batch.operations.len() > BATCH_MAX_OPERATIONS { return denial(); }
+        let bytes = match axum::body::to_bytes(body, 8 * 1024 * 1024).await {
+            Ok(bytes) => bytes,
+            Err(_) => return denial(),
+        };
+        let batch = match serde_json::from_slice::<BatchBody>(&bytes) {
+            Ok(batch) => batch,
+            Err(_) => return denial(),
+        };
+        if batch.operations.is_empty() || batch.operations.len() > BATCH_MAX_OPERATIONS {
+            return denial();
+        }
         request = Request::from_parts(parts, axum::body::Body::from(bytes));
         let mut authorities = std::collections::BTreeMap::new();
         for operation in &batch.operations {
             let document = operation.document_id();
-            if authorities.contains_key(document) { continue; }
+            if authorities.contains_key(document) {
+                continue;
+            }
             let Ok(mut item) = crate::api::authority::authorize_request(
-                &state, request.headers(), "fs.write", ResourceKind::RichDocument,
-                document, ResourceAction::Update,
-            ).await else { continue; };
-            let Ok(Some(workspace)) = state.surreal.authorized_document_workspace(
-                &item.resource_id, &item.account_id, &item.access_space_id,
-            ).await else { continue; };
+                &state,
+                request.headers(),
+                "fs.write",
+                ResourceKind::RichDocument,
+                document,
+                ResourceAction::Update,
+            )
+            .await
+            else {
+                continue;
+            };
+            let Ok(Some(workspace)) = state
+                .surreal
+                .authorized_document_workspace(
+                    &item.resource_id,
+                    &item.account_id,
+                    &item.access_space_id,
+                )
+                .await
+            else {
+                continue;
+            };
             item.record_user_scope.workspace_id = Some(workspace);
             authorities.insert(document.to_owned(), item);
         }
         // Do not distinguish missing resources from inaccessible ones. A wholly
         // unauthorized request retains the constant denial; mixed batches report
         // unavailable items without ever executing them under another item's scope.
-        let Some(authority) = authorities.values().next().cloned() else { return denial(); };
+        let Some(authority) = authorities.values().next().cloned() else {
+            return denial();
+        };
         let scope = authority.record_user_scope.clone();
-        return DOCUMENT_BATCH_AUTHORITIES.scope(authorities, DOCUMENT_STATE.scope(
-            state.clone(), DOCUMENT_AUTHORITY.scope(authority,
-                state.surreal.with_record_user_scope(scope, next.run(request)),
-            ),
-        )).await;
+        return DOCUMENT_BATCH_AUTHORITIES
+            .scope(
+                authorities,
+                DOCUMENT_STATE.scope(
+                    state.clone(),
+                    DOCUMENT_AUTHORITY.scope(
+                        authority,
+                        state
+                            .surreal
+                            .with_record_user_scope(scope, next.run(request)),
+                    ),
+                ),
+            )
+            .await;
     } else if path.starts_with("/embeds/") {
-        if crate::api::authority::authenticated_session(&state, request.headers()).await.is_err() { return denial(); }
-        let embed = path.trim_start_matches("/embeds/").split('/').next().unwrap_or("");
-        let document = match state.surreal.document_for_embed(embed).await { Ok(Some(document)) => document, _ => return denial() };
+        if crate::api::authority::authenticated_session(&state, request.headers())
+            .await
+            .is_err()
+        {
+            return denial();
+        }
+        let embed = path
+            .trim_start_matches("/embeds/")
+            .split('/')
+            .next()
+            .unwrap_or("");
+        let document = match state.surreal.document_for_embed(embed).await {
+            Ok(Some(document)) => document,
+            _ => return denial(),
+        };
         (ResourceKind::RichDocument, document, ResourceAction::Update)
     } else if path.is_empty() || path == "/import" {
         let workspace = if read {
@@ -414,16 +436,46 @@ async fn document_authority_inner(
                 Ok(bytes) => bytes,
                 Err(_) => return denial(),
             };
-            let workspace = serde_json::from_slice::<Value>(&bytes).ok()
-                .and_then(|body| body.get("workspace_id").and_then(Value::as_str).map(str::to_owned));
+            let workspace = serde_json::from_slice::<Value>(&bytes)
+                .ok()
+                .and_then(|body| {
+                    body.get("workspace_id")
+                        .and_then(Value::as_str)
+                        .map(str::to_owned)
+                });
             request = Request::from_parts(parts, axum::body::Body::from(bytes));
-            match workspace { Some(workspace) => workspace, None => return denial() }
+            match workspace {
+                Some(workspace) => workspace,
+                None => return denial(),
+            }
         };
-        (ResourceKind::Workspace, workspace, if read { ResourceAction::Read } else { ResourceAction::Create })
+        (
+            ResourceKind::Workspace,
+            workspace,
+            if read {
+                ResourceAction::Read
+            } else {
+                ResourceAction::Create
+            },
+        )
     } else {
         let document = path.trim_start_matches('/').split('/').next().unwrap_or("");
-        if matches!(document, "batch" | "embeds" | "") { return denial(); }
-        (ResourceKind::RichDocument, document.to_owned(), if read { ResourceAction::Read } else if request.method() == Method::DELETE && !path.trim_start_matches('/' ).contains('/') { ResourceAction::Delete } else { ResourceAction::Update })
+        if matches!(document, "batch" | "embeds" | "") {
+            return denial();
+        }
+        (
+            ResourceKind::RichDocument,
+            document.to_owned(),
+            if read {
+                ResourceAction::Read
+            } else if request.method() == Method::DELETE
+                && !path.trim_start_matches('/').contains('/')
+            {
+                ResourceAction::Delete
+            } else {
+                ResourceAction::Update
+            },
+        )
     };
     let is_document = kind == ResourceKind::RichDocument;
     let mut authority = match observe_document_phase(
@@ -460,8 +512,17 @@ async fn document_authority_inner(
         };
     }
     let scope = authority.record_user_scope.clone();
-    DOCUMENT_STATE.scope(state.clone(), DOCUMENT_AUTHORITY.scope(authority,
-        state.surreal.with_record_user_scope(scope, next.run(request)))).await
+    DOCUMENT_STATE
+        .scope(
+            state.clone(),
+            DOCUMENT_AUTHORITY.scope(
+                authority,
+                state
+                    .surreal
+                    .with_record_user_scope(scope, next.run(request)),
+            ),
+        )
+        .await
 }
 
 type ApiError = (StatusCode, Json<Value>);
@@ -546,7 +607,9 @@ fn conflict(detail: impl Into<String>) -> ApiError {
 
 fn storage_error(err: StorageError) -> ApiError {
     match err {
-        StorageError::Guard("HSK-403-PROTECTED-RESOURCE") => crate::api::authority::constant_denial(),
+        StorageError::Guard("HSK-403-PROTECTED-RESOURCE") => {
+            crate::api::authority::constant_denial()
+        }
         StorageError::NotFound(what) => not_found(what),
         StorageError::Validation(detail) => bad_request(detail),
         StorageError::Conflict(detail) | StorageError::ConflictDetails { code: detail, .. } => {
@@ -581,7 +644,8 @@ struct DocContext {
 
 /// Identity comes from the authenticated ResourceBroker scope, never the channel or attribution headers.
 fn authenticated_native_principal(_headers: &HeaderMap) -> Result<Option<String>, ApiError> {
-    DOCUMENT_AUTHORITY.try_with(|authority| Some(authority.principal_id.clone()))
+    DOCUMENT_AUTHORITY
+        .try_with(|authority| Some(authority.principal_id.clone()))
         .map_err(|_| crate::api::authority::constant_denial())
 }
 
@@ -707,106 +771,7 @@ async fn record_receipt_non_fatal(
 /// (MT-152); this closes the title/blocks half: the title is queryable
 /// through the entity surface and the blocks' bytes are the source's
 /// content-hash-tracked indexing unit.
-async fn index_document_into_knowledge_index(
-    db: &dyn KnowledgeStore,
-    document: &KnowledgeRichDocument,
-) -> Result<(), StorageError> {
-    let source = match db
-        .get_knowledge_source_by_document_id(&document.workspace_id, &document.rich_document_id)
-        .await?
-    {
-        Some(existing) => {
-            if existing.content_hash != document.content_sha256 && !existing.stale {
-                // The document changed since the source was indexed: stale is
-                // the truthful index state until the pipeline re-indexes it.
-                db.mark_knowledge_source_stale(&existing.source_id).await?
-            } else {
-                existing
-            }
-        }
-        None => {
-            db.upsert_knowledge_source(NewKnowledgeSource {
-                workspace_id: document.workspace_id.clone(),
-                root_id: None,
-                source_kind: KnowledgeSourceKind::RichDocument,
-                relative_path: None,
-                asset_id: None,
-                loom_block_id: None,
-                // The schema's document_id column FKs the LEGACY documents
-                // table; the KRD linkage is provenance-keyed (see
-                // get_knowledge_source_by_document_id).
-                document_id: None,
-                content_hash: document.content_sha256.clone(),
-                size_bytes: Some(document.content_json.to_string().len() as i64),
-                provenance: json!({
-                    "discovered_by": "knowledge_documents_api",
-                    "rich_document_id": document.rich_document_id,
-                    "schema_version": document.schema_version,
-                }),
-                permission_scope: KnowledgePermissionScope::Workspace,
-                redaction_state: KnowledgeRedactionState::None,
-                source_modified_at: None,
-            })
-            .await?
-        }
-    };
-
-    db.upsert_knowledge_entity(NewKnowledgeEntity {
-        workspace_id: document.workspace_id.clone(),
-        entity_kind: KnowledgeEntityKind::RichDocument,
-        entity_key: document.rich_document_id.clone(),
-        display_name: document.title.clone(),
-        detection_provenance: json!({
-            "extractor": "knowledge_documents_api",
-            "content_sha256": document.content_sha256,
-            "doc_version": document.doc_version,
-        }),
-        primary_source_id: Some(source.source_id),
-        detected_in_run: None,
-        evidence_span_ids: vec![],
-    })
-    .await?;
-    Ok(())
-}
-
-/// Run the MT-154 index step post-commit and RECORD a failure instead of
-/// erroring a committed write (MT-149 law). Returns (indexed, error).
-async fn index_document_non_fatal(
-    db: &dyn KnowledgeStore,
-    document: &KnowledgeRichDocument,
-) -> (bool, Option<String>) {
-    match index_document_into_knowledge_index(db, document).await {
-        Ok(()) => (true, None),
-        Err(err) => {
-            tracing::error!(
-                target: "handshake_core::knowledge_documents_api",
-                rich_document_id = %document.rich_document_id,
-                error = %err,
-                "rich_document_knowledge_index_failed_post_commit"
-            );
-            (false, Some(err.to_string()))
-        }
-    }
-}
-
 /// Map validated content embeds (MT-152) to side-table upserts.
-fn embed_upserts(
-    rich_document_id: &str,
-    validated: &[ValidatedBlockEmbed],
-) -> Vec<UpsertKnowledgeDocumentEmbed> {
-    validated
-        .iter()
-        .map(|embed| UpsertKnowledgeDocumentEmbed {
-            rich_document_id: rich_document_id.to_string(),
-            block_id: embed.block_id.clone(),
-            ref_kind: embed.target.kind.as_str().to_string(),
-            ref_value: embed.target.value.clone(),
-            caption: embed.caption.clone(),
-        })
-        .collect()
-}
-
-/// Append a document EventLedger receipt (save/promotion/nav) and return its id.
 async fn record_receipt(
     db: &dyn Database,
     ctx: &DocContext,
@@ -815,20 +780,35 @@ async fn record_receipt(
     payload: Value,
 ) -> Result<String, ApiError> {
     let event = build_receipt_event(ctx, event_type, rich_document_id, payload)?;
-    let state = DOCUMENT_STATE.try_with(Clone::clone).map_err(|_| crate::api::authority::constant_denial())?;
-    let mut scope = DOCUMENT_AUTHORITY.try_with(|authority| authority.record_user_scope.clone())
+    let state = DOCUMENT_STATE
+        .try_with(Clone::clone)
         .map_err(|_| crate::api::authority::constant_denial())?;
-    use crate::storage::surreal::resource_authority::{AuthorizationRequest, ResourceAction, ResourceKind};
-    let decision = state.surreal.authorize_protected_resource(AuthorizationRequest {
-        session_token: scope.session_token.clone(), channel_binding_hash: scope.channel_binding_hash.clone(),
-        capability_id: "fs.write".into(), resource_kind: ResourceKind::RichDocument,
-        external_resource_id: rich_document_id.to_owned(), action: ResourceAction::Update,
-    }).await.map_err(|_| crate::api::authority::constant_denial())?;
+    let mut scope = DOCUMENT_AUTHORITY
+        .try_with(|authority| authority.record_user_scope.clone())
+        .map_err(|_| crate::api::authority::constant_denial())?;
+    use crate::storage::surreal::resource_authority::{
+        AuthorizationRequest, ResourceAction, ResourceKind,
+    };
+    let decision = state
+        .surreal
+        .authorize_protected_resource(AuthorizationRequest {
+            session_token: scope.session_token.clone(),
+            channel_binding_hash: scope.channel_binding_hash.clone(),
+            capability_id: "fs.write".into(),
+            resource_kind: ResourceKind::RichDocument,
+            external_resource_id: rich_document_id.to_owned(),
+            action: ResourceAction::Update,
+        })
+        .await
+        .map_err(|_| crate::api::authority::constant_denial())?;
     scope.resource_id = decision.resource_id;
     scope.action = ResourceAction::Update;
     scope.capability_id = "fs.write".into();
-    let stored = state.surreal.with_record_user_scope(scope, db.append_kernel_event(event))
-        .await.map_err(storage_error)?;
+    let stored = state
+        .surreal
+        .with_record_user_scope(scope, db.append_kernel_event(event))
+        .await
+        .map_err(storage_error)?;
     Ok(stored.event_id)
 }
 
@@ -838,10 +818,16 @@ fn build_receipt_event(
     rich_document_id: &str,
     mut payload: Value,
 ) -> Result<NewKernelEvent, ApiError> {
-    let authority = DOCUMENT_AUTHORITY.try_with(Clone::clone)
+    let authority = DOCUMENT_AUTHORITY
+        .try_with(Clone::clone)
         .map_err(|_| crate::api::authority::constant_denial())?;
-    let fields = payload.as_object_mut().ok_or_else(crate::api::authority::constant_denial)?;
-    fields.insert("workspace_id".into(), json!(authority.record_user_scope.workspace_id));
+    let fields = payload
+        .as_object_mut()
+        .ok_or_else(crate::api::authority::constant_denial)?;
+    fields.insert(
+        "workspace_id".into(),
+        json!(authority.record_user_scope.workspace_id),
+    );
     fields.insert("minted_by_principal".into(), json!(authority.principal_id));
     fields.insert("declared_actor_id".into(), json!(actor_id_of(&ctx.actor)));
     let mut builder = NewKernelEvent::builder(
@@ -903,18 +889,6 @@ struct CreateDocumentBody {
     project_ref: Option<String>,
     #[serde(default)]
     folder_ref: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SaveDocumentBody {
-    expected_version: i64,
-    content_json: Value,
-    #[serde(default)]
-    crdt_document_id: Option<String>,
-    #[serde(default)]
-    crdt_snapshot_id: Option<String>,
-    #[serde(default)]
-    promotion_receipt_event_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1135,117 +1109,18 @@ async fn create_document(
         owner_actor_kind: Some(ctx.actor_kind.as_str().to_string()),
         owner_actor_id: Some(actor_id_of(&ctx.actor)),
     };
-    let created_result = observe_document_phase(
-        "create_transaction",
-        async {
-            if body.create_if_title_absent {
-                db.create_knowledge_rich_document_if_title_absent(new_document)
-                    .await
-            } else {
-                db.create_knowledge_rich_document(new_document)
-                    .await
-                    .map(|created| (created, true))
-            }
+    handshake_document::operations::create_document(
+        &db,
+        &OperationHost {
+            state: &state,
+            ctx: &ctx,
         },
-        Result::is_err,
+        new_document,
+        body.create_if_title_absent,
     )
-    .await;
-    let (created, document_created) = match created_result {
-        Ok(created) => created,
-        Err(error) => {
-            #[cfg(test)]
-            eprintln!("knowledge-document-create failed: {error}");
-            return Err(storage_error(error));
-        }
-    };
-
-    if !document_created {
-        return Ok(Json(json!({
-            "document": created,
-            "created": false,
-            "save_receipt_event_id": Value::Null,
-            "receipt_error": Value::Null,
-            "embeds_persisted": 0,
-            "embeds_error": Value::Null,
-            "knowledge_indexed": false,
-            "knowledge_index_error": Value::Null,
-        })));
-    }
-
-    // ---- post-commit (MT-149): the create above is committed; the steps
-    // below are best-effort and RECORDED, never an error for a committed write.
-    let (receipt, receipt_error) = observe_document_phase(
-        "create_receipt",
-        record_receipt_non_fatal(
-            state.storage.as_ref(),
-            &ctx,
-            KernelEventType::KnowledgeRichDocumentSaved,
-            &created.rich_document_id,
-            json!({"event": "created", "doc_version": created.doc_version}),
-        ),
-        |result| result.1.is_some(),
-    )
-    .await;
-
-    // MT-152: sync the typed embed side table from the validated content.
-    // Re-validate against the REAL document id so derived block ids match.
-    let mut embeds_persisted = 0usize;
-    let mut embeds_error: Option<String> = None;
-    let created_tree = BlockTree::from_document_json(
-        &created.rich_document_id,
-        &created.schema_version,
-        &created.content_json,
-    )
-    .ok();
-    if let Some(created_tree) = created_tree {
-        if let Ok(validated) = validate_block_embeds(&created_tree) {
-            match observe_document_phase(
-                "create_embeds",
-                db.replace_knowledge_document_embeds(
-                    &created.rich_document_id,
-                    embed_upserts(&created.rich_document_id, &validated),
-                ),
-                Result::is_err,
-            )
-            .await
-            {
-                Ok(persisted) => embeds_persisted = persisted.len(),
-                Err(err) => {
-                    tracing::error!(
-                        target: "handshake_core::knowledge_documents_api",
-                        rich_document_id = %created.rich_document_id,
-                        error = %err,
-                        "rich_document_embed_sync_failed_post_commit"
-                    );
-                    embeds_error = Some(err.to_string());
-                }
-            }
-        }
-    }
-
-    // MT-154: index the created document (source + title entity) when the
-    // actor may index; denial just skips (read-only actors cannot create).
-    let mut knowledge_indexed = false;
-    let mut knowledge_index_error: Option<String> = None;
-    if ctx.require(DocumentAction::Index).is_ok() {
-        (knowledge_indexed, knowledge_index_error) = observe_document_phase(
-            "create_index",
-            index_document_non_fatal(&db, &created),
-            |result| result.1.is_some(),
-        )
-        .await;
-    }
-
-    Ok(Json(json!({
-        "document": created,
-        "created": true,
-        "save_receipt_event_id": receipt,
-        "receipt_error": receipt_error,
-        "embeds_persisted": embeds_persisted,
-        "embeds_error": embeds_error,
-        "knowledge_indexed": knowledge_indexed,
-        "knowledge_index_error": knowledge_index_error,
-    })))
+    .await
+    .map(Json)
+    .map_err(storage_error)
 }
 
 /// GET /knowledge/documents/:document_id — load a RichDocument + block tree
@@ -1566,170 +1441,22 @@ async fn save_document(
         |_| false,
     )
     .await;
-    let saved = observe_document_phase(
-        "save_transaction",
-        db.save_knowledge_rich_document_version(
-            &document_id,
-            body.expected_version,
-            body.content_json.clone(),
-            crdt_document_id.as_deref(),
-            body.crdt_snapshot_id.as_deref(),
-            body.promotion_receipt_event_id.as_deref(),
-        ),
-        Result::is_err,
+    handshake_document::operations::save_document(
+        &db,
+        &OperationHost {
+            state: &state,
+            ctx: &ctx,
+        },
+        &document_id,
+        body,
+        crdt_document_id,
+        validated_embeds,
+        document_link_references,
+        receipt_reference_targets,
     )
     .await
-    .map_err(storage_error)?;
-
-    // ---- post-commit (MT-149): nothing below may error a committed save. ----
-    // WP-KERNEL-012 MT-120: when (and only when) the caller authenticated a live native-MCP session,
-    // stamp the SERVER-DERIVED principal into the receipt payload. This is the anchor the Flight
-    // Recorder's `document_saved` receipt-ownership clause compares against. The ledger `actor_id`
-    // column deliberately stays the CLIENT-declared per-agent id so two swarm agents saving the same
-    // document remain individually attributable; ownership and attribution are different questions
-    // and now have different fields. `ctx.actor`, the run ids and the correlation id are untouched —
-    // the same clause compares those against the client-supplied Flight Recorder payload.
-    let mut receipt_payload = json!({
-        "event": "saved",
-        "doc_version": saved.doc_version,
-        "workspace_id": saved.workspace_id.clone(),
-        "content_hash": saved.content_sha256.clone(),
-        "reference_targets": receipt_reference_targets,
-    });
-    if let Some(principal) = ctx.minted_by_principal.as_deref() {
-        if let Some(map) = receipt_payload.as_object_mut() {
-            map.insert(
-                SAVE_RECEIPT_MINTED_BY_PRINCIPAL_FIELD.to_owned(),
-                Value::String(principal.to_owned()),
-            );
-        }
-    }
-    let (receipt, receipt_error) = observe_document_phase(
-        "save_receipt",
-        record_receipt_non_fatal(
-            state.storage.as_ref(),
-            &ctx,
-            KernelEventType::KnowledgeRichDocumentSaved,
-            &saved.rich_document_id,
-            receipt_payload,
-        ),
-        |result| result.1.is_some(),
-    )
-    .await;
-
-    // MT-155 backlinks + MT-152 embeds: re-extract + persist from the new
-    // content (the document content is the source of truth; both rebuilds are
-    // idempotent). Index permission is checked, but a denial is non-fatal to
-    // the save — it just skips the index step and reports it. A storage
-    // failure in either step is RECORDED, never an error for the saved write.
-    let mut backlinks_persisted = 0usize;
-    let mut backlinks_error: Option<String> = None;
-    let mut backlinks_skipped_reason: Option<String> = None;
-    let mut embeds_persisted = 0usize;
-    let mut embeds_error: Option<String> = None;
-    let mut knowledge_indexed = false;
-    let mut knowledge_index_error: Option<String> = None;
-    match ctx.require(DocumentAction::Index) {
-        Ok(()) => {
-            let upserts: Vec<UpsertKnowledgeDocumentBacklink> = document_link_references
-                .references
-                .iter()
-                .map(|r| UpsertKnowledgeDocumentBacklink {
-                    workspace_id: saved.workspace_id.clone(),
-                    relationship_id: r.relationship_id.clone(),
-                    source_document_id: saved.rich_document_id.clone(),
-                    link_kind: r.kind.as_str().to_string(),
-                    target: r.target.clone(),
-                    block_id: r.block_id.clone(),
-                })
-                .collect();
-            #[cfg(any(test, feature = "surreal-test-support"))]
-            let inject_backlink_failure = take_document_post_commit_failpoint(
-                &saved.rich_document_id,
-                KnowledgeDocumentPostCommitFailpoint::Backlinks,
-            );
-            #[cfg(not(any(test, feature = "surreal-test-support")))]
-            let inject_backlink_failure = false;
-            if inject_backlink_failure {
-                backlinks_error = Some("MT-141 injected post-commit backlink failure".to_owned());
-            } else {
-                match observe_document_phase(
-                    "save_backlinks",
-                    db.replace_knowledge_document_backlinks(&saved.rich_document_id, upserts),
-                    Result::is_err,
-                )
-                .await
-                {
-                    Ok(persisted) => backlinks_persisted = persisted.len(),
-                    Err(err) => {
-                        tracing::error!(
-                            target: "handshake_core::knowledge_documents_api",
-                            rich_document_id = %saved.rich_document_id,
-                            error = %err,
-                            "rich_document_backlink_index_failed_post_commit"
-                        );
-                        backlinks_error = Some(err.to_string());
-                    }
-                }
-            }
-            #[cfg(any(test, feature = "surreal-test-support"))]
-            let inject_embed_failure = take_document_post_commit_failpoint(
-                &saved.rich_document_id,
-                KnowledgeDocumentPostCommitFailpoint::Embeds,
-            );
-            #[cfg(not(any(test, feature = "surreal-test-support")))]
-            let inject_embed_failure = false;
-            if inject_embed_failure {
-                embeds_error = Some("MT-141 injected post-commit embed failure".to_owned());
-            } else {
-                match observe_document_phase(
-                    "save_embeds",
-                    db.replace_knowledge_document_embeds(
-                        &saved.rich_document_id,
-                        embed_upserts(&saved.rich_document_id, &validated_embeds),
-                    ),
-                    Result::is_err,
-                )
-                .await
-                {
-                    Ok(persisted) => embeds_persisted = persisted.len(),
-                    Err(err) => {
-                        tracing::error!(
-                            target: "handshake_core::knowledge_documents_api",
-                            rich_document_id = %saved.rich_document_id,
-                            error = %err,
-                            "rich_document_embed_sync_failed_post_commit"
-                        );
-                        embeds_error = Some(err.to_string());
-                    }
-                }
-            }
-            // MT-154: the document is indexed into the Project Knowledge
-            // Index (source row + title entity; staleness on content change).
-            (knowledge_indexed, knowledge_index_error) = observe_document_phase(
-                "save_index",
-                index_document_non_fatal(&db, &saved),
-                |result| result.1.is_some(),
-            )
-            .await;
-        }
-        Err(_) => {
-            backlinks_skipped_reason = Some(format!("{}_index_denied", ctx.actor_kind.as_str()));
-        }
-    }
-
-    Ok(Json(json!({
-        "document": saved,
-        "save_receipt_event_id": receipt,
-        "receipt_error": receipt_error,
-        "backlinks_persisted": backlinks_persisted,
-        "backlinks_error": backlinks_error,
-        "backlinks_skipped_reason": backlinks_skipped_reason,
-        "embeds_persisted": embeds_persisted,
-        "embeds_error": embeds_error,
-        "knowledge_indexed": knowledge_indexed,
-        "knowledge_index_error": knowledge_index_error,
-    })))
+    .map(Json)
+    .map_err(storage_error)
 }
 
 /// GET /knowledge/documents/:document_id/blocks — the typed block tree only
@@ -2226,7 +1953,8 @@ async fn batch_documents(
     for operation in &body.operations {
         let document_id = operation.document_id().to_string();
         let op_name = operation.op_name();
-        let authority = DOCUMENT_BATCH_AUTHORITIES.try_with(|items| items.get(&document_id).cloned())
+        let authority = DOCUMENT_BATCH_AUTHORITIES
+            .try_with(|items| items.get(&document_id).cloned())
             .map_err(|_| crate::api::authority::constant_denial())?;
         let Some(authority) = authority else {
             failed += 1;
@@ -2240,92 +1968,104 @@ async fn batch_documents(
             continue;
         };
         let scope = authority.record_user_scope.clone();
-        DOCUMENT_AUTHORITY.scope(authority, state.surreal.with_record_user_scope(scope, async {
-        let outcome: Result<crate::storage::knowledge::KnowledgeRichDocument, StorageError> =
-            match operation {
-                BatchOperation::Rename { title, .. } => {
-                    let title = title.trim().to_string();
-                    if title.is_empty() {
-                        Err(StorageError::Validation("title must be non-empty"))
-                    } else {
-                        db.rename_knowledge_rich_document(&document_id, &title, None)
+        DOCUMENT_AUTHORITY
+            .scope(
+                authority,
+                state.surreal.with_record_user_scope(scope, async {
+                    let outcome: Result<
+                        crate::storage::knowledge::KnowledgeRichDocument,
+                        StorageError,
+                    > = match operation {
+                        BatchOperation::Rename { title, .. } => {
+                            let title = title.trim().to_string();
+                            if title.is_empty() {
+                                Err(StorageError::Validation("title must be non-empty"))
+                            } else {
+                                db.rename_knowledge_rich_document(&document_id, &title, None)
+                                    .await
+                            }
+                        }
+                        BatchOperation::Move {
+                            project_ref,
+                            folder_ref,
+                            ..
+                        } => match db.get_knowledge_rich_document(&document_id).await {
+                            Err(err) => Err(err),
+                            Ok(None) => Err(StorageError::NotFound("knowledge rich document")),
+                            Ok(Some(current)) => {
+                                // Same absent != null law as the per-document move.
+                                let project = match project_ref {
+                                    None => current.project_ref.clone(),
+                                    Some(explicit) => explicit.clone(),
+                                };
+                                let folder = match folder_ref {
+                                    None => current.folder_ref.clone(),
+                                    Some(explicit) => explicit.clone(),
+                                };
+                                db.move_knowledge_rich_document(
+                                    &document_id,
+                                    project.as_deref(),
+                                    folder.as_deref(),
+                                )
+                                .await
+                            }
+                        },
+                        BatchOperation::SetAuthorityLabel {
+                            authority_label, ..
+                        } => {
+                            db.set_knowledge_rich_document_authority_label(
+                                &document_id,
+                                authority_label,
+                            )
                             .await
+                        }
+                    };
+                    match outcome {
+                        Ok(updated) => {
+                            succeeded += 1;
+                            // Per-item receipt (post-commit, non-fatal per MT-149).
+                            let (receipt, receipt_error) = record_receipt_non_fatal(
+                                state.storage.as_ref(),
+                                &ctx,
+                                KernelEventType::KnowledgeRichDocumentSaved,
+                                &updated.rich_document_id,
+                                json!({"event": "batch", "op": op_name}),
+                            )
+                            .await;
+                            results.push(json!({
+                                "document_id": document_id,
+                                "block_id": updated.block_id,
+                                "op": op_name,
+                                "ok": true,
+                                "save_receipt_event_id": receipt,
+                                "receipt_error": receipt_error,
+                            }));
+                        }
+                        Err(err) => {
+                            failed += 1;
+                            let (error_kind, detail) = match &err {
+                                StorageError::NotFound(what) => ("not_found", what.to_string()),
+                                StorageError::Validation(detail) => {
+                                    ("validation", detail.to_string())
+                                }
+                                StorageError::Conflict(detail)
+                                | StorageError::ConflictDetails { code: detail, .. } => {
+                                    ("conflict", detail.to_string())
+                                }
+                                other => ("internal", other.to_string()),
+                            };
+                            results.push(json!({
+                                "document_id": document_id,
+                                "op": op_name,
+                                "ok": false,
+                                "error": error_kind,
+                                "detail": detail,
+                            }));
+                        }
                     }
-                }
-                BatchOperation::Move {
-                    project_ref,
-                    folder_ref,
-                    ..
-                } => match db.get_knowledge_rich_document(&document_id).await {
-                    Err(err) => Err(err),
-                    Ok(None) => Err(StorageError::NotFound("knowledge rich document")),
-                    Ok(Some(current)) => {
-                        // Same absent != null law as the per-document move.
-                        let project = match project_ref {
-                            None => current.project_ref.clone(),
-                            Some(explicit) => explicit.clone(),
-                        };
-                        let folder = match folder_ref {
-                            None => current.folder_ref.clone(),
-                            Some(explicit) => explicit.clone(),
-                        };
-                        db.move_knowledge_rich_document(
-                            &document_id,
-                            project.as_deref(),
-                            folder.as_deref(),
-                        )
-                        .await
-                    }
-                },
-                BatchOperation::SetAuthorityLabel {
-                    authority_label, ..
-                } => {
-                    db.set_knowledge_rich_document_authority_label(&document_id, authority_label)
-                        .await
-                }
-            };
-        match outcome {
-            Ok(updated) => {
-                succeeded += 1;
-                // Per-item receipt (post-commit, non-fatal per MT-149).
-                let (receipt, receipt_error) = record_receipt_non_fatal(
-                    state.storage.as_ref(),
-                    &ctx,
-                    KernelEventType::KnowledgeRichDocumentSaved,
-                    &updated.rich_document_id,
-                    json!({"event": "batch", "op": op_name}),
-                )
-                .await;
-                results.push(json!({
-                    "document_id": document_id,
-                    "block_id": updated.block_id,
-                    "op": op_name,
-                    "ok": true,
-                    "save_receipt_event_id": receipt,
-                    "receipt_error": receipt_error,
-                }));
-            }
-            Err(err) => {
-                failed += 1;
-                let (error_kind, detail) = match &err {
-                    StorageError::NotFound(what) => ("not_found", what.to_string()),
-                    StorageError::Validation(detail) => ("validation", detail.to_string()),
-                    StorageError::Conflict(detail)
-                    | StorageError::ConflictDetails { code: detail, .. } => {
-                        ("conflict", detail.to_string())
-                    }
-                    other => ("internal", other.to_string()),
-                };
-                results.push(json!({
-                    "document_id": document_id,
-                    "op": op_name,
-                    "ok": false,
-                    "error": error_kind,
-                    "detail": detail,
-                }));
-            }
-        }
-        })).await;
+                }),
+            )
+            .await;
     }
 
     Ok(Json(json!({
@@ -2369,5 +2109,124 @@ fn actor_id_of(actor: &KernelActor) -> String {
         | KernelActor::ToolGate(id)
         | KernelActor::ValidationRunner(id)
         | KernelActor::PromotionGate(id) => id.clone(),
+    }
+}
+
+struct OperationHost<'a> {
+    state: &'a AppState,
+    ctx: &'a DocContext,
+}
+#[async_trait::async_trait]
+impl handshake_document::operations::DocumentHost for OperationHost<'_> {
+    fn require_index(&self) -> Result<(), ()> {
+        self.ctx.require(DocumentAction::Index).map_err(|_| ())
+    }
+    fn actor_kind(&self) -> DocumentActorKind {
+        self.ctx.actor_kind
+    }
+    fn minted_by_principal(&self) -> Option<&str> {
+        self.ctx.minted_by_principal.as_deref()
+    }
+    fn take_backlink_failure(&self, id: &str) -> bool {
+        #[cfg(any(test, feature = "surreal-test-support"))]
+        {
+            take_document_post_commit_failpoint(id, KnowledgeDocumentPostCommitFailpoint::Backlinks)
+        }
+        #[cfg(not(any(test, feature = "surreal-test-support")))]
+        {
+            let _ = id;
+            false
+        }
+    }
+    fn take_embed_failure(&self, id: &str) -> bool {
+        #[cfg(any(test, feature = "surreal-test-support"))]
+        {
+            take_document_post_commit_failpoint(id, KnowledgeDocumentPostCommitFailpoint::Embeds)
+        }
+        #[cfg(not(any(test, feature = "surreal-test-support")))]
+        {
+            let _ = id;
+            false
+        }
+    }
+    async fn record_saved_receipt(
+        &self,
+        id: &str,
+        payload: Value,
+    ) -> (Option<String>, Option<String>) {
+        record_receipt_non_fatal(
+            self.state.storage.as_ref(),
+            self.ctx,
+            KernelEventType::KnowledgeRichDocumentSaved,
+            id,
+            payload,
+        )
+        .await
+    }
+}
+
+#[async_trait::async_trait]
+impl handshake_document::operations::DocumentStore for SurrealDatabase {
+    async fn create_knowledge_rich_document(
+        &self,
+        value: NewKnowledgeRichDocument,
+    ) -> Result<KnowledgeRichDocument, StorageError> {
+        KnowledgeStore::create_knowledge_rich_document(self, value).await
+    }
+    async fn create_knowledge_rich_document_if_title_absent(
+        &self,
+        value: NewKnowledgeRichDocument,
+    ) -> Result<(KnowledgeRichDocument, bool), StorageError> {
+        KnowledgeStore::create_knowledge_rich_document_if_title_absent(self, value).await
+    }
+    async fn save_knowledge_rich_document_version(
+        &self,
+        id: &str,
+        expected: i64,
+        content: Value,
+        crdt: Option<&str>,
+        snapshot: Option<&str>,
+        receipt: Option<&str>,
+    ) -> Result<KnowledgeRichDocument, StorageError> {
+        KnowledgeStore::save_knowledge_rich_document_version(
+            self, id, expected, content, crdt, snapshot, receipt,
+        )
+        .await
+    }
+    async fn replace_knowledge_document_backlinks(
+        &self,
+        id: &str,
+        values: Vec<UpsertKnowledgeDocumentBacklink>,
+    ) -> Result<Vec<KnowledgeDocumentBacklink>, StorageError> {
+        KnowledgeStore::replace_knowledge_document_backlinks(self, id, values).await
+    }
+    async fn replace_knowledge_document_embeds(
+        &self,
+        id: &str,
+        values: Vec<UpsertKnowledgeDocumentEmbed>,
+    ) -> Result<Vec<KnowledgeDocumentEmbed>, StorageError> {
+        KnowledgeStore::replace_knowledge_document_embeds(self, id, values).await
+    }
+    async fn get_knowledge_source_by_document_id(
+        &self,
+        workspace: &str,
+        document: &str,
+    ) -> Result<Option<KnowledgeSource>, StorageError> {
+        KnowledgeStore::get_knowledge_source_by_document_id(self, workspace, document).await
+    }
+    async fn mark_knowledge_source_stale(&self, id: &str) -> Result<KnowledgeSource, StorageError> {
+        KnowledgeStore::mark_knowledge_source_stale(self, id).await
+    }
+    async fn upsert_knowledge_source(
+        &self,
+        value: NewKnowledgeSource,
+    ) -> Result<KnowledgeSource, StorageError> {
+        KnowledgeStore::upsert_knowledge_source(self, value).await
+    }
+    async fn upsert_knowledge_entity(
+        &self,
+        value: NewKnowledgeEntity,
+    ) -> Result<KnowledgeEntity, StorageError> {
+        KnowledgeStore::upsert_knowledge_entity(self, value).await
     }
 }

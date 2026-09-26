@@ -2850,6 +2850,8 @@ dependencies = [
  "getrandom 0.2.16",
  "globset",
  "half",
+ "handshake_document",
+ "handshake_storage_support",
  "hex",
  "hmac",
  "icalendar",
@@ -2897,6 +2899,38 @@ dependencies = [
  "wiremock",
  "yaml_serde",
  "zip 0.6.6",
+]
+
+[[package]]
+name = "handshake_document"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "handshake_storage_support",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "surrealdb-types",
+ "thiserror 2.0.20",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "handshake_storage_support"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.2.16",
+ "hex",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.20",
+ "tokio",
+ "tokio-util",
+ "tracing",
 ]
 
 [[package]]

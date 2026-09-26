@@ -159,6 +159,8 @@ path = "src/bin/focus-audit-probe.rs"
 test = false
 
 [dependencies]
+handshake_document = { path = "../handshake_document" }
+handshake_storage_support = { path = "../handshake_storage_support" }
 argon2 = "=0.5.3"
 axum = { version = "0.7", features = ["ws"] }
 serde = { version = "1", features = ["derive"] }
@@ -255,6 +257,7 @@ tokio-cron-scheduler = "0.15.1"
 portable-pty = "0.9.0"
 
 [dev-dependencies]
+handshake_storage_support = { path = "../handshake_storage_support", features = ["surreal-test-support"] }
 tempfile = "3"
 static_assertions = "1"
 wiremock = "0.6"
@@ -283,7 +286,7 @@ app-runtime = ["runtime-full", "duckdb-flight-recorder"]
 duckdb-flight-recorder = ["dep:duckdb"]
 tokenization = ["dep:tiktoken-rs", "dep:tokenizers"]
 test-utils = []  # Exposes test helper utilities for integration tests
-surreal-test-support = []
+surreal-test-support = ["handshake_document/surreal-test-support", "handshake_storage_support/surreal-test-support"]
 wsl2-integration = []
 docker-integration = []
 win-native-integration = []
