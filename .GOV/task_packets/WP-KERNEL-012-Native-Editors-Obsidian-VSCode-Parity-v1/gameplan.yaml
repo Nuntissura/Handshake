@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 47
+generation: 48
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -93,3 +93,4 @@ steps:
 - {id: GP-072, role: builder, at: before_round, do: confirm moved self-test imports and cross-crate test-support visibility before compile, check: {type: confirm}, source: 'compile: moved keyed-lock test lacked futures dev dependency and helper visibility', state: active}
 - {id: GP-073, role: wp_validator, at: before_dispatch, do: 'confirm exact C application output manifest, D retention hashes and no active use before removal', check: {type: confirm}, source: 'capacity: candidate union plus new crate variants exceed cap unless invalidated finals are retained off C', state: active}
 - {id: GP-074, role: wp_validator, at: before_submit, do: 'confirm C output ownership, D retention destination, free space and bounded copy/hash throughput', check: {type: confirm}, source: 'capacity: preserve invalidated application outputs before selective C cleanup', state: active}
+- {id: GP-075, role: builder, at: before_round, do: confirm retained sibling types keep required imports after owner extraction, check: {type: confirm}, source: 'compile: retained GuardError lost thiserror::Error import when StorageError moved', state: active}
