@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 30
+generation: 32
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -74,7 +74,8 @@ steps:
 - {id: GP-053, role: builder, at: before_round, do: confirm shared helper negative fixtures and post-logout cleanup preserve the primary failure, check: {type: confirm}, source: 'FAIL_V10 14bd: negative fixture lacked store path; Drop reused inactive account after failure capture', state: active}
 - {id: GP-054, role: wp_validator, at: before_round, do: confirm union save cause and repair reviewed OR approved MT032 phase probe unused; record which action, check: {type: confirm}, source: Operator approved MT032-V11-BOUNDED-PHASE-DIAGNOSTIC; replaces GP-050 only for one named probe, state: retired}
 - {id: GP-055, role: orchestrator, at: before_round, do: confirm union known fixes bundled OR approved unused MT032 phase probe contains reviewed diagnostic changes, check: {type: confirm}, source: Operator approved MT032-V11-BOUNDED-PHASE-DIAGNOSTIC; replaces GP-021 only for one named probe, state: retired}
-- {id: GP-056, role: wp_validator, at: before_round, do: confirm MT032 save/create timeout causes traced and repairs reviewed before next union, check: {type: confirm}, source: 'FAIL_V10 + d9277d04 probe: index phase unfinished; one-use exception consumed; replaces GP-054', state: active}
+- {id: GP-056, role: wp_validator, at: before_round, do: confirm MT032 save/create timeout causes traced and repairs reviewed before next union, check: {type: confirm}, source: 'FAIL_V10 + d9277d04 probe: index phase unfinished; one-use exception consumed; replaces GP-054', state: retired}
 - {id: GP-057, role: orchestrator, at: before_round, do: confirm all known pushed fixes are bundled before the next union round, check: {type: confirm}, source: Operator one diagnostic consumed at d9277d04; restores GP-021 union-only requirement after GP-055, state: active}
 - {id: GP-058, role: orchestrator, at: before_dispatch, do: verify product remote tip fetched through its explicit tracking refspec, check: {type: git, repo_ref: product_worktree_dir, head_equals_remote: true}, source: 'dispatch mistake: kernel fetch refspec excludes feature; failed GP038 was not honored', state: active}
 - {id: GP-059, role: wp_validator, at: before_round, do: 'confirm pinned 3.2 query selectors, ordering and denied cases compared before union', check: {type: confirm}, source: 'MT032-V12: exact record arrays need cheap boundary and negative checks', state: active}
+- {id: GP-060, role: wp_validator, at: before_round, do: 'confirm alternate source repair reviewed, cheap comparisons complete and latency unknowns recorded', check: {type: confirm}, source: CX-GP-001; MT032 V12 Operator alternative implementation and one final union supersede GP056, state: active}

@@ -14,7 +14,7 @@
   "title": "E5-MT-032-EverythingIsLoomBlockBacklinks",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-26T00:39:24Z",
+  "updated_at_utc": "2026-09-26T11:24:52Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V10",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -37,8 +37,8 @@
       "MT-034",
       "MT-044"
     ],
-    "validator_verdict": "FAIL_V10",
-    "prior_validator_verdict": "PASS_V4",
+    "validator_verdict": null,
+    "prior_validator_verdict": "FAIL_V10",
     "blocked_on": null,
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
@@ -122,12 +122,12 @@
     "remediation_v3_in_progress": false,
     "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-09-25T08:33:00Z",
+    "ready_for_validation_at_utc": "2026-09-26T11:24:52Z",
     "ready_for_validation_by": "KERNEL_BUILDER",
-    "ready_for_validation_reason": "Operator-directed submission under CX-STATUS-001 and CX-EXEC-014. Product candidate 3b22f4157cf47e6619b06f39a951e7be6ff3831d is clean and pushed at origin/feat/WP-KERNEL-012. It includes a146ec70 delete search-identity collision repair and 3b22f415 failure-only native auth phase/status diagnostics. The frozen FAIL_V6 candidate 1c5214bc failed the core collision assertion and both native Loom-address proofs before their assertions; those results remain historical. The collision repair has D-target compile evidence, not independent runtime proof. The auth denial's exact failing route and cause remain unknown; the diagnostic commit is not a behavioral fix. GP-022 was confirmed for this candidate with GAMEPLAN_ROLE=builder. READY submits both cases to the next independent union round; no PASS, runtime success, or completion is claimed.",
+    "ready_for_validation_reason": "CX-STATUS-001 admission of clean pushed 49eac54e; source query reductions compiled on stable D inputs. Cheap selector/permission fixtures are advisory, not native latency proof. Details: remediation_v12. No PASS or completion.",
     "proof_status": "INDEPENDENT_RUNTIME_VALIDATION_PENDING",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_INDEPENDENT_DIAGNOSTICS_SCOPE_ARGUS_RETRY_AND_RUNTIME_CLEANUP_REVIEWS_NO_REMAINING_PRODUCT_BLOCKER",
-    "ready_for_validation_summary": "Submit clean pushed candidate 3b22f415, including a146ec70 collision repair and failure-only auth diagnostics, to the next independent union round. Native auth root cause is unresolved; READY is admission only. Current validator_verdict and completed_by are null; FAIL_V6 and earlier verdict records remain historical.",
+    "ready_for_validation_summary": "One independent union pending for 49eac54e under remediation_v12.operator_decision. Native deadline compliance remains unproven; FAIL_V10 is historical, validator_verdict/completed_by null.",
     "external_resource_proof_status": "INDEPENDENT_RUNTIME_VALIDATION_PENDING",
     "historical_missing_resource_superseded_v3": {
       "status": "SUPERSEDED_BY_V3_REAL_POSTGRESQL_PROOF",
@@ -920,17 +920,76 @@
       "causality_limit": "Extra queries are evidenced; their contribution and native deadline compliance are not yet measured"
     }],
     "repair_direction": "Skip provably empty source/candidate reads; use schema-constrained record IDs; retain permissions and write guards",
+    "preparation_gate_alignment": {
+      "authority": "CX-GP-001; remediation_v12.operator_decision; GLOBAL-GAMEPLAN-005",
+      "retired": "GP-056",
+      "replacement": "GP-060",
+      "reason": "Operator permits a reviewed alternative implementation and one final union regardless of result",
+      "retained": "Source review, actual cheap comparisons, recorded latency unknowns, full native proof and all auth/deadlines",
+      "acceptance_effect": "none; candidate latency improvement and MT PASS are not established"
+    },
     "cheap_checks": {
       "authorized_by": "remediation_v12.operator_decision",
       "engine": "SurrealDB 3.2.0 official standalone CLI",
       "owner_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/sql-advisory",
       "requested_cases": ["exact record-array selection and ordering", "missing/deleted target", "cross-workspace or denied record"],
       "acceptance_credit": false,
-      "runner": "WP_VALIDATOR"
+      "runner": "WP_VALIDATOR",
+      "result": {
+        "recorded_at_utc": "2026-09-26T11:19:48Z",
+        "kind": "ADVISORY_ONLY_NO_ACCEPTANCE",
+        "knowledge_source_sha256": "CA280761CF21963617BC8FFBC161787A9D8765E6494C023E412A80CA556F79F9",
+        "schema_sha256": "FAC15C07121D32DF355B960E26DF51026E1FAC09689DB2B7C44FBCF5D508C584",
+        "cli_sha256": "9382A851A54DF09AAF39C74C0B010A14B09F2565651F620E83C21DC1F1BCA8D3",
+        "root_selector_result": "sql-advisory/20260926T111459695Z-stdout.jsonl",
+        "root_selector_provenance": "sql-advisory/20260926T111459695Z-provenance.json",
+        "root_selector_provenance_sha256": "6246C93D9889C49AA148D58DDE7AFB3657EA79669B145DAA5793BC38760035E9",
+        "root_selector_result_sha256": "BB6C27442DB39A0B2F74585B1D7F90FB23255D188BBBB5AFE3DF5500286C347D",
+        "root_selector_input_sha256": "FEF2A125FAFC9403DD53136C5011212CB93376223FB3FD433044283B6788F2DB",
+        "root_selector_elapsed_ms": 702,
+        "root_selector_assertions": "All ten true: source/doc/docs/Loom equality; None lookup empty; missing/foreign source empty; deleted live-doc read empty; empty document/Loom arrays empty",
+        "ordering_and_shape": "Document array returns KRD-a, KRD-deleted(is_live=false), KRD-z; foreign document excluded; Loom retains foreign workspace row for unchanged caller rejection",
+        "explain_syntax": "Pinned installed 3.2.0 accepted trailing EXPLAIN FULL; no reliance on >=3.3 index fusion",
+        "explain_observed": "Baseline IndexScan(workspace) -> Filter -> SortByKey -> Compute -> SelectProject: 3 rows; candidate SourceExpr(4 existing records) -> Filter -> SortByKey -> Compute -> SelectProject: 3 rows",
+        "explain_operator_elapsed_ns": {"baseline_source": 30300, "candidate_source": 57700, "baseline_filter": 5800, "candidate_filter": 12200},
+        "simplified_permission_result": "sql-advisory/20260926T111728308Z-permissions.json",
+        "simplified_permission_result_sha256": "8614C0F4F10C156F8A810BE4664003E895F97F46023383EACE843895C43EDF6B",
+        "simplified_permission_input_sha256": "6D7FF995EB0D604CB129A55D2B5483D4885A09B9E832A18B20B53DE605B5D618",
+        "simplified_permission_elapsed_ms": 1365,
+        "simplified_permission_observed": "All four old/new pairs equal for owned, cross-workspace and revoked record; denied document/source rows empty; revoked Loom rows empty",
+        "process_ownership": "Root CLI PIDs 209668/215476 exited; loopback server PIDs 216252/197280/144988 started by WPV and reaped by finally; no foreign process stopped",
+        "retained_attempt_errors": "First stdin Unicode record delimiters became '?' despite CLI exit0; corrected ASCII type::record fixture. Auth setup initially lacked Accept JSON, then required Surreal-NS/Surreal-DB headers. Failed outputs retained; none count as proof",
+        "source_review": "Identity asserts knowledge_sources:3511, knowledge_rich_documents:3771, loom_blocks:499 plus canonical create/import bindings preserve record key equality; original filters/order, title fallback, per-operation record SIGNIN, write transaction and authority fences retained",
+        "counterfactuals": ["Removing schema identity equality would invalidate exact-record equivalence", "Dropping workspace predicate or caller foreign_loom_ids rejection would permit cross-workspace resolution"],
+        "limits": "11 data rows, root-only selector fixture plus simplified record permission predicate, not production grant/signin/fence proof; no Rust Vec binding transport, native deadlines, EventLedger/write cost or dominant bottleneck proof; tiny candidate plan not faster; final union required",
+        "status_effect": "none; no MT verdict or GP056 latency claim"
+      }
     },
-    "next_action": "Stable-input D compile and push; independent cheap query comparison; then one gated union",
+    "implementation_evidence": {
+      "candidate_commit": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
+      "remote_verified_at_utc": "2026-09-26T11:24:52Z",
+      "changed_paths": ["src/backend/handshake_core/src/storage/surreal/knowledge.rs"],
+      "compile": {
+        "command": "cargo check --locked --tests --features app-runtime,surreal-test-support,test-utils -j 1",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target",
+        "log_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260926-mt032-document-query-precision-core-check.log",
+        "log_sha256": "61E59DFE19B61C3A5844BF3E356295A01D5E05814C3ECBAF3BC82D6951FAC45A",
+        "exit_code": 0,
+        "elapsed_seconds": 552,
+        "input_count": 1228,
+        "input_digest_before_and_after": "4BB280396B62233178FF8E93A6D82DD3CAB96A28D4CA0CBCCE4C36495A7C8AF7",
+        "knowledge_source_sha256": "CA280761CF21963617BC8FFBC161787A9D8765E6494C023E412A80CA556F79F9",
+        "tests_run": false
+      },
+      "static_checks": ["scoped rustfmt check", "git diff --check"],
+      "advisory_review_refs": ["remediation_v12.cheap_checks.result", "RESEARCH_WP-KERNEL-012_MT-032_latency_2026-09-26.md"],
+      "gameplan": "Builder current-candidate before_submit 1/1; orchestrator before_dispatch 4/4",
+      "acceptance_limit": "Source reductions compiled; native latency improvement and full product permission equivalence unproven"
+    },
+    "next_action": "Independent prelaunch coverage/cap checks; freeze pushed candidate and run one union",
     "validation_runs_completed": 0,
-    "status_effect": "none; last independent verdict remains FAIL_V10 until actual repair submission"
+    "status_effect": "READY_FOR_VALIDATION admission under CX-STATUS-001; no PASS or completion; FAIL_V10 retained historically"
   },
   "remediation_v11": {
     "batch_owner": "MT-032",
