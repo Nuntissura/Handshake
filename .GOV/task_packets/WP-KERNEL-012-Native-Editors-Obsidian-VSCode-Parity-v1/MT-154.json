@@ -2304,6 +2304,32 @@
           "reason": "Document block tree/backlink/storage consume these helpers; move the single implementation and retain core reexports",
           "unchanged": "ContextBundle structure and validation; hash byte semantics"
         },
+        "behavioral_candidates": {
+          "diagnosis_id": "MT032-DOCUMENT-DISPATCH-20260926",
+          "cause": "Independent prior-state reads and post-transaction result fetch use separate authenticated dispatches",
+          "evidence_refs": [
+            "49eac54e:src/backend/handshake_core/src/storage/surreal/knowledge.rs:read_prior_backlink_state",
+            "49eac54e:src/backend/handshake_core/src/storage/surreal/knowledge.rs:owned_source_upsert_rows",
+            "49eac54e:src/backend/handshake_core/src/storage/surreal.rs:with_data_operation",
+            "MT-032.validation_v11"
+          ],
+          "distinct_from": "49e selector precision changed lookup sets; this candidate changes redundant dispatch boundaries",
+          "unproved": "Dispatch cost dominance and native deadline repair remain unproved; no cached authentication is authorized",
+          "backlinks": "Batch the same two independent prior-state SELECTs under one fresh authenticated read; no new transaction",
+          "index": "Read the same source row after authority/count fences inside the existing transaction; inspect COMMIT errors",
+          "required_invariants": [
+            "Preserve predicates, binds, ordering, live row permissions, source reread, guards, keyed locks and retry bounds",
+            "Check all statement and COMMIT errors before decoding known result slots",
+            "Preserve required awaited indexing, receipt durability, public deadlines and nonfatal postcommit error reporting"
+          ],
+          "race_semantics": [
+            "Combined reads remove the second SIGNIN boundary; live row checks and subsequent guarded write remain mandatory",
+            "In-transaction source result reflects its committed snapshot rather than a later separately authenticated reread"
+          ],
+          "review": "Independent WPV source review found these bounded candidates; runtime equivalence and deadlines not proven",
+          "proof": "Existing document API and native union plus relevant auth, revocation and closed-lifecycle regressions",
+          "attribution": "Separate repair commit after compiled structural checkpoint; preserve all prior attempts and verdicts"
+        },
         "excluded": [
           "native UI",
           "unrelated MT repair",
