@@ -26,7 +26,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V11",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -1403,8 +1403,12 @@
     "failure_ref": "validation_v11",
     "previous_union_consumed": true,
     "prior_attempts_preserved": true,
-    "status_effect": "none; FAIL_V11 retained until changed candidate and independent proof",
-    "next_action": "Implement bounded extraction; select repair from inspected source and independent review before costly proof",
+    "status_effect": "READY_FOR_VALIDATION on pushed repair; prior FAIL_V11 verdict and attempt history remain preserved",
+    "structural_commit": "22c64a06cf986fa1c32e1b94e94729d13dff109d",
+    "candidate_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f",
+    "diagnosis_ref": "MT-154.mt032_behavioral_remediation_request.renewed_assignments[MT032-DOCUMENT-EXTRACTION-20260926].behavioral_candidates",
+    "implementation_evidence_ref": "MT-154.mt032_behavioral_remediation_request.renewed_assignments[MT032-DOCUMENT-EXTRACTION-20260926].submission",
+    "next_action": "WP_VALIDATOR freezes pushed candidate and runs required union; deadlines, durable state and Argus remain unproved",
     "agents": {
       "coder": "/root/document_coder Astra medium",
       "wp_validator": "/root/wp_validator Sol medium",

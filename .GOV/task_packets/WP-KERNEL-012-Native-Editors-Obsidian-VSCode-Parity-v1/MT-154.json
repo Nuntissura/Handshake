@@ -2328,7 +2328,42 @@
           ],
           "review": "Independent WPV source review found these bounded candidates; runtime equivalence and deadlines not proven",
           "proof": "Existing document API and native union plus relevant auth, revocation and closed-lifecycle regressions",
+          "additional_existing_proof_selection": [
+            "knowledge_fail_closed_tests",
+            "storage::surreal::resource_authority_tests::revoked_session_and_disabled_account_fail_closed",
+            "storage::surreal::resource_authority_tests::memory_source_reads_require_exact_grants_and_preserve_derived_origin"
+          ],
+          "proof_limit": "These cover boundary invariants, not forced revocation exactly between paired reads or after source commit",
           "attribution": "Separate repair commit after compiled structural checkpoint; preserve all prior attempts and verdicts"
+        },
+        "submission": {
+          "submitted_by": "KERNEL_BUILDER",
+          "structural_commit": "22c64a06cf986fa1c32e1b94e94729d13dff109d",
+          "candidate_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f",
+          "branch": "feat/WP-KERNEL-012",
+          "worktree": "../wtc-native-editors-v1",
+          "tree_state": "clean; local HEAD independently matched live remote before submission",
+          "source_digest": "e9584c3cb428f341ee5408299d744d86bdefe5d03a02ea9e2e8dd33a0112c25e",
+          "builder_checks": [
+            "storage_support all-targets surreal-test-support: exit0; unchanged inputs reused after structural check",
+            "document all-targets surreal-test-support: exit0 on repair candidate",
+            "core tests app-runtime,surreal-test-support,test-utils: exit0 on repair candidate"
+          ],
+          "builder_log_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs",
+          "builder_log_tags": [
+            "20260926-document-extraction-attempt2",
+            "20260926-document-extraction-attempt3",
+            "20260926-document-dispatch-attempt1b"
+          ],
+          "review": "Parent and independent WPV inspected actual structural/repair diffs; no open source-level blocker",
+          "runtime_proof": "NOT_RUN; native deadlines, result slot, authorization races, durable state and mounted Argus remain unproved",
+          "validator": "/root/wp_validator Sol medium; sole test runner and verdict author",
+          "next_action": "Freeze clean pushed candidate and validate all READY MTs plus relevant invalidated proof in one union",
+          "capacity_evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-document-extraction-20260926/manifest.json",
+          "capacity_after_retention_bytes": 102140506226,
+          "capacity_cap_bytes": 150000000000,
+          "capacity_condition": "Projected growth is provisioned, not a measured peak; supervise C usage through the whole round",
+          "counter_policy": "No prior verdict, failure, attempt or retry counter reset"
         },
         "excluded": [
           "native UI",
