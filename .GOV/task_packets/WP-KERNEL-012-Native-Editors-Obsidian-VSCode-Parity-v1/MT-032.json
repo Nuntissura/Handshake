@@ -987,7 +987,7 @@
       "acceptance_boundary": "Diagnostic only; one full required union remains after actual fixes and independent inexpensive review",
       "uncertainty": "An enclosing phase may need deeper diagnosis; non-reproduction does not explain the historical failure",
       "advisory_ref": "WP_VALIDATOR 01a0db0c-e4d4-73a0-be7d-33ebb18bff84 read-only conclusion 2026-09-26",
-      "executed": false
+      "executed": true
     },
     "validation_limit": "One independent union only after all recorded MT failures are repaired and cheap review passes",
     "operator_decision": {
@@ -997,7 +997,7 @@
       "scope": "Sanitized backend phase diagnostics under MT-154 ownership; one focused replay of both named failures",
       "build_permission": "Build affected backend/native binaries from frozen pushed export; reuse warm targets; C cap unchanged",
       "limits": "No SQL/content/credential logging; no broader tests; diagnostic is not validation; one union follows actual fixes",
-      "probe_runs_completed": 0
+      "probe_runs_completed": 1
     },
     "diagnostic_entrypoint": {
       "approval_ref": "remediation_v11.operator_decision",
@@ -1022,6 +1022,35 @@
       "cache_forecast": {"measured_C_bytes": 142350591888, "reserved_growth_bytes": 3000000000, "projected_C_bytes": 145350591888, "cap_bytes": 150000000000, "cleanup": false},
       "prelaunch": "Reviewed pushed source and runner; role gameplan; fresh vault probe; process ownership; path/env and cap checks",
       "acceptance": "Diagnostic evidence only; no MT verdict or readiness from this replay"
+    },
+    "diagnostic_result": {
+      "approval_id": "MT032-V11-BOUNDED-PHASE-DIAGNOSTIC",
+      "candidate_commit": "d9277d04f03490f9ceac1c9f4684e02757d8d43a",
+      "test_started_at_utc": "2026-09-26T02:41:38Z",
+      "nextest_exit": 100,
+      "tests_run": 2,
+      "passed": 0,
+      "failed": 2,
+      "test_elapsed_seconds": 138.812,
+      "native_build_seconds": 89,
+      "backend_build_seconds": 309,
+      "junit_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-d9277d04f03490f9ceac1c9f4684e02757d8d43a-mt032-phase-probe.xml",
+      "junit_sha256": "62161E598EEBC973DCDAC3281C8E9CFAFD6B3204B2D700D19DDC6625E2C56360",
+      "backend_binary_sha256": "DD553A70BB156A6C54310CA2A08FD8C8FFADB6EDE0B1FB456A7EFBBE522066E3",
+      "phase_capture_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-phase-watch-d9277d04f03490f9ceac1c9f4684e02757d8d43a.jsonl",
+      "phase_capture_sha256": "219BB11650E4FBEE99DD79D9AB3B531EA6D59474593680B8C688DA3E9AEE54B6",
+      "phase_records": 72,
+      "phase_completeness": "WPV reconciled 72/72 unique source events with capture, no missing/extra; original incomplete_stream flag retained",
+      "observer_defect": "JSON timestamps auto-converted to DateTime then failed string parsing under en-BE; stdout preserved all counterparts",
+      "source_log_reconciliation": "Both index terminal events are absent from both retained projections; no claim of internal deadlock",
+      "client_deadlines_seconds": {"self_seeded_create": 10, "owned_restart_save": 15},
+      "observed_save": "Request 8efbc5ec-0e18-4385-9cf6-97004a91f9fd: transaction 4840ms, receipt 2692ms, backlinks 7253ms, embeds 11ms; save_index begins without captured terminal; client request_send TimedOut",
+      "observed_create_A": "Request e0ecd334-769c-4350-a5dd-47f79007bdb0: transaction 5390ms, receipt 2626ms, embeds 12ms; create_index begins without captured terminal; client request_send is_timeout=true",
+      "cause_limit": "Index is last observed await, not a proven internal cause; no deadlock, hardware or waiver conclusion",
+      "final_C_target_bytes": 142932002695,
+      "observer_exit": "Stopped through owned stop signal; summary at 2026-09-26T02:44:57.5492172Z",
+      "next_action": "Inspect index implementation and caller cancellation with retained evidence; no second diagnostic replay",
+      "acceptance_effect": "none; diagnostic only; independent union remains unused; FAIL_V10 unchanged"
     },
     "status_effect": "none; partial repair is not a validation submission; FAIL_V10 remains the last independent verdict"
   },
