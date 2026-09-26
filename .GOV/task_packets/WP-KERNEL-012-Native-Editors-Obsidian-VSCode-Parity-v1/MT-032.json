@@ -14,7 +14,7 @@
   "title": "E5-MT-032-EverythingIsLoomBlockBacklinks",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-25T22:05:00Z",
+  "updated_at_utc": "2026-09-26T00:39:24Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -945,8 +945,52 @@
       "https://tokio.rs/tokio/tutorial/shared-state"
     ],
     "research_disposition": "Retain bounded request deadlines; trace actual lock ownership; no unsupported timeout or dependency change",
+    "implementation_evidence": {
+      "commit": "bc0153f187140026d7818bfd6f8f2225583ac9e8",
+      "remote_verification_recorded_at_utc": "2026-09-26T00:39:24Z",
+      "changed_paths": [
+        "src/frontend/handshake_native/tests/backend_proof_support/mod.rs",
+        "src/frontend/handshake_native/tests/test_loom_address.rs"
+      ],
+      "compile": {
+        "command": "cargo check --locked --tests --features integration,integration_tests -j 1",
+        "cwd": "../wtc-native-editors-v1/src/frontend/handshake_native",
+        "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target",
+        "log_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260926-mt032-v11-native-check.log",
+        "exit_code": 0,
+        "elapsed_seconds": 112,
+        "input_digests_unchanged": true,
+        "tests_run": false
+      },
+      "static_checks": ["rustfmt --check on both changed files: exit 0", "git diff --check: exit 0"],
+      "advisory_reviews": [
+        {"agent": "01a0db0c-e4d4-73a0-be7d-33ebb18bff84", "role": "WP_VALIDATOR", "scope": "Owned reaped-child teardown, containment and intentional negative fixture", "result": "No source blocker found in inspected patch; no runtime verdict"},
+        {"agent": "01a0db18-32c1-7433-a26d-dda58e0aff38", "role": "read_only_reviewer", "scope": "Typed create errors, both callers, response redaction and missing/null/nonobject document", "result": "4 KiB bounds retained diagnostics, not reqwest chunk allocation; no other source finding"}
+      ],
+      "gameplan": "Builder refreshed --by builder confirmations on bc0153f1; before_submit 1/1, before_round 7/7",
+      "acceptance_limit": "Secondary cleanup/error-erasure repair only; save/create primary causes unresolved; no validation submitted"
+    },
+    "operator_decision_request": {
+      "id": "MT032-V11-BOUNDED-PHASE-DIAGNOSTIC",
+      "recorded_at_utc": "2026-09-26T00:39:24Z",
+      "blocker": "Retained logs lack await phases; retained executable erases create errors; primary causes remain unlocated",
+      "requested_scope": "Authorize sanitized knowledge_documents.rs phase markers under MT-154 ownership plus one diagnostic probe",
+      "requested_probe": "Frozen pushed export; rebuild affected backend/native executables using warm targets; two failed native cases only",
+      "test_names": [
+        "live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash",
+        "live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof"
+      ],
+      "authority_boundary": "MT-032 scope forbids src/backend/**; focused diagnostic build/run needs exception to union-only execution",
+      "authority_refs": ["scope.forbidden_paths", "CX-EXEC-011/014", "CX-VAL-001/007", "MT-154.remediation_v4.changed_files"],
+      "required_observation": "Correlate client failure branch with last started/completed server phase; no SQL, content or credentials",
+      "cost_constraint": "No cache clean; verify warm artifact compatibility and projected C target <=150000000000 before dispatch",
+      "acceptance_boundary": "Diagnostic only; one full required union remains after actual fixes and independent inexpensive review",
+      "uncertainty": "An enclosing phase may need deeper diagnosis; non-reproduction does not explain the historical failure",
+      "advisory_ref": "WP_VALIDATOR 01a0db0c-e4d4-73a0-be7d-33ebb18bff84 read-only conclusion 2026-09-26",
+      "executed": false
+    },
     "validation_limit": "One independent union only after all recorded MT failures are repaired and cheap review passes",
-    "status_effect": "none; FAIL_V10 retained pending a newer implementer submission"
+    "status_effect": "none; partial repair is not a validation submission; FAIL_V10 remains the last independent verdict"
   },
   "remediation_v10": {
     "diagnosis_id": "MT032-OWNED-FIXTURE-VAULT-TEARDOWN-ORDER",
