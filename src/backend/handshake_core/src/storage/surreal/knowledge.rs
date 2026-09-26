@@ -1449,12 +1449,21 @@ async fn owned_source_upsert_rows(
     mut binds: Binds,
     source_id: String,
     workspace_id: String,
+    has_relative_path: bool,
 ) -> StorageResult<Vec<SourceRecord>> {
     let Some(scope) = super::current_record_user_scope() else {
         return query_rows(storage, statement, binds).await;
     };
-    let existing: Vec<SourceRecord> = query_rows(storage,
-        "SELECT * FROM knowledge_sources WHERE $relative_path != NONE AND workspace_id = $workspace AND root_id = $root_id AND relative_path = $relative_path;", binds.clone()).await?;
+    let existing: Vec<SourceRecord> = if has_relative_path {
+        query_rows(
+            storage,
+            "SELECT * FROM knowledge_sources WHERE $relative_path != NONE AND workspace_id = $workspace AND root_id = $root_id AND relative_path = $relative_path;",
+            binds.clone(),
+        )
+        .await?
+    } else {
+        Vec::new()
+    };
     if existing.len() > 1 {
         return Err(StorageError::Validation("HSK-403-PROTECTED-RESOURCE"));
     }
@@ -1500,7 +1509,12 @@ async fn owned_source_upsert_rows(
     raw_execute(storage, sql, binds.clone())
         .await
         .map_err(map_err)?;
-    query_rows(storage, "SELECT * FROM knowledge_sources WHERE source_id = $result_id AND workspace_id = $workspace;", binds).await
+    query_rows(
+        storage,
+        "SELECT * FROM type::record('knowledge_sources', $result_id) WHERE source_id = $result_id AND workspace_id = $workspace;",
+        binds,
+    )
+    .await
 }
 async fn query_first_row<R>(
     storage: &SurrealStorage,
@@ -1690,20 +1704,43 @@ async fn resolve_backlink_rows(
     candidate_ids.sort();
     candidate_ids.dedup();
 
-    let candidate_targets: Vec<CandidateDocRecord> = query_rows(
-        storage,
-        "SELECT rich_document_id, title, (deleted_at = NONE) AS is_live \
-         FROM knowledge_rich_documents \
-         WHERE workspace_id = $workspace \
-           AND (rich_document_id IN $candidate_ids OR title IN $candidate_titles) \
-         ORDER BY rich_document_id ASC;",
-        vec![
-            b("workspace", thing(WORKSPACES_TABLE, workspace_key)),
-            b("candidate_ids", candidate_ids),
-            b("candidate_titles", candidate_titles),
-        ],
-    )
-    .await?;
+    let candidates_empty = candidate_titles.is_empty() && candidate_ids.is_empty();
+    let candidate_targets: Vec<CandidateDocRecord> = if candidates_empty {
+        Vec::new()
+    } else if candidate_titles.is_empty() {
+        let candidate_records: Vec<RecordId> = candidate_ids
+            .iter()
+            .map(|id| thing(KNOWLEDGE_RICH_DOCUMENTS_TABLE, id))
+            .collect();
+        query_rows(
+            storage,
+            "SELECT rich_document_id, title, (deleted_at = NONE) AS is_live \
+             FROM $candidate_records \
+             WHERE workspace_id = $workspace AND rich_document_id IN $candidate_ids \
+             ORDER BY rich_document_id ASC;",
+            vec![
+                b("workspace", thing(WORKSPACES_TABLE, workspace_key)),
+                b("candidate_ids", candidate_ids),
+                b("candidate_records", candidate_records),
+            ],
+        )
+        .await?
+    } else {
+        query_rows(
+            storage,
+            "SELECT rich_document_id, title, (deleted_at = NONE) AS is_live \
+             FROM knowledge_rich_documents \
+             WHERE workspace_id = $workspace \
+               AND (rich_document_id IN $candidate_ids OR title IN $candidate_titles) \
+             ORDER BY rich_document_id ASC;",
+            vec![
+                b("workspace", thing(WORKSPACES_TABLE, workspace_key)),
+                b("candidate_ids", candidate_ids),
+                b("candidate_titles", candidate_titles),
+            ],
+        )
+        .await?
+    };
     let live_ids: HashSet<String> = candidate_targets
         .iter()
         .filter(|row| row.is_live)
@@ -1734,13 +1771,24 @@ async fn resolve_backlink_rows(
         .collect();
     candidate_loom_ids.sort();
     candidate_loom_ids.dedup();
-    let candidate_loom_targets: Vec<CandidateLoomRecord> = query_rows(
-        storage,
-        "SELECT block_id, workspace_id FROM loom_blocks \
-         WHERE block_id IN $candidate_loom_ids ORDER BY block_id ASC;",
-        vec![b("candidate_loom_ids", candidate_loom_ids)],
-    )
-    .await?;
+    let candidate_loom_targets: Vec<CandidateLoomRecord> = if candidate_loom_ids.is_empty() {
+        Vec::new()
+    } else {
+        let candidate_loom_records: Vec<RecordId> = candidate_loom_ids
+            .iter()
+            .map(|id| thing(LOOM_BLOCKS_TABLE, id))
+            .collect();
+        query_rows(
+            storage,
+            "SELECT block_id, workspace_id FROM $candidate_loom_records \
+             WHERE block_id IN $candidate_loom_ids ORDER BY block_id ASC;",
+            vec![
+                b("candidate_loom_ids", candidate_loom_ids),
+                b("candidate_loom_records", candidate_loom_records),
+            ],
+        )
+        .await?
+    };
     let mut live_loom_ids: HashSet<String> = HashSet::new();
     let mut foreign_loom_ids: HashSet<String> = HashSet::new();
     for row in candidate_loom_targets {
@@ -1809,7 +1857,7 @@ async fn read_live_rich_document(
 ) -> StorageResult<Option<KnowledgeRichDocument>> {
     query_first_row::<RichDocRecord>(
         storage,
-        "SELECT * FROM knowledge_rich_documents \
+        "SELECT * FROM type::record('knowledge_rich_documents', $doc_id) \
          WHERE rich_document_id = $doc_id AND deleted_at = NONE;",
         vec![b("doc_id", rich_document_id.to_owned())],
     )
@@ -3208,7 +3256,9 @@ impl KnowledgeStore for SurrealDatabase {
                             new_source.source_modified_at.map(Datetime::from),
                         ),
                     ],
-                    source_id, new_source.workspace_id.clone(),
+                    source_id,
+                    new_source.workspace_id.clone(),
+                    relative_path.is_some(),
                 )
             },
         )
