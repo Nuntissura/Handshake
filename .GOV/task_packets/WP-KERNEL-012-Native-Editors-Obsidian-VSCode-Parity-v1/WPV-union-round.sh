@@ -137,6 +137,7 @@ NATIVE_TARGET_ARGS=(--lib)
 for t in "${NATIVE_TESTS[@]}"; do NATIVE_TARGET_ARGS+=(--test "$t"); done
 
 core_test_args=(); for t in "${CORE_TESTS[@]}"; do core_test_args+=(--test "$t"); done
+EXTRACTED_CRATES=(handshake_document handshake_storage_support)
 
 echo "[run-round] building core union"
 ( cd "$EXPORT/src/backend/handshake_core" && \
@@ -147,6 +148,13 @@ echo "[run-round] building native union"
 ( cd "$EXPORT/src/frontend/handshake_native" && \
   cargo test --locked -j 2 --no-run --features integration,integration_tests,wgpu_screenshots "${NATIVE_TARGET_ARGS[@]}" )
 check_target_cap
+
+for crate in "${EXTRACTED_CRATES[@]}"; do
+  echo "[run-round] building extracted $crate unit target"
+  ( cd "$EXPORT/src/backend/$crate" && \
+    cargo test --locked -j 2 --no-run --lib --features surreal-test-support )
+  check_target_cap
+done
 
 echo "[run-round] building backend binary for HSK_TEST_BACKEND_BIN"
 ( cd "$EXPORT/src/backend/handshake_core" && \
@@ -185,7 +193,7 @@ echo "[run-round] native nextest MT-008 owned-backend group verified"
 #    once confirmed.
 OWNER_BIN="test_app_host_mount"
 EXCLUDE_FILTER="not (test(/backend_proof_support::failure_diagnostic_tests::/) and not binary($OWNER_BIN))"
-CORE_FILTER='not binary(handshake_core) or test(/^(api::flight_recorder::tests::document_saved_receipt_|storage::surreal::schema::tests::(declarative_schema_catalog_is_complete_and_content_sensitive|mt139_current_schema_info_pin_matches_fresh_mem_catalog|mt109_loom_catalog_dependencies_are_complete_and_deterministic|mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin|mt138_full_schema_atelier_noop_matches_bounded_projection|mt109_authority_catalog_pins_are_deterministic|mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current|canvas_receipt_revision_158_upgrade_requires_exact_catalog_and_restarts_current|standalone_loom_revision_159_upgrade_requires_exact_catalog_and_restarts_current|schema_delta_upgrade_statements_re_emit_every_mt154_delta)$|api::loom::tests::(mt153_loom_route_family_authority_matrix|mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows)$|api::workspaces::tests::(owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit|mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default|mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows)$|api::kernel::tests::|storage::surreal::mt136_database_surface_proof_(a|b|c)::|api::debug_adapter::|api::jobs::tests::(create_job_rejects_unknown_job_kind|create_job_allows_terminal_when_authorized)$)/)'
+CORE_FILTER='not binary(handshake_core) or test(/^(api::flight_recorder::tests::document_saved_receipt_|storage::surreal::retry::tests::|storage::surreal::schema::tests::(declarative_schema_catalog_is_complete_and_content_sensitive|mt139_current_schema_info_pin_matches_fresh_mem_catalog|mt109_loom_catalog_dependencies_are_complete_and_deterministic|mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin|mt138_full_schema_atelier_noop_matches_bounded_projection|mt109_authority_catalog_pins_are_deterministic|mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current|canvas_receipt_revision_158_upgrade_requires_exact_catalog_and_restarts_current|standalone_loom_revision_159_upgrade_requires_exact_catalog_and_restarts_current|schema_delta_upgrade_statements_re_emit_every_mt154_delta)$|api::loom::tests::(mt153_loom_route_family_authority_matrix|mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows)$|api::workspaces::tests::(owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit|mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default|mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows)$|api::kernel::tests::|storage::surreal::mt136_database_surface_proof_(a|b|c)::|api::debug_adapter::|api::jobs::tests::(create_job_rejects_unknown_job_kind|create_job_allows_terminal_when_authorized)$)/)'
 
 echo "[run-round] nextest CORE run"
 CORE_JUNIT="$EXPORT/src/backend/handshake_core/target/nextest/default/junit.xml"
@@ -252,8 +260,40 @@ else
   NATIVE_INVALID=1
 fi
 
-if [[ "${CORE_INVALID:-0}" == 1 || "${NATIVE_INVALID:-0}" == 1 ]]; then
-  echo "[run-round] INVALID_ROUND_RESULT core_exit=$CORE_NEXTEST_EXIT native_exit=$NATIVE_NEXTEST_EXIT"
+EXTRACTED_INVALID=0
+EXTRACTED_RESULTS=()
+for crate in "${EXTRACTED_CRATES[@]}"; do
+  echo "[run-round] nextest extracted $crate unit run"
+  CRATE_JUNIT="$EXPORT/src/backend/$crate/target/nextest/default/junit.xml"
+  CRATE_JUNIT_MARKER="$LANE/tmp/$crate-junit-start-$SHA"
+  touch "$CRATE_JUNIT_MARKER"
+  set +e
+  ( cd "$EXPORT/src/backend/$crate" && \
+    "$NEXTEST" nextest run --locked --no-fail-fast \
+      --config-file "$LANE/nextest-core.toml" --lib --features surreal-test-support )
+  CRATE_NEXTEST_EXIT=$?
+  set -e
+  EXTRACTED_RESULTS+=("$crate:exit=$CRATE_NEXTEST_EXIT")
+  if [[ "$CRATE_NEXTEST_EXIT" != 0 && "$CRATE_NEXTEST_EXIT" != 100 ]]; then
+    echo "[run-round] EXTRACTED_NEXTEST_ABNORMAL crate=$crate exit=$CRATE_NEXTEST_EXIT"
+    EXTRACTED_INVALID=1
+  elif [[ -f "$CRATE_JUNIT" && "$CRATE_JUNIT" -nt "$CRATE_JUNIT_MARKER" ]]; then
+    CRATE_TEST_COUNT="$(sed -n 's/^<testsuites[^>]* tests="\([0-9][0-9]*\)".*/\1/p' "$CRATE_JUNIT" | head -n 1)"
+    if [[ -n "$CRATE_TEST_COUNT" && "$CRATE_TEST_COUNT" -gt 0 ]]; then
+      cp "$CRATE_JUNIT" "$LANE/junit-$SHA-$crate.xml"
+      echo "[run-round] extracted crate=$crate exit=$CRATE_NEXTEST_EXIT tests=$CRATE_TEST_COUNT"
+    else
+      echo "[run-round] EXTRACTED_ZERO_OR_UNPARSEABLE_TEST_COUNT crate=$crate"
+      EXTRACTED_INVALID=1
+    fi
+  else
+    echo "[run-round] EXTRACTED_JUNIT_MISSING_OR_STALE crate=$crate path=$CRATE_JUNIT"
+    EXTRACTED_INVALID=1
+  fi
+done
+
+if [[ "${CORE_INVALID:-0}" == 1 || "${NATIVE_INVALID:-0}" == 1 || "$EXTRACTED_INVALID" == 1 ]]; then
+  echo "[run-round] INVALID_ROUND_RESULT core_exit=$CORE_NEXTEST_EXIT native_exit=$NATIVE_NEXTEST_EXIT extracted_invalid=$EXTRACTED_INVALID extracted=${EXTRACTED_RESULTS[*]}"
   exit 4
 fi
-echo "[run-round] done. junit: $LANE/junit-$SHA-core.xml , $LANE/junit-$SHA-native.xml (core_exit=$CORE_NEXTEST_EXIT native_exit=$NATIVE_NEXTEST_EXIT)"
+echo "[run-round] done. junit: $LANE/junit-$SHA-core.xml , $LANE/junit-$SHA-native.xml , $LANE/junit-$SHA-handshake_document.xml , $LANE/junit-$SHA-handshake_storage_support.xml (core_exit=$CORE_NEXTEST_EXIT native_exit=$NATIVE_NEXTEST_EXIT extracted=${EXTRACTED_RESULTS[*]})"

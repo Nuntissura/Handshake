@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 44
+generation: 47
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -79,7 +79,7 @@ steps:
 - {id: GP-058, role: orchestrator, at: before_dispatch, do: verify product remote tip fetched through its explicit tracking refspec, check: {type: git, repo_ref: product_worktree_dir, head_equals_remote: true}, source: 'dispatch mistake: kernel fetch refspec excludes feature; failed GP038 was not honored', state: active}
 - {id: GP-059, role: wp_validator, at: before_round, do: 'confirm pinned 3.2 query selectors, ordering and denied cases compared before union', check: {type: confirm}, source: 'MT032-V12: exact record arrays need cheap boundary and negative checks', state: active}
 - {id: GP-060, role: wp_validator, at: before_round, do: 'confirm alternate source repair reviewed, cheap comparisons complete and latency unknowns recorded', check: {type: confirm}, source: CX-GP-001; MT032 V12 Operator alternative implementation and one final union supersede GP056, state: active}
-- {id: GP-061, role: wp_validator, at: before_submit, do: 'confirm exact PDB list, containment, no users and preserved reuse before listed-file cleanup', check: {type: confirm}, source: CX-984-006; cap forecast exceeds 150 GB; only invalidated final core-test symbols are disposable, state: active}
+- {id: GP-061, role: wp_validator, at: before_submit, do: 'confirm exact PDB list, containment, no users and preserved reuse before listed-file cleanup', check: {type: confirm}, source: CX-984-006; cap forecast exceeds 150 GB; only invalidated final core-test symbols are disposable, state: retired}
 - {id: GP-062, role: wp_validator, at: before_verdict, do: confirm MT136 own proof floor covered or leave unclosed; A/B/C alone cannot establish PASS, check: {type: confirm}, source: 'prelaunch miss: MT136 PT136-3 and close/reopen requirements omitted from coverage review', state: active}
 - {id: GP-063, role: wp_validator, at: before_verdict, do: confirm current verdict failure kinds are product|infrastructure|flaky, check: {type: confirm}, source: draft used product_proof_boundary; CX-VAL-006 requires canonical failure-kind enum, state: active}
 - {id: GP-064, role: orchestrator, at: before_dispatch, do: confirm next repair distinguishes save-backlinks and create-index failures in current source, check: {type: confirm}, source: 'fail: 49e MT032 save/create timeouts survive query-only reduction', state: active}
@@ -91,3 +91,5 @@ steps:
 - {id: GP-070, role: builder, at: before_round, do: confirm extracted manifests declare copied code dependencies without external version changes, check: {type: confirm}, source: 'review: extracted retry used undeclared getrandom', state: active}
 - {id: GP-071, role: builder, at: before_round, do: confirm tracked extraction diff preserves original UTF-8 text, check: {type: confirm}, source: 'review: default encoding rewrote unrelated comments as mojibake', state: active}
 - {id: GP-072, role: builder, at: before_round, do: confirm moved self-test imports and cross-crate test-support visibility before compile, check: {type: confirm}, source: 'compile: moved keyed-lock test lacked futures dev dependency and helper visibility', state: active}
+- {id: GP-073, role: wp_validator, at: before_dispatch, do: 'confirm exact C application output manifest, D retention hashes and no active use before removal', check: {type: confirm}, source: 'capacity: candidate union plus new crate variants exceed cap unless invalidated finals are retained off C', state: active}
+- {id: GP-074, role: wp_validator, at: before_submit, do: 'confirm C output ownership, D retention destination, free space and bounded copy/hash throughput', check: {type: confirm}, source: 'capacity: preserve invalidated application outputs before selective C cleanup', state: active}
