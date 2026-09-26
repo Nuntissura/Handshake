@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 22
+generation: 24
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -39,7 +39,7 @@ steps:
 - {id: GP-018, role: orchestrator, at: before_round, do: verify product worktree staged tree clean, check: {type: cmd, argv: [git, -C, '{ref:product_worktree_dir}', diff, --cached, --quiet], expect_exit: 0}, source: 'W12-A01/D01: product worktree cleanliness before round', state: retired}
 - {id: GP-019, role: orchestrator, at: before_round, do: confirm product HEAD equals live remote tip and zero untracked files, check: {type: confirm}, source: 'W12-A01/D01: cross-repo SHA/untracked has no safe typed check', state: active}
 - {id: GP-020, role: orchestrator, at: before_round, do: forbid a running cargo.exe process before round launch, check: {type: cmd, argv: [tasklist, /FI, IMAGENAME eq cargo.exe], expect_output: No tasks are running, timeout_seconds: 15}, source: 'W12-C03/D01/FL11: measure host load before launch', state: active}
-- {id: GP-021, role: orchestrator, at: before_round, do: confirm all known pushed fixes are bundled before the next union round, check: {type: confirm}, source: 'FL28/W12-C02: no stale round while known fixes queue', state: active}
+- {id: GP-021, role: orchestrator, at: before_round, do: confirm all known pushed fixes are bundled before the next union round, check: {type: confirm}, source: 'FL28/W12-C02: no stale round while known fixes queue', state: retired}
 - {id: GP-022, role: builder, at: before_round, do: 'confirm no shared-file edit happens during a live D: check', check: {type: confirm}, source: 'FL29/KB-CARGO-SHARED-001: source-hash lock for check duration', state: active}
 - {id: GP-023, role: builder, at: before_submit, do: verify last product commit excludes the .GOV path, check: {type: cmd, argv: [git, -C, '{ref:product_worktree_dir}', diff, --quiet, HEAD^, HEAD, --, .GOV], expect_exit: 0}, source: 'CX-212F/W12-C04: never include .GOV in a feature-branch commit', state: active}
 - {id: GP-024, role: wp_validator, at: before_round, do: verify the core nextest config file exists, check: {type: file, path: ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/nextest-core.toml, exists: true}, source: 'W12-D03: read both configs end to end before launch', state: active}
@@ -73,3 +73,4 @@ steps:
 - {id: GP-052, role: orchestrator, at: before_dispatch, do: verify launcher PID and full child tree before declaring no round or requesting interruption, check: {type: confirm}, source: 'orchestration mistake: cargo-only snapshot missed live launcher; false restart concern', state: active}
 - {id: GP-053, role: builder, at: before_round, do: confirm shared helper negative fixtures and post-logout cleanup preserve the primary failure, check: {type: confirm}, source: 'FAIL_V10 14bd: negative fixture lacked store path; Drop reused inactive account after failure capture', state: active}
 - {id: GP-054, role: wp_validator, at: before_round, do: confirm union save cause and repair reviewed OR approved MT032 phase probe unused; record which action, check: {type: confirm}, source: Operator approved MT032-V11-BOUNDED-PHASE-DIAGNOSTIC; replaces GP-050 only for one named probe, state: active}
+- {id: GP-055, role: orchestrator, at: before_round, do: confirm union known fixes bundled OR approved unused MT032 phase probe contains reviewed diagnostic changes, check: {type: confirm}, source: Operator approved MT032-V11-BOUNDED-PHASE-DIAGNOSTIC; replaces GP-021 only for one named probe, state: active}

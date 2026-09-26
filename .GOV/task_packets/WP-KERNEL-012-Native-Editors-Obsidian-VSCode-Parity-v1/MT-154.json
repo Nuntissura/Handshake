@@ -2231,6 +2231,16 @@
     "batch_owner": "MT-154",
     "covered_mts": ["MT-154", "MT-032"],
     "base_commit": "bc0153f187140026d7818bfd6f8f2225583ac9e8",
+    "candidate_commit": "d9277d04f03490f9ceac1c9f4684e02757d8d43a",
+    "compile_evidence": {
+      "command": "cargo check --locked --tests --features app-runtime,surreal-test-support,test-utils -j 1",
+      "target_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target",
+      "log_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260926-mt032-v11-phase-core-check.log",
+      "exit_code": 0,
+      "elapsed_seconds": 668,
+      "source_sha256_before_after": "4F28D5A3C3AD446639F01BDC477C3530AEAAD4F496883FBE49353AABF6832446",
+      "tests_run": false
+    },
     "assigned_builder": "01a0d677-2c57-7813-9075-c273d1c4637f",
     "owned_paths": ["src/backend/handshake_core/src/api/knowledge_documents.rs"],
     "scope": "Sanitized correlated phase boundaries for authorization and create/save awaits; preserve runtime behavior",

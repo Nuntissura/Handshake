@@ -999,6 +999,30 @@
       "limits": "No SQL/content/credential logging; no broader tests; diagnostic is not validation; one union follows actual fixes",
       "probe_runs_completed": 0
     },
+    "diagnostic_entrypoint": {
+      "approval_ref": "remediation_v11.operator_decision",
+      "candidate_commit": "d9277d04f03490f9ceac1c9f4684e02757d8d43a",
+      "instrumentation_ref": "MT-154.mt032_phase_diagnostic_dependency",
+      "script": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032-phase-probe.sh",
+      "script_sha256": "237EF8B8B304FD91E549A912919DD40A6AD68276F3322A295FEC167A163BDED0",
+      "watcher_script": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032-phase-watch.ps1",
+      "watcher_sha256": "523BFD2423D78A8E53ABB86EF0B328B2CA76F719970E65B3B6745087A14F0F29",
+      "static_review": "WPV reviewed source/parser boundary, error paths and ownership; runner findings repaired; Bash/PS syntax pass",
+      "watcher_contract": "New owned UUID roots only; allowlisted phase fields; flush capture; ready SHA/PID verified alive before launch",
+      "one_use_marker": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/MT032-V11-BOUNDED-PHASE-DIAGNOSTIC.started",
+      "arguments": ["<frozen-pushed-SHA>", "../wtc-native-editors-v1", "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x", "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52", "../gov_runtime/tools/cargo-nextest/0.9.146/cargo-nextest.exe", "../Handshake_Artifacts"],
+      "argument_resolution": "Resolve relative inputs from live governance root to absolute forward-slash paths before Bash launch",
+      "config_files": ["../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/nextest.toml"],
+      "required_native_config_sha256": "D828376108C1D72836B94677F1612378095310DEE2ED96E2ED12ACB3929706A8",
+      "builds": ["native test_loom_address only; integration,integration_tests,wgpu_screenshots", "backend handshake_core binary; app-runtime,surreal-test-support"],
+      "run": "One nextest invocation; both exact names in operator_decision_request.test_names; serial; no retries",
+      "environment": "Existing union D runtime/evidence/temp roots and warm targets; line-tables-only; incremental=0; jobs=2; HS_LOG_LEVEL=info",
+      "junit": "Fresh export-local native target/nextest/default/junit.xml copied to lane/junit-<SHA>-mt032-phase-probe.xml",
+      "phase_capture": "WPV phase-only watcher captures new owned roots during execution; no fixture retention changes",
+      "cache_forecast": {"measured_C_bytes": 142350591888, "reserved_growth_bytes": 3000000000, "projected_C_bytes": 145350591888, "cap_bytes": 150000000000, "cleanup": false},
+      "prelaunch": "Reviewed pushed source and runner; role gameplan; fresh vault probe; process ownership; path/env and cap checks",
+      "acceptance": "Diagnostic evidence only; no MT verdict or readiness from this replay"
+    },
     "status_effect": "none; partial repair is not a validation submission; FAIL_V10 remains the last independent verdict"
   },
   "remediation_v10": {
