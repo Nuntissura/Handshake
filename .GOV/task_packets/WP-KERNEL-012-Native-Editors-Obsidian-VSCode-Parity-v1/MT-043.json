@@ -25,8 +25,9 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PASS_V4",
-    "active": false,
+    "candidate_invalidation_49eac54e": {"candidate_sha":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","prior_status":"PASS_V4","authority":"CX-VAL-009/CX-VAL-010; Operator final union dispatch","reason":"Swarm live document save/backlink proof depends on changed API/storage and shared helper","round_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"},
+    "status": "READY_FOR_VALIDATION",
+    "active": true,
     "depends_on": [
       "MT-041",
       "MT-042",
@@ -38,7 +39,7 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "PASS_V4",
+    "validator_verdict": null,
     "proof_status": "READY_FOR_VALIDATION_V3: product commit 0249f0c66eb0d46b4e1253388dce56310d68190c updates the MT-043 proof harness only inside allowed proof paths. Current-head proof uses independently supervised hidden process-agent children, kills one process mid-edit after an acknowledged mounted edit, and proves survivor refetch/keep-server/merge/save, durable content, live search, EventLedger/Flight Recorder attribution, canonical loom_edges, graph identities, and cleanup refresh against owned HSK_TEST_BASE=http://127.0.0.1:37501 and PostgreSQL 127.0.0.1:5545. Exact live proof passed 1/1; full test_e7_swarm_edit_proof passed 14/14; fixture ends PROOF_PASS.",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "WP_VALIDATOR-20260731-195928",

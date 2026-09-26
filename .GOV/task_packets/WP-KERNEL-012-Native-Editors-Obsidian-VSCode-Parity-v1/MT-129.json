@@ -64,14 +64,15 @@
     "secondary_risk_found_in_passing": "test_block_collection_view.rs:2089 sets the process-global LOCALAPPDATA with no guard and no mutex, while pg_proof_support/mod.rs:3989-3991 documents that this variable requires NATIVE_BINDING_ENV_LOCK because two suites in one binary would otherwise authenticate against each other binding root. It is safe only under --test-threads=1. Under default parallelism it will race ScopedArgusAppData install/drop - which recursively removes its root - and produce a GENUINE missing-directory os error 3 with a message identical to this defect."
   },
   "lifecycle": {
-    "active": false,
-    "validator_verdict": "PASS_V7",
+    "candidate_invalidation_49eac54e": {"candidate_sha":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","prior_status":"PASS_V7","authority":"CX-VAL-009/CX-VAL-010; Operator final union dispatch","reason":"Live block-collection prerequisite depends on changed backend_proof_support helper","round_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"},
+    "active": true,
+    "validator_verdict": null,
     "validated_by": "WP_VALIDATOR:/root/wpv_validate_129_144_v7",
     "validated_at_utc": "2026-09-13T14:37:25.334Z",
     "claimed_by": "KERNEL_BUILDER-20260812-113007",
-    "completed_by": "WP_VALIDATOR:/root/wpv_validate_129_144_v7",
+    "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "status": "PASS_V7",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-116",

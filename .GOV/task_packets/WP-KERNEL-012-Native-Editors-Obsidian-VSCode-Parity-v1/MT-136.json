@@ -31,12 +31,13 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "PASS_V6",
+    "candidate_invalidation_49eac54e": {"candidate_sha":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","prior_status":"PASS_V6","authority":"CX-VAL-009/CX-VAL-010; Operator final union dispatch","reason":"Core proof_b source-upsert consumer depends on changed storage/surreal/knowledge.rs","round_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"},
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "PASS_V6",
-    "completed_by": "WP_VALIDATOR-CODEX-V6-20260913",
+    "active": true,
+    "validator_verdict": null,
+    "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260818-130753",
     "claimed_at_utc": "2026-08-18T13:30:00Z",
     "ready_for_validation_at_utc": "2026-08-23T14:40:52Z",
