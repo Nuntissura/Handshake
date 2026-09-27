@@ -126,6 +126,7 @@ $roots = @{}
 $files = @{}
 $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
 $begins = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+$beginPhases = @{}
 $ends = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
 $issues = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
 $started = [DateTime]::UtcNow
@@ -185,7 +186,7 @@ function Accept-PhaseLine([string]$Line, $FileState) {
         # stdout and JSON are two projections of the same event, not two operations.
         $key = "$($FileState.Root)|$id|$observationId"
         if (-not $seen.Add("$key|$event")) { return }
-        if ($event -eq 'begin') { [void]$begins.Add($key) } else {
+        if ($event -eq 'begin') { [void]$begins.Add($key); $beginPhases[$key] = [string]$phase } else {
             if (-not $ends.Add($key)) { [void]$issues.Add('observation_multiple_terminal_events') }
         }
         $record = [ordered]@{
@@ -365,6 +366,7 @@ try {
     foreach ($key in $ends) { if (-not $begins.Contains($key)) { [void]$issues.Add('phase_terminal_without_begin') } }
     foreach ($key in $statementQueries.Keys) {
         if (-not $begins.Contains($key)) { [void]$issues.Add('statement_query_without_begin') }
+        elseif ($beginPhases[$key] -ne 'storage_query') { [void]$issues.Add('statement_parent_not_storage_query') }
         if (-not $ends.Contains($key)) { [void]$issues.Add('statement_query_without_terminal') }
         if ($statementQueries[$key].Indices.Count -ne $statementQueries[$key].Count) {
             [void]$issues.Add('statement_indexes_incomplete')
