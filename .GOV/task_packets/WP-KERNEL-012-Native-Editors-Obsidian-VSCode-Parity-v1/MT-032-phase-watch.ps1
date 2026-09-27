@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory)][string]$RuntimeRoot,
     [Parameter(Mandatory)][string]$StopSignal,
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{40}$')][string]$CandidateSha,
-    [ValidateRange(0, 86400)][int]$MaxSeconds = 21600
+    [ValidateRange(0, 86400)][int]$MaxSeconds = 21600,
+    [ValidateSet('', 'continuation1')][string]$CaptureSuffix = ''
 )
 
 # Observation only: no process control, fixture mutation, or retention override.
@@ -115,7 +116,7 @@ function Get-ScenarioRoots {
 
 $baseline = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($root in @(Get-ScenarioRoots)) { [void]$baseline.Add($root.Path) }
-$prefix = Join-Path $logs "mt032-v14-statement-watch-$CandidateSha"
+$prefix = Join-Path $logs ("mt032-v14-statement-watch-$CandidateSha" + $(if ($CaptureSuffix) { "-$CaptureSuffix" } else { '' }))
 $capturePath = "$prefix.jsonl"
 $readyPath = "$prefix.ready.json"
 $summaryPath = "$prefix.summary.json"
