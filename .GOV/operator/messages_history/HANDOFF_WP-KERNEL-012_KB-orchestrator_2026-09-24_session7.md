@@ -1,8 +1,30 @@
 ---
 file_id: HANDOFF-WP-KERNEL-012-KB-ORCHESTRATOR-2026-09-24-SESSION7
 file_kind: operator_handoff
-updated_at: 2026-09-26
+updated_at: 2026-09-27
 ---
+
+<topic id="current-statement-diagnostic-extension" wp="WP-KERNEL-012" updated_at="2026-09-27">
+
+## Read first: approved statement-timing diagnostic extension
+
+Current checkpoint, 2026-09-27 16:27 UTC. The Operator approved one additional replay of the two existing failing native cases using pinned SurrealDB SDK statement timings and asked to update this handoff. Canonical authorization and execution state: `MT-032.remediation_v14.diagnostic_extension_v1`; backend ownership remains the existing MT-154 document slice. This topic supersedes the dated current-state claims below; their histories and earlier scope remain preserved. The handoff is context, not independent authority.
+
+Goal remains first bounded document-subsystem extraction **and independently validated MT-032 PASS**. Structural commit `22c64a06cf986fa1c32e1b94e94729d13dff109d` created `handshake_document` and `handshake_storage_support`, with domain/orchestration and the SurrealQL adapter below core. Behavioral candidate `ec596eecb70f2820cb357ef95d5820b890c8944f` did not resolve MT-032. Diagnostics-only product `a78a43acc9c7a0975d6585ff13b3238224c4c5c5` is clean/pushed; support, document and core D checks passed with unchanged 1,242-input digest `f90492ac95e535e034a68b4813b3d5158df3b85217ba6b704d29947db9e6bb72`. All affected queries execute in SurrealDB; use the precise term **SurrealQL**. No SQLite/PostgreSQL backend was introduced by this work.
+
+Latest acceptance verdict remains `MT-032.validation_v12 FAIL_V12`, lifecycle BLOCKED on the named MT-154 repair. Fresh canonical count: 159 MTs = 115 PASS, 13 FAIL, 21 BLOCKED, 10 READY_FOR_VALIDATION. The extraction, successful compilation and diagnostic evidence do not establish deadline compliance, durable backlink/hash correctness, restart survival, mounted Argus proof or an MT PASS.
+
+Completed V14 diagnostic: 2026-09-27 13:04:32–13:07:19 UTC, exactly two cases, both failed; wrapper0/runner100/watcher0. All 968 captured events reconciled with retained source events, no missing/extra/parse/field/parent mismatches. Save request `d7f3408a-32f1-4ded-b5d8-f1c1cb82d8d0`: mutation query6110ms, receipt query3790ms, backlink query dropped after4781ms; request dropped15006ms, index unreached. Create **B** request `795b4a71-1afa-47aa-b5e7-c897e5cdb00a`: owned mutation query5885ms, receipt query3719ms, indexing query dropped114ms; request dropped10017ms. Lock/lease waits max0ms, SIGNIN max13ms, no retry sleep. Whole-query waits dominate; individual SurrealQL statement, permission, sequence/index and commit costs remain unproved. A dropped future means no result observed, not engine cancellation or rollback.
+
+Evidence root: `../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x`. Exact JUnit `junit-a78a43acc9c7a0975d6585ff13b3238224c4c5c5-mt032-v14-phase-probe.xml`; capture/summary `logs/mt032-v14-phase-watch-a78a43acc9c7a0975d6585ff13b3238224c4c5c5.{jsonl,summary.json}`; typed result/proof in `MT-032.remediation_v14.diagnostic_result`. Result commit `ffc5277b`; unresolved-attribution escalation `06f1c542`. Both are retained; the latter's requested extension is now approved.
+
+Run budget: original diagnostic1/1 consumed; approved additional diagnostic0/1; existing acceptance0/1. No counter reset. The extension adds fixed statement-index execution times using pinned SDK3.2 `Query::with_stats` / `WithStats<IndexedResults>::take`, preserving every result slot and response/COMMIT error check. Completed-response timing cannot reveal a dropped response or independently prove internal permission/commit causation. If attribution remains insufficient, report the exact gap without an automatic replay. A measured repair and the independently governed acceptance union remain required.
+
+Retained handles resumed: `/root/document_coder` sole product editor, `/root/spec_dependency` read-only SDK helper, `/root/wp_validator` sole test runner/verdict author. Parent owns this handoff/gameplan; WPV owns diagnostic binding/capture/results. Coder is preparing instrumentation and must receive source-review release before D compilation. WPV is preparing the version-controlled two-case runner and capture; no extension test has launched. Next: review result/error-preserving instrumentation, compile stable inputs, push candidate, bind provenance/capacity/current gates, admit one diagnostic, then decide repair from its measurements. Update this topic with pushed candidate, run result and next action as they become verified.
+
+Monitor `wp-kernel-012-mt-032-progress-tick` is ACTIVE again; unchanged ticks stay quiet. Fresh prelaunch preparation observed no build/test/backend jobs. Preserve D builder `../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target` and C validator `C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52`; one Cargo per physical disk. C measured138,709,900,147 bytes at16:26:45Z, cap150,000,000,000; WPV proposes4GB growth allowance with supervision, not a proven bound. No cleanup proposed. No new branches/worktrees or foreign-process termination. Keep 10s create/15s save deadlines, live authorization/revocation, authority fences, transactions, durable receipts and awaited indexing. Governance pin remains896f4e15 with recorded Operator overrides; no host-profile/canary or re-pin.
+
+</topic>
 
 <topic id="next-session-first-refactor-and-mt032" wp="WP-KERNEL-012" updated_at="2026-09-26">
 
