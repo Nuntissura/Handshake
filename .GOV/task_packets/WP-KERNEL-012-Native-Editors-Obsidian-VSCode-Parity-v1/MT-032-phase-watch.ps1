@@ -3,7 +3,7 @@ param(
     [Parameter(Mandatory)][string]$RuntimeRoot,
     [Parameter(Mandatory)][string]$StopSignal,
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{40}$')][string]$CandidateSha,
-    [ValidateRange(60, 86400)][int]$MaxSeconds = 21600
+    [ValidateRange(0, 86400)][int]$MaxSeconds = 21600
 )
 
 # Observation only: no process control, fixture mutation, or retention override.
@@ -347,7 +347,7 @@ try {
         lane_root = $lane; runtime_root = $runtime; stop_signal = $stop
         capture_path = $capturePath; summary_path = $summaryPath; baseline_roots = $baseline.Count
     })
-    while ($watch.Elapsed.TotalSeconds -lt $MaxSeconds) {
+    while ($MaxSeconds -eq 0 -or $watch.Elapsed.TotalSeconds -lt $MaxSeconds) {
         Poll-Phases
         if ([IO.File]::Exists($stop)) { $state.StopObserved = $true; break }
         Start-Sleep -Milliseconds 100
