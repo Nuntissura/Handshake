@@ -4,6 +4,18 @@ file_kind: operator_handoff
 updated_at: 2026-09-27
 ---
 
+<topic id="current-approved-acceptance-continuation" wp="WP-KERNEL-012" updated_at="2026-09-27">
+
+## Current checkpoint: Operator approved one continuation; capacity preparation pending
+
+Operator replied `yes approved` to one continuation of frozen candidate `7479972ac681cd238e58d37e318beab6c8d3b423` after preserving the exact23 obsolete ec core executables on D and verifying sufficient capacity. Parent recorded the decision in MT154's existing measured-repair assignment, `current_candidate.operator_continuation_v1`; independent execution belongs to retained `/root/wp_validator` and `MT-032.remediation_v14.acceptance_continuation_v1`. Continuation limit1, not yet launched. Original acceptance1/1 and all diagnostic/measurement history remain consumed and preserved.
+
+Next action: verify current ownership/no-use and target bytes, retain/hash-verify the23 files before selective C removal, and verify the residual native/owning-crate output plus scratch allowance fits below the147GB stop. Retained `/root/spec_dependency` independently reviews native residual output; no new product edits. Current747 outputs and warm caches stay intact. The147.095GB first attempt stopped before tests; MT032 remains FAIL_V12 and the goal remains incomplete. Monitor is ACTIVE for this approved continuation. No further copy/removal/build/test has run at this checkpoint.
+
+This checkpoint supersedes only the pending-Operator and paused-monitor state below; first-attempt findings, exact paths, receipts, limits and histories remain valid.
+
+</topic>
+
 <topic id="current-measured-repair-acceptance" wp="WP-KERNEL-012" updated_at="2026-09-27">
 
 ## Current checkpoint: acceptance stopped before tests; continuation requires Operator decision

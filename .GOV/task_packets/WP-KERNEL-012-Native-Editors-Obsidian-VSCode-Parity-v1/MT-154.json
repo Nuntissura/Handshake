@@ -2259,8 +2259,8 @@
       "proof_route": "Existing MT-154-PIN-MEASURE one batched measurement by sole WPV on warm C (current jobs2/per-test timeout/owned roots overrides; no outer timeout), current pins updated from observed values, PIN-CONFIRM plus authorization/upgrade obligations in remaining single acceptance union",
       "budget": "No third native diagnostic; PIN-MEASURE is existing measurement_not_attempt and consumes neither native diagnostic nor acceptance counter; sole PIN-CONFIRM is part of acceptance0/1",
       "owner": "document_coder sole product writer; wp_validator independent semantic/source/pin/acceptance proof",
-      "state": "INFRASTRUCTURE_BLOCKED_CAPACITY_PENDING_OPERATOR_CONTINUATION",
-      "updated_at_utc": "2026-09-27T19:43:57.246457+00:00",
+      "state": "OPERATOR_CONTINUATION_APPROVED_CAPACITY_PREPARATION",
+      "updated_at_utc": "2026-09-27T19:58:05.877263+00:00",
       "implementation": {
         "commit": "a7ae3657d3feeaaac09700165b1db08b322eca11",
         "files": [
@@ -2303,13 +2303,13 @@
         "historical_pins": "unchanged",
         "review_correction": "948cb020 missed second Loom assertion; parent caught before acceptance; 7479972 corrects it; GP100 full consumer scan",
         "proof": "Pin-only final changes format/static reviewed; builder gate16/16; D compile remains a7ae3657 input proof; no current runtime verdict",
-        "remaining": "Operator continuation authority and reviewed capacity below147GB protective threshold before another acceptance invocation; native compilation incomplete and no acceptance tests executed",
-        "budgets": "Both native diagnostics, PIN-MEASURE and sole acceptance consumed; no reset or automatic continuation",
+        "remaining": "Verify exact23-file preservation and residual native/owning-crate growth plus scratch below147GB stop; then sole WPV acceptance continuation on same frozen candidate",
+        "budgets": "Original diagnostics, PIN-MEASURE and acceptance1/1 remain consumed; Operator-approved continuation_v1 limit1, used0; no reset",
         "independent_acceptance_ref": "MT-032.remediation_v14.acceptance",
         "independent_result_commit": "173ebaba",
         "current_core_compile": "7479972 core union Finished28m50s,23 required executables listed and runner advanced to native; runtime proof absent",
         "capacity_continuation_proposal": {
-          "state": "READ_ONLY_PROPOSAL_NOT_AUTHORIZED_OR_PERFORMED",
+          "state": "OPERATOR_APPROVED_NOT_YET_PERFORMED",
           "cause": "Parent admitted149008080335-byte forecast under150GB cap without reconciling later147GB supervisor stop; actual core boundary136123124081 also exceeded estimated core growth",
           "observed_stop_bytes": 147095037951,
           "final_bytes": 147095046637,
@@ -2344,7 +2344,19 @@
           "source_evidence": "Existing117 symbol proposal ties each EXE to prior ec compile/fingerprint; current747 completed core log lists distinct executable hashes",
           "limit": "This provision would yield7.446GB below150GB cap and4.446GB below147GB stop before remaining growth; recompute residual native/owning-crate output and scratch against147GB stop before launch; size alone is not readiness",
           "execution": "One explicitly authorized continuation of same frozen candidate and existing export/targets; preserve consumed attempt and all prior counters",
-          "no_action": "No further copy/removal/build/test performed"
+          "no_action": "No continuation copy/removal/build/test performed as of approval record"
+        },
+        "operator_continuation_v1": {
+          "recorded_at_utc": "2026-09-27T19:58:05.877263+00:00",
+          "operator_reply": "yes approved",
+          "approved_question": "Approve one continuation of the same candidate after preserving the 23 obsolete executables on D and verifying sufficient capacity?",
+          "candidate": "7479972ac681cd238e58d37e318beab6c8d3b423",
+          "limit": 1,
+          "state": "APPROVED_PREPARING_CAPACITY",
+          "scope": "Exactly23 paths in capacity_continuation_proposal; retain/hash-verify before selective C removal after ownership/no-use checks; verify remaining outputs and scratch below147GB protective stop before launch",
+          "preserve": "First attempt marker/logs/results and consumed counters; current747 outputs and warm caches;150GB cap; existing deadlines and authorization",
+          "executor": "wp_validator",
+          "runtime_record_ref": "MT-032.remediation_v14.acceptance_continuation_v1"
         }
       }
     }},

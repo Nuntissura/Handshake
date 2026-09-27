@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 83
+generation: 87
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -112,8 +112,8 @@ steps:
 - {id: GP-091, role: wp_validator, at: before_round, do: 'confirm watcher ready JSON parsed fully and matches live PID, start time and candidate before launch', check: {type: confirm}, source: 'infra: ready file existed before JSON flush; inherited wrapper exited before Bash on empty identity', state: retired}
 - {id: GP-092, role: wp_validator, at: before_round, do: 'confirm complete watcher ready JSON matches live PID, creation and candidate before launch', check: {type: confirm}, source: 'infra: pre-Bash identity mismatch; later ready valid; initial bytes unobserved; GP091 cause unproved', state: active}
 - {id: GP-093, role: wp_validator, at: before_round, do: confirm parsed process timestamps compare normalized UTC instants and full launcher dependency chain, check: {type: confirm}, source: 'infra: JSON DateTime compared to ISO string caused false watcher_process_reused before Bash', state: active}
-- {id: GP-094, role: orchestrator, at: before_round, do: confirm existing MT154 pin measurement OR unused measured-repair acceptance; native diagnostics consumed, check: {type: confirm}, source: MT154 PIN-MEASURE is required measurement_not_attempt within Operator-approved measured repair, state: active}
-- {id: GP-095, role: wp_validator, at: before_round, do: confirm one batched pin measurement OR unused acceptance; preserve both consumed native diagnostics, check: {type: confirm}, source: MT154 PIN-MEASURE before PIN-CONFIRM; confirm belongs in sole remaining acceptance union, state: active}
+- {id: GP-094, role: orchestrator, at: before_round, do: confirm existing MT154 pin measurement OR unused measured-repair acceptance; native diagnostics consumed, check: {type: confirm}, source: MT154 PIN-MEASURE is required measurement_not_attempt within Operator-approved measured repair, state: retired}
+- {id: GP-095, role: wp_validator, at: before_round, do: confirm one batched pin measurement OR unused acceptance; preserve both consumed native diagnostics, check: {type: confirm}, source: MT154 PIN-MEASURE before PIN-CONFIRM; confirm belongs in sole remaining acceptance union, state: retired}
 - {id: GP-096, role: wp_validator, at: before_round, do: confirm grant-witness equivalence and exact predecessor schema proof before measuring or accepting repair, check: {type: confirm}, source: MT032 slow statements share document_access; schema repair must preserve live authorization and predecessor pins, state: active}
 - {id: GP-097, role: wp_validator, at: before_round, do: confirm capacity proposal parses with typed byte totals and cleanup boolean after metadata write, check: {type: confirm}, source: 'infra: PowerShell cleanup=false typo wrote null capacity JSON; require corrected artifact reread', state: active}
 - {id: GP-098, role: wp_validator, at: before_round, do: 'confirm owned observer records descendant CPU-I/O, log growth, exits and C bytes before launch', check: {type: confirm}, source: 'prep: pin wrapper only waited; persistent build/cap observer restored after launch under KB-STEER-005', state: active}
@@ -121,3 +121,5 @@ steps:
 - {id: GP-100, role: wp_validator, at: before_round, do: confirm every current fingerprint consumer matches measured values; all historical pins remain unchanged, check: {type: confirm}, source: 'repair: named Loom bootstrap pin updated but deterministic test literal retained stale current fingerprint', state: active}
 - {id: GP-101, role: wp_validator, at: before_round, do: confirm CIM creation comparisons normalize Int64 microseconds; retained process handles keep exact identity, check: {type: confirm}, source: 'preflight: live CIM creation lost submicrosecond ticks; exact cross-API equality falsely rejects owned process', state: active}
 - {id: GP-102, role: orchestrator, at: before_round, do: confirm projected peak including scratch stays below active capacity-stop threshold using observed phase growth, check: {type: confirm}, source: 'fail: acceptance stopped at147GB;149GB forecast fit150GB cap but exceeded supervisor threshold', state: active}
+- {id: GP-103, role: orchestrator, at: before_round, do: confirm Operator continuation_v1 unused; original acceptance and diagnostics preserved, check: {type: confirm}, source: Operator approved one same747 continuation after exact23 EXE retention and capacity proof; replaces GP094, state: active}
+- {id: GP-104, role: wp_validator, at: before_round, do: confirm continuation_v1 unused and separate markers/logs preserve first acceptance, check: {type: confirm}, source: Operator one continuation after capacity stop; no reset or third diagnostic; replaces GP095, state: active}
