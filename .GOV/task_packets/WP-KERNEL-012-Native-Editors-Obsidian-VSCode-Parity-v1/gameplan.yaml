@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 57
+generation: 60
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -100,3 +100,6 @@ steps:
 - {id: GP-079, role: orchestrator, at: before_round, do: confirm unused approved V14 probe OR measured repair acceptance; preserve all prior counters, check: {type: confirm}, source: Operator MT032-MEASURED-REPAIR-20260927; replaces GP057 for one probe and one acceptance, state: active}
 - {id: GP-080, role: wp_validator, at: before_round, do: confirm V14 exact two-case probe unused OR measured repair union unused; preserve limits, check: {type: confirm}, source: Operator MT032-MEASURED-REPAIR-20260927; replaces GP060; no automatic extra run, state: active}
 - {id: GP-081, role: wp_validator, at: before_round, do: confirm inner timings and end/error/drop capture reviewed before consuming V14 probe, check: {type: confirm}, source: 'FAIL_V12: outer phases did not attribute SIGNIN, query, lock, retry or receipt costs', state: active}
+- {id: GP-082, role: builder, at: before_round, do: confirm observer imports retain production availability and original test-only cfg ownership, check: {type: confirm}, source: 'source review: inserted observer import inherited cfg and exposed Cell in production', state: active}
+- {id: GP-083, role: builder, at: before_round, do: confirm observer accepts pinned SDK IntoFuture builders without changing await conversion timing, check: {type: confirm}, source: 'source review: UseNs, UseDb, Signin and Query builders are IntoFuture, not Future', state: active}
+- {id: GP-084, role: builder, at: before_round, do: confirm new imports follow existing module documentation, check: {type: confirm}, source: 'formatter: inserted import before inner module docs rejected source', state: active}
