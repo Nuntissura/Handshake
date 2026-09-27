@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 82
+generation: 83
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -120,3 +120,4 @@ steps:
 - {id: GP-099, role: orchestrator, at: before_round, do: confirm retained UTF-8 logs are read with encoding-safe display before evidence claims, check: {type: confirm}, source: 'infra: default cp1252 console rejected Unicode log tail; use UTF-8 reader and escaped JSON display', state: active}
 - {id: GP-100, role: wp_validator, at: before_round, do: confirm every current fingerprint consumer matches measured values; all historical pins remain unchanged, check: {type: confirm}, source: 'repair: named Loom bootstrap pin updated but deterministic test literal retained stale current fingerprint', state: active}
 - {id: GP-101, role: wp_validator, at: before_round, do: confirm CIM creation comparisons normalize Int64 microseconds; retained process handles keep exact identity, check: {type: confirm}, source: 'preflight: live CIM creation lost submicrosecond ticks; exact cross-API equality falsely rejects owned process', state: active}
+- {id: GP-102, role: orchestrator, at: before_round, do: confirm projected peak including scratch stays below active capacity-stop threshold using observed phase growth, check: {type: confirm}, source: 'fail: acceptance stopped at147GB;149GB forecast fit150GB cap but exceeded supervisor threshold', state: active}

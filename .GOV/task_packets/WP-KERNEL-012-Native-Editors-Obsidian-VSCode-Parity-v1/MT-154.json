@@ -2259,8 +2259,8 @@
       "proof_route": "Existing MT-154-PIN-MEASURE one batched measurement by sole WPV on warm C (current jobs2/per-test timeout/owned roots overrides; no outer timeout), current pins updated from observed values, PIN-CONFIRM plus authorization/upgrade obligations in remaining single acceptance union",
       "budget": "No third native diagnostic; PIN-MEASURE is existing measurement_not_attempt and consumes neither native diagnostic nor acceptance counter; sole PIN-CONFIRM is part of acceptance0/1",
       "owner": "document_coder sole product writer; wp_validator independent semantic/source/pin/acceptance proof",
-      "state": "PUSHED_PINS_MEASURED_PENDING_SOLE_ACCEPTANCE",
-      "updated_at_utc": "2026-09-27T18:28:49.209355+00:00",
+      "state": "INFRASTRUCTURE_BLOCKED_CAPACITY_PENDING_OPERATOR_CONTINUATION",
+      "updated_at_utc": "2026-09-27T19:43:57.246457+00:00",
       "implementation": {
         "commit": "a7ae3657d3feeaaac09700165b1db08b322eca11",
         "files": [
@@ -2303,8 +2303,49 @@
         "historical_pins": "unchanged",
         "review_correction": "948cb020 missed second Loom assertion; parent caught before acceptance; 7479972 corrects it; GP100 full consumer scan",
         "proof": "Pin-only final changes format/static reviewed; builder gate16/16; D compile remains a7ae3657 input proof; no current runtime verdict",
-        "remaining": "WPV exact capacity preparation and sole acceptance including PIN-CONFIRM9, new migration/auth tests and full MT032 runtime boundary",
-        "budgets": "Both native diagnostics and existing PIN-MEASURE consumed; acceptance0/1; no reset"
+        "remaining": "Operator continuation authority and reviewed capacity below147GB protective threshold before another acceptance invocation; native compilation incomplete and no acceptance tests executed",
+        "budgets": "Both native diagnostics, PIN-MEASURE and sole acceptance consumed; no reset or automatic continuation",
+        "independent_acceptance_ref": "MT-032.remediation_v14.acceptance",
+        "independent_result_commit": "173ebaba",
+        "current_core_compile": "7479972 core union Finished28m50s,23 required executables listed and runner advanced to native; runtime proof absent",
+        "capacity_continuation_proposal": {
+          "state": "READ_ONLY_PROPOSAL_NOT_AUTHORIZED_OR_PERFORMED",
+          "cause": "Parent admitted149008080335-byte forecast under150GB cap without reconciling later147GB supervisor stop; actual core boundary136123124081 also exceeded estimated core growth",
+          "observed_stop_bytes": 147095037951,
+          "final_bytes": 147095046637,
+          "final_headroom": 2904953363,
+          "proposal": "Retain and hash-verify exactly23 superseded ec core EXEs on D, then selectively remove their C copies after fresh ownership/no-use checks; preserve all current747 outputs, compiler caches and historical evidence",
+          "paths": [
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_documents_api_tests-e898a85b182747e5.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_fail_closed_tests-c520c25ade6eb445.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_atomic_receipt_tests-627f03054ec42ffd.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_block_collection_views_tests-e5a6decd26bf997a.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\wp_kernel_012_native_editor_routes_tests-d409425592c863a6.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_daily_journal_tests-fac76f15d8293baa.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_transclusion_tests-bef906bca735d543.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_media_tiers_tests-fc2aa4f0216691dc.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\project_wiki_drift_tests-30f666ea79893336.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\mt154_non_loom_route_authority_tests-4cfc78fddef2ecf5.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_crdt_bridge_api_tests-9c62ba2df5aa0060.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_ingestion_api_tests-bd98126ff684be7f.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_memory_api_tests-fb11120cd10e72a0.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_retrieval_debug_api_tests-f1b35485d9a118b3.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\atelier_stealth_window_tests-dc202f127590699f.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\atelier_loom_projection_api_tests-1748196e71582d0e.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\calendar_storage_tests-d7a627b630f85d41.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\mt155_product_screenshot_capture_route_auth_tests-aa47266547685ba4.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\kernel_product_screenshot_capture_tests-78ec4f6075b79e83.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\mt157_debug_breakpoints_authority_tests-03f176372944bd37.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\micro_task_executor_tests-a2cbd00eab019765.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\mt151_early_lock_release_race_tests-5c1eb7ca4680a9e7.exe",
+            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\handshake_core-d8eb56cbd0d35165.exe"
+          ],
+          "bytes": 4541819392,
+          "source_evidence": "Existing117 symbol proposal ties each EXE to prior ec compile/fingerprint; current747 completed core log lists distinct executable hashes",
+          "limit": "This provision would yield7.446GB below150GB cap and4.446GB below147GB stop before remaining growth; recompute residual native/owning-crate output and scratch against147GB stop before launch; size alone is not readiness",
+          "execution": "One explicitly authorized continuation of same frozen candidate and existing export/targets; preserve consumed attempt and all prior counters",
+          "no_action": "No further copy/removal/build/test performed"
+        }
       }
     }},
       {
