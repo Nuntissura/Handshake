@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 68
+generation: 71
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -109,3 +109,5 @@ steps:
 - {id: GP-088, role: builder, at: before_round, do: 'confirm statement timing preserves response slots, all errors and returned values; no data logged', check: {type: confirm}, source: V14 query-await spans could not attribute SurrealQL statements; SDK stats extraction consumes result slots, state: active}
 - {id: GP-089, role: wp_validator, at: before_round, do: confirm fixed statement indexes and optional engine timings survive capture without query data, check: {type: confirm}, source: V14 extension needs statement-level attribution; missing or dropped response never implies zero cost, state: active}
 - {id: GP-090, role: wp_validator, at: before_round, do: confirm SDK visibility and extraction claims against opened pinned type and method definitions, check: {type: confirm}, source: 'review: inferred WithStats field privacy from adjacent types; actual pinned tuple field is public', state: active}
+- {id: GP-091, role: wp_validator, at: before_round, do: 'confirm watcher ready JSON parsed fully and matches live PID, start time and candidate before launch', check: {type: confirm}, source: 'infra: ready file existed before JSON flush; inherited wrapper exited before Bash on empty identity', state: retired}
+- {id: GP-092, role: wp_validator, at: before_round, do: 'confirm complete watcher ready JSON matches live PID, creation and candidate before launch', check: {type: confirm}, source: 'infra: pre-Bash identity mismatch; later ready valid; initial bytes unobserved; GP091 cause unproved', state: active}
