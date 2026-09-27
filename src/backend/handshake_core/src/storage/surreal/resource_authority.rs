@@ -401,31 +401,34 @@ impl SurrealStorage {
                 ))
             }
         };
-        let parent = self
-            .authorize_protected_resource(AuthorizationRequest {
+        let parent = handshake_storage_support::diagnostics::observe_result(
+            "index_source_parent_authorize",
+            self.authorize_protected_resource(AuthorizationRequest {
                 session_token: scope.session_token.clone(),
                 channel_binding_hash: scope.channel_binding_hash.clone(),
                 capability_id: "memory.propose".into(),
                 resource_kind: parent_kind,
                 external_resource_id: parent_external_id.to_owned(),
                 action: ResourceAction::Create,
-            })
-            .await?;
-        let delete_parent = self
-            .authorize_protected_resource(AuthorizationRequest {
+            }),
+        )
+        .await?;
+        let delete_parent = handshake_storage_support::diagnostics::observe_result(
+            "index_source_delete_authorize",
+            self.authorize_protected_resource(AuthorizationRequest {
                 session_token: scope.session_token.clone(),
                 channel_binding_hash: scope.channel_binding_hash.clone(),
                 capability_id: "fs.write".into(),
                 resource_kind: parent_kind,
                 external_resource_id: parent_external_id.to_owned(),
                 action: ResourceAction::Delete,
-            })
-            .await
-            .ok()
-            .filter(|decision| {
-                decision.resource_id == parent.resource_id
-                    && decision.session_id == parent.session_id
-            });
+            }),
+        )
+        .await
+        .ok()
+        .filter(|decision| {
+            decision.resource_id == parent.resource_id && decision.session_id == parent.session_id
+        });
         if parent.session_id != scope.session_id {
             return Err(ResourceAuthorityError::InvalidInput(
                 "authentication denied",
@@ -1117,8 +1120,11 @@ impl SurrealStorage {
             || request.capability_id.is_empty()
             || request.external_resource_id.is_empty()
         {
-            self.audit_authorization(&decision_id, &request, None, None, "deny")
-                .await?;
+            handshake_storage_support::diagnostics::observe_result(
+                "authority_audit",
+                self.audit_authorization(&decision_id, &request, None, None, "deny"),
+            )
+            .await?;
             return Err(ResourceAuthorityError::Denied { decision_id });
         }
 
@@ -1135,19 +1141,19 @@ impl SurrealStorage {
             .with_lease(move |client| {
                 Box::pin(async move {
                     let authority = client.clone();
-                    authority
+                    handshake_storage_support::diagnostics::observe_result("authority_namespace", authority
                         .use_ns(namespace.clone())
-                        .use_db(database.clone())
+                        .use_db(database.clone()))
                         .await?;
-                    let mut resource_response = authority
+                    let mut resource_response = handshake_storage_support::diagnostics::observe_result("authority_resource_query", authority
                         .query(
                             "SELECT VALUE id FROM protected_resources WHERE resource_kind = $kind AND external_resource_id = $external LIMIT 2;",
                         )
                         .bind(("kind", kind.clone()))
-                        .bind(("external", external))
+                        .bind(("external", external)))
                         .await?
                         .check()?;
-                    let resource_rows: Vec<RecordId> = resource_response.take(0)?;
+                    let resource_rows: Vec<RecordId> = handshake_storage_support::diagnostics::observe_result("authority_response_decode", async { resource_response.take(0) }).await?;
                     let resource = match resource_rows.as_slice() {
                         [] => None,
                         [resource] => Some(resource.clone()),
@@ -1158,7 +1164,7 @@ impl SurrealStorage {
                             .into())
                         }
                     };
-                    if authority
+                    if handshake_storage_support::diagnostics::observe_result("authority_signin", authority
                         .signin(RecordSignin {
                             namespace,
                             database: database.clone(),
@@ -1167,7 +1173,7 @@ impl SurrealStorage {
                                 token_hash,
                                 channel_binding_hash,
                             },
-                        })
+                        }))
                         .await
                         .is_err()
                     {
@@ -1176,25 +1182,25 @@ impl SurrealStorage {
                             grant: None,
                         });
                     }
-                    let mut session_response = authority
+                    let mut session_response = handshake_storage_support::diagnostics::observe_result("authority_session_query", authority
                         .query(
                             "SELECT account_id, principal_id, id AS session_id, access_space_id, delegation_chain, policy_version FROM authenticated_sessions WHERE id = $auth.id LIMIT 1;",
-                        )
+                        ))
                         .await?
                         .check()?;
-                    let session_rows: Vec<SessionAuthorityRow> = session_response.take(0)?;
+                    let session_rows: Vec<SessionAuthorityRow> = handshake_storage_support::diagnostics::observe_result("authority_response_decode", async { session_response.take(0) }).await?;
                     let session = session_rows.into_iter().next();
-                    let mut response = authority
+                    let mut response = handshake_storage_support::diagnostics::observe_result("authority_grant_query", authority
                         .query(
                             "SELECT id AS grant_id, resource_id, account_id, principal_id, $auth.id AS session_id, access_space_id, principal_id.actor_kind AS actor_kind, principal_id.actor_id AS actor_id, principal_id.capability_profile_id AS capability_profile_id, $auth.delegation_chain AS delegation_chain, math::max([policy_version, resource_id.policy_version, account_id.policy_version, principal_id.policy_version, access_space_id.policy_version]) AS policy_version FROM resource_grants WHERE status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND actions CONTAINS $action AND capability_ids CONTAINS $capability AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS $capability) AND delegation_chain = $auth.delegation_chain AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler')) LIMIT 1;",
                         )
                         .bind(("resource", resource))
                         .bind(("kind", kind))
                         .bind(("action", action))
-                        .bind(("capability", capability))
+                        .bind(("capability", capability)))
                         .await?
                         .check()?;
-                    let rows: Vec<AuthorizationRow> = response.take(0)?;
+                    let rows: Vec<AuthorizationRow> = handshake_storage_support::diagnostics::observe_result("authority_response_decode", async { response.take(0) }).await?;
                     Ok(AuthorizationAttempt {
                         session,
                         grant: rows.into_iter().next(),
@@ -1204,8 +1210,17 @@ impl SurrealStorage {
             .await?;
 
         let Some(row) = row.grant else {
-            self.audit_authorization(&decision_id, &request, None, row.session.as_ref(), "deny")
-                .await?;
+            handshake_storage_support::diagnostics::observe_result(
+                "authority_audit",
+                self.audit_authorization(
+                    &decision_id,
+                    &request,
+                    None,
+                    row.session.as_ref(),
+                    "deny",
+                ),
+            )
+            .await?;
             return Err(ResourceAuthorityError::Denied { decision_id });
         };
         let decision = AuthorizationDecision {
@@ -1222,8 +1237,11 @@ impl SurrealStorage {
             policy_version: row.policy_version,
             grant_id: record_key(row.grant_id)?,
         };
-        self.audit_authorization(&decision_id, &request, Some(&decision), None, "allow")
-            .await?;
+        handshake_storage_support::diagnostics::observe_result(
+            "authority_audit",
+            self.audit_authorization(&decision_id, &request, Some(&decision), None, "allow"),
+        )
+        .await?;
         Ok(decision)
     }
 
@@ -1275,11 +1293,11 @@ impl SurrealStorage {
         self.with_lease(move |client| {
             Box::pin(async move {
                 let authority = client.clone();
-                authority
+                handshake_storage_support::diagnostics::observe_result("authority_audit_namespace", authority
                     .use_ns(namespace)
-                    .use_db(database.clone())
-                    .await?;
-                authority
+                    .use_db(database.clone()))
+                        .await?;
+                handshake_storage_support::diagnostics::observe_result("authority_audit_query", authority
                     .query(
                         "CREATE $audit SET decision_id = $decision_id, account_id = $account, principal_id = $principal, session_id = $session_record, access_space_id = $space, delegation_chain = $delegation_chain, resource_id = $resource, requested_resource_hash = $requested_resource_hash, resource_kind = $resource_kind, action = $action, capability_id = $capability, result = $result, policy_version = $policy_version, occurred_at = time::now();",
                     )
@@ -1296,8 +1314,8 @@ impl SurrealStorage {
                     .bind(("action", action))
                     .bind(("capability", capability))
                     .bind(("result", result))
-                    .bind(("policy_version", policy_version))
-                    .await?
+                    .bind(("policy_version", policy_version)))
+                        .await?
                     .check()?;
                 Ok(())
             })

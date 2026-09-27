@@ -449,7 +449,14 @@ where
             elapsed: elapsed_since(clock, started),
         };
         attempts = attempts.saturating_add(1);
-        let error = match op(attempt).await {
+        let error = match crate::diagnostics::observe(
+            "retry_attempt",
+            u64::from(attempt.number),
+            op(attempt),
+            Result::is_err,
+        )
+        .await
+        {
             Ok(value) => return Ok(value),
             Err(error) => error,
         };
@@ -506,7 +513,7 @@ where
                     elapsed: elapsed_since(clock, started),
                 });
             }
-            _ = clock.sleep(sleep) => {}
+            _ = crate::diagnostics::observe("retry_sleep", u64::try_from(sleep.as_millis()).unwrap_or(u64::MAX), clock.sleep(sleep), |_| false) => {}
         }
         // Never START another attempt once the effective deadline has passed.
         // A running attempt is deliberately not raced against the deadline (an

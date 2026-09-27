@@ -1,6 +1,7 @@
 //! RichDocument SurrealQL adapter; the host supplies a live authenticated query boundary.
 use crate::domain::*;
 use chrono::{DateTime, Utc};
+use handshake_storage_support::diagnostics::observe_result;
 use handshake_storage_support::{StorageError, StorageResult};
 use serde_json::Value as JsonValue;
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -472,9 +473,12 @@ pub async fn replace_backlinks_attempt(
     source_document_id: &str,
     upserts: &[UpsertKnowledgeDocumentBacklink],
 ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
-    let source = read_live_rich_document(storage, source_document_id)
-        .await?
-        .ok_or(StorageError::NotFound("knowledge rich document"))?;
+    let source = observe_result(
+        "backlink_source_read",
+        read_live_rich_document(storage, source_document_id),
+    )
+    .await?
+    .ok_or(StorageError::NotFound("knowledge rich document"))?;
     if upserts.iter().any(|upsert| {
         upsert.source_document_id != source_document_id
             || upsert.workspace_id != source.workspace_id
@@ -483,15 +487,21 @@ pub async fn replace_backlinks_attempt(
             "knowledge backlink rebuild source/workspace mismatch",
         ));
     }
-    let (prior_by_relationship, prior_loom_targets) =
-        read_prior_backlink_state(storage, &source.workspace_id, source_document_id).await?;
-    let resolved = resolve_backlink_rows(
-        storage,
-        &source.workspace_id,
-        source_document_id,
-        upserts.to_vec(),
-        &prior_by_relationship,
-        &prior_loom_targets,
+    let (prior_by_relationship, prior_loom_targets) = observe_result(
+        "backlink_prior_read",
+        read_prior_backlink_state(storage, &source.workspace_id, source_document_id),
+    )
+    .await?;
+    let resolved = observe_result(
+        "backlink_target_reads",
+        resolve_backlink_rows(
+            storage,
+            &source.workspace_id,
+            source_document_id,
+            upserts.to_vec(),
+            &prior_by_relationship,
+            &prior_loom_targets,
+        ),
     )
     .await?;
     let insertion_order: HashMap<String, usize> = resolved
@@ -523,14 +533,16 @@ pub async fn replace_backlinks_attempt(
         &resolved,
         &affected_blocks,
     );
-    let rows: Vec<BacklinkRecord> = storage
-        .rows(
+    let rows: Vec<BacklinkRecord> = observe_result(
+        "backlink_write",
+        storage.rows(
             statement,
             binds,
             1 + BACKLINK_WRITE_STATEMENT_COUNT,
             Some(&BACKLINK_GUARDS),
-        )
-        .await?;
+        ),
+    )
+    .await?;
     let mut out = rows
         .into_iter()
         .map(backlink_to_domain)
@@ -662,9 +674,11 @@ pub async fn owned_source_upsert_rows(
         .unwrap_or_else(|| source_id.clone());
     let owned_resources = if existing.is_empty() {
         vec![
-            storage
-                .prepare_source_resource(&source_id, &workspace_id)
-                .await?,
+            observe_result(
+                "index_source_prepare",
+                storage.prepare_source_resource(&source_id, &workspace_id),
+            )
+            .await?,
         ]
     } else {
         Vec::new()
@@ -690,7 +704,11 @@ pub async fn owned_source_upsert_rows(
     let sql = format!("BEGIN TRANSACTION; {mutation} {authority} IF array::len((UPDATE knowledge_sources SET content_hash = $content_hash WHERE source_id = $result_id AND workspace_id = $workspace RETURN VALUE id)) != 1 {{ THROW 'HSK-403-PROTECTED-RESOURCE'; }}; SELECT * FROM type::record('knowledge_sources', $result_id) WHERE source_id = $result_id AND workspace_id = $workspace; COMMIT TRANSACTION;");
     // BEGIN, mutation IF, authority FOR, count fence IF, SELECT, COMMIT.
     // The host checks every result, including COMMIT, before decoding slot 4.
-    storage.rows(sql, binds, 4, None).await
+    observe_result(
+        "index_source_transaction",
+        storage.rows(sql, binds, 4, None),
+    )
+    .await
 }
 
 pub async fn get_knowledge_source_by_document_id(

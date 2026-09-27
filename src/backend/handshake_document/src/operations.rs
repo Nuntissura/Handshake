@@ -4,6 +4,7 @@ use crate::domain::*;
 use crate::model::backlink::DocumentLinkReferences;
 use crate::model::embed::{validate_block_embeds, ValidatedBlockEmbed};
 use crate::model::{BlockTree, DocumentActorKind};
+use handshake_storage_support::diagnostics::observe_result;
 use handshake_storage_support::StorageError;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -81,60 +82,72 @@ pub async fn index_document_into_knowledge_index(
     db: &impl DocumentStore,
     document: &KnowledgeRichDocument,
 ) -> Result<(), StorageError> {
-    let source = match db
-        .get_knowledge_source_by_document_id(&document.workspace_id, &document.rich_document_id)
-        .await?
+    let source = match observe_result(
+        "index_source_lookup",
+        db.get_knowledge_source_by_document_id(&document.workspace_id, &document.rich_document_id),
+    )
+    .await?
     {
         Some(existing) => {
             if existing.content_hash != document.content_sha256 && !existing.stale {
                 // The document changed since the source was indexed: stale is
                 // the truthful index state until the pipeline re-indexes it.
-                db.mark_knowledge_source_stale(&existing.source_id).await?
+                observe_result(
+                    "index_source_stale",
+                    db.mark_knowledge_source_stale(&existing.source_id),
+                )
+                .await?
             } else {
                 existing
             }
         }
         None => {
-            db.upsert_knowledge_source(NewKnowledgeSource {
-                workspace_id: document.workspace_id.clone(),
-                root_id: None,
-                source_kind: KnowledgeSourceKind::RichDocument,
-                relative_path: None,
-                asset_id: None,
-                loom_block_id: None,
-                // The schema's document_id column FKs the LEGACY documents
-                // table; the KRD linkage is provenance-keyed (see
-                // get_knowledge_source_by_document_id).
-                document_id: None,
-                content_hash: document.content_sha256.clone(),
-                size_bytes: Some(document.content_json.to_string().len() as i64),
-                provenance: json!({
-                    "discovered_by": "knowledge_documents_api",
-                    "rich_document_id": document.rich_document_id,
-                    "schema_version": document.schema_version,
+            observe_result(
+                "index_source_upsert",
+                db.upsert_knowledge_source(NewKnowledgeSource {
+                    workspace_id: document.workspace_id.clone(),
+                    root_id: None,
+                    source_kind: KnowledgeSourceKind::RichDocument,
+                    relative_path: None,
+                    asset_id: None,
+                    loom_block_id: None,
+                    // The schema's document_id column FKs the LEGACY documents
+                    // table; the KRD linkage is provenance-keyed (see
+                    // get_knowledge_source_by_document_id).
+                    document_id: None,
+                    content_hash: document.content_sha256.clone(),
+                    size_bytes: Some(document.content_json.to_string().len() as i64),
+                    provenance: json!({
+                        "discovered_by": "knowledge_documents_api",
+                        "rich_document_id": document.rich_document_id,
+                        "schema_version": document.schema_version,
+                    }),
+                    permission_scope: KnowledgePermissionScope::Workspace,
+                    redaction_state: KnowledgeRedactionState::None,
+                    source_modified_at: None,
                 }),
-                permission_scope: KnowledgePermissionScope::Workspace,
-                redaction_state: KnowledgeRedactionState::None,
-                source_modified_at: None,
-            })
+            )
             .await?
         }
     };
 
-    db.upsert_knowledge_entity(NewKnowledgeEntity {
-        workspace_id: document.workspace_id.clone(),
-        entity_kind: KnowledgeEntityKind::RichDocument,
-        entity_key: document.rich_document_id.clone(),
-        display_name: document.title.clone(),
-        detection_provenance: json!({
-            "extractor": "knowledge_documents_api",
-            "content_sha256": document.content_sha256,
-            "doc_version": document.doc_version,
+    observe_result(
+        "index_entity_upsert",
+        db.upsert_knowledge_entity(NewKnowledgeEntity {
+            workspace_id: document.workspace_id.clone(),
+            entity_kind: KnowledgeEntityKind::RichDocument,
+            entity_key: document.rich_document_id.clone(),
+            display_name: document.title.clone(),
+            detection_provenance: json!({
+                "extractor": "knowledge_documents_api",
+                "content_sha256": document.content_sha256,
+                "doc_version": document.doc_version,
+            }),
+            primary_source_id: Some(source.source_id),
+            detected_in_run: None,
+            evidence_span_ids: vec![],
         }),
-        primary_source_id: Some(source.source_id),
-        detected_in_run: None,
-        evidence_span_ids: vec![],
-    })
+    )
     .await?;
     Ok(())
 }

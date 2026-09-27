@@ -4,3 +4,5 @@ pub use error::{StorageError, StorageResult};
 pub mod canonical_json;
 pub mod keyed_lock;
 pub mod retry;
+
+pub mod diagnostics;

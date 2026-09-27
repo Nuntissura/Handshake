@@ -22,6 +22,7 @@
 //!    `UPDATE` that matched nothing yields zero rows, which is the lost-race
 //!    signal (mirrors `rows_affected`).
 
+use handshake_storage_support::diagnostics::observe_result;
 #[cfg(any(test, feature = "surreal-test-support"))]
 use std::cell::Cell;
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -177,13 +178,16 @@ where
     // Lock waits observe the store's shutdown cancellation as well as the
     // deadline, so a parked writer returns the typed closed-store error inside
     // the drain grace instead of holding out for the statement timeout.
-    let _guards = tokio::select! {
-        biased;
-        _ = cancel.cancelled() => return Err(closed_store_error()),
-        guards = database
-            .lock_registry()
-            .acquire_many_with_deadline(keys, deadline) => guards.map_err(lock_wait_error)?,
-    };
+    let _guards = observe_result("mutation_lock_wait", async {
+        tokio::select! {
+            biased;
+            _ = cancel.cancelled() => return Err(closed_store_error()),
+            guards = database
+                .lock_registry()
+                .acquire_many_with_deadline(keys, deadline) => guards.map_err(lock_wait_error),
+        }
+    })
+    .await?;
     let mut context = RetryContext::unbounded().with_cancel(cancel);
     context.deadline = deadline;
     let attempts = retry(
@@ -1185,8 +1189,15 @@ where
                 for (name, value) in binds {
                     query = query.bind((name, value));
                 }
-                let mut response = meaningful_check(query.await?)?;
-                Ok(response.take(index)?)
+                let response = observe_result("storage_query", query).await?;
+                let mut response = observe_result("storage_response_check", async {
+                    meaningful_check(response)
+                })
+                .await?;
+                observe_result("storage_response_decode", async {
+                    Ok(response.take(index)?)
+                })
+                .await
             })
         })
         .await
@@ -1245,7 +1256,11 @@ async fn raw_execute(
                 for (name, value) in binds {
                     query = query.bind((name, value));
                 }
-                meaningful_check(query.await?)?;
+                let response = observe_result("storage_query", query).await?;
+                observe_result("storage_response_check", async {
+                    meaningful_check(response)
+                })
+                .await?;
                 Ok(())
             })
         })
@@ -2119,16 +2134,24 @@ async fn create_owned_document_rows(
             &format!("{target_guard} {anchors} {required_rows} COMMIT TRANSACTION;"),
             1,
         );
-    if let Err(error) = raw_execute(storage, statement, binds).await {
+    if let Err(error) = observe_result(
+        "create_owned_transaction",
+        raw_execute(storage, statement, binds),
+    )
+    .await
+    {
         #[cfg(any(test, feature = "surreal-test-support"))]
         eprintln!("owned-rich-document-create transactionfailed error={error}");
         return Err(error);
     }
-    raw_rows_at(
-        storage,
-        "SELECT * FROM type::record('knowledge_rich_documents', $doc_id);",
-        vec![b("doc_id", document_id.to_owned())],
-        0,
+    observe_result(
+        "create_owned_result_read",
+        raw_rows_at(
+            storage,
+            "SELECT * FROM type::record('knowledge_rich_documents', $doc_id);",
+            vec![b("doc_id", document_id.to_owned())],
+            0,
+        ),
     )
     .await
 }
@@ -6607,8 +6630,15 @@ impl handshake_document::surreal::DocumentQuery for SurrealStorage {
                 for (name, value) in binds {
                     query = query.bind((name, value));
                 }
-                let mut response = meaningful_check(query.await?)?;
-                Ok((response.take(0)?, response.take(1)?))
+                let response = observe_result("storage_query", query).await?;
+                let mut response = observe_result("storage_response_check", async {
+                    meaningful_check(response)
+                })
+                .await?;
+                observe_result("storage_response_decode_pair", async {
+                    Ok((response.take(0)?, response.take(1)?))
+                })
+                .await
             })
         })
         .await

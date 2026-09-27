@@ -43,6 +43,7 @@ use axum::{
     Json, Router,
 };
 use chrono::{DateTime, Utc};
+use handshake_storage_support::diagnostics::observe_result;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -789,26 +790,32 @@ async fn record_receipt(
     use crate::storage::surreal::resource_authority::{
         AuthorizationRequest, ResourceAction, ResourceKind,
     };
-    let decision = state
-        .surreal
-        .authorize_protected_resource(AuthorizationRequest {
-            session_token: scope.session_token.clone(),
-            channel_binding_hash: scope.channel_binding_hash.clone(),
-            capability_id: "fs.write".into(),
-            resource_kind: ResourceKind::RichDocument,
-            external_resource_id: rich_document_id.to_owned(),
-            action: ResourceAction::Update,
-        })
-        .await
-        .map_err(|_| crate::api::authority::constant_denial())?;
+    let decision = observe_result(
+        "receipt_authorize",
+        state
+            .surreal
+            .authorize_protected_resource(AuthorizationRequest {
+                session_token: scope.session_token.clone(),
+                channel_binding_hash: scope.channel_binding_hash.clone(),
+                capability_id: "fs.write".into(),
+                resource_kind: ResourceKind::RichDocument,
+                external_resource_id: rich_document_id.to_owned(),
+                action: ResourceAction::Update,
+            }),
+    )
+    .await
+    .map_err(|_| crate::api::authority::constant_denial())?;
     scope.resource_id = decision.resource_id;
     scope.action = ResourceAction::Update;
     scope.capability_id = "fs.write".into();
-    let stored = state
-        .surreal
-        .with_record_user_scope(scope, db.append_kernel_event(event))
-        .await
-        .map_err(storage_error)?;
+    let stored = observe_result(
+        "receipt_append",
+        state
+            .surreal
+            .with_record_user_scope(scope, db.append_kernel_event(event)),
+    )
+    .await
+    .map_err(storage_error)?;
     Ok(stored.event_id)
 }
 

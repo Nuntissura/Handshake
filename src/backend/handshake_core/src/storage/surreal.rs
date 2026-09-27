@@ -11,6 +11,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use handshake_storage_support::diagnostics::{observe, observe_result};
 use sha2::Digest;
 use surrealdb::{
     engine::local::{Db, RocksDb},
@@ -743,11 +744,14 @@ impl SurrealDataContext<'_> {
         let bindings = surrealdb::types::SurrealValue::into_value(bindings);
         let query = self.client.query(statement);
         let response = if matches!(bindings, surrealdb::types::Value::None) {
-            query.await?
+            observe_result("storage_query", query).await?
         } else {
-            query.bind(bindings).await?
+            observe_result("storage_query", query.bind(bindings)).await?
         };
-        decode_query_values(response, index)
+        observe_result("storage_response_decode", async {
+            decode_query_values(response, index)
+        })
+        .await
     }
 
     /// Runs one bound multi-statement query and decodes five result sets from
@@ -1163,7 +1167,7 @@ impl SurrealStorage {
             if self.inner.lifecycle.load(Ordering::Acquire) != LIFECYCLE_OPEN {
                 return Err(SurrealStorageError::Closed);
             }
-            let guard = self.inner.client.read().await;
+            let guard = observe("storage_lease_wait", 0, self.inner.client.read(), |_| false).await;
             if self.inner.lifecycle.load(Ordering::Acquire) != LIFECYCLE_OPEN {
                 return Err(SurrealStorageError::Closed);
             }
@@ -1173,9 +1177,14 @@ impl SurrealStorage {
                 .scope((), async move {
                     if let Some(scope) = record_user_scope {
                         let scoped = client.clone();
-                        scoped.use_ns(namespace).use_db(database).await?;
-                        scoped
-                            .signin(RecordSignin {
+                        observe_result(
+                            "storage_namespace",
+                            scoped.use_ns(namespace).use_db(database),
+                        )
+                        .await?;
+                        observe_result(
+                            "storage_signin",
+                            scoped.signin(RecordSignin {
                                 namespace: self.config().namespace().to_owned(),
                                 database: self.config().database().to_owned(),
                                 access: resource_authority::AUTHORITY_ACCESS_METHOD.to_owned(),
@@ -1185,11 +1194,20 @@ impl SurrealStorage {
                                     )),
                                     channel_binding_hash: scope.channel_binding_hash,
                                 },
-                            })
-                            .await?;
-                        operation(SurrealDataContext { client: &scoped }).await
+                            }),
+                        )
+                        .await?;
+                        observe_result(
+                            "storage_operation",
+                            operation(SurrealDataContext { client: &scoped }),
+                        )
+                        .await
                     } else {
-                        operation(SurrealDataContext { client }).await
+                        observe_result(
+                            "storage_operation",
+                            operation(SurrealDataContext { client }),
+                        )
+                        .await
                     }
                 })
                 .await
@@ -1362,13 +1380,18 @@ impl SurrealStorage {
         if self.inner.lifecycle.load(Ordering::Acquire) != LIFECYCLE_OPEN {
             return Err(SurrealStorageError::Closed);
         }
-        let guard = self.inner.client.read().await;
+        let guard = observe("authority_lease_wait", 0, self.inner.client.read(), |_| {
+            false
+        })
+        .await;
         if self.inner.lifecycle.load(Ordering::Acquire) != LIFECYCLE_OPEN {
             return Err(SurrealStorageError::Closed);
         }
         let client = guard.as_ref().ok_or(SurrealStorageError::Closed)?;
         let _lease_count = self.inner.enter_lease();
-        INSIDE_SURREAL_OPERATION.scope((), operation(client)).await
+        INSIDE_SURREAL_OPERATION
+            .scope((), observe_result("authority_operation", operation(client)))
+            .await
     }
 
     /// Runs one logical storage operation - including every retry attempt it
