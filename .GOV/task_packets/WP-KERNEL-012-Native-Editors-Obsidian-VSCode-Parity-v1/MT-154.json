@@ -2247,7 +2247,66 @@
     },
     "status_effect": "none; renewed implementation authority recorded; no acceptance verdict inferred",
     "renewed_assignments": [
-    {"id":"MT032-MEASURED-REPAIR-20260927","recorded_at_utc":"2026-09-27T12:18:46.829462Z","operator_decision_ref":"MT-032.remediation_v14.operator_decision","base_product_commit":"ec596eecb70f2820cb357ef95d5820b890c8944f","owner":"document_coder; sole product editor","batch_owner":"MT-154","covered_mts":["MT-154","MT-032"],"scope_override":"Extend existing document-slice ownership for sanitized inner diagnostics and the measured MT032 repair only","allowed_product_paths":["src/backend/handshake_document/**","src/backend/handshake_storage_support/**","src/backend/handshake_core/src/api/knowledge_documents.rs","src/backend/handshake_core/src/storage/surreal.rs","src/backend/handshake_core/src/storage/surreal/knowledge.rs","src/backend/handshake_core/src/storage/surreal/database.rs","src/backend/handshake_core/src/storage/surreal/event_ledger.rs (document receipt diagnostics or evidenced repair only)","src/backend/handshake_core/src/storage/surreal/resource_authority.rs (document request diagnostics only)","src/backend/handshake_core/src/storage/surreal/schema.surql (fn::mt120_document_access only)","src/backend/handshake_core/src/storage/surreal/schema.rs (exact revision160 predecessor upgrade, reversible document-function delta, current fingerprints and relevant proofs only)"],"scope_rule":"MT032 backend prohibition retained; MT154 owns backend changes; no unrelated behavior edits","attempt_history":{"preserve":true,"latest_verdict":"MT-032.validation_v12 FAIL_V12","failed_verdict_count":6,"max_fix_rounds_per_mt":3,"reset_counters":false,"exception_ref":"MT-032.remediation_v14.operator_decision","diagnostic_run_limit":1,"acceptance_run_limit":1},"proof_route_ref":"MT-032.remediation_v14.proof_route","diagnosis_ref":"MT-032.remediation_v14.diagnosis","status_effect":"No MT154 acceptance inferred; full existing scope/proof remains","diagnostic_extension_refs":["MT-032.remediation_v14.diagnostic_extension_v1"],"measured_schema_repair":{"recorded_at_utc":"2026-09-27T17:28:28.616178+00:00","approval_basis":"Existing Operator bounded MT154 create/save latency repair; file list is implementation declaration, not new Operator whitelist","evidence_ref":"MT-032.remediation_v14.diagnostic_extension_v1.diagnostic_result","changed_hypothesis":"Remove one explicit duplicate live document-grant SELECT per mt120_document_access call inside measured document/projection/version/receipt mutations; returned COMMIT timings exclude commit as their dominant cost","exact_change":"Replace has_grant rich_document call with live_session and both delegated-capability checks; retain independent workspace read; add both policy-version bounds to existing parent-checked document-grant SELECT; preserve all its original predicates","equivalence_basis":"Unique(resource_kind,external_resource_id) makes both document-grant witnesses refer to same resource; parent predicates depend only on that resource; stricter policy-valid grant remains existential; no first-grant selection/cache","limits":"Per-function latency unmeasured; changed source reduces duplicate live query work, not proof of speedup or MT032 PASS","migration":"Exact revision160 generated/INFO/catalog/source identity to new revision; reversible function delta preserves historical predecessor pins; no unrelated schema or authority semantics","proof_route":"Existing MT-154-PIN-MEASURE one batched measurement by sole WPV on warm C (current jobs2/per-test timeout/owned roots overrides; no outer timeout), current pins updated from observed values, PIN-CONFIRM plus authorization/upgrade obligations in remaining single acceptance union","budget":"No third native diagnostic; PIN-MEASURE is existing measurement_not_attempt and consumes neither native diagnostic nor acceptance counter; sole PIN-CONFIRM is part of acceptance0/1","owner":"document_coder sole product writer; wp_validator independent semantic/source/pin/acceptance proof","state":"PUSHED_PENDING_INDEPENDENT_CATALOG_MEASUREMENT","updated_at_utc":"2026-09-27T17:50:55.099214+00:00","implementation":{"commit":"a7ae3657d3feeaaac09700165b1db08b322eca11","files":["src/backend/handshake_core/src/storage/surreal/schema.surql","src/backend/handshake_core/src/storage/surreal/schema.rs"],"tree_clean":true,"live_remote_matches":true,"source_digest":"1097d0f369ff64f47c460f0e0e0584483d9a19f4b6e27157044c61f501e3da61","source_inputs":1242,"D_check_exit":0,"D_check_finished_utc":"2026-09-27T17:45:53Z","log":"../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260927-document-grant-attempt1-handshake_core-check.log","exit":"../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260927-document-grant-attempt1-handshake_core-check.log.exit","schema_source_sha256":"009ee238f7935479a9c507f8b1e8cc59ef306dd80765b8e74bc9665909d7a3f2","INFO_pin":"ZERO_PENDING_MT154_PIN_MEASURE_FAIL_CLOSED","added_acceptance_tests":["document_grant_revision_160_upgrade_requires_exact_catalog_and_restarts_current","document_grant_single_live_policy_witness_controls_record_user_visibility"],"proof_limit":"Compile/static source review only; no runtime latency, authorization or migration verdict"},"temporal_review":"Predicate equivalence limited stable authority/time. Old scans sampled wall-clock expiry separately; consolidated query changes sampling time, including backward-clock boundary decisions. Fresh expires_at > time::now remains; no cached authorization/time or new clock policy. Independent source review found no violation of current-grant/expiry fail-closed spec02:2754,2760,2772; runtime expiry/revocation proof remains required."}},
+    {"id":"MT032-MEASURED-REPAIR-20260927","recorded_at_utc":"2026-09-27T12:18:46.829462Z","operator_decision_ref":"MT-032.remediation_v14.operator_decision","base_product_commit":"ec596eecb70f2820cb357ef95d5820b890c8944f","owner":"document_coder; sole product editor","batch_owner":"MT-154","covered_mts":["MT-154","MT-032"],"scope_override":"Extend existing document-slice ownership for sanitized inner diagnostics and the measured MT032 repair only","allowed_product_paths":["src/backend/handshake_document/**","src/backend/handshake_storage_support/**","src/backend/handshake_core/src/api/knowledge_documents.rs","src/backend/handshake_core/src/storage/surreal.rs","src/backend/handshake_core/src/storage/surreal/knowledge.rs","src/backend/handshake_core/src/storage/surreal/database.rs","src/backend/handshake_core/src/storage/surreal/event_ledger.rs (document receipt diagnostics or evidenced repair only)","src/backend/handshake_core/src/storage/surreal/resource_authority.rs (document request diagnostics only)","src/backend/handshake_core/src/storage/surreal/schema.surql (fn::mt120_document_access only)","src/backend/handshake_core/src/storage/surreal/schema.rs (exact revision160 predecessor upgrade, reversible document-function delta, current fingerprints and relevant proofs only)"],"scope_rule":"MT032 backend prohibition retained; MT154 owns backend changes; no unrelated behavior edits","attempt_history":{"preserve":true,"latest_verdict":"MT-032.validation_v12 FAIL_V12","failed_verdict_count":6,"max_fix_rounds_per_mt":3,"reset_counters":false,"exception_ref":"MT-032.remediation_v14.operator_decision","diagnostic_run_limit":1,"acceptance_run_limit":1},"proof_route_ref":"MT-032.remediation_v14.proof_route","diagnosis_ref":"MT-032.remediation_v14.diagnosis","status_effect":"No MT154 acceptance inferred; full existing scope/proof remains","diagnostic_extension_refs":["MT-032.remediation_v14.diagnostic_extension_v1"],"measured_schema_repair":{
+      "recorded_at_utc": "2026-09-27T17:28:28.616178+00:00",
+      "approval_basis": "Existing Operator bounded MT154 create/save latency repair; file list is implementation declaration, not new Operator whitelist",
+      "evidence_ref": "MT-032.remediation_v14.diagnostic_extension_v1.diagnostic_result",
+      "changed_hypothesis": "Remove one explicit duplicate live document-grant SELECT per mt120_document_access call inside measured document/projection/version/receipt mutations; returned COMMIT timings exclude commit as their dominant cost",
+      "exact_change": "Replace has_grant rich_document call with live_session and both delegated-capability checks; retain independent workspace read; add both policy-version bounds to existing parent-checked document-grant SELECT; preserve all its original predicates",
+      "equivalence_basis": "Unique(resource_kind,external_resource_id) makes both document-grant witnesses refer to same resource; parent predicates depend only on that resource; stricter policy-valid grant remains existential; no first-grant selection/cache",
+      "limits": "Per-function latency unmeasured; changed source reduces duplicate live query work, not proof of speedup or MT032 PASS",
+      "migration": "Exact revision160 generated/INFO/catalog/source identity to new revision; reversible function delta preserves historical predecessor pins; no unrelated schema or authority semantics",
+      "proof_route": "Existing MT-154-PIN-MEASURE one batched measurement by sole WPV on warm C (current jobs2/per-test timeout/owned roots overrides; no outer timeout), current pins updated from observed values, PIN-CONFIRM plus authorization/upgrade obligations in remaining single acceptance union",
+      "budget": "No third native diagnostic; PIN-MEASURE is existing measurement_not_attempt and consumes neither native diagnostic nor acceptance counter; sole PIN-CONFIRM is part of acceptance0/1",
+      "owner": "document_coder sole product writer; wp_validator independent semantic/source/pin/acceptance proof",
+      "state": "PUSHED_PINS_MEASURED_PENDING_SOLE_ACCEPTANCE",
+      "updated_at_utc": "2026-09-27T18:28:49.209355+00:00",
+      "implementation": {
+        "commit": "a7ae3657d3feeaaac09700165b1db08b322eca11",
+        "files": [
+          "src/backend/handshake_core/src/storage/surreal/schema.surql",
+          "src/backend/handshake_core/src/storage/surreal/schema.rs"
+        ],
+        "tree_clean": true,
+        "live_remote_matches": true,
+        "source_digest": "1097d0f369ff64f47c460f0e0e0584483d9a19f4b6e27157044c61f501e3da61",
+        "source_inputs": 1242,
+        "D_check_exit": 0,
+        "D_check_finished_utc": "2026-09-27T17:45:53Z",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260927-document-grant-attempt1-handshake_core-check.log",
+        "exit": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260927-document-grant-attempt1-handshake_core-check.log.exit",
+        "schema_source_sha256": "009ee238f7935479a9c507f8b1e8cc59ef306dd80765b8e74bc9665909d7a3f2",
+        "INFO_pin": "ZERO_PENDING_MT154_PIN_MEASURE_FAIL_CLOSED",
+        "added_acceptance_tests": [
+          "document_grant_revision_160_upgrade_requires_exact_catalog_and_restarts_current",
+          "document_grant_single_live_policy_witness_controls_record_user_visibility"
+        ],
+        "proof_limit": "Compile/static source review only; no runtime latency, authorization or migration verdict",
+        "checkpoint_kind": "Historical a7ae3657 compile and pre-measurement pin state; final candidate below"
+      },
+      "temporal_review": "Predicate equivalence limited stable authority/time. Old scans sampled wall-clock expiry separately; consolidated query changes sampling time, including backward-clock boundary decisions. Fresh expires_at > time::now remains; no cached authorization/time or new clock policy. Independent source review found no violation of current-grant/expiry fail-closed spec02:2754,2760,2772; runtime expiry/revocation proof remains required.",
+      "current_candidate": {
+        "commit": "7479972ac681cd238e58d37e318beab6c8d3b423",
+        "source_digest": "80172838769922dd1cfeb52eea3b653491bf7619716a840a2e48dfdbe3c841d8",
+        "source_inputs": 1242,
+        "tree_clean": true,
+        "live_remote_matches": true,
+        "pin_commits": [
+          "948cb020eb9b91031500c30a4fec9a860d08435b",
+          "7479972ac681cd238e58d37e318beab6c8d3b423"
+        ],
+        "measurement_ref": "MT-032.remediation_v14.pin_measurement",
+        "measurement_result_commit": "a2c061ac",
+        "current_info": "99a02cba2ef3a195bb49013d86a19e20e02e58a05363b39c46ddda4ebacc0c9a",
+        "current_loom": "299e8dc80fbab95f43d178a8d09c6b3760f6dfad9edc85215c865adf6b2edd98",
+        "current_atelier": "b26f957864d7f730201bf8196bb8c77c85ea79ce46604eb745ba3d535f8f0250",
+        "historical_pins": "unchanged",
+        "review_correction": "948cb020 missed second Loom assertion; parent caught before acceptance; 7479972 corrects it; GP100 full consumer scan",
+        "proof": "Pin-only final changes format/static reviewed; builder gate16/16; D compile remains a7ae3657 input proof; no current runtime verdict",
+        "remaining": "WPV exact capacity preparation and sole acceptance including PIN-CONFIRM9, new migration/auth tests and full MT032 runtime boundary",
+        "budgets": "Both native diagnostics and existing PIN-MEASURE consumed; acceptance0/1; no reset"
+      }
+    }},
       {
         "id": "MT032-DOCUMENT-EXTRACTION-20260926",
         "authorized_by": "OPERATOR",
