@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 72
+generation: 77
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -104,11 +104,14 @@ steps:
 - {id: GP-083, role: builder, at: before_round, do: confirm observer accepts pinned SDK IntoFuture builders without changing await conversion timing, check: {type: confirm}, source: 'source review: UseNs, UseDb, Signin and Query builders are IntoFuture, not Future', state: active}
 - {id: GP-084, role: builder, at: before_round, do: confirm new imports follow existing module documentation, check: {type: confirm}, source: 'formatter: inserted import before inner module docs rejected source', state: active}
 - {id: GP-085, role: orchestrator, at: before_dispatch, do: confirm helper source names against current files before directing edits, check: {type: confirm}, source: 'review: relayed stale map as nonexistent guarded_document_mutation; actual create uses guarded_mutation', state: active}
-- {id: GP-086, role: orchestrator, at: before_round, do: confirm unused approved V14 extension OR measured repair acceptance; retain consumed first diagnostic, check: {type: confirm}, source: Operator approved statement-timing extension after V14 whole-query attribution proved insufficient, state: active}
-- {id: GP-087, role: wp_validator, at: before_round, do: confirm extension exact two cases unused OR acceptance unused; old markers and counters retained, check: {type: confirm}, source: Operator V14 diagnostic_extension_v1 limit1; original diagnostic consumed and acceptance remains limit1, state: active}
+- {id: GP-086, role: orchestrator, at: before_round, do: confirm unused approved V14 extension OR measured repair acceptance; retain consumed first diagnostic, check: {type: confirm}, source: Operator approved statement-timing extension after V14 whole-query attribution proved insufficient, state: retired}
+- {id: GP-087, role: wp_validator, at: before_round, do: confirm extension exact two cases unused OR acceptance unused; old markers and counters retained, check: {type: confirm}, source: Operator V14 diagnostic_extension_v1 limit1; original diagnostic consumed and acceptance remains limit1, state: retired}
 - {id: GP-088, role: builder, at: before_round, do: 'confirm statement timing preserves response slots, all errors and returned values; no data logged', check: {type: confirm}, source: V14 query-await spans could not attribute SurrealQL statements; SDK stats extraction consumes result slots, state: active}
 - {id: GP-089, role: wp_validator, at: before_round, do: confirm fixed statement indexes and optional engine timings survive capture without query data, check: {type: confirm}, source: V14 extension needs statement-level attribution; missing or dropped response never implies zero cost, state: active}
 - {id: GP-090, role: wp_validator, at: before_round, do: confirm SDK visibility and extraction claims against opened pinned type and method definitions, check: {type: confirm}, source: 'review: inferred WithStats field privacy from adjacent types; actual pinned tuple field is public', state: active}
 - {id: GP-091, role: wp_validator, at: before_round, do: 'confirm watcher ready JSON parsed fully and matches live PID, start time and candidate before launch', check: {type: confirm}, source: 'infra: ready file existed before JSON flush; inherited wrapper exited before Bash on empty identity', state: retired}
 - {id: GP-092, role: wp_validator, at: before_round, do: 'confirm complete watcher ready JSON matches live PID, creation and candidate before launch', check: {type: confirm}, source: 'infra: pre-Bash identity mismatch; later ready valid; initial bytes unobserved; GP091 cause unproved', state: active}
 - {id: GP-093, role: wp_validator, at: before_round, do: confirm parsed process timestamps compare normalized UTC instants and full launcher dependency chain, check: {type: confirm}, source: 'infra: JSON DateTime compared to ISO string caused false watcher_process_reused before Bash', state: active}
+- {id: GP-094, role: orchestrator, at: before_round, do: confirm existing MT154 pin measurement OR unused measured-repair acceptance; native diagnostics consumed, check: {type: confirm}, source: MT154 PIN-MEASURE is required measurement_not_attempt within Operator-approved measured repair, state: active}
+- {id: GP-095, role: wp_validator, at: before_round, do: confirm one batched pin measurement OR unused acceptance; preserve both consumed native diagnostics, check: {type: confirm}, source: MT154 PIN-MEASURE before PIN-CONFIRM; confirm belongs in sole remaining acceptance union, state: active}
+- {id: GP-096, role: wp_validator, at: before_round, do: confirm grant-witness equivalence and exact predecessor schema proof before measuring or accepting repair, check: {type: confirm}, source: MT032 slow statements share document_access; schema repair must preserve live authorization and predecessor pins, state: active}
