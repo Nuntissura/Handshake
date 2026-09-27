@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 67
+generation: 68
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -108,3 +108,4 @@ steps:
 - {id: GP-087, role: wp_validator, at: before_round, do: confirm extension exact two cases unused OR acceptance unused; old markers and counters retained, check: {type: confirm}, source: Operator V14 diagnostic_extension_v1 limit1; original diagnostic consumed and acceptance remains limit1, state: active}
 - {id: GP-088, role: builder, at: before_round, do: 'confirm statement timing preserves response slots, all errors and returned values; no data logged', check: {type: confirm}, source: V14 query-await spans could not attribute SurrealQL statements; SDK stats extraction consumes result slots, state: active}
 - {id: GP-089, role: wp_validator, at: before_round, do: confirm fixed statement indexes and optional engine timings survive capture without query data, check: {type: confirm}, source: V14 extension needs statement-level attribution; missing or dropped response never implies zero cost, state: active}
+- {id: GP-090, role: wp_validator, at: before_round, do: confirm SDK visibility and extraction claims against opened pinned type and method definitions, check: {type: confirm}, source: 'review: inferred WithStats field privacy from adjacent types; actual pinned tuple field is public', state: active}
