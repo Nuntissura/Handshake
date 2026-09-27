@@ -2830,9 +2830,10 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // the frozen 3596f28d union independently measured this current INFO fingerprint in
 // mt109_authority_catalog_pins_are_deterministic and mt139_current_schema_info_pin_matches_fresh_mem_catalog.
 // Historical predecessor pins remain unchanged.
-// Pending independent MT-154 PIN-MEASURE; bootstrap deliberately fails closed until pinned.
+// MT-154 V14: current INFO, Loom and Atelier pins independently measured on a7ae3657.
+// PIN-MEASURE artifact pins.txt SHA256: 643c0390430dfa0f10db5cafbd4b646e32fa34153739397d9470adc735695060.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "0000000000000000000000000000000000000000000000000000000000000000";
+    "99a02cba2ef3a195bb49013d86a19e20e02e58a05363b39c46ddda4ebacc0c9a";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -2845,7 +2846,7 @@ pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
 // MT-109 C3 re-pin: fn::mt120_loom_endpoint_access and the Loom receipt branches (previous
 // f8909f93910491ac4c95bb8f4b567dd2c572b6e08b5ca899fb0b223dbb2ca411); kb-c3 run 04.
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
-    "469a5fce3f0aac78dbc65638a6459da04877e0148ab9f2472524b5c6a9130e03";
+    "b26f957864d7f730201bf8196bb8c77c85ea79ce46604eb745ba3d535f8f0250";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 /// Second allowlisted lineage (MT-142): every store bootstrapped at schema revision 157 before
@@ -3717,7 +3718,7 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // fn::mt153_loom_identity_unchanged, which the loom_blocks.block_id ASSERT calls (previous
     // value 8adc1dddc98f2fce6119e38f1689a617a84c6602e8909dd01be60641a8b49164).
     const EXPECTED_CATALOG_SHA256: &str =
-        "efc3ecc6ceea3e2a2cb0b1deb717c48a3d79fe8ff7668a17b06fc8f2f10e61b7";
+        "299e8dc80fbab95f43d178a8d09c6b3760f6dfad9edc85215c865adf6b2edd98";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
