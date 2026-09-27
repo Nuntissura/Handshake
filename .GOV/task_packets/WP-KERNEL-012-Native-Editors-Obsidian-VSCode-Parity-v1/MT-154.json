@@ -2259,8 +2259,8 @@
       "proof_route": "Existing MT-154-PIN-MEASURE one batched measurement by sole WPV on warm C (current jobs2/per-test timeout/owned roots overrides; no outer timeout), current pins updated from observed values, PIN-CONFIRM plus authorization/upgrade obligations in remaining single acceptance union",
       "budget": "No third native diagnostic; PIN-MEASURE is existing measurement_not_attempt and consumes neither native diagnostic nor acceptance counter; sole PIN-CONFIRM is part of acceptance0/1",
       "owner": "document_coder sole product writer; wp_validator independent semantic/source/pin/acceptance proof",
-      "state": "OPERATOR_CONTINUATION_APPROVED_CAPACITY_PREPARATION",
-      "updated_at_utc": "2026-09-27T20:13:15.519775+00:00",
+      "state": "INDEPENDENT_ACCEPTANCE_CONTINUATION_RUNNING",
+      "updated_at_utc": "2026-09-27T20:18:35.229457+00:00",
       "implementation": {
         "commit": "a7ae3657d3feeaaac09700165b1db08b322eca11",
         "files": [
@@ -2303,8 +2303,8 @@
         "historical_pins": "unchanged",
         "review_correction": "948cb020 missed second Loom assertion; parent caught before acceptance; 7479972 corrects it; GP100 full consumer scan",
         "proof": "Pin-only final changes format/static reviewed; builder gate16/16; D compile remains a7ae3657 input proof; no current runtime verdict",
-        "remaining": "Actual ready observer identities, current role gates and one independent same747 acceptance continuation",
-        "budgets": "Original diagnostics, PIN-MEASURE and acceptance1/1 remain consumed; Operator-approved continuation_v1 limit1, used0; no reset",
+        "remaining": "Independent continuation completion, actual exits/current JUnit and MT032 verdict",
+        "budgets": "Original diagnostics, PIN-MEASURE, acceptance1/1 and explicitly approved continuation1/1 consumed; no reset or additional run",
         "independent_acceptance_ref": "MT-032.remediation_v14.acceptance",
         "independent_result_commit": "173ebaba",
         "current_core_compile": "7479972 core union Finished28m50s,23 required executables listed and runner advanced to native; runtime proof absent",
@@ -2344,7 +2344,7 @@
           "source_evidence": "Existing117 symbol proposal ties each EXE to prior ec compile/fingerprint; current747 completed core log lists distinct executable hashes",
           "limit": "This provision would yield7.446GB below150GB cap and4.446GB below147GB stop before remaining growth; recompute residual native/owning-crate output and scratch against147GB stop before launch; size alone is not readiness",
           "execution": "One explicitly authorized continuation of same frozen candidate and existing export/targets; preserve consumed attempt and all prior counters",
-          "no_action": "Historical proposal completed via referenced continuation capacity receipts; no acceptance continuation yet"
+          "no_action": "Retention completed; continuation launch tracked in operator_continuation_v1"
         },
         "operator_continuation_v1": {
           "recorded_at_utc": "2026-09-27T19:58:05.877263+00:00",
@@ -2352,7 +2352,7 @@
           "approved_question": "Approve one continuation of the same candidate after preserving the 23 obsolete executables on D and verifying sufficient capacity?",
           "candidate": "7479972ac681cd238e58d37e318beab6c8d3b423",
           "limit": 1,
-          "state": "CAPACITY_PREPARED_PENDING_OBSERVER_ADMISSION",
+          "state": "RUNNING_ACCEPTANCE",
           "scope": "Operator-approved baseline23 EXE retention plus capacity verification and one same-candidate continuation; routine supplemental obsolete owned-output retention follows CX107/CX984006 with exact manifests, hashes and no-active-use checks",
           "preserve": "First attempt marker/logs/results and consumed counters; current747 outputs and warm caches;150GB cap; existing deadlines and authorization",
           "executor": "wp_validator",
@@ -2394,7 +2394,13 @@
             "cap": 150000000000,
             "limit": "Allowance, not a guaranteed bound; preserve owned-process capacity supervisor at147GB",
             "parent_reconciliation": "Exact26 source absence/D presence and size; both verified manifests; current replacements preserved;40freshnative integrations+lib already built, canvas Argus remains"
-          }
+          },
+          "started_utc": "2026-09-27T20:16:48.2861038Z",
+          "consumed": 1,
+          "exec_handle": 94548,
+          "identity_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v14-acceptance-7479972ac681cd238e58d37e318beab6c8d3b423-continuation1.identity.json",
+          "bash_pid": 223180,
+          "bash_start_utc": "2026-09-27T20:16:48.2810241Z"
         }
       }
     }},
