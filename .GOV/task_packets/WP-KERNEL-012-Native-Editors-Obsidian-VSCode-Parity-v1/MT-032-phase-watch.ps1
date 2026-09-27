@@ -115,7 +115,7 @@ function Get-ScenarioRoots {
 
 $baseline = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($root in @(Get-ScenarioRoots)) { [void]$baseline.Add($root.Path) }
-$prefix = Join-Path $logs "mt032-v14-phase-watch-$CandidateSha"
+$prefix = Join-Path $logs "mt032-v14-statement-watch-$CandidateSha"
 $capturePath = "$prefix.jsonl"
 $readyPath = "$prefix.ready.json"
 $summaryPath = "$prefix.summary.json"
@@ -133,9 +133,11 @@ $watch = [Diagnostics.Stopwatch]::StartNew()
 $capture = [IO.File]::Open($capturePath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read)
 $writer = [IO.StreamWriter]::new($capture, $utf8)
 $writer.AutoFlush = $true
-$state = @{ Records = 0; Polls = 0; StopObserved = $false; Expired = $false; Fatal = $false }
+$state = @{ Records = 0; PhaseRecords = 0; StatementRecords = 0; UnavailableStatementTimings = 0; Polls = 0; StopObserved = $false; Expired = $false; Fatal = $false }
+$statementQueries = @{}
 
 function Accept-PhaseLine([string]$Line, $FileState) {
+    if ($Line.Contains('MT032_DOCUMENT_STATEMENT')) { Accept-StatementLine $Line $FileState; return }
     if (-not $Line.Contains('MT032_DOCUMENT_PHASE')) { return }
     try {
         $stamp = $null; $request = $null; $phase = $null; $event = $null; $elapsed = $null
@@ -187,6 +189,7 @@ function Accept-PhaseLine([string]$Line, $FileState) {
             if (-not $ends.Add($key)) { [void]$issues.Add('observation_multiple_terminal_events') }
         }
         $record = [ordered]@{
+            kind = 'phase'
             observed_utc = [DateTime]::UtcNow.ToString('o')
             timestamp = $timestamp.ToUniversalTime().ToString('o')
             request_id = $id.ToString('D'); phase = [string]$phase; event = [string]$event
@@ -198,8 +201,67 @@ function Accept-PhaseLine([string]$Line, $FileState) {
         }
         $writer.WriteLine(($record | ConvertTo-Json -Compress))
         $state.Records++
+        $state.PhaseRecords++
         $roots[$FileState.Root].Records++
     } catch { [void]$issues.Add('phase_parse_or_capture_error') }
+}
+
+function Accept-StatementLine([string]$Line, $FileState) {
+    try {
+        if ($FileState.Kind -eq 'json') {
+            $entry = $Line | ConvertFrom-Json -AsHashtable
+            if ($entry.target -ne 'handshake_core::knowledge_documents_api' -or
+                $entry.fields.message -ne 'MT032_DOCUMENT_STATEMENT') { return }
+            $stamp = $entry.timestamp; $request = $entry.fields.request_id
+            $query = $entry.fields.query_observation_id; $index = $entry.fields.statement_index
+            $total = $entry.fields.statement_count; $available = $entry.fields.timing_available
+            $micros = $entry.fields.execution_time_us
+        } else {
+            $plain = [regex]::Replace($Line, '\x1B\[[0-?]*[ -/]*[@-~]', '')
+            if ($plain -notmatch '^\s*\S+\s+INFO\s+handshake_core::knowledge_documents_api:\s+MT032_DOCUMENT_STATEMENT(?:\s|$)') { return }
+            $stamp = [regex]::Match($plain, '^\s*(\S+)').Groups[1].Value
+            $request = [regex]::Match($plain, '\brequest_id="?([0-9a-fA-F-]{36})"?').Groups[1].Value
+            $query = [regex]::Match($plain, '\bquery_observation_id="?([0-9]+)"?').Groups[1].Value
+            $index = [regex]::Match($plain, '\bstatement_index="?([0-9]+)"?').Groups[1].Value
+            $total = [regex]::Match($plain, '\bstatement_count="?([0-9]+)"?').Groups[1].Value
+            $available = [regex]::Match($plain, '\btiming_available="?(true|false)"?').Groups[1].Value
+            $micros = [regex]::Match($plain, '\bexecution_time_us="?([0-9]+)"?').Groups[1].Value
+        }
+        if ($stamp -is [DateTime]) { $stamp = $stamp.ToUniversalTime().ToString('o', [Globalization.CultureInfo]::InvariantCulture) }
+        elseif ($stamp -is [DateTimeOffset]) { $stamp = $stamp.ToUniversalTime().ToString('o', [Globalization.CultureInfo]::InvariantCulture) }
+        $id = [Guid]::Empty; $timestamp = [DateTimeOffset]::MinValue
+        $queryId = [uint64]0; $statementIndex = [uint64]0; $statementCount = [uint64]0
+        $executionMicros = [uint64]0; $timingAvailable = $false
+        if (-not [Guid]::TryParseExact([string]$request, 'D', [ref]$id) -or
+            -not [DateTimeOffset]::TryParse([string]$stamp, [ref]$timestamp) -or
+            -not [uint64]::TryParse([string]$query, [ref]$queryId) -or $queryId -eq 0 -or
+            -not [uint64]::TryParse([string]$index, [ref]$statementIndex) -or
+            -not [uint64]::TryParse([string]$total, [ref]$statementCount) -or $statementCount -eq 0 -or
+            $statementIndex -ge $statementCount -or
+            -not [bool]::TryParse([string]$available, [ref]$timingAvailable) -or
+            -not [uint64]::TryParse([string]$micros, [ref]$executionMicros) -or
+            (-not $timingAvailable -and $executionMicros -ne 0)) {
+            [void]$issues.Add('invalid_statement_record'); return
+        }
+        $queryKey = "$($FileState.Root)|$id|$queryId"
+        if (-not $statementQueries.ContainsKey($queryKey)) {
+            $statementQueries[$queryKey] = @{ Count = $statementCount; Indices = [Collections.Generic.HashSet[uint64]]::new() }
+        }
+        if ($statementQueries[$queryKey].Count -ne $statementCount) { [void]$issues.Add('statement_count_changed') }
+        if (-not $seen.Add("statement|$queryKey|$statementIndex")) { return }
+        [void]$statementQueries[$queryKey].Indices.Add($statementIndex)
+        $record = [ordered]@{
+            kind = 'statement'; observed_utc = [DateTime]::UtcNow.ToString('o')
+            timestamp = $timestamp.ToUniversalTime().ToString('o'); request_id = $id.ToString('D')
+            query_observation_id = $queryId; statement_index = $statementIndex; statement_count = $statementCount
+            timing_available = $timingAvailable; execution_time_us = $executionMicros
+            scenario = $FileState.Scenario; backend_pid = $roots[$FileState.Root].BackendPid
+            runtime_root = [IO.Path]::GetRelativePath($runtime, $FileState.Root); source = $FileState.RelativePath
+        }
+        $writer.WriteLine(($record | ConvertTo-Json -Compress))
+        $state.Records++; $state.StatementRecords++; $roots[$FileState.Root].Records++
+        if (-not $timingAvailable) { $state.UnavailableStatementTimings++ }
+    } catch { [void]$issues.Add('statement_parse_or_capture_error') }
 }
 
 function Read-Available($FileState) {
@@ -279,7 +341,7 @@ function Poll-Phases {
 
 try {
     Write-NewJson $readyPath ([ordered]@{
-        schema = 'handshake.mt032.phase-watch.ready.v14'; candidate_sha = $CandidateSha
+        schema = 'handshake.mt032.statement-watch.ready.v14.1'; candidate_sha = $CandidateSha
         watcher_pid = $PID; ready_utc = [DateTime]::UtcNow.ToString('o'); poll_ms = 100
         lane_root = $lane; runtime_root = $runtime; stop_signal = $stop
         capture_path = $capturePath; summary_path = $summaryPath; baseline_roots = $baseline.Count
@@ -301,6 +363,14 @@ try {
     }
     foreach ($key in $begins) { if (-not $ends.Contains($key)) { [void]$issues.Add('phase_begin_without_terminal') } }
     foreach ($key in $ends) { if (-not $begins.Contains($key)) { [void]$issues.Add('phase_terminal_without_begin') } }
+    foreach ($key in $statementQueries.Keys) {
+        if (-not $begins.Contains($key)) { [void]$issues.Add('statement_query_without_begin') }
+        if (-not $ends.Contains($key)) { [void]$issues.Add('statement_query_without_terminal') }
+        if ($statementQueries[$key].Indices.Count -ne $statementQueries[$key].Count) {
+            [void]$issues.Add('statement_indexes_incomplete')
+        }
+    }
+    if ($state.StatementRecords -eq 0) { [void]$issues.Add('no_statement_records') }
     foreach ($rootState in $roots.Values) {
         if ($rootState.Records -gt 0 -and $rootState.BackendPid -eq 0) { [void]$issues.Add('backend_pid_unobserved') }
     }
@@ -312,14 +382,17 @@ try {
     }
     $writer.Dispose()
     Write-NewJson $summaryPath ([ordered]@{
-        schema = 'handshake.mt032.phase-watch.summary.v14'; candidate_sha = $CandidateSha
+        schema = 'handshake.mt032.statement-watch.summary.v14.1'; candidate_sha = $CandidateSha
         started_utc = $started.ToString('o'); completed_utc = [DateTime]::UtcNow.ToString('o')
         watcher_pid = $PID; records = $state.Records; polls = $state.Polls
+        phase_records = $state.PhaseRecords; statement_records = $state.StatementRecords
+        unavailable_statement_timings = $state.UnavailableStatementTimings
+        queries_with_statement_records = $statementQueries.Count
         new_roots = @($roots.Keys | Sort-Object | ForEach-Object { [IO.Path]::GetRelativePath($runtime, $_) })
         baseline_roots_excluded = $baseline.Count; stop_observed = $state.StopObserved
         incomplete_stream = ($issues.Count -gt 0); issues = @($issues | Sort-Object)
         capture_sha256 = (Get-FileHash -LiteralPath $capturePath -Algorithm SHA256).Hash
-        completeness_limit = 'Polling cannot prove absence of events in a file deleted before first observation; missing terminal may be a stalled request or capture loss. dropped means no result observed, never engine cancellation or rollback proof.'
+        completeness_limit = 'Polling cannot prove absence of events in a file deleted before first observation. dropped means no result observed, never engine cancellation or rollback proof. Statement execution_time is returned SDK response timing; a dropped SurrealQL query has no returned statement stats, and engine timing alone does not prove queue, permission or commit causation.'
     })
 }
 if ($state.Fatal -or $state.Expired) { exit 1 }

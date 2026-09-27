@@ -1,5 +1,5 @@
 #!/bin/bash
-# Approved MT032-MEASURED-REPAIR-20260927 diagnostic only; never an acceptance union.
+# Approved MT032-STATEMENT-DIAGNOSTIC-20260927 extension diagnostic only; never an acceptance union.
 set -euo pipefail
 SHA="${1:?full candidate SHA required}"
 WORKTREE="${2:?product worktree required}"
@@ -7,7 +7,7 @@ LANE="${3:?existing wpv-c3x lane required}"
 TARGET="${4:?existing C warm target required}"
 NEXTEST="${5:?pinned nextest executable required}"
 ARTIFACTS="${6:?canonical artifacts root required}"
-CONSUMED="$LANE/MT032-V14-BOUNDED-INNER-DIAGNOSTIC.started"
+CONSUMED="$LANE/MT032-V14-STATEMENT-DIAGNOSTIC.started"
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || exit 2
 [[ ! -e "$CONSUMED" ]] || { echo 'MT032_PROBE approval already consumed; no automatic replay'; exit 2; }
 export GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never
@@ -18,11 +18,11 @@ export GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never
 [[ "$(git -C "$WORKTREE" ls-remote origin refs/heads/feat/WP-KERNEL-012 | cut -f1)" = "$SHA" ]] || exit 2
 
 check_watcher() {
-  local ready="$LANE/logs/mt032-v14-phase-watch-$SHA.ready.json"
-  [[ -f "$ready" && ! -e "$LANE/logs/mt032-v14-phase-watch-$SHA.summary.json" ]] || {
+  local ready="$LANE/logs/mt032-v14-statement-watch-$SHA.ready.json"
+  [[ -f "$ready" && ! -e "$LANE/logs/mt032-v14-statement-watch-$SHA.summary.json" ]] || {
     echo 'MT032_PROBE phase watcher not ready or already stopped'; exit 2;
   }
-  grep -Fq '"schema":"handshake.mt032.phase-watch.ready.v14"' "$ready" || exit 2
+  grep -Fq '"schema":"handshake.mt032.statement-watch.ready.v14.1"' "$ready" || exit 2
   grep -Fq "\"candidate_sha\":\"$SHA\"" "$ready" || exit 2
 }
 check_watcher
@@ -76,7 +76,7 @@ check_cap
 
 # WPV also verifies watcher process identity/liveness and continuously supervises it.
 check_watcher
-INVOCATION="$LANE/mt032-v14-phase-probe-$SHA.started"
+INVOCATION="$LANE/mt032-v14-statement-probe-$SHA.started"
 [[ ! -e "$INVOCATION" ]] || { echo 'MT032_PROBE already invoked; no automatic replay'; exit 2; }
 (set -o noclobber; printf '%s' "$SHA" > "$CONSUMED") || exit 2
 date -u +%Y-%m-%dT%H:%M:%SZ > "$INVOCATION"
@@ -92,7 +92,7 @@ set -e
 [[ -f "$JUNIT" && "$JUNIT" -nt "$INVOCATION" ]] || exit 4
 COUNT="$(sed -n 's/^<testsuites[^>]* tests="\([0-9][0-9]*\)".*/\1/p' "$JUNIT" | head -n 1)"
 [[ "$COUNT" = 2 ]] || { echo "MT032_PROBE invalid test count=$COUNT"; exit 4; }
-cp "$JUNIT" "$LANE/junit-$SHA-mt032-v14-phase-probe.xml"
-sha256sum "$LANE/junit-$SHA-mt032-v14-phase-probe.xml" "$HSK_TEST_BACKEND_BIN"
+cp "$JUNIT" "$LANE/junit-$SHA-mt032-v14-statement-probe.xml"
+sha256sum "$LANE/junit-$SHA-mt032-v14-statement-probe.xml" "$HSK_TEST_BACKEND_BIN"
 check_cap
 echo "MT032_PROBE completed nextest_exit=$RESULT tests=$COUNT; diagnostic only"
