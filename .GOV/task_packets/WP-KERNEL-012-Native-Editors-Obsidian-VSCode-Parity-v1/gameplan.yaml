@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 80
+generation: 81
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -118,3 +118,4 @@ steps:
 - {id: GP-097, role: wp_validator, at: before_round, do: confirm capacity proposal parses with typed byte totals and cleanup boolean after metadata write, check: {type: confirm}, source: 'infra: PowerShell cleanup=false typo wrote null capacity JSON; require corrected artifact reread', state: active}
 - {id: GP-098, role: wp_validator, at: before_round, do: 'confirm owned observer records descendant CPU-I/O, log growth, exits and C bytes before launch', check: {type: confirm}, source: 'prep: pin wrapper only waited; persistent build/cap observer restored after launch under KB-STEER-005', state: active}
 - {id: GP-099, role: orchestrator, at: before_round, do: confirm retained UTF-8 logs are read with encoding-safe display before evidence claims, check: {type: confirm}, source: 'infra: default cp1252 console rejected Unicode log tail; use UTF-8 reader and escaped JSON display', state: active}
+- {id: GP-100, role: wp_validator, at: before_round, do: confirm every current fingerprint consumer matches measured values; all historical pins remain unchanged, check: {type: confirm}, source: 'repair: named Loom bootstrap pin updated but deterministic test literal retained stale current fingerprint', state: active}
