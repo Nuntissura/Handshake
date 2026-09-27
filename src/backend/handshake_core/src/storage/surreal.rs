@@ -575,10 +575,100 @@ static_assertions::assert_not_impl_any!(SurrealTransactionContext<'static>:
     std::borrow::Borrow<SurrealClient>
 );
 
+// Preserve SDK extraction for every consumed result/error. Unconsumed slots are drained
+// only when the response is dropped; captured correlation survives its parent scope.
+pub(crate) enum ObservedQueryResults {
+    Plain(surrealdb::IndexedResults),
+    Timed(TimedQueryResults),
+}
+pub(crate) struct TimedQueryResults {
+    response: surrealdb::method::WithStats<surrealdb::IndexedResults>,
+    remaining: std::collections::BTreeSet<usize>,
+    statement_count: usize,
+    context: handshake_storage_support::diagnostics::StatementTimingContext,
+}
+impl TimedQueryResults {
+    fn observed(&mut self, index: usize, duration: Option<std::time::Duration>) {
+        if self.remaining.remove(&index) {
+            self.context.emit(index, self.statement_count, duration);
+        }
+    }
+}
+impl Drop for TimedQueryResults {
+    fn drop(&mut self) {
+        for index in std::mem::take(&mut self.remaining) {
+            let duration = self
+                .response
+                .take::<surrealdb::types::Value>(index)
+                .and_then(|(stats, _)| stats.execution_time);
+            self.context.emit(index, self.statement_count, duration);
+        }
+    }
+}
+impl From<surrealdb::IndexedResults> for ObservedQueryResults {
+    fn from(value: surrealdb::IndexedResults) -> Self {
+        Self::Plain(value)
+    }
+}
+impl ObservedQueryResults {
+    pub(crate) fn take_errors(&mut self) -> std::collections::HashMap<usize, surrealdb::Error> {
+        match self {
+            Self::Plain(response) => response.take_errors(),
+            Self::Timed(response) => response
+                .response
+                .take_errors()
+                .into_iter()
+                .map(|(index, (stats, error))| {
+                    response.observed(index, stats.execution_time);
+                    (index, error)
+                })
+                .collect(),
+        }
+    }
+    pub(crate) fn take<R: surrealdb::types::SurrealValue>(
+        &mut self,
+        index: usize,
+    ) -> Result<Vec<R>, surrealdb::Error> {
+        match self {
+            Self::Plain(response) => response.take(index),
+            Self::Timed(response) => match response.response.take::<Vec<R>>(index) {
+                Some((stats, result)) => {
+                    response.observed(index, stats.execution_time);
+                    result
+                }
+                None => {
+                    response.observed(index, None);
+                    // WithStats::take returns before extraction if no stats/slot exists.
+                    response.response.0.take(index)
+                }
+            },
+        }
+    }
+}
+
+pub(crate) async fn query_with_document_stats(
+    query: surrealdb::method::Query<'_, surrealdb::engine::local::Db>,
+) -> Result<ObservedQueryResults, surrealdb::Error> {
+    use handshake_storage_support::diagnostics::StatementTimingContext;
+    let Some(context) = StatementTimingContext::capture() else {
+        return query.await.map(ObservedQueryResults::Plain);
+    };
+    let response = query.with_stats().await?;
+    // These document boundaries issue ordinary SurrealQL statements, never LIVE/KILL.
+    let statement_count = response.num_statements();
+    Ok(ObservedQueryResults::Timed(TimedQueryResults {
+        response,
+        remaining: (0..statement_count).collect(),
+        statement_count,
+        context,
+    }))
+}
+
 fn decode_query_values<R: surrealdb::types::SurrealValue>(
-    mut response: surrealdb::IndexedResults,
+    response: impl Into<ObservedQueryResults>,
     index: usize,
 ) -> Result<Vec<R>, SurrealStorageError> {
+    let mut response = response.into();
     let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
     errors.sort_by_key(|(statement_index, _)| *statement_index);
     if !errors.is_empty() {
@@ -744,9 +834,13 @@ impl SurrealDataContext<'_> {
         let bindings = surrealdb::types::SurrealValue::into_value(bindings);
         let query = self.client.query(statement);
         let response = if matches!(bindings, surrealdb::types::Value::None) {
-            observe_result("storage_query", query).await?
+            observe_result("storage_query", query_with_document_stats(query)).await?
         } else {
-            observe_result("storage_query", query.bind(bindings)).await?
+            observe_result(
+                "storage_query",
+                query_with_document_stats(query.bind(bindings)),
+            )
+            .await?
         };
         observe_result("storage_response_decode", async {
             decode_query_values(response, index)

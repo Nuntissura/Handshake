@@ -1189,7 +1189,9 @@ where
                 for (name, value) in binds {
                     query = query.bind((name, value));
                 }
-                let response = observe_result("storage_query", query).await?;
+                let response =
+                    observe_result("storage_query", super::query_with_document_stats(query))
+                        .await?;
                 let mut response = observe_result("storage_response_check", async {
                     meaningful_check(response)
                 })
@@ -1214,8 +1216,8 @@ where
 /// guard code from `map_guarded_err`. Mirrors `decode_query_values` in
 /// `storage/surreal.rs`.
 fn meaningful_check(
-    mut response: surrealdb::IndexedResults,
-) -> Result<surrealdb::IndexedResults, SurrealStorageError> {
+    mut response: super::ObservedQueryResults,
+) -> Result<super::ObservedQueryResults, SurrealStorageError> {
     let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
     if errors.is_empty() {
         return Ok(response);
@@ -1256,7 +1258,9 @@ async fn raw_execute(
                 for (name, value) in binds {
                     query = query.bind((name, value));
                 }
-                let response = observe_result("storage_query", query).await?;
+                let response =
+                    observe_result("storage_query", super::query_with_document_stats(query))
+                        .await?;
                 observe_result("storage_response_check", async {
                     meaningful_check(response)
                 })
@@ -6630,7 +6634,9 @@ impl handshake_document::surreal::DocumentQuery for SurrealStorage {
                 for (name, value) in binds {
                     query = query.bind((name, value));
                 }
-                let response = observe_result("storage_query", query).await?;
+                let response =
+                    observe_result("storage_query", super::query_with_document_stats(query))
+                        .await?;
                 let mut response = observe_result("storage_response_check", async {
                     meaningful_check(response)
                 })

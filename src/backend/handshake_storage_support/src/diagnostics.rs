@@ -67,3 +67,30 @@ pub async fn observe_result<T, E>(
 ) -> Result<T, E> {
     observe(phase, 0, future, Result::is_err).await
 }
+
+/// Per-statement SDK timings, emitted only after a query response exists.
+pub struct StatementTimingContext {
+    request_id: String,
+    query_observation_id: u64,
+}
+impl StatementTimingContext {
+    pub fn capture() -> Option<Self> {
+        Some(Self {
+            request_id: DOCUMENT_REQUEST_ID.try_with(Clone::clone).ok()?,
+            query_observation_id: PARENT_OBSERVATION.try_with(|id| *id).ok()?,
+        })
+    }
+    pub fn emit(
+        &self,
+        index: usize,
+        statement_count: usize,
+        duration: Option<std::time::Duration>,
+    ) {
+        tracing::info!(target: "handshake_core::knowledge_documents_api",
+            request_id = %self.request_id, query_observation_id = self.query_observation_id,
+            statement_index = index as u64, statement_count = statement_count as u64,
+            timing_available = duration.is_some(),
+            execution_time_us = duration.map(|value| u64::try_from(value.as_micros()).unwrap_or(u64::MAX)).unwrap_or(0),
+            "MT032_DOCUMENT_STATEMENT");
+    }
+}
