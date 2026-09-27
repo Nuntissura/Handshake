@@ -6128,13 +6128,17 @@ DEFINE FUNCTION OVERWRITE fn::mt109_source_read($kind: string, $external: string
 
 -- MT120_DOCUMENT_ACCESS_BEGIN
 DEFINE FUNCTION OVERWRITE fn::mt120_document_access($document: string, $workspace: string, $action: string, $capability: string) {
-    RETURN fn::mt109_has_grant('rich_document', $document, $action, $capability)
+    RETURN fn::mt109_live_session()
+        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
+        AND (($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability))
         AND fn::mt109_has_workspace_access($workspace, 'read', 'fs.read')
         AND array::len((SELECT id FROM resource_grants
             WHERE status = 'active' AND revoked_at = NONE
               AND (expires_at = NONE OR expires_at > time::now())
               AND account_id = $auth.account_id AND principal_id = $auth.principal_id
               AND access_space_id = $auth.access_space_id
+              AND resource_id.policy_version <= policy_version
+              AND policy_version <= $auth.policy_version
               AND resource_id.resource_kind = 'rich_document' AND resource_id.external_resource_id = $document
               AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id
               AND resource_id.access_space_id = $auth.access_space_id AND resource_id.created_by_principal_id.status = 'enabled'

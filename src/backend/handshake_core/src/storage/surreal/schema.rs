@@ -15,7 +15,13 @@ use super::{
 };
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 160;
+pub const SCHEMA_REVISION: i64 = 161;
+const PRE_DOCUMENT_GRANT_REVISION: i64 = 160;
+const PRE_DOCUMENT_GRANT_GENERATED_SHA256: &str =
+    "fac15c07121d32df355b960e26df51026e1fac09689db2b7c44fbcf5d508c584";
+const PRE_DOCUMENT_GRANT_INFO_SHA256: &str =
+    "bdd0242dc7ccaf392239ec162264433b928db37bfdaf4f0380559bd177d144a2";
+
 /// Exact revision-159 catalog before standalone LoomBlock update authorization.
 const PRE_STANDALONE_LOOM_UPDATE_REVISION: i64 = 159;
 const PRE_STANDALONE_LOOM_UPDATE_GENERATED_SHA256: &str =
@@ -295,6 +301,27 @@ DEFINE FIELD OVERWRITE access_space_id ON TABLE local_account_setup TYPE record<
 DEFINE FIELD OVERWRITE created_at ON TABLE local_account_setup TYPE datetime;
 -- LOCAL_ACCOUNT_SETUP_END
 "#;
+
+const PRE_DOCUMENT_GRANT_FUNCTION: &str = r#"DEFINE FUNCTION OVERWRITE fn::mt120_document_access($document: string, $workspace: string, $action: string, $capability: string) {
+    RETURN fn::mt109_has_grant('rich_document', $document, $action, $capability)
+        AND fn::mt109_has_workspace_access($workspace, 'read', 'fs.read')
+        AND array::len((SELECT id FROM resource_grants
+            WHERE status = 'active' AND revoked_at = NONE
+              AND (expires_at = NONE OR expires_at > time::now())
+              AND account_id = $auth.account_id AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id
+              AND resource_id.resource_kind = 'rich_document' AND resource_id.external_resource_id = $document
+              AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id
+              AND resource_id.access_space_id = $auth.access_space_id AND resource_id.created_by_principal_id.status = 'enabled'
+              AND resource_id.parent_resource_id.resource_kind = 'workspace'
+              AND resource_id.parent_resource_id.external_resource_id = $workspace
+              AND resource_id.parent_resource_id.lifecycle_state = 'active'
+              AND resource_id.parent_resource_id.owner_account_id = $auth.account_id
+              AND resource_id.parent_resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.parent_resource_id.created_by_principal_id.status = 'enabled'
+              AND actions CONTAINS $action AND capability_ids CONTAINS $capability
+              AND delegation_chain = $auth.delegation_chain)) > 0;
+};"#;
 
 const MT120_DOCUMENT_ACCESS_BLOCK: &str = r#"-- MT120_DOCUMENT_ACCESS_BEGIN
 DEFINE FUNCTION OVERWRITE fn::mt120_document_access($document: string, $workspace: string, $action: string, $capability: string) {
@@ -2439,6 +2466,10 @@ fn schema_delta_upgrade_statements() -> String {
         "LET $workspace_delete_rows_1 = SELECT rich_document_id FROM knowledge_rich_documents WHERE workspace_id = $workspace;",
         &mut spans,
     );
+    schema_statements_enclosing(
+        "DEFINE FUNCTION OVERWRITE fn::mt120_document_access(",
+        &mut spans,
+    );
     for (start, end) in spans {
         if block.as_ref().is_some_and(|range| range.contains(&start)) {
             continue;
@@ -2503,7 +2534,28 @@ IF array::len(SELECT id FROM stage_capture_artifacts WHERE workspace_id = $works
 "#;
 
 #[cfg(test)]
+fn restore_pre_document_grant_schema(source: String) -> String {
+    source.replacen(
+        document_grant_upgrade_statement(),
+        PRE_DOCUMENT_GRANT_FUNCTION,
+        1,
+    )
+}
+
+fn document_grant_upgrade_statement() -> &'static str {
+    let start = SCHEMA
+        .find("DEFINE FUNCTION OVERWRITE fn::mt120_document_access(")
+        .expect("document access function exists");
+    let end = SCHEMA[start..]
+        .find("\n};")
+        .map(|offset| start + offset + 3)
+        .expect("document access function terminates");
+    &SCHEMA[start..end]
+}
+
+#[cfg(test)]
 fn restore_pre_mt154_schema(mut source: String) -> String {
+    source = restore_pre_document_grant_schema(source);
     if let Some(start) = source.find(MT154_AUTHORITY_BLOCK_BEGIN) {
         let end = source[start..]
             .find(MT154_AUTHORITY_BLOCK_END)
@@ -2697,7 +2749,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // 27528c0e71735b81fbaa798dabb9e35b3805a16166db450d86fec4baaa32c38f); kb-c5 run 05 (equals sha256 of
 // schema.surql). DECLARATIVE_SCHEMA_CATALOG_SHA256 is unchanged by this batch (kb-c5 run 05).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "fac15c07121d32df355b960e26df51026e1fac09689db2b7c44fbcf5d508c584";
+    "009ee238f7935479a9c507f8b1e8cc59ef306dd80765b8e74bc9665909d7a3f2";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -2778,8 +2830,9 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // the frozen 3596f28d union independently measured this current INFO fingerprint in
 // mt109_authority_catalog_pins_are_deterministic and mt139_current_schema_info_pin_matches_fresh_mem_catalog.
 // Historical predecessor pins remain unchanged.
+// Pending independent MT-154 PIN-MEASURE; bootstrap deliberately fails closed until pinned.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "bdd0242dc7ccaf392239ec162264433b928db37bfdaf4f0380559bd177d144a2";
+    "0000000000000000000000000000000000000000000000000000000000000000";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -4310,6 +4363,22 @@ impl SchemaState {
             && self.info_fingerprint_sha256 == EXPECTED_SCHEMA_INFO_SHA256
     }
 
+    fn has_pre_document_grant_identity(&self) -> bool {
+        self.version == SCHEMA_VERSION
+            && self.revision == PRE_DOCUMENT_GRANT_REVISION
+            && self.target_revision == PRE_DOCUMENT_GRANT_REVISION
+            && self.namespace == DEFAULT_NAMESPACE
+            && self.database == DEFAULT_DATABASE
+            && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
+    }
+
+    fn is_exact_pre_document_grant_current(&self) -> bool {
+        self.has_pre_document_grant_identity()
+            && self.generated_surql_sha256 == PRE_DOCUMENT_GRANT_GENERATED_SHA256
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == PRE_DOCUMENT_GRANT_INFO_SHA256
+    }
+
     fn has_pre_standalone_loom_update_identity(&self) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == PRE_STANDALONE_LOOM_UPDATE_REVISION
@@ -4927,6 +4996,11 @@ async fn bootstrap_schema_unbounded(
                     Some(state) if state.is_exact_current() => {
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
+                    }
+                    Some(state) if state.is_exact_pre_document_grant_current() => {
+                        verified_observed =
+                            Some(upgrade_pre_document_grant_current(&database, &state).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
                     Some(state) if state.is_exact_pre_standalone_loom_update_current() => {
                         verified_observed =
@@ -6384,6 +6458,114 @@ COMMIT TRANSACTION;\n"
             fail_closed(
                 database,
                 "HANDSHAKE_SURREAL_PRE_MT141_UPGRADE_FINAL_STATE_MISSING".to_owned(),
+            )
+            .await
+        }
+    }
+}
+
+/// Upgrade the exact revision-160 catalog with only the document-grant function.
+async fn upgrade_pre_document_grant_current(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_document_grant_current() {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_PRE_DOCUMENT_GRANT_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    let predecessor_observed = read_schema_catalog(database).await?;
+    if predecessor_observed.info_fingerprint_sha256 != PRE_DOCUMENT_GRANT_INFO_SHA256 {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_PRE_DOCUMENT_GRANT_CATALOG_MISMATCH: expected={PRE_DOCUMENT_GRANT_INFO_SHA256}; observed={}",
+                predecessor_observed.info_fingerprint_sha256
+            ),
+        )
+        .await;
+    }
+    let document_upgrade = document_grant_upgrade_statement();
+    let upgrade = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_PRE_DOCUMENT_GRANT_STATE_CHANGED';\n\
+}};\n\
+{document_upgrade}\n\
+UPDATE ONLY handshake_schema_state:primary SET\n\
+    revision = $schema_revision, target_revision = $schema_revision,\n\
+    generated_surql_sha256 = $generated_surql_sha256,\n\
+    info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
+    apply_state = 'schema_applied',\n\
+    updated_at = time::now();\n\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            upgrade.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_DOCUMENT_GRANT_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: PRE_DOCUMENT_GRANT_GENERATED_SHA256.to_owned(),
+                predecessor_info_fingerprint_sha256: PRE_DOCUMENT_GRANT_INFO_SHA256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+
+    let upgraded = match read_context_and_state(database).await? {
+        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) => {
+            return fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_DOCUMENT_GRANT_STATE_MISMATCH: {state:?}"),
+            )
+            .await;
+        }
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_DOCUMENT_GRANT_STATE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    ensure_knowledge_schema_registry(database).await?;
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
+    match read_context_and_state(database).await? {
+        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) => {
+            fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_DOCUMENT_GRANT_FINAL_STATE_MISMATCH: {state:?}"),
+            )
+            .await
+        }
+        None => {
+            fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_DOCUMENT_GRANT_FINAL_STATE_MISSING".to_owned(),
             )
             .await
         }
@@ -9235,7 +9417,10 @@ mod tests {
             } else {
                 "ASSERT $value = record::id($this.id)"
             };
-            assert!(definition.contains(identity), "identity alias {table}.{field}");
+            assert!(
+                definition.contains(identity),
+                "identity alias {table}.{field}"
+            );
         }
         assert_eq!(
             SCHEMA.matches("record::id($this.id)").count(),
@@ -10015,6 +10200,347 @@ mod tests {
             );
             offset = end;
         }
+    }
+
+    #[tokio::test]
+    async fn document_grant_single_live_policy_witness_controls_record_user_visibility() {
+        use crate::storage::surreal::resource_authority::{
+            RecordUserScope, ResourceAction, ResourceGrantSpec, ResourceKind,
+        };
+        let directory = tempfile::tempdir().expect("document grant proof directory");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open document grant proof");
+        bootstrap_schema(&storage)
+            .await
+            .expect("bootstrap current schema");
+        let capabilities = vec!["fs.read".to_owned(), "fs.write".to_owned()];
+        let principal = storage
+            .provision_principal(
+                "document-grant-account",
+                "document-grant-principal",
+                "human_account",
+                "document-grant-actor",
+                "Operator",
+                &capabilities,
+                "document-grant-space",
+                None,
+                std::time::Duration::from_secs(3600),
+            )
+            .await
+            .expect("provision record user");
+        let workspace = storage
+            .register_protected_resource(
+                &principal.identity,
+                ResourceKind::Workspace,
+                "grant-proof-workspace",
+                None,
+                "account_private",
+            )
+            .await
+            .expect("register workspace authority");
+        let document = storage
+            .register_protected_resource(
+                &principal.identity,
+                ResourceKind::RichDocument,
+                "grant-proof-document",
+                Some(&workspace.resource_id),
+                "account_private",
+            )
+            .await
+            .expect("register document authority");
+        let mut document_grants = Vec::new();
+        for resource in [
+            &workspace.resource_id,
+            &document.resource_id,
+            &document.resource_id,
+        ] {
+            let grant = storage
+                .grant_resource(
+                    &principal.identity.account_id,
+                    &principal.identity.access_space_id,
+                    ResourceGrantSpec {
+                        principal_id: principal.identity.principal_id.clone(),
+                        resource_id: resource.clone(),
+                        actions: vec![ResourceAction::Read],
+                        capability_ids: capabilities.clone(),
+                        expires_at: None,
+                        delegation_chain: vec![],
+                    },
+                )
+                .await
+                .expect("grant exact resource");
+            if resource == &document.resource_id {
+                document_grants.push(grant.grant_id);
+            }
+        }
+        storage.with_admin_operation(|database| Box::pin(async move {
+            database.query("CREATE workspaces:`grant-proof-workspace` CONTENT { name: 'grant-proof' }; CREATE knowledge_rich_documents:`grant-proof-document` CONTENT { rich_document_id: 'grant-proof-document', workspace_id: workspaces:`grant-proof-workspace`, title: 'grant-proof', schema_version: '1', content_json: {}, content_sha256: '0000000000000000000000000000000000000000000000000000000000000000' };").await?;
+            Ok(())
+        })).await.expect("seed protected fixture rows");
+        let invalid_grant = document_grants[1].clone();
+        storage.with_admin_operation(move |database| Box::pin(async move {
+            database.query(format!("UPDATE type::record('resource_grants', '{invalid_grant}') SET policy_version = 2;")).await?;
+            Ok(())
+        })).await.expect("make second witness policy-invalid");
+        let scope = RecordUserScope {
+            grant_id: None,
+            workspace_id: Some("grant-proof-workspace".to_owned()),
+            session_token: principal.session.token.clone(),
+            channel_binding_hash: None,
+            resource_id: document.resource_id.clone(),
+            session_id: principal.session.session_id.clone(),
+            capability_id: "fs.read".to_owned(),
+            action: ResourceAction::Read,
+        };
+        async fn visible(storage: &SurrealStorage, scope: RecordUserScope) -> Vec<String> {
+            storage.with_record_user_scope(scope, storage.with_data_operation(|database| {
+                Box::pin(async move {
+                    database.query_values::<String, _>(
+                        "SELECT VALUE rich_document_id FROM knowledge_rich_documents:`grant-proof-document`;",
+                        SurrealValueData::None,
+                    ).await
+                })
+            })).await.expect("query with fresh production record-user SIGNIN")
+        }
+        assert_eq!(
+            visible(&storage, scope.clone()).await,
+            vec!["grant-proof-document"]
+        );
+        let valid_grant = document_grants[0].clone();
+        for (expiry, expected_visible) in [("time::now() - 1h", false), ("time::now() + 1h", true)]
+        {
+            let grant = valid_grant.clone();
+            storage.with_admin_operation(move |database| Box::pin(async move {
+                database.query(format!("UPDATE type::record('resource_grants', '{grant}') SET expires_at = {expiry};")).await?;
+                Ok(())
+            })).await.expect("change live grant expiry");
+            assert_eq!(
+                !visible(&storage, scope.clone()).await.is_empty(),
+                expected_visible,
+                "expired policy-valid and live policy-invalid witnesses must not combine"
+            );
+        }
+        storage
+            .revoke_grant(&valid_grant)
+            .await
+            .expect("revoke valid witness");
+        assert!(
+            visible(&storage, scope).await.is_empty(),
+            "revoked valid witness must deny"
+        );
+        storage
+            .shutdown()
+            .await
+            .expect("close document grant proof");
+    }
+
+    #[tokio::test]
+    async fn document_grant_revision_160_upgrade_requires_exact_catalog_and_restarts_current() {
+        const WRONG_PRE_DOCUMENT_GRANT_GENERATED_SHA256: &str =
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let previous_schema = restore_pre_document_grant_schema(SCHEMA.to_owned());
+        assert_eq!(
+            sha256_hex(previous_schema.as_bytes()),
+            PRE_DOCUMENT_GRANT_GENERATED_SHA256,
+            "the revision-160 predecessor must be exactly the current schema without the document grant consolidation"
+        );
+        let directory = tempfile::tempdir().expect("temporary document grant predecessor");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open exact revision-160 predecessor store");
+        storage
+            .with_admin_operation(move |database| {
+                Box::pin(async move {
+                    let script = fresh_bootstrap_script(&previous_schema)
+                        .expect("split exact revision-160 bootstrap");
+                    let bindings = || BootstrapBindings {
+                        schema_version: SCHEMA_VERSION.to_owned(),
+                        schema_revision: PRE_DOCUMENT_GRANT_REVISION,
+                        namespace: DEFAULT_NAMESPACE.to_owned(),
+                        database: DEFAULT_DATABASE.to_owned(),
+                        source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                        generated_surql_sha256: PRE_DOCUMENT_GRANT_GENERATED_SHA256.to_owned(),
+                    };
+                    database.query_bound(script.definitions, bindings()).await?;
+                    database.query_bound(script.indexes_and_rest, bindings()).await?;
+                    ensure_knowledge_schema_registry(&database).await?;
+                    assert_eq!(
+                        read_schema_catalog(&database).await?.info_fingerprint_sha256,
+                        PRE_DOCUMENT_GRANT_INFO_SHA256,
+                        "the seeded predecessor must carry its observed catalog fingerprint"
+                    );
+                    database
+                        .query(format!(
+                            "UPDATE ONLY {BOOTSTRAP_STATE_ID} SET apply_state = 'complete', info_fingerprint_sha256 = '{PRE_DOCUMENT_GRANT_INFO_SHA256}';                              CREATE workspaces:revision160_sentinel CONTENT {{ name: 'revision160-sentinel' }};"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("seed exact complete revision-160 predecessor");
+
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query(format!(
+                            "UPDATE ONLY handshake_schema_state:primary SET generated_surql_sha256 = '{WRONG_PRE_DOCUMENT_GRANT_GENERATED_SHA256}';"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("tamper predecessor state for rejection proof");
+        let state_rejection = bootstrap_schema(&storage)
+            .await
+            .expect_err("wrong revision-160 state must fail before DDL");
+        assert!(state_rejection
+            .to_string()
+            .contains("HANDSHAKE_SURREAL_SCHEMA_UNSUPPORTED_LINEAGE"));
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("rejected revision-160 state remains present");
+                    assert_eq!(state.revision, PRE_DOCUMENT_GRANT_REVISION);
+                    assert_eq!(
+                        state.generated_surql_sha256,
+                        WRONG_PRE_DOCUMENT_GRANT_GENERATED_SHA256
+                    );
+                    assert_eq!(
+                        read_schema_catalog(&database)
+                            .await?
+                            .info_fingerprint_sha256,
+                        PRE_DOCUMENT_GRANT_INFO_SHA256,
+                        "wrong state rejection must not alter the predecessor catalog"
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("reread unchanged state rejection");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query(format!(
+                            "UPDATE ONLY handshake_schema_state:primary SET generated_surql_sha256 = '{PRE_DOCUMENT_GRANT_GENERATED_SHA256}'; \
+                             DEFINE TABLE document_grant_revision_160_unknown_overlay SCHEMAFULL PERMISSIONS NONE;"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("restore predecessor state and introduce catalog drift");
+        let rejected_catalog = storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    Ok(read_schema_catalog(&database)
+                        .await?
+                        .info_fingerprint_sha256)
+                })
+            })
+            .await
+            .expect("read catalog before rejection");
+        let catalog_rejection = bootstrap_schema(&storage)
+            .await
+            .expect_err("unknown revision-160 catalog drift must fail before receipt DDL");
+        assert!(catalog_rejection
+            .to_string()
+            .contains("HANDSHAKE_SURREAL_PRE_DOCUMENT_GRANT_CATALOG_MISMATCH"));
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("catalog-rejected revision-160 state remains present");
+                    assert_eq!(state.revision, PRE_DOCUMENT_GRANT_REVISION);
+                    assert_eq!(
+                        state.generated_surql_sha256,
+                        PRE_DOCUMENT_GRANT_GENERATED_SHA256
+                    );
+                    assert_eq!(
+                        read_schema_catalog(&database)
+                            .await?
+                            .info_fingerprint_sha256,
+                        rejected_catalog,
+                        "catalog rejection must not alter the predecessor catalog"
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("reread unchanged catalog rejection");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query("REMOVE TABLE document_grant_revision_160_unknown_overlay;")
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("restore exact revision-160 catalog");
+
+        let upgraded = bootstrap_schema(&storage)
+            .await
+            .expect("upgrade exact revision-160 receipt predecessor");
+        assert_eq!(
+            upgraded.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        assert_eq!(
+            upgraded.outcome,
+            SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+        );
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("revision-161 state after exact upgrade");
+                    assert_eq!(state.revision, SCHEMA_REVISION);
+                    assert!(state.is_exact_current());
+                    let mut sentinel = database
+                        .query("RETURN workspaces:revision160_sentinel.name;")
+                        .await?;
+                    assert_eq!(
+                        sentinel.take::<Option<String>>(0)?.as_deref(),
+                        Some("revision160-sentinel")
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("verify revision-161 current state after upgrade");
+        storage
+            .shutdown()
+            .await
+            .expect("close upgraded document grant predecessor store");
+        let reopened = open_test_storage(&directory)
+            .await
+            .expect("reopen upgraded document grant store");
+        let restarted = bootstrap_schema(&reopened)
+            .await
+            .expect("reuse current document grant schema after restart");
+        assert_eq!(
+            restarted.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        assert_eq!(
+            restarted.outcome,
+            SchemaBootstrapOutcome::ReusedExactCurrent
+        );
+        reopened
+            .shutdown()
+            .await
+            .expect("close restarted document grant store");
     }
 
     #[tokio::test]
