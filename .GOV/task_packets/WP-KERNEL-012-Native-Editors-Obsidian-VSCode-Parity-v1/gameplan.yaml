@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 77
+generation: 78
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -115,3 +115,4 @@ steps:
 - {id: GP-094, role: orchestrator, at: before_round, do: confirm existing MT154 pin measurement OR unused measured-repair acceptance; native diagnostics consumed, check: {type: confirm}, source: MT154 PIN-MEASURE is required measurement_not_attempt within Operator-approved measured repair, state: active}
 - {id: GP-095, role: wp_validator, at: before_round, do: confirm one batched pin measurement OR unused acceptance; preserve both consumed native diagnostics, check: {type: confirm}, source: MT154 PIN-MEASURE before PIN-CONFIRM; confirm belongs in sole remaining acceptance union, state: active}
 - {id: GP-096, role: wp_validator, at: before_round, do: confirm grant-witness equivalence and exact predecessor schema proof before measuring or accepting repair, check: {type: confirm}, source: MT032 slow statements share document_access; schema repair must preserve live authorization and predecessor pins, state: active}
+- {id: GP-097, role: wp_validator, at: before_round, do: confirm capacity proposal parses with typed byte totals and cleanup boolean after metadata write, check: {type: confirm}, source: 'infra: PowerShell cleanup=false typo wrote null capacity JSON; require corrected artifact reread', state: active}
