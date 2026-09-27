@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 60
+generation: 61
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -103,3 +103,4 @@ steps:
 - {id: GP-082, role: builder, at: before_round, do: confirm observer imports retain production availability and original test-only cfg ownership, check: {type: confirm}, source: 'source review: inserted observer import inherited cfg and exposed Cell in production', state: active}
 - {id: GP-083, role: builder, at: before_round, do: confirm observer accepts pinned SDK IntoFuture builders without changing await conversion timing, check: {type: confirm}, source: 'source review: UseNs, UseDb, Signin and Query builders are IntoFuture, not Future', state: active}
 - {id: GP-084, role: builder, at: before_round, do: confirm new imports follow existing module documentation, check: {type: confirm}, source: 'formatter: inserted import before inner module docs rejected source', state: active}
+- {id: GP-085, role: orchestrator, at: before_dispatch, do: confirm helper source names against current files before directing edits, check: {type: confirm}, source: 'review: relayed stale map as nonexistent guarded_document_mutation; actual create uses guarded_mutation', state: active}
