@@ -8496,7 +8496,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "efc3ecc6ceea3e2a2cb0b1deb717c48a3d79fe8ff7668a17b06fc8f2f10e61b7"
+            "299e8dc80fbab95f43d178a8d09c6b3760f6dfad9edc85215c865adf6b2edd98"
         );
     }
 
