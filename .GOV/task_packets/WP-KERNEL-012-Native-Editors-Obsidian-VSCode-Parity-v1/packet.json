@@ -197,10 +197,13 @@
     "operator_request": "lets fix the repo and mt/wp paperwork first. we have been doing tests with no result for the last 5 days for a single mt, this needs to be resolved",
     "change_basis": "Apply the requested paperwork repair to the inspected authority, scope and preparation defects; this record is not a product verdict or a new runtime run allowance.",
     "execution_scope": {
-      "current": "PAPERWORK_ONLY",
-      "product_execution": "Held pending explicit Operator resume; no product edits, builds, tests, cleanup or automation changes are authorized by this paperwork turn.",
+      "current": "RESUMED_V15_DIAGNOSTIC_AND_REPAIR",
+      "product_execution": "Operator resumed existing V15 diagnostic and subsequent evidence-selected repair; preserve original acceptance and scoped limits",
       "previous_renewal": "MT-032.json#remediation_v15.operator_decision",
-      "prior_attempts": "Retained without reset; previous renewals remain historical authority for their stated scope, not commands to override the current hold."
+      "prior_attempts": "Retained without reset; previous renewals remain historical authority for their stated scope, not commands to override the current hold.",
+      "resumed_by": "OPERATOR",
+      "resume_operator_text": "do that, how is 150gb not enough? otherwise just leave the c disk?",
+      "target_instruction": "Verify C capacity and reuse first; Operator permits leaving C if needed. Do not raise the C cap or discard required evidence"
     },
     "authority_resolution": {
       "pin": "896f4e15",
