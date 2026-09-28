@@ -1,10 +1,69 @@
 ---
 file_id: HANDOFF-WP-KERNEL-012-KB-ORCHESTRATOR-2026-09-24-SESSION7
 file_kind: operator_handoff
-updated_at: 2026-09-27
+updated_at: 2026-09-28
 ---
 
-<topic id="current-approved-acceptance-continuation" wp="WP-KERNEL-012" updated_at="2026-09-27">
+<topic id="current-acceptance-result" wp="WP-KERNEL-012" status="blocked" updated_at="2026-09-28">
+
+## Current result: extraction present; independent MT032 FAIL_V13
+
+Product remains `7479972ac681cd238e58d37e318beab6c8d3b423`. Structural commit `22c64a06cf986fa1c32e1b94e94729d13dff109d` introduced `handshake_document` and `handshake_storage_support`. The goal also requires independent MT032 PASS and remains incomplete. Sole WP Validator recorded `MT-032.validation_v13` in `6bb6904d`, with terminology correction `1973be61`: FAIL_V13, lifecycle BLOCKED, DOCUMENT_HTTP_DEADLINE. Prior verdicts and attempts remain preserved; lifetime failed verdict count7, no reset.
+
+Continuation1 completed2026-09-27T23:41:56.0551858Z. Core233/239 and native2908/2952 passed (runner exit100 each); extracted document41/41 and storage_support34/34 passed (exit0 each). MT032 native22/24: owned-restart save PUT timed out (86.144s case duration), self-seeded create B POST timed out (56.983s). Live backlink/hash write-back, restart preservation and mounted Argus acceptance remain unproved. Parent opened all four current JUnits and exact failure traces; paths/hashes and independent proof live in `MT-032.validation_v13` and `remediation_v14.acceptance.continuation1`.
+
+Retained capture SHA256 `6E28ABB8B332EF9259EF916C18AD0A5307157C9369B4490D71BC8EDCB84D1C5D`:1119 records,968phase/151statement,26 returned queries,0 issues, incomplete_stream=false. Failed save: transaction4925ms, receipt3907ms, backlinks dropped6131ms, request dropped15008ms. Failed create B: transaction5102ms, receipt3909ms, embeds19ms, index dropped937ms, request dropped10013ms. Returned receipt statement timings3.843/3.858s. These locate expensive execution but do not identify its internal cause, prove cancellation/rollback, or establish a safe repair's gain. No additional diagnostic was run.
+
+Wrapper/Bash/phase/cap exited0 and owned launcher/observer PIDs were verified absent. Test failures remain explicit despite successful wrapper shutdown. Peak and final observed C usage142,669,086,747 bytes, below147GB protective stop and150GB cap. Current outputs, warm D/C caches, retained EXEs and first-attempt evidence remain preserved.
+
+Monitor `wp-kernel-012-mt-032-progress-tick` is PAUSED, confirmed by the app tool on2026-09-28. Earlier approval-policy errors are historical; full-access defaults were verified and left unchanged. No further permission prompts or escalation flags. A new product repair, diagnostic or acceptance run remains blocked by the independently recorded exhausted-attempt decision in `MT-032.lifecycle.operator_decision_required`; command access does not reset that budget.
+
+WPV recorded current747 observations for eleven MTs in `1941bb53`, then reconciled MT128/MT154 classification in `c7458f2d`: all eleven are bounded **inconclusive** observations, not new PASS or FAIL verdicts. Each existing `validation_shared_union_7479972a` names its unmet proof and retains prior ec596eec history. Ten remain READY_FOR_VALIDATION with no current validator verdict; MT141 retains historical PASS_V6. Mapped test counts below are observations, not complete acceptance floors.
+
+| MT | Mapped passed/total | Remaining proof or observed failure |
+|---|---:|---|
+|079|23/23|Required full-green suite unmet; current independent build/clippy and static backend-boundary proof unclosed.|
+|113|17/17|UUID mint/v7 comparison and applicable manual review.|
+|122|8/8|Fix-reverted RED applicability, title recovery, direct PNG/baseline inspection.|
+|128|18/19|`swarm_edit_live_conflict_merge_search_and_receipts` failed; required25/0 under concurrent build load and forced-stall RED/reap proof unmet.|
+|136|3/3|Current storage check, exact owned-store reopen, omitted reduced-count test and retained-consumer/static disposition.|
+|141|3/3|Affected assertions passed; historical PASS_V6 retained, no new full acceptance.|
+|154|14/16|`mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows` and `mt154_stage_routes_authority` stack overflow; MT032 live failures and remaining independent check/clippy/static/full-contract proof. Migration and record-user multi-grant cases passed.|
+|155|5/5|Current independent check/clippy/static chain.|
+|157|6/6|Current independent check/clippy/static chain and parent-pin applicability.|
+|158|4/4|Current independent A/B/C compile/clippy and full regression/static applicability.|
+|159|2/2|Current independent A/B/C compile/clippy and full regression/static applicability.|
+
+After WPV's exclusive-file handback, root synchronized MT154's existing `MT032-MEASURED-REPAIR-20260927.measured_schema_repair` with completed continuation evidence and preserved its running/first-attempt history. No lifecycle or verdict was authored by root. Fresh canonical159-MT recount:115 PASS,13 FAIL,21 BLOCKED,10 READY_FOR_VALIDATION. No new tests ran for these record updates. The running checkpoints below are retained execution history and superseded by this result; further product repair/runtime work awaits the recorded Operator continuation decision.
+
+</topic>
+
+<topic id="buddy-system-and-implementation-owner" wp="WP-KERNEL-012" status="active" updated_at="2026-09-28">
+
+## Operator-requested buddy and implementation ownership
+
+The Operator required a dedicated buddy to keep the orchestrator on task and in workflow order, required an extra Kernel Builder to read Codex and the Kernel Builder protocol, prohibited the orchestrator from writing code directly, and added: remind the orchestrator to use the gameplan skill throughout the session. Root and `/root/workflow_buddy` deliberated and agreed the following coordination arrangement before this handoff update. It records session coordination, not a change to acceptance, task contracts or run authority.
+
+| Handle | Current responsibility |
+|---|---|
+| `/root` | Orchestration, evidence review, scoped coordination records and this handoff; no direct product-code or executable-helper authorship. |
+| `/root/workflow_buddy` | Dedicated read-only workflow guard: track ordering, outstanding tasks, role ownership, evidence and gameplan preparation; no implementation, test execution or verdict authorship. |
+| `/root/kernel_builder` | Intended sole implementation writer when the recorded MT032 continuation decision and typed assignment permit work. Startup completed: live Codex v1.5 entrypoint, full Kernel Builder protocol, HBR1.15, packet/MT032/MT154, handoff, product authority twins and shared gameplan87 read; clean frozen747 product verified. No edits or runs launched. |
+| `/root/wp_validator` | Retained independent test runner and verdict author; existing-evidence reconciliation only at this checkpoint. |
+| `/root/document_coder`, `/root/spec_dependency` | Retained reference helpers; no concurrent implementation ownership. |
+
+- [WP012-BUDDY-001] At resume/context loss, action-owner or scope changes, before product edits or costly runs, after a new failure/verdict, and before commit/handoff/final claims, root sends the current goal, exact next action/owner/files, canonical evidence/authority and unfinished obligations to the buddy. Routine unchanged read-only log polls need no repeated review.
+- [WP012-BUDDY-002] The buddy independently checks the relevant current records and responds `CLEAR`, `BLOCKED` with the existing conflict and smallest corrective action, or `NEEDS-FACT` with the missing evidence. `CLEAR` is a workflow check, never authorization or an independent product verdict. An objection holds only the affected action; disjoint authorized work continues.
+- [WP012-BUDDY-003] Throughout the session the buddy reminds root to use the existing gameplan skill and shared plan: display resume and next-moment steps after resume/context loss; check the applicable role/moment before builds, tests or other slow, costly or destructive commands; add the evidenced cause after a mistake, infrastructure failure or wasted run before another attempt; run the applicable submission check. Inspect the active generation, role/moment and preparation freshness; correct skipped or stale preparation through the existing controller. Do not create duplicate plans, invent gates, reset counters or treat a passing check as renewed runtime authority.
+- [WP012-BUDDY-004] After failure, inspect actual exits/evidence, remaining authority and consumed budgets, and changed relevant inputs before proposing a retry. Before progress/completion claims, check the exact delivered artifact or independent verdict and retain every unfinished obligation. Compilation, extraction and paperwork do not replace MT032 PASS.
+- [WP012-BUDDY-005] After loss of a buddy handle or context, recover the retained buddy or recreate that dedicated role and re-read canonical records before consequential work. Use this existing handoff and typed records; no parallel ledger or substitute proof gate.
+- [WP012-BUDDY-006] Root sends the exact scoped handoff/coordination diff for buddy review before committing. Product implementation remains assigned to the new Kernel Builder only after the existing decision/ownership prerequisites are satisfied; WPV independently owns validation. Helper creation and buddy clearance do not authorize a new repair, diagnostic or acceptance attempt.
+
+The buddy confirmed the gameplan-reminder duty explicitly. Its first record review found failed-verdict events inconsistent with unchanged MT128/MT154 lifecycle fields; root returned those records to WPV, which corrected the bounded observations/events to inconclusive in `c7458f2d`, preserving actual failures, history and counters. Root re-read the correction before synchronizing the handoff. This is a coordination correction, not a new test run. The latest canonical MT032 verdict remains FAIL_V13 and the goal remains incomplete.
+
+</topic>
+
+<topic id="current-approved-acceptance-continuation" wp="WP-KERNEL-012" status="superseded" superseded_by="current-acceptance-result" updated_at="2026-09-27">
 
 ## Current checkpoint: approved acceptance continuation running
 
