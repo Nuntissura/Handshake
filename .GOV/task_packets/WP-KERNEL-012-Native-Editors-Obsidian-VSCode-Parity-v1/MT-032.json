@@ -48,9 +48,40 @@
     "historical_fields": "Dated lifecycle notes and remediation_v1..v14 retain their original wording as history. Current execution scope is packet.json#paperwork_reconciliation_20260928.execution_scope; historical deadline shorthand does not override unchanged executable client deadlines."
   },
   "remediation_v15": {
+    "create_first_repair": {
+      "state": "DRAFT_IMPLEMENTATION_NO_RUN",
+      "basis": "V15/V16 document receipt lookup2.14-2.31s versus CREATE0.28-0.35s. Inspected EventLedger authority requires durable append-only state and permission-safe conflict/recovery, not pre-read ordering. Existing append already re-reads an exact winner after write errors.",
+      "source_refs": ["event_ledger.rs append/error recovery/get_by_idempotency/ensure_same_event", "schema.surql idx_kernel_event_ledger_idempotency and fn::mt120_document_receipt", "knowledge_documents.rs record_receipt/build_receipt_event", "handshake_document/operations.rs create/save record_saved_receipt", "spec02-system-architecture2650-2662,2758-2774"],
+      "selector": "Single append with active current_record_user_scope only: exact KnowledgeRichDocumentSaved event type, knowledge_rich_document aggregate, knowledge_documents_api source, payload.event created or saved. Selector is not authorization; current record-user SQL permissions remain mandatory.",
+      "change": "Try CREATE before lookup for that selector; on error or empty result, use the existing same-auth winner reread and exact immutable comparison. Preserve original stored winner ID/sequence and prior typed denial/error when no visible exact winner exists.",
+      "preserve": "All other event types and import/rename/move/batch/delete paths, atomic pair/batch behavior, authorization, transaction boundaries, durability, native403 correction and full existing MT acceptance.",
+      "sequence_limit": "No allocator/schema change or gapless claim; failed CREATE may consume sequence values before permissions/unique checks. Stored winner identity/sequence must remain unchanged.",
+      "diagnostic_scope": "Remove failed optional EXPLAIN product feature and its feature-only tests; retain baseline receipt timings and all product replay/conflict/denial proof. Preserve V16/V17 commits, failed results and consumed helpers. Do not run another plan diagnostic.",
+      "builder": "/root/contract_complexity",
+      "independent_reviewer": "/root/technical_failure",
+      "next_gate": "Independent source/real-auth proof mapping before commit or compile; focused changed-behavior proof before unchanged full MT acceptance. No speedup established."
+    },
     "lookup_plan_diagnostic": {
       "shape_repair": {
-        "state": "CORE_COMPILE_PASSED_PENDING_SUPERVISED_PROOF",
+        "state": "CORE_PROOF_FAILED_UNSUPPORTED_PHYSICAL_PLAN",
+        "core_result": {
+          "candidate": "1f5b3d70514ffe143cb27b6fde5e6e05ba4273dd",
+          "passed": 2,
+          "failed": 1,
+          "suite_seconds": 1.166,
+          "failure": "Real append CREATE received PhysicalObject but sanitizer returned unsupported after visiting2 nodes; exact rejected operator/field remains unobserved. Replay/conflict not reached.",
+          "closed_observation": {"entry_count": 2, "explain_elapsed_us": 391, "lookup_elapsed_us": 4267, "operation_elapsed_us": 6364, "replay": false},
+          "core_driver_exit": 100,
+          "bash_exit": 100,
+          "capacity_observer_exit": 0,
+          "outer_tool_process_exit": 1,
+          "junit_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-1f5b3d70514ffe143cb27b6fde5e6e05ba4273dd-mt032-v17-lookup-plan-core-probe-core.xml",
+          "junit_sha256": "13B5E3733D884D64FC5769F0D9277192E9DCE4A9E5FF34D494BB58C6E9F009D4",
+          "exit_record_sha256": "37B0229D8D787A0CD3AC084E30941AB5FE1F3620CFF18C9265E3C48591383FDC",
+          "peak_and_final_C_bytes": 142169140188,
+          "cap_breaches": 0,
+          "parent_verification": "Opened exact retained JUnit, child exit file and exit JSON; no native/backend stage or rerun. No latency or MT acceptance proof."
+        },
         "compile": {
           "log_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260929-1f5b3d70-lookup-plan-core",
           "core_exit": 0,

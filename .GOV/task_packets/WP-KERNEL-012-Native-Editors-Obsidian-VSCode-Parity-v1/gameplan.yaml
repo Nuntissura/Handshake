@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 150
+generation: 154
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -144,9 +144,10 @@ steps:
 - {id: GP-123, role: orchestrator, at: before_dispatch, do: confirm product tracking ref freshly fetched before GP058 local-ref comparison; unchanged proof reused, check: {type: confirm}, source: GP038 duplicate retired; GP058 controller compares local tracking ref and does not fetch, state: retired}
 - {id: GP-124, role: wp_validator, at: before_verdict, do: confirm each MT proof item is proved or explicitly unclosed; PASS requires the complete own floor, check: {type: confirm}, source: 'GP118 review: missing proof must permit honest FAIL/BLOCKED/inconclusive, never false PASS', state: active}
 - {id: GP-125, role: orchestrator, at: before_dispatch, do: confirm product tracking ref freshly fetched before GP058 local-ref comparison, check: {type: confirm}, source: 'GP123 review: remote freshness cannot be reused solely because product inputs are unchanged', state: active}
-- {id: GP-126, role: wp_validator, at: before_round, do: confirm lookup-plan diagnostics redact values and carry no deadline or acceptance credit, check: {type: confirm}, source: 'V15: lookup cost known; actual plan unobserved; added EXPLAIN changes timing', state: active}
-- {id: GP-127, role: builder, at: before_round, do: confirm nested EXPLAIN block yields a value; receipt append remains reachable, check: {type: confirm}, source: 'V16 source review: nested RETURN propagated past LET and would skip append', state: active}
+- {id: GP-126, role: wp_validator, at: before_round, do: confirm lookup-plan diagnostics redact values and carry no deadline or acceptance credit, check: {type: confirm}, source: 'V15: lookup cost known; actual plan unobserved; added EXPLAIN changes timing', state: retired}
+- {id: GP-127, role: builder, at: before_round, do: confirm nested EXPLAIN block yields a value; receipt append remains reachable, check: {type: confirm}, source: 'V16 source review: nested RETURN propagated past LET and would skip append', state: retired}
 - {id: GP-128, role: builder, at: before_round, do: confirm existing receipt core proof asserts live plan shape and timing before any native diagnostic, check: {type: confirm}, source: 'V16: synthetic plan tests passed while live physical EXPLAIN object was rejected', state: retired}
-- {id: GP-129, role: builder, at: before_round, do: confirm existing receipt core proof asserts live plan shape and timing before any native diagnostic, check: {type: confirm}, source: V16 live shape not asserted; replaces GP128 whose cause overstated the unobserved runtime value type, state: active}
+- {id: GP-129, role: builder, at: before_round, do: confirm existing receipt core proof asserts live plan shape and timing before any native diagnostic, check: {type: confirm}, source: V16 live shape not asserted; replaces GP128 whose cause overstated the unobserved runtime value type, state: retired}
 - {id: GP-130, role: orchestrator, at: before_dispatch, do: confirm record write succeeded and candidate binding reread before staging or release, check: {type: confirm}, source: record write failed; unchecked shell exit allowed commit to proceed with prior binding, state: active}
 - {id: GP-131, role: wp_validator, at: before_round, do: confirm fresh OS vault write|read|delete and zero orphan when selected proof uses OS vault, check: {type: confirm}, source: core-only receipt proof has no vault; replaces GP043 and preserves fresh probe for vault-using routes, state: active}
+- {id: GP-132, role: builder, at: before_round, do: confirm optional EXPLAIN removed; create-first keeps scoped auth and winner recovery after empty or error, check: {type: confirm}, source: V17 live plan sanitizer failed; replace temporary diagnostic with measured document-only repair, state: active}
