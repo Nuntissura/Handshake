@@ -1368,7 +1368,7 @@ mod tests {
         };
         DOCUMENT_REQUEST_ID
             .scope(
-                uuid::Uuid::new_v4().to_string(),
+                uuid::Uuid::now_v7().to_string(),
                 observe_result("receipt_append", async {
                     let timing =
                         ReceiptTimingContext::capture().expect("both diagnostic scopes entered");
@@ -1436,7 +1436,7 @@ mod tests {
         let run = |payload| {
             let storage = &storage;
             DOCUMENT_REQUEST_ID.scope(
-                uuid::Uuid::new_v4().to_string(),
+                uuid::Uuid::now_v7().to_string(),
                 observe_result("receipt_append", async move {
                     assert!(ReceiptTimingContext::capture().is_some());
                     append(storage, event("mt032-measured-replay", payload)).await

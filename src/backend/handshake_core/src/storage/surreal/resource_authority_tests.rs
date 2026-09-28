@@ -1529,7 +1529,7 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
             assert!(matches!(plain_denial, Err(crate::storage::StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))));
             use handshake_storage_support::diagnostics::{observe_result, ReceiptTimingContext, DOCUMENT_REQUEST_ID};
             let measured_denial = DOCUMENT_REQUEST_ID.scope(
-                uuid::Uuid::new_v4().to_string(),
+                uuid::Uuid::now_v7().to_string(),
                 observe_result("receipt_append", storage.with_record_user_scope(scope.clone(), async {
                     assert!(ReceiptTimingContext::capture().is_some());
                     super::event_ledger::append(storage, denied_event).await
@@ -3163,7 +3163,7 @@ async fn document_receipt_create_first_preserves_authorized_replay_and_denial(
                     if measured {
                         DOCUMENT_REQUEST_ID
                             .scope(
-                                uuid::Uuid::new_v4().to_string(),
+                                uuid::Uuid::now_v7().to_string(),
                                 observe_result("receipt_append", operation),
                             )
                             .await

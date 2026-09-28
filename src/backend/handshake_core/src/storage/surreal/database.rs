@@ -216,12 +216,11 @@ impl SurrealDatabase {
         let metadata = self
             .mutation_metadata(ctx, &placement_id)
             .await
-            .map_err(|error| {
+            .inspect_err(|_error| {
                 #[cfg(test)]
                 eprintln!(
-                    "record-user-canvas-placement failure phase=mutation_metadata error={error}"
+                    "record-user-canvas-placement failure phase=mutation_metadata error={_error}"
                 );
-                error
             })?;
         let result = self
             .guarded_storage_mutation(

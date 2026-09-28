@@ -72,7 +72,7 @@ use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::AppState;
 use handshake_document::diagnostics::{observe_document_phase, DOCUMENT_PHASE_REQUEST_ID};
-use handshake_document::operations::{embed_upserts, index_document_non_fatal, SaveDocumentBody};
+use handshake_document::operations::{index_document_non_fatal, SaveDocumentBody};
 
 const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
 const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
@@ -312,7 +312,7 @@ async fn document_authority(
         };
     DOCUMENT_PHASE_REQUEST_ID
         .scope(
-            uuid::Uuid::new_v4(),
+            uuid::Uuid::now_v7(),
             observe_document_phase(
                 phase,
                 document_authority_inner(State(state), request, next),

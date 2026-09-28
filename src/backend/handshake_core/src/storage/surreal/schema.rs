@@ -302,6 +302,7 @@ DEFINE FIELD OVERWRITE created_at ON TABLE local_account_setup TYPE datetime;
 -- LOCAL_ACCOUNT_SETUP_END
 "#;
 
+#[cfg(test)]
 const PRE_DOCUMENT_GRANT_FUNCTION: &str = r#"DEFINE FUNCTION OVERWRITE fn::mt120_document_access($document: string, $workspace: string, $action: string, $capability: string) {
     RETURN fn::mt109_has_grant('rich_document', $document, $action, $capability)
         AND fn::mt109_has_workspace_access($workspace, 'read', 'fs.read')
@@ -3247,6 +3248,7 @@ const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
 // MT-141 V2-R2: loom_block_view_fr_outbox.block_id lost its cascading REFERENCE (MT-027 0362).
 // 407: DDL (non-comment) REFERENCE clauses in schema.surql at 0cfbff64 and after; the pinned 406
 // predated one added REFERENCE field (kb-c5 static count, 2026-09-24).
+#[cfg(test)]
 const REFERENCE_FIELD_COUNT: usize = 407;
 const EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT: usize = 402;
 const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 229;

@@ -72,10 +72,9 @@ use crate::storage::knowledge::{
 use crate::storage::{StorageError, StorageResult};
 use handshake_document::surreal::{
     backlink_to_domain, backlink_write_binds, entity_to_domain, owned_source_upsert_rows,
-    read_live_rich_document, read_prior_backlink_state, replace_backlinks_attempt,
-    resolve_backlink_rows, rich_document_to_domain, source_to_domain, BacklinkRecord, EntityRecord,
-    ResolvedBacklink, RichDocRecord, SourceRecord, BACKLINK_GUARDS, BACKLINK_WRITE_STATEMENTS,
-    BACKLINK_WRITE_STATEMENT_COUNT,
+    read_live_rich_document, replace_backlinks_attempt, resolve_backlink_rows,
+    rich_document_to_domain, source_to_domain, BacklinkRecord, EntityRecord, RichDocRecord,
+    SourceRecord, BACKLINK_GUARDS, BACKLINK_WRITE_STATEMENTS,
 };
 
 const WORKSPACES_TABLE: &str = "workspaces";
@@ -181,7 +180,7 @@ where
     let _guards = observe_result("mutation_lock_wait", async {
         tokio::select! {
             biased;
-            _ = cancel.cancelled() => return Err(closed_store_error()),
+            _ = cancel.cancelled() => Err(closed_store_error()),
             guards = database
                 .lock_registry()
                 .acquire_many_with_deadline(keys, deadline) => guards.map_err(lock_wait_error),
