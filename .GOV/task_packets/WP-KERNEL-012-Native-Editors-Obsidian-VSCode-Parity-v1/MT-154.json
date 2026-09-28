@@ -2276,7 +2276,7 @@
         "executable_helpers": "Only the existing MT032 diagnostic/observer route or a scoped receipt diagnostic entrypoint under this packet or the retained wpv-c3x artifact lane; no unrelated harness change",
         "preservation": "All old attempts/counters/verdicts and frozen747 evidence; existing deadlines/auth/transactions/receipts/indexing; same product worktree, warm targets and capacity constraints",
         "proof_route_ref": "MT-032.remediation_v15.proof_route",
-        "state": "DIAGNOSTIC_COMPLETED_REPAIR_SELECTION_REQUIRED",
+        "state": "DIAGNOSTIC_COMPLETED_LATENCY_CAUSE_UNRESOLVED",
         "implementation_checkpoint": {
           "candidate_commit": "699477d5888f6cec0b65cbea66b0dd09b9df88be",
           "pushed_verified": "Parent observed clean product HEAD and live origin feat/WP-KERNEL-012 at699477",

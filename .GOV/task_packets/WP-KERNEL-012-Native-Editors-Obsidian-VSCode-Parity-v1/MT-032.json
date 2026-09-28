@@ -48,6 +48,29 @@
     "historical_fields": "Dated lifecycle notes and remediation_v1..v14 retain their original wording as history. Current execution scope is packet.json#paperwork_reconciliation_20260928.execution_scope; historical deadline shorthand does not override unchanged executable client deadlines."
   },
   "remediation_v15": {
+    "operator_decision_request": {
+      "id": "MT032-MISSING-RESOURCE-ORACLE-20260928",
+      "state": "PENDING",
+      "conflict": "Historical live404 expectation for a never-authorized ID conflicts with current exact-resource concealment behavior; replacing it changes that specific acceptance oracle.",
+      "proposed_change": "In test_loom_address.rs require typed WikilinkError::Forbidden for unknown-ID backlinks before/after restart (1995-1998,2102-2105), require HTTP403 for the post-restart unknown-ID document GET (2097-2101), and rename the success marker missing_404 to missing_concealment (2120). Preserve live stale409, restart/hash/backlink assertions and existing404-to-empty component proof. Explicitly supersede only the historical expectation that this unauthorized ID returns404; do not claim a live authorized-missing404 proof.",
+      "scope": "MT032 existing owned test file; no backend authorization/timeout change. Latency remains a separate unresolved blocker.",
+      "authority_basis": "GLOBAL-AUTHORITY-003; KB-IMPL-006"
+    },
+    "source_review": {
+      "lookup": {
+        "schema": "src/backend/handshake_core/src/storage/surreal/schema.surql:937 defines unique idx_kernel_event_ledger_idempotency",
+        "pinned_dependency": "surrealdb-core3.2.0; idx/planner/tree.rs:338-355 evaluates parameter-start idioms into literals;724-731 supports computed equality index operators",
+        "conclusion": "Nested $event.idempotency_key is not a demonstrated indexing defect; top-level binding rewrite is not an evidenced repair. Actual authenticated query plan and internal cost remain unobserved."
+      },
+      "missing_backlink": {
+        "source": "knowledge_documents.rs:482-515 authorizes exact resource and resolves workspace before handler; resource_authority.rs:1148-1224 requires protected resource/grant; local_accounts.rs:229-253 requires active resource/parent",
+        "spec": "Pinned v02.206 02-system-architecture.md 2.3.13.12.3 requires exact authorization/default deny/existence concealment",
+        "fixture": "test_loom_address.rs:1995-1998 and2097-2105 expect404-to-empty for never-created KRD-MT032-MISSING",
+        "preserved_component": "test_loom_address.rs:594 loom_address_backlinks_404_is_empty_projection proves client404-to-empty using one-shot HTTP server; it does not replace real-resource proof",
+        "conclusion": "Unknown-resource403 is consistent with current authorization; no reachable authorized-missing GET/backlinks fixture has been established. A corrected403 assertion cannot be claimed as the original live404 proof."
+      },
+      "product_changes": "None; no repeated diagnostic or acceptance run."
+    },
     "deadline_clarification": {
       "source": "product:src/frontend/handshake_native/tests/test_loom_address.rs:live_client and owned-restart save client",
       "observed": "live_client sets a 10-second total request timeout and is used for self-seeded create/save; owned-restart save uses its existing 15-second client.",
@@ -75,11 +98,11 @@
     "failure_ref": "validation_v13",
     "assignment_ref": "MT-154.mt032_behavioral_remediation_request.renewed_assignments[MT032-RENEWED-REPAIR-20260928]",
     "agents": {"orchestrator":"/root","builder":"/root/kernel_builder","buddy":"/root/workflow_buddy","validator":"/root/wp_validator"},
-    "current_action": "V15 diagnostic completed: core3/3, native0/2; receipt lookup dominates measured receipt internals; inspect the measured lookup under unchanged authorization and missing-backlink403 contract before selecting repair; no diagnostic or acceptance rerun launched",
+    "current_action": "Capacity cleared and V15 completed. No source-supported latency repair established: actual receipt lookup plan/cost under the same record-user context remains unobserved. Reconcile the live missing404 expectation with exact-resource concealment before changing that acceptance assertion; no unchanged replay.",
     "evidence": "Current returned receipt statement consumes3842936us on save and3857530us on create B; compound IF hides lookup/create/permission/sequence/index costs; full internal cause unproved",
     "diagnostic_limit": "No unchanged outer replay; no direct permission-helper shortcut that changes record-user field visibility; no timeout increase, auth bypass, detached indexing or loss of transaction/receipt guarantees",
     "proof_route": "Builder D check/clippy/static; independent WPV focused changed-hypothesis proof before required full stable-candidate MT032/affected acceptance",
-    "state": "DIAGNOSTIC_COMPLETED_REPAIR_SELECTION_REQUIRED",
+    "state": "DIAGNOSTIC_COMPLETED_AUTHORITY_CONFLICT_AND_LATENCY_CAUSE_UNRESOLVED",
     "status_effect": "Renewal and ownership only; independent FAIL_V13 and prior run evidence remain unchanged",
     "diagnostic_binding": {
       "state": "COMPLETED_DIAGNOSTIC_ONLY",
