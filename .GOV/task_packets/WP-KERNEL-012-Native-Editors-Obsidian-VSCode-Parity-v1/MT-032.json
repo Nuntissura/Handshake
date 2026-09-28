@@ -48,9 +48,18 @@
     "historical_fields": "Dated lifecycle notes and remediation_v1..v14 retain their original wording as history. Current execution scope is packet.json#paperwork_reconciliation_20260928.execution_scope; historical deadline shorthand does not override unchanged executable client deadlines."
   },
   "remediation_v15": {
+    "missing_resource_operator_decision": {
+      "request_ref": "remediation_v15.operator_decision_request",
+      "authorized_by": "OPERATOR",
+      "operator_text": "approved, continue",
+      "recorded_at_utc": "2026-09-28T21:06:31.175455+00:00",
+      "approved_scope": "Exact three missing-ID assertion corrections and corresponding success-marker correction; preserve client404 mapping and all other proof. No live authorized-missing404 claim.",
+      "builder": "/root/contract_complexity",
+      "validator": "/root/technical_failure"
+    },
     "operator_decision_request": {
       "id": "MT032-MISSING-RESOURCE-ORACLE-20260928",
-      "state": "PENDING",
+      "state": "APPROVED",
       "conflict": "Historical live404 expectation for a never-authorized ID conflicts with current exact-resource concealment behavior; replacing it changes that specific acceptance oracle.",
       "proposed_change": "In test_loom_address.rs require typed WikilinkError::Forbidden for unknown-ID backlinks before/after restart (1995-1998,2102-2105), require HTTP403 for the post-restart unknown-ID document GET (2097-2101), and rename the success marker missing_404 to missing_concealment (2120). Preserve live stale409, restart/hash/backlink assertions and existing404-to-empty component proof. Explicitly supersede only the historical expectation that this unauthorized ID returns404; do not claim a live authorized-missing404 proof.",
       "scope": "MT032 existing owned test file; no backend authorization/timeout change. Latency remains a separate unresolved blocker.",
@@ -98,11 +107,11 @@
     "failure_ref": "validation_v13",
     "assignment_ref": "MT-154.mt032_behavioral_remediation_request.renewed_assignments[MT032-RENEWED-REPAIR-20260928]",
     "agents": {"orchestrator":"/root","builder":"/root/kernel_builder","buddy":"/root/workflow_buddy","validator":"/root/wp_validator"},
-    "current_action": "Capacity cleared and V15 completed. No source-supported latency repair established: actual receipt lookup plan/cost under the same record-user context remains unobserved. Reconcile the live missing404 expectation with exact-resource concealment before changing that acceptance assertion; no unchanged replay.",
+    "current_action": "Implement approved missing-resource oracle correction in MT032 owned native test; continue source-supported lookup-cost investigation under MT154; no unchanged diagnostic replay.",
     "evidence": "Current returned receipt statement consumes3842936us on save and3857530us on create B; compound IF hides lookup/create/permission/sequence/index costs; full internal cause unproved",
     "diagnostic_limit": "No unchanged outer replay; no direct permission-helper shortcut that changes record-user field visibility; no timeout increase, auth bypass, detached indexing or loss of transaction/receipt guarantees",
     "proof_route": "Builder D check/clippy/static; independent WPV focused changed-hypothesis proof before required full stable-candidate MT032/affected acceptance",
-    "state": "DIAGNOSTIC_COMPLETED_AUTHORITY_CONFLICT_AND_LATENCY_CAUSE_UNRESOLVED",
+    "state": "APPROVED_MISSING_RESOURCE_CORRECTION_IN_PROGRESS_LOOKUP_CAUSE_UNRESOLVED",
     "status_effect": "Renewal and ownership only; independent FAIL_V13 and prior run evidence remain unchanged",
     "diagnostic_binding": {
       "state": "COMPLETED_DIAGNOSTIC_ONLY",
