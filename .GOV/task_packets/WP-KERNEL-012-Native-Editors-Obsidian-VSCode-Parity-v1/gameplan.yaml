@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 144
+generation: 147
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -146,3 +146,5 @@ steps:
 - {id: GP-125, role: orchestrator, at: before_dispatch, do: confirm product tracking ref freshly fetched before GP058 local-ref comparison, check: {type: confirm}, source: 'GP123 review: remote freshness cannot be reused solely because product inputs are unchanged', state: active}
 - {id: GP-126, role: wp_validator, at: before_round, do: confirm lookup-plan diagnostics redact values and carry no deadline or acceptance credit, check: {type: confirm}, source: 'V15: lookup cost known; actual plan unobserved; added EXPLAIN changes timing', state: active}
 - {id: GP-127, role: builder, at: before_round, do: confirm nested EXPLAIN block yields a value; receipt append remains reachable, check: {type: confirm}, source: 'V16 source review: nested RETURN propagated past LET and would skip append', state: active}
+- {id: GP-128, role: builder, at: before_round, do: confirm existing receipt core proof asserts live plan shape and timing before any native diagnostic, check: {type: confirm}, source: 'V16: synthetic plan tests passed while live physical EXPLAIN object was rejected', state: retired}
+- {id: GP-129, role: builder, at: before_round, do: confirm existing receipt core proof asserts live plan shape and timing before any native diagnostic, check: {type: confirm}, source: V16 live shape not asserted; replaces GP128 whose cause overstated the unobserved runtime value type, state: active}
