@@ -2277,7 +2277,7 @@
         "executable_helpers": "Only the existing MT032 diagnostic/observer route or a scoped receipt diagnostic entrypoint under this packet or the retained wpv-c3x artifact lane; no unrelated harness change",
         "preservation": "All old attempts/counters/verdicts and frozen747 evidence; existing deadlines/auth/transactions/receipts/indexing; same product worktree, warm targets and capacity constraints",
         "proof_route_ref": "MT-032.remediation_v15.proof_route",
-        "state": "CREATE_FIRST_PUSHED_SOURCE_REVIEWED_PROOF_PENDING",
+        "state": "CREATE_FIRST_CORRECTED_FIXTURE_PUSHED_CORE_COMPILE_PENDING",
         "create_first_repair_ref": "MT-032.json#remediation_v15.create_first_repair",
         "latest_diagnostic_ref": "MT-032.json#remediation_v15.lookup_plan_diagnostic.shape_repair.core_result",
         "implementation_checkpoint": {

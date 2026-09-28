@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 155
+generation: 156
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -152,3 +152,4 @@ steps:
 - {id: GP-131, role: wp_validator, at: before_round, do: confirm fresh OS vault write|read|delete and zero orphan when selected proof uses OS vault, check: {type: confirm}, source: core-only receipt proof has no vault; replaces GP043 and preserves fresh probe for vault-using routes, state: active}
 - {id: GP-132, role: builder, at: before_round, do: confirm optional EXPLAIN removed; create-first keeps scoped auth and winner recovery after empty or error, check: {type: confirm}, source: V17 live plan sanitizer failed; replace temporary diagnostic with measured document-only repair, state: active}
 - {id: GP-133, role: builder, at: before_round, do: confirm every selected compile crate has changed relevant inputs or missing required proof, check: {type: confirm}, source: d745 helper default queued unchanged native check; require dependency mapping before compile selection, state: active}
+- {id: GP-134, role: builder, at: before_round, do: verify new auth test identity fields against ProvisionedIdentity and provisioning helper, check: {type: confirm}, source: 'd745 core E0609: auth test referenced nonexistent ProvisionedIdentity.actor_id twice', state: active}
