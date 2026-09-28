@@ -7,6 +7,42 @@ use std::{
 tokio::task_local! { pub static DOCUMENT_REQUEST_ID: String; static PARENT_OBSERVATION: u64; }
 static NEXT_OBSERVATION: AtomicU64 = AtomicU64::new(1);
 
+/// Explicit diagnostic opt-in, inherited by an owned backend. Never enabled by default.
+pub const RECEIPT_LOOKUP_PLAN_ENV: &str = "HANDSHAKE_DIAGNOSTIC_RECEIPT_LOOKUP_PLAN";
+
+pub fn receipt_lookup_plan_enabled() -> bool {
+    std::env::var_os(RECEIPT_LOOKUP_PLAN_ENV).is_some_and(|value| value == "1")
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReceiptLookupPlanKind {
+    Index,
+    Table,
+    None,
+    Other,
+}
+
+impl ReceiptLookupPlanKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Index => "index",
+            Self::Table => "table",
+            Self::None => "none",
+            Self::Other => "other",
+        }
+    }
+}
+
+/// Closed diagnostic vocabulary: no SQL, bound values, or raw plan strings can enter the log.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReceiptLookupPlanSummary {
+    pub plan_kind: ReceiptLookupPlanKind,
+    pub expected_index_used: bool,
+    pub supported_shape: bool,
+    pub entry_count: u8,
+    pub explain_elapsed_us: i64,
+}
+
 struct Observation {
     request_id: String,
     phase: &'static str,
@@ -96,6 +132,16 @@ impl ReceiptTimingContext {
             timing_valid = lookup_elapsed_us >= 0 && operation_elapsed_us >= 0,
             lookup_elapsed_us, operation_elapsed_us,
             "MT032_DOCUMENT_RECEIPT");
+    }
+
+    pub fn emit_plan(&self, plan: ReceiptLookupPlanSummary) {
+        tracing::info!(target: "handshake_core::knowledge_documents_api",
+            request_id = %self.request_id, receipt_observation_id = self.receipt_observation_id,
+            plan_kind = plan.plan_kind.as_str(), expected_index_used = plan.expected_index_used,
+            supported_shape = plan.supported_shape, entry_count = plan.entry_count,
+            clock = "surreal_wall", explain_elapsed_us = plan.explain_elapsed_us,
+            timing_valid = plan.explain_elapsed_us >= 0,
+            "MT032_DOCUMENT_RECEIPT_PLAN");
     }
 }
 impl StatementTimingContext {

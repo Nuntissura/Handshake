@@ -1992,10 +1992,14 @@ fn live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash() {
             .any(|row| row.source_document_id == a_id && row.target == b_id),
         "production backlink transport observes A -> B before restart"
     );
-    let missing_before = runtime
-        .block_on(production_backlinks.list_backlinks("KRD-MT032-MISSING"))
-        .expect("production missing-backlink route maps 404 to an empty set");
-    assert!(missing_before.backlinks.is_empty());
+    let missing_before = runtime.block_on(production_backlinks.list_backlinks("KRD-MT032-MISSING"));
+    assert!(
+        matches!(
+            missing_before,
+            Err(handshake_native::rich_editor::wikilinks::client::WikilinkError::Forbidden(_))
+        ),
+        "production backlinks conceal an unauthorized missing document: {missing_before:?}"
+    );
 
     let old_pid = backend.owned_process_id();
     let (old_base, new_base) = backend.restart_owned();
@@ -2096,13 +2100,17 @@ fn live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash() {
 
     assert_eq!(
         backend.get_status("/knowledge/documents/KRD-MT032-MISSING"),
-        404,
-        "fresh post-restart document missing path returns 404"
+        403,
+        "fresh post-restart document route conceals an unauthorized missing document"
     );
-    let missing_after = runtime
-        .block_on(production_backlinks.list_backlinks("KRD-MT032-MISSING"))
-        .expect("fresh post-restart missing-backlink route maps 404 to an empty set");
-    assert!(missing_after.backlinks.is_empty());
+    let missing_after = runtime.block_on(production_backlinks.list_backlinks("KRD-MT032-MISSING"));
+    assert!(
+        matches!(
+            missing_after,
+            Err(handshake_native::rich_editor::wikilinks::client::WikilinkError::Forbidden(_))
+        ),
+        "fresh post-restart backlinks conceal an unauthorized missing document: {missing_after:?}"
+    );
 
     assert!(
         (200..300).contains(&backend.delete(&format!("/knowledge/documents/{a_id}"))),
@@ -2116,7 +2124,7 @@ fn live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash() {
         "MT-032 OWNED RESTART PASS workspace_id={workspace_id} old_pid={old_pid} new_pid={new_pid} \
          source_document_id={a_id} target_document_id={b_id} block_id={b_block_id} \
          content_hash={} backlink_receipt={} content_receipt={} reconnect_network_errors={} \
-         missing_404=pass stale_409=pass",
+         missing_concealment=pass stale_409=pass",
         expected_hash.as_str(),
         backlink_receipt,
         content_receipt,

@@ -114,6 +114,12 @@ struct EventBindings {
 }
 
 #[derive(SurrealValue)]
+struct TimedEventBindings {
+    event: LedgerWrite,
+    lookup_plan_enabled: bool,
+}
+
+#[derive(SurrealValue)]
 struct EventBatchBindings {
     events: Vec<LedgerBulkInsert>,
     idempotency_keys: Vec<String>,
@@ -220,6 +226,116 @@ struct TimedLedgerAppend {
     replay: bool,
     lookup_elapsed_us: i64,
     operation_elapsed_us: i64,
+    lookup_plan: Value,
+}
+
+fn plan_string(value: Option<&Value>) -> Option<&str> {
+    match value {
+        Some(Value::String(value)) => Some(value.as_str()),
+        _ => None,
+    }
+}
+
+/// Interpret only the pinned engine's simple SELECT EXPLAIN shape. Unknown data is
+/// unsupported, never formatted in an error or copied into an observation.
+fn summarize_receipt_lookup_plan(
+    value: &Value,
+) -> handshake_storage_support::diagnostics::ReceiptLookupPlanSummary {
+    use handshake_storage_support::diagnostics::{ReceiptLookupPlanKind, ReceiptLookupPlanSummary};
+    const MAX_ENTRIES: usize = 16;
+    let mut summary = ReceiptLookupPlanSummary {
+        plan_kind: ReceiptLookupPlanKind::Other,
+        expected_index_used: false,
+        supported_shape: false,
+        entry_count: 0,
+        explain_elapsed_us: -1,
+    };
+    let Value::Object(envelope) = value else {
+        return summary;
+    };
+    let Some(Value::Array(entries)) = envelope.get("entries") else {
+        return summary;
+    };
+    summary.entry_count = entries.len().min(MAX_ENTRIES) as u8;
+    let Some(Value::Number(surrealdb::types::Number::Int(elapsed))) = envelope.get("elapsed_us")
+    else {
+        return summary;
+    };
+    summary.explain_elapsed_us = *elapsed;
+    if envelope.len() != 2 || entries.is_empty() || entries.len() > MAX_ENTRIES {
+        return summary;
+    }
+    let mut kind = ReceiptLookupPlanKind::None;
+    let mut expected_index = false;
+    let mut iterators = 0;
+    let mut collectors = 0;
+    let mut fallbacks = 0;
+    for entry in entries.iter() {
+        let Value::Object(entry) = entry else {
+            return summary;
+        };
+        let Some(Value::Object(detail)) = entry.get("detail") else {
+            return summary;
+        };
+        if entry.len() != 2 {
+            return summary;
+        }
+        match plan_string(entry.get("operation")) {
+            Some("Iterate Index" | "Iterate Index Keys" | "Iterate Index Count") => {
+                let Some(Value::Object(plan)) = detail.get("plan") else {
+                    return summary;
+                };
+                if detail.len() != 2
+                    || plan_string(detail.get("table")) != Some(EVENT_TABLE)
+                    || plan.len() != 3
+                    || plan_string(plan.get("operator")) != Some("=")
+                    || plan_string(plan.get("index")).is_none()
+                    || !plan.contains_key("value")
+                {
+                    return summary;
+                }
+                // The value is intentionally neither traversed nor retained.
+                expected_index =
+                    plan_string(plan.get("index")) == Some("idx_kernel_event_ledger_idempotency");
+                kind = ReceiptLookupPlanKind::Index;
+                iterators += 1;
+            }
+            Some("Iterate Table" | "Iterate Table Keys" | "Iterate Table Count") => {
+                if detail.len() != 2
+                    || plan_string(detail.get("table")) != Some(EVENT_TABLE)
+                    || !matches!(
+                        plan_string(detail.get("direction")),
+                        Some("forward" | "backward")
+                    )
+                {
+                    return summary;
+                }
+                kind = ReceiptLookupPlanKind::Table;
+                iterators += 1;
+            }
+            Some("Collector") => {
+                if detail.len() != 1 || plan_string(detail.get("type")) != Some("Memory") {
+                    return summary;
+                }
+                collectors += 1;
+            }
+            Some("Fallback") => {
+                if detail.len() != 1 || plan_string(detail.get("reason")).is_none() {
+                    return summary;
+                }
+                fallbacks += 1;
+            }
+            _ => return summary,
+        }
+    }
+    if collectors != 1 || iterators > 1 || fallbacks > 1 {
+        return summary;
+    }
+    // `none` means no iterable was selected, not that the lookup returned no rows.
+    summary.plan_kind = kind;
+    summary.expected_index_used = expected_index;
+    summary.supported_shape = true;
+    summary
 }
 
 fn decode_timed_append(
@@ -250,6 +366,9 @@ fn decode_timed_append(
         measured.lookup_elapsed_us,
         measured.operation_elapsed_us,
     );
+    if !matches!(measured.lookup_plan, Value::None) {
+        timing.emit_plan(summarize_receipt_lookup_plan(&measured.lookup_plan));
+    }
     Ok(row)
 }
 
@@ -310,13 +429,15 @@ pub(crate) async fn append(
     let (candidate, write) = prepare_event(event)?;
     let idempotency_key = candidate.idempotency_key.clone();
     let timing = handshake_storage_support::diagnostics::ReceiptTimingContext::capture();
+    let lookup_plan_enabled = handshake_storage_support::diagnostics::receipt_lookup_plan_enabled();
     let result: Result<Option<LedgerRow>, _> = storage
         .with_data_operation(move |database| {
             Box::pin(async move {
                 if let Some(timing) = timing {
                     // One top-level IF retains the original implicit write transaction.
-                    // Only clocks and the internal response envelope differ; the lookup,
-                    // selected branch, permissions and returned receipt rows are unchanged.
+                    // The optional EXPLAIN uses this same authenticated facade and binding.
+                    // It skips iteration, adds diagnostic latency, and can see warmed planner
+                    // state. Its duration does not measure per-row permission evaluation.
                     let measured: Vec<TimedLedgerAppend> = database
                         .query_values(
                             "IF true { \
@@ -324,6 +445,14 @@ pub(crate) async fn append(
                                  LET $existing = (SELECT VALUE id FROM kernel_event_ledger \
                                      WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; \
                                  LET $lookup_finished = time::micros(); \
+                                 LET $lookup_plan = IF $lookup_plan_enabled { \
+                                     LET $explain_started = time::micros(); \
+                                     LET $entries = (SELECT VALUE id FROM kernel_event_ledger \
+                                         WHERE idempotency_key = $event.idempotency_key LIMIT 1 EXPLAIN); \
+                                     LET $explain_finished = time::micros(); \
+                                     { entries: $entries, elapsed_us: $explain_finished - $explain_started }; \
+                                 } ELSE { NONE }; \
+                                 LET $operation_started = IF $lookup_plan_enabled { time::micros() } ELSE { $lookup_finished }; \
                                  IF $existing != NONE { \
                                      LET $rows = (SELECT event_id, event_sequence, event_version, kernel_task_run_id, \
                                          session_run_id, aggregate_type, aggregate_id, idempotency_key, event_type, \
@@ -333,7 +462,8 @@ pub(crate) async fn append(
                                      LET $operation_finished = time::micros(); \
                                      RETURN { rows: $rows, replay: true, \
                                          lookup_elapsed_us: $lookup_finished - $lookup_started, \
-                                         operation_elapsed_us: $operation_finished - $lookup_finished }; \
+                                         operation_elapsed_us: $operation_finished - $operation_started, \
+                                         lookup_plan: $lookup_plan }; \
                                  } ELSE { \
                                      LET $rows = (CREATE $event.record CONTENT { \
                                          event_id: $event.event_id, event_version: $event.event_version, \
@@ -354,10 +484,11 @@ pub(crate) async fn append(
                                      LET $operation_finished = time::micros(); \
                                      RETURN { rows: $rows, replay: false, \
                                          lookup_elapsed_us: $lookup_finished - $lookup_started, \
-                                         operation_elapsed_us: $operation_finished - $lookup_finished }; \
+                                         operation_elapsed_us: $operation_finished - $operation_started, \
+                                         lookup_plan: $lookup_plan }; \
                                  }; \
                              };",
-                            EventBindings { event: write },
+                            TimedEventBindings { event: write, lookup_plan_enabled },
                         )
                         .await?;
                     return decode_timed_append(measured, &timing);
@@ -1282,6 +1413,72 @@ mod tests {
         result
     }
 
+    #[test]
+    fn receipt_lookup_plan_summary_rejects_unsafe_shapes_without_disclosing_values() {
+        use handshake_storage_support::diagnostics::ReceiptLookupPlanKind;
+        const SECRET: &str = "private-bound-value-must-not-be-emitted";
+        let collector = json!({"operation": "Collector", "detail": {"type": "Memory"}});
+        let index = json!({"operation": "Iterate Index", "detail": {
+            "table": "kernel_event_ledger", "plan": {
+                "index": "idx_kernel_event_ledger_idempotency", "operator": "=", "value": SECRET
+            }
+        }});
+        let table = json!({"operation": "Iterate Table", "detail": {
+            "table": "kernel_event_ledger", "direction": "forward"
+        }});
+        let envelope = |entries| json!({"entries": entries, "elapsed_us": 17}).into_value();
+        let summarize = |value: Value| {
+            let summary = summarize_receipt_lookup_plan(&value);
+            // The exact type passed to the log emitter has no raw value/string fields.
+            assert!(!format!("{summary:?}").contains(SECRET));
+            summary
+        };
+        let expected = summarize(envelope(json!([index, collector])));
+        assert!(expected.supported_shape && expected.expected_index_used);
+        assert_eq!(expected.plan_kind, ReceiptLookupPlanKind::Index);
+        assert_eq!(expected.entry_count, 2);
+        assert_eq!(expected.explain_elapsed_us, 17);
+        let scanned = summarize(envelope(json!([table, collector])));
+        assert!(scanned.supported_shape && !scanned.expected_index_used);
+        assert_eq!(scanned.plan_kind, ReceiptLookupPlanKind::Table);
+        let none = summarize(envelope(json!([collector])));
+        assert!(none.supported_shape && !none.expected_index_used);
+        assert_eq!(none.plan_kind, ReceiptLookupPlanKind::None);
+        let fallback = json!({"operation": "Fallback", "detail": {"reason": SECRET}});
+        assert!(summarize(envelope(json!([table, fallback, collector]))).supported_shape);
+        let mut other_index = index.clone();
+        other_index["detail"]["plan"]["index"] = json!(SECRET);
+        let other_index = summarize(envelope(json!([other_index, collector])));
+        assert!(other_index.supported_shape && !other_index.expected_index_used);
+        let mut foreign_table = index.clone();
+        foreign_table["detail"]["table"] = json!(SECRET);
+        let mut extra_field = index.clone();
+        extra_field["detail"]["plan"]["unexpected"] = json!(SECRET);
+        let mut wrong_operator = index.clone();
+        wrong_operator["detail"]["plan"]["operator"] = json!(SECRET);
+        for malformed in [
+            Value::Null,
+            envelope(json!([])),
+            envelope(json!([{"operation": SECRET, "detail": {}}])),
+            envelope(json!([foreign_table, collector])),
+            envelope(json!([extra_field, collector])),
+            envelope(json!([wrong_operator, collector])),
+            envelope(json!([index, table, collector])),
+            envelope(json!([index, collector, collector])),
+            envelope(json!(vec![collector.clone(); 17])),
+            json!({"entries": [index, collector], "elapsed_us": SECRET}).into_value(),
+        ] {
+            let unsupported = summarize(malformed);
+            assert!(!unsupported.supported_shape && !unsupported.expected_index_used);
+            assert_eq!(unsupported.plan_kind, ReceiptLookupPlanKind::Other);
+            assert!(unsupported.entry_count <= 16);
+        }
+        let invalid_clock =
+            summarize(json!({"entries": [index, collector], "elapsed_us": -1}).into_value());
+        assert!(invalid_clock.supported_shape);
+        assert_eq!(invalid_clock.explain_elapsed_us, -1);
+    }
+
     #[tokio::test]
     async fn measured_receipt_decoding_preserves_empty_denial_and_rejects_extra_rows() {
         use handshake_storage_support::diagnostics::{
@@ -1298,8 +1495,14 @@ mod tests {
                         replay: false,
                         lookup_elapsed_us: -1,
                         operation_elapsed_us: 0,
+                        lookup_plan: Value::None,
                     };
                     assert!(decode_timed_append(vec![envelope(Value::None)], &timing)
+                        .unwrap()
+                        .is_none());
+                    let mut unsupported_plan = envelope(Value::None);
+                    unsupported_plan.lookup_plan = Value::Null;
+                    assert!(decode_timed_append(vec![unsupported_plan], &timing)
                         .unwrap()
                         .is_none());
                     assert!(decode_timed_append(
