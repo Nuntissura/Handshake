@@ -4,6 +4,62 @@ file_kind: operator_handoff
 updated_at: 2026-09-28
 ---
 
+<topic id="latest-wp-state-and-resume-guide" wp="WP-KERNEL-012" status="blocked" updated_at="2026-09-28">
+
+## Latest verified state
+
+Operator requested this handoff refresh and a complete fresh-session prompt; this update performs no product edit, test, cleanup or new implementation attempt. Verified canonical `packet.json` state: **In Progress**, `ACTIVATED_IN_PROGRESS`; main containment `NOT_STARTED`, current-main compatibility `NOT_RUN`. Task-board prose is older context, not current acceptance proof. Exact159-MT recount:115 PASS,13 FAIL,21 BLOCKED,10 READY_FOR_VALIDATION. Governance checkpoint before this handoff-only update: `59e87e759ded77e4f5ea0456a37c3edfb776ccb2`; product remains clean/pushed `699477d5888f6cec0b65cbea66b0dd09b9df88be` on `feat/WP-KERNEL-012`.
+
+The session outcome is still **bounded document extraction AND independent MT032 PASS**. Extraction commit `22c64a06cf986fa1c32e1b94e94729d13dff109d` introduced `handshake_document` and `handshake_storage_support`. MT032 is `BLOCKED / FAIL_V13`; that independent verdict belongs to candidate747, not699. Lifetime failed-verdict count7 is preserved. `remediation_v15` is active; `lifecycle.operator_decision_required.current_decision_pending=false`: the Operator already renewed bounded work. Exhausted V14 allowances are historical, not a reason to demand the same renewal again. Current V15 state is `DIAGNOSTIC_CANDIDATE_PUSHED_RUNTIME_CAPACITY_BLOCKED`; its three core tests and two native cases remain unrun, with no V15 export or consumed marker.
+
+MT154 remains `READY_FOR_VALIDATION` with no current verdict; its renewed assignment owns the backend changes and references MT032's capacity blocker. The eleven747 observations and other failures remain exactly as recorded in `current-acceptance-result` below. They are not699 verdicts, and green subsets do not close MT acceptance. No unrelated MT repair is authorized by this handoff refresh.
+
+## Known implementation and execution failures
+
+| Observed failure or limit | Current evidence and consequence |
+|---|---|
+| MT032 production deadlines | The747 owned-restart save PUT exceeded15s; self-seeded create B POST exceeded10s. MT032 native22/24; live backlinks/canonical hash, restart and mounted Argus acceptance remain unproved. |
+| Latency cause still incomplete | Returned receipt statements took3.843/3.858s. Prior duplicate-grant-query reduction did not obtain MT032 PASS. Lookup versus CREATE/replay cost remains unmeasured.699 adds timing; it is not a demonstrated speedup. Its branch timing cannot isolate permission checks, sequence allocation, indexes or commit. |
+| New compile error, repaired | Three borrowed strings passed to pinned SurrealDB `Error::internal` caused E0308. Builder changed them to owned strings; core attempt3 passed with stable1242-input digest. GP108 records the cause. |
+| Capacity forecast error, historical | First acceptance forecast fit150GB but exceeded the147GB protective stop; compilation stopped before tests. Retain that attempt, its logs and FAIL_V12. The separately approved continuation later produced FAIL_V13. |
+| Capacity clearance, current | C target142,669,086,747 bytes;147GB stop leaves4,330,913,253 bytes before the4GB scratch reserve.23 obsolete PDBs totaling5,087,375,360 bytes are hash-verified on D, but all C originals remain. The145,707,089,435-byte forecast is conditional on removal and cannot admit a run. |
+| Actual tool rejection | Automatic execution review rejected both the guarded exact23 removal and one literal removal before process creation with only `blocked by policy`. Neither requested escalation. No files were deleted; no alternative deletion mechanism was used. Its underlying policy cause is unverified. |
+| Copy exit evidence gap | The Start-Process object was not retained across shell calls. OS exit code is unknown; the verified23-file manifest and hashes establish copied contents, not exit0. |
+| Candidate provenance | Existing747 native binary embeds the747 export root. Unchanged source or an environment SHA cannot make it a699 proof binary. |
+| Other MT failures, outside this repair | MT128 swarm conflict test failed; MT154 workspace-delete and stage-authority tests stack-overflowed. Retained747 union totals: core233/239; native2908/2952; extracted document41/41 and support34/34. Do not broaden current work into all union failures. |
+
+## Workflow failures and buddy limits
+
+The Operator repeatedly reported unwanted permission prompts; root acknowledged treating granted authorization as something to request again and conflating task scope, tool access and execution-policy rejection. The current session has full access with approval policy `never`. The later cleanup rejection was a real tool failure, not evidence that the Operator withheld permission. A fresh session must inspect its actual runtime settings; this historical observation does not change them or explain the rejection.
+
+Root foregrounded commits and preparation while the requested acceptance outcome remained false. Compilation and a prepared diagnostic were delivered; no new independent runtime result or latency repair was delivered. That distinction must lead the next progress report. MT128/MT154 observation events were also initially inconsistent with their unchanged lifecycle fields; WPV corrected them to bounded inconclusive observations in `c7458f2d` without erasing the test failures.
+
+The buddy helped with gameplan reminders, record consistency and wording: it caught the implication that unrun tests were proof and the overstatement that the Operator literally said all tests must run on C. It was a **reactive checkpoint reviewer** and returned completed between dispatched reviews; it did not continuously supervise root or prevent the authorization-friction loop. Retained KB/WPV/buddy handles are recoverable context, not proof that a worker is running. Root remains responsible for sending the current goal, next action, actual evidence and unfinished obligations at the agreed checkpoints.
+
+## Resume do/don't checklist
+
+These are execution-coordination restatements of existing Operator instructions and cited authority, not new acceptance gates or a changed task contract.
+
+- [WP012-RESUME-001] Read live Codex, assigned role/build authority, packet/MT contracts and this latest topic before consequential work; preserve governance pin896f4e15 and its recorded Operator overrides.
+- [WP012-RESUME-002] Continue the already-renewed bounded V15 work without asking for that same authorization again; distinguish an actual tool rejection from a task-scope decision and from missing Operator consent.
+- [WP012-RESUME-003] Use a dedicated read-only workflow buddy throughout the session, recovering or recreating it and explicitly sending the checkpoints in WP012-BUDDY-001; include authorization reuse and outcome-versus-preparation in those reviews.
+- [WP012-RESUME-004] Keep root on orchestration/coordination, the extra Kernel Builder on product and executable-helper authorship, and independent WPV on runtime proof/verdicts; obtain file handback before overlapping record writes.
+- [WP012-RESUME-005] Apply the existing gameplan skill and shared generation93 plan: show resume and next-moment steps, verify facts before confirming, run the applicable role/moment checks, and add evidenced failure causes through the controller before another attempt.
+- [WP012-RESUME-006] Preserve consumed attempts, counters, markers, logs and earlier verdicts; run only a justified changed-input or distinct-hypothesis action within current authority, never an unchanged replay or invented allowance.
+- [WP012-RESUME-007] Keep the existing branches/worktrees and warm targets; create no cold targets or target wipes; preserve one Cargo per physical disk,147GB protective stop,150GB C cap and4GB scratch provision. The original Operator instruction names C as the validator warm target; no authority to expand existing D backend-bin into core/native test use has been established.
+- [WP012-RESUME-008] Do not bypass the removal rejection through another tool, shell or disguised command; resolve the exact external blocker or an explicit target-assignment change before dependent runtime work.
+- [WP012-RESUME-009] Use embedded SurrealDB/EventLedger and existing typed APIs; historical SQL/PostgreSQL/SQLite records do not authorize a legacy backend. Preserve10s create/15s save, live authorization/revocation, transaction boundaries, durable receipts and awaited indexing.
+- [WP012-RESUME-010] After actual capacity/provenance readiness, let WPV run the prepared exact three core predecessors before the two native cases on the same frozen699 export; keep separate V15 evidence and stop the native stage if core proof fails.
+- [WP012-RESUME-011] Choose the latency repair from inspected returned evidence, then complete required stable-candidate MT032/affected acceptance; diagnostic results and compilation do not replace independent MT032 PASS.
+- [WP012-RESUME-012] Preserve process identity and actual exit evidence; never invent an exit code, infer a stall from silence, or reuse an old binary as a new-candidate proof. Foreign-process disruption requires identified exact PIDs/consequences and the Operator's `PROCESS_STOP_APPROVED:<comma-separated-PIDs>` for that unchanged target list.
+- [WP012-RESUME-013] Report direct results and exact blockers briefly; keep this handoff current on meaningful changes and do not use paperwork, repeated permission questions or completed agent handles as substitutes for execution.
+
+Gameplan skill: `C:/Users/Ilja Smets/.codex/skills/gameplan/SKILL.md`; controller sibling `scripts/gameplan.py`; shared plan `.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml`. Correct command moments include `on_resume`, `before_dispatch`, `before_round`, `before_submit`; there is no `before_cleanup` moment. Preparation is not authority or acceptance. GP103/104 remain retired history; GP106/107 cover renewed V15 action, GP108 the repaired compile error.
+
+The10-minute monitor `wp-kernel-012-mt-032-progress-tick` is PAUSED for the current external blocker. Resume the existing monitor when that dependency is resolved and delegated/long work actually resumes; unchanged ticks stay quiet. It does not grant runtime authority. Next concrete dependency remains capacity-policy resolution or an explicit validator-target change, followed by fresh checks and independent execution. This latest topic supersedes stale present-tense ownership, candidate, monitoring or pending-renewal statements in the retained history below.
+
+</topic>
+
 <topic id="receipt-inner-candidate-699477" wp="WP-KERNEL-012" status="blocked" updated_at="2026-09-28">
 
 Kernel Builder pushed `699477d5888f6cec0b65cbea66b0dd09b9df88be`; parent verified the clean product checkout and live remote. Three changed files: `storage/surreal/event_ledger.rs`, `storage/surreal/resource_authority_tests.rs` under `handshake_core`, and `handshake_storage_support/src/diagnostics.rs`. The observed receipt path separates idempotency lookup and selected CREATE/replay duration inside the same SurrealQL transaction and authenticated scope. Added focused tests target decoding/cardinality, exact replay/conflict, and the existing direct record-user denial case; none has run. This is diagnostic instrumentation, not a demonstrated latency fix. Unobserved append behavior remains unchanged; wall-clock samples cannot prove monotonic duration, and missing returned timing cannot prove cancellation or rollback.
