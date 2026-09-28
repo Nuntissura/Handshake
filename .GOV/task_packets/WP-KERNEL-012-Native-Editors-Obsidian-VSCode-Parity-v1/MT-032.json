@@ -49,7 +49,11 @@
   },
   "remediation_v15": {
     "create_first_repair": {
-      "state": "DRAFT_IMPLEMENTATION_NO_RUN",
+      "state": "PUSHED_SOURCE_REVIEWED_COMPILE_AND_RUNTIME_PENDING",
+      "candidate": "d745af8030a9ca8fcd9d41cf933b400d9196517a",
+      "source_review": "Independent WPV reviewed all three stable files and found no source blocker; parent independently matched their SHA256 values. Formatting/diff-check passed. No runtime or speedup established.",
+      "focused_proof": "Existing core target: document_receipt_create_first_preserves_authorized_replay_and_denial plus measured_receipt_append_preserves_exact_replay_and_conflict and measured_receipt_decoding_preserves_empty_denial_and_rejects_extra_rows. Preserve this JUnit separately: existing full union does not select these three tests.",
+      "capacity_before_core": {"measured_C_bytes":142169140188,"forecast_with_4GB_reserve":148245902521,"stop_bytes":147000000000,"state":"NOT_ADMITTED_PENDING_EXACT_OWNED_ARTIFACT_RETENTION_REVIEW"},
       "basis": "V15/V16 document receipt lookup2.14-2.31s versus CREATE0.28-0.35s. Inspected EventLedger authority requires durable append-only state and permission-safe conflict/recovery, not pre-read ordering. Existing append already re-reads an exact winner after write errors.",
       "source_refs": ["event_ledger.rs append/error recovery/get_by_idempotency/ensure_same_event", "schema.surql idx_kernel_event_ledger_idempotency and fn::mt120_document_receipt", "knowledge_documents.rs record_receipt/build_receipt_event", "handshake_document/operations.rs create/save record_saved_receipt", "spec02-system-architecture2650-2662,2758-2774"],
       "selector": "Single append with active current_record_user_scope only: exact KnowledgeRichDocumentSaved event type, knowledge_rich_document aggregate, knowledge_documents_api source, payload.event created or saved. Selector is not authorization; current record-user SQL permissions remain mandatory.",
@@ -59,7 +63,7 @@
       "diagnostic_scope": "Remove failed optional EXPLAIN product feature and its feature-only tests; retain baseline receipt timings and all product replay/conflict/denial proof. Preserve V16/V17 commits, failed results and consumed helpers. Do not run another plan diagnostic.",
       "builder": "/root/contract_complexity",
       "independent_reviewer": "/root/technical_failure",
-      "next_gate": "Independent source/real-auth proof mapping before commit or compile; focused changed-behavior proof before unchanged full MT acceptance. No speedup established."
+      "next_gate": "Stable D compile/static checks and fresh capacity admission before independent three-case core proof; focused changed-behavior proof before unchanged full MT acceptance. No speedup established."
     },
     "lookup_plan_diagnostic": {
       "shape_repair": {
