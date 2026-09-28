@@ -73,6 +73,31 @@ pub struct StatementTimingContext {
     request_id: String,
     query_observation_id: u64,
 }
+
+/// Inner receipt timings returned by the same authenticated SurrealQL statement.
+/// These use the engine's UTC wall clock, not a monotonic clock. Failed or dropped
+/// queries return no timings; negative deltas are retained and marked invalid.
+pub struct ReceiptTimingContext {
+    request_id: String,
+    receipt_observation_id: u64,
+}
+impl ReceiptTimingContext {
+    pub fn capture() -> Option<Self> {
+        Some(Self {
+            request_id: DOCUMENT_REQUEST_ID.try_with(Clone::clone).ok()?,
+            receipt_observation_id: PARENT_OBSERVATION.try_with(|id| *id).ok()?,
+        })
+    }
+
+    pub fn emit(&self, replay: bool, lookup_elapsed_us: i64, operation_elapsed_us: i64) {
+        tracing::info!(target: "handshake_core::knowledge_documents_api",
+            request_id = %self.request_id, receipt_observation_id = self.receipt_observation_id,
+            branch = if replay { "replay" } else { "create" }, clock = "surreal_wall",
+            timing_valid = lookup_elapsed_us >= 0 && operation_elapsed_us >= 0,
+            lookup_elapsed_us, operation_elapsed_us,
+            "MT032_DOCUMENT_RECEIPT");
+    }
+}
 impl StatementTimingContext {
     pub fn capture() -> Option<Self> {
         Some(Self {

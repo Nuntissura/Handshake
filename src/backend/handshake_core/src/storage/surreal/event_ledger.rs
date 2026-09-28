@@ -1,6 +1,6 @@
 //! Embedded EventLedger primitives shared by storage-domain transactions.
 
-use surrealdb::types::{Datetime, RecordId, SurrealValue};
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Value};
 
 use super::SurrealStorage;
 use crate::kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent};
@@ -214,6 +214,45 @@ struct LedgerRow {
     created_at: Datetime,
 }
 
+#[derive(SurrealValue)]
+struct TimedLedgerAppend {
+    rows: Value,
+    replay: bool,
+    lookup_elapsed_us: i64,
+    operation_elapsed_us: i64,
+}
+
+fn decode_timed_append(
+    mut envelopes: Vec<TimedLedgerAppend>,
+    timing: &handshake_storage_support::diagnostics::ReceiptTimingContext,
+) -> Result<Option<LedgerRow>, super::SurrealStorageError> {
+    if envelopes.len() > 1 {
+        return Err(
+            surrealdb::Error::internal("multiple timed receipt envelopes".to_owned()).into(),
+        );
+    }
+    let Some(measured) = envelopes.pop() else {
+        return Ok(None);
+    };
+    let rows = match measured.rows {
+        Value::None => Vec::new(),
+        Value::Array(rows) => rows.into_iter().collect::<Vec<_>>(),
+        _ => {
+            return Err(surrealdb::Error::internal("invalid timed receipt rows".to_owned()).into())
+        }
+    };
+    if rows.len() > 1 {
+        return Err(surrealdb::Error::internal("multiple timed receipt rows".to_owned()).into());
+    }
+    let row = super::decode_first_value(rows)?;
+    timing.emit(
+        measured.replay,
+        measured.lookup_elapsed_us,
+        measured.operation_elapsed_us,
+    );
+    Ok(row)
+}
+
 pub(crate) fn prepare_event(
     mut event: NewKernelEvent,
 ) -> StorageResult<(KernelEvent, LedgerWrite)> {
@@ -270,9 +309,59 @@ pub(crate) async fn append(
 ) -> StorageResult<KernelEvent> {
     let (candidate, write) = prepare_event(event)?;
     let idempotency_key = candidate.idempotency_key.clone();
+    let timing = handshake_storage_support::diagnostics::ReceiptTimingContext::capture();
     let result: Result<Option<LedgerRow>, _> = storage
         .with_data_operation(move |database| {
             Box::pin(async move {
+                if let Some(timing) = timing {
+                    // One top-level IF retains the original implicit write transaction.
+                    // Only clocks and the internal response envelope differ; the lookup,
+                    // selected branch, permissions and returned receipt rows are unchanged.
+                    let measured: Vec<TimedLedgerAppend> = database
+                        .query_values(
+                            "IF true { \
+                                 LET $lookup_started = time::micros(); \
+                                 LET $existing = (SELECT VALUE id FROM kernel_event_ledger \
+                                     WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; \
+                                 LET $lookup_finished = time::micros(); \
+                                 IF $existing != NONE { \
+                                     LET $rows = (SELECT event_id, event_sequence, event_version, kernel_task_run_id, \
+                                         session_run_id, aggregate_type, aggregate_id, idempotency_key, event_type, \
+                                         actor_kind, actor_id, causation_id, correlation_id, payload_hash, \
+                                         source_component, payload, created_at FROM kernel_event_ledger \
+                                         WHERE idempotency_key = $event.idempotency_key LIMIT 1); \
+                                     LET $operation_finished = time::micros(); \
+                                     RETURN { rows: $rows, replay: true, \
+                                         lookup_elapsed_us: $lookup_finished - $lookup_started, \
+                                         operation_elapsed_us: $operation_finished - $lookup_finished }; \
+                                 } ELSE { \
+                                     LET $rows = (CREATE $event.record CONTENT { \
+                                         event_id: $event.event_id, event_version: $event.event_version, \
+                                         kernel_task_run_id: $event.kernel_task_run_id, \
+                                         session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, \
+                                         aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, \
+                                         event_type: $event.event_type, actor_kind: $event.actor_kind, \
+                                         actor_id: $event.actor_id, causation_id: $event.causation_id, \
+                                         correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
+                                         source_component: $event.source_component, payload: $event.payload, \
+                                         wsids: $event.wsids, \
+                                         authority_resource_id: $event.authority_resource_id, \
+                                         authority_session_id: $event.authority_session_id, \
+                                         authority_capability_id: $event.authority_capability_id, \
+                                         authority_action: $event.authority_action, \
+                                         created_at: $event.created_at \
+                                     }); \
+                                     LET $operation_finished = time::micros(); \
+                                     RETURN { rows: $rows, replay: false, \
+                                         lookup_elapsed_us: $lookup_finished - $lookup_started, \
+                                         operation_elapsed_us: $operation_finished - $lookup_finished }; \
+                                 }; \
+                             };",
+                            EventBindings { event: write },
+                        )
+                        .await?;
+                    return decode_timed_append(measured, &timing);
+                }
                 database
                     .query_first(
                         "IF (SELECT VALUE id FROM kernel_event_ledger \
@@ -1191,6 +1280,98 @@ mod tests {
             .unwrap_or_else(|_| panic!("event-ledger-test stage={stage} timed out after 120s"));
         eprintln!("event-ledger-test stage={stage} state=complete");
         result
+    }
+
+    #[tokio::test]
+    async fn measured_receipt_decoding_preserves_empty_denial_and_rejects_extra_rows() {
+        use handshake_storage_support::diagnostics::{
+            observe_result, ReceiptTimingContext, DOCUMENT_REQUEST_ID,
+        };
+        DOCUMENT_REQUEST_ID
+            .scope(
+                uuid::Uuid::new_v4().to_string(),
+                observe_result("receipt_append", async {
+                    let timing =
+                        ReceiptTimingContext::capture().expect("both diagnostic scopes entered");
+                    let envelope = |rows| TimedLedgerAppend {
+                        rows,
+                        replay: false,
+                        lookup_elapsed_us: -1,
+                        operation_elapsed_us: 0,
+                    };
+                    assert!(decode_timed_append(vec![envelope(Value::None)], &timing)
+                        .unwrap()
+                        .is_none());
+                    assert!(decode_timed_append(
+                        vec![envelope(Vec::<Value>::new().into_value())],
+                        &timing
+                    )
+                    .unwrap()
+                    .is_none());
+                    assert!(decode_timed_append(vec![envelope(Value::Null)], &timing).is_err());
+                    assert!(decode_timed_append(
+                        vec![envelope(Value::None), envelope(Value::None)],
+                        &timing
+                    )
+                    .is_err());
+                    let (candidate, _) =
+                        prepare_event(event("mt032-measured-decode", json!({"value": 1}))).unwrap();
+                    let row = row_from_event(candidate.clone(), 1).into_value();
+                    assert!(decode_timed_append(
+                        vec![envelope(vec![row.clone(), row.clone()].into_value())],
+                        &timing
+                    )
+                    .is_err());
+                    // Invalid wall-clock samples must not change an otherwise valid receipt result.
+                    let decoded =
+                        decode_timed_append(vec![envelope(vec![row].into_value())], &timing)
+                            .unwrap()
+                            .unwrap();
+                    assert_eq!(decoded.event_id, candidate.event_id);
+                    Ok::<_, StorageError>(())
+                }),
+            )
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn measured_receipt_append_preserves_exact_replay_and_conflict() {
+        use handshake_storage_support::diagnostics::{
+            observe_result, ReceiptTimingContext, DOCUMENT_REQUEST_ID,
+        };
+        let directory = tempfile::tempdir().expect("temporary measured receipt store");
+        let storage = open(&directory.path().join("store")).await;
+        let run = |payload| {
+            let storage = &storage;
+            DOCUMENT_REQUEST_ID.scope(
+                uuid::Uuid::new_v4().to_string(),
+                observe_result("receipt_append", async move {
+                    assert!(ReceiptTimingContext::capture().is_some());
+                    append(storage, event("mt032-measured-replay", payload)).await
+                }),
+            )
+        };
+        let inserted = run(json!({"value": 1})).await.expect("measured CREATE");
+        let replay = run(json!({"value": 1}))
+            .await
+            .expect("measured replay SELECT");
+        assert_eq!(inserted.event_id, replay.event_id);
+        assert_eq!(inserted.event_sequence, replay.event_sequence);
+        assert!(matches!(
+            run(json!({"value": 2})).await,
+            Err(StorageError::Conflict(_) | StorageError::ConflictDetails { .. })
+        ));
+        let persisted = get_by_idempotency(&storage, "mt032-measured-replay")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(persisted.event_id, inserted.event_id);
+        assert_eq!(persisted.payload, json!({"value": 1}));
+        storage
+            .shutdown()
+            .await
+            .expect("close measured receipt store");
     }
 
     #[tokio::test]

@@ -1510,6 +1510,34 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
                 capability_id: "memory.read".to_owned(),
                 action: ResourceAction::Read,
             };
+            // Exercise the timed append itself under a real record-user session.
+            // This scope cannot create this receipt family; both paths must keep the typed denial.
+            let denied_event = crate::kernel::NewKernelEvent::builder(
+                "mt032-measured-denial",
+                "mt032-measured-denial-session",
+                crate::kernel::KernelEventType::ArtifactStored,
+                crate::kernel::KernelActor::System("mt032-measured-denial".to_owned()),
+            )
+            .aggregate("mt032_measured_denial", &own_workspace.id)
+            .idempotency_key("mt032-measured-denied-receipt")
+            .source_component("mt032_measured_denial")
+            .payload(serde_json::json!({"value": "denied"}))
+            .build()?;
+            let plain_denial = storage.with_record_user_scope(
+                scope.clone(), super::event_ledger::append(storage, denied_event.clone()),
+            ).await;
+            assert!(matches!(plain_denial, Err(crate::storage::StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))));
+            use handshake_storage_support::diagnostics::{observe_result, ReceiptTimingContext, DOCUMENT_REQUEST_ID};
+            let measured_denial = DOCUMENT_REQUEST_ID.scope(
+                uuid::Uuid::new_v4().to_string(),
+                observe_result("receipt_append", storage.with_record_user_scope(scope.clone(), async {
+                    assert!(ReceiptTimingContext::capture().is_some());
+                    super::event_ledger::append(storage, denied_event).await
+                })),
+            ).await;
+            assert!(matches!(measured_denial, Err(crate::storage::StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))));
+            assert!(super::event_ledger::get_by_idempotency(storage, "mt032-measured-denied-receipt").await?.is_none(),
+                "denied measured receipt was persisted");
             let foreign_resource = storage
                 .register_protected_resource(
                     &principal.identity,
