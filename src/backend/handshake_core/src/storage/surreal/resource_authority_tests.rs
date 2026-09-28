@@ -3092,12 +3092,10 @@ async fn document_receipt_create_first_preserves_authorized_replay_and_denial(
                     })
                     .await?;
                 let capabilities = ["fs.read".to_owned(), "fs.write".to_owned()];
-                let owner = provision_direct_negative_principal(
-                    storage,
-                    "mt032-receipt-owner",
-                    &capabilities,
-                )
-                .await?;
+                let owner_actor = "mt032-receipt-owner";
+                let owner =
+                    provision_direct_negative_principal(storage, owner_actor, &capabilities)
+                        .await?;
                 let workspace_resource = storage
                     .register_workspace_resource(&owner.identity, &workspace.id)
                     .await?;
@@ -3146,7 +3144,7 @@ async fn document_receipt_create_first_preserves_authorized_replay_and_denial(
                         "mt032-receipt-task",
                         &owner.session.session_id,
                         KernelEventType::KnowledgeRichDocumentSaved,
-                        KernelActor::Operator(owner.identity.actor_id.clone()),
+                        KernelActor::Operator(owner_actor.to_owned()),
                     )
                     .aggregate("knowledge_rich_document", &document.rich_document_id)
                     .idempotency_key(key)
@@ -3154,7 +3152,7 @@ async fn document_receipt_create_first_preserves_authorized_replay_and_denial(
                     .payload(json!({
                         "event": kind, "doc_version": version, "workspace_id": workspace.id,
                         "minted_by_principal": owner.identity.principal_id,
-                        "declared_actor_id": owner.identity.actor_id,
+                        "declared_actor_id": owner_actor,
                     }))
                     .build()
                     .expect("valid document receipt")
