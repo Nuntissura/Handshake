@@ -2248,6 +2248,25 @@
     },
     "status_effect": "none; renewed implementation authority recorded; no acceptance verdict inferred",
     "renewed_assignments": [
+      {
+        "id": "MT032-RENEWED-REPAIR-20260928",
+        "recorded_at_utc": "2026-09-28T12:41:09Z",
+        "operator_decision_ref": "MT-032.remediation_v15.operator_decision",
+        "base_product_commit": "7479972ac681cd238e58d37e318beab6c8d3b423",
+        "owner": "/root/kernel_builder; sole implementation and executable-helper writer",
+        "orchestrator": "/root; coordination/evidence review only",
+        "buddy": "/root/workflow_buddy; workflow order and gameplan reminders",
+        "validator": "/root/wp_validator; independent execution/verdict",
+        "batch_owner": "MT-154",
+        "covered_mts": ["MT-154", "MT-032"],
+        "scope": "Existing bounded document create/save latency repair; distinguish the retained receipt inner-cost failure before selecting a measured repair",
+        "allowed_product_paths_ref": "renewed_assignments[MT032-MEASURED-REPAIR-20260927].allowed_product_paths",
+        "executable_helpers": "Only the existing MT032 diagnostic/observer route or a scoped receipt diagnostic entrypoint under this packet or the retained wpv-c3x artifact lane; no unrelated harness change",
+        "preservation": "All old attempts/counters/verdicts and frozen747 evidence; existing deadlines/auth/transactions/receipts/indexing; same product worktree, warm targets and capacity constraints",
+        "proof_route_ref": "MT-032.remediation_v15.proof_route",
+        "state": "RENEWED_IMPLEMENTATION_PREPARATION",
+        "status_effect": "No lifecycle/verdict reset or acceptance inferred"
+      },
     {"id":"MT032-MEASURED-REPAIR-20260927","recorded_at_utc":"2026-09-27T12:18:46.829462Z","operator_decision_ref":"MT-032.remediation_v14.operator_decision","base_product_commit":"ec596eecb70f2820cb357ef95d5820b890c8944f","owner":"document_coder; sole product editor","batch_owner":"MT-154","covered_mts":["MT-154","MT-032"],"scope_override":"Extend existing document-slice ownership for sanitized inner diagnostics and the measured MT032 repair only","allowed_product_paths":["src/backend/handshake_document/**","src/backend/handshake_storage_support/**","src/backend/handshake_core/src/api/knowledge_documents.rs","src/backend/handshake_core/src/storage/surreal.rs","src/backend/handshake_core/src/storage/surreal/knowledge.rs","src/backend/handshake_core/src/storage/surreal/database.rs","src/backend/handshake_core/src/storage/surreal/event_ledger.rs (document receipt diagnostics or evidenced repair only)","src/backend/handshake_core/src/storage/surreal/resource_authority.rs (document request diagnostics only)","src/backend/handshake_core/src/storage/surreal/schema.surql (fn::mt120_document_access only)","src/backend/handshake_core/src/storage/surreal/schema.rs (exact revision160 predecessor upgrade, reversible document-function delta, current fingerprints and relevant proofs only)"],"scope_rule":"MT032 backend prohibition retained; MT154 owns backend changes; no unrelated behavior edits","attempt_history":{"preserve":true,"latest_verdict":"MT-032.validation_v12 FAIL_V12","failed_verdict_count":6,"max_fix_rounds_per_mt":3,"reset_counters":false,"exception_ref":"MT-032.remediation_v14.operator_decision","diagnostic_run_limit":1,"acceptance_run_limit":1},"proof_route_ref":"MT-032.remediation_v14.proof_route","diagnosis_ref":"MT-032.remediation_v14.diagnosis","status_effect":"No MT154 acceptance inferred; full existing scope/proof remains","diagnostic_extension_refs":["MT-032.remediation_v14.diagnostic_extension_v1"],"measured_schema_repair":{
       "recorded_at_utc": "2026-09-27T17:28:28.616178+00:00",
       "approval_basis": "Existing Operator bounded MT154 create/save latency repair; file list is implementation declaration, not new Operator whitelist",

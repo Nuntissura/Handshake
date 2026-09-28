@@ -4,6 +4,12 @@ file_kind: operator_handoff
 updated_at: 2026-09-28
 ---
 
+<topic id="renewed-mt032-repair" wp="WP-KERNEL-012" status="active" updated_at="2026-09-28">
+
+Operator renewed work with `start working`, then `stop explaining. start working`, after the exhausted continuation was explained. Canonical renewal: `MT-032.remediation_v15` and MT154 assignment `MT032-RENEWED-REPAIR-20260928`; all prior attempts/limits and FAIL_V13 remain historical evidence, with no counter reset or invented new numeric allowance. `/root/kernel_builder` is sole implementation/helper writer, root orchestrates, buddy checks order/gameplan, and WPV independently runs proof. First changed question: separate receipt idempotency lookup from CREATE cost in the same authenticated/transaction context before choosing a repair. Existing monitor is ACTIVE. The result below remains the latest independent acceptance result; its pending-decision/paused-monitor statements are superseded only by this explicit renewal.
+
+</topic>
+
 <topic id="current-acceptance-result" wp="WP-KERNEL-012" status="blocked" updated_at="2026-09-28">
 
 ## Current result: extraction present; independent MT032 FAIL_V13
