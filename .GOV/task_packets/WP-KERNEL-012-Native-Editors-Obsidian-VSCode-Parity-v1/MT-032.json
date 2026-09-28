@@ -48,6 +48,42 @@
     "historical_fields": "Dated lifecycle notes and remediation_v1..v14 retain their original wording as history. Current execution scope is packet.json#paperwork_reconciliation_20260928.execution_scope; historical deadline shorthand does not override unchanged executable client deadlines."
   },
   "remediation_v15": {
+    "lookup_plan_diagnostic": {
+      "helper_binding": {
+        "mode": "lookup-plan-v16",
+        "script": "MT-032-phase-probe.sh",
+        "script_sha256": "C0E3780841520C586A534338594E4525DB0A7B969DB5DB8F3C345586983402A4",
+        "watcher": "MT-032-phase-watch.ps1",
+        "watcher_sha256": "D6358F12A22B4CA30962473C873BE84405CA6A26CC80BFE0FE31D18AE024C2C4",
+        "env": "HANDSHAKE_DIAGNOSTIC_RECEIPT_LOOKUP_PLAN=1",
+        "one_use_marker": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/MT032-V16-LOOKUP-PLAN-DIAGNOSTIC.started",
+        "marker_state": "UNCONSUMED",
+        "core_cases": 4,
+        "native_cases": 1,
+        "runtime_authorization": "No launch until compile, capacity and independent before_round gates pass."
+      },
+      "precompile_review": {
+        "result": "No remaining scoped source/helper blocker to builder compile; not runtime acceptance.",
+        "independent_reviewer": "/root/technical_failure WP_VALIDATOR",
+        "parent_review": "Original query/scope/branch/row semantics, fixed-type redaction, exact watcher correlation and mode isolation inspected. Nested RETURN early-exit defect fixed before compilation.",
+        "checks": "rustfmt --check; scoped git diff --check; bash -n; PowerShell AST parse; pinned engine source reconciliation",
+        "remaining_proof": "Four enabled core predecessors and one owned-restart diagnostic; final env-unset acceptance must prove new default-disabled timed SQL. No latency improvement established."
+      },
+      "id": "MT032-LOOKUP-PLAN-20260928",
+      "state": "IMPLEMENTATION_IN_PROGRESS_NO_RUN",
+      "authority": "Existing renewed evidenced-diagnostic scope; Operator approved missing-resource correction and continuation; no historical attempt reset.",
+      "question": "Which access method does the identical pre-write lookup choose under the same record-user context, and is its preparation/planner envelope itself expensive?",
+      "basis": "V15 seven measured lookups2135801..2314127us; pinned3.2.0 supports nested parameter indexes, so flattening is not a demonstrated repair.",
+      "method": "Opt-in EXPLAIN without FULL after unchanged original lookup inside same timed IF, bindings and authenticated facade; separately measure plan preparation and reset branch clock. Default disabled.",
+      "disclosure": "Emit bounded allowlisted plan classification/index-match/shape/count/timing only; never rawplan,boundvalues,documentcontent,credentials or SQL.",
+      "source_basis": "Pinned3.2.0 dbs/plan.rs24-37 and iterator.rs743-776 skip iteration for nonFULL EXPLAIN; doc/select.rs23 and doc/check.rs459-469 place row predicates during iteration; idx/planner/plan.rs469-475 exposes rawboundvalue and requires sanitization.",
+      "execution": "Existing probe/watcher receive distinct mode, consumed marker and outputs; affected core predecessors first, then one existing owned-restart native case for same-auth observation. No retries or broad acceptance. Existing modes/markers retained.",
+      "limits": "Second planning observation can be cache-warmed; EXPLAIN does not measure per-row predicate execution. Added latency may affect native deadlines; no performance or acceptance success inferred. No root SQL or changed field visibility.",
+      "next_action": "Independent source review and stable compile proof before any launch.",
+      "builder": "/root/contract_complexity",
+      "validator": "/root/technical_failure",
+      "recorded_at_utc": "2026-09-28T21:11:50.390166+00:00"
+    },
     "missing_resource_operator_decision": {
       "request_ref": "remediation_v15.operator_decision_request",
       "authorized_by": "OPERATOR",

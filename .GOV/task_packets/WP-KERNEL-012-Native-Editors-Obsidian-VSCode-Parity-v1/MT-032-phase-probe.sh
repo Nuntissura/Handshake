@@ -8,23 +8,33 @@ TARGET="${4:?existing C warm target required}"
 NEXTEST="${5:?pinned nextest executable required}"
 ARTIFACTS="${6:?canonical artifacts root required}"
 MODE="${7:-}"
-[[ -z "$MODE" || "$MODE" = receipt-inner-v15 ]] || exit 2
+[[ -z "$MODE" || "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 ]] || exit 2
 CONSUMED="$LANE/MT032-V14-STATEMENT-DIAGNOSTIC.started"
 PROBE=mt032-v14-statement-probe
 WATCH=mt032-v14-statement-watch
 WATCH_SCHEMA=handshake.mt032.statement-watch.ready.v14.1
+CORE_EXPECTED=3
+NATIVE_EXPECTED=2
 if [[ "$MODE" = receipt-inner-v15 ]]; then
   CONSUMED="$LANE/MT032-V15-RECEIPT-DIAGNOSTIC.started"
   PROBE=mt032-v15-receipt-probe
   WATCH=mt032-v15-receipt-watch
   WATCH_SCHEMA=handshake.mt032.receipt-watch.ready.v15.1
 fi
+if [[ "$MODE" = lookup-plan-v16 ]]; then
+  CONSUMED="$LANE/MT032-V16-LOOKUP-PLAN-DIAGNOSTIC.started"
+  PROBE=mt032-v16-lookup-plan-probe
+  WATCH=mt032-v16-lookup-plan-watch
+  WATCH_SCHEMA=handshake.mt032.lookup-plan-watch.ready.v16.1
+  CORE_EXPECTED=4
+  NATIVE_EXPECTED=1
+fi
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || exit 2
 [[ ! -e "$CONSUMED" ]] || { echo 'MT032_PROBE approval already consumed; no automatic replay'; exit 2; }
 export GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never
 [[ -d "$LANE" && -d "$TARGET" && -x "$NEXTEST" ]] || exit 2
 [[ "$(sha256sum "$LANE/nextest.toml" | cut -d ' ' -f1)" = d828376108c1d72836b94677f1612378095310dee2ed96e2ed12acb3929706a8 ]] || exit 2
-if [[ "$MODE" = receipt-inner-v15 ]]; then
+if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 ]]; then
   [[ "$(sha256sum "$LANE/nextest-core.toml" | cut -d ' ' -f1)" = a974ab0cc35118a5e825b4f8af8f131360c92ca4de11d87293f0d08368123d2a ]] || exit 2
 fi
 [[ -z "$(git -C "$WORKTREE" status --porcelain)" ]] || exit 2
@@ -68,6 +78,10 @@ export HANDSHAKE_TEST_SURREAL_SYNC=never SURREAL_DATASTORE_SYNC=never
 export HANDSHAKE_SURREAL_TEST_STORE_ROOT="$LANE/runtime" HANDSHAKE_GPU_SCREENSHOT=1
 export HANDSHAKE_WORKSPACE_ROOT="$LANE/workspace-root"
 export TMP="$LANE/tmp" TEMP="$LANE/tmp" TMPDIR="$LANE/tmp" HS_LOG_LEVEL=info
+unset HANDSHAKE_DIAGNOSTIC_RECEIPT_LOOKUP_PLAN
+if [[ "$MODE" = lookup-plan-v16 ]]; then
+  export HANDSHAKE_DIAGNOSTIC_RECEIPT_LOOKUP_PLAN=1
+fi
 [[ -z "${NEXTEST_RETRIES:-}" && -z "${NEXTEST_PROFILE:-}" ]] || exit 2
 mkdir -p "$LANE/logs" "$LANE/tmp" "$LANE/runtime" "$LANE/e" "$LANE/stage-binding" "$LANE/workspace-root"
 
@@ -78,16 +92,19 @@ if [[ -f "$HSK_TEST_BACKEND_BIN" ]]; then
   [[ -f "$LANE/backend-history/$prior_hash.exe" ]] || cp "$HSK_TEST_BACKEND_BIN" "$LANE/backend-history/$prior_hash.exe"
   [[ "$(sha256sum "$LANE/backend-history/$prior_hash.exe" | cut -d ' ' -f1)" = "$prior_hash" ]] || exit 2
 fi
-if [[ "$MODE" = receipt-inner-v15 ]]; then
+if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 ]]; then
   CORE_INVOCATION="$LANE/$PROBE-$SHA-core.started"
   CORE_RESULT_PATH="$LANE/$PROBE-$SHA-core.exit"
   CORE_JUNIT="$EXPORT/src/backend/handshake_core/target/nextest/default/junit.xml"
   CORE_RETAINED_JUNIT="$LANE/junit-$SHA-$PROBE-core.xml"
   [[ ! -e "$CORE_INVOCATION" && ! -e "$CORE_RESULT_PATH" && ! -e "$CORE_RETAINED_JUNIT" ]] || exit 2
-  # Consume this distinct V15 diagnostic before its first proof invocation.
+  # Consume this mode's distinct diagnostic before its first proof invocation.
   (set -o noclobber; printf '%s' "$SHA" > "$CONSUMED") || exit 2
   (set -o noclobber; date -u +%Y-%m-%dT%H:%M:%SZ > "$CORE_INVOCATION") || exit 2
   CORE_FILTER='test(=storage::surreal::event_ledger::tests::measured_receipt_decoding_preserves_empty_denial_and_rejects_extra_rows) | test(=storage::surreal::event_ledger::tests::measured_receipt_append_preserves_exact_replay_and_conflict) | test(=storage::surreal::resource_authority_tests::direct_record_user_foreign_table_operations_are_default_deny)'
+  if [[ "$MODE" = lookup-plan-v16 ]]; then
+    CORE_FILTER+=' | test(=storage::surreal::event_ledger::tests::receipt_lookup_plan_summary_rejects_unsafe_shapes_without_disclosing_values)'
+  fi
   echo 'MT032_PROBE core receipt predecessors'
   set +e
   (cd "$EXPORT/src/backend/handshake_core" && "$NEXTEST" nextest run --locked --no-fail-fast --build-jobs 2 \
@@ -102,7 +119,7 @@ if [[ "$MODE" = receipt-inner-v15 ]]; then
   [[ "$CORE_RESULT" = 0 ]] || { echo "MT032_PROBE core predecessors failed exit=$CORE_RESULT; native not started"; exit "$CORE_RESULT"; }
   [[ -f "$CORE_RETAINED_JUNIT" ]] || exit 4
   CORE_COUNT="$(sed -n 's/^<testsuites[^>]* tests="\([0-9][0-9]*\)".*/\1/p' "$CORE_RETAINED_JUNIT" | head -n 1)"
-  [[ "$CORE_COUNT" = 3 ]] || { echo "MT032_PROBE invalid core test count=$CORE_COUNT"; exit 4; }
+  [[ "$CORE_COUNT" = "$CORE_EXPECTED" ]] || { echo "MT032_PROBE invalid core test count=$CORE_COUNT"; exit 4; }
   check_cap
   check_watcher
 fi
@@ -120,25 +137,28 @@ check_cap
 check_watcher
 INVOCATION="$LANE/$PROBE-$SHA.started"
 [[ ! -e "$INVOCATION" ]] || { echo 'MT032_PROBE already invoked; no automatic replay'; exit 2; }
-if [[ "$MODE" != receipt-inner-v15 ]]; then
+if [[ "$MODE" != receipt-inner-v15 && "$MODE" != lookup-plan-v16 ]]; then
   (set -o noclobber; printf '%s' "$SHA" > "$CONSUMED") || exit 2
 fi
 date -u +%Y-%m-%dT%H:%M:%SZ > "$INVOCATION"
 JUNIT="$EXPORT/src/frontend/handshake_native/target/nextest/default/junit.xml"
 FILTER='binary(=test_loom_address) & (test(=live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash) | test(=live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof))'
+if [[ "$MODE" = lookup-plan-v16 ]]; then
+  FILTER='binary(=test_loom_address) & test(=live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash)'
+fi
 set +e
 (cd "$EXPORT/src/frontend/handshake_native" && "$NEXTEST" nextest run --locked --no-fail-fast --build-jobs 2 \
   --config-file "$LANE/nextest.toml" --features integration,integration_tests,wgpu_screenshots \
   --test test_loom_address -E "$FILTER")
 RESULT=$?
 set -e
-if [[ "$MODE" = receipt-inner-v15 ]]; then
+if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 ]]; then
   (set -o noclobber; printf '%s\n' "$RESULT" > "$LANE/$PROBE-$SHA.exit") || exit 2
 fi
 [[ "$RESULT" = 0 || "$RESULT" = 100 ]] || exit "$RESULT"
 [[ -f "$JUNIT" && "$JUNIT" -nt "$INVOCATION" ]] || exit 4
 COUNT="$(sed -n 's/^<testsuites[^>]* tests="\([0-9][0-9]*\)".*/\1/p' "$JUNIT" | head -n 1)"
-[[ "$COUNT" = 2 ]] || { echo "MT032_PROBE invalid test count=$COUNT"; exit 4; }
+[[ "$COUNT" = "$NATIVE_EXPECTED" ]] || { echo "MT032_PROBE invalid test count=$COUNT"; exit 4; }
 cp "$JUNIT" "$LANE/junit-$SHA-$PROBE.xml"
 sha256sum "$LANE/junit-$SHA-$PROBE.xml" "$HSK_TEST_BACKEND_BIN"
 check_cap

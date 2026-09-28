@@ -4,7 +4,7 @@ param(
     [Parameter(Mandatory)][string]$StopSignal,
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{40}$')][string]$CandidateSha,
     [ValidateRange(0, 86400)][int]$MaxSeconds = 21600,
-    [ValidateSet('', 'continuation1', 'receipt-inner-v15')][string]$CaptureSuffix = ''
+    [ValidateSet('', 'continuation1', 'receipt-inner-v15', 'lookup-plan-v16')][string]$CaptureSuffix = ''
 )
 
 # Observation only: no process control, fixture mutation, or retention override.
@@ -60,11 +60,13 @@ if ($env:HSK_MT045_RUN_ID -and $env:HSK_MT045_RUN_ID -ne 'standalone-run') {
     throw 'nondefault_fixture_run_id_requires_declared_watcher_scope'
 }
 $runRoot = Join-Path $runtime (Get-Component 'r' 'standalone-run')
+$lookupPlanMode = $CaptureSuffix -eq 'lookup-plan-v16'
 $scenarios = [ordered]@{}
 foreach ($name in @(
     'live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash',
     'live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof'
 )) {
+    if ($lookupPlanMode -and $name -ne 'live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash') { continue }
     $scenarios[(Get-Component 's' $name)] = $name
 }
 $phases = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
@@ -116,8 +118,9 @@ function Get-ScenarioRoots {
 
 $baseline = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($root in @(Get-ScenarioRoots)) { [void]$baseline.Add($root.Path) }
-$receiptMode = $CaptureSuffix -eq 'receipt-inner-v15'
-$prefix = Join-Path $logs $(if ($receiptMode) { "mt032-v15-receipt-watch-$CandidateSha" } else {
+$receiptMode = $CaptureSuffix -in @('receipt-inner-v15', 'lookup-plan-v16')
+$prefix = Join-Path $logs $(if ($lookupPlanMode) { "mt032-v16-lookup-plan-watch-$CandidateSha" }
+elseif ($receiptMode) { "mt032-v15-receipt-watch-$CandidateSha" } else {
     "mt032-v14-statement-watch-$CandidateSha" + $(if ($CaptureSuffix) { "-$CaptureSuffix" } else { '' })
 })
 $capturePath = "$prefix.jsonl"
@@ -142,8 +145,11 @@ $state = @{ Records = 0; PhaseRecords = 0; StatementRecords = 0; UnavailableStat
 $statementQueries = @{}
 $receiptObservations = @{}
 $state.ReceiptRecords = 0; $state.InvalidReceiptTimings = 0
+$lookupPlans = @{}
+$state.LookupPlanRecords = 0; $state.UnsupportedLookupPlans = 0; $state.InvalidLookupPlanTimings = 0
 
 function Accept-PhaseLine([string]$Line, $FileState) {
+    if ($lookupPlanMode -and $Line.Contains('MT032_DOCUMENT_RECEIPT_PLAN')) { Accept-LookupPlanLine $Line $FileState; return }
     if ($receiptMode -and $Line.Contains('MT032_DOCUMENT_RECEIPT')) { Accept-ReceiptLine $Line $FileState; return }
     if ($Line.Contains('MT032_DOCUMENT_STATEMENT')) { Accept-StatementLine $Line $FileState; return }
     if (-not $Line.Contains('MT032_DOCUMENT_PHASE')) { return }
@@ -334,6 +340,68 @@ function Accept-ReceiptLine([string]$Line, $FileState) {
     } catch { [void]$issues.Add('receipt_parse_or_capture_error') }
 }
 
+function Accept-LookupPlanLine([string]$Line, $FileState) {
+    try {
+        if ($FileState.Kind -eq 'json') {
+            $entry = $Line | ConvertFrom-Json -AsHashtable
+            if ($entry.target -ne 'handshake_core::knowledge_documents_api' -or
+                $entry.fields.message -ne 'MT032_DOCUMENT_RECEIPT_PLAN') { return }
+            $stamp = $entry.timestamp; $fields = $entry.fields
+        } else {
+            $plain = [regex]::Replace($Line, '\x1B\[[0-?]*[ -/]*[@-~]', '')
+            if ($plain -notmatch '^\s*\S+\s+INFO\s+handshake_core::knowledge_documents_api:\s+MT032_DOCUMENT_RECEIPT_PLAN(?:\s|$)') { return }
+            $stamp = [regex]::Match($plain, '^\s*(\S+)').Groups[1].Value
+            $fields = @{}
+            foreach ($field in @('request_id', 'receipt_observation_id', 'plan_kind', 'expected_index_used',
+                'supported_shape', 'entry_count', 'clock', 'explain_elapsed_us', 'timing_valid')) {
+                $fields[$field] = [regex]::Match($plain, "\b$field=""?([^\s""]+)""?(?=\s|$)").Groups[1].Value
+            }
+        }
+        if ($stamp -is [DateTime]) { $stamp = $stamp.ToUniversalTime().ToString('o', [Globalization.CultureInfo]::InvariantCulture) }
+        elseif ($stamp -is [DateTimeOffset]) { $stamp = $stamp.ToUniversalTime().ToString('o', [Globalization.CultureInfo]::InvariantCulture) }
+        $id = [Guid]::Empty; $timestamp = [DateTimeOffset]::MinValue; $observationId = [uint64]0
+        $entryCount = [uint64]0; $micros = [int64]0
+        $expectedIndex = $false; $supported = $false; $valid = $false
+        if (-not [Guid]::TryParseExact([string]$fields.request_id, 'D', [ref]$id) -or
+            -not [DateTimeOffset]::TryParse([string]$stamp, [ref]$timestamp) -or
+            -not [uint64]::TryParse([string]$fields.receipt_observation_id, [ref]$observationId) -or $observationId -eq 0 -or
+            $fields.plan_kind -notin @('index', 'table', 'none', 'other') -or $fields.clock -ne 'surreal_wall' -or
+            -not [bool]::TryParse([string]$fields.expected_index_used, [ref]$expectedIndex) -or
+            -not [bool]::TryParse([string]$fields.supported_shape, [ref]$supported) -or
+            -not [bool]::TryParse([string]$fields.timing_valid, [ref]$valid) -or
+            -not [uint64]::TryParse([string]$fields.entry_count, [ref]$entryCount) -or $entryCount -gt 16 -or
+            -not [int64]::TryParse([string]$fields.explain_elapsed_us, [ref]$micros) -or
+            $valid -ne ($micros -ge 0) -or
+            ($expectedIndex -and (-not $supported -or $fields.plan_kind -ne 'index')) -or
+            ($supported -ne ($fields.plan_kind -ne 'other'))) {
+            [void]$issues.Add('invalid_lookup_plan_record'); return
+        }
+        $key = "$($FileState.Root)|$id|$observationId"
+        $fingerprint = "$($fields.plan_kind)|$expectedIndex|$supported|$entryCount|$micros|$valid"
+        if ($lookupPlans.ContainsKey($key)) {
+            if ($lookupPlans[$key].Fingerprint -ne $fingerprint) { [void]$issues.Add('lookup_plan_duplicate_payload_changed') }
+            if (-not $lookupPlans[$key].Sources.Add($FileState.RelativePath)) { [void]$issues.Add('lookup_plan_duplicate_in_source') }
+            return
+        }
+        $sources = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        [void]$sources.Add($FileState.RelativePath)
+        $lookupPlans[$key] = @{ Fingerprint = $fingerprint; Sources = $sources }
+        $record = [ordered]@{
+            kind = 'lookup_plan'; observed_utc = [DateTime]::UtcNow.ToString('o')
+            timestamp = $timestamp.ToUniversalTime().ToString('o'); request_id = $id.ToString('D')
+            receipt_observation_id = $observationId; plan_kind = [string]$fields.plan_kind
+            expected_index_used = $expectedIndex; supported_shape = $supported; entry_count = $entryCount
+            clock = 'surreal_wall'; explain_elapsed_us = $micros; timing_valid = $valid
+            scenario = $FileState.Scenario; backend_pid = $roots[$FileState.Root].BackendPid
+            runtime_root = [IO.Path]::GetRelativePath($runtime, $FileState.Root); source = $FileState.RelativePath
+        }
+        $writer.WriteLine(($record | ConvertTo-Json -Compress))
+        $state.Records++; $state.LookupPlanRecords++; $roots[$FileState.Root].Records++
+        if (-not $supported) { $state.UnsupportedLookupPlans++ }
+        if (-not $valid) { $state.InvalidLookupPlanTimings++; [void]$issues.Add('invalid_lookup_plan_timing') }
+    } catch { [void]$issues.Add('lookup_plan_parse_or_capture_error') }
+}
+
 function Read-Available($FileState) {
     if (-not [IO.File]::Exists($FileState.Path)) { return }
     $inputStream = $null
@@ -411,7 +479,7 @@ function Poll-Phases {
 
 try {
     Write-NewJson $readyPath ([ordered]@{
-        schema = $(if ($receiptMode) { 'handshake.mt032.receipt-watch.ready.v15.1' } else { 'handshake.mt032.statement-watch.ready.v14.1' }); candidate_sha = $CandidateSha
+        schema = $(if ($lookupPlanMode) { 'handshake.mt032.lookup-plan-watch.ready.v16.1' } elseif ($receiptMode) { 'handshake.mt032.receipt-watch.ready.v15.1' } else { 'handshake.mt032.statement-watch.ready.v14.1' }); candidate_sha = $CandidateSha
         watcher_pid = $PID; ready_utc = [DateTime]::UtcNow.ToString('o'); poll_ms = 100
         lane_root = $lane; runtime_root = $runtime; stop_signal = $stop
         capture_path = $capturePath; summary_path = $summaryPath; baseline_roots = $baseline.Count
@@ -450,6 +518,15 @@ try {
         }
         if ($state.ReceiptRecords -eq 0) { [void]$issues.Add('no_receipt_records') }
     }
+    if ($lookupPlanMode) {
+        foreach ($key in $lookupPlans.Keys) {
+            if (-not $receiptObservations.ContainsKey($key)) { [void]$issues.Add('lookup_plan_without_receipt') }
+        }
+        foreach ($key in $receiptObservations.Keys) {
+            if (-not $lookupPlans.ContainsKey($key)) { [void]$issues.Add('receipt_without_lookup_plan') }
+        }
+        if ($state.LookupPlanRecords -eq 0) { [void]$issues.Add('no_lookup_plan_records') }
+    }
     foreach ($rootState in $roots.Values) {
         if ($rootState.Records -gt 0 -and $rootState.BackendPid -eq 0) { [void]$issues.Add('backend_pid_unobserved') }
     }
@@ -461,7 +538,7 @@ try {
     }
     $writer.Dispose()
     $summary = [ordered]@{
-        schema = $(if ($receiptMode) { 'handshake.mt032.receipt-watch.summary.v15.1' } else { 'handshake.mt032.statement-watch.summary.v14.1' }); candidate_sha = $CandidateSha
+        schema = $(if ($lookupPlanMode) { 'handshake.mt032.lookup-plan-watch.summary.v16.1' } elseif ($receiptMode) { 'handshake.mt032.receipt-watch.summary.v15.1' } else { 'handshake.mt032.statement-watch.summary.v14.1' }); candidate_sha = $CandidateSha
         started_utc = $started.ToString('o'); completed_utc = [DateTime]::UtcNow.ToString('o')
         watcher_pid = $PID; records = $state.Records; polls = $state.Polls
         phase_records = $state.PhaseRecords; statement_records = $state.StatementRecords
@@ -477,6 +554,12 @@ try {
         $summary.receipt_records = $state.ReceiptRecords
         $summary.invalid_receipt_timings = $state.InvalidReceiptTimings
         $summary.completeness_limit += ' Receipt deltas use engine UTC wall time, not monotonic time; negative samples are invalid and forward clock jumps are undetected. Branch duration does not separate permissions, sequence allocation, indexes or commit.'
+    }
+    if ($lookupPlanMode) {
+        $summary.lookup_plan_records = $state.LookupPlanRecords
+        $summary.unsupported_lookup_plans = $state.UnsupportedLookupPlans
+        $summary.invalid_lookup_plan_timings = $state.InvalidLookupPlanTimings
+        $summary.completeness_limit += ' EXPLAIN follows the unchanged lookup under the same authenticated scope and skips iteration. Its second planning pass may be cache-warmed; duration does not measure row permissions and cannot be subtracted as an exact lookup-cost split. Added diagnostic latency is not acceptance evidence.'
     }
     Write-NewJson $summaryPath $summary
 }
