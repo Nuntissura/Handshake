@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use handshake_storage_support::{StorageError, StorageResult};
+use handshake_storage_support::StorageError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
