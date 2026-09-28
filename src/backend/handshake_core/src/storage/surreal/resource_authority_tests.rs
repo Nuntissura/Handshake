@@ -3060,6 +3060,259 @@ async fn source_probe_grant(
 }
 
 #[tokio::test]
+async fn document_receipt_create_first_preserves_authorized_replay_and_denial(
+) -> ResourceAuthorityTestResult {
+    use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
+    use crate::storage::knowledge::{KnowledgeStore, NewKnowledgeRichDocument};
+    use crate::storage::StorageError;
+    use handshake_storage_support::diagnostics::{observe_result, DOCUMENT_REQUEST_ID};
+    use serde_json::json;
+
+    run_resource_authority_test_backend(
+        crate::storage::tests::embedded_test_backend().await?,
+        |backend| {
+            Box::pin(async move {
+                let storage = &backend.storage;
+                let database = SurrealDatabase::new(storage.clone());
+                let workspace = database
+                    .create_workspace(
+                        &WriteContext::human(Some("mt032-receipt".to_owned())),
+                        NewWorkspace {
+                            name: "Document receipt authority proof".to_owned(),
+                        },
+                    )
+                    .await?;
+                let document = database
+                    .create_knowledge_rich_document(NewKnowledgeRichDocument {
+                        workspace_id: workspace.id.clone(),
+                        title: "Receipt authority".to_owned(),
+                        schema_version: "hsk_richdoc_v1".to_owned(),
+                        content_json: json!({"type":"doc","content":[]}),
+                        ..Default::default()
+                    })
+                    .await?;
+                let capabilities = ["fs.read".to_owned(), "fs.write".to_owned()];
+                let owner = provision_direct_negative_principal(
+                    storage,
+                    "mt032-receipt-owner",
+                    &capabilities,
+                )
+                .await?;
+                let workspace_resource = storage
+                    .register_workspace_resource(&owner.identity, &workspace.id)
+                    .await?;
+                source_probe_grant(
+                    storage,
+                    &owner,
+                    &workspace_resource.resource_id,
+                    ResourceAction::Read,
+                    "fs.read",
+                )
+                .await?;
+                let resource = storage
+                    .register_protected_resource(
+                        &owner.identity,
+                        ResourceKind::RichDocument,
+                        &document.rich_document_id,
+                        Some(&workspace_resource.resource_id),
+                        "private",
+                    )
+                    .await?;
+                source_probe_grant(
+                    storage,
+                    &owner,
+                    &resource.resource_id,
+                    ResourceAction::Read,
+                    "fs.read",
+                )
+                .await?;
+                let write_grant = source_probe_grant(
+                    storage,
+                    &owner,
+                    &resource.resource_id,
+                    ResourceAction::Update,
+                    "fs.write",
+                )
+                .await?;
+                let mut scope = direct_negative_scope(
+                    &owner,
+                    &resource.resource_id,
+                    "fs.write",
+                    ResourceAction::Update,
+                );
+                scope.workspace_id = Some(workspace.id.clone());
+                let receipt = |kind: &str, key: &str, version: i64| {
+                    NewKernelEvent::builder(
+                        "mt032-receipt-task",
+                        &owner.session.session_id,
+                        KernelEventType::KnowledgeRichDocumentSaved,
+                        KernelActor::Operator(owner.identity.actor_id.clone()),
+                    )
+                    .aggregate("knowledge_rich_document", &document.rich_document_id)
+                    .idempotency_key(key)
+                    .source_component("knowledge_documents_api")
+                    .payload(json!({
+                        "event": kind, "doc_version": version, "workspace_id": workspace.id,
+                        "minted_by_principal": owner.identity.principal_id,
+                        "declared_actor_id": owner.identity.actor_id,
+                    }))
+                    .build()
+                    .expect("valid document receipt")
+                };
+                let append = |scope, event, measured| async move {
+                    let operation = storage
+                        .with_record_user_scope(scope, super::event_ledger::append(storage, event));
+                    if measured {
+                        DOCUMENT_REQUEST_ID
+                            .scope(
+                                uuid::Uuid::new_v4().to_string(),
+                                observe_result("receipt_append", operation),
+                            )
+                            .await
+                    } else {
+                        operation.await
+                    }
+                };
+                let mut winners = Vec::new();
+                for kind in ["created", "saved"] {
+                    for measured in [false, true] {
+                        let key = format!("mt032-receipt-{kind}-{measured}");
+                        let original = receipt(kind, &key, 1);
+                        let inserted = append(scope.clone(), original.clone(), measured).await?;
+                        assert!(inserted.event_sequence > 0);
+                        let replay = append(scope.clone(), original.clone(), measured).await?;
+                        assert_eq!(
+                            replay, inserted,
+                            "replay must return the original immutable winner"
+                        );
+                        assert!(matches!(
+                            append(scope.clone(), receipt(kind, &key, 2), measured).await,
+                            Err(StorageError::Conflict(_) | StorageError::ConflictDetails { .. })
+                        ));
+                        winners.push((original, inserted, measured));
+                    }
+                }
+                let concurrent = receipt("saved", "mt032-receipt-concurrent", 1);
+                let (left, right) = tokio::join!(
+                    append(scope.clone(), concurrent.clone(), false),
+                    append(scope.clone(), concurrent.clone(), true),
+                );
+                let winner = left?;
+                assert_eq!(right?, winner, "concurrent CREATE attempts must converge");
+                winners.push((concurrent, winner, false));
+
+                // Revoke only writes: a visible exact winner must still replay after
+                // CREATE returns no row, without weakening the read permission check.
+                storage.revoke_grant(&write_grant.grant_id).await?;
+                let authorization = |action, capability: &str| AuthorizationRequest {
+                    session_token: owner.session.token.clone(),
+                    channel_binding_hash: Some("direct-negative-binding".to_owned()),
+                    capability_id: capability.to_owned(),
+                    resource_kind: ResourceKind::RichDocument,
+                    external_resource_id: document.rich_document_id.clone(),
+                    action,
+                };
+                storage
+                    .authorize_protected_resource(authorization(ResourceAction::Read, "fs.read"))
+                    .await?;
+                assert!(matches!(
+                    storage
+                        .authorize_protected_resource(authorization(
+                            ResourceAction::Update,
+                            "fs.write"
+                        ))
+                        .await,
+                    Err(ResourceAuthorityError::Denied { .. })
+                ));
+                for (original, winner, measured) in &winners {
+                    assert_eq!(
+                        append(scope.clone(), original.clone(), *measured).await?,
+                        *winner
+                    );
+                    let changed = receipt(
+                        original.payload["event"].as_str().unwrap(),
+                        &original.idempotency_key,
+                        2,
+                    );
+                    assert!(matches!(
+                        append(scope.clone(), changed, *measured).await,
+                        Err(StorageError::Conflict(_) | StorageError::ConflictDetails { .. })
+                    ));
+                }
+                for measured in [false, true] {
+                    let key = format!("mt032-receipt-absent-{measured}");
+                    assert!(matches!(
+                        append(scope.clone(), receipt("saved", &key, 1), measured).await,
+                        Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))
+                    ));
+                    assert!(super::event_ledger::get_by_idempotency(storage, &key)
+                        .await?
+                        .is_none());
+                }
+
+                let foreign = storage
+                    .provision_principal(
+                        "mt032-receipt-foreign-account",
+                        "mt032-receipt-foreign",
+                        "human_account",
+                        "mt032-receipt-foreign",
+                        "Operator",
+                        &capabilities,
+                        "mt032-receipt-foreign-space",
+                        Some("direct-negative-binding"),
+                        DIRECT_NEGATIVE_CONTROL_TTL,
+                    )
+                    .await?;
+                let mut foreign_scope = direct_negative_scope(
+                    &foreign,
+                    &resource.resource_id,
+                    "fs.write",
+                    ResourceAction::Update,
+                );
+                foreign_scope.workspace_id = Some(workspace.id.clone());
+                for measured in [false, true] {
+                    assert!(matches!(
+                        append(foreign_scope.clone(), winners[0].0.clone(), measured).await,
+                        Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))
+                    ));
+                    let key = format!("mt032-receipt-foreign-{measured}");
+                    assert!(matches!(
+                        append(foreign_scope.clone(), receipt("saved", &key, 1), measured).await,
+                        Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))
+                    ));
+                    assert!(super::event_ledger::get_by_idempotency(storage, &key)
+                        .await?
+                        .is_none());
+                }
+
+                storage.revoke_session(&owner.session.session_id).await?;
+                for measured in [false, true] {
+                    assert!(append(scope.clone(), winners[0].0.clone(), measured)
+                        .await
+                        .is_err());
+                    let key = format!("mt032-receipt-revoked-{measured}");
+                    assert!(append(scope.clone(), receipt("saved", &key, 1), measured)
+                        .await
+                        .is_err());
+                    assert!(super::event_ledger::get_by_idempotency(storage, &key)
+                        .await?
+                        .is_none());
+                }
+                for (original, winner, _) in winners {
+                    assert_eq!(
+                        super::event_ledger::get_by_idempotency(storage, &original.idempotency_key)
+                            .await?,
+                        Some(winner)
+                    );
+                }
+                Ok(())
+            })
+        },
+    )
+    .await
+}
+
+#[tokio::test]
 async fn memory_source_reads_require_exact_grants_and_preserve_derived_origin(
 ) -> ResourceAuthorityTestResult {
     use crate::kernel::KernelActor;

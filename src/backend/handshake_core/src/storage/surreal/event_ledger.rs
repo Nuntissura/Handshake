@@ -114,12 +114,6 @@ struct EventBindings {
 }
 
 #[derive(SurrealValue)]
-struct TimedEventBindings {
-    event: LedgerWrite,
-    lookup_plan_enabled: bool,
-}
-
-#[derive(SurrealValue)]
 struct EventBatchBindings {
     events: Vec<LedgerBulkInsert>,
     idempotency_keys: Vec<String>,
@@ -226,294 +220,12 @@ struct TimedLedgerAppend {
     replay: bool,
     lookup_elapsed_us: i64,
     operation_elapsed_us: i64,
-    lookup_plan: Value,
-}
-
-fn plan_string(value: Option<&Value>) -> Option<&str> {
-    match value {
-        Some(Value::String(value)) => Some(value.as_str()),
-        _ => None,
-    }
-}
-
-/// Interpret the pinned engine's legacy and physical SELECT EXPLAIN shapes. Unknown data is
-/// unsupported, never formatted in an error or copied into an observation.
-fn summarize_receipt_lookup_plan(
-    value: &Value,
-) -> handshake_storage_support::diagnostics::ReceiptLookupPlanSummary {
-    use handshake_storage_support::diagnostics::{ReceiptLookupPlanKind, ReceiptLookupPlanSummary};
-    const MAX_ENTRIES: usize = 16;
-    let mut summary = ReceiptLookupPlanSummary {
-        plan_kind: ReceiptLookupPlanKind::Other,
-        expected_index_used: false,
-        supported_shape: false,
-        entry_count: 0,
-        explain_elapsed_us: -1,
-    };
-    let Value::Object(envelope) = value else {
-        return summary;
-    };
-    let Some(Value::Number(surrealdb::types::Number::Int(elapsed))) = envelope.get("elapsed_us")
-    else {
-        return summary;
-    };
-    summary.explain_elapsed_us = *elapsed;
-    if envelope.len() != 2 {
-        return summary;
-    }
-    if let Some(Value::Object(plan)) = envelope.get("entries") {
-        if let Some((kind, expected_index)) =
-            summarize_physical_receipt_plan(plan, &mut summary.entry_count)
-        {
-            summary.plan_kind = kind;
-            summary.expected_index_used = expected_index;
-            summary.supported_shape = true;
-        }
-        return summary;
-    }
-    let Some(Value::Array(entries)) = envelope.get("entries") else {
-        return summary;
-    };
-    summary.entry_count = entries.len().min(MAX_ENTRIES) as u8;
-    if entries.is_empty() || entries.len() > MAX_ENTRIES {
-        return summary;
-    }
-    let mut kind = ReceiptLookupPlanKind::None;
-    let mut expected_index = false;
-    let mut iterators = 0;
-    let mut collectors = 0;
-    let mut fallbacks = 0;
-    for entry in entries.iter() {
-        let Value::Object(entry) = entry else {
-            return summary;
-        };
-        let Some(Value::Object(detail)) = entry.get("detail") else {
-            return summary;
-        };
-        if entry.len() != 2 {
-            return summary;
-        }
-        match plan_string(entry.get("operation")) {
-            Some("Iterate Index" | "Iterate Index Keys" | "Iterate Index Count") => {
-                let Some(Value::Object(plan)) = detail.get("plan") else {
-                    return summary;
-                };
-                if detail.len() != 2
-                    || plan_string(detail.get("table")) != Some(EVENT_TABLE)
-                    || plan.len() != 3
-                    || plan_string(plan.get("operator")) != Some("=")
-                    || plan_string(plan.get("index")).is_none()
-                    || !plan.contains_key("value")
-                {
-                    return summary;
-                }
-                // The value is intentionally neither traversed nor retained.
-                expected_index =
-                    plan_string(plan.get("index")) == Some("idx_kernel_event_ledger_idempotency");
-                kind = ReceiptLookupPlanKind::Index;
-                iterators += 1;
-            }
-            Some("Iterate Table" | "Iterate Table Keys" | "Iterate Table Count") => {
-                if detail.len() != 2
-                    || plan_string(detail.get("table")) != Some(EVENT_TABLE)
-                    || !matches!(
-                        plan_string(detail.get("direction")),
-                        Some("forward" | "backward")
-                    )
-                {
-                    return summary;
-                }
-                kind = ReceiptLookupPlanKind::Table;
-                iterators += 1;
-            }
-            Some("Collector") => {
-                if detail.len() != 1 || plan_string(detail.get("type")) != Some("Memory") {
-                    return summary;
-                }
-                collectors += 1;
-            }
-            Some("Fallback") => {
-                if detail.len() != 1 || plan_string(detail.get("reason")).is_none() {
-                    return summary;
-                }
-                fallbacks += 1;
-            }
-            _ => return summary,
-        }
-    }
-    if collectors != 1 || iterators > 1 || fallbacks > 1 {
-        return summary;
-    }
-    // `none` means no iterable was selected, not that the lookup returned no rows.
-    summary.plan_kind = kind;
-    summary.expected_index_used = expected_index;
-    summary.supported_shape = true;
-    summary
-}
-
-/// This parser belongs only to the fixed ledger SELECT below. Physical IndexScan
-/// omits its table; table provenance comes from that query, not from plan metadata.
-fn summarize_physical_receipt_plan(
-    mut node: &surrealdb::types::Object,
-    count: &mut u8,
-) -> Option<(
-    handshake_storage_support::diagnostics::ReceiptLookupPlanKind,
-    bool,
-)> {
-    use handshake_storage_support::diagnostics::ReceiptLookupPlanKind;
-    const MAX_NODES: u8 = 16;
-    while *count < MAX_NODES {
-        *count += 1;
-        if node.keys().any(|key| {
-            !matches!(
-                key.as_str(),
-                "operator" | "context" | "attributes" | "expressions" | "children"
-            )
-        }) || !matches!(plan_string(node.get("context")), Some("Rt" | "Ns" | "Db"))
-        {
-            return None;
-        }
-        let operator = plan_string(node.get("operator"))?;
-        let allowed_attributes: &[&str] = match operator {
-            "ProjectValue" => &["expr"],
-            "Project" | "EmptyScan" => &[],
-            "SelectProject" => &["projections"],
-            "Filter" => &["predicate"],
-            "Limit" => &["limit", "offset"],
-            "IndexScan" => &["index", "access", "direction", "limit", "offset"],
-            "TableScan" => &[
-                "table",
-                "direction",
-                "predicate",
-                "limit",
-                "offset",
-                "pre_decode_filter",
-                "topk_pushdown",
-            ],
-            // DynamicScan has not resolved its source at plan time.
-            _ => return None,
-        };
-        let attributes = match node.get("attributes") {
-            None => None,
-            Some(Value::Object(attributes))
-                if !attributes.is_empty()
-                    && attributes.len() <= allowed_attributes.len()
-                    && attributes.iter().all(|(key, value)| {
-                        allowed_attributes.contains(&key.as_str())
-                            && matches!(value, Value::String(_))
-                    }) =>
-            {
-                Some(attributes)
-            }
-            _ => return None,
-        };
-        let attribute = |key: &str| plan_string(attributes.and_then(|attrs| attrs.get(key)));
-        if let Some(expressions) = node.get("expressions") {
-            let Value::Array(expressions) = expressions else {
-                return None;
-            };
-            let roles: &[&str] = match operator {
-                "ProjectValue" => &["expr"],
-                "Project" => &["field"],
-                "Filter" => &["predicate"],
-                "Limit" => &["limit", "offset"],
-                _ => return None,
-            };
-            if expressions.is_empty() || expressions.len() > MAX_NODES as usize {
-                return None;
-            }
-            for expression in expressions.iter() {
-                let Value::Object(expression) = expression else {
-                    return None;
-                };
-                // SQL is type-checked only; embedded plans are outside this fixed query.
-                if expression.len() != 2
-                    || !plan_string(expression.get("role"))
-                        .is_some_and(|role| roles.contains(&role))
-                    || plan_string(expression.get("sql")).is_none()
-                {
-                    return None;
-                }
-            }
-        }
-        match operator {
-            "IndexScan" | "TableScan" | "EmptyScan" => {
-                if node.contains_key("children") || node.contains_key("expressions") {
-                    return None;
-                }
-                return match operator {
-                    "IndexScan" => {
-                        let index = attribute("index")?;
-                        let access = attribute("access")?;
-                        if index.is_empty()
-                            || !access.starts_with("= ")
-                            || access.len() <= 2
-                            || !matches!(attribute("direction"), Some("Forward" | "Backward"))
-                        {
-                            return None;
-                        }
-                        // Inspect only the equality prefix; never retain its bound-value suffix.
-                        Some((
-                            ReceiptLookupPlanKind::Index,
-                            index == "idx_kernel_event_ledger_idempotency",
-                        ))
-                    }
-                    "TableScan"
-                        if attribute("table") == Some(EVENT_TABLE)
-                            && matches!(attribute("direction"), Some("Forward" | "Backward")) =>
-                    {
-                        Some((ReceiptLookupPlanKind::Table, false))
-                    }
-                    "EmptyScan" if attributes.is_none() => {
-                        Some((ReceiptLookupPlanKind::None, false))
-                    }
-                    _ => None,
-                };
-            }
-            "ProjectValue" if attribute("expr").is_none() => return None,
-            "SelectProject" if attribute("projections").is_none() => return None,
-            "Filter" if attribute("predicate").is_none() => return None,
-            "Limit" if attributes.is_none() => return None,
-            _ => {}
-        }
-        let Some(Value::Array(children)) = node.get("children") else {
-            return None;
-        };
-        let [Value::Object(child)] = children.as_slice() else {
-            return None;
-        };
-        node = child;
-    }
-    None
-}
-
-#[cfg(test)]
-#[derive(Debug, Clone, Copy)]
-enum ReceiptPlanShape {
-    Disabled,
-    LegacyArray,
-    PhysicalObject,
-    Other,
-}
-
-#[cfg(test)]
-#[derive(Debug, Clone, Copy)]
-struct ReceiptPlanTestObservation {
-    shape: ReceiptPlanShape,
-    summary: Option<handshake_storage_support::diagnostics::ReceiptLookupPlanSummary>,
-    replay: bool,
-    lookup_elapsed_us: i64,
-    operation_elapsed_us: i64,
-}
-
-#[cfg(test)]
-tokio::task_local! {
-    static RECEIPT_PLAN_TEST_OBSERVATIONS: std::cell::RefCell<Vec<ReceiptPlanTestObservation>>;
 }
 
 fn decode_timed_append(
     mut envelopes: Vec<TimedLedgerAppend>,
     timing: &handshake_storage_support::diagnostics::ReceiptTimingContext,
+    lookup_performed: bool,
 ) -> Result<Option<LedgerRow>, super::SurrealStorageError> {
     if envelopes.len() > 1 {
         return Err(
@@ -534,34 +246,15 @@ fn decode_timed_append(
         return Err(surrealdb::Error::internal("multiple timed receipt rows".to_owned()).into());
     }
     let row = super::decode_first_value(rows)?;
-    timing.emit(
-        measured.replay,
-        measured.lookup_elapsed_us,
-        measured.operation_elapsed_us,
-    );
-    let plan_summary = (!matches!(measured.lookup_plan, Value::None))
-        .then(|| summarize_receipt_lookup_plan(&measured.lookup_plan));
-    #[cfg(test)]
-    let _ = RECEIPT_PLAN_TEST_OBSERVATIONS.try_with(|observations| {
-        let shape = match &measured.lookup_plan {
-            Value::None => ReceiptPlanShape::Disabled,
-            Value::Object(envelope) => match envelope.get("entries") {
-                Some(Value::Array(_)) => ReceiptPlanShape::LegacyArray,
-                Some(Value::Object(_)) => ReceiptPlanShape::PhysicalObject,
-                _ => ReceiptPlanShape::Other,
-            },
-            _ => ReceiptPlanShape::Other,
-        };
-        observations.borrow_mut().push(ReceiptPlanTestObservation {
-            shape,
-            summary: plan_summary,
-            replay: measured.replay,
-            lookup_elapsed_us: measured.lookup_elapsed_us,
-            operation_elapsed_us: measured.operation_elapsed_us,
-        });
-    });
-    if let Some(summary) = plan_summary {
-        timing.emit_plan(summary);
+    // An empty CREATE can recover a readable winner below. Do not report that
+    // denied attempt as a completed receipt or invent timings for its recovery.
+    if lookup_performed || row.is_some() {
+        timing.emit(
+            measured.replay,
+            lookup_performed,
+            measured.lookup_elapsed_us,
+            measured.operation_elapsed_us,
+        );
     }
     Ok(row)
 }
@@ -616,22 +309,85 @@ pub(crate) fn prepare_event(
     Ok((stored, write))
 }
 
+fn create_document_receipt_first(event: &KernelEvent) -> bool {
+    event.event_type == KernelEventType::KnowledgeRichDocumentSaved
+        && event.aggregate_type == "knowledge_rich_document"
+        && event.source_component == "knowledge_documents_api"
+        && matches!(
+            event
+                .payload
+                .get("event")
+                .and_then(serde_json::Value::as_str),
+            Some("created" | "saved")
+        )
+}
+
 pub(crate) async fn append(
     storage: &SurrealStorage,
     event: NewKernelEvent,
 ) -> StorageResult<KernelEvent> {
     let (candidate, write) = prepare_event(event)?;
+    let create_first =
+        super::current_record_user_scope().is_some() && create_document_receipt_first(&candidate);
     let idempotency_key = candidate.idempotency_key.clone();
     let timing = handshake_storage_support::diagnostics::ReceiptTimingContext::capture();
-    let lookup_plan_enabled = handshake_storage_support::diagnostics::receipt_lookup_plan_enabled();
     let result: Result<Option<LedgerRow>, _> = storage
         .with_data_operation(move |database| {
             Box::pin(async move {
+                if create_first {
+                    // This selector changes query ordering only. CREATE and recovery
+                    // still use the caller's record-user permissions and deadline.
+                    const CREATE: &str = "CREATE $event.record CONTENT { \
+                        event_id: $event.event_id, event_version: $event.event_version, \
+                        kernel_task_run_id: $event.kernel_task_run_id, \
+                        session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, \
+                        aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, \
+                        event_type: $event.event_type, actor_kind: $event.actor_kind, \
+                        actor_id: $event.actor_id, causation_id: $event.causation_id, \
+                        correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
+                        source_component: $event.source_component, payload: $event.payload, \
+                        wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, \
+                        authority_session_id: $event.authority_session_id, \
+                        authority_capability_id: $event.authority_capability_id, \
+                        authority_action: $event.authority_action, created_at: $event.created_at \
+                    }";
+                    if let Some(timing) = timing {
+                        // One top-level statement retains the implicit write transaction.
+                        // Zero lookup time denotes a skipped lookup, emitted explicitly.
+                        const TIMED_CREATE: &str =
+                            "IF true { \
+                                LET $operation_started = time::micros(); \
+                                LET $rows = (CREATE $event.record CONTENT { \
+                                    event_id: $event.event_id, event_version: $event.event_version, \
+                                    kernel_task_run_id: $event.kernel_task_run_id, \
+                                    session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, \
+                                    aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, \
+                                    event_type: $event.event_type, actor_kind: $event.actor_kind, \
+                                    actor_id: $event.actor_id, causation_id: $event.causation_id, \
+                                    correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
+                                    source_component: $event.source_component, payload: $event.payload, \
+                                    wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, \
+                                    authority_session_id: $event.authority_session_id, \
+                                    authority_capability_id: $event.authority_capability_id, \
+                                    authority_action: $event.authority_action, created_at: $event.created_at \
+                                }); \
+                                LET $operation_finished = time::micros(); \
+                                RETURN { rows: $rows, replay: false, lookup_elapsed_us: 0, \
+                                    operation_elapsed_us: $operation_finished - $operation_started }; \
+                            };";
+                        let measured = database
+                            .query_values(TIMED_CREATE, EventBindings { event: write })
+                            .await?;
+                        return decode_timed_append(measured, &timing, false);
+                    }
+                    return database
+                        .query_first(CREATE, EventBindings { event: write })
+                        .await;
+                }
                 if let Some(timing) = timing {
                     // One top-level IF retains the original implicit write transaction.
-                    // The optional EXPLAIN uses this same authenticated facade and binding.
-                    // It skips iteration, adds diagnostic latency, and can see warmed planner
-                    // state. Its duration does not measure per-row permission evaluation.
+                    // Only clocks and the internal response envelope differ; the lookup,
+                    // selected branch, permissions and returned receipt rows are unchanged.
                     let measured: Vec<TimedLedgerAppend> = database
                         .query_values(
                             "IF true { \
@@ -639,14 +395,6 @@ pub(crate) async fn append(
                                  LET $existing = (SELECT VALUE id FROM kernel_event_ledger \
                                      WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; \
                                  LET $lookup_finished = time::micros(); \
-                                 LET $lookup_plan = IF $lookup_plan_enabled { \
-                                     LET $explain_started = time::micros(); \
-                                     LET $entries = (SELECT VALUE id FROM kernel_event_ledger \
-                                         WHERE idempotency_key = $event.idempotency_key LIMIT 1 EXPLAIN); \
-                                     LET $explain_finished = time::micros(); \
-                                     { entries: $entries, elapsed_us: $explain_finished - $explain_started }; \
-                                 } ELSE { NONE }; \
-                                 LET $operation_started = IF $lookup_plan_enabled { time::micros() } ELSE { $lookup_finished }; \
                                  IF $existing != NONE { \
                                      LET $rows = (SELECT event_id, event_sequence, event_version, kernel_task_run_id, \
                                          session_run_id, aggregate_type, aggregate_id, idempotency_key, event_type, \
@@ -656,8 +404,7 @@ pub(crate) async fn append(
                                      LET $operation_finished = time::micros(); \
                                      RETURN { rows: $rows, replay: true, \
                                          lookup_elapsed_us: $lookup_finished - $lookup_started, \
-                                         operation_elapsed_us: $operation_finished - $operation_started, \
-                                         lookup_plan: $lookup_plan }; \
+                                         operation_elapsed_us: $operation_finished - $lookup_finished }; \
                                  } ELSE { \
                                      LET $rows = (CREATE $event.record CONTENT { \
                                          event_id: $event.event_id, event_version: $event.event_version, \
@@ -678,14 +425,13 @@ pub(crate) async fn append(
                                      LET $operation_finished = time::micros(); \
                                      RETURN { rows: $rows, replay: false, \
                                          lookup_elapsed_us: $lookup_finished - $lookup_started, \
-                                         operation_elapsed_us: $operation_finished - $operation_started, \
-                                         lookup_plan: $lookup_plan }; \
+                                         operation_elapsed_us: $operation_finished - $lookup_finished }; \
                                  }; \
                              };",
-                            TimedEventBindings { event: write, lookup_plan_enabled },
+                            EventBindings { event: write },
                         )
                         .await?;
-                    return decode_timed_append(measured, &timing);
+                    return decode_timed_append(measured, &timing, true);
                 }
                 database
                     .query_first(
@@ -721,12 +467,20 @@ pub(crate) async fn append(
         })
         .await;
     let row = match result {
+        Ok(None) if create_first => {
+            // SELECT permission can survive CREATE denial. Accept only a visible,
+            // immutable match; no winner retains the prior constant-shaped denial.
+            if let Some(stored) = get_by_idempotency(storage, &idempotency_key).await? {
+                ensure_same_event(&stored, &candidate)?;
+                return Ok(stored);
+            }
+            None
+        }
         Ok(row) => row,
         Err(error) => {
-            // A concurrent exact replay can lose the unique-index race after
-            // both callers observe the idempotency key as absent. Re-read the
-            // winner and accept it only when every immutable event dimension
-            // matches; otherwise retain the original database failure.
+            // A CREATE can lose the unique-index race or replay an existing key.
+            // Re-read under the same authority and return the original winner
+            // only when every immutable dimension matches.
             if let Some(stored) = get_by_idempotency(storage, &idempotency_key).await? {
                 ensure_same_event(&stored, &candidate)?;
                 return Ok(stored);
@@ -1607,136 +1361,6 @@ mod tests {
         result
     }
 
-    #[test]
-    fn receipt_lookup_plan_summary_rejects_unsafe_shapes_without_disclosing_values() {
-        use handshake_storage_support::diagnostics::ReceiptLookupPlanKind;
-        const SECRET: &str = "private-bound-value-must-not-be-emitted";
-        let collector = json!({"operation": "Collector", "detail": {"type": "Memory"}});
-        let index = json!({"operation": "Iterate Index", "detail": {
-            "table": "kernel_event_ledger", "plan": {
-                "index": "idx_kernel_event_ledger_idempotency", "operator": "=", "value": SECRET
-            }
-        }});
-        let table = json!({"operation": "Iterate Table", "detail": {
-            "table": "kernel_event_ledger", "direction": "forward"
-        }});
-        let envelope = |entries| json!({"entries": entries, "elapsed_us": 17}).into_value();
-        let summarize = |value: Value| {
-            let summary = summarize_receipt_lookup_plan(&value);
-            // The exact type passed to the log emitter has no raw value/string fields.
-            assert!(!format!("{summary:?}").contains(SECRET));
-            summary
-        };
-        let expected = summarize(envelope(json!([index, collector])));
-        assert!(expected.supported_shape && expected.expected_index_used);
-        assert_eq!(expected.plan_kind, ReceiptLookupPlanKind::Index);
-        assert_eq!(expected.entry_count, 2);
-        assert_eq!(expected.explain_elapsed_us, 17);
-        let scanned = summarize(envelope(json!([table, collector])));
-        assert!(scanned.supported_shape && !scanned.expected_index_used);
-        assert_eq!(scanned.plan_kind, ReceiptLookupPlanKind::Table);
-        let none = summarize(envelope(json!([collector])));
-        assert!(none.supported_shape && !none.expected_index_used);
-        assert_eq!(none.plan_kind, ReceiptLookupPlanKind::None);
-        let fallback = json!({"operation": "Fallback", "detail": {"reason": SECRET}});
-        assert!(summarize(envelope(json!([table, fallback, collector]))).supported_shape);
-        let mut other_index = index.clone();
-        other_index["detail"]["plan"]["index"] = json!(SECRET);
-        let other_index = summarize(envelope(json!([other_index, collector])));
-        assert!(other_index.supported_shape && !other_index.expected_index_used);
-        let mut foreign_table = index.clone();
-        foreign_table["detail"]["table"] = json!(SECRET);
-        let mut extra_field = index.clone();
-        extra_field["detail"]["plan"]["unexpected"] = json!(SECRET);
-        let mut wrong_operator = index.clone();
-        wrong_operator["detail"]["plan"]["operator"] = json!(SECRET);
-        for malformed in [
-            Value::Null,
-            envelope(json!([])),
-            envelope(json!([{"operation": SECRET, "detail": {}}])),
-            envelope(json!([foreign_table, collector])),
-            envelope(json!([extra_field, collector])),
-            envelope(json!([wrong_operator, collector])),
-            envelope(json!([index, table, collector])),
-            envelope(json!([index, collector, collector])),
-            envelope(json!(vec![collector.clone(); 17])),
-            json!({"entries": [index, collector], "elapsed_us": SECRET}).into_value(),
-        ] {
-            let unsupported = summarize(malformed);
-            assert!(!unsupported.supported_shape && !unsupported.expected_index_used);
-            assert_eq!(unsupported.plan_kind, ReceiptLookupPlanKind::Other);
-            assert!(unsupported.entry_count <= 16);
-        }
-        let invalid_clock =
-            summarize(json!({"entries": [index, collector], "elapsed_us": -1}).into_value());
-        assert!(invalid_clock.supported_shape);
-        assert_eq!(invalid_clock.explain_elapsed_us, -1);
-
-        let physical_index = json!({"operator": "IndexScan", "context": "Db", "attributes": {
-            "index": "idx_kernel_event_ledger_idempotency", "access": format!("= '{SECRET}'"),
-            "direction": "Forward", "limit": "1"
-        }});
-        let project = |child| {
-            json!({"operator": "ProjectValue", "context": "Db",
-            "attributes": {"expr": SECRET},
-            "expressions": [{"role": "expr", "sql": SECRET}], "children": [child]})
-        };
-        let expected = summarize(envelope(project(physical_index.clone())));
-        assert!(expected.supported_shape && expected.expected_index_used);
-        assert_eq!(expected.plan_kind, ReceiptLookupPlanKind::Index);
-        assert_eq!(expected.entry_count, 2);
-        let limited = summarize(envelope(json!({"operator": "Limit", "context": "Db",
-            "attributes": {"limit": "1"},
-            "expressions": [{"role": "limit", "sql": "1"}],
-            "children": [physical_index]})));
-        assert!(limited.supported_shape && limited.expected_index_used);
-        let physical_table = json!({"operator": "TableScan", "context": "Db", "attributes": {
-            "table": "kernel_event_ledger", "direction": "Forward", "predicate": SECRET
-        }});
-        let scanned = summarize(envelope(project(physical_table.clone())));
-        assert!(scanned.supported_shape && !scanned.expected_index_used);
-        assert_eq!(scanned.plan_kind, ReceiptLookupPlanKind::Table);
-        let none = summarize(envelope(json!({"operator": "EmptyScan", "context": "Rt"})));
-        assert!(none.supported_shape && !none.expected_index_used);
-        assert_eq!(none.plan_kind, ReceiptLookupPlanKind::None);
-        let mut other_index = physical_index.clone();
-        other_index["attributes"]["index"] = json!(SECRET);
-        let other_index = summarize(envelope(other_index));
-        assert!(other_index.supported_shape && !other_index.expected_index_used);
-        let mut wrong_access = physical_index.clone();
-        wrong_access["attributes"]["access"] = json!(format!("> '{SECRET}'"));
-        let mut extra_attribute = physical_index.clone();
-        extra_attribute["attributes"]["unexpected"] = json!(SECRET);
-        let mut foreign_table = physical_table.clone();
-        foreign_table["attributes"]["table"] = json!(SECRET);
-        let mut embedded = project(physical_index.clone());
-        embedded["expressions"][0]["embedded_operators"] =
-            json!([{"role": SECRET, "plan": physical_index}]);
-        let mut multiple = project(physical_index.clone());
-        multiple["children"] = json!([physical_index, physical_table]);
-        let mut oversized = physical_index.clone();
-        for _ in 0..16 {
-            oversized = project(oversized);
-        }
-        for malformed in [
-            json!({"operator": "DynamicScan", "context": "Db", "attributes": {"source": SECRET}}),
-            json!({"operator": SECRET, "context": "Db"}),
-            json!({"operator": "IndexScan", "context": "Db", "attributes": SECRET}),
-            wrong_access,
-            extra_attribute,
-            foreign_table,
-            embedded,
-            multiple,
-            oversized,
-        ] {
-            let unsupported = summarize(envelope(malformed));
-            assert!(!unsupported.supported_shape && !unsupported.expected_index_used);
-            assert_eq!(unsupported.plan_kind, ReceiptLookupPlanKind::Other);
-            assert!(unsupported.entry_count <= 16);
-            assert_eq!(unsupported.explain_elapsed_us, 17);
-        }
-    }
-
     #[tokio::test]
     async fn measured_receipt_decoding_preserves_empty_denial_and_rejects_extra_rows() {
         use handshake_storage_support::diagnostics::{
@@ -1753,26 +1377,31 @@ mod tests {
                         replay: false,
                         lookup_elapsed_us: -1,
                         operation_elapsed_us: 0,
-                        lookup_plan: Value::None,
                     };
-                    assert!(decode_timed_append(vec![envelope(Value::None)], &timing)
-                        .unwrap()
-                        .is_none());
-                    let mut unsupported_plan = envelope(Value::None);
-                    unsupported_plan.lookup_plan = Value::Null;
-                    assert!(decode_timed_append(vec![unsupported_plan], &timing)
-                        .unwrap()
-                        .is_none());
+                    assert!(
+                        decode_timed_append(vec![envelope(Value::None)], &timing, true)
+                            .unwrap()
+                            .is_none()
+                    );
+                    assert!(
+                        decode_timed_append(vec![envelope(Value::None)], &timing, false)
+                            .unwrap()
+                            .is_none()
+                    );
                     assert!(decode_timed_append(
                         vec![envelope(Vec::<Value>::new().into_value())],
-                        &timing
+                        &timing,
+                        true
                     )
                     .unwrap()
                     .is_none());
-                    assert!(decode_timed_append(vec![envelope(Value::Null)], &timing).is_err());
+                    assert!(
+                        decode_timed_append(vec![envelope(Value::Null)], &timing, true).is_err()
+                    );
                     assert!(decode_timed_append(
                         vec![envelope(Value::None), envelope(Value::None)],
-                        &timing
+                        &timing,
+                        true
                     )
                     .is_err());
                     let (candidate, _) =
@@ -1780,12 +1409,13 @@ mod tests {
                     let row = row_from_event(candidate.clone(), 1).into_value();
                     assert!(decode_timed_append(
                         vec![envelope(vec![row.clone(), row.clone()].into_value())],
-                        &timing
+                        &timing,
+                        true
                     )
                     .is_err());
                     // Invalid wall-clock samples must not change an otherwise valid receipt result.
                     let decoded =
-                        decode_timed_append(vec![envelope(vec![row].into_value())], &timing)
+                        decode_timed_append(vec![envelope(vec![row].into_value())], &timing, true)
                             .unwrap()
                             .unwrap();
                     assert_eq!(decoded.event_id, candidate.event_id);
@@ -1803,67 +1433,24 @@ mod tests {
         };
         let directory = tempfile::tempdir().expect("temporary measured receipt store");
         let storage = open(&directory.path().join("store")).await;
-        let enabled = handshake_storage_support::diagnostics::receipt_lookup_plan_enabled();
-        let run = |payload, expected_replay| {
+        let run = |payload| {
             let storage = &storage;
-            RECEIPT_PLAN_TEST_OBSERVATIONS.scope(std::cell::RefCell::new(Vec::new()), async move {
-                let result = DOCUMENT_REQUEST_ID
-                    .scope(
-                        uuid::Uuid::new_v4().to_string(),
-                        observe_result("receipt_append", async move {
-                            assert!(ReceiptTimingContext::capture().is_some());
-                            append(storage, event("mt032-measured-replay", payload)).await
-                        }),
-                    )
-                    .await;
-                RECEIPT_PLAN_TEST_OBSERVATIONS.with(|observations| {
-                    let observations = observations.borrow();
-                    assert_eq!(
-                        observations.len(),
-                        1,
-                        "one live decoder observation per append"
-                    );
-                    let observation = observations[0];
-                    // The capture contains only closed types and timings, never the raw plan.
-                    assert_eq!(observation.replay, expected_replay);
-                    assert!(
-                        observation.lookup_elapsed_us >= 0 && observation.operation_elapsed_us >= 0,
-                        "invalid live receipt timings: {observation:?}"
-                    );
-                    if enabled {
-                        assert!(
-                            matches!(
-                                observation.shape,
-                                ReceiptPlanShape::LegacyArray | ReceiptPlanShape::PhysicalObject
-                            ),
-                            "unsupported live plan envelope: {observation:?}"
-                        );
-                        let summary = observation.summary.expect("enabled live plan observation");
-                        assert!(
-                            summary.supported_shape
-                                && summary.entry_count > 0
-                                && summary.entry_count <= 16
-                                && summary.explain_elapsed_us >= 0,
-                            "unsupported live plan or invalid timing: {observation:?}"
-                        );
-                    } else {
-                        assert!(matches!(observation.shape, ReceiptPlanShape::Disabled));
-                        assert!(observation.summary.is_none());
-                    }
-                });
-                result
-            })
+            DOCUMENT_REQUEST_ID.scope(
+                uuid::Uuid::new_v4().to_string(),
+                observe_result("receipt_append", async move {
+                    assert!(ReceiptTimingContext::capture().is_some());
+                    append(storage, event("mt032-measured-replay", payload)).await
+                }),
+            )
         };
-        let inserted = run(json!({"value": 1}), false)
-            .await
-            .expect("measured CREATE");
-        let replay = run(json!({"value": 1}), true)
+        let inserted = run(json!({"value": 1})).await.expect("measured CREATE");
+        let replay = run(json!({"value": 1}))
             .await
             .expect("measured replay SELECT");
         assert_eq!(inserted.event_id, replay.event_id);
         assert_eq!(inserted.event_sequence, replay.event_sequence);
         assert!(matches!(
-            run(json!({"value": 2}), true).await,
+            run(json!({"value": 2})).await,
             Err(StorageError::Conflict(_) | StorageError::ConflictDetails { .. })
         ));
         let persisted = get_by_idempotency(&storage, "mt032-measured-replay")
