@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 147
+generation: 148
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -148,3 +148,4 @@ steps:
 - {id: GP-127, role: builder, at: before_round, do: confirm nested EXPLAIN block yields a value; receipt append remains reachable, check: {type: confirm}, source: 'V16 source review: nested RETURN propagated past LET and would skip append', state: active}
 - {id: GP-128, role: builder, at: before_round, do: confirm existing receipt core proof asserts live plan shape and timing before any native diagnostic, check: {type: confirm}, source: 'V16: synthetic plan tests passed while live physical EXPLAIN object was rejected', state: retired}
 - {id: GP-129, role: builder, at: before_round, do: confirm existing receipt core proof asserts live plan shape and timing before any native diagnostic, check: {type: confirm}, source: V16 live shape not asserted; replaces GP128 whose cause overstated the unobserved runtime value type, state: active}
+- {id: GP-130, role: orchestrator, at: before_dispatch, do: confirm record write succeeded and candidate binding reread before staging or release, check: {type: confirm}, source: record write failed; unchecked shell exit allowed commit to proceed with prior binding, state: active}

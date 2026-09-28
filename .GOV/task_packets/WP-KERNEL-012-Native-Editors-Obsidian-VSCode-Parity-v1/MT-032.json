@@ -50,7 +50,8 @@
   "remediation_v15": {
     "lookup_plan_diagnostic": {
       "shape_repair": {
-        "state": "SOURCE_REVIEW_CLEARED_PENDING_COMMIT_AND_CORE_COMPILE",
+        "state": "PUSHED_CORE_COMPILE_PENDING",
+        "candidate_commit": "1f5b3d70514ffe143cb27b6fde5e6e05ba4273dd",
         "failure": "V16 four live plans unsupported; sanitizer assumes entries array, pinned default physical EXPLAIN emits scalar object. Synthetic sanitizer test did not assert live producer/decoder compatibility.",
         "source_basis": [
           "surrealdb-core3.2.0 dbs/session.rs54-63 default physical BestEffortReadOnlyStatements",
