@@ -2258,6 +2258,7 @@
     "status_effect": "none; renewed implementation authority recorded; no acceptance verdict inferred",
     "renewed_assignments": [
       {
+        "lookup_plan_diagnostic_ref": "MT-032.json#remediation_v15.lookup_plan_diagnostic",
         "current_diagnostic_ref": "MT-032.json#remediation_v15.diagnostic_result",
         "id": "MT032-RENEWED-REPAIR-20260928",
         "recorded_at_utc": "2026-09-28T12:41:09Z",
@@ -2276,7 +2277,7 @@
         "executable_helpers": "Only the existing MT032 diagnostic/observer route or a scoped receipt diagnostic entrypoint under this packet or the retained wpv-c3x artifact lane; no unrelated harness change",
         "preservation": "All old attempts/counters/verdicts and frozen747 evidence; existing deadlines/auth/transactions/receipts/indexing; same product worktree, warm targets and capacity constraints",
         "proof_route_ref": "MT-032.remediation_v15.proof_route",
-        "state": "DIAGNOSTIC_COMPLETED_LATENCY_CAUSE_UNRESOLVED",
+        "state": "LOOKUP_PLAN_COMPILE_PASSED_PENDING_PARENT_RELEASE",
         "implementation_checkpoint": {
           "candidate_commit": "699477d5888f6cec0b65cbea66b0dd09b9df88be",
           "pushed_verified": "Parent observed clean product HEAD and live origin feat/WP-KERNEL-012 at699477",

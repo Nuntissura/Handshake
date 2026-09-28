@@ -49,6 +49,18 @@
   },
   "remediation_v15": {
     "lookup_plan_diagnostic": {
+      "implementation": {
+        "files": [
+          "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+          "src/backend/handshake_storage_support/src/diagnostics.rs",
+          "src/frontend/handshake_native/tests/test_loom_address.rs"
+        ],
+        "source_status": "Parent independently verified clean product HEAD and live origin/feat/WP-KERNEL-012 match f8fc6e2b.",
+        "missing_resource_correction": "Approved three403 assertions and missing_concealment marker implemented; existing404 client component and all other assertions preserved.",
+        "proof_status": "All three cargo check --locked --tests commands exit0 on D; source digest unchanged. No runtime tests or clippy yet; final changed-line clippy and default-off acceptance remain open.",
+        "acceptance_effect": "None; diagnostic instrumentation is not a latency fix or MT acceptance."
+      },
+      "candidate_commit": "f8fc6e2b2a8fc7bfe0d809bee8ba4ed179194ea4",
       "helper_binding": {
         "mode": "lookup-plan-v16",
         "script": "MT-032-phase-probe.sh",
@@ -70,7 +82,7 @@
         "remaining_proof": "Four enabled core predecessors and one owned-restart diagnostic; final env-unset acceptance must prove new default-disabled timed SQL. No latency improvement established."
       },
       "id": "MT032-LOOKUP-PLAN-20260928",
-      "state": "IMPLEMENTATION_IN_PROGRESS_NO_RUN",
+      "state": "COMPILE_PASSED_OBSERVERS_READY_PENDING_PARENT_RELEASE",
       "authority": "Existing renewed evidenced-diagnostic scope; Operator approved missing-resource correction and continuation; no historical attempt reset.",
       "question": "Which access method does the identical pre-write lookup choose under the same record-user context, and is its preparation/planner envelope itself expensive?",
       "basis": "V15 seven measured lookups2135801..2314127us; pinned3.2.0 supports nested parameter indexes, so flattening is not a demonstrated repair.",
@@ -79,10 +91,73 @@
       "source_basis": "Pinned3.2.0 dbs/plan.rs24-37 and iterator.rs743-776 skip iteration for nonFULL EXPLAIN; doc/select.rs23 and doc/check.rs459-469 place row predicates during iteration; idx/planner/plan.rs469-475 exposes rawboundvalue and requires sanitization.",
       "execution": "Existing probe/watcher receive distinct mode, consumed marker and outputs; affected core predecessors first, then one existing owned-restart native case for same-auth observation. No retries or broad acceptance. Existing modes/markers retained.",
       "limits": "Second planning observation can be cache-warmed; EXPLAIN does not measure per-row predicate execution. Added latency may affect native deadlines; no performance or acceptance success inferred. No root SQL or changed field visibility.",
-      "next_action": "Independent source review and stable compile proof before any launch.",
+      "next_action": "Parent release of one lookup-plan-v16 diagnostic; four core predecessors then one existing native owned-restart case; consume marker and retain true exits.",
       "builder": "/root/contract_complexity",
       "validator": "/root/technical_failure",
-      "recorded_at_utc": "2026-09-28T21:11:50.390166+00:00"
+      "recorded_at_utc": "2026-09-28T21:39:17.830124+00:00",
+      "capacity": {
+        "admission_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/capacity-v16-f8fc6e2b-admission.json",
+        "admission_sha256": "AF67441CB2D558729C3355330B57606462C7B327C1CB07BFB4DC6B6B2E930013",
+        "measured_bytes": 138485622805,
+        "rebuild_allowance_bytes": 4125378048,
+        "scratch_allowance_bytes": 4000000000,
+        "forecast_bytes": 146611000853,
+        "stop_bytes": 147000000000,
+        "cap_bytes": 150000000000,
+        "released_count": 1,
+        "released_bytes": 1086509056,
+        "retention_manifest_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-v16-core-c78e6f52cc042c12/manifest.json",
+        "retention_manifest_sha256": "2559658581600DCC0EF37ED87F61707C43004B1B749D878B72517850FD5D1680",
+        "parent_verification": "Independently rehashed exact C source and D copy before removal; verified source absence and retained size after removal; canonical target enumeration independently matched138485622805 bytes.",
+        "limits": "Forecast is not a bound; live147GB stop and150GB cap unchanged; no broad cleanup or drive migration."
+      },
+      "observer_binding": {
+        "wrapper": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/observe-v16-lookup-plan-f8fc6e2b.ps1",
+        "wrapper_sha256": "F3E2118E59E0E1A34DE20BC465B2B3905EEFD393A0624CB40837A1D425FCD909",
+        "cap_observer": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/observe-v16-cap-f8fc6e2b.ps1",
+        "cap_observer_sha256": "E94503C35A89D6EA5645498DBDBC703BA599E19B540C583D0BC2A3ED979CFE9C",
+        "owned_stop_helper_sha256": "5563B24802E206E95C624B64AE25740736A77CE6D7A9C670B36D1E13608B1B57",
+        "parent_review": "Full V15-to-V16 wrapper diff reviewed; exact mode/candidate/helper/schema/capacity substitution only. Parent release guard, true exits, hidden launch, no outer timeout and owned-tree cleanup preserved.",
+        "authorization": "Observers may prepare and wait; runtime release remains pending native compile and fresh gates.",
+        "readiness": {
+          "wrapper_pid": 207208,
+          "wrapper_start_utc": "2026-09-28T21:36:42.7136559Z",
+          "phase_pid": 175880,
+          "phase_start_utc": "2026-09-28T21:36:43.3707509Z",
+          "cap_pid": 242464,
+          "cap_start_utc": "2026-09-28T21:36:43.6170794Z",
+          "identity_sha256_before_release": "44988FC2A2DAA98BD7C8208A9496E89CA75C832559CB5AAC7FC7BC2830D44ECF",
+          "phase_ready_sha256": "75EE069852577718A1ED712640881B39BDE465A844A38BC139DE107A702341A7",
+          "cap_ready_sha256": "310954691276C1BD5BF599E1F3876CFA04E9F821E759D3ACDFC69E9847590C86",
+          "parent_verification": "Independently read ready artifacts and hashes, matched current process start identities, candidate/mode and paths; no Bash child or runtime before release."
+        }
+      },
+      "compile": {
+        "log_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260928-f8fc6e2b-lookup-plan",
+        "exit_codes": {
+          "wrapper": 0,
+          "handshake_storage_support": 0,
+          "handshake_core": 0,
+          "handshake-native": 0
+        },
+        "input_digest_before_after": "eb4cca8d56dfb0433317d72d197f7688a73807b0f561ee2bd49cf6b9b1c96a89",
+        "input_count": 1759,
+        "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target",
+        "features": {
+          "handshake_storage_support": "surreal-test-support -j2",
+          "handshake_core": "app-runtime,surreal-test-support,test-utils -j2",
+          "handshake-native": "integration,integration_tests,wgpu_screenshots -j1"
+        },
+        "parent_verification": "Read all four retained exit files and both input digests; no active Cargo/rustc/link remains."
+      },
+      "gates": {
+        "builder_before_round": "PASS12/12",
+        "wp_validator_before_round": "PASS28/28",
+        "orchestrator_on_resume": "PASS4/4",
+        "orchestrator_before_dispatch": "PASS6/6",
+        "orchestrator_before_round": "PASS10/10",
+        "vault_probe": "gp043-vault-probe-88bd97ce-3a00-463d-817a-ca906b3f5b25.json"
+      }
     },
     "missing_resource_operator_decision": {
       "request_ref": "remediation_v15.operator_decision_request",
