@@ -8,7 +8,7 @@ TARGET="${4:?existing C warm target required}"
 NEXTEST="${5:?pinned nextest executable required}"
 ARTIFACTS="${6:?canonical artifacts root required}"
 MODE="${7:-}"
-[[ -z "$MODE" || "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = lookup-plan-core-v17 ]] || exit 2
+[[ -z "$MODE" || "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = lookup-plan-core-v17 || "$MODE" = create-first-core-v18 ]] || exit 2
 CONSUMED="$LANE/MT032-V14-STATEMENT-DIAGNOSTIC.started"
 PROBE=mt032-v14-statement-probe
 WATCH=mt032-v14-statement-watch
@@ -35,12 +35,18 @@ if [[ "$MODE" = lookup-plan-core-v17 ]]; then
   CORE_EXPECTED=3
   NATIVE_EXPECTED=0
 fi
+if [[ "$MODE" = create-first-core-v18 ]]; then
+  CONSUMED="$LANE/MT032-V18-CREATE-FIRST-CORE-PROOF.started"
+  PROBE=mt032-v18-create-first-core-proof
+  CORE_EXPECTED=3
+  NATIVE_EXPECTED=0
+fi
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || exit 2
 [[ ! -e "$CONSUMED" ]] || { echo 'MT032_PROBE approval already consumed; no automatic replay'; exit 2; }
 export GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never
 [[ -d "$LANE" && -d "$TARGET" && -x "$NEXTEST" ]] || exit 2
 [[ "$(sha256sum "$LANE/nextest.toml" | cut -d ' ' -f1)" = d828376108c1d72836b94677f1612378095310dee2ed96e2ed12acb3929706a8 ]] || exit 2
-if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = lookup-plan-core-v17 ]]; then
+if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = lookup-plan-core-v17 || "$MODE" = create-first-core-v18 ]]; then
   [[ "$(sha256sum "$LANE/nextest-core.toml" | cut -d ' ' -f1)" = a974ab0cc35118a5e825b4f8af8f131360c92ca4de11d87293f0d08368123d2a ]] || exit 2
 fi
 [[ -z "$(git -C "$WORKTREE" status --porcelain)" ]] || exit 2
@@ -49,7 +55,7 @@ fi
 
 check_watcher() {
   # Core-only mode asserts live decoder output directly; no HTTP watcher is involved.
-  [[ "$MODE" != lookup-plan-core-v17 ]] || return 0
+  [[ "$MODE" != lookup-plan-core-v17 && "$MODE" != create-first-core-v18 ]] || return 0
   local ready="$LANE/logs/$WATCH-$SHA.ready.json"
   [[ -f "$ready" && ! -e "$LANE/logs/$WATCH-$SHA.summary.json" ]] || {
     echo 'MT032_PROBE phase watcher not ready or already stopped'; exit 2;
@@ -94,13 +100,13 @@ fi
 mkdir -p "$LANE/logs" "$LANE/tmp" "$LANE/runtime" "$LANE/e" "$LANE/stage-binding" "$LANE/workspace-root"
 
 # Preserve the referenced prior backend artifact before overwriting the warm output.
-if [[ "$MODE" != lookup-plan-core-v17 && -f "$HSK_TEST_BACKEND_BIN" ]]; then
+if [[ "$MODE" != lookup-plan-core-v17 && "$MODE" != create-first-core-v18 && -f "$HSK_TEST_BACKEND_BIN" ]]; then
   prior_hash="$(sha256sum "$HSK_TEST_BACKEND_BIN" | cut -d ' ' -f1)"
   mkdir -p "$LANE/backend-history"
   [[ -f "$LANE/backend-history/$prior_hash.exe" ]] || cp "$HSK_TEST_BACKEND_BIN" "$LANE/backend-history/$prior_hash.exe"
   [[ "$(sha256sum "$LANE/backend-history/$prior_hash.exe" | cut -d ' ' -f1)" = "$prior_hash" ]] || exit 2
 fi
-if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = lookup-plan-core-v17 ]]; then
+if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = lookup-plan-core-v17 || "$MODE" = create-first-core-v18 ]]; then
   CORE_INVOCATION="$LANE/$PROBE-$SHA-core.started"
   CORE_RESULT_PATH="$LANE/$PROBE-$SHA-core.exit"
   CORE_JUNIT="$EXPORT/src/backend/handshake_core/target/nextest/default/junit.xml"
@@ -116,6 +122,10 @@ if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = look
   if [[ "$MODE" = lookup-plan-core-v17 ]]; then
     # Changed sanitizer, decoder capture and real producer compatibility; authority code is unchanged.
     CORE_FILTER='test(=storage::surreal::event_ledger::tests::measured_receipt_decoding_preserves_empty_denial_and_rejects_extra_rows) | test(=storage::surreal::event_ledger::tests::measured_receipt_append_preserves_exact_replay_and_conflict) | test(=storage::surreal::event_ledger::tests::receipt_lookup_plan_summary_rejects_unsafe_shapes_without_disclosing_values)'
+  fi
+  if [[ "$MODE" = create-first-core-v18 ]]; then
+    # Changed scoped CREATE/recovery and decoder; retain the original unscoped replay control.
+    CORE_FILTER='test(=storage::surreal::resource_authority_tests::document_receipt_create_first_preserves_authorized_replay_and_denial) | test(=storage::surreal::event_ledger::tests::measured_receipt_append_preserves_exact_replay_and_conflict) | test(=storage::surreal::event_ledger::tests::measured_receipt_decoding_preserves_empty_denial_and_rejects_extra_rows)'
   fi
   echo 'MT032_PROBE core receipt predecessors'
   set +e
@@ -133,7 +143,7 @@ if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = look
   CORE_COUNT="$(sed -n 's/^<testsuites[^>]* tests="\([0-9][0-9]*\)".*/\1/p' "$CORE_RETAINED_JUNIT" | head -n 1)"
   [[ "$CORE_COUNT" = "$CORE_EXPECTED" ]] || { echo "MT032_PROBE invalid core test count=$CORE_COUNT"; exit 4; }
   check_cap
-  if [[ "$MODE" = lookup-plan-core-v17 ]]; then
+  if [[ "$MODE" = lookup-plan-core-v17 || "$MODE" = create-first-core-v18 ]]; then
     echo "MT032_PROBE completed core-only nextest_exit=$CORE_RESULT tests=$CORE_COUNT; diagnostic only"
     exit 0
   fi
