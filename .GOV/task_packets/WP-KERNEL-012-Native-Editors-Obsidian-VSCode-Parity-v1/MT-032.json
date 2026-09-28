@@ -50,7 +50,15 @@
   "remediation_v15": {
     "lookup_plan_diagnostic": {
       "shape_repair": {
-        "state": "PUSHED_CORE_COMPILE_PENDING",
+        "state": "CORE_COMPILE_PASSED_PENDING_SUPERVISED_PROOF",
+        "compile": {
+          "log_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260929-1f5b3d70-lookup-plan-core",
+          "core_exit": 0,
+          "wrapper_exit": 0,
+          "input_count": 1759,
+          "input_digest_before_after": "531aeb8ae82647f1d6b18293e726075eaf45978c6f2eedd3bc2699d80908c43f",
+          "parent_verification": "Opened both actual exit files and before/after digests; product clean; no competing Cargo/rustc/link. Runtime and final clippy/default-off acceptance remain unproved."
+        },
         "candidate_commit": "1f5b3d70514ffe143cb27b6fde5e6e05ba4273dd",
         "failure": "V16 four live plans unsupported; sanitizer assumes entries array, pinned default physical EXPLAIN emits scalar object. Synthetic sanitizer test did not assert live producer/decoder compatibility.",
         "source_basis": [
@@ -80,6 +88,23 @@
         },
         "core_only": {
           "mode": "lookup-plan-core-v17",
+          "observer_binding": {
+            "lane_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x",
+            "wrapper": "observe-v17-lookup-plan-core-1f5b3d70.ps1",
+            "wrapper_sha256": "EA71DF5CC59221E77CA730379D24DC9AFB8AC870CA10632F25F1B6188E22636E",
+            "cap_observer": "observe-v17-cap-1f5b3d70.ps1",
+            "cap_observer_sha256": "7D1CBAF0897D1A73B79C2077112CD8F4CF4C61DE0CAAE46387C8294135CABC90",
+            "admission": "capacity-v17-1f5b3d70-admission.json",
+            "admission_sha256": "B94994BC5D662E99AB528C0735E5B3340A270558DA7254B5150D2159EF584F2D",
+            "wrapper_pid": 176888,
+            "wrapper_start_utc": "2026-09-28T22:20:49.8717897Z",
+            "cap_pid": 234024,
+            "cap_start_utc": "2026-09-28T22:20:50.5303098Z",
+            "identity_sha256_before_release": "E24074B0E432A7DE163BC93A8519EB8D62AB51DB8F267F65058DD912CE5B2660",
+            "cap_ready_sha256": "0517BC8B64CCFE31B5A2EF24D08DFE4FFB44F519239B78FC90321296571DD4F6",
+            "parent_review": "Full wrapper/cap diff and admission inspected; live process starts and ready hashes/candidate/mode/target independently matched. C140479430322; no Bash before release.",
+            "gates": "Builder13/13; WPV28/28; parent dispatch7/7 and before_round10/10 passed on1f5b. GP131 scopes fresh vault probe to vault-using proofs; all native vault requirements preserved."
+          },
           "marker": "MT032-V17-LOOKUP-PLAN-CORE-DIAGNOSTIC.started",
           "prefix": "mt032-v17-lookup-plan-core-probe",
           "cases": 3,
