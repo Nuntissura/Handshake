@@ -1,4 +1,13 @@
 {
+  "paperwork_reconciliation_20260928": {
+    "id": "WP012-MT154-PAPERWORK-20260928",
+    "decision_ref": "packet.json#paperwork_reconciliation_20260928",
+    "scope": "Clarify the existing document extraction/MT032 repair slice; preserve every original MT154 route, acceptance requirement, proof and verdict record.",
+    "lifecycle_effect": "None; READY_FOR_VALIDATION/null verdict is preserved. Prior bounded observations and their product failures are not reclassified by this repair.",
+    "current_assignment_ref": "mt032_behavioral_remediation_request.renewed_assignments[id=MT032-RENEWED-REPAIR-20260928]",
+    "execution_scope_ref": "packet.json#paperwork_reconciliation_20260928.execution_scope",
+    "archive_ref": "archive/paperwork-20260928/MT-154-before-paperwork-reconciliation.json"
+  },
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
@@ -2460,6 +2469,17 @@
       }
     }},
       {
+        "closure_boundary": {
+          "id": "WP012-DOCUMENT-CLOSURE-20260928",
+          "required_outcomes": [
+            "Bounded document/storage extraction under the approved boundary",
+            "Independent MT032 PASS under its full existing acceptance floor"
+          ],
+          "separate_obligations": "MT154 owns backend changes, but its other route families and whole-WP completion remain in their own contracts; this slice does not complete either.",
+          "validation": "Existing final union still covers READY and relevant invalidated proof, with each MT judged against its own floor. Preserve unrelated failures and route them without silently expanding this slice.",
+          "extraction_limit": "The extracted crates do not establish core-independent live proof of current receipt/authentication/transaction repairs.",
+          "execution_scope_ref": "packet.json#paperwork_reconciliation_20260928.execution_scope"
+        },
         "id": "MT032-DOCUMENT-EXTRACTION-20260926",
         "authorized_by": "OPERATOR",
         "source": "Live pasted request 2026-09-26: first bounded document-subsystem crate refactor AND independently validated MT-032 PASS",

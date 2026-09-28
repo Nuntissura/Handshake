@@ -166,6 +166,16 @@
 
 [CX-GP-002] One gameplan per WP, shared by all agents; MT gameplans inherit via parent ([CX-GP-001]). Each agent sets env `GAMEPLAN_ROLE=<its role>` before gated commands; the hook then evaluates only that role's steps plus role `any`; unset evaluates all roles (fail-closed). Role-scoped confirm steps are confirmed with `gameplan confirm --by <role> --id <ids>`; a confirmation's `by` equals the step role. Every write carries the gameplan generation; on a generation conflict re-read and retry, never overwrite. The retry guard is shared per gameplan. Roles: orchestrator, kernel_builder (skill alias of builder), coder, wp_validator, integration_validator, activation_manager.
 
+[CX-GP-003] Scope preparation checks to the selected action, role, inputs and resource owner.
+
+[CX-GP-004] A per-physical-disk build limit must not become a host-wide Cargo prohibition.
+
+[CX-GP-005] Retire superseded incident checks through the gameplan controller, retaining their IDs/history and any still-applicable safety requirement.
+
+[CX-GP-006] Recheck preparation inputs when changed; reuse unchanged valid proof.
+
+[CX-GP-007] Paperwork-only work must not assert that product runtime preparation passed.
+
 [CX-HOST-001] Every project declares its test environment in a machine-local host profile outside Codex law: runtime roots, database sync mode, default check timeouts, the hang procedure of dump and stack walk before any kill, and a tools manifest. A check run outside the declared environment is a defect, not a result.
 
 ## Artifact isolation
@@ -199,6 +209,12 @@
 [CX-105] Change Codex, build rules or Master Spec only on explicit Operator instruction and within the assigned role's authority; the owning role protocol defines the publishing procedure. Present material changes for review; an approved concrete edit needs no repeated approval.
 
 [CX-GOV-PIN-001] Every in-flight WP is pinned to the governance commit it was activated under and is judged under that pin. Later Codex, HBR or template changes apply from the next WP; an open WP is re-pinned only through reassessment and renewed activation.
+
+[CX-GOV-PIN-002] Before applying a post-pin gate or attempt limit, resolve its applicability from the WP pin and an explicit recorded Operator adoption or override.
+
+[CX-GOV-PIN-003] A live document, template default, handoff restatement or historical counter alone does not adopt a later rule.
+
+[CX-GOV-PIN-004] Preserve recorded failures and scoped Operator run limits without treating an unadopted lifetime threshold as an active blocker.
 
 [CX-MAINT-001] Keep this Codex small. Give each durable obligation a stable ID; preserve surviving IDs and record folds/retirements without reusing an ID for unrelated law. Put detailed product gates in HBR and execution steps in the owning role protocol.
 

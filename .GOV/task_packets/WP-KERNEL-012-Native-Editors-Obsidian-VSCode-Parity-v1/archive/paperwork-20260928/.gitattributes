@@ -1,0 +1,2 @@
+# Preserve original archive bytes, including line endings.
+* -text
