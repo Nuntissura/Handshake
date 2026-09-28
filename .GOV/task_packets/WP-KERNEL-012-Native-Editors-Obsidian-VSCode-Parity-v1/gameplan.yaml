@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 158
+generation: 159
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -155,3 +155,4 @@ steps:
 - {id: GP-134, role: builder, at: before_round, do: verify new auth test identity fields against ProvisionedIdentity and provisioning helper, check: {type: confirm}, source: 'd745 core E0609: auth test referenced nonexistent ProvisionedIdentity.actor_id twice', state: active}
 - {id: GP-135, role: builder, at: before_round, do: confirm recorded changed-line lint findings repaired under current UUID and cfg rules before rerun, check: {type: confirm}, source: 7fd clippy found11 changed-line findings; batch exact existing MT154 defects before another check, state: active}
 - {id: GP-136, role: builder, at: before_round, do: confirm lint classification includes short and long diagnostics and dependency warnings before rerun, check: {type: confirm}, source: 7fd parser omitted long-form handshake_document unused import; short-only count was incomplete, state: active}
+- {id: GP-137, role: orchestrator, at: before_dispatch, do: verify edited JSON introduces no duplicate keys and intended proof fields survive parsing, check: {type: confirm}, source: New MT154 validation duplicated existing empty key; readback caught and corrected it before commit, state: active}

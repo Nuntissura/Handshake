@@ -49,7 +49,8 @@
   },
   "remediation_v15": {
     "create_first_repair": {
-      "state": "FINAL_CORE_COMPILE_PASSED_CLIPPY_PENDING_RUNTIME_NOT_STARTED",
+      "state": "COMPILE_AND_CHANGED_LINE_LINT_PROVED_RUNTIME_PENDING",
+      "static_proof_ref": "MT-154.json#validation.proof_records",
       "final_compile": {"candidate":"8ea13a9b6650eecc819acfacbbf0c5d8299e9f75","core_exit":0,"wrapper_exit":0,"completed_utc":"2026-09-28T23:34:43Z","input_count":1759,"stable_input_digest":"1e48372e1ac8ea92df460637d4a29f91318f29c0ed2e9d763adc4de7f7945eae","log_prefix":"../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260929-8ea13a9b-lint-repair-core-check","parent_verification":"Opened core/wrapper exit files and equal before/after digest files"},
       "final_dependency_fix": {"candidate":"8ea13a9b6650eecc819acfacbbf0c5d8299e9f75","change":"Remove only unused handshake_document/src/domain.rs StorageResult import","review":"Parent and WPV opened exact one-line diff; formatting/whitespace checks0; StorageError retained and no remaining StorageResult reference","prior6834_compile":"Core check0, wrapper0, stable1759-input digest14683e90905c1b5e60796a4a3571cb1c79e0723948067831c86c272daf1a8b36","prior6834_clippy":"Exit101; whole-log396 diagnostics:395 short target errors +1 long dependency warning; zero unparsed; repair range0, fullMT154range1 (this import)","next":"Fresh core CHECK-TESTS and Clippy because bound dependency changed; no support/native repeat"},
       "lint_repair": {"candidate":"6834a854f3e90d24c0c7fad92c3da40816972a67","scope":"Exact eleven recorded findings, six files, 14 inserted/14 removed lines","review":"Independent WPV and parent inspected diff; no source finding. Error diagnostic, cancellation propagation, schema constant values/DDL, permissions and deadlines preserved","format_and_diff_check":0,"proof_pending":"Core-only compile and changed-line clippy; reuse unchanged storage-support/native input proof"},
