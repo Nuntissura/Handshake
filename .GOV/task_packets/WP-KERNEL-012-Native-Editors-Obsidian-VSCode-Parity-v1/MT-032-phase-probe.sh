@@ -7,22 +7,36 @@ LANE="${3:?existing wpv-c3x lane required}"
 TARGET="${4:?existing C warm target required}"
 NEXTEST="${5:?pinned nextest executable required}"
 ARTIFACTS="${6:?canonical artifacts root required}"
+MODE="${7:-}"
+[[ -z "$MODE" || "$MODE" = receipt-inner-v15 ]] || exit 2
 CONSUMED="$LANE/MT032-V14-STATEMENT-DIAGNOSTIC.started"
+PROBE=mt032-v14-statement-probe
+WATCH=mt032-v14-statement-watch
+WATCH_SCHEMA=handshake.mt032.statement-watch.ready.v14.1
+if [[ "$MODE" = receipt-inner-v15 ]]; then
+  CONSUMED="$LANE/MT032-V15-RECEIPT-DIAGNOSTIC.started"
+  PROBE=mt032-v15-receipt-probe
+  WATCH=mt032-v15-receipt-watch
+  WATCH_SCHEMA=handshake.mt032.receipt-watch.ready.v15.1
+fi
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || exit 2
 [[ ! -e "$CONSUMED" ]] || { echo 'MT032_PROBE approval already consumed; no automatic replay'; exit 2; }
 export GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never
 [[ -d "$LANE" && -d "$TARGET" && -x "$NEXTEST" ]] || exit 2
 [[ "$(sha256sum "$LANE/nextest.toml" | cut -d ' ' -f1)" = d828376108c1d72836b94677f1612378095310dee2ed96e2ed12acb3929706a8 ]] || exit 2
+if [[ "$MODE" = receipt-inner-v15 ]]; then
+  [[ "$(sha256sum "$LANE/nextest-core.toml" | cut -d ' ' -f1)" = a974ab0cc35118a5e825b4f8af8f131360c92ca4de11d87293f0d08368123d2a ]] || exit 2
+fi
 [[ -z "$(git -C "$WORKTREE" status --porcelain)" ]] || exit 2
 [[ "$(git -C "$WORKTREE" rev-parse HEAD)" = "$SHA" ]] || exit 2
 [[ "$(git -C "$WORKTREE" ls-remote origin refs/heads/feat/WP-KERNEL-012 | cut -f1)" = "$SHA" ]] || exit 2
 
 check_watcher() {
-  local ready="$LANE/logs/mt032-v14-statement-watch-$SHA.ready.json"
-  [[ -f "$ready" && ! -e "$LANE/logs/mt032-v14-statement-watch-$SHA.summary.json" ]] || {
+  local ready="$LANE/logs/$WATCH-$SHA.ready.json"
+  [[ -f "$ready" && ! -e "$LANE/logs/$WATCH-$SHA.summary.json" ]] || {
     echo 'MT032_PROBE phase watcher not ready or already stopped'; exit 2;
   }
-  grep -Fq '"schema":"handshake.mt032.statement-watch.ready.v14.1"' "$ready" || exit 2
+  grep -Fq "\"schema\":\"$WATCH_SCHEMA\"" "$ready" || exit 2
   grep -Fq "\"candidate_sha\":\"$SHA\"" "$ready" || exit 2
 }
 check_watcher
@@ -64,6 +78,34 @@ if [[ -f "$HSK_TEST_BACKEND_BIN" ]]; then
   [[ -f "$LANE/backend-history/$prior_hash.exe" ]] || cp "$HSK_TEST_BACKEND_BIN" "$LANE/backend-history/$prior_hash.exe"
   [[ "$(sha256sum "$LANE/backend-history/$prior_hash.exe" | cut -d ' ' -f1)" = "$prior_hash" ]] || exit 2
 fi
+if [[ "$MODE" = receipt-inner-v15 ]]; then
+  CORE_INVOCATION="$LANE/$PROBE-$SHA-core.started"
+  CORE_RESULT_PATH="$LANE/$PROBE-$SHA-core.exit"
+  CORE_JUNIT="$EXPORT/src/backend/handshake_core/target/nextest/default/junit.xml"
+  CORE_RETAINED_JUNIT="$LANE/junit-$SHA-$PROBE-core.xml"
+  [[ ! -e "$CORE_INVOCATION" && ! -e "$CORE_RESULT_PATH" && ! -e "$CORE_RETAINED_JUNIT" ]] || exit 2
+  # Consume this distinct V15 diagnostic before its first proof invocation.
+  (set -o noclobber; printf '%s' "$SHA" > "$CONSUMED") || exit 2
+  (set -o noclobber; date -u +%Y-%m-%dT%H:%M:%SZ > "$CORE_INVOCATION") || exit 2
+  CORE_FILTER='test(=storage::surreal::event_ledger::tests::measured_receipt_decoding_preserves_empty_denial_and_rejects_extra_rows) | test(=storage::surreal::event_ledger::tests::measured_receipt_append_preserves_exact_replay_and_conflict) | test(=storage::surreal::resource_authority_tests::direct_record_user_foreign_table_operations_are_default_deny)'
+  echo 'MT032_PROBE core receipt predecessors'
+  set +e
+  (cd "$EXPORT/src/backend/handshake_core" && "$NEXTEST" nextest run --locked --no-fail-fast --build-jobs 2 \
+    --config-file "$LANE/nextest-core.toml" --features app-runtime,surreal-test-support,test-utils --lib -E "$CORE_FILTER")
+  CORE_RESULT=$?
+  set -e
+  (set -o noclobber; printf '%s\n' "$CORE_RESULT" > "$CORE_RESULT_PATH") || exit 2
+  if [[ -f "$CORE_JUNIT" && "$CORE_JUNIT" -nt "$CORE_INVOCATION" ]]; then
+    cp "$CORE_JUNIT" "$CORE_RETAINED_JUNIT"
+    sha256sum "$CORE_RETAINED_JUNIT"
+  fi
+  [[ "$CORE_RESULT" = 0 ]] || { echo "MT032_PROBE core predecessors failed exit=$CORE_RESULT; native not started"; exit "$CORE_RESULT"; }
+  [[ -f "$CORE_RETAINED_JUNIT" ]] || exit 4
+  CORE_COUNT="$(sed -n 's/^<testsuites[^>]* tests="\([0-9][0-9]*\)".*/\1/p' "$CORE_RETAINED_JUNIT" | head -n 1)"
+  [[ "$CORE_COUNT" = 3 ]] || { echo "MT032_PROBE invalid core test count=$CORE_COUNT"; exit 4; }
+  check_cap
+  check_watcher
+fi
 echo 'MT032_PROBE native compile'
 (cd "$EXPORT/src/frontend/handshake_native" && cargo test --locked -j 2 --no-run \
   --features integration,integration_tests,wgpu_screenshots --test test_loom_address)
@@ -76,9 +118,11 @@ check_cap
 
 # WPV also verifies watcher process identity/liveness and continuously supervises it.
 check_watcher
-INVOCATION="$LANE/mt032-v14-statement-probe-$SHA.started"
+INVOCATION="$LANE/$PROBE-$SHA.started"
 [[ ! -e "$INVOCATION" ]] || { echo 'MT032_PROBE already invoked; no automatic replay'; exit 2; }
-(set -o noclobber; printf '%s' "$SHA" > "$CONSUMED") || exit 2
+if [[ "$MODE" != receipt-inner-v15 ]]; then
+  (set -o noclobber; printf '%s' "$SHA" > "$CONSUMED") || exit 2
+fi
 date -u +%Y-%m-%dT%H:%M:%SZ > "$INVOCATION"
 JUNIT="$EXPORT/src/frontend/handshake_native/target/nextest/default/junit.xml"
 FILTER='binary(=test_loom_address) & (test(=live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash) | test(=live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof))'
@@ -88,11 +132,14 @@ set +e
   --test test_loom_address -E "$FILTER")
 RESULT=$?
 set -e
+if [[ "$MODE" = receipt-inner-v15 ]]; then
+  (set -o noclobber; printf '%s\n' "$RESULT" > "$LANE/$PROBE-$SHA.exit") || exit 2
+fi
 [[ "$RESULT" = 0 || "$RESULT" = 100 ]] || exit "$RESULT"
 [[ -f "$JUNIT" && "$JUNIT" -nt "$INVOCATION" ]] || exit 4
 COUNT="$(sed -n 's/^<testsuites[^>]* tests="\([0-9][0-9]*\)".*/\1/p' "$JUNIT" | head -n 1)"
 [[ "$COUNT" = 2 ]] || { echo "MT032_PROBE invalid test count=$COUNT"; exit 4; }
-cp "$JUNIT" "$LANE/junit-$SHA-mt032-v14-statement-probe.xml"
-sha256sum "$LANE/junit-$SHA-mt032-v14-statement-probe.xml" "$HSK_TEST_BACKEND_BIN"
+cp "$JUNIT" "$LANE/junit-$SHA-$PROBE.xml"
+sha256sum "$LANE/junit-$SHA-$PROBE.xml" "$HSK_TEST_BACKEND_BIN"
 check_cap
 echo "MT032_PROBE completed nextest_exit=$RESULT tests=$COUNT; diagnostic only"

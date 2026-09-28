@@ -2261,10 +2261,25 @@
         "covered_mts": ["MT-154", "MT-032"],
         "scope": "Existing bounded document create/save latency repair; distinguish the retained receipt inner-cost failure before selecting a measured repair",
         "allowed_product_paths_ref": "renewed_assignments[MT032-MEASURED-REPAIR-20260927].allowed_product_paths",
+        "additional_proof_path": "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs",
+        "additional_proof_scope": "Extend only direct_record_user_foreign_table_operations_are_default_deny using its existing principal/scope to prove measured append returns the exact Guard and persists no row; no new harness or unrelated assertion change",
         "executable_helpers": "Only the existing MT032 diagnostic/observer route or a scoped receipt diagnostic entrypoint under this packet or the retained wpv-c3x artifact lane; no unrelated harness change",
         "preservation": "All old attempts/counters/verdicts and frozen747 evidence; existing deadlines/auth/transactions/receipts/indexing; same product worktree, warm targets and capacity constraints",
         "proof_route_ref": "MT-032.remediation_v15.proof_route",
-        "state": "RENEWED_IMPLEMENTATION_PREPARATION",
+        "state": "DIAGNOSTIC_CANDIDATE_PUSHED_RUNTIME_CAPACITY_BLOCKED",
+        "implementation_checkpoint": {
+          "candidate_commit": "699477d5888f6cec0b65cbea66b0dd09b9df88be",
+          "pushed_verified": "Parent observed clean product HEAD and live origin feat/WP-KERNEL-012 at699477",
+          "changed_files": ["src/backend/handshake_core/src/storage/surreal/event_ledger.rs", "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs", "src/backend/handshake_storage_support/src/diagnostics.rs"],
+          "change": "Separate observed receipt lookup and CREATE/replay timing inside the same authenticated transaction; preserve unobserved path; add focused decoding/replay/record-user denial proofs",
+          "compile": "D storage-support attempt2 exit0; core attempt2 E0308 fixed with owned String; core-only attempt3 exit0; no tests run",
+          "logs": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260928-receipt-inner-attempt{2,3}-*",
+          "stable_core_source_digest": "91ca91be4b6852a95761baa65dfefbf10769c66cac8f5111fd4ec2b9827abb50",
+          "source_input_count": 1242,
+          "review": "Independent WPV static source review found no remaining semantic blocker; buddy reviewed workflow/helper preservation; runtime proof pending",
+          "blocker_ref": "MT-032.remediation_v15.diagnostic_binding.capacity",
+          "limits": "Diagnostic only; no measured latency gain, runtime/clippy result or acceptance inferred; independent FAIL_V13 remains historical747 verdict"
+        },
         "status_effect": "No lifecycle/verdict reset or acceptance inferred"
       },
     {"id":"MT032-MEASURED-REPAIR-20260927","recorded_at_utc":"2026-09-27T12:18:46.829462Z","operator_decision_ref":"MT-032.remediation_v14.operator_decision","base_product_commit":"ec596eecb70f2820cb357ef95d5820b890c8944f","owner":"document_coder; sole product editor","batch_owner":"MT-154","covered_mts":["MT-154","MT-032"],"scope_override":"Extend existing document-slice ownership for sanitized inner diagnostics and the measured MT032 repair only","allowed_product_paths":["src/backend/handshake_document/**","src/backend/handshake_storage_support/**","src/backend/handshake_core/src/api/knowledge_documents.rs","src/backend/handshake_core/src/storage/surreal.rs","src/backend/handshake_core/src/storage/surreal/knowledge.rs","src/backend/handshake_core/src/storage/surreal/database.rs","src/backend/handshake_core/src/storage/surreal/event_ledger.rs (document receipt diagnostics or evidenced repair only)","src/backend/handshake_core/src/storage/surreal/resource_authority.rs (document request diagnostics only)","src/backend/handshake_core/src/storage/surreal/schema.surql (fn::mt120_document_access only)","src/backend/handshake_core/src/storage/surreal/schema.rs (exact revision160 predecessor upgrade, reversible document-function delta, current fingerprints and relevant proofs only)"],"scope_rule":"MT032 backend prohibition retained; MT154 owns backend changes; no unrelated behavior edits","attempt_history":{"preserve":true,"latest_verdict":"MT-032.validation_v12 FAIL_V12","failed_verdict_count":6,"max_fix_rounds_per_mt":3,"reset_counters":false,"exception_ref":"MT-032.remediation_v14.operator_decision","diagnostic_run_limit":1,"acceptance_run_limit":1},"proof_route_ref":"MT-032.remediation_v14.proof_route","diagnosis_ref":"MT-032.remediation_v14.diagnosis","status_effect":"No MT154 acceptance inferred; full existing scope/proof remains","diagnostic_extension_refs":["MT-032.remediation_v14.diagnostic_extension_v1"],"measured_schema_repair":{

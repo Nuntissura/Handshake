@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 87
+generation: 93
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -121,5 +121,9 @@ steps:
 - {id: GP-100, role: wp_validator, at: before_round, do: confirm every current fingerprint consumer matches measured values; all historical pins remain unchanged, check: {type: confirm}, source: 'repair: named Loom bootstrap pin updated but deterministic test literal retained stale current fingerprint', state: active}
 - {id: GP-101, role: wp_validator, at: before_round, do: confirm CIM creation comparisons normalize Int64 microseconds; retained process handles keep exact identity, check: {type: confirm}, source: 'preflight: live CIM creation lost submicrosecond ticks; exact cross-API equality falsely rejects owned process', state: active}
 - {id: GP-102, role: orchestrator, at: before_round, do: confirm projected peak including scratch stays below active capacity-stop threshold using observed phase growth, check: {type: confirm}, source: 'fail: acceptance stopped at147GB;149GB forecast fit150GB cap but exceeded supervisor threshold', state: active}
-- {id: GP-103, role: orchestrator, at: before_round, do: confirm Operator continuation_v1 unused; original acceptance and diagnostics preserved, check: {type: confirm}, source: Operator approved one same747 continuation after exact23 EXE retention and capacity proof; replaces GP094, state: active}
-- {id: GP-104, role: wp_validator, at: before_round, do: confirm continuation_v1 unused and separate markers/logs preserve first acceptance, check: {type: confirm}, source: Operator one continuation after capacity stop; no reset or third diagnostic; replaces GP095, state: active}
+- {id: GP-103, role: orchestrator, at: before_round, do: confirm Operator continuation_v1 unused; original acceptance and diagnostics preserved, check: {type: confirm}, source: Operator approved one same747 continuation after exact23 EXE retention and capacity proof; replaces GP094, state: retired}
+- {id: GP-104, role: wp_validator, at: before_round, do: confirm continuation_v1 unused and separate markers/logs preserve first acceptance, check: {type: confirm}, source: Operator one continuation after capacity stop; no reset or third diagnostic; replaces GP095, state: retired}
+- {id: GP-105, role: any, at: before_round, do: 'confirm receipt timings preserve one transaction, scope, denial and replay behavior', check: {type: confirm}, source: FAIL_V13 compound receipt timing hides lookup/branch costs, state: active}
+- {id: GP-106, role: orchestrator, at: before_round, do: confirm renewed V15 action uses changed hypothesis or repaired candidate and preserves prior attempts, check: {type: confirm}, source: Operator renewed MT032 repair20260928; replaces consumed747-only GP103 without resetting counters, state: active}
+- {id: GP-107, role: wp_validator, at: before_round, do: confirm V15 proof targets the changed question or repair with separate evidence and original acceptance retained, check: {type: confirm}, source: Operator renewed MT032 repair20260928; replaces consumed747-only GP104 without resetting counters, state: active}
+- {id: GP-108, role: builder, at: before_round, do: 'confirm pinned Error::internal receives owned String at every new receipt decoding error', check: {type: confirm}, source: 'compile E0308: SurrealDB3.2 Error::internal requires String; three new literals were borrowed', state: active}

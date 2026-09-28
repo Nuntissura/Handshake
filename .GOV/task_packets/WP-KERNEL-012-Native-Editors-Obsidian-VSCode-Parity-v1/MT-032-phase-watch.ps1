@@ -4,7 +4,7 @@ param(
     [Parameter(Mandatory)][string]$StopSignal,
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{40}$')][string]$CandidateSha,
     [ValidateRange(0, 86400)][int]$MaxSeconds = 21600,
-    [ValidateSet('', 'continuation1')][string]$CaptureSuffix = ''
+    [ValidateSet('', 'continuation1', 'receipt-inner-v15')][string]$CaptureSuffix = ''
 )
 
 # Observation only: no process control, fixture mutation, or retention override.
@@ -116,7 +116,10 @@ function Get-ScenarioRoots {
 
 $baseline = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($root in @(Get-ScenarioRoots)) { [void]$baseline.Add($root.Path) }
-$prefix = Join-Path $logs ("mt032-v14-statement-watch-$CandidateSha" + $(if ($CaptureSuffix) { "-$CaptureSuffix" } else { '' }))
+$receiptMode = $CaptureSuffix -eq 'receipt-inner-v15'
+$prefix = Join-Path $logs $(if ($receiptMode) { "mt032-v15-receipt-watch-$CandidateSha" } else {
+    "mt032-v14-statement-watch-$CandidateSha" + $(if ($CaptureSuffix) { "-$CaptureSuffix" } else { '' })
+})
 $capturePath = "$prefix.jsonl"
 $readyPath = "$prefix.ready.json"
 $summaryPath = "$prefix.summary.json"
@@ -137,8 +140,11 @@ $writer = [IO.StreamWriter]::new($capture, $utf8)
 $writer.AutoFlush = $true
 $state = @{ Records = 0; PhaseRecords = 0; StatementRecords = 0; UnavailableStatementTimings = 0; Polls = 0; StopObserved = $false; Expired = $false; Fatal = $false }
 $statementQueries = @{}
+$receiptObservations = @{}
+$state.ReceiptRecords = 0; $state.InvalidReceiptTimings = 0
 
 function Accept-PhaseLine([string]$Line, $FileState) {
+    if ($receiptMode -and $Line.Contains('MT032_DOCUMENT_RECEIPT')) { Accept-ReceiptLine $Line $FileState; return }
     if ($Line.Contains('MT032_DOCUMENT_STATEMENT')) { Accept-StatementLine $Line $FileState; return }
     if (-not $Line.Contains('MT032_DOCUMENT_PHASE')) { return }
     try {
@@ -266,6 +272,68 @@ function Accept-StatementLine([string]$Line, $FileState) {
     } catch { [void]$issues.Add('statement_parse_or_capture_error') }
 }
 
+function Accept-ReceiptLine([string]$Line, $FileState) {
+    try {
+        if ($FileState.Kind -eq 'json') {
+            $entry = $Line | ConvertFrom-Json -AsHashtable
+            if ($entry.target -ne 'handshake_core::knowledge_documents_api' -or
+                $entry.fields.message -ne 'MT032_DOCUMENT_RECEIPT') { return }
+            $stamp = $entry.timestamp; $request = $entry.fields.request_id
+            $observation = $entry.fields.receipt_observation_id; $branch = $entry.fields.branch
+            $clock = $entry.fields.clock; $valid = $entry.fields.timing_valid
+            $lookup = $entry.fields.lookup_elapsed_us; $operation = $entry.fields.operation_elapsed_us
+        } else {
+            $plain = [regex]::Replace($Line, '\x1B\[[0-?]*[ -/]*[@-~]', '')
+            if ($plain -notmatch '^\s*\S+\s+INFO\s+handshake_core::knowledge_documents_api:\s+MT032_DOCUMENT_RECEIPT(?:\s|$)') { return }
+            $stamp = [regex]::Match($plain, '^\s*(\S+)').Groups[1].Value
+            $request = [regex]::Match($plain, '\brequest_id="?([0-9a-fA-F-]{36})"?').Groups[1].Value
+            $observation = [regex]::Match($plain, '\breceipt_observation_id="?([0-9]+)"?').Groups[1].Value
+            $branch = [regex]::Match($plain, '\bbranch="?(create|replay)"?(?=\s|$)').Groups[1].Value
+            $clock = [regex]::Match($plain, '\bclock="?(surreal_wall)"?(?=\s|$)').Groups[1].Value
+            $valid = [regex]::Match($plain, '\btiming_valid="?(true|false)"?(?=\s|$)').Groups[1].Value
+            $lookup = [regex]::Match($plain, '\blookup_elapsed_us="?(-?[0-9]+)"?(?=\s|$)').Groups[1].Value
+            $operation = [regex]::Match($plain, '\boperation_elapsed_us="?(-?[0-9]+)"?(?=\s|$)').Groups[1].Value
+        }
+        if ($stamp -is [DateTime]) { $stamp = $stamp.ToUniversalTime().ToString('o', [Globalization.CultureInfo]::InvariantCulture) }
+        elseif ($stamp -is [DateTimeOffset]) { $stamp = $stamp.ToUniversalTime().ToString('o', [Globalization.CultureInfo]::InvariantCulture) }
+        $id = [Guid]::Empty; $timestamp = [DateTimeOffset]::MinValue; $observationId = [uint64]0
+        $lookupMicros = [int64]0; $operationMicros = [int64]0; $timingValid = $false
+        if (-not [Guid]::TryParseExact([string]$request, 'D', [ref]$id) -or
+            -not [DateTimeOffset]::TryParse([string]$stamp, [ref]$timestamp) -or
+            -not [uint64]::TryParse([string]$observation, [ref]$observationId) -or $observationId -eq 0 -or
+            $branch -notin @('create', 'replay') -or $clock -ne 'surreal_wall' -or
+            -not [bool]::TryParse([string]$valid, [ref]$timingValid) -or
+            -not [int64]::TryParse([string]$lookup, [ref]$lookupMicros) -or
+            -not [int64]::TryParse([string]$operation, [ref]$operationMicros) -or
+            $timingValid -ne ($lookupMicros -ge 0 -and $operationMicros -ge 0)) {
+            [void]$issues.Add('invalid_receipt_record'); return
+        }
+        $key = "$($FileState.Root)|$id|$observationId"
+        # Each tracing layer formats its own timestamp for the same event.
+        $fingerprint = "$branch|$clock|$timingValid|$lookupMicros|$operationMicros"
+        if ($receiptObservations.ContainsKey($key)) {
+            $previous = $receiptObservations[$key]
+            if ($previous.Fingerprint -ne $fingerprint) { [void]$issues.Add('receipt_duplicate_payload_changed') }
+            if (-not $previous.Sources.Add($FileState.RelativePath)) { [void]$issues.Add('receipt_duplicate_in_source') }
+            return
+        }
+        $sources = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        [void]$sources.Add($FileState.RelativePath)
+        $receiptObservations[$key] = @{ Fingerprint = $fingerprint; Sources = $sources }
+        $record = [ordered]@{
+            kind = 'receipt'; observed_utc = [DateTime]::UtcNow.ToString('o')
+            timestamp = $timestamp.ToUniversalTime().ToString('o'); request_id = $id.ToString('D')
+            receipt_observation_id = $observationId; branch = $branch; clock = $clock
+            timing_valid = $timingValid; lookup_elapsed_us = $lookupMicros; operation_elapsed_us = $operationMicros
+            scenario = $FileState.Scenario; backend_pid = $roots[$FileState.Root].BackendPid
+            runtime_root = [IO.Path]::GetRelativePath($runtime, $FileState.Root); source = $FileState.RelativePath
+        }
+        $writer.WriteLine(($record | ConvertTo-Json -Compress))
+        $state.Records++; $state.ReceiptRecords++; $roots[$FileState.Root].Records++
+        if (-not $timingValid) { $state.InvalidReceiptTimings++; [void]$issues.Add('invalid_receipt_timing') }
+    } catch { [void]$issues.Add('receipt_parse_or_capture_error') }
+}
+
 function Read-Available($FileState) {
     if (-not [IO.File]::Exists($FileState.Path)) { return }
     $inputStream = $null
@@ -343,7 +411,7 @@ function Poll-Phases {
 
 try {
     Write-NewJson $readyPath ([ordered]@{
-        schema = 'handshake.mt032.statement-watch.ready.v14.1'; candidate_sha = $CandidateSha
+        schema = $(if ($receiptMode) { 'handshake.mt032.receipt-watch.ready.v15.1' } else { 'handshake.mt032.statement-watch.ready.v14.1' }); candidate_sha = $CandidateSha
         watcher_pid = $PID; ready_utc = [DateTime]::UtcNow.ToString('o'); poll_ms = 100
         lane_root = $lane; runtime_root = $runtime; stop_signal = $stop
         capture_path = $capturePath; summary_path = $summaryPath; baseline_roots = $baseline.Count
@@ -374,6 +442,14 @@ try {
         }
     }
     if ($state.StatementRecords -eq 0) { [void]$issues.Add('no_statement_records') }
+    if ($receiptMode) {
+        foreach ($key in $receiptObservations.Keys) {
+            if (-not $begins.Contains($key)) { [void]$issues.Add('receipt_without_begin') }
+            elseif ($beginPhases[$key] -ne 'receipt_append') { [void]$issues.Add('receipt_parent_not_receipt_append') }
+            if (-not $ends.Contains($key)) { [void]$issues.Add('receipt_without_terminal') }
+        }
+        if ($state.ReceiptRecords -eq 0) { [void]$issues.Add('no_receipt_records') }
+    }
     foreach ($rootState in $roots.Values) {
         if ($rootState.Records -gt 0 -and $rootState.BackendPid -eq 0) { [void]$issues.Add('backend_pid_unobserved') }
     }
@@ -384,8 +460,8 @@ try {
         }
     }
     $writer.Dispose()
-    Write-NewJson $summaryPath ([ordered]@{
-        schema = 'handshake.mt032.statement-watch.summary.v14.1'; candidate_sha = $CandidateSha
+    $summary = [ordered]@{
+        schema = $(if ($receiptMode) { 'handshake.mt032.receipt-watch.summary.v15.1' } else { 'handshake.mt032.statement-watch.summary.v14.1' }); candidate_sha = $CandidateSha
         started_utc = $started.ToString('o'); completed_utc = [DateTime]::UtcNow.ToString('o')
         watcher_pid = $PID; records = $state.Records; polls = $state.Polls
         phase_records = $state.PhaseRecords; statement_records = $state.StatementRecords
@@ -396,6 +472,12 @@ try {
         incomplete_stream = ($issues.Count -gt 0); issues = @($issues | Sort-Object)
         capture_sha256 = (Get-FileHash -LiteralPath $capturePath -Algorithm SHA256).Hash
         completeness_limit = 'Polling cannot prove absence of events in a file deleted before first observation. dropped means no result observed, never engine cancellation or rollback proof. Statement execution_time is returned SDK response timing; a dropped SurrealQL query has no returned statement stats, and engine timing alone does not prove queue, permission or commit causation.'
-    })
+    }
+    if ($receiptMode) {
+        $summary.receipt_records = $state.ReceiptRecords
+        $summary.invalid_receipt_timings = $state.InvalidReceiptTimings
+        $summary.completeness_limit += ' Receipt deltas use engine UTC wall time, not monotonic time; negative samples are invalid and forward clock jumps are undetected. Branch duration does not separate permissions, sequence allocation, indexes or commit.'
+    }
+    Write-NewJson $summaryPath $summary
 }
 if ($state.Fatal -or $state.Expired) { exit 1 }
