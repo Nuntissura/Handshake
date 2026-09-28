@@ -50,7 +50,7 @@
   "remediation_v15": {
     "lookup_plan_diagnostic": {
       "shape_repair": {
-        "state": "IMPLEMENTATION_IN_PROGRESS_NO_RUN",
+        "state": "SOURCE_REVIEW_CLEARED_PENDING_COMMIT_AND_CORE_COMPILE",
         "failure": "V16 four live plans unsupported; sanitizer assumes entries array, pinned default physical EXPLAIN emits scalar object. Synthetic sanitizer test did not assert live producer/decoder compatibility.",
         "source_basis": [
           "surrealdb-core3.2.0 dbs/session.rs54-63 default physical BestEffortReadOnlyStatements",
@@ -65,7 +65,37 @@
         "owner": "/root/contract_complexity",
         "independent_reviewer": "/root/technical_failure",
         "preparation_ref": "gameplan.yaml#GP-129",
-        "next_gate": "Independent source review, stable compile, then existing phase-probe in distinct core-only mode with fresh frozen export and one-use marker. No native/backend stage. Fixed query supplies table provenance when physical IndexScan omits table; dynamic access remains unresolved."
+        "next_gate": "Independent source review, stable compile, then existing phase-probe in distinct core-only mode with fresh frozen export and one-use marker. No native/backend stage. Fixed query supplies table provenance when physical IndexScan omits table; dynamic access remains unresolved.",
+        "source_review": {
+          "product_file": "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+          "product_sha256": "84DD10340A6B073D34E6AE756748D708361BFA281FCE465F2C026FA8860A66BB",
+          "helper_sha256": "304DF1B4A0105D81D829EB8D26384C4E45504CFF6C98D8D0829989A14DF74639",
+          "reviewers": [
+            "/root",
+            "/root/technical_failure WP_VALIDATOR"
+          ],
+          "result": "No remaining source blocker to compile/core proof; strict bounded physical/legacy parser, preserved timing/redaction, task-local real producer assertions, old modes unchanged. Draft Limit expressions and fixture ordering corrected before compilation.",
+          "runtime": "NOT_RUN"
+        },
+        "core_only": {
+          "mode": "lookup-plan-core-v17",
+          "marker": "MT032-V17-LOOKUP-PLAN-CORE-DIAGNOSTIC.started",
+          "prefix": "mt032-v17-lookup-plan-core-probe",
+          "cases": 3,
+          "selection": "Existing measured append/replay/conflict, decoder empty/extra row, sanitizer shape/redaction tests",
+          "excluded": "No backend-history copy, backend compile, native compile/test or HTTP phase watcher; keep capacity/owned process observer.",
+          "env": "HANDSHAKE_DIAGNOSTIC_RECEIPT_LOOKUP_PLAN=1",
+          "capacity": {
+            "current_bytes": 140479430322,
+            "observed_core_peak_growth_bytes": 2076762333,
+            "scratch_bytes": 4000000000,
+            "forecast_bytes": 146556192655,
+            "stop_bytes": 147000000000,
+            "cap_bytes": 150000000000,
+            "limits": "Observed V16 core peak includes export/core outputs; forecast is not upper bound, live147GB stop required. No cleanup."
+          },
+          "authorization": "Compile/source preparation only until pushed candidate, stable compile, fresh role gates and parent release."
+        }
       },
       "implementation": {
         "files": [
