@@ -2,5 +2,10 @@
 slow-timeout = { period = "60s", terminate-after = 5 }
 test-threads = 1
 
+# MT-164 AC-164-4 evidence: keep the timing test's printed medians/ratio in the run log on success.
+[[profile.default.overrides]]
+filter = 'test(=storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count)'
+success-output = "final"
+
 [profile.default.junit]
 path = "junit.xml"
