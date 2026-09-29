@@ -25,7 +25,7 @@
   "title": "B18-MT-157-Durable-Debugger-Breakpoints-Under-Account-Session",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-29T16:35:56Z",
+  "updated_at_utc": "2026-09-29T16:55:24Z",
   "validation_shared_union_ec596eec": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "decision": "inconclusive",
@@ -1559,5 +1559,35 @@
       "effect": "Supersedes the prior validator ruling that an MT format check covers all changed files in its range; applies to open MTs of this WP from 2026-09-29.",
       "ref": "packet.json#operator_decisions_20260929"
     }
-  ]
+  ],
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR-20260929-MT164-CAPTURE",
+    "validated_at_utc": "2026-09-29T16:55:24Z",
+    "candidate_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df",
+    "authority": "packet.json#operator_decisions_20260929[0].format_scope",
+    "checks": {
+      "MT-157-BREAKPOINTS / WORKSPACE-DELETE / DEBUG-ADAPTER-LIB / MT136-NO-REGRESSION / PIN-CONFIRM": "PASS (union de04b8f0, validation_shared_union_de04b8f0)",
+      "MT-157-FMT": "PASS: rustfmt --check on the 3 owned_files at de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df: exit 0 (../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt157-fmt-owned-de04b8f0.log)",
+      "MT-157-DIFF-CHECK": "PASS (owned files, 0cfbff64..de04b8f0, no output)",
+      "MT-157-CHECK-TESTS": "UNCLOSED",
+      "MT-157-CLIPPY-CHANGED": "UNCLOSED"
+    },
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT157-de04b8f0-format-rejudge",
+        "at_utc": "2026-09-29T16:55:24Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT157-de04b8f0-format-rejudge",
+        "at_utc": "2026-09-29T16:55:24Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION"
+      }
+    ]
+  }
 }
