@@ -17,7 +17,11 @@ SHA="${1:?usage: run-round.sh <SHA> [core-only]}"
 # MODE core-only: core + extracted crates only; skips native build, backend binary,
 # native preflight and native run (dispatch-scoped rounds whose READY MTs need no native proof).
 MODE="${2:-}"
-[[ -z "$MODE" || "$MODE" = core-only ]] || { echo "[run-round] FATAL: unknown mode $MODE"; exit 2; }
+# MODE mt164-capture: Operator-authorized single capture run (packet.json operator_decisions_20260929
+# mt164_close) of the MT-164 timing test on an already-built export; lib only, no extracted crates,
+# JUnit written to junit-<SHA>-core-mt164-capture.xml, one-shot marker per SHA.
+[[ -z "$MODE" || "$MODE" = core-only || "$MODE" = mt164-capture ]] || { echo "[run-round] FATAL: unknown mode $MODE"; exit 2; }
+NATIVE_SKIP=0; [[ "$MODE" = core-only || "$MODE" = mt164-capture ]] && NATIVE_SKIP=1
 echo "[run-round] mode=${MODE:-full}"
 LANE="D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x"
 TARGET="C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52"
@@ -142,14 +146,24 @@ NATIVE_TARGET_ARGS=(--lib)
 for t in "${NATIVE_TESTS[@]}"; do NATIVE_TARGET_ARGS+=(--test "$t"); done
 
 core_test_args=(); for t in "${CORE_TESTS[@]}"; do core_test_args+=(--test "$t"); done
+CORE_JUNIT_NAME="junit-$SHA-core.xml"
+if [[ "$MODE" = mt164-capture ]]; then
+  CAPTURE_MARKER="$LANE/MT164-CAPTURE-${SHA:0:8}.started"
+  [[ ! -e "$CAPTURE_MARKER" ]] || { echo "[run-round] FATAL: mt164 capture already consumed for $SHA"; exit 2; }
+  [[ -f "$LANE/junit-$SHA-core.xml" ]] || { echo "[run-round] FATAL: capture requires the completed union round for $SHA"; exit 2; }
+  core_test_args=()
+  EXTRACTED_CRATES=()
+  CORE_JUNIT_NAME="junit-$SHA-core-mt164-capture.xml"
+fi
 EXTRACTED_CRATES=(handshake_document handshake_storage_support)
+[[ "$MODE" = mt164-capture ]] && EXTRACTED_CRATES=()
 
 echo "[run-round] building core union"
 ( cd "$EXPORT/src/backend/handshake_core" && \
   cargo test --locked -j 2 --no-run --lib --features app-runtime,surreal-test-support,test-utils "${core_test_args[@]}" )
 check_target_cap
 
-if [[ "$MODE" != core-only ]]; then
+if [[ "$NATIVE_SKIP" != 1 ]]; then
 echo "[run-round] building native union"
 ( cd "$EXPORT/src/frontend/handshake_native" && \
   cargo test --locked -j 2 --no-run --features integration,integration_tests,wgpu_screenshots "${NATIVE_TARGET_ARGS[@]}" )
@@ -163,7 +177,7 @@ for crate in "${EXTRACTED_CRATES[@]}"; do
   check_target_cap
 done
 
-if [[ "$MODE" != core-only ]]; then
+if [[ "$NATIVE_SKIP" != 1 ]]; then
 echo "[run-round] building backend binary for HSK_TEST_BACKEND_BIN"
 ( cd "$EXPORT/src/backend/handshake_core" && \
   cargo build --locked --target-dir "$HSK_TEST_BACKEND_TARGET_ROOT" --bin handshake_core --features app-runtime,surreal-test-support )
@@ -203,6 +217,10 @@ fi
 OWNER_BIN="test_app_host_mount"
 EXCLUDE_FILTER="not (test(/backend_proof_support::failure_diagnostic_tests::/) and not binary($OWNER_BIN))"
 CORE_FILTER='not binary(handshake_core) or test(/^(api::flight_recorder::tests::document_saved_receipt_|storage::surreal::retry::tests::|storage::surreal::resource_authority_tests::|storage::surreal::schema::tests::(declarative_schema_catalog_is_complete_and_content_sensitive|mt139_current_schema_info_pin_matches_fresh_mem_catalog|mt109_loom_catalog_dependencies_are_complete_and_deterministic|mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin|mt138_full_schema_atelier_noop_matches_bounded_projection|mt109_authority_catalog_pins_are_deterministic|mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current|canvas_receipt_revision_158_upgrade_requires_exact_catalog_and_restarts_current|standalone_loom_revision_159_upgrade_requires_exact_catalog_and_restarts_current|schema_delta_upgrade_statements_re_emit_every_mt154_delta|document_grant_revision_160_upgrade_requires_exact_catalog_and_restarts_current|indexed_grant_revision_161_upgrade_preserves_data_and_restarts_current|document_grant_single_live_policy_witness_controls_record_user_visibility)$|api::loom::tests::(mt153_loom_route_family_authority_matrix|mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows)$|api::workspaces::tests::(owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit|mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default|mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows)$|api::kernel::tests::|storage::surreal::mt136_database_surface_proof_(a|b|c)::|api::debug_adapter::|api::jobs::tests::(create_job_rejects_unknown_job_kind|create_job_allows_terminal_when_authorized)$)/)'
+if [[ "$MODE" = mt164-capture ]]; then
+  CORE_FILTER='binary(=handshake_core) & test(=storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count)'
+  (set -o noclobber; date -u +%Y-%m-%dT%H:%M:%SZ > "$CAPTURE_MARKER") || exit 2
+fi
 
 echo "[run-round] nextest CORE run"
 CORE_JUNIT="$EXPORT/src/backend/handshake_core/target/nextest/default/junit.xml"
@@ -229,7 +247,7 @@ fi
 if [[ "${CORE_INVALID:-0}" != 1 && -f "$CORE_JUNIT" && "$CORE_JUNIT" -nt "$CORE_JUNIT_MARKER" ]]; then
   CORE_TEST_COUNT="$(sed -n 's/^<testsuites[^>]* tests="\([0-9][0-9]*\)".*/\1/p' "$CORE_JUNIT" | head -n 1)"
   if [[ -n "$CORE_TEST_COUNT" && "$CORE_TEST_COUNT" -gt 0 ]]; then
-    cp "$CORE_JUNIT" "$LANE/junit-$SHA-core.xml"
+    cp "$CORE_JUNIT" "$LANE/$CORE_JUNIT_NAME"
     echo "[run-round] core nextest exit=$CORE_NEXTEST_EXIT tests=$CORE_TEST_COUNT"
   else
     echo "[run-round] CORE_ZERO_OR_UNPARSEABLE_TEST_COUNT: $CORE_JUNIT"
@@ -240,8 +258,8 @@ else
   CORE_INVALID=1
 fi
 
-if [[ "$MODE" = core-only ]]; then
-  echo "[run-round] core-only mode: native build and run skipped"
+if [[ "$NATIVE_SKIP" = 1 ]]; then
+  echo "[run-round] $MODE mode: native build and run skipped"
   NATIVE_NEXTEST_EXIT=skipped
 else
 echo "[run-round] nextest NATIVE run (excluding duplicated failure_diagnostic_tests except $OWNER_BIN)"
