@@ -25,7 +25,7 @@
   "title": "B18-MT-157-Durable-Debugger-Breakpoints-Under-Account-Session",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-24T13:25:12.6577147Z",
+  "updated_at_utc": "2026-09-29T14:31:39Z",
  "validation_shared_union_ec596eec": {"schema_id": "hsk.mt_validation_verdict@1", "decision": "inconclusive", "validated_by": "WP_VALIDATOR-SOL-MEDIUM", "validated_at_utc": "2026-09-26T23:36:50.061743Z", "candidate_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f", "proof_records_ref": "MT-032.json#validation.proof_records[PR-WP012-MT032-ec596eec-UNION-012]", "shared_round_ref": "MT-032.json#validation_v12", "contract_floor_refs": ["scope.proof_targets", "scope.acceptance_criteria", "proof", "proof_commands", "hbr_obligations"], "selection_method": "Named MT-prefixed cases only; not all parent/shared regression commands", "observed_cases": [{"classname": "handshake_core::knowledge_documents_api_tests", "test": "mt157_move_empty_body_preserves_membership_and_batch_reports_per_item", "seconds": 31.613, "result": "passed"}, {"classname": "handshake_core::mt157_debug_breakpoints_authority_tests", "test": "mt157_anonymous_and_cross_account_denied_without_side_effects", "seconds": 24.404, "result": "passed"}, {"classname": "handshake_core::mt157_debug_breakpoints_authority_tests", "test": "mt157_breakpoint_receipt_is_session_attributed_and_private", "seconds": 26.463, "result": "passed"}, {"classname": "handshake_core::mt157_debug_breakpoints_authority_tests", "test": "mt157_owner_breakpoints_persist_across_store_reopen", "seconds": 25.65, "result": "passed"}, {"classname": "handshake_core::mt157_debug_breakpoints_authority_tests", "test": "mt157_put_replaces_set_and_keeps_uniqueness", "seconds": 39.881, "result": "passed"}, {"classname": "handshake_core::mt157_debug_breakpoints_authority_tests", "test": "mt157_read_only_principal_can_get_but_not_put", "seconds": 25.446, "result": "passed"}], "mapped_case_count": 6, "mapped_failure_count": 0, "state_unchanged": true, "prior_verdict_preserved": null, "unmet_required_proof": ["MT-157-CHECK-TESTS independent current check proof absent", "MT-157-CLIPPY-CHANGED independent current changed-line clippy proof absent", "MT-157-FMT / MT-157-DIFF-CHECK current-range static proof chain unclosed", "Parent pin measure/confirm provenance must be reused only after independent input applicability reconciliation; no duplicate parent proof run authorized"], "acceptance_rule": "Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change", "verdict_events": [{"event": "accepted", "idempotency_key": "MT157-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive"}, {"event": "completed", "idempotency_key": "MT157-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive", "state_effect": "unchanged"}]},
   "validation_shared_union_7479972a": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-28T00:11:37Z","candidate_commit":"7479972ac681cd238e58d37e318beab6c8d3b423","proof_records_ref":"MT-032.json#validation.proof_records[PR-WP012-MT032-7479972a-UNION-CONTINUATION1]","shared_round_ref":"MT-032.json#validation_v13","contract_floor_refs":["scope.proof_targets","scope.acceptance_criteria","proof","proof_commands","hbr_obligations"],"selection_method":"Named MT-prefixed cases only; not all parent/shared regression commands; exact classname+name matched against completed current four JUnits","observed_cases":[{"classname":"handshake_core::knowledge_documents_api_tests","test":"mt157_move_empty_body_preserves_membership_and_batch_reports_per_item","seconds":32.892,"result":"passed","phase":"core"},{"classname":"handshake_core::mt157_debug_breakpoints_authority_tests","test":"mt157_anonymous_and_cross_account_denied_without_side_effects","seconds":28.333,"result":"passed","phase":"core"},{"classname":"handshake_core::mt157_debug_breakpoints_authority_tests","test":"mt157_breakpoint_receipt_is_session_attributed_and_private","seconds":29.175,"result":"passed","phase":"core"},{"classname":"handshake_core::mt157_debug_breakpoints_authority_tests","test":"mt157_owner_breakpoints_persist_across_store_reopen","seconds":28.213,"result":"passed","phase":"core"},{"classname":"handshake_core::mt157_debug_breakpoints_authority_tests","test":"mt157_put_replaces_set_and_keeps_uniqueness","seconds":42.514,"result":"passed","phase":"core"},{"classname":"handshake_core::mt157_debug_breakpoints_authority_tests","test":"mt157_read_only_principal_can_get_but_not_put","seconds":27.801,"result":"passed","phase":"core"}],"mapped_case_count":6,"mapped_failure_count":0,"state_unchanged":true,"prior_verdict_preserved":true,"unmet_required_proof":["MT-157-CHECK-TESTS independent current check proof absent","MT-157-CLIPPY-CHANGED independent current changed-line clippy proof absent","MT-157-FMT / MT-157-DIFF-CHECK current-range static proof chain unclosed","Parent pin measure/confirm provenance must be reused only after independent input applicability reconciliation; no duplicate parent proof run authorized"],"acceptance_rule":"Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change","verdict_events":[{"event":"accepted","idempotency_key":"MT157-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT157-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive","state_effect":"unchanged"}],"input_provenance":{"candidate":"7479972ac681cd238e58d37e318beab6c8d3b423","source_diff_ref":"git diff --name-only ec596eecb70f2820cb357ef95d5820b890c8944f..7479972ac681cd238e58d37e318beab6c8d3b423","changed_areas":["core document/SurrealDB authority/schema","handshake_document diagnostics/operations/SurrealDB adapter","handshake_storage_support diagnostics/retry"],"native_source_changed":false,"source_effect":"Shared backend inputs can affect live native cases; exact current JUnits provide observed behavior, not static/unmapped proof."},"current_union":{"core":{"tests":239,"failures":6,"sha256":"9916BFB9B5F8797D461C58555D16A734D29EB4054E37713263B0C727E0DA4BF2"},"native":{"tests":2952,"failures":44,"sha256":"928E026731633A2C63F1ECC21E926DF5A56AFEE828B58C79EF77B990697A962F"},"handshake_document":{"tests":41,"failures":0,"sha256":"2A3F49A172AD702EE44722CA393304084FDA83DDD45DB0CD253147CE9518BD79"},"handshake_storage_support":{"tests":34,"failures":0,"sha256":"A499897A89EAA1497A2D16F31514CD319B53BDEE3160BDE51D09797A7EE82C76"},"all_junits_complete":true,"mt032_verdict_ref":"MT-032.json#validation_v13"}},
   "identity": {
@@ -44,7 +44,7 @@
   },
   "validation_v3": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","verdict":null,"validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:54:37Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-157.scope.acceptance_criteria/proof_targets and own proof/ proof_commands","junit_provenance":{"native_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","core_sha256":"CD420357013FF59A89EA4440C394A8951404DD3700A75D7D066C385D118B7897","freshness":"Both export-local/copy match and after own invocation marker; full49e archive"},"exact_proof_gaps":["Own current-input CHECK-TESTS/CLIPPY-CHANGED/FMT/DIFF proof/reuse chain not fully reconciled; green pin/breakpoint/A/workspace tests cannot replace static floors"],"status_effect":"READY_FOR_VALIDATION and null validator_verdict unchanged; submission retained; no infrastructure-driven transition","reuse_disposition":"No unrecorded relevant-input-path/static/special proof reuse credited","runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"One final union consumed; no additional test/build/probe to fill gaps","verdict_events":[{"event":"accepted","idempotency_key":"MT-157-49eac54e-union-inconclusive-v3","at_utc":"2026-09-26T15:54:37Z","payload_ref":"MT-157.json#validation_v3","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT-157-49eac54e-union-inconclusive-v3","at_utc":"2026-09-26T15:56:26Z","state_ref":"MT-157.json#lifecycle","decision":"inconclusive","state_observed":"READY_FOR_VALIDATION; validator_verdict null; submission retained"}]},
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED",
     "depends_on": [
       "MT-153"
     ],
@@ -52,7 +52,7 @@
     "active": false,
     "validator_verdict": null,
     "prior_validator_verdict": "FAIL_V2",
-    "next_actor": "WP_VALIDATOR",
+    "next_actor": "KERNEL_BUILDER (MT-164 fix), then WP_VALIDATOR",
     "ready_for_validation_transition_10eb7c12": {
       "at_utc": "2026-09-24T13:25:12.6577147Z",
       "by": "KERNEL_BUILDER on explicit Operator instruction",
@@ -70,8 +70,8 @@
       "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 10eb7c1295f8ac39335a6b03598fa595a8195462",
       "test_runs": "No builder tests or additional Cargo; runtime verdict belongs to next independent combined union. Historical validation retained."
     },
-    "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
-    "validated_at_utc": "2026-09-24T03:21:00.388Z",
+    "validated_by": "WP_VALIDATOR-20260929-MT164-ROUND",
+    "validated_at_utc": "2026-09-29T14:31:39Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -85,7 +85,8 @@
       ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json remediation_v24 (KERNEL_BUILDER-C2 round 5: what is already fixed) and remediation_v25 (KERNEL_BUILDER-C3 round 6, in progress)"
     ],
     "audit_refs_note": "The two audit files live in an Operator session scratchpad and are not durable; every row this MT relies on is copied into scope.routes / implementation_steps, so the MT is executable without them.",
-    "mt136_relation": "MT-136 stays PASS (PASS_V6); this MT carries the durable-breakpoint residual the scope audit found (authority_scope.md row 'GET /debug/documents/:id/breakpoints': MT-136(PASS_V6,owns storage/; doc comment at debug_adapter.rs still says durable breakpoints NotImplemented pending Surreal port - residual gap in a PASSd MT))."
+    "mt136_relation": "MT-136 stays PASS (PASS_V6); this MT carries the durable-breakpoint residual the scope audit found (authority_scope.md row 'GET /debug/documents/:id/breakpoints': MT-136(PASS_V6,owns storage/; doc comment at debug_adapter.rs still says durable breakpoints NotImplemented pending Surreal port - residual gap in a PASSd MT)).",
+    "blocked_on": "MT-164 FAIL_V1 remediation (MT164-GRANT-FN-ENGINE-STACK-OVERFLOW)"
   },
   "closure_unit": {
     "outcome": "GET/PUT /debug/documents/:rich_document_id/breakpoints persist and reload debugger breakpoints in the Handshake-managed SurrealDB store under the caller's account session, with account-scoped permissions, a session-attributed receipt, and no regression of MT-136's storage proof.",
@@ -1225,5 +1226,48 @@
       }
     ],
     "verdict_basis": "FAIL is fully determined by MT-157-WORKSPACE-DELETE alone (a required check failed with a product-classified defect); the NOT_RUN_THIS_ROUND static checks do not change a FAIL verdict and are not blocking this determination."
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "blocked",
+    "validated_by": "WP_VALIDATOR-20260929-MT164-ROUND",
+    "validated_at_utc": "2026-09-29T14:31:39Z",
+    "candidate_commit": "ee9efaba664bfa6e2987a847979c19048b3093a4",
+    "proof_records_ref": "MT-164.json#validation.proof_records[PR-WP012-UNION-ee9efaba-CORE]",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ee9efaba664bfa6e2987a847979c19048b3093a4-core.xml",
+    "started_at": "2026-09-29T13:07:13.1540507Z",
+    "completed_at": "2026-09-29T14:27:22.7013401Z",
+    "round_scope": "core-only: handshake_core --lib (CORE_FILTER) + 22 integration binaries, handshake_document and handshake_storage_support unit targets; native phase skipped per dispatch",
+    "mapped_cases": {
+      "MT-157-PIN-CONFIRM": "PASS 7/7",
+      "MT-157-MT136-NO-REGRESSION": "PASS",
+      "MT-157-DEBUG-ADAPTER-LIB": "PASS 2/2",
+      "MT-157-BREAKPOINTS": "FAIL 0/5: all abort (stack overflow); all 5 passed at 8ea13a9b",
+      "MT-157-WORKSPACE-DELETE": "FAIL: owned_workspace_delete_cascades aborts; passed at 8ea13a9b"
+    },
+    "unclosed_required_proof": [
+      "MT-157-CHECK-TESTS",
+      "MT-157-CLIPPY-CHANGED",
+      "MT-157-FMT",
+      "MT-157-DIFF-CHECK"
+    ],
+    "blocker_kind": "dependency",
+    "blocked_on_mt_ref": "MT-164.json#validation_v1 (MT164-GRANT-FN-ENGINE-STACK-OVERFLOW)",
+    "basis": "WPV-DEP-001/CX-STATUS-002: failing checks fail only through the MT-164 regression (green at 8ea13a9b); no MT-157 remediation; rerun after MT-164 fix.",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT157-ee9efaba-union-verdict",
+        "at_utc": "2026-09-29T14:31:39Z",
+        "decision": "blocked"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT157-ee9efaba-union-verdict",
+        "at_utc": "2026-09-29T14:31:39Z",
+        "decision": "blocked",
+        "state_effect": "lifecycle.status BLOCKED"
+      }
+    ]
   }
 }
