@@ -40,12 +40,21 @@ use std::{
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 
-#[tokio::main]
-async fn main() {
-    if let Err(err) = run().await {
-        tracing::error!(target: "handshake_core", error = %err, "handshake_core failed to start");
-        std::process::exit(1);
-    }
+/// Explicit equivalent of `#[tokio::main]` (multi-thread, all drivers) with a 10 MiB worker
+/// stack: the embedded SurrealDB 3.2.0 engine evaluates permission expressions recursively and its
+/// docs recommend this size (surrealdb-3.2.0/src/engine/local/mod.rs:51-66; MT-164 remediation_v1).
+fn main() {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_stack_size(10 * 1024 * 1024)
+        .build()
+        .expect("Failed building the Runtime")
+        .block_on(async {
+            if let Err(err) = run().await {
+                tracing::error!(target: "handshake_core", error = %err, "handshake_core failed to start");
+                std::process::exit(1);
+            }
+        })
 }
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {

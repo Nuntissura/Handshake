@@ -2952,8 +2952,11 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // first (previous value 009ee238f7935479a9c507f8b1e8cc59ef306dd80765b8e74bc9665909d7a3f2, retained
 // as PRE_INDEXED_GRANT_GENERATED_SHA256); statically derived as sha256 of schema.surql.
 // DECLARATIVE_SCHEMA_CATALOG_SHA256 is unchanged (no definition added, removed or renamed).
+// MT-164 remediation_v1 re-pin (revision 162 unreleased, re-pinned in place): the five functions
+// bind $auth ids to LET params (indexable) and use sequential early exits (previous value
+// ac24898e4066cc8ead849bf302014a8b4e324cf49c035d737c75b6aef805ccdb); sha256 of schema.surql.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "ac24898e4066cc8ead849bf302014a8b4e324cf49c035d737c75b6aef805ccdb";
+    "1d6109d84aa9bbe146572040408f23c2e10d3a90261c961c973a824dc205438d";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -3040,6 +3043,8 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // first (previous value 99a02cba2ef3a195bb49013d86a19e20e02e58a05363b39c46ddda4ebacc0c9a, retained as
 // PRE_INDEXED_GRANT_INFO_SHA256); measured by WP validator PIN-MEASURE MT164-PIN-MEASURE-20260929
 // on 179ffc1f (MT139_CURRENT_SCHEMA_INFO_SHA256 / MT109_CURRENT_AUTHORITY_INFO_SHA256).
+// MT-164 remediation_v1 PIN-MEASURE PENDING: the five function bodies changed again; the value below
+// is the 179ffc1f/ee9efaba measurement and must be re-measured, not guessed.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
     "50b06dab0370f14fce0b3591b94abf87420957aa8258117f40563f42be3d29b4";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
@@ -3056,6 +3061,7 @@ pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
 // MT-164 re-pin: the Atelier catalog carries the authority-core grant/access functions (previous
 // b26f957864d7f730201bf8196bb8c77c85ea79ce46604eb745ba3d535f8f0250); measured by WP validator
 // PIN-MEASURE MT164-PIN-MEASURE-20260929 on 179ffc1f.
+// MT-164 remediation_v1 PIN-MEASURE PENDING: value below is the ee9efaba measurement; re-measure.
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
     "c18095249805f8822a3a23aea6f58d1866522584f097b715c3957e66346af052";
 const PENDING_SCHEMA_INFO_SHA256: &str =
@@ -3932,6 +3938,8 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // EIGHTH pin (MT-164): the bounded DDL carries the resolve-first authority-core grant/access
     // functions (previous value 299e8dc80fbab95f43d178a8d09c6b3760f6dfad9edc85215c865adf6b2edd98);
     // measured by WP validator PIN-MEASURE MT164-PIN-MEASURE-20260929 on 179ffc1f.
+    // MT-164 remediation_v1 PIN-MEASURE PENDING (also the test literal in
+    // mt109_loom_catalog_dependencies_are_complete_and_deterministic): ee9efaba value; re-measure.
     const EXPECTED_CATALOG_SHA256: &str =
         "e02993e2ec6ec2195d8de737b3c5a62b332b1d3105a889c5179b083c2932d5fb";
     let ddl = loom_receipt_test_schema_ddl();

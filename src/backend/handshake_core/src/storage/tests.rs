@@ -242,6 +242,8 @@ pub(crate) fn test_engine_runtime() -> &'static tokio::runtime::Runtime {
         tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
             .thread_name("handshake-test-store-engine")
+            // MT-164 remediation_v1: 10 MiB stack for recursive SurrealDB 3.2.0 evaluation.
+            .thread_stack_size(10 * 1024 * 1024)
             .enable_all()
             .build()
             .expect("build the embedded-test store engine runtime")

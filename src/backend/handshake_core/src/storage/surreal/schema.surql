@@ -6042,154 +6042,205 @@ DEFINE FUNCTION OVERWRITE fn::mt109_live_session() {
 };
 
 DEFINE FUNCTION OVERWRITE fn::mt109_has_grant($kind: string, $external: string, $action: string, $capability: string) {
+    LET $live = fn::mt109_live_session();
+    IF !$live { RETURN false; };
+    IF !(($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability)) { RETURN false; };
+    IF !(($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability)) { RETURN false; };
     LET $resource = (SELECT VALUE id FROM protected_resources
         WHERE resource_kind = $kind AND external_resource_id = $external LIMIT 1)[0];
-    RETURN fn::mt109_live_session()
-        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
-        AND (($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability))
-        AND $resource != NONE
-        AND $resource.resource_kind = $kind
-        AND $resource.external_resource_id = $external
-        AND $resource.lifecycle_state = 'active'
-        AND $resource.created_by_principal_id.status = 'enabled'
-        AND $resource.owner_account_id = $auth.account_id
-        AND $resource.access_space_id = $auth.access_space_id
-        AND array::len((SELECT id FROM resource_grants
-            WHERE account_id = $auth.account_id
-              AND principal_id = $auth.principal_id
-              AND access_space_id = $auth.access_space_id
-              AND resource_id = $resource
-              AND status = 'active'
-              AND revoked_at = NONE
-              AND (expires_at = NONE OR expires_at > time::now())
-              AND $resource.policy_version <= policy_version
-              AND policy_version <= $auth.policy_version
-              AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'))
-              AND (actions CONTAINS $action)
-              AND (capability_ids CONTAINS $capability)
-              AND delegation_chain = $auth.delegation_chain)) > 0;
+    IF !($resource != NONE) { RETURN false; };
+    IF !($resource.resource_kind = $kind) { RETURN false; };
+    IF !($resource.external_resource_id = $external) { RETURN false; };
+    IF !($resource.lifecycle_state = 'active') { RETURN false; };
+    IF !($resource.created_by_principal_id.status = 'enabled') { RETURN false; };
+    IF !($resource.owner_account_id = $auth.account_id) { RETURN false; };
+    IF !($resource.access_space_id = $auth.access_space_id) { RETURN false; };
+    LET $acct = $auth.account_id;
+    LET $prin = $auth.principal_id;
+    LET $space = $auth.access_space_id;
+    LET $policy = $auth.policy_version;
+    LET $chain = $auth.delegation_chain;
+    LET $resource_policy = $resource.policy_version;
+    LET $grants = SELECT id FROM resource_grants
+        WHERE account_id = $acct
+          AND principal_id = $prin
+          AND access_space_id = $space
+          AND resource_id = $resource
+          AND status = 'active'
+          AND revoked_at = NONE
+          AND (expires_at = NONE OR expires_at > time::now())
+          AND $resource_policy <= policy_version
+          AND policy_version <= $policy
+          AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'))
+          AND (actions CONTAINS $action)
+          AND (capability_ids CONTAINS $capability)
+          AND delegation_chain = $chain;
+    RETURN array::len($grants) > 0;
 };
 
 DEFINE FUNCTION OVERWRITE fn::mt109_has_workspace_access($external: string, $action: string, $capability: string) {
+    LET $live = fn::mt109_live_session();
+    IF !$live { RETURN false; };
+    IF !(($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability)) { RETURN false; };
+    IF !(($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability)) { RETURN false; };
     LET $resource = (SELECT VALUE id FROM protected_resources
         WHERE resource_kind = 'workspace' AND external_resource_id = $external LIMIT 1)[0];
-    RETURN fn::mt109_live_session()
-        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
-        AND (($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability))
-        AND $resource != NONE
-        AND $resource.resource_kind = 'workspace'
-        AND $resource.external_resource_id = $external
-        AND $resource.lifecycle_state = 'active'
-        AND $resource.created_by_principal_id.status = 'enabled'
-        AND $resource.owner_account_id = $auth.account_id
-        AND $resource.access_space_id = $auth.access_space_id
-        AND array::len((SELECT id FROM resource_grants
-            WHERE account_id = $auth.account_id
-              AND principal_id = $auth.principal_id
-              AND access_space_id = $auth.access_space_id
-              AND resource_id = $resource
-              AND status = 'active'
-              AND revoked_at = NONE
-              AND (expires_at = NONE OR expires_at > time::now())
-              AND $resource.policy_version <= policy_version
-              AND policy_version <= $auth.policy_version
-              AND (actions CONTAINS $action)
-              AND (capability_ids CONTAINS $capability)
-              AND delegation_chain = $auth.delegation_chain)) > 0;
+    IF !($resource != NONE) { RETURN false; };
+    IF !($resource.resource_kind = 'workspace') { RETURN false; };
+    IF !($resource.external_resource_id = $external) { RETURN false; };
+    IF !($resource.lifecycle_state = 'active') { RETURN false; };
+    IF !($resource.created_by_principal_id.status = 'enabled') { RETURN false; };
+    IF !($resource.owner_account_id = $auth.account_id) { RETURN false; };
+    IF !($resource.access_space_id = $auth.access_space_id) { RETURN false; };
+    LET $acct = $auth.account_id;
+    LET $prin = $auth.principal_id;
+    LET $space = $auth.access_space_id;
+    LET $policy = $auth.policy_version;
+    LET $chain = $auth.delegation_chain;
+    LET $resource_policy = $resource.policy_version;
+    LET $grants = SELECT id FROM resource_grants
+        WHERE account_id = $acct
+          AND principal_id = $prin
+          AND access_space_id = $space
+          AND resource_id = $resource
+          AND status = 'active'
+          AND revoked_at = NONE
+          AND (expires_at = NONE OR expires_at > time::now())
+          AND $resource_policy <= policy_version
+          AND policy_version <= $policy
+          AND (actions CONTAINS $action)
+          AND (capability_ids CONTAINS $capability)
+          AND delegation_chain = $chain;
+    RETURN array::len($grants) > 0;
 };
 
 DEFINE FUNCTION OVERWRITE fn::mt109_source_read($kind: string, $external: string, $workspace: string, $parent_kind: string, $parent_external: string) {
+    LET $source_grant = fn::mt109_has_grant($kind, $external, 'read', 'memory.propose')
+        OR fn::mt109_has_grant($kind, $external, 'read', 'memory.read');
+    IF !$source_grant { RETURN false; };
+    LET $workspace_grant = fn::mt109_has_workspace_access($workspace, 'read', 'memory.read');
+    IF !$workspace_grant { RETURN false; };
     LET $resource = (SELECT VALUE id FROM protected_resources
         WHERE resource_kind = $kind AND external_resource_id = $external LIMIT 1)[0];
-    LET $parent = $resource.parent_resource_id;
-    RETURN (fn::mt109_has_grant($kind, $external, 'read', 'memory.propose')
-            OR fn::mt109_has_grant($kind, $external, 'read', 'memory.read'))
-        AND fn::mt109_has_workspace_access($workspace, 'read', 'memory.read')
-        AND $resource != NONE
-        AND $resource.resource_kind = $kind AND $resource.external_resource_id = $external
-        AND $resource.lifecycle_state = 'active'
-        AND $resource.owner_account_id = $auth.account_id
-        AND $resource.access_space_id = $auth.access_space_id
-        AND $resource.created_by_principal_id.status = 'enabled'
-        AND $parent.resource_kind = $parent_kind
-        AND $parent.external_resource_id = $parent_external
-        AND $parent.lifecycle_state = 'active'
-        AND $parent.owner_account_id = $auth.account_id
-        AND $parent.access_space_id = $auth.access_space_id
-        AND $parent.created_by_principal_id.status = 'enabled'
-        AND (($parent_kind = 'workspace' AND $parent_external = $workspace)
-             OR ($parent_kind IN ['knowledge_source', 'rich_document']
-                 AND $parent.parent_resource_id.resource_kind = 'workspace'
-                 AND $parent.parent_resource_id.external_resource_id = $workspace
-                 AND $parent.parent_resource_id.lifecycle_state = 'active'
-                 AND $parent.parent_resource_id.owner_account_id = $auth.account_id
-                 AND $parent.parent_resource_id.access_space_id = $auth.access_space_id
-                 AND $parent.parent_resource_id.created_by_principal_id.status = 'enabled'))
-        AND array::len((SELECT id FROM resource_grants
-            WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id
-              AND access_space_id = $auth.access_space_id AND resource_id = $resource
-              AND status = 'active' AND revoked_at = NONE
-              AND (expires_at = NONE OR expires_at > time::now())
-              AND actions CONTAINS 'read'
-              AND (capability_ids CONTAINS 'memory.propose' OR capability_ids CONTAINS 'memory.read')
-              AND (($auth.delegated_capabilities CONTAINS '*')
-                   OR ($auth.delegated_capabilities CONTAINS 'memory.propose' AND capability_ids CONTAINS 'memory.propose')
-                   OR ($auth.delegated_capabilities CONTAINS 'memory.read' AND capability_ids CONTAINS 'memory.read'))
-              AND delegation_chain = $auth.delegation_chain)) > 0;
+    IF !($resource != NONE) { RETURN false; };
+    IF !($resource.resource_kind = $kind) { RETURN false; };
+    IF !($resource.external_resource_id = $external) { RETURN false; };
+    IF !($resource.lifecycle_state = 'active') { RETURN false; };
+    IF !($resource.owner_account_id = $auth.account_id) { RETURN false; };
+    IF !($resource.access_space_id = $auth.access_space_id) { RETURN false; };
+    IF !($resource.created_by_principal_id.status = 'enabled') { RETURN false; };
+    LET $parent_resource = $resource.parent_resource_id;
+    IF !($parent_resource.resource_kind = $parent_kind) { RETURN false; };
+    IF !($parent_resource.external_resource_id = $parent_external) { RETURN false; };
+    IF !($parent_resource.lifecycle_state = 'active') { RETURN false; };
+    IF !($parent_resource.owner_account_id = $auth.account_id) { RETURN false; };
+    IF !($parent_resource.access_space_id = $auth.access_space_id) { RETURN false; };
+    IF !($parent_resource.created_by_principal_id.status = 'enabled') { RETURN false; };
+    IF $parent_kind = 'workspace' {
+        IF !($parent_external = $workspace) { RETURN false; };
+    } ELSE {
+        IF !($parent_kind IN ['knowledge_source', 'rich_document']) { RETURN false; };
+        LET $grandparent_resource = $parent_resource.parent_resource_id;
+        IF !($grandparent_resource.resource_kind = 'workspace') { RETURN false; };
+        IF !($grandparent_resource.external_resource_id = $workspace) { RETURN false; };
+        IF !($grandparent_resource.lifecycle_state = 'active') { RETURN false; };
+        IF !($grandparent_resource.owner_account_id = $auth.account_id) { RETURN false; };
+        IF !($grandparent_resource.access_space_id = $auth.access_space_id) { RETURN false; };
+        IF !($grandparent_resource.created_by_principal_id.status = 'enabled') { RETURN false; };
+    };
+    LET $acct = $auth.account_id;
+    LET $prin = $auth.principal_id;
+    LET $space = $auth.access_space_id;
+    LET $delegated = $auth.delegated_capabilities;
+    LET $chain = $auth.delegation_chain;
+    LET $grants = SELECT id FROM resource_grants
+        WHERE account_id = $acct AND principal_id = $prin
+          AND access_space_id = $space AND resource_id = $resource
+          AND status = 'active' AND revoked_at = NONE
+          AND (expires_at = NONE OR expires_at > time::now())
+          AND actions CONTAINS 'read'
+          AND (capability_ids CONTAINS 'memory.propose' OR capability_ids CONTAINS 'memory.read')
+          AND (($delegated CONTAINS '*')
+               OR ($delegated CONTAINS 'memory.propose' AND capability_ids CONTAINS 'memory.propose')
+               OR ($delegated CONTAINS 'memory.read' AND capability_ids CONTAINS 'memory.read'))
+          AND delegation_chain = $chain;
+    RETURN array::len($grants) > 0;
 };
 
 -- MT120_DOCUMENT_ACCESS_BEGIN
 DEFINE FUNCTION OVERWRITE fn::mt120_document_access($document: string, $workspace: string, $action: string, $capability: string) {
+    LET $live = fn::mt109_live_session();
+    IF !$live { RETURN false; };
+    IF !(($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability)) { RETURN false; };
+    IF !(($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability)) { RETURN false; };
+    LET $workspace_grant = fn::mt109_has_workspace_access($workspace, 'read', 'fs.read');
+    IF !$workspace_grant { RETURN false; };
     LET $resource = (SELECT VALUE id FROM protected_resources
         WHERE resource_kind = 'rich_document' AND external_resource_id = $document LIMIT 1)[0];
-    LET $parent = $resource.parent_resource_id;
-    RETURN fn::mt109_live_session()
-        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
-        AND (($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability))
-        AND fn::mt109_has_workspace_access($workspace, 'read', 'fs.read')
-        AND $resource != NONE
-        AND $resource.resource_kind = 'rich_document' AND $resource.external_resource_id = $document
-        AND $resource.lifecycle_state = 'active' AND $resource.owner_account_id = $auth.account_id
-        AND $resource.access_space_id = $auth.access_space_id AND $resource.created_by_principal_id.status = 'enabled'
-        AND $parent.resource_kind = 'workspace'
-        AND $parent.external_resource_id = $workspace
-        AND $parent.lifecycle_state = 'active'
-        AND $parent.owner_account_id = $auth.account_id
-        AND $parent.access_space_id = $auth.access_space_id
-        AND $parent.created_by_principal_id.status = 'enabled'
-        AND array::len((SELECT id FROM resource_grants
-            WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id
-              AND access_space_id = $auth.access_space_id AND resource_id = $resource
-              AND status = 'active' AND revoked_at = NONE
-              AND (expires_at = NONE OR expires_at > time::now())
-              AND $resource.policy_version <= policy_version
-              AND policy_version <= $auth.policy_version
-              AND actions CONTAINS $action AND capability_ids CONTAINS $capability
-              AND delegation_chain = $auth.delegation_chain)) > 0;
+    IF !($resource != NONE) { RETURN false; };
+    IF !($resource.resource_kind = 'rich_document') { RETURN false; };
+    IF !($resource.external_resource_id = $document) { RETURN false; };
+    IF !($resource.lifecycle_state = 'active') { RETURN false; };
+    IF !($resource.owner_account_id = $auth.account_id) { RETURN false; };
+    IF !($resource.access_space_id = $auth.access_space_id) { RETURN false; };
+    IF !($resource.created_by_principal_id.status = 'enabled') { RETURN false; };
+    LET $parent_resource = $resource.parent_resource_id;
+    IF !($parent_resource.resource_kind = 'workspace') { RETURN false; };
+    IF !($parent_resource.external_resource_id = $workspace) { RETURN false; };
+    IF !($parent_resource.lifecycle_state = 'active') { RETURN false; };
+    IF !($parent_resource.owner_account_id = $auth.account_id) { RETURN false; };
+    IF !($parent_resource.access_space_id = $auth.access_space_id) { RETURN false; };
+    IF !($parent_resource.created_by_principal_id.status = 'enabled') { RETURN false; };
+    LET $acct = $auth.account_id;
+    LET $prin = $auth.principal_id;
+    LET $space = $auth.access_space_id;
+    LET $policy = $auth.policy_version;
+    LET $chain = $auth.delegation_chain;
+    LET $resource_policy = $resource.policy_version;
+    LET $grants = SELECT id FROM resource_grants
+        WHERE account_id = $acct AND principal_id = $prin
+          AND access_space_id = $space AND resource_id = $resource
+          AND status = 'active' AND revoked_at = NONE
+          AND (expires_at = NONE OR expires_at > time::now())
+          AND $resource_policy <= policy_version
+          AND policy_version <= $policy
+          AND actions CONTAINS $action AND capability_ids CONTAINS $capability
+          AND delegation_chain = $chain;
+    RETURN array::len($grants) > 0;
 };
 DEFINE FUNCTION OVERWRITE fn::mt120_loom_block_access($block: string, $workspace: string, $action: string, $capability: string) {
+    LET $block_grant = fn::mt109_has_grant('loom_block', $block, $action, $capability);
+    IF !$block_grant { RETURN false; };
+    LET $workspace_grant = fn::mt109_has_workspace_access($workspace, 'read', 'fs.read');
+    IF !$workspace_grant { RETURN false; };
     LET $resource = (SELECT VALUE id FROM protected_resources
         WHERE resource_kind = 'loom_block' AND external_resource_id = $block LIMIT 1)[0];
-    LET $parent = $resource.parent_resource_id;
-    RETURN fn::mt109_has_grant('loom_block', $block, $action, $capability)
-        AND fn::mt109_has_workspace_access($workspace, 'read', 'fs.read')
-        AND $resource != NONE
-        AND $resource.resource_kind = 'loom_block' AND $resource.external_resource_id = $block
-        AND $resource.lifecycle_state = 'active' AND $resource.owner_account_id = $auth.account_id
-        AND $resource.access_space_id = $auth.access_space_id AND $resource.created_by_principal_id.status = 'enabled'
-        AND $parent.resource_kind = 'workspace'
-        AND $parent.external_resource_id = $workspace
-        AND $parent.lifecycle_state = 'active'
-        AND $parent.owner_account_id = $auth.account_id
-        AND $parent.access_space_id = $auth.access_space_id
-        AND $parent.created_by_principal_id.status = 'enabled'
-        AND array::len((SELECT id FROM resource_grants
-            WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id
-              AND access_space_id = $auth.access_space_id AND resource_id = $resource
-              AND status = 'active' AND revoked_at = NONE
-              AND (expires_at = NONE OR expires_at > time::now())
-              AND actions CONTAINS $action AND capability_ids CONTAINS $capability
-              AND delegation_chain = $auth.delegation_chain)) > 0;
+    IF !($resource != NONE) { RETURN false; };
+    IF !($resource.resource_kind = 'loom_block') { RETURN false; };
+    IF !($resource.external_resource_id = $block) { RETURN false; };
+    IF !($resource.lifecycle_state = 'active') { RETURN false; };
+    IF !($resource.owner_account_id = $auth.account_id) { RETURN false; };
+    IF !($resource.access_space_id = $auth.access_space_id) { RETURN false; };
+    IF !($resource.created_by_principal_id.status = 'enabled') { RETURN false; };
+    LET $parent_resource = $resource.parent_resource_id;
+    IF !($parent_resource.resource_kind = 'workspace') { RETURN false; };
+    IF !($parent_resource.external_resource_id = $workspace) { RETURN false; };
+    IF !($parent_resource.lifecycle_state = 'active') { RETURN false; };
+    IF !($parent_resource.owner_account_id = $auth.account_id) { RETURN false; };
+    IF !($parent_resource.access_space_id = $auth.access_space_id) { RETURN false; };
+    IF !($parent_resource.created_by_principal_id.status = 'enabled') { RETURN false; };
+    LET $acct = $auth.account_id;
+    LET $prin = $auth.principal_id;
+    LET $space = $auth.access_space_id;
+    LET $chain = $auth.delegation_chain;
+    LET $grants = SELECT id FROM resource_grants
+        WHERE account_id = $acct AND principal_id = $prin
+          AND access_space_id = $space AND resource_id = $resource
+          AND status = 'active' AND revoked_at = NONE
+          AND (expires_at = NONE OR expires_at > time::now())
+          AND actions CONTAINS $action AND capability_ids CONTAINS $capability
+          AND delegation_chain = $chain;
+    RETURN array::len($grants) > 0;
 };
 DEFINE FUNCTION OVERWRITE fn::mt120_loom_endpoint_access($block: option<record<loom_blocks>>, $workspace: string, $action: string, $capability: string) {
     IF $block = NONE OR $block.workspace_id != type::record('workspaces', $workspace) { RETURN false; };
