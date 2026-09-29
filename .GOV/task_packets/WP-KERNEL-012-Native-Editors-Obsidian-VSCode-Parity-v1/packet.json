@@ -197,13 +197,16 @@
     "operator_request": "lets fix the repo and mt/wp paperwork first. we have been doing tests with no result for the last 5 days for a single mt, this needs to be resolved",
     "change_basis": "Apply the requested paperwork repair to the inspected authority, scope and preparation defects; this record is not a product verdict or a new runtime run allowance.",
     "execution_scope": {
-      "current": "RESUMED_V15_DIAGNOSTIC_AND_REPAIR",
+      "current": "V19_FAILED_INNER_COST_UNRESOLVED",
       "product_execution": "Operator resumed existing V15 diagnostic and subsequent evidence-selected repair; preserve original acceptance and scoped limits",
       "previous_renewal": "MT-032.json#remediation_v15.operator_decision",
       "prior_attempts": "Retained without reset; previous renewals remain historical authority for their stated scope, not commands to override the current hold.",
       "resumed_by": "OPERATOR",
       "resume_operator_text": "do that, how is 150gb not enough? otherwise just leave the c disk?",
-      "target_instruction": "Verify C capacity and reuse first; Operator permits leaving C if needed. Do not raise the C cap or discard required evidence"
+      "target_instruction": "Verify C capacity and reuse first; Operator permits leaving C if needed. Do not raise the C cap or discard required evidence",
+      "latest_result_ref": "MT-032.json#remediation_v15.counter_target_repair.diagnostic_result",
+      "next_dependency": "Scoped evidence separating the affected-record counter UPDATE, its three count SELECTs, permission/grant evaluation and record/index writes; no further source change justified by current aggregate timings",
+      "escalation_policy_ref": "Pinned 896f4e15 CX-EXEC-003/003A; failed one-case V19 probe; unchanged assertion history; no post-pin lifetime cap"
     },
     "authority_resolution": {
       "pin": "896f4e15",
