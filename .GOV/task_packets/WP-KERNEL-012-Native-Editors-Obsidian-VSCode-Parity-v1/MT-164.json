@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-164",
   "created_at_utc": "2026-09-29T12:01:02Z",
-  "updated_at_utc": "2026-09-29T15:14:00Z",
+  "updated_at_utc": "2026-09-29T16:35:56Z",
   "identity": {
     "mt_id": "MT-164",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -245,7 +245,7 @@
     "claim_ref": "KERNEL_BUILDER-20260929-120102: Operator decision WP012-MT032-SPLIT-20260929-MT164 ('I claim MT-164 and a builder sub-agent implements it')",
     "completed_by": null,
     "next_actor": "WP_VALIDATOR",
-    "status_reason": "remediation_v1 re-pinned candidate de04b8f0 (pins from pin_measurement_2 on 4d4f7e12) with builder compile/static evidence; gameplan before_submit PASS (KB-PROOF-007).",
+    "status_reason": "Inconclusive on de04b8f0: all MT-164 tests pass; AC-164-4 medians not captured (config fixed 3db73ab0); awaiting capture decision.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN"
@@ -596,6 +596,104 @@
         "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-164/kb/logs/check-4",
         "static_diff_review": "de04b8f0 vs 4d4f7e12 changes only schema.rs pins: EXPECTED_SCHEMA_INFO_SHA256=ca2d667c..., EXPECTED_ATELIER_CATALOG_SHA256=06abcd42..., Loom receipt EXPECTED_CATALOG_SHA256 and mt109_loom_catalog test literal=07cc44c4... (validation.pin_measurement_2); PIN-MEASURE PENDING markers removed; PRE_MT109_AUTHORITY_INFO_SHA256, GENERATED and DECLARATIVE unchanged",
         "scope": "Implementer compile/static evidence only (CX-EXEC-014); runtime acceptance pending WP validator"
+      },
+      {
+        "proof_id": "PR-WP012-UNION-de04b8f0-CORE",
+        "executor_role": "WP_VALIDATOR",
+        "candidate_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df",
+        "frozen_at_utc": "2026-09-29T15:15:21Z",
+        "started_at": "2026-09-29T15:15:21.5051720Z",
+        "completed_at": "2026-09-29T16:32:17.6521541Z",
+        "command": "bash .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df core-only",
+        "entrypoint_commit": "8364cb31",
+        "config": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/nextest-core.toml sha256 a974ab0c... (pre-3db73ab0 config)",
+        "scope": "core-only: handshake_core --lib (CORE_FILTER) + 22 integration binaries, handshake_document and handshake_storage_support unit targets; native phase skipped",
+        "results": {
+          "core": {
+            "tests": 254,
+            "failed": 5,
+            "runner_exit": 100,
+            "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-core.xml",
+            "sha256": "809dd90dc1c7039666dc0422ec53c29eb7b8b584661461d56c2cec7f4e40a848"
+          },
+          "handshake_document": {
+            "tests": 41,
+            "failed": 0,
+            "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-handshake_document.xml",
+            "sha256": "71958d0a1fd42d401ab2c067e2a7abb6feca163b06603a8fd09b9b0c6b9a5f1d"
+          },
+          "handshake_storage_support": {
+            "tests": 34,
+            "failed": 0,
+            "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-handshake_storage_support.xml",
+            "sha256": "b24792ad92f9fe027dc3345e8cb6ebd44373a302ea7029fd4004d8c4630c2c89"
+          },
+          "stack_overflows": {
+            "count": 5,
+            "ee9efaba": 59,
+            "baseline_8ea13a9b": 5,
+            "cases": [
+              {
+                "test": "api::loom::tests::mt153_loom_route_family_authority_matrix",
+                "thread": "test thread"
+              },
+              {
+                "test": "api::workspaces::tests::mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows",
+                "thread": "test thread"
+              },
+              {
+                "test": "mt154_non_loom_route_authority_tests::mt154_stage_routes_authority",
+                "thread": "tokio-rt-worker"
+              },
+              {
+                "test": "wp_kernel_012_native_editor_routes_tests::route2_stage_artifact_create_and_resolve",
+                "thread": "tokio-rt-worker"
+              },
+              {
+                "test": "wp_kernel_012_native_editor_routes_tests::stage_flight_projection_failure_returns_500_and_retry_heals_once",
+                "thread": "tokio-rt-worker"
+              }
+            ],
+            "note": "All 5 failed identically at 8ea13a9b (pre-MT-164); 55 cases failing at ee9efaba now pass."
+          }
+        },
+        "logs": {
+          "stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.stdout.log",
+          "stdout_sha256": "22ed6dd5e66ee227735f1af48df6edf264e6a47809fc63cabefdbbcb72b2a031",
+          "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.stderr.log",
+          "stderr_sha256": "9d3daa96e40a9c8539ab55777dc4c7bd738fe1c80e2409e7e3bd12d0ce18f3c7",
+          "running_record": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.identity.json",
+          "exit_record": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.exit.json",
+          "observations": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.observations.jsonl",
+          "results_map": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-core-results.json",
+          "results_map_sha256": "e2b5e10354c7e17d8898617a6132ed0cc97a9c66f6a448a6bd56018e00e9b8dc"
+        },
+        "capacity": {
+          "start_bytes": 88074041473,
+          "peak_bytes": 113716599448,
+          "end_bytes": 113693722714,
+          "stop_bytes": 147000000000,
+          "protective_stop": false,
+          "cleanup_before": false
+        },
+        "infrastructure_finding": {
+          "failure_kind": "infrastructure",
+          "failure_class": "ENTRYPOINT-SUCCESS-OUTPUT-NOT-CAPTURED",
+          "detail": "Config had no success-output, so the passing timing test printed values were discarded (not in stderr log or JUnit).",
+          "fix_commit": "3db73ab0 (per-test override success-output=final; lane config synced; pin-measure hash updated)"
+        },
+        "covers": [
+          "MT-136",
+          "MT-157",
+          "MT-158",
+          "MT-159",
+          "MT-164"
+        ],
+        "observed": [
+          "MT-154",
+          "MT-155"
+        ],
+        "owning_mt": "MT-164"
       }
     ],
     "pin_measurement": {
@@ -1005,5 +1103,86 @@
       "proof_record_check_id": "MT-164-BUILDER-COMPILE (validation.proof_records, candidate 4d4f7e12)",
       "repin_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df"
     }
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR-20260929-MT164-ROUND2",
+    "validated_at_utc": "2026-09-29T16:35:56Z",
+    "candidate_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df",
+    "proof_records_ref": "MT-164.json#validation.proof_records[PR-WP012-UNION-de04b8f0-CORE]",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-core.xml",
+    "started_at": "2026-09-29T15:15:21.5051720Z",
+    "completed_at": "2026-09-29T16:32:17.6521541Z",
+    "mapped_cases": {
+      "resource_authority_tests": "PASS 16/16 incl grant_check_cost_is_independent_of_grant_count (28.1 s)",
+      "schema_pin_upgrade_tests": "PASS 13/13 incl indexed_grant_revision_161 upgrade and all re-pinned pin tests",
+      "ac_164_3_union_selections": "PASS except 5 stack-overflow aborts that failed identically at 8ea13a9b (MT-154/MT-153 stage/loom scope, not MT-164)"
+    },
+    "unclosed_required_proof": [
+      "AC-164-4 evidence: printed medians and ratio not captured (success output discarded by entrypoint config)"
+    ],
+    "acceptance": {
+      "AC-164-1": "met (static review de04b8f0: resolve-first, LET-bound $auth values, 4-field equality)",
+      "AC-164-2": "met: early-exit chain preserves each old condition; authority/denial tests 16/16 pass",
+      "AC-164-3": "met: all MT-164-induced regressions from FAIL_V1 fixed (55 cases); remaining 5 aborts pre-date MT-164",
+      "AC-164-4": "thresholds met (test passed: ratio < 2.0 and every median < 250 ms asserted, non-vacuous and no-grant probes asserted); measured values NOT recorded",
+      "AC-164-5": "met",
+      "AC-164-6": "met"
+    },
+    "timing": {
+      "values": "not captured this round",
+      "asserted_bounds": "median(N=500)/median(N=50) < 2.0 for both metrics; each median < 250 ms"
+    },
+    "stack_overflows": {
+      "count": 5,
+      "ee9efaba": 59,
+      "baseline_8ea13a9b": 5,
+      "cases": [
+        {
+          "test": "api::loom::tests::mt153_loom_route_family_authority_matrix",
+          "thread": "test thread"
+        },
+        {
+          "test": "api::workspaces::tests::mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows",
+          "thread": "test thread"
+        },
+        {
+          "test": "mt154_non_loom_route_authority_tests::mt154_stage_routes_authority",
+          "thread": "tokio-rt-worker"
+        },
+        {
+          "test": "wp_kernel_012_native_editor_routes_tests::route2_stage_artifact_create_and_resolve",
+          "thread": "tokio-rt-worker"
+        },
+        {
+          "test": "wp_kernel_012_native_editor_routes_tests::stage_flight_projection_failure_returns_500_and_retry_heals_once",
+          "thread": "tokio-rt-worker"
+        }
+      ],
+      "note": "All 5 failed identically at 8ea13a9b (pre-MT-164); 55 cases failing at ee9efaba now pass."
+    },
+    "remediation_scope_note": "Operator-approved scope widening (main.rs, storage/tests.rs 10 MiB stacks) verified as stack-size-only diffs.",
+    "blocker": {
+      "failure_kind": "infrastructure",
+      "failure_class": "ENTRYPOINT-SUCCESS-OUTPUT-NOT-CAPTURED",
+      "fixed_by": "3db73ab0",
+      "needed_decision": "Authorize one capture run of the timing test on unchanged de04b8f0 (CX-EXEC-014 recorded remediation) or accept assertion-bounded evidence for AC-164-4"
+    },
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT164-de04b8f0-union-verdict",
+        "at_utc": "2026-09-29T16:35:56Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT164-de04b8f0-union-verdict",
+        "at_utc": "2026-09-29T16:35:56Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
+      }
+    ]
   }
 }
