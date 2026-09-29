@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-166",
   "created_at_utc": "2026-09-29T18:50:00Z",
-  "updated_at_utc": "2026-09-29T19:30:00Z",
+  "updated_at_utc": "2026-09-29T20:59:56Z",
   "identity": {
     "mt_id": "MT-166",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -565,7 +565,75 @@
         "d_disk_check": "no cargo/rustc/link processes (Win32_Process scan) before launch",
         "scope": "Implementer compile/static evidence only (CX-EXEC-014); pin measurement and runtime acceptance pending WP validator"
       }
-    ]
+    ],
+    "pin_measurement_1": {
+      "id": "MT166-PIN-MEASURE-20260929",
+      "state": "COMPLETED_MEASUREMENT_ONLY",
+      "kind": "measurement_not_attempt",
+      "executor_role": "WP_VALIDATOR",
+      "candidate_commit": "e012e80dede1385f529ef1736c2cbdc30ffea48b",
+      "started_at_utc": "2026-09-29T20:39:29.7068623Z",
+      "completed_at_utc": "2026-09-29T20:58:52.2704505Z",
+      "script": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-164-pin-measure.sh (per-SHA marker; config 491c9153)",
+      "command": "bash MT-164-pin-measure.sh e012e80dede1385f529ef1736c2cbdc30ffea48b ../wtc-native-editors-v1 ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52 ../gov_runtime/tools/cargo-nextest/0.9.146/cargo-nextest.exe ../Handshake_Artifacts",
+      "launcher": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/observe-pin-measure-e012e80d.ps1 (gameplan wp_validator before_round PASS 28/28)",
+      "results": {
+        "runner_exit": 100,
+        "tests": 5,
+        "declarative_schema_catalog_is_complete_and_content_sensitive": "PASS: GENERATED ad8af766... and DECLARATIVE 50d3244b... (schema.rs:3028-3029, 3053-3054) match",
+        "mt109_authority_catalog_pins_are_deterministic": "FAIL schema.rs:9012 (INFO pin pending; 2 fresh stores deterministic)",
+        "mt109_loom_catalog_dependencies_are_complete_and_deterministic": "FAIL schema.rs:8932 (Loom literal pending; 2 fresh stores equal)",
+        "mt139_current_schema_info_pin_matches_fresh_mem_catalog": "FAIL schema.rs:9046 (INFO pin pending)",
+        "mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin": "FAIL schema.rs:8024 UNEXPECTED: assert_eq!(authority_catalog_names(\"function\").len(), 16) observed 17 (MT-166 added an authority helper function); fingerprint printed once before the count assert; second-store determinism and pin comparison not reached",
+        "stack_overflows": 0
+      },
+      "measured_pins": {
+        "EXPECTED_SCHEMA_INFO_SHA256": {
+          "location": "schema.rs:3124-3125 @e012e80d",
+          "pinned": "ca2d667c22b022170d1e1ec6419dcd809bdeca385fae9cd972205a89ff9af573",
+          "measured": "81a9de3dfbaaf65fdbd2e57ad31e9bec7dd01865e871819d4bf4664cb13a718d",
+          "sources": "MT139_CURRENT_SCHEMA_INFO_SHA256 and MT109_CURRENT_AUTHORITY_INFO_SHA256 agree"
+        },
+        "EXPECTED_ATELIER_CATALOG_SHA256": {
+          "location": "schema.rs:3143-3144 @e012e80d",
+          "pinned": "06abcd428ba60a72ad66d7d0f9a9b9b9331dba1c871c791a3078dcbed3a9b998",
+          "measured": "e98e231c40f88f614b4ed36bbe0990406f0851ea86ba15177e85b02c2ea0271a",
+          "caveat": "single store only; determinism unconfirmed because the count assert at :8024 panicked first"
+        },
+        "LOOM_RECEIPT_EXPECTED_CATALOG_SHA256": {
+          "location": "schema.rs:4024-4025 and test literal :8934 @e012e80d",
+          "pinned": "07cc44c4f68e05f89698dfa9a1eb5a34b0807d57618ead55ff9b572cfe41e718",
+          "measured": "6a224fa74f38e204df71ddfe1a7d4e162bd2c5ee1d2c4900e2fcc506d2fa5b74"
+        },
+        "PRE_MT109_AUTHORITY_INFO_SHA256": "measured 8803fbcc... equals committed pin; unchanged"
+      },
+      "builder_action_required": [
+        "re-pin the three values",
+        "update schema.rs:8024 authority function count 16 -> 17 (and its comment) if the new helper is intended in the authority core",
+        "note: SCHEMA_REVISION still 162 at e012e80d although five grant/ledger fn bodies changed; check the AC for a predecessor-upgrade path (UNVERIFIED whether required)"
+      ],
+      "outputs": {
+        "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-e012e80dede1385f529ef1736c2cbdc30ffea48b-mt164-pin-measure.xml",
+        "junit_sha256": "08c5bd134c8b7931b59b0f07368633c383c61b1e84044a325894557c860232c4",
+        "tests_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt164-pin-measure-e012e80dede1385f529ef1736c2cbdc30ffea48b.tests.log",
+        "tests_log_sha256": "40be4186b5f4fc4ef000c7ce310ce803b9544aa2bc9eb18a90363ea53a9efc1f",
+        "pins": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt164-pin-measure-e012e80dede1385f529ef1736c2cbdc30ffea48b.pins.txt",
+        "pins_sha256": "d8a4e5c3549a90871cda3db74b4507dbe64073bd2cb57a6e6ab068f713b836c0",
+        "binary": "debug/deps/handshake_core-14c0765c00d86fa1.exe sha256 db2e143851d4f55697fd871c5578714fab32435d4c3b7cd50e4bcb9792730d90",
+        "identity": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt164-pin-measure-e012e80dede1385f529ef1736c2cbdc30ffea48b.identity.json",
+        "exit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt164-pin-measure-e012e80dede1385f529ef1736c2cbdc30ffea48b.exit.json",
+        "observations": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt164-pin-measure-e012e80dede1385f529ef1736c2cbdc30ffea48b.observations.jsonl",
+        "capacity_admission": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/capacity-mt164-pin-measure-e012e80d-admission.json"
+      },
+      "capacity": {
+        "C_before_bytes": 87579111459,
+        "C_peak_bytes": 90417638677,
+        "stop_bytes": 147000000000,
+        "protective_stop": false
+      },
+      "budget_effect": "measurement_not_attempt; marker MT164-PIN-MEASURE-e012e80d.started consumed",
+      "lifecycle_effect": "none; no verdict"
+    }
   },
   "implementation_record": {
     "recorded_at_utc": "2026-09-29T19:30:00Z",
