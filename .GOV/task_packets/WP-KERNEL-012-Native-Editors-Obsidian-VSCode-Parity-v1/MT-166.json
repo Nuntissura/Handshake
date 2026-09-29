@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-166",
   "created_at_utc": "2026-09-29T18:50:00Z",
-  "updated_at_utc": "2026-09-29T18:50:00Z",
+  "updated_at_utc": "2026-09-29T19:30:00Z",
   "identity": {
     "mt_id": "MT-166",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -176,8 +176,8 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "BLOCKED",
-    "blocked_on": "MT-166 open fix: builder implementation commit not yet pushed",
+    "status": "READY_FOR_VALIDATION",
+    "blocked_on": null,
     "depends_on": [],
     "blocks": [],
     "active": true,
@@ -186,10 +186,11 @@
     "claimed_at_utc": "2026-09-29T18:50:00Z",
     "claim_ref": "Operator decision 2026-09-29 'both approved'",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER",
-    "status_reason": "Created and claimed; implementation pending.",
+    "next_actor": "WP_VALIDATOR",
+    "status_reason": "Pushed e012e80d with builder compile evidence; gameplan before_submit PASS. Runtime pins need validator PIN-MEASURE before the confirming round (AC-166-5).",
     "rounds_without_output": 0,
-    "diagnosis_refs": []
+    "diagnosis_refs": [],
+    "candidate_commit": "e012e80dede1385f529ef1736c2cbdc30ffea48b"
   },
   "scope": {
     "summary": "The two remaining resource_grants queries SurrealDB 3.2's planner cannot index (protected_resources select permission, fn::mt109_ledger_access) compare against bound literals so resource_grants_exact_idx serves all four fields; allow/deny semantics unchanged. Follow-up to diagnosis MT164-GRANT-AUTH-IDIOM-NOT-INDEXABLE.",
@@ -544,6 +545,79 @@
     ]
   },
   "validation": {
-    "proof_records": []
+    "proof_records": [
+      {
+        "check_id": "MT-166-BUILDER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "covered_mts": [
+          "MT-166"
+        ],
+        "candidate": "e012e80dede1385f529ef1736c2cbdc30ffea48b",
+        "crate": "handshake_core",
+        "command": "cd src/backend/handshake_core && CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-164/kb/target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only cargo check --locked --tests -j 8 --features app-runtime,surreal-test-support,test-utils",
+        "target_note": "Reused the MT-164/kb warm target (same crate and features, MT-164 closed) as the dispatch permits; logs/TMP under MT-166/kb",
+        "started_at_utc": "2026-09-29T19:21:29Z",
+        "completed_at_utc": "2026-09-29T19:26:50Z",
+        "exit": 0,
+        "result": "pass; 0 errors; only pre-existing schema.rs dead-code warnings (identical to the MT-164 baseline); rustfmt --check clean on schema.rs and resource_authority_tests.rs",
+        "input_digest_before_after": "equal (git hash-object schema.surql 54ca4fef, schema.rs 656b1ba7, resource_authority_tests.rs f3957169); committed tree e012e80d contains these blobs",
+        "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-166/kb/logs/check-1",
+        "d_disk_check": "no cargo/rustc/link processes (Win32_Process scan) before launch",
+        "scope": "Implementer compile/static evidence only (CX-EXEC-014); pin measurement and runtime acceptance pending WP validator"
+      }
+    ]
+  },
+  "implementation_record": {
+    "recorded_at_utc": "2026-09-29T19:30:00Z",
+    "executor_role": "KERNEL_BUILDER",
+    "claim_ref": "KERNEL_BUILDER-20260929-185000",
+    "base_commit": "16b43aff584284197cd112b0bc05cce9cb5e56e5",
+    "commit": "e012e80dede1385f529ef1736c2cbdc30ffea48b",
+    "pushed": true,
+    "changed_files": {
+      "src/backend/handshake_core/src/storage/surreal/schema.surql": "protected_resources select PERMISSIONS last term -> fn::mt166_resource_select_grant(id); new helper fn defined immediately before fn::mt109_ledger_access; fn::mt109_ledger_access flattened with LET-bound $auth ids",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs": "MT166_GRANT_FUNCTIONS re-emitted with the MT-164 functions + protected_resources table statement in indexed_grant_upgrade_statements (rev-161/160 paths) and schema_delta_upgrade_statements (older paths); restore_pre_indexed_grant_schema also undoes MT-166 (helper removed, rev-161 ledger_access and inline grant line restored; static check reproduces 009ee238); FUNCTION_DEFINITION_COUNT 55->56; GENERATED ad8af766...; DECLARATIVE 50d3244b...; INFO/Atelier/Loom PIN-MEASURE PENDING",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs": "sibling timing test resource_select_and_ledger_access_cost_is_independent_of_grant_count (AC-166-4)"
+    },
+    "ac_166_2_form": "Helper function fn::mt166_resource_select_grant($resource: record<protected_resources>) called from the select PERMISSIONS as fn::mt166_resource_select_grant(id). A PERMISSIONS clause cannot declare LET, and $parent.id / $auth.* are Param-rooted idioms the 3.2.0 exec planner does not fold (exec/planner/util/params.rs replaces only bare Expr::Param). UDF arguments are bound with with_param (exec/physical_expr/function/user_defined.rs:41-55) and the helper LET-binds $auth.account_id/principal_id/access_space_id, so all four resource_grants_exact_idx columns compare to literals. The helper inherits skip_fetch_perms in the predicate context (user_defined.rs:83), so its SELECT runs perms-off exactly like the old inline subquery. Choice: a helper fn (not reusing an existing fn) because no existing function has these exact six conditions.",
+    "condition_mapping_protected_resources_select": [
+      "lifecycle_state = 'active' -> unchanged (inline)",
+      "owner_account_id = $auth.account_id -> unchanged (inline)",
+      "access_space_id = $auth.access_space_id -> unchanged (inline)",
+      "owner_account_id.status = 'enabled' -> unchanged (inline)",
+      "created_by_principal_id.status = 'enabled' -> unchanged (inline)",
+      "access_space_id.status = 'active' -> unchanged (inline)",
+      "grant subquery resource_id = $parent.id -> helper resource_id = $resource (called with id, the same record)",
+      "status = 'active' -> helper status = 'active'",
+      "revoked_at = NONE -> helper revoked_at = NONE",
+      "(expires_at = NONE OR expires_at > time::now()) -> helper identical",
+      "account_id = $auth.account_id -> helper account_id = $acct (LET $acct = $auth.account_id)",
+      "principal_id = $auth.principal_id -> helper principal_id = $prin (LET)",
+      "access_space_id = $auth.access_space_id -> helper access_space_id = $space (LET)",
+      "array::len(...) > 0 -> helper RETURN array::len($grants) > 0"
+    ],
+    "condition_mapping_ledger_access": [
+      "fn::mt109_live_session() -> LET $live; IF !$live RETURN false",
+      "$session != NONE -> IF !($session != NONE)",
+      "$session = $auth.id -> IF !($session = $auth.id)",
+      "$resource != NONE -> IF !($resource != NONE)",
+      "$capability != NONE -> IF !($capability != NONE)",
+      "$action != NONE -> IF !($action != NONE)",
+      "delegated_capabilities '*' OR $capability -> IF !(same OR)",
+      "grant status/revoked_at/expiry -> grant WHERE identical",
+      "account_id/principal_id/access_space_id = $auth.* -> grant WHERE = $acct/$prin/$space (LET-bound)",
+      "resource_id = $resource -> grant WHERE resource_id = $resource (unchanged)",
+      "resource_id.lifecycle_state = 'active' -> IF !($resource.lifecycle_state = 'active') (resource_id = $resource, same record)",
+      "resource_id.owner_account_id = $auth.account_id -> IF !($resource.owner_account_id = $auth.account_id)",
+      "resource_id.access_space_id = $auth.access_space_id -> IF !($resource.access_space_id = $auth.access_space_id)",
+      "actions CONTAINS $action AND capability_ids CONTAINS $capability -> grant WHERE identical",
+      "delegation_chain = $auth.delegation_chain -> grant WHERE delegation_chain = $chain (LET)",
+      "(resource_id.resource_kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler')) -> LET $not_reconciliation = $resource.resource_kind != 'reconciliation_queue'; grant WHERE ($not_reconciliation OR (identical principal clause))",
+      "array::len(...) > 0 -> RETURN array::len($grants) > 0"
+    ],
+    "equivalence_note": "Moving resource_id.* checks out of the grant WHERE is exact because every candidate row has resource_id = $resource, so each check reads the same record; a dangling $resource gives NONE and false in both forms. Early exits are pure reads with no side effects.",
+    "revision_decision": "No new revision: 162 is unreleased and re-pinned in place (MT-164 precedent); the rev-161->162 upgrade and older paths re-emit the helper, ledger access and protected_resources table from SCHEMA.",
+    "ac_166_4_test": "storage::surreal::resource_authority_tests::resource_select_and_ledger_access_cost_is_independent_of_grant_count: N=50/500 (3 base grants + fillers), metric (iii) record-user SELECT of a granted protected_resources row, metric (iv) record-user SELECT of a native-editor kernel_event_ledger receipt whose select PERMISSIONS run ledger_reader -> ledger_producer -> ledger_access on the granted flight_recorder resource (principal holds fr.ingest.native_editor); median of 5 after 1 warm-up, ratio < 2.0, medians < 250 ms, every timed probe returns its row, denied probes (ungranted protected_resources row; receipt whose authority resource has no fr.ingest.native_editor grant) return nothing; the harness removes the store (CX-GIT-003).",
+    "pin_status": "GENERATED ad8af766863b079f8eb2f37d5f8bb7f973319a981e7e25f950a5c00095bc5667 (sha256 of committed schema.surql); DECLARATIVE 50d3244b292a63e7928a04ce9fc9f7c575580531f20167441b6e802cdfc27a8e (static replica of compiled_schema_catalog_entries, reproduces previous a50bd154 on the unchanged source); EXPECTED_SCHEMA_INFO_SHA256, EXPECTED_ATELIER_CATALOG_SHA256, Loom EXPECTED_CATALOG_SHA256 (+ mt109_loom_catalog test literal) PIN-MEASURE PENDING (4d4f7e12 values retained)."
   }
 }
