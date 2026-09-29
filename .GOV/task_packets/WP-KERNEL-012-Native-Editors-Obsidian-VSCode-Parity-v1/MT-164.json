@@ -678,6 +678,79 @@
       "budget_effect": "measurement_not_attempt; consumes no attempt_budget or rounds_without_output; marker MT164-PIN-MEASURE.started consumed",
       "lifecycle_effect": "none; no verdict; status unchanged",
       "next_step": "Builder re-pins the three measured values in schema.rs (keep PRE_MT109 pin); then WP validator union round on the re-pinned pushed candidate"
+    },
+    "pin_measurement_2": {
+      "id": "MT164-PIN-MEASURE-2-20260929",
+      "state": "COMPLETED_MEASUREMENT_ONLY",
+      "kind": "measurement_not_attempt",
+      "executor_role": "WP_VALIDATOR",
+      "purpose": "remediation_v1 candidate after FAIL_V1; builder re-pins then confirming union round",
+      "candidate_commit": "4d4f7e12b86eb1bcc8ce23946e92b3a6f8154c1d",
+      "started_at_utc": "2026-09-29T14:58:40Z",
+      "tests_invoked_at_utc": "2026-09-29T15:06:16Z",
+      "completed_at_utc": "2026-09-29T15:07:21.8231172Z",
+      "script": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-164-pin-measure.sh",
+      "script_commit": "69e2376b (one-shot marker per candidate SHA)",
+      "command": "bash MT-164-pin-measure.sh 4d4f7e12b86eb1bcc8ce23946e92b3a6f8154c1d ../wtc-native-editors-v1 ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52 ../gov_runtime/tools/cargo-nextest/0.9.146/cargo-nextest.exe ../Handshake_Artifacts",
+      "launcher": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/observe-pin-measure-4d4f7e12.ps1 (gameplan wp_validator before_round PASS 28/28)",
+      "config_sha256": "a974ab0cc35118a5e825b4f8af8f131360c92ca4de11d87293f0d08368123d2a (= WPV-nextest-core.toml)",
+      "results": {
+        "runner_exit": 100,
+        "tests": 5,
+        "declarative_schema_catalog_is_complete_and_content_sensitive": "PASS (GENERATED and DECLARATIVE pins match)",
+        "pin_tests": "4 FAIL, all expected pin mismatches (schema.rs:8931, 8851, 8320, 8965)",
+        "unexpected_failures": "none; no stack overflow (0 occurrences in tests.log); no TIMEOUT"
+      },
+      "measured_pins": {
+        "EXPECTED_SCHEMA_INFO_SHA256": {
+          "location": "schema.rs:3048 @4d4f7e12",
+          "pinned": "50b06dab0370f14fce0b3591b94abf87420957aa8258117f40563f42be3d29b4",
+          "measured": "ca2d667c22b022170d1e1ec6419dcd809bdeca385fae9cd972205a89ff9af573",
+          "sources": "MT139_CURRENT_SCHEMA_INFO_SHA256 and MT109_CURRENT_AUTHORITY_INFO_SHA256 agree"
+        },
+        "EXPECTED_ATELIER_CATALOG_SHA256": {
+          "location": "schema.rs:3065 @4d4f7e12",
+          "pinned": "c18095249805f8822a3a23aea6f58d1866522584f097b715c3957e66346af052",
+          "measured": "06abcd428ba60a72ad66d7d0f9a9b9b9331dba1c871c791a3078dcbed3a9b998",
+          "sources": "printed twice (two fresh canonical stores equal)"
+        },
+        "LOOM_RECEIPT_EXPECTED_CATALOG_SHA256": {
+          "location": "schema.rs:3943-3944 and test literal :8853 @4d4f7e12",
+          "pinned": "e02993e2ec6ec2195d8de737b3c5a62b332b1d3105a889c5179b083c2932d5fb",
+          "measured": "07cc44c4f68e05f89698dfa9a1eb5a34b0807d57618ead55ff9b572cfe41e718",
+          "sources": "MT109_LOOM_CATALOG_SHA256 (two fresh bounded stores equal)"
+        },
+        "PRE_MT109_AUTHORITY_INFO_SHA256": "measured 8803fbcc... equals committed pin schema.rs:3316-3317; unchanged"
+      },
+      "outputs": {
+        "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d4f7e12b86eb1bcc8ce23946e92b3a6f8154c1d-mt164-pin-measure.xml",
+        "junit_sha256": "581f2358e314831aff9c65d1be08ddf1bc6da1473b1f77840330f745134b834a",
+        "tests_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt164-pin-measure-4d4f7e12b86eb1bcc8ce23946e92b3a6f8154c1d.tests.log",
+        "tests_log_sha256": "9d3d493d84b94910ed79dd55168e8bacf165449c2822b2a59c9c0bc99713319a",
+        "pins": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt164-pin-measure-4d4f7e12b86eb1bcc8ce23946e92b3a6f8154c1d.pins.txt",
+        "pins_sha256": "7c49f8ce59b44358fd5ca41e9f37752a91d0678918ba005ddd27fb8f1eeabbe9",
+        "binary": "debug/deps/handshake_core-f3df03b40e792654.exe sha256 13c2f3a35c5fdc92da5a1c7ecd3294b7c9eff36a083235f291b8ab6d2ca265d7",
+        "source_sha256": {
+          "schema.surql": "1d6109d84aa9bbe146572040408f23c2e10d3a90261c961c973a824dc205438d",
+          "schema.rs": "9cf9885ffc83918a3dc325e41d2d64be0b024154df3e197faae3f129036ca27b"
+        },
+        "identity": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt164-pin-measure-4d4f7e12b86eb1bcc8ce23946e92b3a6f8154c1d.identity.json",
+        "exit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt164-pin-measure-4d4f7e12b86eb1bcc8ce23946e92b3a6f8154c1d.exit.json",
+        "observations": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt164-pin-measure-4d4f7e12b86eb1bcc8ce23946e92b3a6f8154c1d.observations.jsonl",
+        "capacity_admission": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/capacity-mt164-pin-measure-4d4f7e12-admission.json"
+      },
+      "capacity": {
+        "target": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
+        "before_bytes": 86382449321,
+        "peak_observed_bytes": 88074041473,
+        "after_bytes": 88074041473,
+        "stop_bytes": 147000000000,
+        "protective_stop_triggered": false,
+        "cleanup": false
+      },
+      "budget_effect": "measurement_not_attempt; no attempt_budget or rounds_without_output change; marker MT164-PIN-MEASURE-4d4f7e12.started consumed",
+      "lifecycle_effect": "none; no verdict; status unchanged",
+      "next_step": "Builder re-pins the three values in schema.rs; WP validator confirming union round on the pushed re-pin"
     }
   },
   "hbr_swarm_allocation": "Grant-count independence directly serves multi-agent use (many grants per principal); parallel-lane behavior evidence stays with existing WP swarm proofs; no new waiver.",
