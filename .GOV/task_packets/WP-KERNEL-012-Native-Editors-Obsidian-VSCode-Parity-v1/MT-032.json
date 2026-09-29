@@ -50,6 +50,23 @@
   "remediation_v15": {
     "create_first_repair": {
       "state": "FOCUSED_CORE_AUTH_PROOF_PASSED_FULL_MT_ACCEPTANCE_PENDING",
+      "acceptance_union": {
+        "state": "CAPACITY_ADMITTED_OBSERVERS_PREPARING_NO_RUNTIME",
+        "candidate": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
+        "entrypoint": "WPV-union-round.sh",
+        "entrypoint_sha256": "1E06DABDF7D6BC3C51566F484729AD724A8625893B44A35340EAE42F341BFBAE",
+        "lane_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x",
+        "wrapper": "observe-acceptance-8ea13a9b.ps1",
+        "wrapper_sha256": "DEC55C35A4CB2D77406EF3C7AE7C4FF50B420FA29FCEA4AE94C98557DE1D5E29",
+        "capacity_observer_sha256": "B023A092FAB186D7214F8116B79B3D6AAE667ED79382F7DAE91A6CF603EFE5E3",
+        "watcher_sha256": "D6358F12A22B4CA30962473C873BE84405CA6A26CC80BFE0FE31D18AE024C2C4",
+        "configuration": "Governed core A974AB0CC35118A5E825B4F8AF8F131360C92CA4DE11D87293F0D08368123D2A and native D828376108C1D72836B94677F1612378095310DEE2ED96E2ED12ACB3929706A8 byte-equal execution copies; existing full union selection and deadlines unchanged",
+        "capacity": {"admission":"capacity-v18-union-8ea13a9b-admission.json","admission_sha256":"60A9813D8F59374756C7E19D0D66186AEF047920A10DE8A5809E3B099C05277F","current_C_bytes":105821397363,"forecast_bytes":146054402035,"scratch_reserve_bytes":4000000000,"stop_bytes":147000000000,"cap_bytes":150000000000,"forecast_is_bound":false},
+        "retention": {"manifest":"retained-v18-union-native-history/manifest.json","manifest_sha256":"F6F6A40AC744A32D018BA0D9E03CA12EB511C60065232D5B004D1F3A0DA28C04","files":472,"bytes":36642594304,"parent_hash_proof":"retained-v18-union-native-history/parent-copy-hashes.jsonl","parent_hash_proof_sha256":"15FD943283885CE822B5A65DE3843662E81AC8334E95555D0A3B1BE29838C12B","verification":"Parent independently hashed every D copy; all matched. Exact C originals released with fresh identity/exclusive/no-use checks. Parent re-read C total and verified every source absent and retained copy present. Dependencies, current proof outputs, exports and evidence preserved."},
+        "vault_prerequisite": {"receipt":"gp043-vault-probe-ddd15d96-71d3-457b-928f-4aec3dfbe9f2.json","sha256":"5003A400F689C6A7CDFCF2AB9F94347DD6E77D0AD3799B6D5EF9A9902D77A563","result":"Fresh write/read/equality/delete/final-absence passed; zero orphan"},
+        "reuse": "Three-case V18 green core proof retained separately; full union does not select those cases. Other required targets rebuild on current source/configuration provenance.",
+        "timing_limit": "Existing receipt watcher omits lookup_performed; reconcile retained raw records. Skipped lookup is not measured zero. No new diagnostic or acceptance credit."
+      },
       "core_execution_final": {"outer_wrapper_and_tool_exit":0,"owned_observed_pids":17,"survivors":0,"absence_verified_utc":"2026-09-28T23:56:43.594Z","capacity_samples":20,"peak_C_bytes":144003778742,"canonical_final_C_bytes":142463991667,"cap_breaches":0,"retained_and_export_junit_match":true,"exit_sha256":"6B380EA7C22A0A583BCE00EDBA85856C0586B0F11ED4EFEE1A5A890ECF1034D9","observations_sha256":"735ED899095A8823C983CABF105BB894BAB9643C87F172DA46FDE4C2730C66F8","test_binary":"handshake_core-5d8d0d56e9fcbbd4.exe","binary_sha256":"C9D21662F6548C39F80FBECE9FE5B2A4E619C5C19F8B660F56F1EF0EB8F38E75","independent_verifier":"/root/technical_failure; exact candidate/export/marker/dep-info reconciled"},
       "core_result": {"candidate":"8ea13a9b6650eecc819acfacbbf0c5d8299e9f75","passed":3,"failed":0,"suite_seconds":17.206,"new_real_auth_test_seconds":16.225,"bash_exit":0,"capacity_observer_exit":0,"junit_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75-mt032-v18-create-first-core-proof-core.xml","junit_sha256":"55AD01CACC738A8A2B0B4885B39C40D2CD059D06C55E069E950A24130E07C426","parent_verification":"Opened exact retained JUnit and exit JSON; all three selected cases executed and passed","scope":"Real record-user document create/replay/conflict/concurrency/readable-replay/denial behavior plus original unscoped replay and decoder controls. No native deadline, latency gain or full MT acceptance established; reuse this result while relevant inputs remain unchanged."},
       "static_proof_ref": "MT-154.json#validation.proof_records",
@@ -74,7 +91,7 @@
       "diagnostic_scope": "Remove failed optional EXPLAIN product feature and its feature-only tests; retain baseline receipt timings and all product replay/conflict/denial proof. Preserve V16/V17 commits, failed results and consumed helpers. Do not run another plan diagnostic.",
       "builder": "/root/contract_complexity",
       "independent_reviewer": "/root/technical_failure",
-      "next_gate": "Stable D compile/static checks and fresh capacity admission before independent three-case core proof; focused changed-behavior proof before unchanged full MT acceptance. No speedup established."
+      "next_gate": "Compile/static and three-case core proof passed; run existing full acceptance union after live observer identity and parent release checks. No native speedup or MT032 acceptance established."
     },
     "lookup_plan_diagnostic": {
       "shape_repair": {
