@@ -48,10 +48,11 @@
     "historical_fields": "Dated lifecycle notes and remediation_v1..v14 retain their original wording as history. Current execution scope is packet.json#paperwork_reconciliation_20260928.execution_scope; historical deadline shorthand does not override unchanged executable client deadlines."
   },
   "remediation_v15": {
+    "counter_target_repair": {"state":"IMPLEMENTING_AWAITING_COMPILE_STATIC_AND_SINGLE_LIVE_PROBE","candidate":"4e7b14ba83e686412707fa6e2a5088e3888f2ec3","base_candidate":"8ea13a9b6650eecc819acfacbbf0c5d8299e9f75","failure_ref":"validation_v14","assertion":"live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof: first linked PUT save must complete within existing 10s and continue all original live assertions","observed":"request 01a0eb3e-d39f-7510-9be4-fc1b2733da96 dropped at10001ms; backlink query365 statement5 affected-block counter loop3363507us; full own native23/24","prior_attempts_ref":["remediation_v13","remediation_v14","remediation_v15.diagnostic_result","remediation_v15.lookup_plan_diagnostic","remediation_v15.create_first_repair","validation_v14"],"prior_changes":"V13 reduced dispatches without inner-cost proof; V14 measured transaction/receipt cost and retained failed acceptance; V15 receipt-inner and unsuccessful EXPLAIN diagnostics preserved; create-first receipt repair eliminated observed pre-read and passed focused auth proof, but full linked-save deadline still failed. None of these attempts used this direct-record counter target; inspected all-branch source history.","hypothesis":"Directly addressing each already-known affected block avoids table/index candidate planning within the measured slow counter loop. This may reduce elapsed time; the planner share of3363507us and performance benefit are unproved.","source":"src/backend/handshake_document/src/surreal.rs:188 BACKLINK_WRITE_STATEMENTS","intended_fix":"Replace only UPDATE loom_blocks with UPDATE type::record('loom_blocks', $affected) inside affected-block FOR","semantic_basis":["schema.surql:499 binds block_id to record::id(id); unique index at544","loom_store.rs:1817-1828 already recomputes the same three counters through a typed record target","Pinned surrealdb-core3.2.0 dbs/iterator.rs:333-358 table path plans candidates;393-416 RecordId path retains document context/table permission then ingests direct record"],"preserve":["Existing workspace/block WHERE guards","All three counter expressions and full affected-block set","FOR and transaction boundaries, statement slots, error handling and same record-user authorization","Original live test,10s deadline, awaited required indexing/receipts and full independent acceptance"],"proof_limit":"Existing native live case proves backlink/hash remove/restore/delete behavior but has no direct counter-value assertions; unchanged count expressions and guarded target equivalence are static evidence, not new counter runtime proof.","execution":{"builder":"/root/contract_complexity","validator":"/root/technical_failure","runtime":"Single existing self-seeded live case after pushed stable candidate and required compile/static; at most one probe then one confirming full acceptance under pinned CX-EXEC-003A","probe_consumed":0,"confirming_run_consumed":0,"on_failure":"No unchanged retry; reconcile actual failed substep and exact timings before a justified changed approach or pinned escalation"},"authority_ref":"packet.json#paperwork_reconciliation_20260928.authority_resolution","run_history_reset":false},
     "create_first_repair": {
-      "state": "FOCUSED_CORE_AUTH_PROOF_PASSED_FULL_MT_ACCEPTANCE_PENDING",
+      "state": "FOCUSED_CORE_AUTH_PROOF_PASSED_FULL_MT_ACCEPTANCE_FAILED",
       "acceptance_union": {
-        "state": "RUNNING_ACCEPTANCE",
+        "state": "FAILED_ACCEPTANCE",
         "release": {"ref":"MT032-V15-ACCEPTANCE-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75.release.json","released_utc":"2026-09-29T00:31:07.9310832Z","started_utc":"2026-09-29T00:31:13.7762935Z","governance_commit":"bd5b3288","wrapper_pid":223832,"phase_pid":218932,"cap_pid":115944,"bash_pid":218504,"parent_review":"Exact live process births, ready paths/schema/candidate and first capacity independently verified; orchestrator8/8 dispatch and10/10 round, builder16/16, WPV27/27 gates passed"},
         "candidate": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
         "entrypoint": "WPV-union-round.sh",
@@ -66,7 +67,9 @@
         "retention": {"manifest":"retained-v18-union-native-history/manifest.json","manifest_sha256":"F6F6A40AC744A32D018BA0D9E03CA12EB511C60065232D5B004D1F3A0DA28C04","files":472,"bytes":36642594304,"parent_hash_proof":"retained-v18-union-native-history/parent-copy-hashes.jsonl","parent_hash_proof_sha256":"15FD943283885CE822B5A65DE3843662E81AC8334E95555D0A3B1BE29838C12B","verification":"Parent independently hashed every D copy; all matched. Exact C originals released with fresh identity/exclusive/no-use checks. Parent re-read C total and verified every source absent and retained copy present. Dependencies, current proof outputs, exports and evidence preserved."},
         "vault_prerequisite": {"receipt":"gp043-vault-probe-ddd15d96-71d3-457b-928f-4aec3dfbe9f2.json","sha256":"5003A400F689C6A7CDFCF2AB9F94347DD6E77D0AD3799B6D5EF9A9902D77A563","result":"Fresh write/read/equality/delete/final-absence passed; zero orphan"},
         "reuse": "Three-case V18 green core proof retained separately; full union does not select those cases. Other required targets rebuild on current source/configuration provenance.",
-        "timing_limit": "Existing receipt watcher omits lookup_performed; reconcile retained raw records. Skipped lookup is not measured zero. No new diagnostic or acceptance credit."
+        "timing_limit": "Existing receipt watcher omits lookup_performed; reconcile retained raw records. Skipped lookup is not measured zero. No new diagnostic or acceptance credit.",
+        "result_ref": "MT-032.json#validation_v14",
+        "completed_utc": "2026-09-29T03:56:30.1702745Z"
       },
       "core_execution_final": {"outer_wrapper_and_tool_exit":0,"owned_observed_pids":17,"survivors":0,"absence_verified_utc":"2026-09-28T23:56:43.594Z","capacity_samples":20,"peak_C_bytes":144003778742,"canonical_final_C_bytes":142463991667,"cap_breaches":0,"retained_and_export_junit_match":true,"exit_sha256":"6B380EA7C22A0A583BCE00EDBA85856C0586B0F11ED4EFEE1A5A890ECF1034D9","observations_sha256":"735ED899095A8823C983CABF105BB894BAB9643C87F172DA46FDE4C2730C66F8","test_binary":"handshake_core-5d8d0d56e9fcbbd4.exe","binary_sha256":"C9D21662F6548C39F80FBECE9FE5B2A4E619C5C19F8B660F56F1EF0EB8F38E75","independent_verifier":"/root/technical_failure; exact candidate/export/marker/dep-info reconciled"},
       "core_result": {"candidate":"8ea13a9b6650eecc819acfacbbf0c5d8299e9f75","passed":3,"failed":0,"suite_seconds":17.206,"new_real_auth_test_seconds":16.225,"bash_exit":0,"capacity_observer_exit":0,"junit_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75-mt032-v18-create-first-core-proof-core.xml","junit_sha256":"55AD01CACC738A8A2B0B4885B39C40D2CD059D06C55E069E950A24130E07C426","parent_verification":"Opened exact retained JUnit and exit JSON; all three selected cases executed and passed","scope":"Real record-user document create/replay/conflict/concurrency/readable-replay/denial behavior plus original unscoped replay and decoder controls. No native deadline, latency gain or full MT acceptance established; reuse this result while relevant inputs remain unchanged."},
@@ -92,7 +95,7 @@
       "diagnostic_scope": "Remove failed optional EXPLAIN product feature and its feature-only tests; retain baseline receipt timings and all product replay/conflict/denial proof. Preserve V16/V17 commits, failed results and consumed helpers. Do not run another plan diagnostic.",
       "builder": "/root/contract_complexity",
       "independent_reviewer": "/root/technical_failure",
-      "next_gate": "Compile/static and three-case core proof passed; run existing full acceptance union after live observer identity and parent release checks. No native speedup or MT032 acceptance established."
+      "next_gate": "Full acceptance failed validation_v14; next changed approach is counter_target_repair. Reuse unaffected proof only; no MT032 acceptance established."
     },
     "lookup_plan_diagnostic": {
       "shape_repair": {
@@ -429,12 +432,12 @@
     "failure_ref": "validation_v13",
     "assignment_ref": "MT-154.mt032_behavioral_remediation_request.renewed_assignments[MT032-RENEWED-REPAIR-20260928]",
     "agents": {"orchestrator":"/root","builder":"/root/kernel_builder","buddy":"/root/workflow_buddy","validator":"/root/wp_validator"},
-    "current_action": "Implement approved missing-resource oracle correction in MT032 owned native test; continue source-supported lookup-cost investigation under MT154; no unchanged diagnostic replay.",
+    "current_action": "Implement direct-record counter target from measured failed save; compile/static then one independent existing live-case probe under counter_target_repair.",
     "evidence": "Current returned receipt statement consumes3842936us on save and3857530us on create B; compound IF hides lookup/create/permission/sequence/index costs; full internal cause unproved",
     "diagnostic_limit": "No unchanged outer replay; no direct permission-helper shortcut that changes record-user field visibility; no timeout increase, auth bypass, detached indexing or loss of transaction/receipt guarantees",
     "proof_route": "Builder D check/clippy/static; independent WPV focused changed-hypothesis proof before required full stable-candidate MT032/affected acceptance",
-    "state": "APPROVED_MISSING_RESOURCE_CORRECTION_IN_PROGRESS_LOOKUP_CAUSE_UNRESOLVED",
-    "status_effect": "Renewal and ownership only; independent FAIL_V13 and prior run evidence remain unchanged",
+    "state": "COUNTER_TARGET_REPAIR_IN_PROGRESS_AFTER_FAIL_V14",
+    "status_effect": "Independent FAIL_V14 remains active; prior attempts and full acceptance preserved",
     "diagnostic_binding": {
       "state": "COMPLETED_DIAGNOSTIC_ONLY",
       "candidate_commit": "699477d5888f6cec0b65cbea66b0dd09b9df88be",
@@ -586,8 +589,47 @@
   "title": "E5-MT-032-EverythingIsLoomBlockBacklinks",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-27T23:46:48Z",
-  "validation": {"proof_records":[{"proof_id":"PR-WP012-MT032-ec596eec-UNION-012","command":"C:/Program Files/Git/bin/bash.exe \"D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/run-round.sh\" ec596eecb70f2820cb357ef95d5820b890c8944f","cwd":".","commit":"ec596eecb70f2820cb357ef95d5820b890c8944f","tree_clean":true,"dirty_file_count":0,"executor_role":"WP_VALIDATOR","executor_session":"/root/wp_validator","target_dir":"WP-KERNEL-012/MT-109/wpv-c3x","started_utc":"2026-09-26T19:33:10.3524503Z","finished_utc":"2026-09-26T23:26:55.5249366Z","exit_code":0,"result_line":"[run-round] done. junit: D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-core.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-native.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-handshake_document.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-handshake_storage_support.xml (core_exit=100 native_exit=100 extracted=handshake_document:exit=0 handshake_storage_support:exit=0)","log_path":"WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ec596eecb70f2820cb357ef95d5820b890c8944f.stdout.log","features":["core:app-runtime,surreal-test-support,test-utils","native:integration,integration_tests,wgpu_screenshots","handshake_document:surreal-test-support","handshake_storage_support:surreal-test-support"],"env_knobs":{"CARGO_TARGET_DIR":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52","execution_inputs_ref":"MT-032.json#remediation_v13.validation_running.execution_inputs"},"covers":["MT-032","MT-154"]},{"proof_id":"PR-WP012-MT032-7479972a-UNION-CONTINUATION1","command":"C:/Program Files/Git/bin/bash.exe \"D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 7479972ac681cd238e58d37e318beab6c8d3b423","cwd":".","commit":"7479972ac681cd238e58d37e318beab6c8d3b423","tree_clean":true,"dirty_file_count":0,"executor_role":"WP_VALIDATOR","executor_session":"/root/wp_validator","target_dir":"WP-KERNEL-012/MT-109/wpv-c3x","started_utc":"2026-09-27T20:16:48.2861038Z","finished_utc":"2026-09-27T23:41:56.0551858Z","exit_code":0,"result_line":"[run-round] done. junit: D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-core.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-native.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-handshake_document.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-handshake_storage_support.xml (core_exit=100 native_exit=100 extracted=handshake_document:exit=0 handshake_storage_support:exit=0)","log_path":"WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v14-acceptance-7479972ac681cd238e58d37e318beab6c8d3b423-continuation1.stdout.log","features":["core:app-runtime,surreal-test-support,test-utils","native:integration,integration_tests,wgpu_screenshots","handshake_document:surreal-test-support","handshake_storage_support:surreal-test-support"],"env_knobs":{"CARGO_TARGET_DIR":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52","execution_inputs_ref":"MT-032.json#remediation_v14.acceptance.continuation1"},"covers":["MT-032","MT-154"]}]},
+  "updated_at_utc": "2026-09-29T04:03:10.939594Z",
+  "validation": {
+    "proof_records": [
+      {"proof_id":"PR-WP012-MT032-ec596eec-UNION-012","command":"C:/Program Files/Git/bin/bash.exe \"D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/run-round.sh\" ec596eecb70f2820cb357ef95d5820b890c8944f","cwd":".","commit":"ec596eecb70f2820cb357ef95d5820b890c8944f","tree_clean":true,"dirty_file_count":0,"executor_role":"WP_VALIDATOR","executor_session":"/root/wp_validator","target_dir":"WP-KERNEL-012/MT-109/wpv-c3x","started_utc":"2026-09-26T19:33:10.3524503Z","finished_utc":"2026-09-26T23:26:55.5249366Z","exit_code":0,"result_line":"[run-round] done. junit: D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-core.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-native.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-handshake_document.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-handshake_storage_support.xml (core_exit=100 native_exit=100 extracted=handshake_document:exit=0 handshake_storage_support:exit=0)","log_path":"WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ec596eecb70f2820cb357ef95d5820b890c8944f.stdout.log","features":["core:app-runtime,surreal-test-support,test-utils","native:integration,integration_tests,wgpu_screenshots","handshake_document:surreal-test-support","handshake_storage_support:surreal-test-support"],"env_knobs":{"CARGO_TARGET_DIR":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52","execution_inputs_ref":"MT-032.json#remediation_v13.validation_running.execution_inputs"},"covers":["MT-032","MT-154"]},
+      {"proof_id":"PR-WP012-MT032-7479972a-UNION-CONTINUATION1","command":"C:/Program Files/Git/bin/bash.exe \"D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 7479972ac681cd238e58d37e318beab6c8d3b423","cwd":".","commit":"7479972ac681cd238e58d37e318beab6c8d3b423","tree_clean":true,"dirty_file_count":0,"executor_role":"WP_VALIDATOR","executor_session":"/root/wp_validator","target_dir":"WP-KERNEL-012/MT-109/wpv-c3x","started_utc":"2026-09-27T20:16:48.2861038Z","finished_utc":"2026-09-27T23:41:56.0551858Z","exit_code":0,"result_line":"[run-round] done. junit: D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-core.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-native.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-handshake_document.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-handshake_storage_support.xml (core_exit=100 native_exit=100 extracted=handshake_document:exit=0 handshake_storage_support:exit=0)","log_path":"WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v14-acceptance-7479972ac681cd238e58d37e318beab6c8d3b423-continuation1.stdout.log","features":["core:app-runtime,surreal-test-support,test-utils","native:integration,integration_tests,wgpu_screenshots","handshake_document:surreal-test-support","handshake_storage_support:surreal-test-support"],"env_knobs":{"CARGO_TARGET_DIR":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52","execution_inputs_ref":"MT-032.json#remediation_v14.acceptance.continuation1"},"covers":["MT-032","MT-154"]},
+      {
+        "proof_id": "PR-WP012-MT032-8ea13a9b-UNION-V14",
+        "command": [
+          "C:\\Program Files\\Git\\bin\\bash.exe",
+          "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+          "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75"
+        ],
+        "cwd": ".",
+        "commit": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/technical_failure",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-c3x",
+        "started_utc": "2026-09-29T00:31:13.7762935Z",
+        "finished_utc": "2026-09-29T03:56:30.1702745Z",
+        "exit_code": 0,
+        "result_line": "core_exit=100 native_exit=100 handshake_document:exit=0 handshake_storage_support:exit=0; complete fresh four-suite JUnits; MT032 native23/24",
+        "log_path": "WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v15-acceptance-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75.stdout.log",
+        "features": [
+          "core:app-runtime,surreal-test-support,test-utils",
+          "native:integration,integration_tests,wgpu_screenshots",
+          "handshake_document:surreal-test-support",
+          "handshake_storage_support:surreal-test-support"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
+          "execution_inputs_ref": "MT-032.json#remediation_v15.create_first_repair.acceptance_union"
+        },
+        "covers": [
+          "MT-032",
+          "MT-154"
+        ]
+      }
+    ]
+  },
   "validation_v12": {"schema_id": "hsk.mt_validation_verdict@1", "decision": "failed", "verdict": "FAIL_V12", "validated_by": "WP_VALIDATOR-SOL-MEDIUM", "validated_at_utc": "2026-09-26T23:31:13.401138Z", "candidate_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f", "candidate_sha": "ec596eecb70f2820cb357ef95d5820b890c8944f", "started_at": "2026-09-26T19:33:10.3524503Z", "completed_at": "2026-09-26T23:26:55.5249366Z", "failure_kind": "product", "failure_class": "DOCUMENT_HTTP_DEADLINE", "source_of_truth": "Own current immutable-export union JUnits; component counts do not satisfy live acceptance", "proof_record_ids": ["PR-WP012-MT032-ec596eec-UNION-012"], "proof_records": [{"proof_id": "PR-WP012-MT032-ec596eec-UNION-012", "command": "C:/Program Files/Git/bin/bash.exe \"D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/run-round.sh\" ec596eecb70f2820cb357ef95d5820b890c8944f", "cwd": ".", "commit": "ec596eecb70f2820cb357ef95d5820b890c8944f", "tree_clean": true, "dirty_file_count": 0, "executor_role": "WP_VALIDATOR", "executor_session": "/root/wp_validator", "target_dir": "WP-KERNEL-012/MT-109/wpv-c3x", "started_utc": "2026-09-26T19:33:10.3524503Z", "finished_utc": "2026-09-26T23:26:55.5249366Z", "exit_code": 0, "result_line": "[run-round] done. junit: D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-core.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-native.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-handshake_document.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-handshake_storage_support.xml (core_exit=100 native_exit=100 extracted=handshake_document:exit=0 handshake_storage_support:exit=0)", "log_path": "WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ec596eecb70f2820cb357ef95d5820b890c8944f.stdout.log", "features": ["core:app-runtime,surreal-test-support,test-utils", "native:integration,integration_tests,wgpu_screenshots", "handshake_document:surreal-test-support", "handshake_storage_support:surreal-test-support"], "env_knobs": {"CARGO_TARGET_DIR": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52", "execution_inputs_ref": "MT-032.json#remediation_v13.validation_running.execution_inputs"}, "covers": ["MT-032", "MT-154"]}], "results_ref": "WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-native.xml", "phase_results": {"core": {"tests": 237, "failures": 2, "errors": 0, "exit_code": 100, "sha256": "B22B0D665047081B3FB1B72C6ACFF6AADF0864FB600CE5981B2B4A20B38D8EC7"}, "native": {"tests": 2952, "failures": 45, "errors": 0, "exit_code": 100, "sha256": "0F864ACE9DBEE0D62FF4660AE61098C9050DDDF4D3DFB2F3F8A272A9AB22DC79"}, "handshake_document": {"tests": 41, "failures": 0, "errors": 0, "exit_code": 0, "sha256": "FE252DC972C2E8651B3F19AE294D1B914192A78F8B3AA1CB917E1FEBEA5D7C74"}, "handshake_storage_support": {"tests": 34, "failures": 0, "errors": 0, "exit_code": 0, "sha256": "7067311DD799EFAED2216DA69A541B284CD63FDE709734D06D49F83E26158B41"}}, "failing_checks": [{"name": "live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash", "duration_seconds": 71.331, "source": "tests/backend_proof_support/mod.rs:2407", "primary": "PUT /knowledge/documents/KRD-01a0dffac90c7c82bf94a0dc785e5001/save request_send TimedOut", "request_id": "3656fc79-dad4-49f1-a806-657b4699b66e", "trace": "save_transaction4907ms; receipt2680ms; backlinks7210ms END; embeds13ms END; save_index BEGIN without observed END", "runtime_ref": "WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-f4695e9bde01c641/1c54d31e-d5ce-4028-8ae2-97028b9e2171/data/logs/handshake_core.log"}, {"name": "live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof", "duration_seconds": 64.375, "source": "tests/test_loom_address.rs:1511", "primary": "create A without link POST /knowledge/documents request_send TimedOut", "request_id": "98c33d9e-47f6-46d5-b626-a833efdc7710", "trace": "create_transaction5347ms; receipt2607ms; embeds12ms END; create_index BEGIN without observed END", "runtime_ref": "WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-82bb3467f7114d41/5e789b9b-2065-4755-a739-24ae95c80160/data/logs/handshake_core.log"}], "acceptance_disposition": {"native_mt032": "22/24; required two live cases failed", "core_mt032": "10/10 current MT032 API regressions passed", "extracted_owned_units": "document41/41 and storage_support34/34 passed", "not_proved": ["10s create / 15s save production deadlines", "Live computed backlinks and canonical saved hash write-back", "Owned restart preservation", "Live A-to-B canonical mounted Argus and strict screenshot floor"], "limits": ["Component/UI/manual success cannot replace blocked live assertions", "No forced revocation between paired reads or postcommit decode race proof", "No inner indexing cause or hardware causation established"]}, "input_provenance_ref": "MT-032.json#remediation_v13.validation_running", "attempt_disposition": {"prior_records_preserved": true, "failed_verdict_refs": ["validation_v11", "validation_v1", "validation_v2", "validation_v6", "validation_v10", "validation_v12"], "failed_verdict_count": 6, "max_fix_rounds_per_mt": 3, "counter_rule": "CX-EXEC-015 first: failed verdicts any cause; no counter reset", "operator_renewal_ref": "MT-154.mt032_behavioral_remediation_request.renewed_assignments[MT032-DOCUMENT-EXTRACTION-20260926].attempt_history", "first_limit": "fix_budget_exhausted", "next_action": "Operator must record a continuation decision before any further candidate mutation, probe or confirming run", "no_automatic_extra_probe": true}, "adversarial_review": {"risk": "HIGH", "INDEPENDENT_CHECKS_RUN": ["Own four fresh JUnits and terminal process exit inspected", "Exact save/create primary stderr and retained backend phase logs opened", "Current failed names compared with baseline49e; only CKC ac5 newly failed, causation unproved"], "RESIDUAL_UNCERTAINTY": ["Index internal dominant cost and cancellation remain unmeasured", "Backend/fixture cleanup HTTP deletion or account revocation not proven by child process reap"]}, "verdict_events": [{"event": "accepted", "idempotency_key": "MT032-ec596eec-union-v12", "at_utc": "2026-09-26T23:31:13.401138Z", "payload_ref": "MT-032.json#validation_v12", "decision": "failed"}, {"event": "completed", "idempotency_key": "MT032-ec596eec-union-v12", "at_utc": "2026-09-26T23:31:13.401138Z", "state_ref": "MT-032.json#lifecycle", "decision": "failed"}]},
   "validation_v13": {"schema_id":"hsk.mt_validation_verdict@1","decision":"failed","verdict":"FAIL_V13","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-27T23:46:48Z","candidate_commit":"7479972ac681cd238e58d37e318beab6c8d3b423","candidate_sha":"7479972ac681cd238e58d37e318beab6c8d3b423","started_at":"2026-09-27T20:16:48.2861038Z","completed_at":"2026-09-27T23:41:56.0551858Z","failure_kind":"product","failure_class":"DOCUMENT_HTTP_DEADLINE","source_of_truth":"Own current immutable-export union JUnits; component counts do not satisfy live acceptance","proof_record_ids":["PR-WP012-MT032-7479972a-UNION-CONTINUATION1"],"proof_records":[{"proof_id":"PR-WP012-MT032-7479972a-UNION-CONTINUATION1","command":"C:/Program Files/Git/bin/bash.exe \"D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 7479972ac681cd238e58d37e318beab6c8d3b423","cwd":".","commit":"7479972ac681cd238e58d37e318beab6c8d3b423","tree_clean":true,"dirty_file_count":0,"executor_role":"WP_VALIDATOR","executor_session":"/root/wp_validator","target_dir":"WP-KERNEL-012/MT-109/wpv-c3x","started_utc":"2026-09-27T20:16:48.2861038Z","finished_utc":"2026-09-27T23:41:56.0551858Z","exit_code":0,"result_line":"[run-round] done. junit: D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-core.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-native.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-handshake_document.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-handshake_storage_support.xml (core_exit=100 native_exit=100 extracted=handshake_document:exit=0 handshake_storage_support:exit=0)","log_path":"WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v14-acceptance-7479972ac681cd238e58d37e318beab6c8d3b423-continuation1.stdout.log","features":["core:app-runtime,surreal-test-support,test-utils","native:integration,integration_tests,wgpu_screenshots","handshake_document:surreal-test-support","handshake_storage_support:surreal-test-support"],"env_knobs":{"CARGO_TARGET_DIR":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52","execution_inputs_ref":"MT-032.json#remediation_v14.acceptance.continuation1"},"covers":["MT-032","MT-154"]}],"results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-native.xml","phase_results":{"core":{"tests":239,"failures":6,"errors":0,"exit_code":100,"sha256":"9916BFB9B5F8797D461C58555D16A734D29EB4054E37713263B0C727E0DA4BF2"},"native":{"tests":2952,"failures":44,"errors":0,"exit_code":100,"sha256":"928E026731633A2C63F1ECC21E926DF5A56AFEE828B58C79EF77B990697A962F"},"handshake_document":{"tests":41,"failures":0,"errors":0,"exit_code":0,"sha256":"2A3F49A172AD702EE44722CA393304084FDA83DDD45DB0CD253147CE9518BD79"},"handshake_storage_support":{"tests":34,"failures":0,"errors":0,"exit_code":0,"sha256":"A499897A89EAA1497A2D16F31514CD319B53BDEE3160BDE51D09797A7EE82C76"}},"failing_checks":[{"name":"live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash","seconds":86.144,"primary":"PUT document save request_send TimedOut","request_id":"a1b79d60-65a1-4456-8565-e059b1cab7a8","phase":"save_transaction END4925ms; receipt END3907ms; backlinks DROPPED6131ms; request DROPPED15008ms"},{"name":"live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof","seconds":56.983,"primary":"POST document create B request_send TimedOut","request_id":"74b84c3c-f15f-4eaa-b64b-d31fafe97a61","phase":"create_transaction END5102ms; receipt END3909ms; embeds END19ms; index DROPPED937ms; request DROPPED10013ms"}],"acceptance_disposition":{"native_mt032":"22/24; required two live cases failed","core_mt032":"10/10 MT032 API regressions passed","extracted_owned_units":"document41/41 and storage_support34/34 passed","not_proved":["10s create / 15s save production deadlines","Live computed backlinks and canonical saved hash write-back","Owned restart preservation","Live A-to-B canonical mounted Argus and strict screenshot floor"],"limits":["Native tests timeout before all assertions","1119-row capture complete, but dropped query has no returned SurrealQL statement timing and dropped means no result observed","No causal attribution"]},"input_provenance_ref":"MT-032.json#remediation_v14.acceptance.continuation1","attempt_disposition":{"prior_records_preserved":true,"failed_verdict_refs":["validation_v11","validation_v1","validation_v2","validation_v6","validation_v10","validation_v12","validation_v13"],"failed_verdict_count":7,"max_fix_rounds_per_mt":3,"counter_rule":"CX-EXEC-015 failed verdicts any cause; no reset","operator_renewal_ref":"MT-154.mt032_behavioral_remediation_request.renewed_assignments","first_limit":"fix_budget_exhausted","next_action":"Operator decision required before further diagnostic, product mutation, or acceptance run","no_automatic_extra_probe":true},"adversarial_review":{"risk":"HIGH","INDEPENDENT_CHECKS_RUN":["Four current JUnits opened and hashed","Both mandatory MT032 native failures and primary HTTP timeout traces opened","Phase/statement capture reconciled with failed request IDs","Wrapper/Bash/observers actual exit0 and absent PIDs verified"],"RESIDUAL_UNCERTAINTY":["Latency causation and safe repair unproven","Cancellation, rollback, live backlink/hash/restart/Argus outcomes unproven"]},"verdict_events":[{"event":"accepted","idempotency_key":"MT032-7479972a-union-continuation-v13","at_utc":"2026-09-27T23:46:48Z","payload_ref":"MT-032.json#validation_v13","decision":"failed"},{"event":"completed","idempotency_key":"MT032-7479972a-union-continuation-v13","at_utc":"2026-09-27T23:46:48Z","state_ref":"MT-032.json#lifecycle","decision":"failed"}]},
   "validation_v11": {"schema_id":"hsk.mt_validation_verdict@1","decision":"failed","verdict":"FAIL_V11","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:44:00Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","candidate_sha":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-032.scope.acceptance_criteria/proof_targets; remediation_v12 retains live/restart/backlink/hash/Argus floors","proof_records":[{"id":"WPV-49E-MT032-NATIVE","executor_role":"WP_VALIDATOR","junit_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","freshness":"Export-local JUnit15:40:56.8627526Z after native marker13:57:25.4425609Z; D copy matches; export marker equals full49e","selected_binary":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/debug/deps/test_loom_address-424a802415922a9d.exe","selected_binary_sha256":"DD26BD0615FC6F21EA9E978F810F70339B3BAF089FA07502CC11520DCF3659D7","backend_binary_sha256":"7B09CBC97F3DC39958B6EB524D61092C833443FAF9D22C608CF0FAA7C519F37C","result":"24 selected;22 passed;2 failed; whole native2952 selected/2908 passed/44 failed; nextest100"},{"id":"WPV-49E-MT032-CORE","junit_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-core.xml","sha256":"CD420357013FF59A89EA4440C394A8951404DD3700A75D7D066C385D118B7897","result":"All10 mt032_ cases passed in28/28 knowledge_documents_api_tests; not native deadline proof"}],"failing_checks":[{"check_id":"MT032-LIVE-RESTART","test":"live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash","failure_kind":"product","failure_class":"MT032_LIVE_DOCUMENT_SAVE_REQUEST_TIMEOUT","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash","log_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-49eac54e.stderr.log:8289-8308","elapsed_seconds":73.379,"message":"PUT save request_send TimedOut before restart; health200/db ok at failure capture","last_started_phase":"save_backlinks","request_id":"e0c33158-8b97-4798-8347-3fcd1bb677d6","phase_timing":"transaction5069ms;receipt2645ms;backlinks begin7749.864ms from request begin; no terminal","await_ref":"src/backend/handshake_core/src/api/knowledge_documents.rs:1656-1661","diagnostic_sha256":"B52E5880E86F3F9E0460D7DA073E11395F3CB8BD21F497F90B56A08664701FF4"},{"check_id":"MT032-LIVE-BACKLINK-HASH-UI","test":"live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof","failure_kind":"product","failure_class":"MT032_LIVE_DOCUMENT_CREATE_REQUEST_TIMEOUT","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof","log_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-49eac54e.stderr.log:8310-8329","elapsed_seconds":66.426,"message":"Create A request_send TimedOut; B create/load passed; required backlink/hash/mounted Argus not reached","last_started_phase":"create_index","request_id":"c58124c5-d656-4352-8383-43884e924ed4","phase_timing":"transaction5362ms;receipt2636ms;embeds12ms;index begin8041.189ms; no terminal","await_ref":"src/backend/handshake_core/src/api/knowledge_documents.rs:1231-1236"}],"phase_provenance":{"capture_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-phase-watch-49eac54e03d2a94abf5aa3ced025e2947f9adc8b.jsonl","capture_sha256":"607D863BFCC28E8F02260C08577D4A6A5E46A5E104099E84E2348C074CD94547","summary_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-phase-watch-49eac54e03d2a94abf5aa3ced025e2947f9adc8b.summary.json","summary_sha256":"1CBA53F4A9E425FA2E93F0C50148405638A6C706C2EDF27EBDF8C8BDC7275C32","captured_events":68,"source_events":68,"event_tuple_difference":0,"incomplete_stream":true,"observer_issues":["invalid_phase_record","phase_begin_without_terminal"],"qualification":"Exact retained backend stdout tuple comparison matches68 events; absent terminals are absent in source too. Polling cannot exclude earlier deleted/unobserved records; invalid_phase_record issue remains unexplained, not suppressed.","source_refs":"remediation_v12.union_observation.phase_provenance"},"acceptance_disposition":{"proved_component":["URI/hash determinism","bus click/drain/retry","fixture AccessKit chips/panel","diagnostics wire"],"not_proved":["Live computed backlinks/panel","Canonical saved hash live write-back","Owned restart preservation","Live A-to-B canonical Argus and screenshot"],"suite":"22/24; all-green floor failed","cleanup":"Failure capture proves real store containment and owned child reap; not HTTP row deletion or credential revocation"},"input_provenance":{"command_ref":"MT-032.json#remediation_v12.union_entrypoint_binding","runner_sha256":"6DCA6F19DF0C51F04677DA9E8E51F852394A466DC8EFC21455F15233B756E8AC","core_config_sha256":"2458C2650C5748D100499FC3EDB7CD866199C7A07185745E34094150FD476DBE","native_config_sha256":"D828376108C1D72836B94677F1612378095310DEE2ED96E2ED12ACB3929706A8","source_snapshot":"Fresh clean git archive full49e at target-r52/export-49eac54e; no overlay","source_input_paths":["src/**"],"environment_ref":"remediation_v12.union_entrypoint_binding; union-freeze-49eac54e.json"},"adversarial_review":{"risk":"HIGH","DIFF_ATTACK_SURFACES":["Exact-record query reductions retain authority/filter/order but do not establish end-to-end deadlines"],"INDEPENDENT_CHECKS_RUN":["Own fresh native/core JUnit inspected","Source await/log/observer reconciliation and immutable EXE hashes"],"COUNTERFACTUAL_CHECKS":["Removing test_loom_address owned restart save would hide failure before restart preservation","Removing create A Result expectation would hide transport failure before live backlink/hash/UI assertions"],"BOUNDARY_PROBES":["Real native HTTP save/create to current backend; transactions/receipts complete, postcommit await unfinished"],"NEGATIVE_PATH_CHECKS":["Backlink404/down/recovery components passed; shared negative self-test passed in sole owning target"],"INDEPENDENT_FINDINGS":["Two required native request timeouts"],"RESIDUAL_UNCERTAINTY":["Internal dominant cost and cancellation unknown","No hardware causation","Incomplete observer stream retained"]},"remediation_required":["Investigate exact save_backlinks/create_index awaits and aggregate request costs; preserve auth/revocation/ownership and current proof deadlines","Retain bounded public create error and primary-failure-preserving owned cleanup","No further test or candidate mutation in this consumed cycle"],"attempt_disposition":"One final union consumed; no new run; prior verdicts retained; candidate did not establish restart/backlink/hash","verdict_events":[{"event":"accepted","idempotency_key":"MT032-49eac54e-union-v11","at_utc":"2026-09-26T15:44:00Z","payload_ref":"MT-032.json#validation_v11","decision":"failed"},{"event":"completed","idempotency_key":"MT032-49eac54e-union-v11","at_utc":"2026-09-26T15:44:55Z","state_ref":"MT-032.json#lifecycle","decision":"failed"}]},
@@ -613,12 +655,12 @@
       "MT-034",
       "MT-044"
     ],
-    "validator_verdict": "FAIL_V13",
-    "prior_validator_verdict": "FAIL_V12",
-    "blocked_on": "MT-154: renewed latency repair under remediation_v15; required live save/create deadlines and independent MT032 acceptance remain unproved",
+    "validator_verdict": "FAIL_V14",
+    "prior_validator_verdict": "FAIL_V13",
+    "blocked_on": "MT-154: 8ea self-seeded linked save dropped at10001ms; counter-loop cost localized, inner cause unresolved; remaining live Argus/full MT032 acceptance unproved",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
-    "validated_at_utc": "2026-09-27T23:46:48Z",
+    "validated_by": "WP_VALIDATOR",
+    "validated_at_utc": "2026-09-29T04:03:10.939594Z",
     "ready_for_validation_v2_at_utc": "2026-07-15T21:31:57.0694829Z",
     "ready_for_validation_v2_by": "KERNEL_BUILDER",
     "ready_for_validation_v2_reason": "Managed PostgreSQL and mounted native runtime remediation is current and independently hardened: canonical Loom identities/backlinks/hash/update/delete proof passes; async deliveries are queued and identity-bound; save invalidation and sticky index warnings are workspace/source scoped and survive bounded-history eviction; create guards prevent duplicate notes across document and workspace round-trips; both adversarial reviewers returned READY.",
@@ -701,10 +743,10 @@
     "ready_for_validation_at_utc": "2026-09-26T11:24:52Z",
     "ready_for_validation_by": "KERNEL_BUILDER",
     "ready_for_validation_reason": "CX-STATUS-001 admission of clean pushed 49eac54e; source query reductions compiled on stable D inputs. Cheap selector/permission fixtures are advisory, not native latency proof. Details: remediation_v12. No PASS or completion.",
-    "proof_status": "INDEPENDENT_RUNTIME_VALIDATION_PENDING",
+    "proof_status": "FAILED_INDEPENDENT_RUNTIME_VALIDATION",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_INDEPENDENT_DIAGNOSTICS_SCOPE_ARGUS_RETRY_AND_RUNTIME_CLEANUP_REVIEWS_NO_REMAINING_PRODUCT_BLOCKER",
     "ready_for_validation_summary": "One independent union pending for 49eac54e under remediation_v12.operator_decision. Native deadline compliance remains unproven; FAIL_V10 is historical, validator_verdict/completed_by null.",
-    "external_resource_proof_status": "INDEPENDENT_RUNTIME_VALIDATION_PENDING",
+    "external_resource_proof_status": "PARTIAL_LIVE_PROOF_MT032_SELF_SEEDED_SAVE_FAILED",
     "historical_missing_resource_superseded_v3": {
       "status": "SUPERSEDED_BY_V3_REAL_POSTGRESQL_PROOF",
       "superseded_at_utc": "2026-07-29T22:54:51.5094833Z",
@@ -796,7 +838,7 @@
     "failure_class": "DOCUMENT_HTTP_DEADLINE",
     "attempt_budget": {
       "max_fix_rounds_per_mt": null,
-      "failed_verdict_count": 7,
+      "failed_verdict_count": 8,
       "failed_verdict_refs": [
         "validation_v11",
         "validation_v1",
@@ -804,7 +846,8 @@
         "validation_v6",
         "validation_v10",
         "validation_v12",
-        "validation_v13"
+        "validation_v13",
+        "validation_v14"
       ],
       "no_counter_reset": true,
       "historical_max_fix_rounds_per_mt": 3,
@@ -813,7 +856,7 @@
     },
     "operator_decision_required": {
       "reason": "Prior scoped continuation decision resolved by remediation_v15; later lifetime gate is inapplicable under the unchanged pin",
-      "requested_decision": "None pending from prior renewal; current product-execution hold is the Operator paperwork-first instruction",
+      "requested_decision": "None pending from prior renewal; Operator resumed V15 diagnostic and subsequent evidence-selected repair per packet execution_scope",
       "preserved_scope": "MT032 original deadline/backlink/hash/restart/live Argus floor unchanged",
       "prior_renewal_ref": "remediation_v14.operator_decision",
       "prior_renewal_at_utc": "2026-09-27T12:18:46.829462Z",
@@ -2136,5 +2179,587 @@
       "final_target_bytes": 138128391987,
       "final_headroom_bytes": 11871608013
     }
+  },
+  "validation_v14": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V14",
+    "validated_by": "WP_VALIDATOR",
+    "validated_at_utc": "2026-09-29T04:03:10.939594Z",
+    "candidate_commit": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
+    "candidate_sha": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
+    "started_at": "2026-09-29T00:31:13.7762935Z",
+    "completed_at": "2026-09-29T03:56:30.1702745Z",
+    "failure_kind": "product",
+    "failure_class": "DOCUMENT_HTTP_DEADLINE",
+    "source_of_truth": "Own current immutable-export JUnits and retained failed-request logs; unchanged MT032 acceptance floor",
+    "proof_record_ids": [
+      "PR-WP012-MT032-8ea13a9b-UNION-V14"
+    ],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP012-MT032-8ea13a9b-UNION-V14",
+        "command": [
+          "C:\\Program Files\\Git\\bin\\bash.exe",
+          "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+          "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75"
+        ],
+        "cwd": ".",
+        "commit": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/technical_failure",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-c3x",
+        "started_utc": "2026-09-29T00:31:13.7762935Z",
+        "finished_utc": "2026-09-29T03:56:30.1702745Z",
+        "exit_code": 0,
+        "result_line": "core_exit=100 native_exit=100 handshake_document:exit=0 handshake_storage_support:exit=0; complete fresh four-suite JUnits; MT032 native23/24",
+        "log_path": "WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v15-acceptance-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75.stdout.log",
+        "features": [
+          "core:app-runtime,surreal-test-support,test-utils",
+          "native:integration,integration_tests,wgpu_screenshots",
+          "handshake_document:surreal-test-support",
+          "handshake_storage_support:surreal-test-support"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
+          "execution_inputs_ref": "MT-032.json#remediation_v15.create_first_repair.acceptance_union"
+        },
+        "covers": [
+          "MT-032",
+          "MT-154"
+        ]
+      }
+    ],
+    "results_ref": "WP-KERNEL-012/MT-109/wpv-c3x/junit-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75-native.xml",
+    "phase_results": {
+      "core": {
+        "tests": 239,
+        "failures": 6,
+        "errors": 0,
+        "skipped": 0,
+        "seconds": 3991.499,
+        "exit_code": 100,
+        "results_ref": "WP-KERNEL-012/MT-109/wpv-c3x/junit-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75-core.xml",
+        "sha256": "0A05F0556E8A3F1D6B4031A0788561AB5CE8AFBFA1DC607456B6BE4FB7B50C59"
+      },
+      "native": {
+        "tests": 2952,
+        "failures": 42,
+        "errors": 0,
+        "skipped": 0,
+        "seconds": 5940.98,
+        "exit_code": 100,
+        "results_ref": "WP-KERNEL-012/MT-109/wpv-c3x/junit-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75-native.xml",
+        "sha256": "8E05B8FB61C594B396A00791B30880AF69CDCFE1FADBC4629E7FE18B2BA4285F"
+      },
+      "handshake_document": {
+        "tests": 41,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "seconds": 0.754,
+        "exit_code": 0,
+        "results_ref": "WP-KERNEL-012/MT-109/wpv-c3x/junit-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75-handshake_document.xml",
+        "sha256": "688A4F1B24E08D03BA7C3B206E3283A73C3FE194C8EA62F9B324F9185CD4AF32"
+      },
+      "handshake_storage_support": {
+        "tests": 34,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "seconds": 1.284,
+        "exit_code": 0,
+        "results_ref": "WP-KERNEL-012/MT-109/wpv-c3x/junit-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75-handshake_storage_support.xml",
+        "sha256": "72D45997169CBC03BFF2E1F9F8252DFB8AC51DE273A2AD6A0E3CD0819CD6C683"
+      }
+    },
+    "failing_checks": [
+      {
+        "name": "live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof",
+        "duration_seconds": 81.539,
+        "source": "src/frontend/handshake_native/tests/test_loom_address.rs:1345",
+        "primary": "First linked PUT save did not complete within unchanged 10s self-seeded client deadline; request_send returned an error before live assertions",
+        "request_id": "01a0eb3e-d39f-7510-9be4-fc1b2733da96",
+        "request_begin_utc": "2026-09-29T03:39:18.303449Z",
+        "request_dropped_utc": "2026-09-29T03:39:28.304977Z",
+        "phases_ms": {
+          "save_transaction": 3725,
+          "save_receipt": 374,
+          "save_backlinks": 5618,
+          "backlink_write": 5513,
+          "save_embeds": 12,
+          "save_index_dropped": 236,
+          "save_request_dropped": 10001
+        },
+        "backlink_query": {
+          "query_id": 365,
+          "elapsed_ms": 5505,
+          "statement_count": 8,
+          "statement_elapsed_us": [
+            0,
+            3490,
+            2513,
+            900385,
+            1216849,
+            3363507,
+            16485,
+            281
+          ]
+        },
+        "receipt": {
+          "branch": "create",
+          "lookup_performed": false,
+          "operation_elapsed_us": 334474,
+          "clock": "surreal_wall",
+          "timing_valid": true
+        },
+        "raw_stdout_ref": "WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-82bb3467f7114d41/39fb1bd7-6df3-4ce4-bc07-3ae9ec1c6ac9/backend.stdout.log",
+        "raw_stdout_sha256": "A334FD2D100EC1E1D3129F9B872F0584554823A941391AA016C27274E815D009",
+        "raw_json_ref": "WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-82bb3467f7114d41/39fb1bd7-6df3-4ce4-bc07-3ae9ec1c6ac9/data/logs/handshake_core.log",
+        "raw_json_sha256": "832BAA0A562007E8DBC986090092312EB2C7C0144B815E12599475ABF1EA6A79",
+        "limits": [
+          "Public error Display alone does not prove reqwest timeout kind; source deadline and raw request timeline establish bounded completion failure",
+          "Dropped query390 returned no statement timings; dropped does not prove engine rollback/cancellation",
+          "Two raw stderr transaction-conflict messages lack request/time correlation and are not attributed to this save",
+          "Counter-loop cost localized; inner query/permission/commit cause and effective repair remain unproved"
+        ]
+      }
+    ],
+    "acceptance_disposition": {
+      "native_mt032": "23/24; owned-restart PASS100.073s, self-seeded FAIL81.539s",
+      "core_mt032": "10/10 named API regression cases passed",
+      "focused_predecessor": "Same8ea V18 create-first core3/3 retained separately; not rerun by union",
+      "extracted_owned_units": "document41/41 and storage_support34/34 passed",
+      "proved": [
+        "URI/component, mounted command-bus/shell, AccessKit and generic canvas cases passed",
+        "Owned restart completed real save/backlink/hash/stale/missing-resource/restart/delete assertions under existing15s save deadline"
+      ],
+      "unclosed": [
+        "10s self-seeded linked save",
+        "Remaining self-seeded live backlink remove/restore/delete and hash assertions after firstsave",
+        "Canonical live A-to-B mounted Argus and strict live screenshot floor",
+        "Whole named test_loom_address selection all-pass"
+      ],
+      "limits": [
+        "Passing component/screenshot test result is not independent visual approval",
+        "Owned-restart success cannot substitute for failed10s self-seeded path or remaining complete floor"
+      ]
+    },
+    "baseline_comparison": {
+      "core": {
+        "prior_ref": "WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-core.xml",
+        "all_current_failures_previously_failed_same_type": true,
+        "failures": [
+          {
+            "case": "handshake_core::api::loom::tests::mt153_loom_route_family_authority_matrix",
+            "type": "test abort",
+            "prior_failed": true,
+            "prior_type": "test abort"
+          },
+          {
+            "case": "handshake_core::api::workspaces::tests::mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows",
+            "type": "test abort",
+            "prior_failed": true,
+            "prior_type": "test abort"
+          },
+          {
+            "case": "handshake_core::mt154_non_loom_route_authority_tests::mt154_stage_routes_authority",
+            "type": "test abort",
+            "prior_failed": true,
+            "prior_type": "test abort"
+          },
+          {
+            "case": "handshake_core::project_wiki_drift_tests::mt242_verdict_attached_on_every_serve_path_fail_closed",
+            "type": "test timeout",
+            "prior_failed": true,
+            "prior_type": "test timeout"
+          },
+          {
+            "case": "handshake_core::wp_kernel_012_native_editor_routes_tests::route2_stage_artifact_create_and_resolve",
+            "type": "test abort",
+            "prior_failed": true,
+            "prior_type": "test abort"
+          },
+          {
+            "case": "handshake_core::wp_kernel_012_native_editor_routes_tests::stage_flight_projection_failure_returns_500_and_retry_heals_once",
+            "type": "test abort",
+            "prior_failed": true,
+            "prior_type": "test abort"
+          }
+        ],
+        "prior_fail_now_pass": [],
+        "claim_limit": "Case/type comparison only; no same-root-cause or repair-causation claim"
+      },
+      "native": {
+        "prior_ref": "WP-KERNEL-012/MT-109/wpv-c3x/junit-7479972ac681cd238e58d37e318beab6c8d3b423-native.xml",
+        "all_current_failures_previously_failed_same_type": true,
+        "failures": [
+          {
+            "case": "handshake-native::test_block_collection_view::block_collection_views_live_surrealdb_self_seed_full_round_trip",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_calendar_interop::open_or_create_daily_note_is_idempotent_against_real_backend_live",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_canvas_board::canvas_board_live_surrealdb_self_seeds_mounted_round_trip",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_canvas_board_argus::mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_ckc_embed::ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_code_nav_client::live_backend::ac001_lookup_symbols_returns_populated_live_symbol",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_code_nav_client::live_backend::ac002_get_symbol_returns_populated_live_definition",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_code_nav_client::live_backend::ac003_get_references_returns_populated_live_caller",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_code_note_cross_ref::live_backend::v2_self_seeded_surrealdb_code_ref_round_trip_navigation_and_note_refs",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_completion_hover_accesskit::ac005_live_backend_completion_reaches_accesskit_and_stale_gutter",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_completion_hover_accesskit::ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_e7_knowledge_accesskit::ac10_live_surrealdb_populated_graph_accesskit_round_trip",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_e7_knowledge_accesskit_argus::mt042_v4_canonical_argus_complete_runtime_proof",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_e7_swarm_edit_proof::swarm_edit_live_conflict_merge_search_and_receipts",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_event_emitter::event_emitter_native_editor_round_trip",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_fems_interop_proofs::proof_fems_01_memorypack_render",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_fems_interop_proofs::proof_fems_02_propose_creates_proposal_and_event",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_fems_interop_proofs::proof_fems_03_swarm_drives_fems_via_accesskit",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_fems_interop_proofs::proof_fems_04_procedural_proposal_stays_review_gated",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_fems_interop_proofs::proof_fems_approved_proposal_recovers_commit_only_after_native_restart",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_fems_interop_proofs::proof_fems_code_provenance_rejects_cross_workspace_and_stale_ksrc",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_fems_interop_proofs::proof_fems_cross_pane_focus_invalidates_already_staged_selection",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_fems_interop_proofs::proof_fems_duplicate_submission_replays_one_proposal_and_one_event",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_fems_interop_proofs::proof_fems_editor_switch_invalidates_identical_text_range_selection",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_fems_interop_proofs::proof_fems_focus_change_after_request_drain_invalidates_open_dialog",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_fems_interop_proofs::proof_fems_review_approval_and_rejection_persist_end_to_end",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_find_in_files::find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_roundtrip",
+            "type": "test abort",
+            "prior_failed": true,
+            "prior_type": "test abort"
+          },
+          {
+            "case": "handshake-native::test_interconnect_ckc_to_note::interconnect_ic03_ckc_moodboard_on_canvas",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_interconnect_ckc_to_note::interconnect_ic04_ckc_character_wikilink_backlink",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_interconnect_loom_backlink_search::interconnect_ic10_backlink_cross_surface",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_interconnect_loom_backlink_search::interconnect_ic12_graph_cross_surface_edges",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_interconnect_note_code_crossref::interconnect_ic06_open_code_block_from_note",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_loom_address::live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_memory_proposal_argus::mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_other_pillar_interop_proofs::other_pillar_op01_stage_route_embed_back_other_pillar_interop",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_other_pillar_interop_proofs::other_pillar_op04_swarm_accesskit_other_pillar_interop",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_stage_interop::live_route_round_trip_real_surrealdb",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_stage_interop::mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_stage_interop::mt066_canvas_board_evidence_does_not_block_product_cleanup",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_stage_interop::mt066_stage_card_bridge_evidence_does_not_block_product_cleanup",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_stage_interop::product_api_only_and_shared_backend_client",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          },
+          {
+            "case": "handshake-native::test_tags_panel::tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip",
+            "type": "test failure with exit code 101",
+            "prior_failed": true,
+            "prior_type": "test failure with exit code 101"
+          }
+        ],
+        "prior_fail_now_pass": [
+          "handshake-native::test_loom_address::live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash",
+          "handshake-native::test_other_pillar_interop_proofs::other_pillar_op03_locus_resolve_reverse_other_pillar_interop"
+        ],
+        "claim_limit": "Case/type comparison only; no same-root-cause or repair-causation claim"
+      }
+    },
+    "observation": {
+      "capture_ref": "WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v15-receipt-watch-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75.jsonl",
+      "capture_sha256": "25A362C2CEA2ACC64EC9D8C1C4D8EA9B64C6CA51E193B85F076A6CA04318B05D",
+      "summary_ref": "WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v15-receipt-watch-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75.summary.json",
+      "summary_sha256": "BB7E9EBA3519F824AE635A0824ECE0123ADC984BD092588B3EB25A8F81E45A63",
+      "records": 2266,
+      "phase_records": 1964,
+      "statement_records": 295,
+      "receipt_records": 7,
+      "incomplete_stream": true,
+      "issues": [
+        "log_read_or_containment_error"
+      ],
+      "issue_limit": "Watcher records no failing path/details; cause and omitted events cannot be inferred",
+      "failed_root_reconciliation": "910 unique normalized raw JSON tuples equal910 captured tuples; zero differences",
+      "captured_phase_reconciliation": "982 unique observed phase identities each have end/error/dropped; five dropped phases belong to failed save; this does not prove unobserved-event completeness",
+      "owned_restart_limit": "Successful fixture removed raw runtime roots. Capture omits lookup_performed; lookup0 is not measuredzero and no observed skip flag is claimed for owned restart",
+      "wall_clock_limit": "Receipt deltas use Surreal UTC wall clock, not monotonic time"
+    },
+    "process_capacity": {
+      "outer_true_exit": 0,
+      "bash_exit": 0,
+      "phase_exit": 0,
+      "cap_exit": 0,
+      "exit_ref": "WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v15-acceptance-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75.exit.json",
+      "exit_sha256": "612C7E0B9F68E547928BB600A99EB60E4E8CF255EF7C9560C4102C6EE491FDF2",
+      "samples": 358,
+      "observations_ref": "WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v15-acceptance-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75.observations.jsonl",
+      "observations_sha256": "B0382107296C55E56E73E9AF45F9E9852FE37474894C9A3E5CD1B8184285FAF3",
+      "peak_C_bytes": 141028126587,
+      "final_C_bytes": 141028126587,
+      "final_C_files": 161046,
+      "stop_bytes": 147000000000,
+      "cap_bytes": 150000000000,
+      "cap_events": 0,
+      "observed_owned_process_identities": 478,
+      "surviving_observed_owned_identities": 0,
+      "process_capacity_observation_loss": false,
+      "cleanup_limit": "No surviving observed PID+birth identity does not prove HTTP/account/vault cleanup. Other failed fixtures retained cleanup warnings and diagnostic roots"
+    },
+    "input_provenance": {
+      "binding_ref": "MT-032.json#remediation_v15.create_first_repair.acceptance_union",
+      "export_marker": "target-r52/export-8ea13a9b.sha equals full candidate",
+      "junit_sources": "All four retained JUnits hash-equal export-local sources and newer than their own start markers",
+      "core_selected_binary": "knowledge_documents_api_tests-d4a2cd50399dee06.exe",
+      "core_selected_binary_sha256": "AFC80C113D914B5F2F4CAF35997B455DB0EF17FCF097BA67616D754A9392C406",
+      "native_selected_binary": "test_loom_address-d688109f934bb1c2.exe",
+      "native_selected_binary_sha256": "09794F5403184452D347160C498A9C8674951FB9B9958C7C4B6C515BC3496021",
+      "backend_binary_sha256": "0F5D69BAECD0BB4D59FCE176690E72F0BE80E98CE4F0C5F04A22264C2B6FD7FC",
+      "binary_observation": "Core/native executable identities observed in owned tree; native and backend dep-info binds export8ea; core target rebuilt through canonical export cwd"
+    },
+    "attempt_disposition": {
+      "prior_records_preserved": true,
+      "failed_verdict_refs": [
+        "validation_v11",
+        "validation_v1",
+        "validation_v2",
+        "validation_v6",
+        "validation_v10",
+        "validation_v12",
+        "validation_v13",
+        "validation_v14"
+      ],
+      "failed_verdict_count": 8,
+      "max_fix_rounds_per_mt": null,
+      "no_counter_reset": true,
+      "active_policy_ref": "packet.json#paperwork_reconciliation_20260928.authority_resolution",
+      "limit_disposition": "Post-pin lifetime threshold not adopted; historical count is not an active exhausted-budget gate",
+      "no_unchanged_rerun": true
+    },
+    "remediation_required": [
+      "Complete the unchanged10s live linked-save path without weakening authorization, durable receipts, atomic backlink/counter updates, awaited indexing, restart or UI proof",
+      "Use changed relevant inputs and a distinct evidence-backed repair before another proof; no unchanged rerun and no speculative inner-cost claim"
+    ],
+    "adversarial_review": {
+      "risk": "HIGH",
+      "INDEPENDENT_CHECKS_RUN": [
+        "Own four JUnits, source/copy hashes and freshness markers, preserved actual runner/outer/observer exits",
+        "Failed live request raw source/capture tuple reconciliation and current source deadline",
+        "Exact prior747 case/type reconciliation; no new failing case identity",
+        "Live capacity/process identity reconciliation; before_verdict5/5"
+      ],
+      "RESIDUAL_UNCERTAINTY": [
+        "Inner counter-loop latency cause unproved",
+        "Phase capture incomplete; successful-root raw skip flag unavailable",
+        "Account/vault cleanup not implied by process exit"
+      ]
+    },
+    "status_effect": "BLOCKED/FAIL_V14; completed_by null; historical records preserved; no adjacent MT state change",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT032-8ea13a9b-union-v14",
+        "at_utc": "2026-09-29T04:03:10.939594Z",
+        "payload_ref": "MT-032.json#validation_v14",
+        "decision": "failed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT032-8ea13a9b-union-v14",
+        "at_utc": "2026-09-29T04:03:10.939594Z",
+        "payload_ref": "MT-032.json#validation_v14",
+        "decision": "failed"
+      }
+    ]
   }
 }
