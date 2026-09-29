@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-164",
   "created_at_utc": "2026-09-29T12:01:02Z",
-  "updated_at_utc": "2026-09-29T14:31:39Z",
+  "updated_at_utc": "2026-09-29T14:58:00Z",
   "identity": {
     "mt_id": "MT-164",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -229,7 +229,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "blocked_on": null,
     "depends_on": [],
     "blocks": [
@@ -244,16 +244,16 @@
     "claimed_at_utc": "2026-09-29T12:01:02Z",
     "claim_ref": "KERNEL_BUILDER-20260929-120102: Operator decision WP012-MT032-SPLIT-20260929-MT164 ('I claim MT-164 and a builder sub-agent implements it')",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER (remediation_v1)",
-    "status_reason": "FAIL_V1 on ee9efaba union: grant-cost ratio 4.05/4.27 (limit 2.0) and 52 previously green core tests now abort with store-engine stack overflow.",
+    "next_actor": "WP_VALIDATOR",
+    "status_reason": "remediation_v1 pushed as 4d4f7e12 (indexable LET-bound grant lookup, flattened grant fns, 10 MiB runtime stacks) with builder compile/static evidence; gameplan before_submit PASS. Runtime pins need validator PIN-MEASURE before the confirming round.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN"
     ],
     "split_ref": "MT-032.json#execution_split_20260929",
-    "candidate_commit": "ee9efaba664bfa6e2987a847979c19048b3093a4",
+    "candidate_commit": "4d4f7e12b86eb1bcc8ce23946e92b3a6f8154c1d",
     "validator_required_before_acceptance": {
-      "pin_measure": "DONE: pins measured on 179ffc1f (validation.pin_measurement) and applied in ee9efaba.",
+      "pin_measure": "REQUIRED again on 4d4f7e12: EXPECTED_SCHEMA_INFO_SHA256, EXPECTED_ATELIER_CATALOG_SHA256, Loom receipt EXPECTED_CATALOG_SHA256 (+ mt109_loom_catalog test literal) are marked PIN-MEASURE PENDING (ee9efaba values retained); builder re-pins after measurement.",
       "core_filter": "WPV-union-round.sh CORE_FILTER must admit storage::surreal::resource_authority_tests:: and the new schema test (proof.checks[1].entrypoint_change_required)."
     },
     "validated_by": "WP_VALIDATOR-20260929-MT164-ROUND",
@@ -560,6 +560,24 @@
           "MT-164"
         ],
         "owning_mt": "MT-164"
+      },
+      {
+        "check_id": "MT-164-BUILDER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "covered_mts": [
+          "MT-164"
+        ],
+        "candidate": "4d4f7e12b86eb1bcc8ce23946e92b3a6f8154c1d",
+        "crate": "handshake_core",
+        "command": "cd src/backend/handshake_core && CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-164/kb/target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only cargo check --locked --tests -j 8 --features app-runtime,surreal-test-support,test-utils",
+        "started_at_utc": "2026-09-29T14:52:17Z",
+        "completed_at_utc": "2026-09-29T14:55:15Z",
+        "exit": 0,
+        "result": "pass; 0 errors; warning set identical to check-1 (none from remediation_v1 code); rustfmt --check clean on main.rs, storage/tests.rs, schema.rs",
+        "input_digest_before_after": "equal (schema.surql, schema.rs, main.rs, storage/tests.rs git hash-object before/after; see check-3 digest files); committed tree 4d4f7e12 contains exactly these blobs",
+        "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-164/kb/logs/check-3",
+        "static_diff_review": "5 fn grant WHERE clauses compare account_id/principal_id/access_space_id to LET params and resource_id = $resource (GP-144 cmd exit 0); no resource_id.* predicate; pins: GENERATED re-derived, runtime pins PIN-MEASURE PENDING",
+        "scope": "Implementer compile/static evidence only (CX-EXEC-014); runtime acceptance and pin measurement pending WP validator"
       }
     ],
     "pin_measurement": {
@@ -876,6 +894,24 @@
       "main.rs:43 and storage/tests.rs:242: tokio runtime thread_stack_size(10 MiB).",
       "Re-derive GENERATED pin; runtime pins need validator pin-measure (measurement, not attempt) before the confirming round."
     ],
-    "rerun_admission": "New diagnoses recorded (CX-EXEC-003A/CX-VAL-008); next round admitted only on a pushed commit changing the affected code."
+    "rerun_admission": "New diagnoses recorded (CX-EXEC-003A/CX-VAL-008); next round admitted only on a pushed commit changing the affected code.",
+    "implementation_record": {
+      "recorded_at_utc": "2026-09-29T14:58:00Z",
+      "executor_role": "KERNEL_BUILDER",
+      "candidate_commit": "4d4f7e12b86eb1bcc8ce23946e92b3a6f8154c1d",
+      "base_commit": "ee9efaba664bfa6e2987a847979c19048b3093a4",
+      "pushed": true,
+      "changed_files": {
+        "src/backend/handshake_core/src/storage/surreal/schema.surql": "5 grant/access fns: $auth ids/policy/chain bound to LET params; grant WHERE account_id=$acct AND principal_id=$prin AND access_space_id=$space AND resource_id=$resource; sequential IF !(cond) { RETURN false; } early exits; nested fn calls bound via LET",
+        "src/backend/handshake_core/src/storage/surreal/schema.rs": "GENERATED pin 1d6109d8...; INFO/Atelier/Loom pins marked PIN-MEASURE PENDING (ee9efaba values retained, not guessed); revision 162 unreleased, re-pinned in place",
+        "src/backend/handshake_core/src/main.rs": "#[tokio::main] replaced by explicit Builder::new_multi_thread().enable_all().thread_stack_size(10 MiB).build().expect(\"Failed building the Runtime\").block_on(..) (same expansion otherwise)",
+        "src/backend/handshake_core/src/storage/tests.rs": "test_engine_runtime builder adds thread_stack_size(10 MiB)"
+      },
+      "indexable_literal_evidence": "YES, no extra index needed: exec/planner/util/params.rs resolve_param_value reads LET bindings via ctx.value(name) and ParamResolver replaces bare Expr::Param with value.into_literal(); val/mod.rs:595 RecordId -> Literal::RecordId, val/record_id.rs:258 String key -> RecordIdKeyLit::String; exec/planner/util/literals.rs:40-50 try_literal_to_value converts Number/String/Uuid-key record ids. Account/principal/space/protected_resources ids are String (UUID text) keys: resource_authority.rs:534-536 RecordId::new(table, Uuid::now_v7().to_string()), :974-975. $auth.x idioms are not Expr::Param and stay unfolded (params.rs ParamCollector). $parent avoided (row-scoped, exec/planner/row_scope.rs:34): LET named $parent_resource.",
+      "revision_decision": "No new revision: 162 is unreleased (not on main); per the rev-160 re-pin-in-place precedent the rev-161->162 upgrade delta re-emits current fn text from SCHEMA; rev-161 restore still reproduces 009ee238 (verified statically).",
+      "semantic_review": "AC-164-2 per fn: every rev-161 condition maps to one early exit or grant WHERE term; source_read parent branch IF pk='workspace' {pe=ws} ELSE {pk IN [knowledge_source,rich_document] AND 6 grandparent conds} is exact since the old disjuncts are exclusive on pk; results remain boolean.",
+      "gameplan_steps_added": "GP-141 (retired: wrong path), GP-142 (flattening confirm), GP-143 (retired: over-broad), GP-144 (cmd: 5 fns grant WHERE uses bare LET ids + resource_id = $resource; exit 0 on 4d4f7e12, exit 1 on ee9efaba). gameplan.yaml left uncommitted in the kernel worktree (this commit limited to MT-164.json).",
+      "proof_record_check_id": "MT-164-BUILDER-COMPILE (validation.proof_records, candidate 4d4f7e12)"
+    }
   }
 }
