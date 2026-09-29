@@ -25,7 +25,7 @@
   "title": "B18-MT-155-Authenticate-Product-Screenshot-Capture-Execute",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-29T16:35:56Z",
+  "updated_at_utc": "2026-09-29T16:55:24Z",
   "validation_shared_union_ec596eec": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "decision": "inconclusive",
@@ -270,11 +270,11 @@
     ]
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V5",
+    "validator_verdict": null,
     "ready_status_repair": {
       "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
       "rule": "CX-STATUS-001",
@@ -287,8 +287,8 @@
       "push_evidence": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 9c13b642e50a909e9d0ea1246a050f6be74f18cc",
       "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
     },
-    "validated_by": "WP_VALIDATOR-20260929-MT164-ROUND",
-    "validated_at_utc": "2026-09-29T14:31:39Z",
+    "validated_by": "WP_VALIDATOR-20260929-MT164-CAPTURE",
+    "validated_at_utc": "2026-09-29T16:55:24Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -302,8 +302,8 @@
       ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json remediation_v24 (KERNEL_BUILDER-C2 round 5: what is already fixed) and remediation_v25 (KERNEL_BUILDER-C3 round 6, in progress)"
     ],
     "audit_refs_note": "The two audit files live in an Operator session scratchpad and are not durable; every row this MT relies on is copied into scope.routes / implementation_steps, so the MT is executable without them.",
-    "prior_validator_verdict": "FAIL_V3",
-    "next_actor": "KERNEL_BUILDER"
+    "prior_validator_verdict": "FAIL_V5",
+    "next_actor": "WP_VALIDATOR (check-tests/clippy at end-of-WP extra build)"
   },
   "closure_unit": {
     "outcome": "POST /kernel/product_screenshot_capture/execute only runs for an authenticated account session that holds the screenshot-capture capability; everyone else is denied before any process starts, and an authorized run is attributable to the session principal and its child process is always reclaimed.",
@@ -1479,5 +1479,119 @@
       "effect": "Supersedes the prior validator ruling that an MT format check covers all changed files in its range; applies to open MTs of this WP from 2026-09-29.",
       "ref": "packet.json#operator_decisions_20260929"
     }
-  ]
+  ],
+  "validation_v6": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR-20260929-MT164-CAPTURE",
+    "validated_at_utc": "2026-09-29T16:55:24Z",
+    "candidate_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df",
+    "authority": "packet.json#operator_decisions_20260929[0].format_scope (\"Own files only\"; supersedes validation_v3 all-changed-files ruling)",
+    "proof_records_ref": "MT-164.json#validation.proof_records[PR-WP012-UNION-de04b8f0-CORE]",
+    "checks": {
+      "MT-155-ROUTE-AUTH": "PASS 5/5 (union de04b8f0)",
+      "MT-155-EXISTING": "PASS 8/8",
+      "MT-155-KERNEL-LIB": "PASS 3/3",
+      "MT-155-FMT": "PASS: rustfmt --edition 2021 --check on the 3 owned_files at de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df: exit 0, no output (../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt155-fmt-owned-de04b8f0.log)",
+      "MT-155-DIFF-CHECK": "PASS (git diff --check 0cfbff64..de04b8f0, no output)",
+      "MT-155-CHECK-TESTS": "UNCLOSED: full --tests cargo check not produced by the union build",
+      "MT-155-CLIPPY-CHANGED": "UNCLOSED: clippy build not run (end-of-WP extra build per CX-VAL-005)"
+    },
+    "fail_v5_disposition": "FAIL_V5 rested only on the superseded FMT scope; under the Operator decision it no longer holds. Status returned to READY_FOR_VALIDATION with the two unclosed static checks as the remaining floor.",
+    "non_owned_unformatted_files_for_routing": [
+      {
+        "file": "src/backend/handshake_core/src/api/loom.rs",
+        "diff_lines": [
+          11086,
+          11093
+        ],
+        "owners": [
+          "MT-153 (FAIL_V2)",
+          "MT-107/144/149 (PASS)"
+        ],
+        "introduced_by": "8cebbbcd fix(MT-153) (+fe3b0c01)",
+        "route_to": "MT-153"
+      },
+      {
+        "file": "src/backend/handshake_core/src/storage/surreal/retry.rs",
+        "diff_lines": [
+          251
+        ],
+        "owners": [
+          "MT-142 (BLOCKED)",
+          "MT-151 (PASS)"
+        ],
+        "introduced_by": "41bfbb77 feat(storage): MT-142 swarm concurrency primitives",
+        "route_to": "MT-142"
+      },
+      {
+        "file": "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
+        "diff_lines": [
+          618,
+          627
+        ],
+        "owners": [
+          "MT-154 (FAIL_V3)",
+          "MT-153 (FAIL_V2)",
+          "MT-146/152 (PASS)"
+        ],
+        "introduced_by": "456dc63a close native editor authority gaps (+710f070f)",
+        "route_to": "MT-154"
+      },
+      {
+        "file": "src/frontend/handshake_native/src/local_account.rs",
+        "diff_lines": [
+          228,
+          246
+        ],
+        "owners": [
+          "none in owned_files; referenced by MT-154"
+        ],
+        "introduced_by": "83c05ecf style(MT-111), 3b22f415 native account proof instrumentation",
+        "route_to": "Orchestrator (unowned; MT-111/MT-032 lineage)"
+      },
+      {
+        "file": "src/frontend/handshake_native/tests/test_flight_recorder_authz.rs",
+        "diff_lines": [
+          94,
+          220,
+          274,
+          351
+        ],
+        "owners": [
+          "none in owned_files; referenced by MT-111"
+        ],
+        "introduced_by": "b8b247ae / 5a3cb9fe test(MT-111)",
+        "route_to": "MT-111"
+      },
+      {
+        "file": "src/frontend/handshake_native/tests/test_stage_interop.rs",
+        "diff_lines": [
+          1040,
+          1047,
+          1060
+        ],
+        "owners": [
+          "MT-066 (FAIL_V7)"
+        ],
+        "introduced_by": "1c5214bc Align Stage and MT-034 proofs",
+        "route_to": "MT-066"
+      }
+    ],
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT155-de04b8f0-format-rejudge",
+        "at_utc": "2026-09-29T16:55:24Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT155-de04b8f0-format-rejudge",
+        "at_utc": "2026-09-29T16:55:24Z",
+        "decision": "inconclusive",
+        "state_effect": "FAIL_V5 -> READY_FOR_VALIDATION (Operator format-scope decision)"
+      }
+    ]
+  }
 }
