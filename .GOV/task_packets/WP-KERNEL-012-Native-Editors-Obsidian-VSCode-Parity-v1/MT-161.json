@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-161",
   "created_at_utc": "2026-09-29T08:31:36.101102Z",
-  "updated_at_utc": "2026-09-29",
+  "updated_at_utc": "2026-09-29T17:23:03Z",
   "identity": {
     "mt_id": "MT-161",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -179,7 +179,7 @@
     "policy": "JSON authority; projection on demand only"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED",
     "depends_on": [
       "MT-031",
       "MT-021",
@@ -193,13 +193,15 @@
     "active": false,
     "validator_verdict": null,
     "completed_by": null,
-    "next_actor": "WP_VALIDATOR (combined native live self-seeded case on de04b8f0 or later; runtime run needs Operator authorization)",
-    "status_reason": "Operator decision WP012-MT032-SPLIT-20260929-MT164: BLOCKED on MT-164. Contract authored only; existing evidence needs scoped independent disposition.",
+    "next_actor": "KERNEL_BUILDER (MT-162 fix), then WP_VALIDATOR",
+    "status_reason": "All MT-161 steps passed on de04b8f0; shared case red only at the MT-162 Loom block refetch.",
     "split_ref": "MT-032.json#execution_split_20260929",
     "status_before_mt164_20260929": "PENDING",
     "status_reason_before_mt164_20260929": "Contract authored only; existing evidence needs scoped independent disposition.",
     "validator_verdict_before_20260929": "PENDING",
-    "blocked_on": null
+    "blocked_on": "MT-162 FAIL_V1 remediation (MT162-LOOM-BLOCK-REFETCH-UNAUTHENTICATED)",
+    "validated_by": "WP_VALIDATOR-20260929-NATIVE-SELF-SEEDED",
+    "validated_at_utc": "2026-09-29T17:23:03Z"
   },
   "scope": {
     "summary": "The existing bottom-of-editor backlink panel renders source_document_id/link_kind, exposes backlinks-panel List and backlink-{source_document_id} ListItem/Press, and routes a mounted click through CMD_OPEN_DOCUMENT, the shared bus and production shell drain. Preserve loading/empty/error/recovery states, session-only cache, save invalidation, stale document/workspace rejection and bus-contention retry. Reuse MT015 panel/runtime and MT024 sidebar; no third panel. MT162 supplies real save-derived data and MT163 proves the live mounted flow.",
@@ -506,5 +508,45 @@
       "prior_status": "BLOCKED",
       "new_status": "READY_FOR_VALIDATION"
     }
-  ]
+  ],
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "blocked",
+    "validated_by": "WP_VALIDATOR-20260929-NATIVE-SELF-SEEDED",
+    "validated_at_utc": "2026-09-29T17:23:03Z",
+    "candidate_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-mt161-162-self-seeded-native-round.xml",
+    "proof_records_ref": "MT-162.json#validation.proof_records[PR-WP012-MT161-162-SELF-SEEDED-de04b8f0]",
+    "blocker_kind": "dependency",
+    "blocked_on_mt_ref": "MT-162.json#validation_v1 (MT162-LOOM-BLOCK-REFETCH-UNAUTHENTICATED)",
+    "checks": [
+      {
+        "check_id": "MT-161-PROOF-01",
+        "result": "case FAIL at an MT-162 step after all MT-161 steps passed",
+        "passed_steps": "test_loom_address.rs:1440-1801 passed: A/B create+load identity and LoomBlockAddr (1475-1518), linked save + live backlinks (1540-1563), mounted BacklinkPanel AccessKit List/ListItem+Click (1570-1602), CMD_OPEN_DOCUMENT bus + mounted source navigation via Argus click (1605-1712), Canvas live-B AccessKit + screenshot (1717-1735), remove/restore link saves (1740-1771), save B + fresh document reload content_json and content_sha256 (1774-1801)"
+      }
+    ],
+    "acceptance_observed": {
+      "AC-161-1": "observed passing (live save-derived backlinks, no seeded rows or rebuild)",
+      "AC-161-2": "observed passing (CMD_OPEN_DOCUMENT on shared bus; mounted source navigation via Argus click)",
+      "AC-161-3": "observed passing (backlinks-panel List, backlink-{id} ListItem with Click, mounted click)"
+    },
+    "basis": "CX-VAL-001: PASS needs the case result line to read pass; it reads FAIL solely at the MT-162 Loom block refetch (WPV-DEP-001), so BLOCKED, no MT-161 remediation.",
+    "save_timings_ref": "MT-162.json#validation_v1.save_timings",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT161-de04b8f0-self-seeded-verdict",
+        "at_utc": "2026-09-29T17:23:03Z",
+        "decision": "blocked"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT161-de04b8f0-self-seeded-verdict",
+        "at_utc": "2026-09-29T17:23:03Z",
+        "decision": "blocked",
+        "state_effect": "lifecycle.status BLOCKED"
+      }
+    ]
+  }
 }
