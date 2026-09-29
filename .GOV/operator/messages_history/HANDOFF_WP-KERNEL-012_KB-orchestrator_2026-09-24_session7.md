@@ -6,6 +6,41 @@ authority: reference_only
 wp_id: WP-KERNEL-012
 ---
 
+<topic id="findings-gaps-unknowns-20260929" wp="WP-KERNEL-012" status="open" updated_at="2026-09-29">
+
+## Operator approval
+
+2026-09-29, verbatim: "approved. record the success, what is still unknown, and other gaps and findings in the handoff, then continue". This approves one native live self-seeded round (MT-161/162 shared case) on product `de04b8f0`, plus MT-154's stack-size remediation in parallel. Same day: "also do a commit and push wp kernel 012 worktree with dirt, make sure no other branches exist for this wp. i hate stray sibling branches" and "also commit and push gov kernel with dirt".
+
+## Success (measured)
+
+- MT-164 PASS_V3 on `de04b8f0`. Grant-check cost is independent of grant count: 500/50 ratio 0.61/0.58; medians 12–21ms (debug build). Before this: 70ms at 500 grants and rising (`ee9efaba`). The earlier ~2.1s lookup recorded in V15 came from a different context.
+- Stack overflows are back to the pre-MT-164 baseline of 5, down from 59.
+- Root cause chain established from SurrealDB 3.2.0 source and confirmed by measurement: link-traversal grant filters, then `$auth.x` path comparisons the new planner cannot index, then recursive left-deep AND evaluation on 2 MiB stacks.
+
+## Still unknown
+
+- Whether the live self-seeded linked save now fits the 10s budget (the case that failed at 10,010ms eight times). Per-row permission checks still run, each ~12–21ms in debug; a save touching many blocks/edges multiplies that.
+- Release-build behaviour and production stack headroom. Production overflow was never observed; the claim is UNVERIFIED. `main.rs` now sets 10 MiB. Whether `app/src-tauri` (Tauri runtime, default 2 MiB) is a live production path is not inspected.
+- Whether the remaining save-path costs (counter loop, `knowledge_rich_documents` update-guard event, double live-document read) are material now that the grant cost is gone.
+
+## Findings and gaps
+
+1. Two resource_grants queries are still unindexable (same planner limitation). Top repair candidates if the live save is slow:
+   - `schema.surql:5779`: `protected_resources` select permission, `resource_id = $parent.id AND account_id = $auth.account_id ...`. `$parent.id` and `$auth.x` are paths, so this is a full grant scan on every protected-resource read, including MT-164's new resolution lookups.
+   - `schema.surql:6385`: `fn::mt109_ledger_access` (event-ledger access). Same repair: LET-bind the values.
+   - `= $auth.account_id` appears 55 times in schema.surql. Other tables' permission filters may have the same non-indexable pattern. Audit this before assuming any permission filter is index-backed.
+2. MT-154 FAIL_V3: 5 stack overflows remain (2 on the test thread, 3 on `tokio-rt-worker` in `#[tokio::test]` runtimes). These stacks are still 2 MiB. Remediation: 10 MiB for test runtimes (test attribute/builder, or `RUST_MIN_STACK` in the checked-in test-runner config per CX-VAL-007).
+3. Cycle cost: every schema change needs build → validator pin-measure → re-pin → round, about 3 builds per change. A builder-runnable pin derivation, or an always-printing pin test, would remove one validator round-trip per schema change (high ROI).
+4. The test config discarded passing-test output, so timing evidence was lost once (fixed `3db73ab0`). The round script now has single-use modes (pin-measure per candidate, one-test capture) that should be consolidated.
+5. No canary exists (HBR placeholder only). Under the pin (896f4e15 + f6bbcaac), PASS invalidation (CX-VAL-009) is not adopted: earlier PASS verdicts whose inputs MT-164 changed were not re-run.
+6. Six unformatted non-owned files are routed in packet.json `mt164_outcome_20260929.format_routing`. `native/src/local_account.rs` has no owning MT and needs assignment.
+7. MT-160: the canvas-chip screenshot has never been independently inspected. V14 component-proof reuse is undecided.
+8. MT-155/MT-157: cargo check (tests) and clippy are pending the WP-end extra build.
+9. The global gameplan hook matches command text, so a governance paperwork command whose content mentioned the test-runner name was blocked as a test run. Workaround: write paperwork with file edit tools.
+
+</topic>
+
 <topic id="session-2026-09-29-progress" wp="WP-KERNEL-012" status="mt164-pass-live-round-pending" updated_at="2026-09-29">
 
 ## Resume here
