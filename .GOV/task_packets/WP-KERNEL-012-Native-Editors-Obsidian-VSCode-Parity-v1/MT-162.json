@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-162",
   "created_at_utc": "2026-09-29T08:31:36.101102Z",
-  "updated_at_utc": "2026-09-29",
+  "updated_at_utc": "2026-09-29T17:23:03Z",
   "identity": {
     "mt_id": "MT-162",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -162,7 +162,7 @@
     "policy": "JSON authority; projection on demand only"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "depends_on": [
       "MT-031",
       "MT-021",
@@ -175,16 +175,19 @@
       "MT-163"
     ],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V1",
     "completed_by": null,
-    "next_actor": "WP_VALIDATOR (combined native live self-seeded case on de04b8f0 or later; runtime run needs Operator authorization)",
-    "status_reason": "Operator decision WP012-MT032-SPLIT-20260929-MT164: BLOCKED on MT-164. V19 first linked save dropped at10010ms; inner counter/query/permission/write cost unresolved; required integrated proof incomplete.",
+    "next_actor": "KERNEL_BUILDER",
+    "status_reason": "FAIL_V1 on de04b8f0: saves now 4.0-5.9 s (<10 s); case fails at test_loom_address.rs:1810 header-free Loom block GET -> 403 (test defect).",
     "split_ref": "MT-032.json#execution_split_20260929",
     "status_before_mt164_20260929": "BLOCKED",
     "status_reason_before_mt164_20260929": "V19 first linked save dropped at10010ms; inner counter/query/permission/write cost unresolved; required integrated proof incomplete.",
     "validator_verdict_before_20260929": "PENDING",
     "blocked_on": null,
-    "mt160_dependency_note": "Kept for sequenced writes to backend_client.rs/loom_address.rs (MT-160 first)."
+    "mt160_dependency_note": "Kept for sequenced writes to backend_client.rs/loom_address.rs (MT-160 first).",
+    "validated_by": "WP_VALIDATOR-20260929-NATIVE-SELF-SEEDED",
+    "validated_at_utc": "2026-09-29T17:23:03Z",
+    "validated_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df"
   },
   "scope": {
     "summary": "Authenticated production APIs create/load real A and B, return canonical identity, and save A hsLink to B without seeded backlinks or repair/rebuild. Preserve real save-derived backlinks, remove/restore/delete, saved canonical JSON/document/Loom hash equality, authentic save_receipt_event_id and awaited required indexing. The existing self-seeded client remains10s for create/save. Backend implementation remains the authorized MT154 document slice; this child grants no backend write authority.",
@@ -489,5 +492,215 @@
       "prior_status": "BLOCKED",
       "new_status": "READY_FOR_VALIDATION"
     }
-  ]
+  ],
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "validated_by": "WP_VALIDATOR-20260929-NATIVE-SELF-SEEDED",
+    "validated_at_utc": "2026-09-29T17:23:03Z",
+    "candidate_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df",
+    "started_at": "2026-09-29T17:06:09.4919772Z",
+    "completed_at": "2026-09-29T17:19:42.4800326Z",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-mt161-162-self-seeded-native-round.xml",
+    "proof_record_ids": [
+      "PR-WP012-MT161-162-SELF-SEEDED-de04b8f0"
+    ],
+    "failure_kind": "product",
+    "failure_class": "MT162-LOOM-BLOCK-REFETCH-UNAUTHENTICATED",
+    "checks": [
+      {
+        "check_id": "MT-162-PROOF-01",
+        "result": "FAIL",
+        "case": "live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof",
+        "passed_steps": "test_loom_address.rs:1440-1801 passed: A/B create+load identity and LoomBlockAddr (1475-1518), linked save + live backlinks (1540-1563), mounted BacklinkPanel AccessKit List/ListItem+Click (1570-1602), CMD_OPEN_DOCUMENT bus + mounted source navigation via Argus click (1605-1712), Canvas live-B AccessKit + screenshot (1717-1735), remove/restore link saves (1740-1771), save B + fresh document reload content_json and content_sha256 (1774-1801)",
+        "failed_step": "test_loom_address.rs:1803-1810 GET /workspaces/{ws}/loom/blocks/{b_block_id} sent header-free via refetch_client -> 403; later delete/cleanup steps (1812-1867) not reached",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt161-162-self-seeded-native-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.stderr.log (FAIL block), ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-mt161-162-self-seeded-native-round.xml"
+      }
+    ],
+    "acceptance": {
+      "AC-162-1": "proved in this run (create/load canonical block_id = document id, LoomBlockAddr addressable, URI round trip)",
+      "AC-162-2": "proved in this run (live save-derived backlink rows for B, no seeded rows or rebuild)",
+      "AC-162-3": "NOT proved: document reload content_sha256 matched; Loom block reload content_hash not reached (403)"
+    },
+    "diagnosis": {
+      "cause": "Test sends getLoomBlock without account session; route requires authorize_request since MT-109 C1V-LOOM-READ-403",
+      "evidence_refs": [
+        "test_loom_address.rs:1207 stale comment \"getLoomBlock correctly needs NONE\"",
+        "test_loom_address.rs:1803-1809 and :1837-1841 (same pattern for A)",
+        "api/loom.rs:916-926 get_loom_block -> authority::authorize_request",
+        "backend logs: all 4 saves end normally; no server error"
+      ],
+      "server_behavior": "correct: unauthenticated read denied",
+      "code_location": "src/frontend/handshake_native/tests/test_loom_address.rs (MT-162/MT-161 owned)"
+    },
+    "save_timings": {
+      "source": "V15 phase watcher capture (MT032_DOCUMENT_PHASE end records; statement stats)",
+      "first_linked_save": {
+        "request_id": "01a0ee2c-1678-7432-ad0e-01264f5e2590",
+        "save_transaction_ms": 1772,
+        "save_receipt_ms": 284,
+        "save_backlinks_ms": 2665,
+        "backlink_write_ms": 2519,
+        "counter_loop_statement5_us": 1537796,
+        "save_embeds_ms": 19,
+        "save_index_ms": 1097,
+        "save_request_total_ms": 5894,
+        "receipt_operation_us": 219703
+      },
+      "v19_first_linked_save_4e7b14ba": {
+        "save_transaction_ms": 3751,
+        "save_receipt_ms": 392,
+        "save_backlinks_ms": 5582,
+        "counter_loop_statement5_us": 3296741,
+        "save_index_ms": "234 then dropped",
+        "save_request_ms": "10010 dropped"
+      },
+      "other_saves_total_ms": {
+        "remove_link_save": 4472,
+        "restore_link_save": 4944,
+        "save_b": 4024
+      },
+      "backlink_statement_us_first_linked": [
+        0,
+        7858,
+        3134,
+        389005,
+        522321,
+        1537796,
+        43282,
+        406
+      ],
+      "budget": "every save completed under the 10 s self-seeded deadline (max 5.894 s); the first linked save no longer drops"
+    },
+    "remediation": {
+      "failed_acceptance_refs": [
+        "AC-162-3"
+      ],
+      "failed_checks": [
+        "MT-162-PROOF-01"
+      ],
+      "artifact_refs": [
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt161-162-self-seeded-native-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.stderr.log",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-mt161-162-self-seeded-native-round.xml"
+      ],
+      "affected_code_refs": [
+        "tests/test_loom_address.rs:1803-1810",
+        "tests/test_loom_address.rs:1837-1841",
+        "tests/test_loom_address.rs:1207"
+      ],
+      "repair_direction": [
+        "Send Loom block GETs through with_rich_doc_headers(account_context, ...); fix the stale :1207 comment"
+      ]
+    },
+    "counters": "first verdict on MT-162; rounds_without_output 0",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT162-de04b8f0-self-seeded-verdict",
+        "at_utc": "2026-09-29T17:23:03Z",
+        "decision": "failed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT162-de04b8f0-self-seeded-verdict",
+        "at_utc": "2026-09-29T17:23:03Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V1"
+      }
+    ]
+  },
+  "validation": {
+    "proof_records": [
+      {
+        "proof_id": "PR-WP012-MT161-162-SELF-SEEDED-de04b8f0",
+        "executor_role": "WP_VALIDATOR",
+        "candidate_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df",
+        "authority": "Operator approval, handoff HANDOFF_WP-KERNEL-012_KB-orchestrator_2026-09-24_session7.md topic findings-gaps-unknowns-20260929 (gov 165b3e6c)",
+        "command": "bash .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032-phase-probe.sh de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df ../wtc-native-editors-v1 ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52 ../gov_runtime/tools/cargo-nextest/0.9.146/cargo-nextest.exe ../Handshake_Artifacts self-seeded-native-round",
+        "entrypoint_commit": "c46d50be (self-seeded-native-round mode; same filter/features/config as V19)",
+        "launcher": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/observe-self-seeded-native-de04b8f0.ps1 (gameplan wp_validator before_round PASS 28/28; vault probe 965cefc9 success)",
+        "features": "integration,integration_tests,wgpu_screenshots",
+        "config": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/nextest.toml sha256 d8283761... (= WPV-nextest-native.toml; owned-backend group 1200s x1)",
+        "filter": "binary(=test_loom_address) & test(=live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof)",
+        "started_at": "2026-09-29T17:06:09.4919772Z",
+        "completed_at": "2026-09-29T17:19:42.4800326Z",
+        "builds": {
+          "native_test_exe": "C: debug/deps/test_loom_address-a29ed61fae3d0fe2.exe",
+          "backend_exe": "D: ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/backend-bin/debug/handshake_core.exe sha256 a19dcd4ea34b052bc774f15a08fe99c2c334e2afa713707bfb3704c2df3da877 (de04b8f0, 10 MiB runtime stacks)",
+          "backend_D_build_window_utc": "2026-09-29T17:09:28Z..17:16:52Z"
+        },
+        "result": {
+          "tests": 1,
+          "passed": 0,
+          "failed": 1,
+          "runner_exit": 100,
+          "case_seconds": 116.992,
+          "failure": "tests/test_loom_address.rs:1810 assert_eq!(block_response.status(), 200): left 403 right 200 (GET /workspaces/{ws}/loom/blocks/{b_block_id})"
+        },
+        "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-mt161-162-self-seeded-native-round.xml",
+        "junit_sha256": "f57c36de0365c16758b98d2eefb0b1130fe2e95f0ffd27e0d69aa47e7c4588fd",
+        "stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt161-162-self-seeded-native-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.stdout.log",
+        "stdout_sha256": "4693d82c1e980287dd71db0c32edbb89981bb726c33188b59559a5bd24f40d12",
+        "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt161-162-self-seeded-native-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.stderr.log",
+        "stderr_sha256": "ee69d140f2b5bf0eb61475619acc67e85d1e4ebfd115817347b98b6a46311ccf",
+        "phase_capture": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v15-receipt-watch-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.jsonl",
+        "phase_capture_sha256": "1e84a341e56831038cb3b6c7141d5d695ec615b0669871b3a33c816b25e892b4",
+        "phase_summary": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v15-receipt-watch-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.summary.json (records 1824, phase 1584, statement 234, receipt 6; incomplete_stream=true scenario_without_phase_records, same limit as V19)",
+        "preserved_failure_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-82bb3467f7114d41/5a1b8dd0-ad10-4e19-a6ad-bdf4231a0c56",
+        "capacity": {
+          "C_start_bytes": 86975240042,
+          "C_peak_bytes": 87406235834,
+          "C_end_bytes": 87277545135,
+          "stop_bytes": 147000000000,
+          "D_free_kib_after": 1681889540,
+          "owned_stop": false
+        },
+        "covers": [
+          "MT-161",
+          "MT-162"
+        ],
+        "owning_mt": "MT-162",
+        "save_timings": {
+          "source": "V15 phase watcher capture (MT032_DOCUMENT_PHASE end records; statement stats)",
+          "first_linked_save": {
+            "request_id": "01a0ee2c-1678-7432-ad0e-01264f5e2590",
+            "save_transaction_ms": 1772,
+            "save_receipt_ms": 284,
+            "save_backlinks_ms": 2665,
+            "backlink_write_ms": 2519,
+            "counter_loop_statement5_us": 1537796,
+            "save_embeds_ms": 19,
+            "save_index_ms": 1097,
+            "save_request_total_ms": 5894,
+            "receipt_operation_us": 219703
+          },
+          "v19_first_linked_save_4e7b14ba": {
+            "save_transaction_ms": 3751,
+            "save_receipt_ms": 392,
+            "save_backlinks_ms": 5582,
+            "counter_loop_statement5_us": 3296741,
+            "save_index_ms": "234 then dropped",
+            "save_request_ms": "10010 dropped"
+          },
+          "other_saves_total_ms": {
+            "remove_link_save": 4472,
+            "restore_link_save": 4944,
+            "save_b": 4024
+          },
+          "backlink_statement_us_first_linked": [
+            0,
+            7858,
+            3134,
+            389005,
+            522321,
+            1537796,
+            43282,
+            406
+          ],
+          "budget": "every save completed under the 10 s self-seeded deadline (max 5.894 s); the first linked save no longer drops"
+        }
+      }
+    ]
+  }
 }
