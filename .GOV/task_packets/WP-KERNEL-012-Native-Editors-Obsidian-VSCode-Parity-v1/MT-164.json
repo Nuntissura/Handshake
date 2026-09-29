@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-164",
   "created_at_utc": "2026-09-29T12:01:02Z",
-  "updated_at_utc": "2026-09-29T12:01:02Z",
+  "updated_at_utc": "2026-09-29T12:37:00Z",
   "identity": {
     "mt_id": "MT-164",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -221,8 +221,8 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "BLOCKED",
-    "blocked_on": "MT-164 open fix: builder implementation commit not yet pushed; READY_FOR_VALIDATION follows a pushed compiling commit with compile/static evidence (CX-STATUS-001)",
+    "status": "READY_FOR_VALIDATION",
+    "blocked_on": null,
     "depends_on": [],
     "blocks": [
       "MT-161",
@@ -236,13 +236,18 @@
     "claimed_at_utc": "2026-09-29T12:01:02Z",
     "claim_ref": "KERNEL_BUILDER-20260929-120102: Operator decision WP012-MT032-SPLIT-20260929-MT164 ('I claim MT-164 and a builder sub-agent implements it')",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER",
-    "status_reason": "New root-cause MT created and claimed 2026-09-29; no candidate commit yet. Status vocabulary per CX-STATUS-001 (adopted via override f6bbcaac); CLAIMED is not a status (KB-HANDOFF-003).",
+    "next_actor": "WP_VALIDATOR",
+    "status_reason": "Pushed compiling candidate 179ffc1f with builder compile/static evidence; gameplan before_submit PASS (KB-PROOF-007). Validator must PIN-MEASURE the runtime pins before acceptance (see validator_required_before_acceptance).",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN"
     ],
-    "split_ref": "MT-032.json#execution_split_20260929"
+    "split_ref": "MT-032.json#execution_split_20260929",
+    "candidate_commit": "179ffc1f489f9b99773570a4f7f1c020a25a6b31",
+    "validator_required_before_acceptance": {
+      "pin_measure": "EXPECTED_SCHEMA_INFO_SHA256, EXPECTED_ATELIER_CATALOG_SHA256 and the Loom receipt-test EXPECTED_CATALOG_SHA256 (+ literal in mt109_loom_catalog_dependencies_are_complete_and_deterministic) are runtime INFO fingerprints over the changed fn bodies; not statically derivable, left at revision-161 values and marked PIN-MEASURE PENDING in schema.rs. Every full bootstrap fails verify_expected_info_fingerprint until re-pinned. Measure via mt139_current_schema_info_pin_matches_fresh_mem_catalog / mt109_authority_catalog_pins_are_deterministic / mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin / mt109_loom_catalog_dependencies_are_complete_and_deterministic (MT-154 V14 precedent), then builder re-pins.",
+      "core_filter": "WPV-union-round.sh CORE_FILTER must admit storage::surreal::resource_authority_tests:: and the new schema test (proof.checks[1].entrypoint_change_required)."
+    }
   },
   "scope": {
     "summary": "Rewrite the five grant/access SurrealQL functions to resolve the protected resource (and parent chain) first via protected_resources_external_unique and then filter resource_grants by full resource_id equality, using the existing indexed pattern of fn::mt109_ledger_access. Preserve every allow/deny condition. Advance the schema revision/pins the change forces. Add one focused core timing test proving grant-count independence.",
@@ -434,7 +439,26 @@
     ]
   },
   "validation": {
-    "proof_records": []
+    "proof_records": [
+      {
+        "check_id": "MT-164-BUILDER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "covered_mts": [
+          "MT-164"
+        ],
+        "candidate": "179ffc1f489f9b99773570a4f7f1c020a25a6b31",
+        "crate": "handshake_core",
+        "command": "cd src/backend/handshake_core && CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-164/kb/target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only cargo check --locked --tests -j 8 --features app-runtime,surreal-test-support,test-utils",
+        "started_at_utc": "2026-09-29T12:23:17Z",
+        "completed_at_utc": "2026-09-29T12:35:42Z",
+        "exit": 0,
+        "result": "pass; warnings only, all pre-existing (none in MT-164 code)",
+        "input_digest_before_after": "equal (git hash-object schema.surql 81fd3001, schema.rs d7fd7c96, resource_authority_tests.rs 4a53acb0); the committed tree 179ffc1f contains exactly these blobs",
+        "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-164/kb/logs/check-1",
+        "static_diff_review": "no resource_id.* predicate remains in the five resource_grants WHERE clauses (regex (?<![\\w$])resource_id\\. count 0 per fn)",
+        "scope": "Implementer compile/static evidence only (CX-EXEC-014); runtime acceptance and pin measurement pending WP validator"
+      }
+    ]
   },
   "hbr_swarm_allocation": "Grant-count independence directly serves multi-agent use (many grants per principal); parallel-lane behavior evidence stays with existing WP swarm proofs; no new waiver.",
   "title": "E5-MT-164-Indexed-Grant-Lookup",
@@ -469,5 +493,33 @@
     "operator_quote": "New narrow MT-164, the real first part. It rewrites the grant checks to look up the resource first and then use the full index, and a focused core timing test proves it (grant count fixed, e.g. 50 vs 500). MT-160 narrows to component proof; MT-161/162/163 become BLOCKED on MT-164. I claim MT-164 and a builder sub-agent implements it.",
     "earlier_operator_instruction_quote": "yes review and commit the split, mt 032 has been in dev hell, i really want this to be resolved and finished ... claim the first part of mt032",
     "effect": "MT-164 created and claimed by KERNEL_BUILDER; builder compile/static work authorized; MT-160 narrowed to component proof; MT-161/162/163 BLOCKED on MT-164; tests run only by the independent WP validator."
+  },
+  "implementation_record": {
+    "recorded_at_utc": "2026-09-29T12:37:00Z",
+    "executor_role": "KERNEL_BUILDER",
+    "product_branch": "feat/WP-KERNEL-012",
+    "base_commit": "4e7b14ba83e686412707fa6e2a5088e3888f2ec3",
+    "commit": "179ffc1f489f9b99773570a4f7f1c020a25a6b31",
+    "pushed": true,
+    "changed_files": {
+      "src/backend/handshake_core/src/storage/surreal/schema.surql": "Five grant/access fns resolve protected_resources via (resource_kind, external_resource_id) then filter resource_grants by 4-field equality incl. resource_id = $resource",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs": "SCHEMA_REVISION 162; rev-161 predecessor pins + exact in-place upgrade; all older upgrade paths re-emit the 5 fns; GENERATED pin re-derived; rev-161 upgrade test",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs": "New grant_check_cost_is_independent_of_grant_count timing test (AC-164-4)"
+    },
+    "resolution_shape": "LET $resource = (SELECT VALUE id FROM protected_resources WHERE resource_kind = <kind> AND external_resource_id = <external> LIMIT 1)[0]; LET $parent = $resource.parent_resource_id; resource/parent/grandparent conditions on $resource/$parent (kind and external re-checked); grants: WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource AND <unchanged grant conditions>",
+    "semantic_review": "AC-164-2 checklist reviewed per fn in diff: every old condition preserved (incl. policy_version pair where present, reconciliation_queue clause, memory.propose/read rule, parent/grandparent chain); no resource_id.* predicate remains; signatures, callers, PERMISSIONS unchanged; no root path.",
+    "engine_basis": "surrealdb-core 3.2.0: PERMISSIONS/EVENT predicates run with perms off (exec/permission.rs should_check_perms skip_fetch_perms; subquery.rs propagates), so the resolution SELECT neither applies protected_resources select PERMISSIONS nor recurses into its grant scan. Direct record-user calls apply field perms (exec/operators/fetch.rs process_fetched_record), external_resource_id is select NONE, so old and new both return false there; kind/external re-check on $resource keeps that identical.",
+    "static_checks": {
+      "no_resource_id_link_predicate_in_five_fns": true,
+      "restore_of_old_fn_texts_reproduces_rev161_generated_sha256": "009ee238f7935479a9c507f8b1e8cc59ef306dd80765b8e74bc9665909d7a3f2",
+      "new_generated_surql_sha256_equals_committed_schema_surql_sha256": "ac24898e4066cc8ead849bf302014a8b4e324cf49c035d737c75b6aef805ccdb",
+      "declarative_schema_catalog_sha256_unchanged_reason": "no DEFINE added, removed or renamed; catalog hashes names only",
+      "rustfmt_check": "clean for schema.rs and resource_authority_tests.rs"
+    },
+    "ac_164_4_probe_note": "Probe (ii) is one fn::mt120_document_access check evaluated as the record user through knowledge_rich_document_title_anchors select PERMISSIONS (predicate is exactly that single call). A direct RETURN fn::mt120_document_access(...) by a record user cannot return true pre- or post-fix because protected_resources.external_resource_id is PERMISSIONS FOR select NONE; validator to confirm this satisfies AC-164-4 wording.",
+    "new_tests": [
+      "storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count",
+      "storage::surreal::schema::tests::indexed_grant_revision_161_upgrade_preserves_data_and_restarts_current"
+    ]
   }
 }
