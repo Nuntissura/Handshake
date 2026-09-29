@@ -26,8 +26,209 @@
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
   "updated_at_utc": "2026-09-29T16:35:56Z",
- "validation_shared_union_ec596eec": {"schema_id": "hsk.mt_validation_verdict@1", "decision": "inconclusive", "validated_by": "WP_VALIDATOR-SOL-MEDIUM", "validated_at_utc": "2026-09-26T23:36:50.061743Z", "candidate_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f", "proof_records_ref": "MT-032.json#validation.proof_records[PR-WP012-MT032-ec596eec-UNION-012]", "shared_round_ref": "MT-032.json#validation_v12", "contract_floor_refs": ["scope.proof_targets", "scope.acceptance_criteria", "proof", "proof_commands", "hbr_obligations"], "selection_method": "Named MT-prefixed cases only; not all parent/shared regression commands", "observed_cases": [{"classname": "handshake_core::knowledge_documents_api_tests", "test": "mt157_move_empty_body_preserves_membership_and_batch_reports_per_item", "seconds": 31.613, "result": "passed"}, {"classname": "handshake_core::mt157_debug_breakpoints_authority_tests", "test": "mt157_anonymous_and_cross_account_denied_without_side_effects", "seconds": 24.404, "result": "passed"}, {"classname": "handshake_core::mt157_debug_breakpoints_authority_tests", "test": "mt157_breakpoint_receipt_is_session_attributed_and_private", "seconds": 26.463, "result": "passed"}, {"classname": "handshake_core::mt157_debug_breakpoints_authority_tests", "test": "mt157_owner_breakpoints_persist_across_store_reopen", "seconds": 25.65, "result": "passed"}, {"classname": "handshake_core::mt157_debug_breakpoints_authority_tests", "test": "mt157_put_replaces_set_and_keeps_uniqueness", "seconds": 39.881, "result": "passed"}, {"classname": "handshake_core::mt157_debug_breakpoints_authority_tests", "test": "mt157_read_only_principal_can_get_but_not_put", "seconds": 25.446, "result": "passed"}], "mapped_case_count": 6, "mapped_failure_count": 0, "state_unchanged": true, "prior_verdict_preserved": null, "unmet_required_proof": ["MT-157-CHECK-TESTS independent current check proof absent", "MT-157-CLIPPY-CHANGED independent current changed-line clippy proof absent", "MT-157-FMT / MT-157-DIFF-CHECK current-range static proof chain unclosed", "Parent pin measure/confirm provenance must be reused only after independent input applicability reconciliation; no duplicate parent proof run authorized"], "acceptance_rule": "Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change", "verdict_events": [{"event": "accepted", "idempotency_key": "MT157-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive"}, {"event": "completed", "idempotency_key": "MT157-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive", "state_effect": "unchanged"}]},
-  "validation_shared_union_7479972a": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-28T00:11:37Z","candidate_commit":"7479972ac681cd238e58d37e318beab6c8d3b423","proof_records_ref":"MT-032.json#validation.proof_records[PR-WP012-MT032-7479972a-UNION-CONTINUATION1]","shared_round_ref":"MT-032.json#validation_v13","contract_floor_refs":["scope.proof_targets","scope.acceptance_criteria","proof","proof_commands","hbr_obligations"],"selection_method":"Named MT-prefixed cases only; not all parent/shared regression commands; exact classname+name matched against completed current four JUnits","observed_cases":[{"classname":"handshake_core::knowledge_documents_api_tests","test":"mt157_move_empty_body_preserves_membership_and_batch_reports_per_item","seconds":32.892,"result":"passed","phase":"core"},{"classname":"handshake_core::mt157_debug_breakpoints_authority_tests","test":"mt157_anonymous_and_cross_account_denied_without_side_effects","seconds":28.333,"result":"passed","phase":"core"},{"classname":"handshake_core::mt157_debug_breakpoints_authority_tests","test":"mt157_breakpoint_receipt_is_session_attributed_and_private","seconds":29.175,"result":"passed","phase":"core"},{"classname":"handshake_core::mt157_debug_breakpoints_authority_tests","test":"mt157_owner_breakpoints_persist_across_store_reopen","seconds":28.213,"result":"passed","phase":"core"},{"classname":"handshake_core::mt157_debug_breakpoints_authority_tests","test":"mt157_put_replaces_set_and_keeps_uniqueness","seconds":42.514,"result":"passed","phase":"core"},{"classname":"handshake_core::mt157_debug_breakpoints_authority_tests","test":"mt157_read_only_principal_can_get_but_not_put","seconds":27.801,"result":"passed","phase":"core"}],"mapped_case_count":6,"mapped_failure_count":0,"state_unchanged":true,"prior_verdict_preserved":true,"unmet_required_proof":["MT-157-CHECK-TESTS independent current check proof absent","MT-157-CLIPPY-CHANGED independent current changed-line clippy proof absent","MT-157-FMT / MT-157-DIFF-CHECK current-range static proof chain unclosed","Parent pin measure/confirm provenance must be reused only after independent input applicability reconciliation; no duplicate parent proof run authorized"],"acceptance_rule":"Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change","verdict_events":[{"event":"accepted","idempotency_key":"MT157-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT157-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive","state_effect":"unchanged"}],"input_provenance":{"candidate":"7479972ac681cd238e58d37e318beab6c8d3b423","source_diff_ref":"git diff --name-only ec596eecb70f2820cb357ef95d5820b890c8944f..7479972ac681cd238e58d37e318beab6c8d3b423","changed_areas":["core document/SurrealDB authority/schema","handshake_document diagnostics/operations/SurrealDB adapter","handshake_storage_support diagnostics/retry"],"native_source_changed":false,"source_effect":"Shared backend inputs can affect live native cases; exact current JUnits provide observed behavior, not static/unmapped proof."},"current_union":{"core":{"tests":239,"failures":6,"sha256":"9916BFB9B5F8797D461C58555D16A734D29EB4054E37713263B0C727E0DA4BF2"},"native":{"tests":2952,"failures":44,"sha256":"928E026731633A2C63F1ECC21E926DF5A56AFEE828B58C79EF77B990697A962F"},"handshake_document":{"tests":41,"failures":0,"sha256":"2A3F49A172AD702EE44722CA393304084FDA83DDD45DB0CD253147CE9518BD79"},"handshake_storage_support":{"tests":34,"failures":0,"sha256":"A499897A89EAA1497A2D16F31514CD319B53BDEE3160BDE51D09797A7EE82C76"},"all_junits_complete":true,"mt032_verdict_ref":"MT-032.json#validation_v13"}},
+  "validation_shared_union_ec596eec": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
+    "validated_at_utc": "2026-09-26T23:36:50.061743Z",
+    "candidate_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f",
+    "proof_records_ref": "MT-032.json#validation.proof_records[PR-WP012-MT032-ec596eec-UNION-012]",
+    "shared_round_ref": "MT-032.json#validation_v12",
+    "contract_floor_refs": [
+      "scope.proof_targets",
+      "scope.acceptance_criteria",
+      "proof",
+      "proof_commands",
+      "hbr_obligations"
+    ],
+    "selection_method": "Named MT-prefixed cases only; not all parent/shared regression commands",
+    "observed_cases": [
+      {
+        "classname": "handshake_core::knowledge_documents_api_tests",
+        "test": "mt157_move_empty_body_preserves_membership_and_batch_reports_per_item",
+        "seconds": 31.613,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt157_debug_breakpoints_authority_tests",
+        "test": "mt157_anonymous_and_cross_account_denied_without_side_effects",
+        "seconds": 24.404,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt157_debug_breakpoints_authority_tests",
+        "test": "mt157_breakpoint_receipt_is_session_attributed_and_private",
+        "seconds": 26.463,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt157_debug_breakpoints_authority_tests",
+        "test": "mt157_owner_breakpoints_persist_across_store_reopen",
+        "seconds": 25.65,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt157_debug_breakpoints_authority_tests",
+        "test": "mt157_put_replaces_set_and_keeps_uniqueness",
+        "seconds": 39.881,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt157_debug_breakpoints_authority_tests",
+        "test": "mt157_read_only_principal_can_get_but_not_put",
+        "seconds": 25.446,
+        "result": "passed"
+      }
+    ],
+    "mapped_case_count": 6,
+    "mapped_failure_count": 0,
+    "state_unchanged": true,
+    "prior_verdict_preserved": null,
+    "unmet_required_proof": [
+      "MT-157-CHECK-TESTS independent current check proof absent",
+      "MT-157-CLIPPY-CHANGED independent current changed-line clippy proof absent",
+      "MT-157-FMT / MT-157-DIFF-CHECK current-range static proof chain unclosed",
+      "Parent pin measure/confirm provenance must be reused only after independent input applicability reconciliation; no duplicate parent proof run authorized"
+    ],
+    "acceptance_rule": "Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT157-ec596eec-bounded-observation",
+        "at_utc": "2026-09-26T23:36:50.061743Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT157-ec596eec-bounded-observation",
+        "at_utc": "2026-09-26T23:36:50.061743Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged"
+      }
+    ]
+  },
+  "validation_shared_union_7479972a": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
+    "validated_at_utc": "2026-09-28T00:11:37Z",
+    "candidate_commit": "7479972ac681cd238e58d37e318beab6c8d3b423",
+    "proof_records_ref": "MT-032.json#validation.proof_records[PR-WP012-MT032-7479972a-UNION-CONTINUATION1]",
+    "shared_round_ref": "MT-032.json#validation_v13",
+    "contract_floor_refs": [
+      "scope.proof_targets",
+      "scope.acceptance_criteria",
+      "proof",
+      "proof_commands",
+      "hbr_obligations"
+    ],
+    "selection_method": "Named MT-prefixed cases only; not all parent/shared regression commands; exact classname+name matched against completed current four JUnits",
+    "observed_cases": [
+      {
+        "classname": "handshake_core::knowledge_documents_api_tests",
+        "test": "mt157_move_empty_body_preserves_membership_and_batch_reports_per_item",
+        "seconds": 32.892,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt157_debug_breakpoints_authority_tests",
+        "test": "mt157_anonymous_and_cross_account_denied_without_side_effects",
+        "seconds": 28.333,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt157_debug_breakpoints_authority_tests",
+        "test": "mt157_breakpoint_receipt_is_session_attributed_and_private",
+        "seconds": 29.175,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt157_debug_breakpoints_authority_tests",
+        "test": "mt157_owner_breakpoints_persist_across_store_reopen",
+        "seconds": 28.213,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt157_debug_breakpoints_authority_tests",
+        "test": "mt157_put_replaces_set_and_keeps_uniqueness",
+        "seconds": 42.514,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt157_debug_breakpoints_authority_tests",
+        "test": "mt157_read_only_principal_can_get_but_not_put",
+        "seconds": 27.801,
+        "result": "passed",
+        "phase": "core"
+      }
+    ],
+    "mapped_case_count": 6,
+    "mapped_failure_count": 0,
+    "state_unchanged": true,
+    "prior_verdict_preserved": true,
+    "unmet_required_proof": [
+      "MT-157-CHECK-TESTS independent current check proof absent",
+      "MT-157-CLIPPY-CHANGED independent current changed-line clippy proof absent",
+      "MT-157-FMT / MT-157-DIFF-CHECK current-range static proof chain unclosed",
+      "Parent pin measure/confirm provenance must be reused only after independent input applicability reconciliation; no duplicate parent proof run authorized"
+    ],
+    "acceptance_rule": "Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT157-7479972a-bounded-observation",
+        "at_utc": "2026-09-28T00:11:37Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT157-7479972a-bounded-observation",
+        "at_utc": "2026-09-28T00:11:37Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged"
+      }
+    ],
+    "input_provenance": {
+      "candidate": "7479972ac681cd238e58d37e318beab6c8d3b423",
+      "source_diff_ref": "git diff --name-only ec596eecb70f2820cb357ef95d5820b890c8944f..7479972ac681cd238e58d37e318beab6c8d3b423",
+      "changed_areas": [
+        "core document/SurrealDB authority/schema",
+        "handshake_document diagnostics/operations/SurrealDB adapter",
+        "handshake_storage_support diagnostics/retry"
+      ],
+      "native_source_changed": false,
+      "source_effect": "Shared backend inputs can affect live native cases; exact current JUnits provide observed behavior, not static/unmapped proof."
+    },
+    "current_union": {
+      "core": {
+        "tests": 239,
+        "failures": 6,
+        "sha256": "9916BFB9B5F8797D461C58555D16A734D29EB4054E37713263B0C727E0DA4BF2"
+      },
+      "native": {
+        "tests": 2952,
+        "failures": 44,
+        "sha256": "928E026731633A2C63F1ECC21E926DF5A56AFEE828B58C79EF77B990697A962F"
+      },
+      "handshake_document": {
+        "tests": 41,
+        "failures": 0,
+        "sha256": "2A3F49A172AD702EE44722CA393304084FDA83DDD45DB0CD253147CE9518BD79"
+      },
+      "handshake_storage_support": {
+        "tests": 34,
+        "failures": 0,
+        "sha256": "A499897A89EAA1497A2D16F31514CD319B53BDEE3160BDE51D09797A7EE82C76"
+      },
+      "all_junits_complete": true,
+      "mt032_verdict_ref": "MT-032.json#validation_v13"
+    }
+  },
   "identity": {
     "mt_id": "MT-157",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -42,7 +243,47 @@
     "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
-  "validation_v3": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","verdict":null,"validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:54:37Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-157.scope.acceptance_criteria/proof_targets and own proof/ proof_commands","junit_provenance":{"native_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","core_sha256":"CD420357013FF59A89EA4440C394A8951404DD3700A75D7D066C385D118B7897","freshness":"Both export-local/copy match and after own invocation marker; full49e archive"},"exact_proof_gaps":["Own current-input CHECK-TESTS/CLIPPY-CHANGED/FMT/DIFF proof/reuse chain not fully reconciled; green pin/breakpoint/A/workspace tests cannot replace static floors"],"status_effect":"READY_FOR_VALIDATION and null validator_verdict unchanged; submission retained; no infrastructure-driven transition","reuse_disposition":"No unrecorded relevant-input-path/static/special proof reuse credited","runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"One final union consumed; no additional test/build/probe to fill gaps","verdict_events":[{"event":"accepted","idempotency_key":"MT-157-49eac54e-union-inconclusive-v3","at_utc":"2026-09-26T15:54:37Z","payload_ref":"MT-157.json#validation_v3","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT-157-49eac54e-union-inconclusive-v3","at_utc":"2026-09-26T15:56:26Z","state_ref":"MT-157.json#lifecycle","decision":"inconclusive","state_observed":"READY_FOR_VALIDATION; validator_verdict null; submission retained"}]},
+  "validation_v3": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "verdict": null,
+    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
+    "validated_at_utc": "2026-09-26T15:54:37Z",
+    "candidate_commit": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
+    "started_at": "2026-09-26T12:09:56.9854857Z",
+    "completed_at": "2026-09-26T15:40:57.0864701Z",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml",
+    "source_of_truth": "MT-157.scope.acceptance_criteria/proof_targets and own proof/ proof_commands",
+    "junit_provenance": {
+      "native_sha256": "B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C",
+      "core_sha256": "CD420357013FF59A89EA4440C394A8951404DD3700A75D7D066C385D118B7897",
+      "freshness": "Both export-local/copy match and after own invocation marker; full49e archive"
+    },
+    "exact_proof_gaps": [
+      "Own current-input CHECK-TESTS/CLIPPY-CHANGED/FMT/DIFF proof/reuse chain not fully reconciled; green pin/breakpoint/A/workspace tests cannot replace static floors"
+    ],
+    "status_effect": "READY_FOR_VALIDATION and null validator_verdict unchanged; submission retained; no infrastructure-driven transition",
+    "reuse_disposition": "No unrecorded relevant-input-path/static/special proof reuse credited",
+    "runtime_provenance_ref": "MT-032.json#validation_v11.input_provenance",
+    "attempt_disposition": "One final union consumed; no additional test/build/probe to fill gaps",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT-157-49eac54e-union-inconclusive-v3",
+        "at_utc": "2026-09-26T15:54:37Z",
+        "payload_ref": "MT-157.json#validation_v3",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT-157-49eac54e-union-inconclusive-v3",
+        "at_utc": "2026-09-26T15:56:26Z",
+        "state_ref": "MT-157.json#lifecycle",
+        "decision": "inconclusive",
+        "state_observed": "READY_FOR_VALIDATION; validator_verdict null; submission retained"
+      }
+    ]
+  },
   "lifecycle": {
     "status": "READY_FOR_VALIDATION",
     "depends_on": [
@@ -1309,5 +1550,14 @@
         "state_effect": "BLOCKED -> READY_FOR_VALIDATION (dependency fix landed)"
       }
     ]
-  }
+  },
+  "operator_decisions_20260929": [
+    {
+      "question": "MT-155 (and now MT-157) fail only on the format check, because it counts 6 files owned by other MTs. Should an MT's format check cover only its own files?",
+      "answer": "Own files only (Recommended)",
+      "answer_text": "An MT is judged on files it owns. The 6 unformatted files go to their owning MTs, or to one small formatting commit. MT-155 and MT-157 can then pass on their own merits.",
+      "effect": "Supersedes the prior validator ruling that an MT format check covers all changed files in its range; applies to open MTs of this WP from 2026-09-29.",
+      "ref": "packet.json#operator_decisions_20260929"
+    }
+  ]
 }

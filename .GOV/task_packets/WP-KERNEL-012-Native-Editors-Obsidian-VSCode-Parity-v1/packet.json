@@ -1927,5 +1927,23 @@
     "pinned_by": "INTEGRATION_VALIDATOR session 6 (Operator approved 2026-09-23)",
     "rule": "WP-KERNEL-012 closes under the Codex, role protocols, build rules and handoff rules as of gov_kernel 896f4e15. A later repo-governance refactor applies from WP-KERNEL-012-bis onward and must not re-judge this WP's settled verdicts.",
     "exceptions": "Operator decisions recorded after the pin in MT JSON or the session handoffs still apply."
-  }
+  },
+  "operator_decisions_20260929": [
+    {
+      "recorded_at": "2026-09-29",
+      "recorded_by": "KERNEL_BUILDER root session",
+      "format_scope": {
+        "question": "MT-155 (and now MT-157) fail only on the format check, because it counts 6 files owned by other MTs. Should an MT's format check cover only its own files?",
+        "answer": "Own files only (Recommended)",
+        "answer_text": "An MT is judged on files it owns. The 6 unformatted files go to their owning MTs, or to one small formatting commit. MT-155 and MT-157 can then pass on their own merits.",
+        "effect": "Supersedes the prior validator ruling that an MT format check covers all changed files in its range; applies to open MTs of this WP from 2026-09-29."
+      },
+      "mt164_close": {
+        "question": "All MT-164 tests pass on de04b8f0, including the timing test (500 vs 50 grants under 2x, every check under 250 ms). The real medians weren't saved. How should MT-164 close?",
+        "answer": "One capture run (Recommended)",
+        "answer_text": "Validator reruns only the timing test on de04b8f0 using the retained build, so it's minutes, not an hour. It records the real medians and then issues the verdict. The numbers matter for MT-162: they show how much of the 10s save budget is left.",
+        "effect": "Authorizes exactly one capture run of storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count on de04b8f0 with output capture (config 3db73ab0)."
+      }
+    }
+  ]
 }

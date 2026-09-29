@@ -1184,5 +1184,14 @@
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
       }
     ]
-  }
+  },
+  "operator_decisions_20260929": [
+    {
+      "question": "All MT-164 tests pass on de04b8f0, including the timing test (500 vs 50 grants under 2x, every check under 250 ms). The real medians weren't saved. How should MT-164 close?",
+      "answer": "One capture run (Recommended)",
+      "answer_text": "Validator reruns only the timing test on de04b8f0 using the retained build, so it's minutes, not an hour. It records the real medians and then issues the verdict. The numbers matter for MT-162: they show how much of the 10s save budget is left.",
+      "effect": "Authorizes exactly one capture run of storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count on de04b8f0 with output capture (config 3db73ab0).",
+      "ref": "packet.json#operator_decisions_20260929"
+    }
+  ]
 }
