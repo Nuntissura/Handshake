@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 161
+generation: 162
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -158,3 +158,4 @@ steps:
 - {id: GP-137, role: orchestrator, at: before_dispatch, do: verify edited JSON introduces no duplicate keys and intended proof fields survive parsing, check: {type: confirm}, source: New MT154 validation duplicated existing empty key; readback caught and corrected it before commit, state: active}
 - {id: GP-138, role: orchestrator, at: before_dispatch, do: verify pinned WP excludes post-pin lifetime cap before retry or escalation, check: {type: file, path: .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json, contains: Do not enforce its later global max-three lifetime gate on this pinned WP}, source: 'authority mistake: applied post-pin CX-EXEC-015 despite explicit WP exclusion', state: active}
 - {id: GP-139, role: builder, at: before_submit, do: 'verify counter repair changes only known-record target; retain guards, counts, transaction and auth', check: {type: confirm}, source: 'FAIL_V14: first linked save times out; affected-block counter loop takes 3363507us', state: active}
+- {id: GP-140, role: wp_validator, at: before_round, do: confirm JUnit owns verdict; incomplete phase capture cannot prove complete timings or zero skipped lookup, check: {type: confirm}, source: V15 union watcher incomplete_stream/log_read_or_containment_error; successful roots cleaned, state: active}
