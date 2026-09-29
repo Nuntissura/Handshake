@@ -5776,7 +5776,7 @@ DEFINE TABLE OVERWRITE protected_resources TYPE NORMAL SCHEMAFULL
     AND owner_account_id.status = 'enabled'
     AND created_by_principal_id.status = 'enabled'
     AND access_space_id.status = 'active'
-    AND array::len((SELECT id FROM resource_grants WHERE resource_id = $parent.id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id)) > 0,
+    AND fn::mt166_resource_select_grant(id),
   FOR create WHERE fn::mt120_resource_create($this) FOR update WHERE fn::mt109_live_session() AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id AND (fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fs.read') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fr.read') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'memory.propose')) FOR delete NONE;
 
 DEFINE FIELD OVERWRITE resource_kind ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0;
@@ -6377,23 +6377,45 @@ DEFINE FUNCTION OVERWRITE fn::mt109_proposal_producer_read($workspace: string, $
              OR fn::mt109_source_read('loom_block', $document, $workspace, 'rich_document', $document));
 };
 
+DEFINE FUNCTION OVERWRITE fn::mt166_resource_select_grant($resource: record<protected_resources>) {
+    LET $acct = $auth.account_id;
+    LET $prin = $auth.principal_id;
+    LET $space = $auth.access_space_id;
+    LET $grants = SELECT id FROM resource_grants
+        WHERE account_id = $acct AND principal_id = $prin
+          AND access_space_id = $space AND resource_id = $resource
+          AND status = 'active' AND revoked_at = NONE
+          AND (expires_at = NONE OR expires_at > time::now());
+    RETURN array::len($grants) > 0;
+};
+
 DEFINE FUNCTION OVERWRITE fn::mt109_ledger_access($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>) {
-    RETURN fn::mt109_live_session()
-        AND $session != NONE AND $session = $auth.id
-        AND $resource != NONE AND $capability != NONE AND $action != NONE
-        AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS $capability)
-        AND array::len((SELECT id FROM resource_grants
-            WHERE status = 'active' AND revoked_at = NONE
-              AND (expires_at = NONE OR expires_at > time::now())
-              AND account_id = $auth.account_id AND principal_id = $auth.principal_id
-              AND access_space_id = $auth.access_space_id AND resource_id = $resource
-              AND resource_id.lifecycle_state = 'active'
-              AND resource_id.owner_account_id = $auth.account_id
-              AND resource_id.access_space_id = $auth.access_space_id
-              AND actions CONTAINS $action AND capability_ids CONTAINS $capability
-              AND delegation_chain = $auth.delegation_chain
-              AND (resource_id.resource_kind != 'reconciliation_queue' OR
-                   (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler')))) > 0;
+    LET $live = fn::mt109_live_session();
+    IF !$live { RETURN false; };
+    IF !($session != NONE) { RETURN false; };
+    IF !($session = $auth.id) { RETURN false; };
+    IF !($resource != NONE) { RETURN false; };
+    IF !($capability != NONE) { RETURN false; };
+    IF !($action != NONE) { RETURN false; };
+    IF !($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS $capability) { RETURN false; };
+    IF !($resource.lifecycle_state = 'active') { RETURN false; };
+    IF !($resource.owner_account_id = $auth.account_id) { RETURN false; };
+    IF !($resource.access_space_id = $auth.access_space_id) { RETURN false; };
+    LET $acct = $auth.account_id;
+    LET $prin = $auth.principal_id;
+    LET $space = $auth.access_space_id;
+    LET $chain = $auth.delegation_chain;
+    LET $not_reconciliation = $resource.resource_kind != 'reconciliation_queue';
+    LET $grants = SELECT id FROM resource_grants
+        WHERE account_id = $acct AND principal_id = $prin
+          AND access_space_id = $space AND resource_id = $resource
+          AND status = 'active' AND revoked_at = NONE
+          AND (expires_at = NONE OR expires_at > time::now())
+          AND actions CONTAINS $action AND capability_ids CONTAINS $capability
+          AND delegation_chain = $chain
+          AND ($not_reconciliation OR
+               (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'));
+    RETURN array::len($grants) > 0;
 };
 
 DEFINE FUNCTION OVERWRITE fn::mt109_ledger_workspace($resource: option<record<protected_resources>>, $wsids: array<string>) {

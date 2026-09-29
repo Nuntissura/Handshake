@@ -3836,3 +3836,236 @@ async fn grant_check_cost_is_independent_of_grant_count() -> ResourceAuthorityTe
     )
     .await
 }
+
+const GRANT_COST_LEDGER_CREATE: &str = "CREATE type::record($table, $record_id) CONTENT { event_id: $record_id, event_version: 'v1', kernel_task_run_id: 'mt166-grant-cost', session_run_id: 'mt166-grant-cost', aggregate_type: 'native_editor_event', aggregate_id: $workspace_key, idempotency_key: $record_id, event_type: 'FLIGHT_RECORDER_MIRROR_PENDING', actor_kind: 'SYSTEM', actor_id: 'mt166-grant-cost', payload_hash: $hash, source_component: 'native_editor_fr_ingestion', payload: { receipt_kind: 'native_editor_flight_recorder_pending', envelope: { workspace_id: $workspace_key } }, wsids: [$workspace_key], authority_resource_id: $authority_resource, authority_session_id: $authority_session, authority_capability_id: 'fr.ingest.native_editor', authority_action: 'create' } RETURN AFTER;";
+
+/// MT-166 AC-166-4 (sibling of the MT-164 timing test): the two remaining grant scans cost the
+/// same with 50 or 500 grants held by the principal.
+///
+/// Metric (iii) is one record-user SELECT of a `protected_resources` row by record id; its select
+/// PERMISSIONS reach resource_grants through `fn::mt166_resource_select_grant(id)`.
+/// Metric (iv) is one ledger access check: a record-user SELECT of a native-editor
+/// `kernel_event_ledger` receipt, whose select PERMISSIONS run `fn::mt109_ledger_reader` ->
+/// `fn::mt109_ledger_producer` -> `fn::mt109_ledger_access` against the granted flight-recorder
+/// resource. Denied probes: an ungranted protected_resources row and a receipt whose authority
+/// resource carries no `fr.ingest.native_editor` grant both return no row.
+#[tokio::test]
+async fn resource_select_and_ledger_access_cost_is_independent_of_grant_count(
+) -> ResourceAuthorityTestResult {
+    run_resource_authority_test_backend(
+        crate::storage::tests::embedded_test_backend().await?,
+        |backend| {
+            Box::pin(async move {
+                let storage = &backend.storage;
+                let database = SurrealDatabase::new(storage.clone());
+                let workspace = database
+                    .create_workspace(
+                        &WriteContext::human(Some("mt166-grant-cost".to_owned())),
+                        NewWorkspace {
+                            name: "Grant scan cost proof".to_owned(),
+                        },
+                    )
+                    .await?;
+                let capabilities = [
+                    "fs.read".to_owned(),
+                    "fs.write".to_owned(),
+                    "fr.ingest.native_editor".to_owned(),
+                ];
+                let owner =
+                    provision_direct_negative_principal(storage, "mt166-grant-cost", &capabilities)
+                        .await?;
+                let workspace_resource = storage
+                    .register_workspace_resource(&owner.identity, &workspace.id)
+                    .await?;
+                source_probe_grant(
+                    storage,
+                    &owner,
+                    &workspace_resource.resource_id,
+                    ResourceAction::Read,
+                    "fs.read",
+                )
+                .await?;
+                let granted_resource = storage
+                    .register_protected_resource(
+                        &owner.identity,
+                        ResourceKind::RichDocument,
+                        "mt166-grant-cost-granted",
+                        Some(&workspace_resource.resource_id),
+                        "private",
+                    )
+                    .await?;
+                source_probe_grant(
+                    storage,
+                    &owner,
+                    &granted_resource.resource_id,
+                    ResourceAction::Read,
+                    "fs.read",
+                )
+                .await?;
+                let ungranted_resource = storage
+                    .register_protected_resource(
+                        &owner.identity,
+                        ResourceKind::RichDocument,
+                        "mt166-grant-cost-ungranted",
+                        Some(&workspace_resource.resource_id),
+                        "private",
+                    )
+                    .await?;
+                let recorder_resource = storage
+                    .register_protected_resource(
+                        &owner.identity,
+                        ResourceKind::FlightRecorder,
+                        &workspace.id,
+                        None,
+                        "account_private",
+                    )
+                    .await?;
+                source_probe_grant(
+                    storage,
+                    &owner,
+                    &recorder_resource.resource_id,
+                    ResourceAction::Create,
+                    "fr.ingest.native_editor",
+                )
+                .await?;
+
+                let mut receipts = Vec::new();
+                for (label, authority_resource) in [
+                    ("granted", &recorder_resource.resource_id),
+                    ("ungranted", &workspace_resource.resource_id),
+                ] {
+                    let record_id = format!("mt166-grant-cost-ledger-{label}");
+                    let created = privileged_operational_rows(
+                        storage,
+                        GRANT_COST_LEDGER_CREATE,
+                        OperationalProbeBindings {
+                            table: "kernel_event_ledger".to_owned(),
+                            record_id: record_id.clone(),
+                            sentinel_id: String::new(),
+                            workspace: RecordId::new("workspaces", workspace.id.as_str()),
+                            workspace_key: workspace.id.clone(),
+                            authority_resource: RecordId::new(
+                                "protected_resources",
+                                authority_resource.as_str(),
+                            ),
+                            authority_session: RecordId::new(
+                                "authenticated_sessions",
+                                owner.session.session_id.as_str(),
+                            ),
+                            hash: OPERATIONAL_HASH.to_owned(),
+                        },
+                    )
+                    .await?;
+                    assert_eq!(created.len(), 1, "privileged ledger seed {record_id}");
+                    receipts.push(RecordId::new("kernel_event_ledger", record_id.as_str()));
+                }
+                let granted_row =
+                    RecordId::new("protected_resources", granted_resource.resource_id.as_str());
+                let ungranted_row =
+                    RecordId::new("protected_resources", ungranted_resource.resource_id.as_str());
+                let scope = direct_negative_scope(
+                    &owner,
+                    &granted_resource.resource_id,
+                    "fs.read",
+                    ResourceAction::Read,
+                );
+
+                let mut filler = 0usize;
+                let mut medians = Vec::new();
+                for count in GRANT_COST_COUNTS {
+                    // Three grants (workspace, granted resource, flight recorder) are always held;
+                    // filler grants on distinct protected resources bring the total to `count`.
+                    while filler + 3 < count {
+                        let resource = storage
+                            .register_protected_resource(
+                                &owner.identity,
+                                ResourceKind::RichDocument,
+                                &format!("mt166-grant-cost-filler-{filler}"),
+                                Some(&workspace_resource.resource_id),
+                                "private",
+                            )
+                            .await?;
+                        source_probe_grant(
+                            storage,
+                            &owner,
+                            &resource.resource_id,
+                            ResourceAction::Read,
+                            "fs.read",
+                        )
+                        .await?;
+                        filler += 1;
+                    }
+                    let active = source_probe_query(
+                        storage,
+                        GRANT_COST_ACTIVE_GRANTS,
+                        SourceProbeBindings {
+                            record: RecordId::new(
+                                "principals",
+                                owner.identity.principal_id.as_str(),
+                            ),
+                            other: None,
+                        },
+                    )
+                    .await?;
+                    assert_eq!(active.len(), count, "principal must hold exactly N active grants");
+                    for (label, record) in [
+                        ("resource_select", &ungranted_row),
+                        ("ledger_access", &receipts[1]),
+                    ] {
+                        let (rows, _) = timed_record_user_rows(
+                            storage,
+                            scope.clone(),
+                            GRANT_COST_SELECT,
+                            record.clone(),
+                        )
+                        .await?;
+                        assert!(rows.is_empty(), "no-grant {label} probe must be denied at N={count}");
+                    }
+                    let resource_select =
+                        median_authorized_read(storage, &scope, &granted_row, "resource_select")
+                            .await?;
+                    let ledger_access =
+                        median_authorized_read(storage, &scope, &receipts[0], "ledger_access")
+                            .await?;
+                    println!(
+                        "MT166_GRANT_COST n={count} resource_select_median_us={} ledger_access_check_median_us={}",
+                        resource_select.as_micros(),
+                        ledger_access.as_micros()
+                    );
+                    medians.push((count, resource_select, ledger_access));
+                }
+
+                let (_, small_select, small_ledger) = medians[0];
+                let (_, large_select, large_ledger) = medians[1];
+                let ratio = |large: Duration, small: Duration| {
+                    large.as_secs_f64() / small.as_secs_f64().max(f64::MIN_POSITIVE)
+                };
+                let select_ratio = ratio(large_select, small_select);
+                let ledger_ratio = ratio(large_ledger, small_ledger);
+                println!(
+                    "MT166_GRANT_COST ratio_500_over_50 resource_select={select_ratio:.3} ledger_access_check={ledger_ratio:.3}"
+                );
+                for (count, resource_select, ledger_access) in &medians {
+                    assert!(
+                        *resource_select < GRANT_COST_MEDIAN_LIMIT,
+                        "resource select median {resource_select:?} at N={count} exceeds {GRANT_COST_MEDIAN_LIMIT:?}"
+                    );
+                    assert!(
+                        *ledger_access < GRANT_COST_MEDIAN_LIMIT,
+                        "ledger access check median {ledger_access:?} at N={count} exceeds {GRANT_COST_MEDIAN_LIMIT:?}"
+                    );
+                }
+                assert!(
+                    select_ratio < GRANT_COST_RATIO_LIMIT,
+                    "resource select median ratio N=500/N=50 is {select_ratio:.3}"
+                );
+                assert!(
+                    ledger_ratio < GRANT_COST_RATIO_LIMIT,
+                    "ledger access check median ratio N=500/N=50 is {ledger_ratio:.3}"
+                );
+                Ok(())
+            })
+        },
+    )
+    .await
+}

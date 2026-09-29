@@ -32,6 +32,35 @@ const INDEXED_GRANT_FUNCTIONS: [&str; 5] = [
     "mt120_document_access",
     "mt120_loom_block_access",
 ];
+/// MT-166 statements re-emitted with the MT-164 functions (revision 162, unreleased): the
+/// index-bound protected_resources select-grant helper and the flattened ledger access check.
+const MT166_GRANT_FUNCTIONS: [&str; 2] = ["mt166_resource_select_grant", "mt109_ledger_access"];
+/// MT-166: the protected_resources select PERMISSIONS grant line (current and revision 161).
+#[cfg(test)]
+const MT166_PROTECTED_RESOURCES_GRANT_LINE: &str = "    AND fn::mt166_resource_select_grant(id),\n";
+#[cfg(test)]
+const PRE_MT166_PROTECTED_RESOURCES_GRANT_LINE: &str = "    AND array::len((SELECT id FROM resource_grants WHERE resource_id = $parent.id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id)) > 0,\n";
+/// Exact revision-161 text of fn::mt109_ledger_access (link-traversal grant filter), used only to
+/// reconstruct the revision-161 and older predecessor sources in tests.
+#[cfg(test)]
+const PRE_MT166_LEDGER_ACCESS_FUNCTION: &str = r#"DEFINE FUNCTION OVERWRITE fn::mt109_ledger_access($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>) {
+    RETURN fn::mt109_live_session()
+        AND $session != NONE AND $session = $auth.id
+        AND $resource != NONE AND $capability != NONE AND $action != NONE
+        AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS $capability)
+        AND array::len((SELECT id FROM resource_grants
+            WHERE status = 'active' AND revoked_at = NONE
+              AND (expires_at = NONE OR expires_at > time::now())
+              AND account_id = $auth.account_id AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id AND resource_id = $resource
+              AND resource_id.lifecycle_state = 'active'
+              AND resource_id.owner_account_id = $auth.account_id
+              AND resource_id.access_space_id = $auth.access_space_id
+              AND actions CONTAINS $action AND capability_ids CONTAINS $capability
+              AND delegation_chain = $auth.delegation_chain
+              AND (resource_id.resource_kind != 'reconciliation_queue' OR
+                   (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler')))) > 0;
+};"#;
 const PRE_DOCUMENT_GRANT_REVISION: i64 = 160;
 const PRE_DOCUMENT_GRANT_GENERATED_SHA256: &str =
     "fac15c07121d32df355b960e26df51026e1fac09689db2b7c44fbcf5d508c584";
@@ -2632,12 +2661,20 @@ fn schema_delta_upgrade_statements() -> String {
     );
     // MT-164 (revision 162): every indexed grant/access function, including the revision-161
     // document grant, is re-emitted so older lineages reach the resolve-first definitions.
-    for name in INDEXED_GRANT_FUNCTIONS {
+    for name in INDEXED_GRANT_FUNCTIONS
+        .into_iter()
+        .chain(MT166_GRANT_FUNCTIONS)
+    {
         schema_statements_enclosing(
             &format!("DEFINE FUNCTION OVERWRITE fn::{name}("),
             &mut spans,
         );
     }
+    // MT-166: the protected_resources table statement carries the select-grant helper call.
+    schema_statements_enclosing(
+        "DEFINE TABLE OVERWRITE protected_resources TYPE NORMAL SCHEMAFULL",
+        &mut spans,
+    );
     for (start, end) in spans {
         if block.as_ref().is_some_and(|range| range.contains(&start)) {
             continue;
@@ -2714,7 +2751,30 @@ fn restore_pre_indexed_grant_schema(mut source: String) -> String {
         );
         source = source.replacen(current, previous, 1);
     }
-    source
+    // MT-166: drop the select-grant helper, restore the revision-161 ledger access check and the
+    // inline protected_resources grant subquery.
+    let helper = schema_function_definition("mt166_resource_select_grant");
+    assert_eq!(
+        source.matches(helper).count(),
+        1,
+        "MT-166 select-grant helper must occur exactly once"
+    );
+    source = source.replacen(&format!("{helper}\n\n"), "", 1);
+    source = source.replacen(
+        schema_function_definition("mt109_ledger_access"),
+        PRE_MT166_LEDGER_ACCESS_FUNCTION,
+        1,
+    );
+    assert_eq!(
+        source.matches(MT166_PROTECTED_RESOURCES_GRANT_LINE).count(),
+        1,
+        "MT-166 protected_resources grant line must occur exactly once"
+    );
+    source.replacen(
+        MT166_PROTECTED_RESOURCES_GRANT_LINE,
+        PRE_MT166_PROTECTED_RESOURCES_GRANT_LINE,
+        1,
+    )
 }
 
 #[cfg(test)]
@@ -2746,10 +2806,17 @@ fn schema_function_definition(name: &str) -> &'static str {
 /// [`SCHEMA`], in schema order, so fresh and upgraded stores carry identical definitions.
 fn indexed_grant_upgrade_statements() -> String {
     let mut statements = String::new();
-    for name in INDEXED_GRANT_FUNCTIONS {
+    for name in INDEXED_GRANT_FUNCTIONS
+        .into_iter()
+        .chain(MT166_GRANT_FUNCTIONS)
+    {
         statements.push_str(schema_function_definition(name));
         statements.push('\n');
     }
+    // MT-166: the protected_resources select permission now calls the select-grant helper.
+    let (start, end) = schema_table_definition_bounds(SCHEMA, "protected_resources");
+    statements.push_str(&SCHEMA[start..end]);
+    statements.push('\n');
     statements
 }
 
@@ -2955,8 +3022,11 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-164 remediation_v1 re-pin (revision 162 unreleased, re-pinned in place): the five functions
 // bind $auth ids to LET params (indexable) and use sequential early exits (previous value
 // ac24898e4066cc8ead849bf302014a8b4e324cf49c035d737c75b6aef805ccdb); sha256 of schema.surql.
+// MT-166 re-pin (revision 162, re-pinned in place): protected_resources select grant through
+// fn::mt166_resource_select_grant and flattened LET-bound fn::mt109_ledger_access (previous value
+// 1d6109d84aa9bbe146572040408f23c2e10d3a90261c961c973a824dc205438d); sha256 of schema.surql.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "1d6109d84aa9bbe146572040408f23c2e10d3a90261c961c973a824dc205438d";
+    "ad8af766863b079f8eb2f37d5f8bb7f973319a981e7e25f950a5c00095bc5667";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -2977,8 +3047,11 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // c6a1846bd23c9706a61feac9f267b6f32c77fb8f1b5faa2358d88b2d83a42436); kb-c4 run 82.
 // MT-159 re-pin (previous 54b282b48cf22a2f02ae0d2964b659b01c53da3177c9e95ae5d70dce358fce7c); kb-c4
 // run 101.
+// MT-166 re-pin: catalog identities gained function:fn::mt166_resource_select_grant (previous
+// a50bd154872a5cffe14e3d1ffe8823852d70a76f4a7a2853ecd91736f461238c); statically derived with the
+// compiled_schema_catalog_entries algorithm (reproduces the previous pin on the unchanged source).
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "a50bd154872a5cffe14e3d1ffe8823852d70a76f4a7a2853ecd91736f461238c";
+    "50d3244b292a63e7928a04ce9fc9f7c575580531f20167441b6e802cdfc27a8e";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -3046,6 +3119,8 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT-164 remediation_v1 re-pin: LET-bound grant lookup and flattened grant functions (previous
 // 50b06dab0370f14fce0b3591b94abf87420957aa8258117f40563f42be3d29b4, the ee9efaba pin); measured by
 // WP validator PIN-MEASURE 2 on 4d4f7e12 (MT-164.json validation.pin_measurement_2).
+// MT-166 PIN-MEASURE PENDING: protected_resources select permission, new helper function and
+// ledger access body changed; the value below is the 4d4f7e12 measurement and must be re-measured.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
     "ca2d667c22b022170d1e1ec6419dcd809bdeca385fae9cd972205a89ff9af573";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
@@ -3064,6 +3139,7 @@ pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
 // PIN-MEASURE MT164-PIN-MEASURE-20260929 on 179ffc1f.
 // MT-164 remediation_v1 re-pin (previous c18095249805f8822a3a23aea6f58d1866522584f097b715c3957e66346af052);
 // measured by WP validator PIN-MEASURE 2 on 4d4f7e12.
+// MT-166 PIN-MEASURE PENDING: authority core changed; value below is the 4d4f7e12 measurement.
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
     "06abcd428ba60a72ad66d7d0f9a9b9b9331dba1c871c791a3078dcbed3a9b998";
 const PENDING_SCHEMA_INFO_SHA256: &str =
@@ -3456,7 +3532,8 @@ const SEQUENCE_DEFINITION_COUNT: usize = 2;
 const ACCESS_DEFINITION_COUNT: usize = 1;
 // MT-158 re-pin: +1 function (fn::mt158_dependency_graph_scope).
 // MT-159: +2 functions (fn::mt159_locus_key_id, fn::mt159_locus_key_is_own).
-const FUNCTION_DEFINITION_COUNT: usize = 55;
+// MT-166: +1 function (fn::mt166_resource_select_grant).
+const FUNCTION_DEFINITION_COUNT: usize = 56;
 const SOURCE_TABLE_COUNT: usize = 291;
 const SOURCE_VIEW_COUNT: usize = 2;
 const SOURCE_NAMED_INDEX_COUNT: usize = 555;
@@ -3942,6 +4019,8 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // measured by WP validator PIN-MEASURE MT164-PIN-MEASURE-20260929 on 179ffc1f.
     // NINTH pin (MT-164 remediation_v1, previous e02993e2ec6ec2195d8de737b3c5a62b332b1d3105a889c5179b083c2932d5fb):
     // measured by WP validator PIN-MEASURE 2 on 4d4f7e12.
+    // MT-166 PIN-MEASURE PENDING (also the test literal in
+    // mt109_loom_catalog_dependencies_are_complete_and_deterministic): 4d4f7e12 value; re-measure.
     const EXPECTED_CATALOG_SHA256: &str =
         "07cc44c4f68e05f89698dfa9a1eb5a34b0807d57618ead55ff9b572cfe41e718";
     let ddl = loom_receipt_test_schema_ddl();
