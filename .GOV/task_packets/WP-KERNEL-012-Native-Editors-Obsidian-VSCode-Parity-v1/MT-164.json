@@ -101,7 +101,9 @@
     "allowed_write_paths": [
       "src/backend/handshake_core/src/storage/surreal/schema.surql (only the DEFINE FUNCTION bodies of fn::mt109_has_grant, fn::mt109_has_workspace_access, fn::mt109_source_read, fn::mt120_document_access, fn::mt120_loom_block_access, and a permission clause that calls them only if a call site must change to preserve semantics)",
       "src/backend/handshake_core/src/storage/surreal/schema.rs (only SCHEMA_REVISION/predecessor constants, the upgrade delta re-emitting these function statements, and the GENERATED/INFO pins this change forces; see AC-164-5)",
-      "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (new timing test and helpers only; existing tests unchanged)"
+      "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (new timing test and helpers only; existing tests unchanged)",
+      "src/backend/handshake_core/src/main.rs (remediation_v1 only: replace #[tokio::main] with an explicit multi-thread runtime builder setting thread_stack_size(10 MiB); no other change)",
+      "src/backend/handshake_core/src/storage/tests.rs (remediation_v1 only: test_engine_runtime() builder adds thread_stack_size(10 MiB); no other change)"
     ],
     "forbidden_write_paths": [
       "app/src/**",
@@ -242,7 +244,7 @@
     "claimed_at_utc": "2026-09-29T12:01:02Z",
     "claim_ref": "KERNEL_BUILDER-20260929-120102: Operator decision WP012-MT032-SPLIT-20260929-MT164 ('I claim MT-164 and a builder sub-agent implements it')",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER",
+    "next_actor": "KERNEL_BUILDER (remediation_v1)",
     "status_reason": "FAIL_V1 on ee9efaba union: grant-cost ratio 4.05/4.27 (limit 2.0) and 52 previously green core tests now abort with store-engine stack overflow.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
@@ -815,5 +817,65 @@
         "state_effect": "lifecycle.status FAIL_V1"
       }
     ]
+  },
+  "remediation_v1": {
+    "created_at_utc": "2026-09-29",
+    "for_verdict": "validation_v1 (FAIL_V1 on ee9efaba)",
+    "operator_decision": {
+      "question": "MT-164 failed for two traced causes. Fixing the second one (stack overflow) properly means also editing 2 files outside MT-164's write scope. How should the repair be scoped?",
+      "answer": "Full fix in MT-164 (Recommended)",
+      "answer_text": "Builder repairs all of it in one commit. schema.surql: copy $auth values into LETs (index usable) and flatten the AND chains. main.rs:43 (backend server): explicit tokio runtime at 10 MiB stack, as SurrealDB's docs recommend. storage/tests.rs:242 (test store runtime): 10 MiB. Needs your OK to widen MT-164's write scope by those 2 files.",
+      "recorded_by": "KERNEL_BUILDER root session",
+      "scope_effect": "allowed_write_paths widened by main.rs and storage/tests.rs (stack size only)"
+    },
+    "diagnoses": [
+      {
+        "diagnosis_id": "MT164-GRANT-AUTH-IDIOM-NOT-INDEXABLE",
+        "cause": "exec planner folds only bare params; $auth.x stays idiom, resource_id is col 4, so no index used: full grant scan",
+        "evidence_refs": [
+          "surrealdb-core-3.2.0/src/exec/planner/util/params.rs:81-176",
+          "exec/planner/util/literals.rs:134-199",
+          "exec/index/analysis.rs:494-515,551-633,840-895,64-66",
+          "idx/planner/tree.rs:345-354",
+          "schema.surql@ee9efaba:5850,6044-6190",
+          "validation_v1 timing: idempotency 17.4->70.5ms (4.05), access 16.1->68.8ms (4.27)"
+        ],
+        "distinct_from": [
+          "MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN"
+        ],
+        "method": "source reading of SurrealDB 3.2.0 and product; not run"
+      },
+      {
+        "diagnosis_id": "MT164-UDF-AND-CHAIN-STACK-OVERFLOW",
+        "cause": "MT-164 deepened left-deep AND chains around nested fn calls; recursive eval overflows 2MiB default worker stacks",
+        "evidence_refs": [
+          "union-ee9efaba stderr.log: 59 overflow (53 handshake-test-store-engine, 4 tokio-rt-worker, 2 test)",
+          "junit 8ea13a9b 5 overflow vs ee9efaba 59",
+          "exec/physical_expr/ops.rs:31-37",
+          "syn/parser/expression.rs:77",
+          "surrealdb-3.2.0/src/engine/local/mod.rs:51-66 (docs recommend thread_stack_size 10 MiB)",
+          "native.rs:241",
+          "tokio-1.53.1 runtime/builder.rs:663",
+          "storage/tests.rs:242-247",
+          "main.rs:43"
+        ],
+        "distinct_from": [
+          "MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN",
+          "MT032-CREATE-ERROR-ERASURE",
+          "MT032-DOCUMENT-CANDIDATE-QUERY-AMPLIFICATION",
+          "MT032-NEGATIVE-FIXTURE-DROP-ASSERTION",
+          "MT032-OWNED-FIXTURE-VAULT-TEARDOWN-ORDER",
+          "MT032-POST-CAPTURE-AUTHENTICATED-DROP"
+        ],
+        "method": "source and log reading; production overflow UNVERIFIED"
+      }
+    ],
+    "repair_direction": [
+      "schema.surql 5 fns: LET $acct=$auth.account_id, $prin=$auth.principal_id, $space=$auth.access_space_id; WHERE uses them + resource_id=$resource (all 4 cols of resource_grants_exact_idx). Verify account/principal/space record-id key types are indexable literals (literals.rs:40-50); if not, add single-field index on resource_id with schema revision bump.",
+      "schema.surql 5 fns: flatten AND chains into sequential early exits (IF !cond { RETURN false }) with nested fn calls bound via LET; identical allow/deny semantics (AC-164-2).",
+      "main.rs:43 and storage/tests.rs:242: tokio runtime thread_stack_size(10 MiB).",
+      "Re-derive GENERATED pin; runtime pins need validator pin-measure (measurement, not attempt) before the confirming round."
+    ],
+    "rerun_admission": "New diagnoses recorded (CX-EXEC-003A/CX-VAL-008); next round admitted only on a pushed commit changing the affected code."
   }
 }
