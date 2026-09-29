@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-162",
   "created_at_utc": "2026-09-29T08:31:36.101102Z",
-  "updated_at_utc": "2026-09-29T17:23:03Z",
+  "updated_at_utc": "2026-09-29T17:32:00Z",
   "identity": {
     "mt_id": "MT-162",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -162,7 +162,7 @@
     "policy": "JSON authority; projection on demand only"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-031",
       "MT-021",
@@ -174,11 +174,11 @@
       "MT-032",
       "MT-163"
     ],
-    "active": false,
+    "active": true,
     "validator_verdict": "FAIL_V1",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER",
-    "status_reason": "FAIL_V1 on de04b8f0: saves now 4.0-5.9 s (<10 s); case fails at test_loom_address.rs:1810 header-free Loom block GET -> 403 (test defect).",
+    "next_actor": "WP_VALIDATOR",
+    "status_reason": "FAIL_V1 remediation pushed as 6391a29f (authenticated Loom block refetches, corrected comment) with builder compile evidence; gameplan before_submit PASS (KB-PROOF-007).",
     "split_ref": "MT-032.json#execution_split_20260929",
     "status_before_mt164_20260929": "BLOCKED",
     "status_reason_before_mt164_20260929": "V19 first linked save dropped at10010ms; inner counter/query/permission/write cost unresolved; required integrated proof incomplete.",
@@ -187,7 +187,8 @@
     "mt160_dependency_note": "Kept for sequenced writes to backend_client.rs/loom_address.rs (MT-160 first).",
     "validated_by": "WP_VALIDATOR-20260929-NATIVE-SELF-SEEDED",
     "validated_at_utc": "2026-09-29T17:23:03Z",
-    "validated_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df"
+    "validated_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df",
+    "candidate_commit": "6391a29f89dd51872c730c66bb9bea5f42d6822c"
   },
   "scope": {
     "summary": "Authenticated production APIs create/load real A and B, return canonical identity, and save A hsLink to B without seeded backlinks or repair/rebuild. Preserve real save-derived backlinks, remove/restore/delete, saved canonical JSON/document/Loom hash equality, authentic save_receipt_event_id and awaited required indexing. The existing self-seeded client remains10s for create/save. Backend implementation remains the authorized MT154 document slice; this child grants no backend write authority.",
@@ -700,7 +701,38 @@
           ],
           "budget": "every save completed under the 10 s self-seeded deadline (max 5.894 s); the first linked save no longer drops"
         }
+      },
+      {
+        "check_id": "MT-162-BUILDER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "covered_mts": [
+          "MT-162"
+        ],
+        "candidate": "6391a29f89dd51872c730c66bb9bea5f42d6822c",
+        "crate": "handshake_native",
+        "command": "cd src/frontend/handshake_native && CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-162/kb/target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only cargo check --locked --tests -j 8 --features integration,integration_tests",
+        "started_at_utc": "2026-09-29T17:27:08Z",
+        "completed_at_utc": "2026-09-29T17:29:43Z",
+        "exit": 0,
+        "result": "pass; 0 errors; no warnings in test_loom_address.rs; rustfmt --check clean",
+        "input_digest_before_after": "equal (git hash-object test_loom_address.rs 25945b3e); committed tree 6391a29f contains this blob",
+        "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-162/kb/logs/check-1",
+        "scope": "Implementer compile/static evidence only (CX-EXEC-014); runtime acceptance pending WP validator"
       }
     ]
+  },
+  "remediation_v1_implementation": {
+    "recorded_at_utc": "2026-09-29T17:32:00Z",
+    "executor_role": "KERNEL_BUILDER",
+    "for_verdict": "validation_v1 (FAIL_V1 on de04b8f0)",
+    "candidate_commit": "6391a29f89dd51872c730c66bb9bea5f42d6822c",
+    "pushed": true,
+    "changed_files": {
+      "src/frontend/handshake_native/tests/test_loom_address.rs": "B LoomBlock refetch (:1803) and deleted-A LoomBlock refetch (:1837) sent through with_rich_doc_headers(account_context, ...); stale ':1207 getLoomBlock needs NONE' comment corrected"
+    },
+    "route_auth_finding": "api/loom.rs get_loom_block -> authority::authorize_request(fs.read, LoomBlock, id) else (RichDocument, id); denial constant 403. authorize_request reads x-hsk-session-token (64 hex) and x-hsk-channel-binding-token (api/authority.rs:26, api/stage.rs capture_channel_binding). with_rich_doc_headers -> AuthenticatedContext::authorize_builder inserts both (local_account.rs authorize_inner). Server behavior correct; test defect confirmed.",
+    "deleted_block_behavior": "404 (authorized-missing), matching contract 'Authorized404 ... unauthorized missing resources retain typed403 concealment'. Static trace: knowledge.rs delete_knowledge_rich_document_atomic soft-deletes the document (deleted_at) and hard-deletes the loom_blocks row; no code changes protected_resources lifecycle or revokes grants on delete, so the RichDocument fs.read grant still authorizes; loom_store::get_loom_block returns NotFound('loom_block') -> api/loom.rs map_storage_error -> 404. Assert unchanged; runtime confirmation pending validator round. No operator_decision_request needed.",
+    "other_header_free_calls": "none remaining in live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof (:1439-1863); delete/cleanup/backlink helpers already carry account_context",
+    "scope": "MT-162 write path tests/test_loom_address.rs only; backend untouched"
   }
 }
