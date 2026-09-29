@@ -1204,8 +1204,10 @@ fn canvas_loom_chip_screenshot() {
 /// `create_document` (POST /knowledge/documents) and `list_backlinks`
 /// (GET /knowledge/documents/{id}/backlinks) handlers return HTTP 400 when any is absent; the React
 /// reference sends them via `richDocHeaders(ctx)` (api.ts), with `operator` as the default actor id.
-/// `getLoomBlock` (GET /workspaces/{ws}/loom/blocks/{id}) correctly needs NONE, so those calls stay
-/// header-free.
+/// The account session (`x-hsk-session-token` / `x-hsk-channel-binding-token` from
+/// `authorize_builder`) is also required by `getLoomBlock` (GET /workspaces/{ws}/loom/blocks/{id}):
+/// since MT-109 C1V-LOOM-READ-403 that route calls `authorize_request` (LoomBlock, else the
+/// RichDocument `fs.read` grant) and denies a header-free read with a constant 403.
 #[cfg(feature = "integration")]
 fn with_rich_doc_headers(
     account_context: &handshake_native::local_account::AuthenticatedContext,
@@ -1800,13 +1802,12 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         assert_eq!(reloaded["content_json"], saved_content);
         assert_eq!(reloaded["content_sha256"].as_str(), Some(expected_hash.as_str()));
 
-        let block_response = refetch_client
-            .get(format!(
-                "{live_base_url}/workspaces/{workspace_id}/loom/blocks/{b_block_id}"
-            ))
-            .send()
-            .await
-            .expect("refetch B LoomBlock");
+        let block_response = with_rich_doc_headers(&managed_backend.account_context, refetch_client.get(format!(
+            "{live_base_url}/workspaces/{workspace_id}/loom/blocks/{b_block_id}"
+        )))
+        .send()
+        .await
+        .expect("refetch B LoomBlock");
         assert_eq!(block_response.status().as_u16(), 200);
         let block_body: serde_json::Value = block_response.json().await.expect("B block body");
         assert_eq!(block_body["block_id"].as_str(), Some(b_block_id.as_str()));
@@ -1834,13 +1835,14 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         .await
         .expect("refetch deleted A");
         assert_eq!(deleted_document.status().as_u16(), 404);
-        let deleted_block = seed_client
-            .get(format!(
-                "{live_base_url}/workspaces/{workspace_id}/loom/blocks/{a_block_id}"
-            ))
-            .send()
-            .await
-            .expect("refetch deleted A LoomBlock");
+        // Authenticated: A's RichDocument grant survives the soft delete, so the read is authorized
+        // and the hard-deleted LoomBlock row yields 404 (authorized-missing), not 403 concealment.
+        let deleted_block = with_rich_doc_headers(&managed_backend.account_context, seed_client.get(format!(
+            "{live_base_url}/workspaces/{workspace_id}/loom/blocks/{a_block_id}"
+        )))
+        .send()
+        .await
+        .expect("refetch deleted A LoomBlock");
         assert_eq!(deleted_block.status().as_u16(), 404);
         let after_delete = load_backlinks_runtime(
             managed_backend.account_context.clone(),
