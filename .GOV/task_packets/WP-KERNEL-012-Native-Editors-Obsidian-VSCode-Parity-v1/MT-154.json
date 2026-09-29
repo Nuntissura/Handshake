@@ -1,8 +1,113 @@
 {
   "validation": {
     "proof_records": [
-      {"check_id":"MT-154-CHECK-TESTS","executor_role":"KERNEL_BUILDER","executor":"/root/contract_complexity","covered_mts":["MT-032","MT-154"],"candidate":"8ea13a9b6650eecc819acfacbbf0c5d8299e9f75","command":"cargo check --locked -j2 --manifest-path <product>/src/backend/handshake_core/Cargo.toml --tests --features app-runtime,surreal-test-support,test-utils","exit":0,"wrapper_exit":0,"input_count":1759,"before_after_digest":"1e48372e1ac8ea92df460637d4a29f91318f29c0ed2e9d763adc4de7f7945eae","artifact_prefix":"../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260929-8ea13a9b-lint-repair-core-check","independent_review":"Parent and WPV opened exit files and matching input digests","scope":"Implementer compile evidence; no runtime or MT acceptance"},
-      {"check_id":"MT-154-CLIPPY-CHANGED","executor_role":"KERNEL_BUILDER","executor":"/root/contract_complexity","covered_mts":["MT-032","MT-154"],"candidate":"8ea13a9b6650eecc819acfacbbf0c5d8299e9f75","command":"cargo clippy --locked --keep-going -j2 --manifest-path <product>/src/backend/handshake_core/Cargo.toml -p handshake_core --all-targets --features app-runtime,surreal-test-support,test-utils --message-format=short -- -D warnings","exit":101,"wrapper_exit":101,"scoped_result":"Zero findings on changed lines","repair_base":"1f5b3d70514ffe143cb27b6fde5e6e05ba4273dd","MT154_base":"0cfbff649c08ae260ac53eb866293b2bc273137d","raw_diagnostics":395,"unparsed_or_unexplained":0,"changed_line_findings_both_bases":0,"input_count":1759,"before_after_digest":"1e48372e1ac8ea92df460637d4a29f91318f29c0ed2e9d763adc4de7f7945eae","artifact_prefix":"../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260929-8ea13a9b-lint-repair-clippy","stderr_sha256":"1D807D1748A32C84B8D129C44B3D95E3CBC5FA4DBBAABDD6E1C45F967D6D336D","independent_review":"WPV independently parsed both raw streams and mapped actual git diff -U0 ranges; matched builder result","scope":"Required changed-line floor only; raw command remains exit101, no runtime or MT acceptance"}
+      {
+        "check_id": "MT-154-CHECK-TESTS",
+        "executor_role": "KERNEL_BUILDER",
+        "executor": "/root/contract_complexity",
+        "covered_mts": [
+          "MT-032",
+          "MT-154"
+        ],
+        "candidate": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
+        "command": "cargo check --locked -j2 --manifest-path <product>/src/backend/handshake_core/Cargo.toml --tests --features app-runtime,surreal-test-support,test-utils",
+        "exit": 0,
+        "wrapper_exit": 0,
+        "input_count": 1759,
+        "before_after_digest": "1e48372e1ac8ea92df460637d4a29f91318f29c0ed2e9d763adc4de7f7945eae",
+        "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260929-8ea13a9b-lint-repair-core-check",
+        "independent_review": "Parent and WPV opened exit files and matching input digests",
+        "scope": "Implementer compile evidence; no runtime or MT acceptance"
+      },
+      {
+        "check_id": "MT-154-CLIPPY-CHANGED",
+        "executor_role": "KERNEL_BUILDER",
+        "executor": "/root/contract_complexity",
+        "covered_mts": [
+          "MT-032",
+          "MT-154"
+        ],
+        "candidate": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
+        "command": "cargo clippy --locked --keep-going -j2 --manifest-path <product>/src/backend/handshake_core/Cargo.toml -p handshake_core --all-targets --features app-runtime,surreal-test-support,test-utils --message-format=short -- -D warnings",
+        "exit": 101,
+        "wrapper_exit": 101,
+        "scoped_result": "Zero findings on changed lines",
+        "repair_base": "1f5b3d70514ffe143cb27b6fde5e6e05ba4273dd",
+        "MT154_base": "0cfbff649c08ae260ac53eb866293b2bc273137d",
+        "raw_diagnostics": 395,
+        "unparsed_or_unexplained": 0,
+        "changed_line_findings_both_bases": 0,
+        "input_count": 1759,
+        "before_after_digest": "1e48372e1ac8ea92df460637d4a29f91318f29c0ed2e9d763adc4de7f7945eae",
+        "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260929-8ea13a9b-lint-repair-clippy",
+        "stderr_sha256": "1D807D1748A32C84B8D129C44B3D95E3CBC5FA4DBBAABDD6E1C45F967D6D336D",
+        "independent_review": "WPV independently parsed both raw streams and mapped actual git diff -U0 ranges; matched builder result",
+        "scope": "Required changed-line floor only; raw command remains exit101, no runtime or MT acceptance"
+      },
+      {
+        "executor_role": "KERNEL_BUILDER",
+        "executor": "/root/contract_complexity",
+        "covered_mts": [
+          "MT-032",
+          "MT-154"
+        ],
+        "candidate": "4e7b14ba83e686412707fa6e2a5088e3888f2ec3",
+        "input_count": 1759,
+        "before_after_digest": "ee322b625fc0299e15b107bf5cd5dc9936e396a7d8d35abea7ad7bddfa775165",
+        "scope": "Implementer static evidence only; independent runtime/MT acceptance pending",
+        "check_id": "MT-154-CHECK-TESTS",
+        "crate": "handshake_document",
+        "command": "cargo check --locked -j2 --manifest-path <product>/src/backend/handshake_document/Cargo.toml --tests --features surreal-test-support",
+        "exit": 0,
+        "wrapper_exit": 0,
+        "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260929-4e7b14ba-backlink-counter-check",
+        "independent_review": "Parent and WPV read true exits and matching before/after digests"
+      },
+      {
+        "executor_role": "KERNEL_BUILDER",
+        "executor": "/root/contract_complexity",
+        "covered_mts": [
+          "MT-032",
+          "MT-154"
+        ],
+        "candidate": "4e7b14ba83e686412707fa6e2a5088e3888f2ec3",
+        "input_count": 1759,
+        "before_after_digest": "ee322b625fc0299e15b107bf5cd5dc9936e396a7d8d35abea7ad7bddfa775165",
+        "scope": "Implementer static evidence only; independent runtime/MT acceptance pending",
+        "check_id": "MT-154-CHECK-TESTS",
+        "crate": "handshake_core",
+        "command": "cargo check --locked -j2 --manifest-path <product>/src/backend/handshake_core/Cargo.toml --tests --features app-runtime,surreal-test-support,test-utils",
+        "exit": 0,
+        "wrapper_exit": 0,
+        "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260929-4e7b14ba-backlink-counter-check",
+        "independent_review": "Parent and WPV read true exits and matching before/after digests"
+      },
+      {
+        "executor_role": "KERNEL_BUILDER",
+        "executor": "/root/contract_complexity",
+        "covered_mts": [
+          "MT-032",
+          "MT-154"
+        ],
+        "candidate": "4e7b14ba83e686412707fa6e2a5088e3888f2ec3",
+        "input_count": 1759,
+        "before_after_digest": "ee322b625fc0299e15b107bf5cd5dc9936e396a7d8d35abea7ad7bddfa775165",
+        "scope": "Implementer static evidence only; independent runtime/MT acceptance pending",
+        "check_id": "MT-154-CLIPPY-CHANGED",
+        "command": "cargo clippy --locked --keep-going -j2 --manifest-path <product>/src/backend/handshake_core/Cargo.toml -p handshake_core --all-targets --features app-runtime,surreal-test-support,test-utils --message-format=short -- -D warnings",
+        "exit": 101,
+        "wrapper_exit": 101,
+        "scoped_result": "Zero changed-line findings; raw command remains101",
+        "repair_base": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
+        "MT154_base": "0cfbff649c08ae260ac53eb866293b2bc273137d",
+        "raw_diagnostics": 395,
+        "unparsed_or_unexplained": 0,
+        "changed_line_findings_both_bases": 0,
+        "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260929-4e7b14ba-backlink-counter-clippy",
+        "classification_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260929-4e7b14ba-backlink-counter-clippy-classification.json",
+        "stderr_sha256": "6D7BDBF8A6F9BD5D845316F45BBD05D1FB1511896346908DB905A98BC0479C16",
+        "independent_review": "Parent read classification/raw hash/stable inputs; WPV independently mapped395 diagnostics against both actual git diff ranges, matching zero changed-line findings"
+      }
     ]
   },
   "paperwork_reconciliation_20260928": {
