@@ -595,6 +595,111 @@ mod tests {
         Ok((binding, headers, workspace.id))
     }
 
+    /// MT-165 (CX-GIT-001/003): removes the exact session worktree a launched MT-101 model_run
+    /// allocates (`workspace_safety::session_worktree_path`, default root
+    /// `Handshake_Artifacts/handshake-tool/session_worktrees`) when the test ends, on pass or on
+    /// panic unwinding. The product already removes it on the job's terminal path; this covers a
+    /// test that fails before that point. It never touches the shared root or another session:
+    /// only its own recorded path, verified inside its recorded root by canonical path, and no
+    /// recursive delete through a reparse point (AC-165-3).
+    struct SessionWorktreeGuard {
+        repo: std::path::PathBuf,
+        root: std::path::PathBuf,
+        worktree: std::path::PathBuf,
+    }
+
+    impl SessionWorktreeGuard {
+        fn for_session(session_id: &str) -> Result<Self, Box<dyn std::error::Error>> {
+            let repo = crate::capability_registry_workflow::repo_root_from_manifest_dir()?;
+            let worktree = crate::workspace_safety::session_worktree_path(&repo, session_id);
+            let root = worktree
+                .parent()
+                .ok_or("session worktree path has no parent root")?
+                .to_path_buf();
+            Ok(Self {
+                repo,
+                root,
+                worktree,
+            })
+        }
+
+        fn git_worktree(&self, args: &[&str]) {
+            let _ = std::process::Command::new("git")
+                .arg("-C")
+                .arg(&self.repo)
+                .args(["-c", "core.longpaths=true", "worktree"])
+                .args(args)
+                .output();
+        }
+    }
+
+    fn is_reparse_point(path: &std::path::Path) -> bool {
+        let Ok(metadata) = std::fs::symlink_metadata(path) else {
+            return false;
+        };
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::MetadataExt;
+            const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+            if metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+                return true;
+            }
+        }
+        metadata.file_type().is_symlink()
+    }
+
+    fn tree_has_reparse_point(dir: &std::path::Path) -> bool {
+        if is_reparse_point(dir) {
+            return true;
+        }
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return false;
+        };
+        entries.flatten().any(|entry| {
+            let path = entry.path();
+            is_reparse_point(&path) || (path.is_dir() && tree_has_reparse_point(&path))
+        })
+    }
+
+    impl Drop for SessionWorktreeGuard {
+        fn drop(&mut self) {
+            if !self.worktree.exists() {
+                self.git_worktree(&["prune"]);
+                return;
+            }
+            let contained = match (
+                std::fs::canonicalize(&self.root),
+                std::fs::canonicalize(&self.worktree),
+            ) {
+                (Ok(root), Ok(worktree)) => worktree.starts_with(&root) && worktree != root,
+                _ => false,
+            };
+            if !contained || is_reparse_point(&self.root) || is_reparse_point(&self.worktree) {
+                eprintln!(
+                    "MT-165 cleanup refused for {}: outside its recorded root or a reparse point",
+                    self.worktree.display()
+                );
+                return;
+            }
+            let worktree = self.worktree.display().to_string();
+            self.git_worktree(&["remove", "--force", worktree.as_str()]);
+            self.git_worktree(&["prune"]);
+            if self.worktree.exists() {
+                if tree_has_reparse_point(&self.worktree) {
+                    eprintln!(
+                        "MT-165 cleanup refused: {} contains a reparse point",
+                        self.worktree.display()
+                    );
+                } else if let Err(error) = std::fs::remove_dir_all(&self.worktree) {
+                    eprintln!(
+                        "MT-165 cleanup could not remove {}: {error}",
+                        self.worktree.display()
+                    );
+                }
+            }
+        }
+    }
+
     async fn require_mt101_runtime_state(
         proof_name: &str,
     ) -> Result<(AppState, crate::storage::tests::EmbeddedTestBackend), Box<dyn std::error::Error>>
@@ -783,6 +888,7 @@ mod tests {
         .await?;
         let (_binding, headers, workspace_id) = authenticated_workspace(&state).await?;
         let session_id = format!("native-mt101-{}", uuid::Uuid::now_v7());
+        let _session_worktree = SessionWorktreeGuard::for_session(&session_id)?;
         let workspace_folder = "D:/Projects/Handshake/repo";
         let wrapper = "repo-folder-wrapper-v1";
 

@@ -1,5 +1,7 @@
 use std::{
-    sync::Arc,
+    path::{Path, PathBuf},
+    process::Command,
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 
@@ -84,18 +86,149 @@ impl ConsentProvider for AllowAllConsent {
     }
 }
 
-async fn setup_state(
-) -> Result<(AppState, atelier_surreal_support::AtelierSurrealHarness), Box<dyn std::error::Error>>
-{
+/// Live [`SessionWorktreeRootGuard`]s in this test process. The worktree root below is per process,
+/// so only the last guard to drop cleans it; holding the lock during cleanup blocks a concurrent
+/// `setup_state` until the root is gone.
+static SESSION_WORKTREE_ROOT_USERS: Mutex<usize> = Mutex::new(0);
+
+/// MT-165 (CX-GIT-001/003): owns the per-process `HANDSHAKE_SESSION_WORKTREE_ROOT` this file sets.
+/// On drop (pass or panic unwinding) the last user removes every git worktree registered under
+/// that root (`git worktree remove --force` on the owning repo, then `git worktree prune`) and the
+/// root itself. It only touches direct children of its own recorded root, checks containment by
+/// canonical path, and refuses any recursive delete through a reparse point (AC-165-3).
+struct SessionWorktreeRootGuard {
+    root: PathBuf,
+    repo: PathBuf,
+}
+
+impl SessionWorktreeRootGuard {
+    fn acquire(root: PathBuf) -> Self {
+        *SESSION_WORKTREE_ROOT_USERS
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) += 1;
+        Self {
+            root,
+            repo: PathBuf::from(env!("CARGO_MANIFEST_DIR")),
+        }
+    }
+}
+
+impl Drop for SessionWorktreeRootGuard {
+    fn drop(&mut self) {
+        let mut users = SESSION_WORKTREE_ROOT_USERS
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        *users = users.saturating_sub(1);
+        if *users == 0 {
+            remove_owned_session_worktrees(&self.repo, &self.root);
+        }
+    }
+}
+
+fn is_reparse_point(path: &Path) -> bool {
+    let Ok(metadata) = std::fs::symlink_metadata(path) else {
+        return false;
+    };
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+        if metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+            return true;
+        }
+    }
+    metadata.file_type().is_symlink()
+}
+
+fn tree_has_reparse_point(dir: &Path) -> bool {
+    if is_reparse_point(dir) {
+        return true;
+    }
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return false;
+    };
+    entries.flatten().any(|entry| {
+        let path = entry.path();
+        is_reparse_point(&path) || (path.is_dir() && tree_has_reparse_point(&path))
+    })
+}
+
+fn git_worktree(repo: &Path, args: &[&str], path: Option<&Path>) {
+    let mut command = Command::new("git");
+    command
+        .arg("-C")
+        .arg(repo)
+        .args(["-c", "core.longpaths=true", "worktree"])
+        .args(args);
+    if let Some(path) = path {
+        command.arg(path);
+    }
+    let _ = command.output();
+}
+
+fn remove_owned_session_worktrees(repo: &Path, root: &Path) {
+    if !root.exists() {
+        git_worktree(repo, &["prune"], None);
+        return;
+    }
+    if is_reparse_point(root) {
+        eprintln!(
+            "MT-165 cleanup refused: session worktree root {} is a reparse point",
+            root.display()
+        );
+        return;
+    }
+    let Ok(canonical_root) = std::fs::canonicalize(root) else {
+        return;
+    };
+    if let Ok(entries) = std::fs::read_dir(root) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let contained = std::fs::canonicalize(&path)
+                .map(|canonical| canonical.starts_with(&canonical_root))
+                .unwrap_or(false);
+            if !contained || is_reparse_point(&path) {
+                eprintln!(
+                    "MT-165 cleanup skipped {}: outside the owned root or a reparse point",
+                    path.display()
+                );
+                continue;
+            }
+            git_worktree(repo, &["remove", "--force"], Some(&path));
+        }
+    }
+    git_worktree(repo, &["prune"], None);
+    if tree_has_reparse_point(root) {
+        eprintln!(
+            "MT-165 cleanup refused: {} still contains a reparse point",
+            root.display()
+        );
+        return;
+    }
+    if let Err(error) = std::fs::remove_dir_all(root) {
+        eprintln!(
+            "MT-165 cleanup could not remove {}: {error}",
+            root.display()
+        );
+    }
+}
+
+/// The store harness plus the session worktree root guard. Fields drop in order: the store closes
+/// first, then the owned worktree root is cleaned.
+struct SchedulerFixture {
+    _harness: atelier_surreal_support::AtelierSurrealHarness,
+    _session_worktrees: SessionWorktreeRootGuard,
+}
+
+async fn setup_state() -> Result<(AppState, SchedulerFixture), Box<dyn std::error::Error>> {
+    let session_worktree_root = std::env::temp_dir().join(format!(
+        "hsk-session-worktrees-model-session-scheduler-{}",
+        std::process::id()
+    ));
+    let session_worktrees = SessionWorktreeRootGuard::acquire(session_worktree_root.clone());
     std::env::set_var(
         "HANDSHAKE_SESSION_WORKTREE_ROOT",
-        std::env::temp_dir()
-            .join(format!(
-                "hsk-session-worktrees-model-session-scheduler-{}",
-                std::process::id()
-            ))
-            .display()
-            .to_string(),
+        session_worktree_root.display().to_string(),
     );
     let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
 
@@ -112,7 +245,10 @@ async fn setup_state(
             capability_registry: Arc::new(CapabilityRegistry::new()),
             session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
         },
-        harness,
+        SchedulerFixture {
+            _harness: harness,
+            _session_worktrees: session_worktrees,
+        },
     ))
 }
 fn hex64(ch: char) -> String {
