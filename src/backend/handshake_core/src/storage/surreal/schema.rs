@@ -3036,12 +3036,12 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // Historical predecessor pins remain unchanged.
 // MT-154 V14: current INFO, Loom and Atelier pins independently measured on a7ae3657.
 // PIN-MEASURE artifact pins.txt SHA256: 643c0390430dfa0f10db5cafbd4b646e32fa34153739397d9470adc735695060.
-// MT-164 PIN-MEASURE PENDING (revision 162): the five grant/access function bodies changed, so this
-// runtime INFO pin must be re-measured (MT139_CURRENT_SCHEMA_INFO_SHA256 /
-// MT109_CURRENT_AUTHORITY_INFO_SHA256). The value below is still the revision-161 measurement
-// (= PRE_INDEXED_GRANT_INFO_SHA256); it is not statically derivable and is not guessed.
+// MT-164 re-pin (revision 162): the five grant/access functions resolve the protected resource
+// first (previous value 99a02cba2ef3a195bb49013d86a19e20e02e58a05363b39c46ddda4ebacc0c9a, retained as
+// PRE_INDEXED_GRANT_INFO_SHA256); measured by WP validator PIN-MEASURE MT164-PIN-MEASURE-20260929
+// on 179ffc1f (MT139_CURRENT_SCHEMA_INFO_SHA256 / MT109_CURRENT_AUTHORITY_INFO_SHA256).
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "99a02cba2ef3a195bb49013d86a19e20e02e58a05363b39c46ddda4ebacc0c9a";
+    "50b06dab0370f14fce0b3591b94abf87420957aa8258117f40563f42be3d29b4";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -3053,10 +3053,11 @@ pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
 // ed84249709a9ab9c3c7d4304859732fac8373d0001a27aa84685c319e6a6a04a).
 // MT-109 C3 re-pin: fn::mt120_loom_endpoint_access and the Loom receipt branches (previous
 // f8909f93910491ac4c95bb8f4b567dd2c572b6e08b5ca899fb0b223dbb2ca411); kb-c3 run 04.
-// MT-164 PIN-MEASURE PENDING: the Atelier catalog carries the authority-core functions, so this
-// runtime pin must be re-measured (EXPECTED_ATELIER_CATALOG_SHA256=); value below is revision 161.
+// MT-164 re-pin: the Atelier catalog carries the authority-core grant/access functions (previous
+// b26f957864d7f730201bf8196bb8c77c85ea79ce46604eb745ba3d535f8f0250); measured by WP validator
+// PIN-MEASURE MT164-PIN-MEASURE-20260929 on 179ffc1f.
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
-    "b26f957864d7f730201bf8196bb8c77c85ea79ce46604eb745ba3d535f8f0250";
+    "c18095249805f8822a3a23aea6f58d1866522584f097b715c3957e66346af052";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 /// Second allowlisted lineage (MT-142): every store bootstrapped at schema revision 157 before
@@ -3928,10 +3929,11 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // SEVENTH pin (MT-153, kb-c5 run 05): the bounded DDL now also defines
     // fn::mt153_loom_identity_unchanged, which the loom_blocks.block_id ASSERT calls (previous
     // value 8adc1dddc98f2fce6119e38f1689a617a84c6602e8909dd01be60641a8b49164).
-    // MT-164 PIN-MEASURE PENDING: the bounded DDL carries the authority-core grant/access functions,
-    // so this runtime pin (MT109_LOOM_CATALOG_SHA256=) must be re-measured; value below is revision 161.
+    // EIGHTH pin (MT-164): the bounded DDL carries the resolve-first authority-core grant/access
+    // functions (previous value 299e8dc80fbab95f43d178a8d09c6b3760f6dfad9edc85215c865adf6b2edd98);
+    // measured by WP validator PIN-MEASURE MT164-PIN-MEASURE-20260929 on 179ffc1f.
     const EXPECTED_CATALOG_SHA256: &str =
-        "299e8dc80fbab95f43d178a8d09c6b3760f6dfad9edc85215c865adf6b2edd98";
+        "e02993e2ec6ec2195d8de737b3c5a62b332b1d3105a889c5179b083c2932d5fb";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -8840,7 +8842,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "299e8dc80fbab95f43d178a8d09c6b3760f6dfad9edc85215c865adf6b2edd98"
+            "e02993e2ec6ec2195d8de737b3c5a62b332b1d3105a889c5179b083c2932d5fb"
         );
     }
 
