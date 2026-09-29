@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-165",
   "created_at_utc": "2026-09-29T18:50:00Z",
-  "updated_at_utc": "2026-09-29T19:05:00Z",
+  "updated_at_utc": "2026-09-29T19:18:00Z",
   "identity": {
     "mt_id": "MT-165",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -170,8 +170,8 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "BLOCKED",
-    "blocked_on": "MT-165 open fix: builder implementation commit not yet pushed",
+    "status": "READY_FOR_VALIDATION",
+    "blocked_on": null,
     "depends_on": [],
     "blocks": [],
     "active": true,
@@ -180,10 +180,11 @@
     "claimed_at_utc": "2026-09-29T18:50:00Z",
     "claim_ref": "Operator decision 2026-09-29 'both approved'",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER",
-    "status_reason": "Created and claimed; implementation pending.",
+    "next_actor": "WP_VALIDATOR",
+    "status_reason": "Pushed 16b43aff with builder compile evidence; gameplan before_submit PASS (KB-PROOF-007).",
     "rounds_without_output": 0,
-    "diagnosis_refs": []
+    "diagnosis_refs": [],
+    "candidate_commit": "16b43aff584284197cd112b0bc05cce9cb5e56e5"
   },
   "scope": {
     "summary": "Tests that allocate session worktrees remove them (git worktree registration and directory) on success and on failure, so no stray worktree or folder remains after a run (CX-GIT-001/003). Covers the MT-141 scheduler test and whichever test created native-mt101-* session worktrees under Handshake_Artifacts/handshake-tool/session_worktrees.",
@@ -538,7 +539,26 @@
     ]
   },
   "validation": {
-    "proof_records": []
+    "proof_records": [
+      {
+        "check_id": "MT-165-BUILDER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "covered_mts": [
+          "MT-165"
+        ],
+        "candidate": "16b43aff584284197cd112b0bc05cce9cb5e56e5",
+        "crate": "handshake_core",
+        "command": "cd src/backend/handshake_core && CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-165/kb/target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only cargo check --locked --tests -j 8 --features app-runtime,surreal-test-support,test-utils",
+        "started_at_utc": "2026-09-29T18:58:33Z",
+        "completed_at_utc": "2026-09-29T19:16:06Z",
+        "exit": 0,
+        "result": "pass; 0 errors; no new warnings (scheduler unused Database import and jobs.rs:41 warnings pre-exist in MT-164 baseline, line shifted by 2 added imports); rustfmt --check clean",
+        "input_digest_before_after": "equal (git hash-object model_session_scheduler_tests.rs 37fa2482, api/jobs.rs 614db773); committed tree 16b43aff contains these blobs",
+        "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-165/kb/logs/check-1",
+        "d_disk_check": "no cargo/rustc/link processes (Win32_Process CommandLine scan) before launch",
+        "scope": "Implementer compile/static evidence only (CX-EXEC-014); runtime + worktree inventory proof pending WP validator (AC-165-4)"
+      }
+    ]
   },
   "implementation_record": {
     "recorded_at_utc": "2026-09-29T19:05:00Z",
@@ -554,6 +574,15 @@
       "edit_path_recorded_before_edit": "src/backend/handshake_core/src/api/jobs.rs (cfg(test) mod tests only)"
     },
     "scheduler_test_path": "src/backend/handshake_core/tests/model_session_scheduler_tests.rs:89-116 setup_state sets HANDSHAKE_SESSION_WORKTREE_ROOT=temp_dir()/hsk-session-worktrees-model-session-scheduler-<pid>",
-    "status": "in_progress"
+    "status": "implemented",
+    "commit": "16b43aff584284197cd112b0bc05cce9cb5e56e5",
+    "pushed": true,
+    "changed_files": {
+      "src/backend/handshake_core/tests/model_session_scheduler_tests.rs": "SessionWorktreeRootGuard (process-wide user count; last Drop incl. panic unwinding runs git worktree remove --force per direct child of the per-pid root, git worktree prune on the owning repo (CARGO_MANIFEST_DIR), then removes the root); setup_state returns SchedulerFixture{harness, guard}; assertions and 17 call sites unchanged",
+      "src/backend/handshake_core/src/api/jobs.rs": "cfg(test) only: SessionWorktreeGuard::for_session(session_id) in create_model_run_job_launches_runtime_session_and_preserves_native_binding; on Drop removes exactly workspace_safety::session_worktree_path(repo_root_from_manifest_dir(), session_id) via git worktree remove --force + prune, falls back to remove_dir_all only for that path; never the shared root"
+    },
+    "ac_165_3_controls": "both guards: canonicalize root and target, require target.starts_with(root) (and != root); refuse when root/target is a reparse point (FILE_ATTRIBUTE_REPARSE_POINT 0x400 or symlink); fallback directory delete only after a recursive reparse-point scan finds none",
+    "residual_risk": "a process abort that does not unwind (e.g. stack overflow 0xc00000fd) skips Drop; the next run's git worktree prune clears registrations whose directories are gone, but an aborted run's directory remains for the validator's inventory check (AC-165-4)",
+    "shared_helper": "not added: the two tests live in different crates (integration test binary vs lib cfg(test)), so each carries its own small guard"
   }
 }
