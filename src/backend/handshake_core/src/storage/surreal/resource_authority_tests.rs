@@ -3538,3 +3538,301 @@ async fn memory_source_reads_require_exact_grants_and_preserve_derived_origin(
         })
     }).await
 }
+
+/// MT-164 N values: active grants held by the timed principal, each on a distinct protected resource.
+const GRANT_COST_COUNTS: [usize; 2] = [50, 500];
+/// One warm-up sample, then this many timed samples per metric.
+const GRANT_COST_SAMPLES: usize = 5;
+const GRANT_COST_RATIO_LIMIT: f64 = 2.0;
+const GRANT_COST_MEDIAN_LIMIT: Duration = Duration::from_millis(250);
+const GRANT_COST_IDEMPOTENCY_CREATE: &str = "CREATE $record SET rich_document_id = $other, workspace_id = $other.workspace_id, operation_kind = 'rich_document_save', idempotency_key = record::id($record), request_hash = '0000000000000000000000000000000000000000000000000000000000000000', result_ref_kind = 'knowledge_rich_document', result_ref_id = record::id($other) RETURN AFTER;";
+const GRANT_COST_ANCHOR_CREATE: &str = "CREATE $record SET anchor_key = record::id($record), workspace_id = $other.workspace_id, title_key = record::id($record), last_rich_document_id = record::id($other), claim_nonce = 'mt164-grant-cost' RETURN AFTER;";
+const GRANT_COST_ACTIVE_GRANTS: &str =
+    "SELECT VALUE id FROM resource_grants WHERE principal_id = $record AND status = 'active';";
+const GRANT_COST_SELECT: &str = "SELECT * FROM $record;";
+
+/// Runs `statement` once as the record user and returns its rows with the latency of the query
+/// alone; the per-operation record-user signin is outside the measured span.
+async fn timed_record_user_rows(
+    storage: &super::SurrealStorage,
+    scope: RecordUserScope,
+    statement: &'static str,
+    record: RecordId,
+) -> Result<(Vec<Value>, Duration), Box<dyn std::error::Error>> {
+    let operation = storage.with_data_operation(move |database| {
+        Box::pin(async move {
+            let started = std::time::Instant::now();
+            let rows = database
+                .query_values::<Value, _>(
+                    statement,
+                    SourceProbeBindings {
+                        record,
+                        other: None,
+                    },
+                )
+                .await?;
+            Ok((rows, started.elapsed()))
+        })
+    });
+    Ok(storage.with_record_user_scope(scope, operation).await?)
+}
+
+/// Median of one warm-up plus [`GRANT_COST_SAMPLES`] timed record-user reads of `record`; every
+/// sample, warm-up included, must return exactly the one authorized row (no vacuous timing).
+async fn median_authorized_read(
+    storage: &super::SurrealStorage,
+    scope: &RecordUserScope,
+    record: &RecordId,
+    label: &str,
+) -> Result<Duration, Box<dyn std::error::Error>> {
+    let mut samples = Vec::with_capacity(GRANT_COST_SAMPLES);
+    for sample in 0..=GRANT_COST_SAMPLES {
+        let (rows, elapsed) =
+            timed_record_user_rows(storage, scope.clone(), GRANT_COST_SELECT, record.clone())
+                .await?;
+        assert_eq!(
+            rows.len(),
+            1,
+            "{label} sample {sample} must return the authorized row"
+        );
+        if sample > 0 {
+            samples.push(elapsed);
+        }
+    }
+    samples.sort();
+    Ok(samples[samples.len() / 2])
+}
+
+/// MT-164 AC-164-4: a permission check costs the same with 50 or 500 grants held by the principal.
+///
+/// Metric (i) is one record-user SELECT of a `knowledge_idempotency_keys` row by record id.
+/// Metric (ii) is one `fn::mt120_document_access` check: a record-user SELECT of a
+/// `knowledge_rich_document_title_anchors` row, whose select PERMISSIONS predicate is exactly that
+/// single call. A direct `RETURN fn::...` by a record user runs with table and field permissions
+/// enforced, where `protected_resources.external_resource_id` is `PERMISSIONS FOR select NONE`, so
+/// the check is observable as the record user only through a table PERMISSIONS predicate
+/// (SurrealDB 3.2.0 `exec/parts/field.rs` fetch_record vs fetch_record_no_perms).
+#[tokio::test]
+async fn grant_check_cost_is_independent_of_grant_count() -> ResourceAuthorityTestResult {
+    use crate::storage::knowledge::{KnowledgeStore, NewKnowledgeRichDocument};
+    use serde_json::json;
+
+    run_resource_authority_test_backend(
+        crate::storage::tests::embedded_test_backend().await?,
+        |backend| {
+            Box::pin(async move {
+                let storage = &backend.storage;
+                let database = SurrealDatabase::new(storage.clone());
+                let workspace = database
+                    .create_workspace(
+                        &WriteContext::human(Some("mt164-grant-cost".to_owned())),
+                        NewWorkspace {
+                            name: "Grant cost proof".to_owned(),
+                        },
+                    )
+                    .await?;
+                let new_document = |title: &str| NewKnowledgeRichDocument {
+                    workspace_id: workspace.id.clone(),
+                    title: title.to_owned(),
+                    schema_version: "hsk_richdoc_v1".to_owned(),
+                    content_json: json!({"type":"doc","content":[]}),
+                    ..Default::default()
+                };
+                let document = database
+                    .create_knowledge_rich_document(new_document("Granted grant-cost document"))
+                    .await?;
+                let ungranted = database
+                    .create_knowledge_rich_document(new_document("Ungranted grant-cost document"))
+                    .await?;
+                let capabilities = ["fs.read".to_owned(), "fs.write".to_owned()];
+                let owner =
+                    provision_direct_negative_principal(storage, "mt164-grant-cost", &capabilities)
+                        .await?;
+                let workspace_resource = storage
+                    .register_workspace_resource(&owner.identity, &workspace.id)
+                    .await?;
+                source_probe_grant(
+                    storage,
+                    &owner,
+                    &workspace_resource.resource_id,
+                    ResourceAction::Read,
+                    "fs.read",
+                )
+                .await?;
+                let document_resource = storage
+                    .register_protected_resource(
+                        &owner.identity,
+                        ResourceKind::RichDocument,
+                        &document.rich_document_id,
+                        Some(&workspace_resource.resource_id),
+                        "private",
+                    )
+                    .await?;
+                source_probe_grant(
+                    storage,
+                    &owner,
+                    &document_resource.resource_id,
+                    ResourceAction::Read,
+                    "fs.read",
+                )
+                .await?;
+                storage
+                    .register_protected_resource(
+                        &owner.identity,
+                        ResourceKind::RichDocument,
+                        &ungranted.rich_document_id,
+                        Some(&workspace_resource.resource_id),
+                        "private",
+                    )
+                    .await?;
+
+                let mut probes = Vec::new();
+                for (label, rich_document_id) in [
+                    ("granted", &document.rich_document_id),
+                    ("ungranted", &ungranted.rich_document_id),
+                ] {
+                    let other = Some(RecordId::new(
+                        "knowledge_rich_documents",
+                        rich_document_id.as_str(),
+                    ));
+                    let idempotency = RecordId::new(
+                        "knowledge_idempotency_keys",
+                        format!("mt164-grant-cost-{label}"),
+                    );
+                    let anchor = RecordId::new(
+                        "knowledge_rich_document_title_anchors",
+                        format!("mt164-grant-cost-{label}"),
+                    );
+                    for (statement, record) in [
+                        (GRANT_COST_IDEMPOTENCY_CREATE, &idempotency),
+                        (GRANT_COST_ANCHOR_CREATE, &anchor),
+                    ] {
+                        let created = source_probe_query(
+                            storage,
+                            statement,
+                            SourceProbeBindings {
+                                record: record.clone(),
+                                other: other.clone(),
+                            },
+                        )
+                        .await?;
+                        assert_eq!(created.len(), 1, "privileged seed {record:?}");
+                    }
+                    probes.push((idempotency, anchor));
+                }
+                let (granted_idempotency, granted_anchor) = probes[0].clone();
+                let (ungranted_idempotency, ungranted_anchor) = probes[1].clone();
+                let scope = direct_negative_scope(
+                    &owner,
+                    &document_resource.resource_id,
+                    "fs.read",
+                    ResourceAction::Read,
+                );
+
+                let mut filler = 0usize;
+                let mut medians = Vec::new();
+                for count in GRANT_COST_COUNTS {
+                    // Two grants (workspace and granted document) are always held; filler grants
+                    // on distinct protected resources bring the principal's total to `count`.
+                    while filler + 2 < count {
+                        let resource = storage
+                            .register_protected_resource(
+                                &owner.identity,
+                                ResourceKind::RichDocument,
+                                &format!("mt164-grant-cost-filler-{filler}"),
+                                Some(&workspace_resource.resource_id),
+                                "private",
+                            )
+                            .await?;
+                        source_probe_grant(
+                            storage,
+                            &owner,
+                            &resource.resource_id,
+                            ResourceAction::Read,
+                            "fs.read",
+                        )
+                        .await?;
+                        filler += 1;
+                    }
+                    let active = source_probe_query(
+                        storage,
+                        GRANT_COST_ACTIVE_GRANTS,
+                        SourceProbeBindings {
+                            record: RecordId::new(
+                                "principals",
+                                owner.identity.principal_id.as_str(),
+                            ),
+                            other: None,
+                        },
+                    )
+                    .await?;
+                    assert_eq!(active.len(), count, "principal must hold exactly N active grants");
+                    for (label, record) in [
+                        ("idempotency", &ungranted_idempotency),
+                        ("document_access", &ungranted_anchor),
+                    ] {
+                        let (rows, _) = timed_record_user_rows(
+                            storage,
+                            scope.clone(),
+                            GRANT_COST_SELECT,
+                            record.clone(),
+                        )
+                        .await?;
+                        assert!(rows.is_empty(), "no-grant {label} probe must be denied at N={count}");
+                    }
+                    let idempotency = median_authorized_read(
+                        storage,
+                        &scope,
+                        &granted_idempotency,
+                        "idempotency",
+                    )
+                    .await?;
+                    let document_access = median_authorized_read(
+                        storage,
+                        &scope,
+                        &granted_anchor,
+                        "document_access",
+                    )
+                    .await?;
+                    println!(
+                        "MT164_GRANT_COST n={count} idempotency_select_median_us={} document_access_check_median_us={}",
+                        idempotency.as_micros(),
+                        document_access.as_micros()
+                    );
+                    medians.push((count, idempotency, document_access));
+                }
+
+                let (_, small_idempotency, small_access) = medians[0];
+                let (_, large_idempotency, large_access) = medians[1];
+                let ratio = |large: Duration, small: Duration| {
+                    large.as_secs_f64() / small.as_secs_f64().max(f64::MIN_POSITIVE)
+                };
+                let idempotency_ratio = ratio(large_idempotency, small_idempotency);
+                let access_ratio = ratio(large_access, small_access);
+                println!(
+                    "MT164_GRANT_COST ratio_500_over_50 idempotency_select={idempotency_ratio:.3} document_access_check={access_ratio:.3}"
+                );
+                for (count, idempotency, document_access) in &medians {
+                    assert!(
+                        *idempotency < GRANT_COST_MEDIAN_LIMIT,
+                        "idempotency select median {idempotency:?} at N={count} exceeds {GRANT_COST_MEDIAN_LIMIT:?}"
+                    );
+                    assert!(
+                        *document_access < GRANT_COST_MEDIAN_LIMIT,
+                        "document access check median {document_access:?} at N={count} exceeds {GRANT_COST_MEDIAN_LIMIT:?}"
+                    );
+                }
+                assert!(
+                    idempotency_ratio < GRANT_COST_RATIO_LIMIT,
+                    "idempotency select median ratio N=500/N=50 is {idempotency_ratio:.3}"
+                );
+                assert!(
+                    access_ratio < GRANT_COST_RATIO_LIMIT,
+                    "document access check median ratio N=500/N=50 is {access_ratio:.3}"
+                );
+                Ok(())
+            })
+        },
+    )
+    .await
+}

@@ -15,7 +15,23 @@ use super::{
 };
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 161;
+pub const SCHEMA_REVISION: i64 = 162;
+/// Exact revision-161 catalog before MT-164 rewrote the five grant/access functions to resolve the
+/// protected resource first (indexed grant lookup; allow/deny semantics unchanged). Its generated
+/// and INFO pins are the revision-161 current pins at 4e7b14ba.
+const PRE_INDEXED_GRANT_REVISION: i64 = 161;
+const PRE_INDEXED_GRANT_GENERATED_SHA256: &str =
+    "009ee238f7935479a9c507f8b1e8cc59ef306dd80765b8e74bc9665909d7a3f2";
+const PRE_INDEXED_GRANT_INFO_SHA256: &str =
+    "99a02cba2ef3a195bb49013d86a19e20e02e58a05363b39c46ddda4ebacc0c9a";
+/// The MT-164 grant/access functions, in schema order; every upgrade re-emits them from [`SCHEMA`].
+const INDEXED_GRANT_FUNCTIONS: [&str; 5] = [
+    "mt109_has_grant",
+    "mt109_has_workspace_access",
+    "mt109_source_read",
+    "mt120_document_access",
+    "mt120_loom_block_access",
+];
 const PRE_DOCUMENT_GRANT_REVISION: i64 = 160;
 const PRE_DOCUMENT_GRANT_GENERATED_SHA256: &str =
     "fac15c07121d32df355b960e26df51026e1fac09689db2b7c44fbcf5d508c584";
@@ -301,6 +317,153 @@ DEFINE FIELD OVERWRITE access_space_id ON TABLE local_account_setup TYPE record<
 DEFINE FIELD OVERWRITE created_at ON TABLE local_account_setup TYPE datetime;
 -- LOCAL_ACCOUNT_SETUP_END
 "#;
+
+/// Exact revision-161 text of each [`INDEXED_GRANT_FUNCTIONS`] entry (link-traversal grant filters),
+/// used only to reconstruct the revision-161 and older predecessor sources in tests.
+#[cfg(test)]
+const PRE_INDEXED_GRANT_FUNCTION_TEXTS: [(&str, &str); 5] = [
+    (
+        "mt109_has_grant",
+        r#"DEFINE FUNCTION OVERWRITE fn::mt109_has_grant($kind: string, $external: string, $action: string, $capability: string) {
+    RETURN fn::mt109_live_session()
+        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
+        AND (($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability))
+        AND array::len((SELECT id FROM resource_grants
+            WHERE status = 'active'
+              AND revoked_at = NONE
+              AND (expires_at = NONE OR expires_at > time::now())
+              AND account_id = $auth.account_id
+              AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id
+              AND resource_id.lifecycle_state = 'active'
+              AND resource_id.created_by_principal_id.status = 'enabled'
+              AND resource_id.policy_version <= policy_version
+              AND policy_version <= $auth.policy_version
+              AND resource_id.owner_account_id = $auth.account_id
+              AND resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.resource_kind = $kind
+              AND resource_id.external_resource_id = $external
+              AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'))
+              AND (actions CONTAINS $action)
+              AND (capability_ids CONTAINS $capability)
+              AND delegation_chain = $auth.delegation_chain)) > 0;
+};"#,
+    ),
+    (
+        "mt109_has_workspace_access",
+        r#"DEFINE FUNCTION OVERWRITE fn::mt109_has_workspace_access($external: string, $action: string, $capability: string) {
+    RETURN fn::mt109_live_session()
+        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
+        AND (($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability))
+        AND array::len((SELECT id FROM resource_grants
+            WHERE status = 'active'
+              AND revoked_at = NONE
+              AND (expires_at = NONE OR expires_at > time::now())
+              AND account_id = $auth.account_id
+              AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id
+              AND resource_id.lifecycle_state = 'active'
+              AND resource_id.created_by_principal_id.status = 'enabled'
+              AND resource_id.policy_version <= policy_version
+              AND policy_version <= $auth.policy_version
+              AND resource_id.owner_account_id = $auth.account_id
+              AND resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.resource_kind = 'workspace'
+              AND resource_id.external_resource_id = $external
+              AND (actions CONTAINS $action)
+              AND (capability_ids CONTAINS $capability)
+              AND delegation_chain = $auth.delegation_chain)) > 0;
+};"#,
+    ),
+    (
+        "mt109_source_read",
+        r#"DEFINE FUNCTION OVERWRITE fn::mt109_source_read($kind: string, $external: string, $workspace: string, $parent_kind: string, $parent_external: string) {
+    RETURN (fn::mt109_has_grant($kind, $external, 'read', 'memory.propose')
+            OR fn::mt109_has_grant($kind, $external, 'read', 'memory.read'))
+        AND fn::mt109_has_workspace_access($workspace, 'read', 'memory.read')
+        AND array::len((SELECT id FROM resource_grants
+            WHERE status = 'active' AND revoked_at = NONE
+              AND (expires_at = NONE OR expires_at > time::now())
+              AND account_id = $auth.account_id AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id
+              AND resource_id.resource_kind = $kind AND resource_id.external_resource_id = $external
+              AND resource_id.lifecycle_state = 'active'
+              AND resource_id.owner_account_id = $auth.account_id
+              AND resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.created_by_principal_id.status = 'enabled'
+              AND resource_id.parent_resource_id.resource_kind = $parent_kind
+              AND resource_id.parent_resource_id.external_resource_id = $parent_external
+              AND resource_id.parent_resource_id.lifecycle_state = 'active'
+              AND resource_id.parent_resource_id.owner_account_id = $auth.account_id
+              AND resource_id.parent_resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.parent_resource_id.created_by_principal_id.status = 'enabled'
+              AND (($parent_kind = 'workspace' AND $parent_external = $workspace)
+                   OR ($parent_kind IN ['knowledge_source', 'rich_document']
+                       AND resource_id.parent_resource_id.parent_resource_id.resource_kind = 'workspace'
+                       AND resource_id.parent_resource_id.parent_resource_id.external_resource_id = $workspace
+                       AND resource_id.parent_resource_id.parent_resource_id.lifecycle_state = 'active'
+                       AND resource_id.parent_resource_id.parent_resource_id.owner_account_id = $auth.account_id
+                       AND resource_id.parent_resource_id.parent_resource_id.access_space_id = $auth.access_space_id
+                       AND resource_id.parent_resource_id.parent_resource_id.created_by_principal_id.status = 'enabled'))
+              AND actions CONTAINS 'read'
+              AND (capability_ids CONTAINS 'memory.propose' OR capability_ids CONTAINS 'memory.read')
+              AND (($auth.delegated_capabilities CONTAINS '*')
+                   OR ($auth.delegated_capabilities CONTAINS 'memory.propose' AND capability_ids CONTAINS 'memory.propose')
+                   OR ($auth.delegated_capabilities CONTAINS 'memory.read' AND capability_ids CONTAINS 'memory.read'))
+              AND delegation_chain = $auth.delegation_chain)) > 0;
+};"#,
+    ),
+    (
+        "mt120_document_access",
+        r#"DEFINE FUNCTION OVERWRITE fn::mt120_document_access($document: string, $workspace: string, $action: string, $capability: string) {
+    RETURN fn::mt109_live_session()
+        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
+        AND (($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability))
+        AND fn::mt109_has_workspace_access($workspace, 'read', 'fs.read')
+        AND array::len((SELECT id FROM resource_grants
+            WHERE status = 'active' AND revoked_at = NONE
+              AND (expires_at = NONE OR expires_at > time::now())
+              AND account_id = $auth.account_id AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id
+              AND resource_id.policy_version <= policy_version
+              AND policy_version <= $auth.policy_version
+              AND resource_id.resource_kind = 'rich_document' AND resource_id.external_resource_id = $document
+              AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id
+              AND resource_id.access_space_id = $auth.access_space_id AND resource_id.created_by_principal_id.status = 'enabled'
+              AND resource_id.parent_resource_id.resource_kind = 'workspace'
+              AND resource_id.parent_resource_id.external_resource_id = $workspace
+              AND resource_id.parent_resource_id.lifecycle_state = 'active'
+              AND resource_id.parent_resource_id.owner_account_id = $auth.account_id
+              AND resource_id.parent_resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.parent_resource_id.created_by_principal_id.status = 'enabled'
+              AND actions CONTAINS $action AND capability_ids CONTAINS $capability
+              AND delegation_chain = $auth.delegation_chain)) > 0;
+};"#,
+    ),
+    (
+        "mt120_loom_block_access",
+        r#"DEFINE FUNCTION OVERWRITE fn::mt120_loom_block_access($block: string, $workspace: string, $action: string, $capability: string) {
+    RETURN fn::mt109_has_grant('loom_block', $block, $action, $capability)
+        AND fn::mt109_has_workspace_access($workspace, 'read', 'fs.read')
+        AND array::len((SELECT id FROM resource_grants
+            WHERE status = 'active' AND revoked_at = NONE
+              AND (expires_at = NONE OR expires_at > time::now())
+              AND account_id = $auth.account_id AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id
+              AND resource_id.resource_kind = 'loom_block' AND resource_id.external_resource_id = $block
+              AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id
+              AND resource_id.access_space_id = $auth.access_space_id AND resource_id.created_by_principal_id.status = 'enabled'
+              AND resource_id.parent_resource_id.resource_kind = 'workspace'
+              AND resource_id.parent_resource_id.external_resource_id = $workspace
+              AND resource_id.parent_resource_id.lifecycle_state = 'active'
+              AND resource_id.parent_resource_id.owner_account_id = $auth.account_id
+              AND resource_id.parent_resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.parent_resource_id.created_by_principal_id.status = 'enabled'
+              AND actions CONTAINS $action AND capability_ids CONTAINS $capability
+              AND delegation_chain = $auth.delegation_chain)) > 0;
+};"#,
+    ),
+];
 
 #[cfg(test)]
 const PRE_DOCUMENT_GRANT_FUNCTION: &str = r#"DEFINE FUNCTION OVERWRITE fn::mt120_document_access($document: string, $workspace: string, $action: string, $capability: string) {
@@ -2467,10 +2630,14 @@ fn schema_delta_upgrade_statements() -> String {
         "LET $workspace_delete_rows_1 = SELECT rich_document_id FROM knowledge_rich_documents WHERE workspace_id = $workspace;",
         &mut spans,
     );
-    schema_statements_enclosing(
-        "DEFINE FUNCTION OVERWRITE fn::mt120_document_access(",
-        &mut spans,
-    );
+    // MT-164 (revision 162): every indexed grant/access function, including the revision-161
+    // document grant, is re-emitted so older lineages reach the resolve-first definitions.
+    for name in INDEXED_GRANT_FUNCTIONS {
+        schema_statements_enclosing(
+            &format!("DEFINE FUNCTION OVERWRITE fn::{name}("),
+            &mut spans,
+        );
+    }
     for (start, end) in spans {
         if block.as_ref().is_some_and(|range| range.contains(&start)) {
             continue;
@@ -2534,24 +2701,56 @@ IF array::len(SELECT id FROM media_asset_tiers WHERE workspace_id = $workspace) 
 IF array::len(SELECT id FROM stage_capture_artifacts WHERE workspace_id = $workspace) > 0 { RETURN false; };
 "#;
 
+/// Exact revision-161 source: the current schema with each MT-164 grant/access function restored to
+/// its revision-161 link-traversal text.
+#[cfg(test)]
+fn restore_pre_indexed_grant_schema(mut source: String) -> String {
+    for (name, previous) in PRE_INDEXED_GRANT_FUNCTION_TEXTS {
+        let current = schema_function_definition(name);
+        assert_eq!(
+            source.matches(current).count(),
+            1,
+            "current {name} definition must occur exactly once"
+        );
+        source = source.replacen(current, previous, 1);
+    }
+    source
+}
+
 #[cfg(test)]
 fn restore_pre_document_grant_schema(source: String) -> String {
-    source.replacen(
-        document_grant_upgrade_statement(),
+    let (_, revision_161_document_access) = PRE_INDEXED_GRANT_FUNCTION_TEXTS
+        .into_iter()
+        .find(|(name, _)| *name == "mt120_document_access")
+        .expect("revision-161 document access text");
+    restore_pre_indexed_grant_schema(source).replacen(
+        revision_161_document_access,
         PRE_DOCUMENT_GRANT_FUNCTION,
         1,
     )
 }
 
-fn document_grant_upgrade_statement() -> &'static str {
+/// The complete `DEFINE FUNCTION OVERWRITE fn::<name>(` statement from [`SCHEMA`].
+fn schema_function_definition(name: &str) -> &'static str {
     let start = SCHEMA
-        .find("DEFINE FUNCTION OVERWRITE fn::mt120_document_access(")
-        .expect("document access function exists");
+        .find(&format!("DEFINE FUNCTION OVERWRITE fn::{name}("))
+        .expect("canonical schema defines the grant/access function");
     let end = SCHEMA[start..]
         .find("\n};")
         .map(|offset| start + offset + 3)
-        .expect("document access function terminates");
+        .expect("grant/access function terminates");
     &SCHEMA[start..end]
+}
+
+/// The MT-164 revision-162 delta: every indexed grant/access function re-emitted verbatim from
+/// [`SCHEMA`], in schema order, so fresh and upgraded stores carry identical definitions.
+fn indexed_grant_upgrade_statements() -> String {
+    let mut statements = String::new();
+    for name in INDEXED_GRANT_FUNCTIONS {
+        statements.push_str(schema_function_definition(name));
+        statements.push('\n');
+    }
+    statements
 }
 
 #[cfg(test)]
@@ -2749,8 +2948,12 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // model_session_messages (previous value
 // 27528c0e71735b81fbaa798dabb9e35b3805a16166db450d86fec4baaa32c38f); kb-c5 run 05 (equals sha256 of
 // schema.surql). DECLARATIVE_SCHEMA_CATALOG_SHA256 is unchanged by this batch (kb-c5 run 05).
+// MT-164 re-pin (revision 162): the five grant/access functions resolve the protected resource
+// first (previous value 009ee238f7935479a9c507f8b1e8cc59ef306dd80765b8e74bc9665909d7a3f2, retained
+// as PRE_INDEXED_GRANT_GENERATED_SHA256); statically derived as sha256 of schema.surql.
+// DECLARATIVE_SCHEMA_CATALOG_SHA256 is unchanged (no definition added, removed or renamed).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "009ee238f7935479a9c507f8b1e8cc59ef306dd80765b8e74bc9665909d7a3f2";
+    "ac24898e4066cc8ead849bf302014a8b4e324cf49c035d737c75b6aef805ccdb";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -2833,6 +3036,10 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // Historical predecessor pins remain unchanged.
 // MT-154 V14: current INFO, Loom and Atelier pins independently measured on a7ae3657.
 // PIN-MEASURE artifact pins.txt SHA256: 643c0390430dfa0f10db5cafbd4b646e32fa34153739397d9470adc735695060.
+// MT-164 PIN-MEASURE PENDING (revision 162): the five grant/access function bodies changed, so this
+// runtime INFO pin must be re-measured (MT139_CURRENT_SCHEMA_INFO_SHA256 /
+// MT109_CURRENT_AUTHORITY_INFO_SHA256). The value below is still the revision-161 measurement
+// (= PRE_INDEXED_GRANT_INFO_SHA256); it is not statically derivable and is not guessed.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
     "99a02cba2ef3a195bb49013d86a19e20e02e58a05363b39c46ddda4ebacc0c9a";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
@@ -2846,6 +3053,8 @@ pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
 // ed84249709a9ab9c3c7d4304859732fac8373d0001a27aa84685c319e6a6a04a).
 // MT-109 C3 re-pin: fn::mt120_loom_endpoint_access and the Loom receipt branches (previous
 // f8909f93910491ac4c95bb8f4b567dd2c572b6e08b5ca899fb0b223dbb2ca411); kb-c3 run 04.
+// MT-164 PIN-MEASURE PENDING: the Atelier catalog carries the authority-core functions, so this
+// runtime pin must be re-measured (EXPECTED_ATELIER_CATALOG_SHA256=); value below is revision 161.
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
     "b26f957864d7f730201bf8196bb8c77c85ea79ce46604eb745ba3d535f8f0250";
 const PENDING_SCHEMA_INFO_SHA256: &str =
@@ -3719,6 +3928,8 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // SEVENTH pin (MT-153, kb-c5 run 05): the bounded DDL now also defines
     // fn::mt153_loom_identity_unchanged, which the loom_blocks.block_id ASSERT calls (previous
     // value 8adc1dddc98f2fce6119e38f1689a617a84c6602e8909dd01be60641a8b49164).
+    // MT-164 PIN-MEASURE PENDING: the bounded DDL carries the authority-core grant/access functions,
+    // so this runtime pin (MT109_LOOM_CATALOG_SHA256=) must be re-measured; value below is revision 161.
     const EXPECTED_CATALOG_SHA256: &str =
         "299e8dc80fbab95f43d178a8d09c6b3760f6dfad9edc85215c865adf6b2edd98";
     let ddl = loom_receipt_test_schema_ddl();
@@ -4366,6 +4577,22 @@ impl SchemaState {
             && self.info_fingerprint_sha256 == EXPECTED_SCHEMA_INFO_SHA256
     }
 
+    fn has_pre_indexed_grant_identity(&self) -> bool {
+        self.version == SCHEMA_VERSION
+            && self.revision == PRE_INDEXED_GRANT_REVISION
+            && self.target_revision == PRE_INDEXED_GRANT_REVISION
+            && self.namespace == DEFAULT_NAMESPACE
+            && self.database == DEFAULT_DATABASE
+            && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
+    }
+
+    fn is_exact_pre_indexed_grant_current(&self) -> bool {
+        self.has_pre_indexed_grant_identity()
+            && self.generated_surql_sha256 == PRE_INDEXED_GRANT_GENERATED_SHA256
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == PRE_INDEXED_GRANT_INFO_SHA256
+    }
+
     fn has_pre_document_grant_identity(&self) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == PRE_DOCUMENT_GRANT_REVISION
@@ -4999,6 +5226,11 @@ async fn bootstrap_schema_unbounded(
                     Some(state) if state.is_exact_current() => {
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
+                    }
+                    Some(state) if state.is_exact_pre_indexed_grant_current() => {
+                        verified_observed =
+                            Some(upgrade_pre_indexed_grant_current(&database, &state).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
                     Some(state) if state.is_exact_pre_document_grant_current() => {
                         verified_observed =
@@ -6467,7 +6699,117 @@ COMMIT TRANSACTION;\n"
     }
 }
 
-/// Upgrade the exact revision-160 catalog with only the document-grant function.
+/// MT-164: upgrade the exact revision-161 catalog in place with only the five resolve-first
+/// grant/access functions, so existing stores carry the same definitions as a fresh install.
+async fn upgrade_pre_indexed_grant_current(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_indexed_grant_current() {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_PRE_INDEXED_GRANT_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    let predecessor_observed = read_schema_catalog(database).await?;
+    if predecessor_observed.info_fingerprint_sha256 != PRE_INDEXED_GRANT_INFO_SHA256 {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_PRE_INDEXED_GRANT_CATALOG_MISMATCH: expected={PRE_INDEXED_GRANT_INFO_SHA256}; observed={}",
+                predecessor_observed.info_fingerprint_sha256
+            ),
+        )
+        .await;
+    }
+    let grant_upgrade = indexed_grant_upgrade_statements();
+    let upgrade = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_PRE_INDEXED_GRANT_STATE_CHANGED';\n\
+}};\n\
+{grant_upgrade}\n\
+UPDATE ONLY handshake_schema_state:primary SET\n\
+    revision = $schema_revision, target_revision = $schema_revision,\n\
+    generated_surql_sha256 = $generated_surql_sha256,\n\
+    info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
+    apply_state = 'schema_applied',\n\
+    updated_at = time::now();\n\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            upgrade.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_INDEXED_GRANT_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: PRE_INDEXED_GRANT_GENERATED_SHA256.to_owned(),
+                predecessor_info_fingerprint_sha256: PRE_INDEXED_GRANT_INFO_SHA256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+
+    let upgraded = match read_context_and_state(database).await? {
+        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) => {
+            return fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_INDEXED_GRANT_STATE_MISMATCH: {state:?}"),
+            )
+            .await;
+        }
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_INDEXED_GRANT_STATE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    ensure_knowledge_schema_registry(database).await?;
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
+    match read_context_and_state(database).await? {
+        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) => {
+            fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_INDEXED_GRANT_FINAL_STATE_MISMATCH: {state:?}"),
+            )
+            .await
+        }
+        None => {
+            fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_INDEXED_GRANT_FINAL_STATE_MISSING".to_owned(),
+            )
+            .await
+        }
+    }
+}
+
+/// Upgrade the exact revision-160 catalog with the document-grant function and the MT-164 indexed
+/// grant/access functions (revision 162 re-emits all five, the document grant among them).
 async fn upgrade_pre_document_grant_current(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
@@ -6490,7 +6832,7 @@ async fn upgrade_pre_document_grant_current(
         )
         .await;
     }
-    let document_upgrade = document_grant_upgrade_statement();
+    let document_upgrade = indexed_grant_upgrade_statements();
     let upgrade = format!(
         "BEGIN TRANSACTION;\n\
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
@@ -10336,6 +10678,126 @@ mod tests {
             .shutdown()
             .await
             .expect("close document grant proof");
+    }
+
+    /// MT-164 (AC-164-5): the exact revision-161 store upgrades in place to the resolve-first
+    /// grant/access functions, keeps its data and reuses the current schema after restart.
+    #[tokio::test]
+    async fn indexed_grant_revision_161_upgrade_preserves_data_and_restarts_current() {
+        let previous_schema = restore_pre_indexed_grant_schema(SCHEMA.to_owned());
+        assert_eq!(
+            sha256_hex(previous_schema.as_bytes()),
+            PRE_INDEXED_GRANT_GENERATED_SHA256,
+            "the revision-161 predecessor must be exactly the current schema with the link-traversal grant functions"
+        );
+        let delta = indexed_grant_upgrade_statements();
+        for name in INDEXED_GRANT_FUNCTIONS {
+            assert_eq!(
+                delta
+                    .matches(&format!("DEFINE FUNCTION OVERWRITE fn::{name}("))
+                    .count(),
+                1,
+                "{name} must be re-emitted exactly once"
+            );
+            let definition = schema_function_definition(name);
+            assert!(
+                definition.contains("FROM protected_resources"),
+                "{name} must resolve the protected resource first"
+            );
+            assert!(
+                definition.contains("resource_id = $resource"),
+                "{name} must filter grants by full resource_id equality"
+            );
+        }
+        let directory = tempfile::tempdir().expect("temporary indexed grant predecessor");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open exact revision-161 predecessor store");
+        storage
+            .with_admin_operation(move |database| {
+                Box::pin(async move {
+                    let script = fresh_bootstrap_script(&previous_schema)
+                        .expect("split exact revision-161 bootstrap");
+                    let bindings = || BootstrapBindings {
+                        schema_version: SCHEMA_VERSION.to_owned(),
+                        schema_revision: PRE_INDEXED_GRANT_REVISION,
+                        namespace: DEFAULT_NAMESPACE.to_owned(),
+                        database: DEFAULT_DATABASE.to_owned(),
+                        source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                        generated_surql_sha256: PRE_INDEXED_GRANT_GENERATED_SHA256.to_owned(),
+                    };
+                    database.query_bound(script.definitions, bindings()).await?;
+                    database.query_bound(script.indexes_and_rest, bindings()).await?;
+                    ensure_knowledge_schema_registry(&database).await?;
+                    assert_eq!(
+                        read_schema_catalog(&database).await?.info_fingerprint_sha256,
+                        PRE_INDEXED_GRANT_INFO_SHA256,
+                        "the seeded revision-161 predecessor must carry its observed catalog fingerprint"
+                    );
+                    database
+                        .query(format!(
+                            "UPDATE ONLY {BOOTSTRAP_STATE_ID} SET apply_state = 'complete', info_fingerprint_sha256 = '{PRE_INDEXED_GRANT_INFO_SHA256}'; CREATE workspaces:revision161_sentinel CONTENT {{ name: 'revision161-sentinel' }};"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("seed exact complete revision-161 predecessor");
+
+        let upgraded = bootstrap_schema(&storage)
+            .await
+            .expect("upgrade exact revision-161 grant predecessor");
+        assert_eq!(
+            upgraded.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        assert_eq!(
+            upgraded.outcome,
+            SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+        );
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("revision-162 state after exact upgrade");
+                    assert_eq!(state.revision, SCHEMA_REVISION);
+                    assert!(state.is_exact_current());
+                    let mut sentinel = database
+                        .query("RETURN workspaces:revision161_sentinel.name;")
+                        .await?;
+                    assert_eq!(
+                        sentinel.take::<Option<String>>(0)?.as_deref(),
+                        Some("revision161-sentinel")
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("verify revision-162 current state after upgrade");
+        storage
+            .shutdown()
+            .await
+            .expect("close upgraded indexed grant predecessor store");
+        let reopened = open_test_storage(&directory)
+            .await
+            .expect("reopen upgraded indexed grant store");
+        let restarted = bootstrap_schema(&reopened)
+            .await
+            .expect("reuse current indexed grant schema after restart");
+        assert_eq!(
+            restarted.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        assert_eq!(
+            restarted.outcome,
+            SchemaBootstrapOutcome::ReusedExactCurrent
+        );
+        reopened
+            .shutdown()
+            .await
+            .expect("close restarted indexed grant store");
     }
 
     #[tokio::test]
