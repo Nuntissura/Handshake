@@ -25,7 +25,7 @@
   "title": "B18-MT-155-Authenticate-Product-Screenshot-Capture-Execute",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-29T16:55:24Z",
+  "updated_at_utc": "2026-09-29T20:35:10Z",
   "validation_shared_union_ec596eec": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "decision": "inconclusive",
@@ -1591,6 +1591,44 @@
         "at_utc": "2026-09-29T16:55:24Z",
         "decision": "inconclusive",
         "state_effect": "FAIL_V5 -> READY_FOR_VALIDATION (Operator format-scope decision)"
+      }
+    ]
+  },
+  "validation_shared_union_6391a29f": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR-20260929-ROUND-6391a29f",
+    "validated_at_utc": "2026-09-29T20:35:10Z",
+    "candidate_commit": "6391a29f89dd51872c730c66bb9bea5f42d6822c",
+    "proof_records_ref": "MT-154.json#validation.proof_records[PR-WP012-UNION-6391a29f-CORE]",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-6391a29f89dd51872c730c66bb9bea5f42d6822c-core.xml",
+    "started_at": "2026-09-29T17:33:24.6157836Z",
+    "completed_at": "2026-09-29T20:31:14.7053290Z",
+    "mapped_cases": {
+      "MT-155-ROUTE-AUTH": "PASS 5/5",
+      "MT-155-EXISTING": "PASS 8/8",
+      "MT-155-KERNEL-LIB": "PASS 3/3",
+      "MT-155-FMT/DIFF-CHECK": "owned-file results at de04b8f0 reused: no MT-155 file changed de04b8f0..6391a29f (CX-VAL-002)"
+    },
+    "unclosed_required_proof": [
+      "MT-155-CHECK-TESTS",
+      "MT-155-CLIPPY-CHANGED"
+    ],
+    "mapped_failure_count": 0,
+    "state_unchanged": true,
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT155-6391a29f-union-observation",
+        "at_utc": "2026-09-29T20:35:10Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT155-6391a29f-union-observation",
+        "at_utc": "2026-09-29T20:35:10Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged"
       }
     ]
   }
