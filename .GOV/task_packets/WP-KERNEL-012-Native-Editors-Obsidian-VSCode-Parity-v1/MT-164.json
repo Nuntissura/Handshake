@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-164",
   "created_at_utc": "2026-09-29T12:01:02Z",
-  "updated_at_utc": "2026-09-29T16:35:56Z",
+  "updated_at_utc": "2026-09-29T16:55:24Z",
   "identity": {
     "mt_id": "MT-164",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -229,7 +229,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V3",
     "blocked_on": null,
     "depends_on": [],
     "blocks": [
@@ -239,13 +239,13 @@
       "MT-032"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KERNEL_BUILDER-20260929-120102",
     "claimed_at_utc": "2026-09-29T12:01:02Z",
     "claim_ref": "KERNEL_BUILDER-20260929-120102: Operator decision WP012-MT032-SPLIT-20260929-MT164 ('I claim MT-164 and a builder sub-agent implements it')",
-    "completed_by": null,
-    "next_actor": "WP_VALIDATOR",
-    "status_reason": "Inconclusive on de04b8f0: all MT-164 tests pass; AC-164-4 medians not captured (config fixed 3db73ab0); awaiting capture decision.",
+    "completed_by": "WP_VALIDATOR-20260929-MT164-CAPTURE",
+    "next_actor": "ORCHESTRATOR (MT-161/162/163 unblock per handoff)",
+    "status_reason": "PASS_V3 on de04b8f0: union round plus Operator-authorized timing capture; medians 20.8/21.3 ms (N=50), 12.7/12.4 ms (N=500), ratios 0.61/0.58.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN"
@@ -256,9 +256,9 @@
       "pin_measure": "DONE: pins measured on 4d4f7e12 (validation.pin_measurement_2) and applied in de04b8f0.",
       "core_filter": "WPV-union-round.sh CORE_FILTER must admit storage::surreal::resource_authority_tests:: and the new schema test (proof.checks[1].entrypoint_change_required)."
     },
-    "validated_by": "WP_VALIDATOR-20260929-MT164-ROUND",
-    "validated_at_utc": "2026-09-29T14:31:39Z",
-    "validated_commit": "ee9efaba664bfa6e2987a847979c19048b3093a4"
+    "validated_by": "WP_VALIDATOR-20260929-MT164-CAPTURE",
+    "validated_at_utc": "2026-09-29T16:55:24Z",
+    "validated_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df"
   },
   "scope": {
     "summary": "Rewrite the five grant/access SurrealQL functions to resolve the protected resource (and parent chain) first via protected_resources_external_unique and then filter resource_grants by full resource_id equality, using the existing indexed pattern of fn::mt109_ledger_access. Preserve every allow/deny condition. Advance the schema revision/pins the change forces. Add one focused core timing test proving grant-count independence.",
@@ -692,6 +692,36 @@
         "observed": [
           "MT-154",
           "MT-155"
+        ],
+        "owning_mt": "MT-164"
+      },
+      {
+        "proof_id": "PR-WP012-MT164-CAPTURE-de04b8f0",
+        "executor_role": "WP_VALIDATOR",
+        "candidate_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df",
+        "authority": "packet.json#operator_decisions_20260929[0].mt164_close (exactly one capture run)",
+        "command": "bash .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df mt164-capture",
+        "entrypoint_commit": "2e3947a0",
+        "config_commit": "3db73ab0 (success-output=final for the timing test)",
+        "started_at": "2026-09-29T16:51:06.1259872Z",
+        "completed_at": "2026-09-29T16:53:56.8749731Z",
+        "build": "retained export-de04b8f0 build reused (no relink; C bytes unchanged 113693722714)",
+        "result": {
+          "tests": 1,
+          "passed": 1,
+          "runner_exit": 0,
+          "seconds": 30.754
+        },
+        "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-core-mt164-capture.xml",
+        "junit_sha256": "37001f9d056f3f21f7541ec6829859ce41b7a186d22682ae28956555b3dfa717",
+        "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt164-capture-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.stderr.log",
+        "stderr_sha256": "6ce50ea8b2ef7477397a63a04b3e0a2833b8fcd88561c8a3308e3536a6e64a9b",
+        "stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt164-capture-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.stdout.log",
+        "stdout_sha256": "816567af82240fd1ce1fdd0863866dff5d5e306696dcc6dda85b310af472b6a4",
+        "timing_lines": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt164-capture-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df.stderr.log:1668-1670",
+        "marker": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/MT164-CAPTURE-de04b8f0.started (consumed)",
+        "covers": [
+          "MT-164"
         ],
         "owning_mt": "MT-164"
       }
@@ -1193,5 +1223,75 @@
       "effect": "Authorizes exactly one capture run of storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count on de04b8f0 with output capture (config 3db73ab0).",
       "ref": "packet.json#operator_decisions_20260929"
     }
-  ]
+  ],
+  "validation_v3": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "validated_by": "WP_VALIDATOR-20260929-MT164-CAPTURE",
+    "validated_at_utc": "2026-09-29T16:55:24Z",
+    "candidate_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df",
+    "proof_record_ids": [
+      "PR-WP012-UNION-de04b8f0-CORE",
+      "PR-WP012-MT164-CAPTURE-de04b8f0"
+    ],
+    "results_refs": [
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-core.xml",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-core-mt164-capture.xml"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-164-BUILDER-COMPILE",
+        "result": "implementer compile evidence exit 0 at de04b8f0 (build health only); independent union build of the same commit compiled all selected targets"
+      },
+      {
+        "check_id": "MT-164-VALIDATOR-UNION",
+        "result": "PASS",
+        "resource_authority_tests": "PASS 16/16 (union de04b8f0)",
+        "timing_test": {
+          "n50_idempotency_select_median_ms": 20.845,
+          "n50_document_access_check_median_ms": 21.316,
+          "n500_idempotency_select_median_ms": 12.699,
+          "n500_document_access_check_median_ms": 12.436,
+          "ratio_500_over_50": {
+            "idempotency_select": 0.609,
+            "document_access_check": 0.583
+          },
+          "limits": "ratio < 2.0 met for both; every median < 250 ms met",
+          "interpretation": "Flat in grant count (N=500 not slower than N=50; difference is warm-up/noise). ee9efaba comparison: 4.05/4.27 ratios, 70.5/68.8 ms at N=500.",
+          "test": "storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count",
+          "result": "passed in union (28.1 s) and in capture (30.8 s)"
+        },
+        "schema_pin_upgrade_tests": "PASS 13/13 incl indexed_grant_revision_161_upgrade_preserves_data_and_restarts_current",
+        "ac_164_3_union_selections": "PASS except 5 stack-overflow aborts that fail identically at pre-MT-164 baseline 8ea13a9b: mt153_loom_route_family_authority_matrix (MT-153 FAIL_V2), mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows and mt154_stage_routes_authority (MT-154 FAIL_V3), route2_stage_artifact_create_and_resolve and stage_flight_projection_failure_returns_500_and_retry_heals_once (Stage routes, same signature). Not MT-164 regressions; AC-164-3 requires existing tests to stay green, these were not green before MT-164."
+      }
+    ],
+    "acceptance": {
+      "AC-164-1": "met: all five fns resolve protected_resources first; resource_grants WHERE uses LET-bound account/principal/access_space plus resource_id equality (reviewed de04b8f0)",
+      "AC-164-2": "met: sequential early exits preserve every prior condition per fn (policy_version pair only where it existed; source_read parent/grandparent and memory.propose/read rule; reconciliation_queue clause); 16/16 authority and denial tests pass",
+      "AC-164-3": "met (no regression; 55 FAIL_V1 cases restored; 5 pre-existing reds owned by MT-153/MT-154)",
+      "AC-164-4": "met: medians and ratios above; probe (ii) wording ruled in validation_v1",
+      "AC-164-5": "met: re-pinned INFO/Atelier/Loom pins and rev-161 upgrade pass",
+      "AC-164-6": "met: embedded SurrealDB only"
+    },
+    "scope_check": "diff 4e7b14ba..de04b8f0 touches only allowed_write_paths incl. Operator-widened main.rs/storage/tests.rs (stack-size-only diffs)",
+    "hbr": "HBR-INT-009 tiers NOT_APPLICABLE_WITH_REASON (recorded); UserManual NOT_APPLICABLE (no user-visible change); GUI/Argus not required; resource privacy cases covered by resource_authority_tests",
+    "spec_realism": "proof exercises real embedded SurrealDB record-user permission evaluation; no deferred-live escape; implementer KERNEL_BUILDER, validator independent",
+    "downstream_note": "For MT-162 budget: per-check permission cost ~12-21 ms at 50-500 grants in the debug test profile.",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT164-de04b8f0-capture-verdict",
+        "at_utc": "2026-09-29T16:55:24Z",
+        "decision": "passed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT164-de04b8f0-capture-verdict",
+        "at_utc": "2026-09-29T16:55:24Z",
+        "decision": "passed",
+        "state_effect": "lifecycle.status PASS_V3"
+      }
+    ]
+  }
 }
