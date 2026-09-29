@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-165",
   "created_at_utc": "2026-09-29T18:50:00Z",
-  "updated_at_utc": "2026-09-29T18:50:00Z",
+  "updated_at_utc": "2026-09-29T19:05:00Z",
   "identity": {
     "mt_id": "MT-165",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -539,5 +539,21 @@
   },
   "validation": {
     "proof_records": []
+  },
+  "implementation_record": {
+    "recorded_at_utc": "2026-09-29T19:05:00Z",
+    "executor_role": "KERNEL_BUILDER",
+    "claim_ref": "KERNEL_BUILDER-20260929-185000",
+    "product_base": "6391a29f89dd51872c730c66bb9bea5f42d6822c",
+    "ac_165_2_finding": {
+      "creator": "src/backend/handshake_core/src/api/jobs.rs (#[cfg(test)] mod tests, :531) test create_model_run_job_launches_runtime_session_and_preserves_native_binding (:~783-870): session_id = format!(\"native-mt101-{}\", uuid) at :~790, launched through create_new_job -> local model_run runtime",
+      "allocation_path": "workflows.rs:8211-8231 ensure_model_session_worktree_allocation -> repo_root_from_manifest_dir() -> workspace_safety.rs:375-420 ensure_session_worktree_allocation (git worktree add --detach) at workspace_safety.rs:356-373 session_worktree_path/default_session_worktree_root = <repo parent>/Handshake_Artifacts/handshake-tool/session_worktrees/<session_id> (no HANDSHAKE_SESSION_WORKTREE_ROOT set by this test module)",
+      "product_cleanup": "product removes the worktree on the job terminal path (workflows.rs:9215-9225 records it, :9409-9421 cleanup_session_worktree + clear allocation); residue arises when the test fails/panics/aborts before that terminal handler",
+      "classification": "TEST (lib unit test in a product source file's cfg(test) module); cleanup added to that test module only; no product behavior change",
+      "not_creators": "create_model_run_job_binds_workflow_before_workflow_start (native-mt101-prestart-*, job stays Queued, no launch) and create_cloud_model_run_without_consent_blocks_runtime_session (native-mt101-cloud-*, asserts no worktree allocated)",
+      "edit_path_recorded_before_edit": "src/backend/handshake_core/src/api/jobs.rs (cfg(test) mod tests only)"
+    },
+    "scheduler_test_path": "src/backend/handshake_core/tests/model_session_scheduler_tests.rs:89-116 setup_state sets HANDSHAKE_SESSION_WORKTREE_ROOT=temp_dir()/hsk-session-worktrees-model-session-scheduler-<pid>",
+    "status": "in_progress"
   }
 }
