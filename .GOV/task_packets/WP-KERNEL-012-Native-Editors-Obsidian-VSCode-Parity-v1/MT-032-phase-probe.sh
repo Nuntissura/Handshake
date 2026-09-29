@@ -8,7 +8,7 @@ TARGET="${4:?existing C warm target required}"
 NEXTEST="${5:?pinned nextest executable required}"
 ARTIFACTS="${6:?canonical artifacts root required}"
 MODE="${7:-}"
-[[ -z "$MODE" || "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = lookup-plan-core-v17 || "$MODE" = create-first-core-v18 || "$MODE" = counter-target-native-v19 ]] || exit 2
+[[ -z "$MODE" || "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = lookup-plan-core-v17 || "$MODE" = create-first-core-v18 || "$MODE" = counter-target-native-v19 || "$MODE" = self-seeded-native-round ]] || exit 2
 CONSUMED="$LANE/MT032-V14-STATEMENT-DIAGNOSTIC.started"
 PROBE=mt032-v14-statement-probe
 WATCH=mt032-v14-statement-watch
@@ -40,6 +40,17 @@ if [[ "$MODE" = create-first-core-v18 ]]; then
   PROBE=mt032-v18-create-first-core-proof
   CORE_EXPECTED=3
   NATIVE_EXPECTED=0
+fi
+if [[ "$MODE" = self-seeded-native-round ]]; then
+  # Operator-approved MT-161/MT-162 native live self-seeded round (handoff topic
+  # findings-gaps-unknowns-20260929): one invocation per candidate SHA; may reuse the
+  # candidate's existing immutable export; same watcher/config/features as V19.
+  CONSUMED="$LANE/MT161-162-SELF-SEEDED-NATIVE-${SHA:0:8}.started"
+  PROBE=mt161-162-self-seeded-native-round
+  WATCH=mt032-v15-receipt-watch
+  WATCH_SCHEMA=handshake.mt032.receipt-watch.ready.v15.1
+  CORE_EXPECTED=0
+  NATIVE_EXPECTED=1
 fi
 if [[ "$MODE" = counter-target-native-v19 ]]; then
   CONSUMED="$LANE/MT032-V19-COUNTER-TARGET-NATIVE-PROOF.started"
@@ -84,10 +95,15 @@ check_cap() {
 check_cap 4000000000
 EXPORT="$TARGET/export-${SHA:0:8}"
 MARKER="$TARGET/export-${SHA:0:8}.sha"
+if [[ "$MODE" = self-seeded-native-round && -d "$EXPORT" ]]; then
+  [[ -f "$MARKER" && "$(cat "$MARKER")" = "$SHA" ]] || { echo 'MT032_PROBE existing export not bound to candidate'; exit 2; }
+  echo "MT032_PROBE reusing immutable export $EXPORT"
+else
 [[ ! -e "$EXPORT" && ! -e "$MARKER" ]] || { echo 'MT032_PROBE fresh export required; existing contents preserved'; exit 2; }
 mkdir "$EXPORT"
 git -C "$WORKTREE" archive "$SHA" | tar -x -C "$EXPORT"
 printf '%s' "$SHA" > "$MARKER"
+fi
 
 export CARGO_TARGET_DIR="$TARGET"
 export CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only CARGO_INCREMENTAL=0
@@ -157,7 +173,7 @@ if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = look
   fi
   check_watcher
 fi
-if [[ "$MODE" = counter-target-native-v19 ]]; then
+if [[ "$MODE" = counter-target-native-v19 || "$MODE" = self-seeded-native-round ]]; then
   # Changed counter target: preserve prior proofs and admit one native invocation.
   [[ ! -e "$LANE/$PROBE-$SHA.started" && ! -e "$LANE/$PROBE-$SHA.exit" && ! -e "$LANE/junit-$SHA-$PROBE.xml" ]] || exit 2
   (set -o noclobber; printf '%s' "$SHA" > "$CONSUMED") || exit 2
@@ -176,7 +192,7 @@ check_cap
 check_watcher
 INVOCATION="$LANE/$PROBE-$SHA.started"
 [[ ! -e "$INVOCATION" ]] || { echo 'MT032_PROBE already invoked; no automatic replay'; exit 2; }
-if [[ "$MODE" != receipt-inner-v15 && "$MODE" != lookup-plan-v16 && "$MODE" != counter-target-native-v19 ]]; then
+if [[ "$MODE" != receipt-inner-v15 && "$MODE" != lookup-plan-v16 && "$MODE" != counter-target-native-v19 && "$MODE" != self-seeded-native-round ]]; then
   (set -o noclobber; printf '%s' "$SHA" > "$CONSUMED") || exit 2
 fi
 date -u +%Y-%m-%dT%H:%M:%SZ > "$INVOCATION"
@@ -185,7 +201,7 @@ FILTER='binary(=test_loom_address) & (test(=live_surrealdb_owned_restart_preserv
 if [[ "$MODE" = lookup-plan-v16 ]]; then
   FILTER='binary(=test_loom_address) & test(=live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash)'
 fi
-if [[ "$MODE" = counter-target-native-v19 ]]; then
+if [[ "$MODE" = counter-target-native-v19 || "$MODE" = self-seeded-native-round ]]; then
   FILTER='binary(=test_loom_address) & test(=live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof)'
 fi
 set +e
@@ -194,7 +210,7 @@ set +e
   --test test_loom_address -E "$FILTER")
 RESULT=$?
 set -e
-if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = counter-target-native-v19 ]]; then
+if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = counter-target-native-v19 || "$MODE" = self-seeded-native-round ]]; then
   (set -o noclobber; printf '%s\n' "$RESULT" > "$LANE/$PROBE-$SHA.exit") || exit 2
 fi
 [[ "$RESULT" = 0 || "$RESULT" = 100 ]] || exit "$RESULT"
