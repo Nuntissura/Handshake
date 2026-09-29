@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-164",
   "created_at_utc": "2026-09-29T12:01:02Z",
-  "updated_at_utc": "2026-09-29T12:37:00Z",
+  "updated_at_utc": "2026-09-29T13:01:00Z",
   "identity": {
     "mt_id": "MT-164",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -126,10 +126,16 @@
     },
     "product_worktree": "wtc-native-editors-v1 (branch feat/WP-KERNEL-012)",
     "base_commit": "4e7b14ba83e686412707fa6e2a5088e3888f2ec3",
-    "artifact_owner_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-164/kernel_builder/ (CX-984-002; target/TMP/logs below it; build disk as named in dispatch, KB-OUT-008)",
+    "artifact_owner_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-164/kb/ (CX-984-002; target/TMP/logs below it; build disk as named in dispatch, KB-OUT-008)",
     "execution_authorized": true,
     "execution_authorization_scope": "Builder source edits within allowed_write_paths plus compile/static checks, per Operator decision WP012-MT032-SPLIT-20260929-MT164. Tests are run only by the independent WP validator.",
-    "next_action": "MT-164 builder implementation: rewrite the five fns resolve-first, add schema revision/pins and the timing test, cargo check, commit and push, record proof_records, then submit READY_FOR_VALIDATION after gameplan before_submit."
+    "next_action": "MT-164 builder implementation: rewrite the five fns resolve-first, add schema revision/pins and the timing test, cargo check, commit and push, record proof_records, then submit READY_FOR_VALIDATION after gameplan before_submit.",
+    "artifact_owner_dir_correction": {
+      "recorded_at_utc": "2026-09-29T13:01:00Z",
+      "previous": "Handshake_Artifacts/WP-KERNEL-012/MT-164/kernel_builder/",
+      "actual": "Handshake_Artifacts/WP-KERNEL-012/MT-164/kb/",
+      "reason": "The builder dispatch named MT-164/kb/target (KB-OUT-008); every builder check ran there."
+    }
   },
   "proof": {
     "parent_proof_refs": [
@@ -145,7 +151,7 @@
           "AC-164-5",
           "AC-164-6"
         ],
-        "command_or_method": "cd src/backend/handshake_core && CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-164/kernel_builder/target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only cargo check --locked --tests --features app-runtime,surreal-test-support,test-utils",
+        "command_or_method": "cd src/backend/handshake_core && CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-164/kb/target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only cargo check --locked --tests --features app-runtime,surreal-test-support,test-utils",
         "expected": "exit 0 with input digest equal before and after; plus static diff review that no resource_id.* predicate remains in the five resource_grants WHERE clauses",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
@@ -237,15 +243,15 @@
     "claim_ref": "KERNEL_BUILDER-20260929-120102: Operator decision WP012-MT032-SPLIT-20260929-MT164 ('I claim MT-164 and a builder sub-agent implements it')",
     "completed_by": null,
     "next_actor": "WP_VALIDATOR",
-    "status_reason": "Pushed compiling candidate 179ffc1f with builder compile/static evidence; gameplan before_submit PASS (KB-PROOF-007). Validator must PIN-MEASURE the runtime pins before acceptance (see validator_required_before_acceptance).",
+    "status_reason": "Pushed re-pinned candidate ee9efaba (validator-measured INFO/Atelier/Loom pins applied) with builder compile/static evidence; gameplan before_submit PASS (KB-PROOF-007).",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN"
     ],
     "split_ref": "MT-032.json#execution_split_20260929",
-    "candidate_commit": "179ffc1f489f9b99773570a4f7f1c020a25a6b31",
+    "candidate_commit": "ee9efaba664bfa6e2987a847979c19048b3093a4",
     "validator_required_before_acceptance": {
-      "pin_measure": "EXPECTED_SCHEMA_INFO_SHA256, EXPECTED_ATELIER_CATALOG_SHA256 and the Loom receipt-test EXPECTED_CATALOG_SHA256 (+ literal in mt109_loom_catalog_dependencies_are_complete_and_deterministic) are runtime INFO fingerprints over the changed fn bodies; not statically derivable, left at revision-161 values and marked PIN-MEASURE PENDING in schema.rs. Every full bootstrap fails verify_expected_info_fingerprint until re-pinned. Measure via mt139_current_schema_info_pin_matches_fresh_mem_catalog / mt109_authority_catalog_pins_are_deterministic / mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin / mt109_loom_catalog_dependencies_are_complete_and_deterministic (MT-154 V14 precedent), then builder re-pins.",
+      "pin_measure": "DONE: pins measured on 179ffc1f (validation.pin_measurement) and applied in ee9efaba.",
       "core_filter": "WPV-union-round.sh CORE_FILTER must admit storage::surreal::resource_authority_tests:: and the new schema test (proof.checks[1].entrypoint_change_required)."
     }
   },
@@ -457,6 +463,24 @@
         "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-164/kb/logs/check-1",
         "static_diff_review": "no resource_id.* predicate remains in the five resource_grants WHERE clauses (regex (?<![\\w$])resource_id\\. count 0 per fn)",
         "scope": "Implementer compile/static evidence only (CX-EXEC-014); runtime acceptance and pin measurement pending WP validator"
+      },
+      {
+        "check_id": "MT-164-BUILDER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "covered_mts": [
+          "MT-164"
+        ],
+        "candidate": "ee9efaba664bfa6e2987a847979c19048b3093a4",
+        "crate": "handshake_core",
+        "command": "cd src/backend/handshake_core && CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-164/kb/target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only cargo check --locked --tests -j 8 --features app-runtime,surreal-test-support,test-utils",
+        "started_at_utc": "2026-09-29T12:56:26Z",
+        "completed_at_utc": "2026-09-29T12:59:23Z",
+        "exit": 0,
+        "result": "pass; 0 errors",
+        "input_digest_before_after": "equal (git hash-object schema.surql 81fd3001, schema.rs 3b78f822, resource_authority_tests.rs 4a53acb0); the committed tree ee9efaba contains exactly these blobs",
+        "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-164/kb/logs/check-2",
+        "static_diff_review": "ee9efaba vs 179ffc1f changes only schema.rs: EXPECTED_SCHEMA_INFO_SHA256=50b06dab..., EXPECTED_ATELIER_CATALOG_SHA256=c1809524..., Loom receipt EXPECTED_CATALOG_SHA256 and mt109_loom_catalog test literal=e02993e2... (validation.pin_measurement MT164-PIN-MEASURE-20260929); PIN-MEASURE PENDING markers removed; PRE_MT109_AUTHORITY_INFO_SHA256, GENERATED and DECLARATIVE unchanged",
+        "scope": "Implementer compile/static evidence only (CX-EXEC-014); runtime acceptance pending WP validator"
       }
     ],
     "pin_measurement": {
@@ -619,6 +643,7 @@
     "new_tests": [
       "storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count",
       "storage::surreal::schema::tests::indexed_grant_revision_161_upgrade_preserves_data_and_restarts_current"
-    ]
+    ],
+    "repin_commit": "ee9efaba664bfa6e2987a847979c19048b3093a4"
   }
 }
