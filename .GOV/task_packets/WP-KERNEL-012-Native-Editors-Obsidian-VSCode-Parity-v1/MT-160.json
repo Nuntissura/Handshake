@@ -1,0 +1,585 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-160",
+  "created_at_utc": "2026-09-29T08:32:14.504Z",
+  "updated_at_utc": "2026-09-29T12:01:02Z",
+  "identity": {
+    "mt_id": "MT-160",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "E5-MT-160-Loom-Addressability",
+    "version": 1,
+    "contract_revision": 2
+  },
+  "closure_unit": {
+    "outcome": "Independently provable component scope: Loom URI round-trip (AC-160-1), canvas/graph chip, tooltip and AccessKit component evidence (AC-160-3), and a written, independently inspected canvas screenshot whose test fails if the image is not written (AC-160-4). Live create/load identity moved to MT-162; live visual and aggregate acceptance remain MT-163.",
+    "requirement_refs": [
+      "MT-032.json#execution_split_20260929",
+      "MT-032.json#scope",
+      "MT-020.json#scope",
+      "MT-021.json#scope",
+      "MT-022.json#scope",
+      "MT-026.json#scope",
+      "MT-031.json#scope"
+    ],
+    "acceptance_refs": [
+      "AC-160-1",
+      "AC-160-3",
+      "AC-160-4"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-160-1",
+        "parent_acceptance_index_1_based": 1,
+        "source_parent_index_refs": [
+          "MT-032.json#scope.acceptance_criteria/0"
+        ],
+        "requirement": "Preserve loom_uri/parse_loom_uri round-trip, malformed/empty identity rejection, existing block-type coverage and correctly encoded resolver routes.",
+        "allocation": "Owned fully by MT-160."
+      },
+      {
+        "id": "AC-160-3",
+        "parent_acceptance_index_1_based": 5,
+        "source_parent_index_refs": [
+          "MT-032.json#scope.acceptance_criteria/4"
+        ],
+        "requirement": "Component/AccessKit evidence: a canvas placed_block_id produces a loom:// chip in the node header (with content-hash suffix) and existing double-click navigation to its document; a missing ID produces no fabricated chip or panic; graph URI tooltip and backlink-count coverage preserved.",
+        "allocation": "Component scope here; live canvas/Argus closure in MT-163."
+      },
+      {
+        "id": "AC-160-4",
+        "parent_acceptance_index_1_based": 5,
+        "source_parent_index_refs": [
+          "MT-032.json#scope.acceptance_criteria/4"
+        ],
+        "requirement": "canvas_loom_chip_screenshot writes the Canvas PNG to the external artifact dir (wp-kernel-012-mt-032/MT-032-canvas-loom-chips.png) and the test fails if the image is not written, empty or undecodable; the written PNG is opened and independently inspected by the validator. Component success does not close MT-032.",
+        "allocation": "Owned by MT-160; live screenshots remain MT-163."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Bounded existing addressability slice with inherited live-proof and scope boundaries.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "history_ref": "MT-032.json#lifecycle.attempt_budget",
+    "max_fix_rounds_per_mt": null,
+    "inherited_parent_failed_verdict_count": 8,
+    "no_counter_reset": true,
+    "policy_ref": "packet.json#paperwork_reconciliation_20260928.authority_resolution",
+    "consumed_probe_ref": "MT-032.json#remediation_v15.counter_target_repair.diagnostic_result",
+    "current_run_authorization": "NONE: governance split only; stated policy limits grant no fresh allowance. V19 failed and remains consumed."
+  },
+  "execution": {
+    "lane": "GOVERNANCE_ONLY_MT032_EXECUTION_SPLIT",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [
+      "MT-031",
+      "MT-021",
+      "MT-022"
+    ],
+    "allowed_write_paths": [
+      "src/frontend/handshake_native/src/loom_address.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/src/graph/canvas_board.rs",
+      "src/frontend/handshake_native/src/loom_graph.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/tests/test_loom_address.rs",
+      "Cargo.toml"
+    ],
+    "forbidden_write_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/** (product execution boundary; governance authoring is separately authorized)",
+      "src/backend/** (reuse via API only)"
+    ],
+    "stop_conditions": [
+      "This split grants no product edit/build/test/diagnostic authorization.",
+      "A needed write outside the inherited subset belongs to its existing owner; historical waiver requests are not permission.",
+      "Do not reset inherited assertion attempts, revive consumed probes, weaken deadlines/auth/durability/indexing or substitute component evidence for live proof."
+    ],
+    "primary_module": "src/frontend/handshake_native/src/loom_address.rs",
+    "primary_module_kind": "existing_source_path_not_new_registry_id",
+    "current_authorization_ref": "MT-032.json#execution_split_20260929",
+    "product_execution_authorized": false,
+    "tests_authorized": false,
+    "scope_boundary_ref": "MT-032.json#scope",
+    "shared_file_policy": "Future allowed-path writes require coordinated ownership; shared source stays frozen during proof.",
+    "prerequisite_contract_refs": [
+      "MT-020.json#scope",
+      "MT-026.json#scope",
+      "MT-031.json#scope"
+    ],
+    "read_only_consumer_refs": [
+      "src/frontend/handshake_native/src/interop/interaction_bus.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "existing_operator_correction_ref": "MT-032.json#remediation_v15.missing_resource_operator_decision",
+    "additional_write_authorization": null,
+    "scoped_backend_dependency": {
+      "owner_mt": "MT-154",
+      "scope_ref": "MT-154.json#mt032_behavioral_remediation_request",
+      "required_outcome": "Authenticated document identity/hash behavior consumed by MT-162/163; backend writes remain with MT-154.",
+      "requires_whole_mt154_pass": false,
+      "blocks_local_review": false
+    },
+    "source_ownership_note": "See scope.source_ownership_note (recorded 2026-09-29)."
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-032.json#scope.proof_targets/0",
+      "MT-032.json#scope.proof_targets/1",
+      "MT-032.json#scope.proof_targets/4",
+      "MT-032.json#validation_v14"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-160-ADDRESSABILITY",
+        "claim_refs": [
+          "AC-160-1",
+          "AC-160-3",
+          "AC-160-4"
+        ],
+        "command_or_method": "Independent WP_VALIDATOR reviews existing input-bound artifacts and assigned existing case names. Any separately authorized execution uses WPV-union-round.sh and the inherited governed configuration; this contract adds no runner, flags, gate or mandatory repeat. Builder provides only applicable changed-input compile/static evidence.",
+        "expected": "Named component cases pass with nonzero match count; the canvas PNG exists, is non-empty/decodable and is opened and inspected by the validator; no live identity claim.",
+        "timeout_seconds": null,
+        "on_timeout": "Preserve existing test/client deadlines and true child result; no outer timeout wrapper.",
+        "evidence_required": [
+          "candidate_and_input_dependency_configuration_binding",
+          "exact_selection_nonzero_count_true_child_exit_JUnit",
+          "independent_artifact_inspection",
+          "parent_child_claim_reconciliation"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "runner_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+    "governed_configuration_ref": "MT-032.json#remediation_v15.create_first_repair.acceptance_union.configuration",
+    "native_test_target": "test_loom_address",
+    "existing_case_names": [
+      "loom_uri_round_trip_at_boundary",
+      "content_hash_deterministic_at_boundary",
+      "canvas_node_loom_chip_in_accesskit",
+      "canvas_node_loom_chip_includes_content_hash_suffix",
+      "empty_placement_has_no_loom_chip",
+      "graph_node_loom_tooltip_in_accesskit",
+      "canvas_loom_chip_screenshot"
+    ],
+    "existing_library_selections": [
+      "loom_address::tests",
+      "graph::canvas_board::tests::placed_card_has_loom_addr_chip",
+      "graph::canvas_board::tests::empty_placed_block_id_has_no_loom_chip"
+    ],
+    "shared_live_case": "live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof",
+    "reuse_policy": "Reuse only after verifying unchanged inputs, dependencies, configuration and asserted behavior. Creating a child requires no repeat. Combined live case remains one case; shared backend guard self-tests run once in their owning target.",
+    "execution_authorized": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-160.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-160.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "parent_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json",
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json",
+    "authority_pin": "896f4e15",
+    "recorded_override": "f6bbcaac651057d1d4fcc9b9338799ece1ce08e4",
+    "authority_resolution_ref": "packet.json#paperwork_reconciliation_20260928.authority_resolution"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-160.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-031",
+      "MT-021",
+      "MT-022"
+    ],
+    "blocks": [
+      "MT-032"
+    ],
+    "active": false,
+    "validator_verdict": null,
+    "parent_mt": "MT-032",
+    "creation_decision_ref": "MT-032.json#execution_split_20260929",
+    "validator_verdict_before_20260929": "PENDING",
+    "status_note_20260929": "Status left as authored (PENDING); PENDING is outside CX-STATUS-001 (adopted via f6bbcaac). Next: builder submits READY_FOR_VALIDATION on candidate after gameplan before_submit, or the parent records the status mapping.",
+    "next_actor": "KERNEL_BUILDER"
+  },
+  "scope": {
+    "summary": "Preserve documents, rich-text blocks, code-file nodes, graph nodes and canvas placements as addressable through the existing Loom model. Maintain LoomBlockAddr, ContentHash, LoomBlockRecord, LoomBlockType, loom_uri, parse_loom_uri and LoomBlockResolver; backend-derived identity remains stable across rename. Reuse authenticated workspace-scoped block/transclusion/canvas-board APIs, canonical MT020 serializer/hash and existing sha2. Hash comparison is not client hash PATCH. Preserve canvas header chip, absent-ID guard, double-click navigation, graph tooltip/count and theme guard. MT-162 owns real create/save proof and MT-163 final integration. MT-022 is the inherited folder-tree prerequisite; MT-026 owns canvas placement.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/loom_address.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/src/graph/canvas_board.rs",
+      "src/frontend/handshake_native/src/loom_graph.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/tests/test_loom_address.rs",
+      "Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-160-1",
+        "parent_acceptance_index_1_based": 1,
+        "source_parent_index_refs": [
+          "MT-032.json#scope.acceptance_criteria/0"
+        ],
+        "requirement": "Preserve loom_uri/parse_loom_uri round-trip, malformed/empty identity rejection, existing block-type coverage and correctly encoded resolver routes.",
+        "allocation": "Owned fully by MT-160."
+      },
+      {
+        "id": "AC-160-3",
+        "parent_acceptance_index_1_based": 5,
+        "source_parent_index_refs": [
+          "MT-032.json#scope.acceptance_criteria/4"
+        ],
+        "requirement": "Component/AccessKit evidence: a canvas placed_block_id produces a loom:// chip in the node header (with content-hash suffix) and existing double-click navigation to its document; a missing ID produces no fabricated chip or panic; graph URI tooltip and backlink-count coverage preserved.",
+        "allocation": "Component scope here; live canvas/Argus closure in MT-163."
+      },
+      {
+        "id": "AC-160-4",
+        "parent_acceptance_index_1_based": 5,
+        "source_parent_index_refs": [
+          "MT-032.json#scope.acceptance_criteria/4"
+        ],
+        "requirement": "canvas_loom_chip_screenshot writes the Canvas PNG to the external artifact dir (wp-kernel-012-mt-032/MT-032-canvas-loom-chips.png) and the test fails if the image is not written, empty or undecodable; the written PNG is opened and independently inspected by the validator. Component success does not close MT-032.",
+        "allocation": "Owned by MT-160; live screenshots remain MT-163."
+      }
+    ],
+    "proof_targets": [
+      "MT-160-ADDRESSABILITY"
+    ],
+    "parent_acceptance_refs": [
+      "MT-032.json#scope.acceptance_criteria/0",
+      "MT-032.json#scope.acceptance_criteria/4"
+    ],
+    "implementation_notes": [
+      "No new module, serializer, dependency, panel or Color32 literal.",
+      "Current authority is managed embedded SurrealDB/EventLedger; historical PostgreSQL/hash-PATCH wording is not revived.",
+      "Excluded shell/manual/shared-runtime files remain prerequisite-owned references; no new waiver."
+    ],
+    "source_ownership_note": {
+      "recorded_at_utc": "2026-09-29T12:01:02Z",
+      "decision_ref": "MT-032.json#execution_split_20260929.mt164_addition_20260929",
+      "test_file": "src/frontend/handshake_native/tests/test_loom_address.rs",
+      "this_mt_owns_test_functions": [
+        "loom_uri_round_trip_at_boundary",
+        "content_hash_deterministic_at_boundary",
+        "canvas_node_loom_chip_in_accesskit",
+        "canvas_node_loom_chip_includes_content_hash_suffix",
+        "empty_placement_has_no_loom_chip",
+        "graph_node_loom_tooltip_in_accesskit",
+        "canvas_loom_chip_screenshot",
+        "helpers: board_with_cards, placed_card, canvas_harness, save_canvas_loom_screenshot"
+      ],
+      "other_owners": {
+        "MT-161": [
+          "backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring",
+          "loom_address_backlinks_transport_sends_required_identity_headers",
+          "loom_address_backlinks_404_is_empty_projection",
+          "loom_address_backlinks_backend_down_is_bounded_failure",
+          "loom_address_backlinks_refresh_recovers_failed_mounted_runtime",
+          "backlink_click_fires_open_document",
+          "backlink_open_document_drains_through_live_shell",
+          "mounted_backlink_event_routes_through_bus_and_live_shell",
+          "mounted_backlink_event_retries_when_bus_is_contended",
+          "backlinks_panel_accesskit_tree",
+          "helpers: seeded_backlinks_runtime, backlink, one_shot_backlinks_server, silent_backlinks_server, recovering_backlinks_server"
+        ],
+        "MT-162": [
+          "live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof (whole case incl. its create/load identity, save, backlink/hash and in-case screenshot call at ~1728)",
+          "helpers: with_rich_doc_headers, required_doc_field, rich_document_id, optional_loom_block_id, require_loom_block_id, live_client, save_rich_document, load_backlinks_runtime, loaded_backlinks, rich_document_error_body, create_rich_document, mock_account_context"
+        ],
+        "MT-163": [
+          "live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash",
+          "read-only reconciliation of the self-seeded case; edits to it only after MT-162 has a verdict"
+        ]
+      },
+      "shared_helpers_rule": "Shared helpers external_artifact_dir, assert_no_local_artifact_dir, live_editor_shell, wgpu_guard, author_ids, description_for, app_has_author_id, harness_text_values: single writer at a time in order MT-160 -> MT-161 -> MT-162 -> MT-163; a signature change is announced to later MTs.",
+      "sequenced_sources": "Sequenced shared sources: src/frontend/handshake_native/src/backend_client.rs MT-160 -> MT-161 -> MT-162 (MT-154 also holds a route-account-context slice of this file; coordinate); src/frontend/handshake_native/src/loom_address.rs MT-160 -> MT-162. A later MT starts writing a sequenced file only after the earlier MT's commit is pushed.",
+      "backend_rule": "MT-164 owns only the grant/access fn definitions in schema.surql (plus the revision/pin constants in schema.rs they force); no child writes src/backend/**.",
+      "prior_note": null
+    }
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": false,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Canvas block header chip",
+      "Graph URI tooltip and backlink count"
+    ],
+    "argus_targets": [
+      "Existing placement_author_id(placement_id) AccessKit identity",
+      "Existing graph node AccessKit identity"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null,
+    "shared_live_proof_owner": "MT-163"
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "Existing Wikilinks and Backlinks Loom/canvas/graph guidance"
+    ],
+    "expected_evidence": [
+      "user_manual_diff_when_product_behavior_changes",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null,
+    "owner_boundary": "Existing manual owner retains writes. This governance-only split changes no product behavior and requires no manual/version edit.",
+    "existing_proof_refs": [
+      "src/frontend/handshake_native/tests/test_manual_content.rs:wave5_surface_topics_exist_and_carry_real_no_context_facts",
+      "src/frontend/handshake_native/tests/test_manual_content.rs:mt032_agent_tool_reference_covers_fixed_backlinks_controls",
+      "src/frontend/handshake_native/tests/test_manual_pane_editors.rs"
+    ]
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Document/Loom identity and hash",
+      "Canvas/graph references"
+    ],
+    "identity_and_scope_contexts": [
+      "Authenticated LocalAccount/session",
+      "Workspace/document/block identity"
+    ],
+    "enforcement_boundaries": [
+      "Existing backend authorization and record-user permissions intersected with ResourceBroker; UI hiding is not enforcement"
+    ],
+    "same_project_private_resource_cases": [
+      "Preserve scoped MT154 authorization; workspace membership does not widen private-resource access"
+    ],
+    "cross_account_negative_cases": [
+      "Consume existing scoped MT154 negative evidence without privileged-session substitution"
+    ],
+    "derived_resource_non_widening_cases": [
+      "Block/transclusion/canvas references retain original resource scope"
+    ],
+    "revocation_and_context_switch_cases": [
+      "Preserve authenticated context and stale workspace/document rejection"
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [
+      "No fabricated identifiers or disclosure of restricted resources through hashes/tooltips"
+    ],
+    "expected_evidence": [
+      "stable_resource_owner_scope_linkage",
+      "default_deny_negative_test",
+      "same_project_cross_account_isolation_test_when_applicable",
+      "derived_resource_scope_non_widening_test_when_applicable",
+      "actor_owner_access_space_attribution",
+      "revocation_or_context_switch_test_when_applicable",
+      "remote_delegation_sync_scope_test_when_applicable",
+      "argus_or_typed_privacy_state_inspection_when_operator_visible"
+    ],
+    "not_applicable_reason": null,
+    "remote_not_applicable_reason": "No remote SaaS/MCP/delegation/sync surface introduced",
+    "proof_scope": "Inherited preservation obligations, not new duplicate runtime invocations"
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-MAN"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER_EVENTLEDGER",
+      "status": "NOT_APPLICABLE_WITH_REASON",
+      "reason": "Local address rendering/navigation is non-mutating; save business-event and durable receipt obligations remain MT162/163 and MT154.",
+      "parent_ref": "MT-032.json#hbr_int_009_tier_obligations/0"
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "Preserve parent bounded backend-call diagnostic wire and no-false-stall/cleanup cases; inherited posture is not new validation.",
+      "parent_ref": "MT-032.json#hbr_int_009_tier_obligations/1"
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "Preserve parent identical typed event sequence in the separately read ring, without sensitive content; inherited posture is not new validation.",
+      "parent_ref": "MT-032.json#hbr_int_009_tier_obligations/2"
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "split_decision_id": "WP012-MT032-SPLIT-20260929",
+    "split_decision_ref": "MT-032.json#execution_split_20260929",
+    "parent_history_ref": "MT-032.json",
+    "product_candidate": "4e7b14ba83e686412707fa6e2a5088e3888f2ec3",
+    "latest_result_ref": "MT-032.json#remediation_v15.counter_target_repair.diagnostic_result",
+    "status_effect": "PENDING contract only; no copied PASS, execution authority or retry reset."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Fabricated/local identity proof substitutes for live create/load.",
+      "Canvas empty-ID or navigation behavior is dropped.",
+      "Split changes authority, resets attempts or duplicates combined proof."
+    ],
+    "minimum_controls": [
+      "Stable child AC IDs retain exact parent index refs.",
+      "Keep live proof in MT162/163 and inherited canvas negatives/navigation.",
+      "Preserve pin896f4e15 plus recorded override; shared case/guard proofs run once under existing authority."
+    ]
+  },
+  "acceptance_revision_20260929": {
+    "decision_ref": "MT-032.json#execution_split_20260929.mt164_addition_20260929",
+    "decision_id": "WP012-MT032-SPLIT-20260929-MT164",
+    "recorded_at_utc": "2026-09-29T12:01:02Z",
+    "change": "Narrowed to independently provable component proof. AC-160-2 (live create/load identity) moved entirely to MT-162 AC-162-1; AC-160-4 revised to require a written, independently inspected screenshot with fail-if-not-written.",
+    "moved_acceptance": [
+      {
+        "id": "AC-160-2",
+        "moved_to": "MT-162 (AC-162-1)",
+        "original": {
+          "id": "AC-160-2",
+          "text": "Preserve backend-derived nonempty canonical document/block identity and rename stability; do not fabricate IDs or hashes. Actual production create/load proof is shared with MT-162 and cannot be replaced by a local fixture.",
+          "source_parent_index_refs": [
+            "MT-032.json#scope.acceptance_criteria/1"
+          ]
+        }
+      }
+    ],
+    "previous_outcome": "Preserve the existing Loom address model and canvas/graph address consumers. Real create/load identity is shared with MT-162; complete live visual and aggregate acceptance remains MT-163.",
+    "previous_materialized_acceptance": [
+      {
+        "id": "AC-160-1",
+        "text": "Preserve loom_uri/parse_loom_uri round-trip, malformed/empty identity rejection, existing block-type coverage and correctly encoded resolver routes.",
+        "source_parent_index_refs": [
+          "MT-032.json#scope.acceptance_criteria/0"
+        ]
+      },
+      {
+        "id": "AC-160-2",
+        "text": "Preserve backend-derived nonempty canonical document/block identity and rename stability; do not fabricate IDs or hashes. Actual production create/load proof is shared with MT-162 and cannot be replaced by a local fixture.",
+        "source_parent_index_refs": [
+          "MT-032.json#scope.acceptance_criteria/1"
+        ]
+      },
+      {
+        "id": "AC-160-3",
+        "text": "A canvas placed_block_id produces a loom:// chip in the node header and existing double-click navigation to its document. Missing IDs produce no fabricated chip or panic. Preserve graph URI tooltips and backlink-count coverage.",
+        "source_parent_index_refs": [
+          "MT-032.json#scope.acceptance_criteria/4"
+        ]
+      },
+      {
+        "id": "AC-160-4",
+        "text": "Retain existing addressability unit/component, canvas/graph AccessKit and screenshot evidence with independent visual inspection. Real live identity/canvas proof remains shared with MT-162/163; component success does not close MT-032.",
+        "source_parent_index_refs": [
+          "MT-032.json#scope.acceptance_criteria/0",
+          "MT-032.json#scope.acceptance_criteria/1",
+          "MT-032.json#scope.acceptance_criteria/4"
+        ]
+      }
+    ],
+    "previous_scope_acceptance_criteria": [
+      "AC-160-1: URI and existing address model preserve parent AC1.",
+      "AC-160-2: Backend-derived identity preserves parent AC2; live outcome shared with MT-162.",
+      "AC-160-3: Canvas/graph behavior preserves parent AC5.",
+      "AC-160-4: Existing component/visual evidence preserves AC1/AC2/AC5 without substituting for shared live proof."
+    ],
+    "screenshot_defect_review": {
+      "reported_defect": "canvas_loom_chip_screenshot (tests/test_loom_address.rs:1183) discards the save result via `let _ =`.",
+      "verified_finding": "Code reading at 4e7b14ba: `let _ =` at line 1189 discards only the returned PathBuf. The helper save_canvas_loom_screenshot (1133-1180) already panics on render/save/stat failure, asserts bytes > 0 and reopens/decodes with equal dimensions, so the test already fails if the image is not written.",
+      "residual_gap": "The test does not bind the returned path; independent opening/inspection of the PNG is not yet recorded. Binding the path is optional hardening inside MT-160 paths; inspection belongs to the validator.",
+      "status": "No product fix required for AC-160-4; validator must confirm by inspection."
+    },
+    "v14_component_proof_reuse_candidate": {
+      "proof_commit": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
+      "candidate_commit": "4e7b14ba83e686412707fa6e2a5088e3888f2ec3",
+      "diff_evidence": "git diff --stat 8ea13a9b 4e7b14ba: 1 file changed, src/backend/handshake_document/src/surreal.rs only; none of MT-160's allowed paths.",
+      "rule": "Reuse allowed only if the V14 proof recorded its relevant input paths and their intersection with the diff is empty; the WP validator decides and names both commits (CX-VAL-002). An MT-164 commit changes backend inputs; the validator re-evaluates at round freeze."
+    }
+  },
+  "title": "E5-MT-160-Loom-Addressability",
+  "group": "E5",
+  "parent_split": {
+    "parent_mt": "MT-032",
+    "decision_ref": "MT-032.json#execution_split_20260929",
+    "decision_id": "WP012-MT032-SPLIT-20260929",
+    "revision_decision_id": "WP012-MT032-SPLIT-20260929-MT164",
+    "scope_change": "Narrowed to component proof; AC-160-2 moved to MT-162; parent retains aggregate acceptance/history",
+    "governance_pin_ref": "packet.json#governance_pin",
+    "applicable_overrides_ref": "packet.json#paperwork_reconciliation_20260928.authority_resolution",
+    "product_candidate": "4e7b14ba83e686412707fa6e2a5088e3888f2ec3",
+    "write_authorization": "Only original parent allowed paths below, sequenced per scope.source_ownership_note. No new path waiver."
+  },
+  "dependencies": {
+    "backend_document_slice": {
+      "owner": "MT-154",
+      "assignment_ref": "MT-154.json#mt032_behavioral_remediation_request",
+      "required_for_live_acceptance": false,
+      "entire_mt154_verdict_required": false
+    },
+    "grant_lookup_fix": {
+      "owner": "MT-164",
+      "required": false,
+      "reason": "Component proof uses no live backend."
+    },
+    "parent_is_aggregate_not_predecessor": true
+  }
+}

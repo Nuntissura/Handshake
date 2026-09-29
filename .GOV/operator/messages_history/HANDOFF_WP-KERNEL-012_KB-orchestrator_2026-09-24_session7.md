@@ -1,57 +1,75 @@
 ---
 file_id: HANDOFF-WP-KERNEL-012-KB-ORCHESTRATOR-2026-09-24-SESSION7
 file_kind: operator_handoff
-updated_at: 2026-09-28
+updated_at: 2026-09-29
 authority: reference_only
 wp_id: WP-KERNEL-012
 ---
 
-<topic id="latest-wp-state-and-resume-guide" wp="WP-KERNEL-012" status="paperwork-only" updated_at="2026-09-28">
+<topic id="latest-wp-state-and-resume-guide" wp="WP-KERNEL-012" status="mt164-builder-authorized" updated_at="2026-09-29">
 
 ## Current scope
 
-The current Operator instruction authorizes paperwork reconciliation first. Product edits, builds, tests, runtime execution and cleanup are not authorized by this turn; future product execution awaits an explicit Operator resume instruction. This is separate from the earlier V15 renewal, which remains recorded rather than being requested again.
+Current Operator decision (2026-09-29, `WP012-MT032-SPLIT-20260929-MT164`), chosen option “Add MT-164 backend fix (Recommended)”: “New narrow MT-164, the real first part. It rewrites the grant checks to look up the resource first and then use the full index, and a focused core timing test proves it (grant count fixed, e.g. 50 vs 500). MT-160 narrows to component proof; MT-161/162/163 become BLOCKED on MT-164. I claim MT-164 and a builder sub-agent implements it.” Earlier the same day the Operator said: “yes review and commit the split, mt 032 has been in dev hell, i really want this to be resolved and finished ... claim the first part of mt032”. This authorizes MT-164 builder source edits and compile/static checks only; tests run only through the independent WP validator. Root cause recorded as `MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN` in `MT-032.json#execution_split_20260929.diagnoses`: the five grant/access functions (schema.surql:6044–6173 at 4e7b14ba) filter `resource_grants` by `resource_id.*` link traversal, so `resource_grants_exact_idx` (5850) uses only 3 of its 4 fields and every check scans all of the principal's grants; verified by code reading, not timed. Next action: MT-164 builder implementation. Open items for the parent: MT-164 also needs `schema.rs` (schema revision/pins), `WPV-union-round.sh` CORE_FILTER must admit `storage::surreal::resource_authority_tests::` before its round, and the INFO pin may need a validator measurement.
 
-This handoff is a reference, not an execution command, acceptance gate or replacement contract. The current reconciliation is `WP012-PAPERWORK-RECONCILIATION-20260928` in [packet.json](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json), `paperwork_reconciliation_20260928`; [MT-032](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json) and [MT-154](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-154.json) carry their corresponding records. Typed records own current scope, state and proof requirements.
+The prior split instruction was: “ok mqke the extra mt to facilitate the splitm make sure the wp knows this got split if this is needed then record it in the handoff filem update the handoff file to the latest situation”. It authorizes the four-way governance split and current handoff update. It does not authorize product edits, builds, tests, runtime retries or cleanup. Earlier runtime renewals and consumed attempts remain historical evidence; this split grants no automatic continuation.
+
+This handoff is reference-only. `WP012-MT032-SPLIT-20260929`, [MT-032.json](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json) `execution_split_20260929`, owns the split; [packet.json](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json) records the WP relationship. The prior `WP012-PAPERWORK-RECONCILIATION-20260928` remains the authority/provenance reconciliation. Typed records own scope, state, prerequisites and proof requirements.
 
 The bounded assignment remains the first document-subsystem extraction **and independent MT-032 PASS**. Structural extraction is present in the recorded candidate; cheap runtime proof independent of `handshake_core` has not been established. MT-032 PASS remains outstanding. Neither full MT-154 completion nor full WP completion is silently added to this bounded assignment. Their remaining work and the complete original WP scope are retained in their contracts and history.
 
+| Execution unit | Current disposition | Relationship |
+|---|---|---|
+| [MT-164](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-164.json): Indexed grant lookup | BLOCKED on its open fix; claimed by KERNEL_BUILDER 2026-09-29; no candidate yet | Backend root cause; first part of MT-032. Owns only the five grant fns in schema.surql, the schema.rs revision/pins they force and a timing test in resource_authority_tests.rs. |
+| [MT-160](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-160.json): Loom addressability | PENDING; narrowed to component proof; validator_verdict null | AC-160-1 URI round-trip, AC-160-3 component/AccessKit, AC-160-4 written and inspected screenshot. AC-160-2 live identity moved to MT-162. V14 component proof is a reuse candidate (8ea..4e7 diff touches none of its paths; validator decides). |
+| [MT-161](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-161.json): Backlink UI | BLOCKED on MT-164 | Needs live save-derived backlinks; backend slice now required for live acceptance. |
+| [MT-162](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-162.json): Live document behavior | BLOCKED on MT-164 | Also owns former AC-160-2 live create/load identity and the self-seeded live case. |
+| [MT-163](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-163.json): Persistence and final integration | BLOCKED on MT-164 | Owned-restart case and final reconciliation. |
+
+Explicit ownership of `tests/test_loom_address.rs` functions and the sequencing of `backend_client.rs` (MT-160 → MT-161 → MT-162) and `loom_address.rs` (MT-160 → MT-162) are in each child's `scope.source_ownership_note`. The reported `let _ =` screenshot defect was checked: only the returned path is discarded; the helper already fails if the PNG is not written (MT-160 `acceptance_revision_20260929`).
+
+MT-032 remains the parent, history and aggregate acceptance record and depends on all five children (MT-164 added 2026-09-29). Children retain MT-032's original prerequisites, relevant prerequisite ownership and cross-unit dependencies in their contracts. [MT-154](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-154.json) retains its authorized backend document-remediation slice; its entire wider verdict is not a new prerequisite. The combined self-seeded live proof remains one executable test case: the split creates no separate runnable selectors, transfers no PASS automatically and relaxes no deadline, authorization, durability or final acceptance requirement.
+
 </topic>
 
-<topic id="current-acceptance-result" wp="WP-KERNEL-012" status="incomplete" updated_at="2026-09-28">
+<topic id="current-acceptance-result" wp="WP-KERNEL-012" status="incomplete" updated_at="2026-09-29">
 
 ## Recorded result
 
 | Surface | Current recorded state | Meaning |
 |---|---|---|
-| Product candidate | `699477d5888f6cec0b65cbea66b0dd09b9df88be` | Pushed diagnostic candidate reported by the prior session; live branch/remote freshness was not rechecked for this paperwork pass. |
+| Latest tested product candidate | `4e7b14ba83e686412707fa6e2a5088e3888f2ec3` | Direct-record counter-target change; failed V19 focused proof. Preserve as unaccepted work. This update does not reverify remote freshness. |
 | Structural extraction | `22c64a06cf986fa1c32e1b94e94729d13dff109d` introduced `handshake_document` and `handshake_storage_support` | Structural change is recorded; this does not prove cheap isolated runtime execution or a latency repair. |
-| MT-032 | `BLOCKED / FAIL_V13` | FAIL_V13 belongs to `7479972ac681cd238e58d37e318beab6c8d3b423`, not candidate 699. |
-| V15 diagnostic | `DIAGNOSTIC_CANDIDATE_PUSHED_RUNTIME_CAPACITY_BLOCKED`; runtime `NOT_LAUNCHED` | Three core predecessors and two native cases remain unrun in the canonical binding. |
+| MT-032 | `BLOCKED / FAIL_V14` | Full acceptance verdict applies to `8ea13a9b6650eecc819acfacbbf0c5d8299e9f75`; focused V19 on 4e7 is not a new full verdict. |
+| Full acceptance on 8ea | Native 23/24; named core 10/10; document 41/41; storage-support 34/34 | Owned restart passed; self-seeded first linked save failed. These results do not close the complete MT. |
+| Focused V19 on 4e7 | 0 passed / 1 failed; native child exit 100 | First linked save request dropped at 10,010ms; helper/wrapper exit 0 means diagnostic completion, not test success. |
+| Attempt history | Failed-verdict count 8; `max_fix_rounds_per_mt:null` | No counter reset or lifetime numeric gate. V19 consumed its scoped probe; confirming acceptance did not run. |
 | MT-154 | `READY_FOR_VALIDATION`; no current verdict | Owning backend assignment remains open; partial document work does not accept the entire MT. |
 | WP | In Progress; main containment `NOT_STARTED`; current-main compatibility `NOT_RUN` | Prior recorded packet checkpoint, not a fresh integration proof. |
 
-Latest independent result: candidate 747 failed the existing document save/create deadlines; MT-032 native coverage was 22/24. Live computed backlinks, canonical content hashes, owned restart preservation, mounted navigation and required Argus/screenshot acceptance remain unproved. The current paper reconciliation changes no product verdict, test count or acceptance result.
+The full acceptance proved owned-restart save/backlink/hash/stale/missing-resource/restart/delete behavior under its existing 15s save deadline. The 10s self-seeded linked save, its later remove/restore/delete/hash assertions, canonical live A-to-B mounted Argus and strict live screenshot floor remain unclosed. Generic component or screenshot-test success is not independent visual approval. The governance split changes no product verdict or runtime result.
 
-Evidence owners: `MT-032.validation_v13`, `remediation_v14.acceptance.continuation1`, and `remediation_v15.diagnostic_binding`. The former handoff's full result table, all other MT observations and historical recount are preserved in the [archived handoff](archive/WP-KERNEL-012/HANDOFF_WP-KERNEL-012_KB-orchestrator_2026-09-24_session7-pre-reconciliation-2026-09-28.md).
+Current evidence owners: `MT-032.validation_v14`, `remediation_v15.create_first_repair`, and `remediation_v15.counter_target_repair.diagnostic_result`. Prior FAIL_V13 on 747, V15 on 699, all earlier attempts and other MT observations remain in typed history and the [archived handoff](archive/WP-KERNEL-012/HANDOFF_WP-KERNEL-012_KB-orchestrator_2026-09-24_session7-pre-reconciliation-2026-09-28.md).
 
 </topic>
 
-<topic id="receipt-inner-candidate-699477" wp="WP-KERNEL-012" status="runtime-unproved" updated_at="2026-09-28">
+<topic id="receipt-inner-candidate-699477" wp="WP-KERNEL-012" status="historical-and-current-evidence" updated_at="2026-09-29">
 
-## Candidate and remaining question
+## Receipt history and current unresolved cost
 
 Candidate 699 records receipt idempotency-lookup and CREATE/replay timing inside the same authenticated SurrealQL transaction, diagnostic fields, and focused decoding/cardinality, replay/conflict and record-user denial tests. Changed files are `handshake_core/src/storage/surreal/event_ledger.rs`, `handshake_core/src/storage/surreal/resource_authority_tests.rs`, and `handshake_storage_support/src/diagnostics.rs`, all under `src/backend/`.
 
 Builder storage-support/core compile checks are recorded as passing. Core attempt 2 failed with E0308 and attempt 3 passed after the owned-string correction; the preserved 1242-input digest is `91ca91be4b6852a95761baa65dfefbf10769c66cac8f5111fd4ec2b9827abb50`. These are prior compile records, not fresh runtime, clippy or latency evidence.
 
-The previous candidate's returned receipt statements took approximately 3.843/3.858s. Candidate 699 measures lookup versus CREATE/replay; it does not independently isolate permission, sequence, index or commit costs. No measured gain is established. Wall-clock timing and missing returned timings do not prove cancellation, rollback or commit.
+The 699 diagnostic subsequently ran; its returned lookup timings were approximately 2.136–2.314s versus CREATE 0.287–0.354s. Later plan diagnostics did not establish a valid live plan. The create-first receipt repair passed its focused core proof, but the full acceptance on 8ea still failed the self-seeded save. See `remediation_v15.diagnostic_result`, `lookup_plan_diagnostic` and `create_first_repair`; instrumentation alone did not establish a fix.
 
-The prepared V15 diagnostic has three exact core predecessor tests before the two existing failing native cases, one frozen candidate and separate evidence. Names, features, configs, helper hashes and markers are in `MT-032.remediation_v15.diagnostic_binding`. A successful focused diagnostic would inform a repair; it would not satisfy final acceptance. The retained stable-candidate union rule still applies at its acceptance boundary, with each MT judged against its own requirements.
+V19 changed the already-known affected-block UPDATE target to a direct record while retaining guards, counter expressions and transaction boundaries. It did not close the same failure: transaction 3,751ms, receipt 392ms, backlinks 5,582ms, counter-loop statement 3,296,741µs; indexing was observed only until request drop, after 234ms. The small single-sample counter difference is not a demonstrated speedup. Inner count SELECT, permission/grant and record/index-write costs remain unattributed; no next source repair is established by that evidence. Missing/dropped timings do not prove cancellation, rollback or commit.
+
+The exact failed probe, outputs, source binding and escalation are in `remediation_v15.counter_target_repair`. The four-way split records execution ownership without resolving that evidence gap. Focused diagnostics remain distinct from final acceptance; the recorded stable-candidate union rule remains at its applicable boundary, with each MT judged against its own requirements.
 
 </topic>
 
-<topic id="authority-and-decisions" wp="WP-KERNEL-012" updated_at="2026-09-28">
+<topic id="authority-and-decisions" wp="WP-KERNEL-012" updated_at="2026-09-29">
 
 ## Provenance and limits
 
@@ -62,7 +80,9 @@ The packet pins governance to `896f4e15`, with recorded later Operator decisions
 | `MT-032.remediation_v12.operator_decision` | Recorded Operator quotation includes cheap diagnostics and “do a single validator run at the end ... no matter the validation result”. | Scoped historical decision; its run history remains intact. |
 | `MT-032.remediation_v14.operator_decision` | Recorded reply “waiver granted, if you need extra helpers spawn them”; `accepted_proposal` separately records one diagnostic and one acceptance run. | Accepted proposal and Operator quotation are distinct fields; consumed limits remain historical. |
 | `MT-154.mt032_behavioral_remediation_request.renewed_assignments[id=MT032-MEASURED-REPAIR-20260927].measured_schema_repair.current_candidate.operator_continuation_v1` | Recorded “yes approved” to the exact one-continuation question. | Specific consumed approval, not an unlimited continuation. |
-| `MT-032.remediation_v15.operator_decision` | Recorded “start working” and “stop explaining. start working”; `additional_numeric_limit:null`. | Prior renewal remains valid as recorded; no new numerical allowance was specified. Current paperwork-only instruction separately holds execution. |
+| `MT-032.remediation_v15.operator_decision` | Recorded “start working” and “stop explaining. start working”; `additional_numeric_limit:null`. | Historical renewal and subsequent attempts remain recorded; it does not erase the V19 escalation or authorize a new retry through this governance update. |
+| `MT-032.execution_split_20260929` | Exact current Operator split/handoff request quoted above. | Four child MTs and WP/handoff reconciliation only; no new runtime authorization or acceptance reduction. |
+| `MT-032.execution_split_20260929.mt164_addition_20260929` and `MT-164.operator_decision` | Operator chose “Add MT-164 backend fix (Recommended)”; quote in Current scope. | MT-164 claimed; builder compile/static authorized; MT-160 narrowed; MT-161/162/163 BLOCKED on MT-164; no acceptance reduction. |
 | Gov commit `f6bbcaac` and session6 snapshot | Recorded “apply all except 2”; item 2 is host-profile/canary. Commit records union validation and other authority fixes. | All-READY union remains a recorded exception; an undefined later canary is not imported into WP-012. |
 
 The lifetime three-failure gate `CX-EXEC-015` was introduced by `adefda7e`, whose commit says WP-012 stays pinned. It is absent from pinned Codex/HBR/MT-032; separate Operator adoption was not established in the inspected sources. The former records nevertheless applied it in `fe087dfb` and later entries. The owning `paperwork_reconciliation_20260928` records distinguish this provenance defect from genuine scoped run approvals. Failed-verdict history and counts remain evidence; this handoff does not establish a blanket lifetime stop, reset counters, erase failures or invent a fresh numerical budget.
@@ -81,15 +101,17 @@ The current paperwork pass has explicit disjoint file ownership. Any future impl
 
 </topic>
 
-<topic id="capacity-and-proof-route" wp="WP-KERNEL-012" status="historical-blocker-not-remeasured" updated_at="2026-09-28">
+<topic id="capacity-and-proof-route" wp="WP-KERNEL-012" status="recorded-not-remeasured" updated_at="2026-09-29">
 
-## Last reported operational blocker
+## Last recorded resource observation and current hold
 
-The prior session reported C target 142,669,086,747 bytes, a 147GB protective stop, 150GB cap and 4GB scratch provision. It reported 23 obsolete PDB copies retained and independently hash-verified on D, totaling 5,087,375,360 bytes, while C originals remained. Automatic execution review reportedly rejected exact-set and literal-path removals with “blocked by policy”; the underlying policy cause was unverified. The conditional 145,707,089,435-byte forecast was not achieved capacity clearance. None of these filesystem, process or policy conditions was freshly measured in this paperwork pass.
+V19 completed at `2026-09-29T04:34:14.8731524Z`. Its final recorded C usage was 141,609,689,014 bytes (about 141.61GB), below the 147GB protective stop and 150GB cap; 24 samples recorded no cap event. The final observation found zero surviving exact owned process identities. These are completed-run observations from `counter_target_repair.diagnostic_result.capacity_and_processes`, not fresh capacity or process clearance for another run. This governance update launches no runtime, cleanup or automation action.
+
+The earlier capacity/deletion-policy blocker and 23 retained PDB copies (5,087,375,360 bytes) remain historical evidence in the archived handoff and V15 records. They are not the current explanation for V19's product failure. The current unresolved dependency is inner-counter attribution and complete awaited-index cost, with further runtime scope requiring an explicit Operator decision.
 
 Recorded locations: builder check/clippy target `../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target`; validator warm target `C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52`; existing D backend executable target `../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/backend-bin` (relative paths from the kernel). The handoff's claimed original “CARGO AND DISK — HARD” wording was not independently recovered. Existing records designate C as validator warm target; this is not evidence of a universal Operator statement that all executable tests must run on C.
 
-The existing monitor was last reported PAUSED. It was not changed or checked in this pass. No cleanup, target reassignment, runtime launch or automation action follows from this handoff. Old candidate 747 native binaries do not establish candidate 699 runtime proof merely because source subsets match.
+Monitor state was not checked or changed in this pass. Existing committed helpers and bindings are evidence references, not automatically reusable launch instructions. Old candidate binaries or results cannot establish a newer candidate's behavior merely because source subsets match.
 
 </topic>
 

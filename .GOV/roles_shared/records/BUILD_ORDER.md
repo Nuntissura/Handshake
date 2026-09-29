@@ -355,6 +355,9 @@ Scoring is deterministic from packet/stub metadata. To change priority, update t
 | WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity | WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1 | .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json | IN_PROGRESS | IN_PROGRESS | 0 | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | - | - |
 | WP-KERNEL-STUDIO | WP-KERNEL-STUDIO.contract.json | .GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json | - | STUB | 75 | CROSS_BOUNDARY | NO | HIGH | HIGH | WP-KERNEL-011-Native-WorkSurface-Shell, WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity | - |
 
+<!-- WP012-MT032-SPLIT-20260929: packet.json#mt032_execution_split_20260929; MT-032 aggregate BLOCKED/FAIL_V14; MT-160/161 PENDING; MT-162/163 BLOCKED (V19); MT-154 document owner; 4e7b14ba unaccepted; WP remains IN_PROGRESS -->
+<!-- WP012-MT032-SPLIT-20260929-MT164 (2026-09-29): MT-164 indexed grant lookup added and claimed by KERNEL_BUILDER (next: builder implementation); MT-160 narrowed, PENDING; MT-161/162/163 BLOCKED on MT-164; WP remains IN_PROGRESS -->
+
 METADATA_GAPS (fill these in the active packet/stub when activating/refreshing build order meta):
 - count: 111
 - WP-1-ACE-Runtime

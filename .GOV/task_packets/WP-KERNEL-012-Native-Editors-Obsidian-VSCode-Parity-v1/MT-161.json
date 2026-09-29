@@ -1,0 +1,500 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-161",
+  "created_at_utc": "2026-09-29T08:31:36.101102Z",
+  "updated_at_utc": "2026-09-29T12:01:02Z",
+  "identity": {
+    "mt_id": "MT-161",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "E5-MT-161-Backlink-UI",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "The existing bottom-of-editor backlink panel renders source_document_id/link_kind, exposes backlinks-panel List and backlink-{source_document_id} ListItem/Press, and routes a mounted click through CMD_OPEN_DOCUMENT, the shared bus and production shell drain. Preserve loading/empty/error/recovery states, session-only cache, save invalidation, stale document/workspace rejection and bus-contention retry. Reuse MT015 panel/runtime and MT024 sidebar; no third panel. MT162 supplies real save-derived data and MT163 proves the live mounted flow.",
+    "requirement_refs": [
+      "MT-032.json#scope",
+      "MT-032.json#execution_split_20260929"
+    ],
+    "acceptance_refs": [
+      "AC-161-1",
+      "AC-161-2",
+      "AC-161-3"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-161-1",
+        "parent_acceptance_index_1_based": 3,
+        "requirement": "The reused BacklinkPanel renders live save-derived inbound backlinks showing source_document_id and link_kind; create A and B through production APIs, save an A-to-B hsLink and load B's panel without seeded backlink rows or a repair/rebuild call.",
+        "allocation": "Shared parent criterion; this child owns its scoped part described by scope.summary; MT163 reconciles the complete parent criterion."
+      },
+      {
+        "id": "AC-161-2",
+        "parent_acceptance_index_1_based": 4,
+        "requirement": "Clicking a backlink row routes the correct source_document_id through CMD_OPEN_DOCUMENT on the shared command bus and its production shell drain; prove command receipt and mounted source-document navigation.",
+        "allocation": "Shared parent criterion; this child owns its scoped part described by scope.summary; MT163 reconciles the complete parent criterion."
+      },
+      {
+        "id": "AC-161-3",
+        "parent_acceptance_index_1_based": 7,
+        "requirement": "The reused panel exposes AccessKit author_id backlinks-panel with role List and at least one backlink-{source_document_id} row with role ListItem and Press when data exists; prove through the actual tree and mounted click. Keep the reused backlink panel at the bottom of the rich-text editor.",
+        "allocation": "Shared parent criterion; this child owns its scoped part described by scope.summary; MT163 reconciles the complete parent criterion."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Inherited cross-boundary acceptance requires explicit evidence reconciliation; bounded child scope preserves prerequisites and production proof.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "inherited_history_ref": "MT-032.json#lifecycle.attempt_budget",
+    "failing_assertion_history_ref": "MT-032.json#remediation_v15.counter_target_repair",
+    "failed_verdict_count": 8,
+    "max_fix_rounds_per_mt": null,
+    "no_counter_reset": true,
+    "applicability": "Pinned CX-EXEC-003/003A. Template per-check limits are not fresh allowances: V19 probe consumed; child IDs do not reset assertions, revive consumed approvals or authorize another run."
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [
+      "MT-031",
+      "MT-021",
+      "MT-022",
+      "MT-164"
+    ],
+    "allowed_write_paths": [
+      "src/frontend/handshake_native/src/rich_editor/wikilinks/backlinks_panel.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/handshake_native/src/graph/sidebar_panel.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/tests/test_loom_address.rs"
+    ],
+    "forbidden_write_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "stop_conditions": [
+      "Current split authorization covers governance only; no product edit/build/test/runtime retry follows automatically.",
+      "Preserve existing V19 escalation; require a distinct evidence-based hypothesis and applicable scoped authorization before further runtime.",
+      "No child PASS from historical green subset; independent validator owns acceptance."
+    ],
+    "next_action": "Wait for MT-164 verdict; then read current child and parent evidence; verify exact input validity and outstanding scope without runtime reruns.",
+    "source_ownership_note": "See scope.source_ownership_note (recorded 2026-09-29)."
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-032.json#scope.proof_targets",
+      "MT-032.json#validation_v14",
+      "MT-032.json#remediation_v15.counter_target_repair.diagnostic_result"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-161-PROOF-01",
+        "claim_refs": [
+          "AC-161-1",
+          "AC-161-2",
+          "AC-161-3"
+        ],
+        "command_or_method": "Independent WP_VALIDATOR uses the existing governed WPV-union-round.sh route, its declared features/configuration and parent selection. Review unchanged valid evidence first; materialize focused selection only within authorized execution. No new runner or shell flags.",
+        "expected": "Every scoped criterion proved; no zero-match credit or unclosed cross-child requirement counted as PASS. MT163 additionally reconciles the full inherited parent floor.",
+        "timeout_seconds": null,
+        "timeout_policy": "No new outer timeout. Preserve original10s self-seeded and15s owned-restart save deadlines and existing governed runner bounds.",
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "candidate and input/dependency/config binding",
+          "exact matched selectors and nonzero test count",
+          "JUnit/results and natural runtime artifacts",
+          "independent scoped disposition with blockers"
+        ]
+      }
+    ],
+    "existing_selectors": [
+      "backlink_click_fires_open_document",
+      "backlink_open_document_drains_through_live_shell",
+      "mounted_backlink_event_routes_through_bus_and_live_shell",
+      "mounted_backlink_event_retries_when_bus_is_contended",
+      "backlinks_panel_accesskit_tree",
+      "loom_address_backlinks_transport_sends_required_identity_headers",
+      "loom_address_backlinks_404_is_empty_projection",
+      "loom_address_backlinks_backend_down_is_bounded_failure",
+      "loom_address_backlinks_refresh_recovers_failed_mounted_runtime",
+      "backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring"
+    ],
+    "selection_file": "src/frontend/handshake_native/tests/test_loom_address.rs",
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "shared_live_case": "The self-seeded case spans children and remains one executable test; no test refactor or separate selector is implied. Share valid evidence, retain final parent union.",
+    "shared_helper_policy": "Five backend-binary guard self-tests belong to the owning target; run once, not once per child. The prior24-case result includes19feature cases and5guards.",
+    "reuse_policy": "Do not rerun green proof unless asserted inputs/dependencies/configuration changed or acceptance requires freshness; record why reuse is valid. Backend changes can invalidate live native proof.",
+    "role_boundary": "KERNEL_BUILDER compile/static only; WP_VALIDATOR runtime and independent verdict; final integration authority unchanged.",
+    "additional_existing_runtime_selectors": [
+      "backlinks_generation_cancels_stale_response_mc004",
+      "loom_address_backlinks_queue_preserves_newest_completion_before_stale_delivery",
+      "loom_address_backlinks_response_document_mismatch_fails_closed",
+      "loom_address_backlinks_response_workspace_mismatch_fails_closed",
+      "loom_address_same_document_workspace_swap_drops_stale_empty_response",
+      "backlinks_save_invalidation_fans_out_to_every_mounted_runtime",
+      "backlink_invalidation_is_workspace_scoped_and_history_is_bounded"
+    ]
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-161.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-161.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "parent_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-161.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "policy": "JSON authority; projection on demand only"
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "depends_on": [
+      "MT-031",
+      "MT-021",
+      "MT-022",
+      "MT-164"
+    ],
+    "blocks": [
+      "MT-032",
+      "MT-163"
+    ],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "next_actor": "KERNEL_BUILDER",
+    "status_reason": "Operator decision WP012-MT032-SPLIT-20260929-MT164: BLOCKED on MT-164. Contract authored only; existing evidence needs scoped independent disposition.",
+    "split_ref": "MT-032.json#execution_split_20260929",
+    "status_before_mt164_20260929": "PENDING",
+    "status_reason_before_mt164_20260929": "Contract authored only; existing evidence needs scoped independent disposition.",
+    "validator_verdict_before_20260929": "PENDING",
+    "blocked_on": "MT-164: indexed grant lookup (diagnosis MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN) must pass before live proof"
+  },
+  "scope": {
+    "summary": "The existing bottom-of-editor backlink panel renders source_document_id/link_kind, exposes backlinks-panel List and backlink-{source_document_id} ListItem/Press, and routes a mounted click through CMD_OPEN_DOCUMENT, the shared bus and production shell drain. Preserve loading/empty/error/recovery states, session-only cache, save invalidation, stale document/workspace rejection and bus-contention retry. Reuse MT015 panel/runtime and MT024 sidebar; no third panel. MT162 supplies real save-derived data and MT163 proves the live mounted flow.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/rich_editor/wikilinks/backlinks_panel.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/handshake_native/src/graph/sidebar_panel.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/tests/test_loom_address.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-161-1",
+        "parent_acceptance_index_1_based": 3,
+        "requirement": "The reused BacklinkPanel renders live save-derived inbound backlinks showing source_document_id and link_kind; create A and B through production APIs, save an A-to-B hsLink and load B's panel without seeded backlink rows or a repair/rebuild call.",
+        "allocation": "Shared parent criterion; this child owns its scoped part described by scope.summary; MT163 reconciles the complete parent criterion."
+      },
+      {
+        "id": "AC-161-2",
+        "parent_acceptance_index_1_based": 4,
+        "requirement": "Clicking a backlink row routes the correct source_document_id through CMD_OPEN_DOCUMENT on the shared command bus and its production shell drain; prove command receipt and mounted source-document navigation.",
+        "allocation": "Shared parent criterion; this child owns its scoped part described by scope.summary; MT163 reconciles the complete parent criterion."
+      },
+      {
+        "id": "AC-161-3",
+        "parent_acceptance_index_1_based": 7,
+        "requirement": "The reused panel exposes AccessKit author_id backlinks-panel with role List and at least one backlink-{source_document_id} row with role ListItem and Press when data exists; prove through the actual tree and mounted click. Keep the reused backlink panel at the bottom of the rich-text editor.",
+        "allocation": "Shared parent criterion; this child owns its scoped part described by scope.summary; MT163 reconciles the complete parent criterion."
+      }
+    ],
+    "proof_targets": [
+      "Existing loom_address unit/component cases and tests/test_loom_address.rs through the declared WPV selection; all required cases pass, with no zero-match credit.",
+      "Existing mounted backlink command-bus/shell-drain cases plus canonical live Argus inspect/steer/re-observe and strict screenshot acceptance."
+    ],
+    "implementation_notes": [
+      "Reuse MT020 canonical_content_sha256, its canonical serializer and existing sha2 dependency. Backend save owns persisted hashes; local computation is an integrity comparison, not a client hash write.",
+      "Canonical JSON must use the existing canonical implementation; pretty-printing or a parallel indexmap-based serializer does not establish matching hashes.",
+      "Reuse command_registry.rs and event_bus.rs, CMD_OPEN_DOCUMENT and the live shell navigation drain, backend_client.rs and existing accessibility helpers.",
+      "Legacy React LoomBlockPanel.tsx and LoomTransclusionView.tsx remain parity references only; current route/type authority is the inspected Rust backend and authenticated native client.",
+      "Legacy React CanvasView.tsx is a parity reference only. Current canvas placement authority is the workspace-scoped canvas-board response and existing graph/canvas_board.rs placed_block_id handling.",
+      "Do not cache backlinks beyond the document session. Invalidate and refresh on save completion; reject stale document/workspace deliveries.",
+      "Reuse MT015 rich_editor/wikilinks/backlinks_panel.rs and MT024 graph/sidebar_panel.rs. Do not add src/backlink_panel.rs. Reuse backlinks-panel and backlink-{source_document_id} author IDs without colliding duplicate nodes.",
+      "LoomBlockUpdate supports title, pinned, favorite, journal_date, pin_order and expected_updated_at, not content_hash. Save computes the canonical hash and projects it to the Loom block; reload and compare rather than PATCH a client hash.",
+      "Stateful proof uses an isolated Handshake-managed embedded SurrealDB/EventLedger store and the existing authenticated production API. Preserve close/reopen durability and all current live proof obligations.",
+      "Current editor integration is rich_editor/renderer/rich_editor_widget.rs; canvas integration is graph/canvas_board.rs. Preserve 404-to-empty backlink handling, no panic or fabricated chip for absent placed_block_id, the theme guard (no new Color32 literals), external screenshots and canonical AccessKit/Argus inspection."
+    ],
+    "binds_backend_api": [
+      "POST /knowledge/documents and GET /knowledge/documents/{document_id}: create/load canonical RichDocument identity and content.",
+      "PUT /knowledge/documents/{document_id}/save: expected_version/content_json save, backend-computed canonical hash, receipt and required backlink/indexing outcomes.",
+      "GET /knowledge/documents/{document_id}/backlinks: authenticated inbound backlinks consumed by the existing runtime/panel.",
+      "GET /workspaces/{workspace_id}/loom/blocks/{block_id}: authoritative LoomBlock identity/content_hash; PATCH on this route edits supported metadata only, not content_hash.",
+      "GET /workspaces/{workspace_id}/loom/blocks/{block_id}/transclusion: existing transclusion endpoint reused where required.",
+      "GET /workspaces/{workspace_id}/loom/canvas-boards/{canvas_block_id}: existing board/placement source carrying placed_block_id."
+    ],
+    "read_only_reuse_refs": [
+      "MT-015.json",
+      "MT-020.json",
+      "MT-021.json",
+      "MT-022.json",
+      "MT-024.json",
+      "MT-026.json",
+      "MT-031.json"
+    ],
+    "source_ownership_note": {
+      "recorded_at_utc": "2026-09-29T12:01:02Z",
+      "decision_ref": "MT-032.json#execution_split_20260929.mt164_addition_20260929",
+      "test_file": "src/frontend/handshake_native/tests/test_loom_address.rs",
+      "this_mt_owns_test_functions": [
+        "backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring",
+        "loom_address_backlinks_transport_sends_required_identity_headers",
+        "loom_address_backlinks_404_is_empty_projection",
+        "loom_address_backlinks_backend_down_is_bounded_failure",
+        "loom_address_backlinks_refresh_recovers_failed_mounted_runtime",
+        "backlink_click_fires_open_document",
+        "backlink_open_document_drains_through_live_shell",
+        "mounted_backlink_event_routes_through_bus_and_live_shell",
+        "mounted_backlink_event_retries_when_bus_is_contended",
+        "backlinks_panel_accesskit_tree",
+        "helpers: seeded_backlinks_runtime, backlink, one_shot_backlinks_server, silent_backlinks_server, recovering_backlinks_server"
+      ],
+      "other_owners": {
+        "MT-160": [
+          "loom_uri_round_trip_at_boundary",
+          "content_hash_deterministic_at_boundary",
+          "canvas_node_loom_chip_in_accesskit",
+          "canvas_node_loom_chip_includes_content_hash_suffix",
+          "empty_placement_has_no_loom_chip",
+          "graph_node_loom_tooltip_in_accesskit",
+          "canvas_loom_chip_screenshot",
+          "helpers: board_with_cards, placed_card, canvas_harness, save_canvas_loom_screenshot"
+        ],
+        "MT-162": [
+          "live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof (whole case incl. its create/load identity, save, backlink/hash and in-case screenshot call at ~1728)",
+          "helpers: with_rich_doc_headers, required_doc_field, rich_document_id, optional_loom_block_id, require_loom_block_id, live_client, save_rich_document, load_backlinks_runtime, loaded_backlinks, rich_document_error_body, create_rich_document, mock_account_context"
+        ],
+        "MT-163": [
+          "live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash",
+          "read-only reconciliation of the self-seeded case; edits to it only after MT-162 has a verdict"
+        ]
+      },
+      "shared_helpers_rule": "Shared helpers external_artifact_dir, assert_no_local_artifact_dir, live_editor_shell, wgpu_guard, author_ids, description_for, app_has_author_id, harness_text_values: single writer at a time in order MT-160 -> MT-161 -> MT-162 -> MT-163; a signature change is announced to later MTs.",
+      "sequenced_sources": "Sequenced shared sources: src/frontend/handshake_native/src/backend_client.rs MT-160 -> MT-161 -> MT-162 (MT-154 also holds a route-account-context slice of this file; coordinate); src/frontend/handshake_native/src/loom_address.rs MT-160 -> MT-162. A later MT starts writing a sequenced file only after the earlier MT's commit is pushed.",
+      "backend_rule": "MT-164 owns only the grant/access fn definitions in schema.surql (plus the revision/pin constants in schema.rs they force); no child writes src/backend/**.",
+      "prior_note": "runtime.rs, client.rs, app.rs, manual_content_editors.rs and manual tests remain existing prerequisite/parent-exception ownership. Inspect as consumers; do not infer extra write scope."
+    }
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": false,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Existing rich-editor backlink panel",
+      "Existing canvas Loom chips and graph tooltip"
+    ],
+    "argus_targets": [
+      "backlinks-panel",
+      "backlink-{source_document_id}"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null,
+    "allocation": "Component/AccessKit scope in MT160/161; canonical live A-to-B Argus and strict screenshot closure in MT163. Inherited HBR-VIS error scan/layout/state/viewport obligations unchanged; no duplicate capture per child."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "Existing Everything-is-LoomBlock/backlink agent-tool and recovery entries in manual_content_editors.rs"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null,
+    "change_condition": "Only when behavior/manual inputs change; this governance split needs no manual edit or runtime rerun. Existing manual ownership/authorized exceptions required for writes.",
+    "existing_proof_refs": [
+      "test_manual_content::mt032_agent_tool_reference_covers_fixed_backlinks_controls",
+      "test_manual_content::wave5_surface_topics_exist_and_carry_real_no_context_facts",
+      "test_manual_pane_editors"
+    ]
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Workspace-scoped documents, Loom blocks and backlink identities"
+    ],
+    "identity_and_scope_contexts": [
+      "Authenticated account session and selected workspace/document"
+    ],
+    "enforcement_boundaries": [
+      "Existing production API and record-user permission boundary; no root bypass"
+    ],
+    "same_project_private_resource_cases": [
+      "Preserve existing parent authorized/private-resource proof"
+    ],
+    "cross_account_negative_cases": [
+      "Preserve denial and existence-concealment outcomes"
+    ],
+    "derived_resource_non_widening_cases": [
+      "Backlink/hash projections retain source resource scope"
+    ],
+    "revocation_and_context_switch_cases": [
+      "Reject stale document/workspace delivery and preserve inherited revocation cases"
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "No new remote/SaaS/MCP synchronization surface introduced"
+    ],
+    "metadata_side_channel_cases": [
+      "Authorized404 backlinks becomes empty; unauthorized missing resources retain typed403 concealment before/after restart"
+    ],
+    "expected_evidence": [
+      "stable_resource_owner_scope_linkage",
+      "default_deny_negative_test",
+      "same_project_cross_account_isolation_test_when_applicable",
+      "derived_resource_scope_non_widening_test_when_applicable",
+      "actor_owner_access_space_attribution",
+      "revocation_or_context_switch_test_when_applicable",
+      "remote_delegation_sync_scope_test_when_applicable",
+      "argus_or_typed_privacy_state_inspection_when_operator_visible"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-MAN"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER_EVENTLEDGER",
+      "inherited_status": "WIRED",
+      "parent_ref": "MT-032.json#hbr_int_009_tier_obligations",
+      "requirement": "Backlink row navigation and read-only refresh do not mutate authority and are NOT_APPLICABLE_WITH_REASON at Tier 1. The same surface's normal rich-document save and backlink mutation path is WIRED through KnowledgeRichDocumentSaved and returns save_receipt_event_id; the live managed SurrealDB proof asserts authentic non-empty save receipts.",
+      "split_allocation": "MT161 owns internal diagnostics/Palmistry same-sequence and negative cases; MT162 authentic save receipt; MT163 persistence and aggregate verification. Read-only navigation/refresh retain reasoned Tier1 non-applicability. No new proof claimed."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "inherited_status": "WIRED",
+      "parent_ref": "MT-032.json#hbr_int_009_tier_obligations",
+      "requirement": "ReqwestWikilinkBackend::list_backlinks registers the shared bounded BackendCall operation. A silent request emits one typed StalledOperation/BackendCall event into the shipped internal diagnostics recorder and Diagnostics Panel; fast success, 404, malformed JSON, network failure, and cancellation do not false-stall.",
+      "split_allocation": "MT161 owns internal diagnostics/Palmistry same-sequence and negative cases; MT162 authentic save receipt; MT163 persistence and aggregate verification. Read-only navigation/refresh retain reasoned Tier1 non-applicability. No new proof claimed."
+    },
+    {
+      "tier": "PALMISTRY",
+      "inherited_status": "WIRED",
+      "parent_ref": "MT-032.json#hbr_int_009_tier_obligations",
+      "requirement": "The same process-global recorder publishes the identical typed stalled-operation sequence into the shared file-backed ring consumed by Palmistry. The behavioral proof reads that exact sequence from a separately mapped ring and proves terminal cleanup.",
+      "split_allocation": "MT161 owns internal diagnostics/Palmistry same-sequence and negative cases; MT162 authentic save receipt; MT163 persistence and aggregate verification. Read-only navigation/refresh retain reasoned Tier1 non-applicability. No new proof claimed."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "parent_ref": "MT-032.json#execution_split_20260929",
+    "status_update_requirements": [
+      "Update this child and packet mt_plan/tracker status maps after authoritative disposition.",
+      "MT032 remains BLOCKED/FAIL_V14 until aggregate independent acceptance; synchronize parent/WP/handoff when their state changes.",
+      "Preserve all historical attempts and report exact scope/evidence/blocker/next actor."
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Splitting can hide required live cross-child proof or reset failing-assertion history.",
+      "Green component evidence can be incorrectly credited to changed backend inputs."
+    ],
+    "minimum_controls": [
+      "Preserve original parent acceptance and attempt accounting; MT163 consolidates all criteria.",
+      "Verify exact evidence inputs; no synthetic/seeded replacement for live save-derived behavior.",
+      "No widened backend/path authority or fresh runtime allowance from split."
+    ]
+  },
+  "title": "E5-MT-161-Backlink-UI",
+  "group": "E5",
+  "parent_split": {
+    "parent_mt": "MT-032",
+    "decision_ref": "MT-032.json#execution_split_20260929",
+    "decision_id": "WP012-MT032-SPLIT-20260929",
+    "scope_change": "None; preservation-first execution split, parent retains aggregate acceptance/history",
+    "governance_pin_ref": "packet.json#governance_pin",
+    "applicable_overrides_ref": "packet.json#paperwork_reconciliation_20260928.authority_resolution",
+    "product_candidate": "4e7b14ba83e686412707fa6e2a5088e3888f2ec3",
+    "write_authorization": "Only original parent allowed paths below. Existing prerequisite-owned consumers may be read; their ownership is not transferred. No new path waiver."
+  },
+  "hbr_swarm_allocation": "Retain applicable HBR-SWARM and consolidate its evidence/disposition in MT163. Bus-contention/stale-response tests alone do not prove two-agent-plus-operator behavior; no new test or waiver inferred.",
+  "dependencies": {
+    "backend_document_slice": {
+      "owner": "MT-154",
+      "assignment_ref": "MT-154.json#mt032_behavioral_remediation_request",
+      "required_for_live_acceptance": true,
+      "entire_mt154_verdict_required": false,
+      "current_blocker_ref": "MT-032.json#remediation_v15.counter_target_repair.escalation",
+      "required_for_live_acceptance_before_20260929": false,
+      "correction_20260929": "AC-161-1 needs live save-derived backlinks, so the backend slice is required for live acceptance."
+    },
+    "parent_is_aggregate_not_predecessor": true,
+    "grant_lookup_fix": {
+      "owner": "MT-164",
+      "required": true,
+      "decision_ref": "MT-032.json#execution_split_20260929.mt164_addition_20260929",
+      "diagnosis_ref": "MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN"
+    }
+  },
+  "operator_decision_20260929": {
+    "decision_id": "WP012-MT032-SPLIT-20260929-MT164",
+    "decided_on": "2026-09-29",
+    "chosen_option": "Add MT-164 backend fix (Recommended)",
+    "operator_quote": "New narrow MT-164, the real first part. It rewrites the grant checks to look up the resource first and then use the full index, and a focused core timing test proves it (grant count fixed, e.g. 50 vs 500). MT-160 narrows to component proof; MT-161/162/163 become BLOCKED on MT-164. I claim MT-164 and a builder sub-agent implements it."
+  }
+}

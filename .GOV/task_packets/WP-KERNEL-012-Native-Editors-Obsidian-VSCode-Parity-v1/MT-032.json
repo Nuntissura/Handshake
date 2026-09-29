@@ -1,4 +1,267 @@
 {
+  "execution_split_20260929": {
+    "decision_id": "WP012-MT032-SPLIT-20260929",
+    "recorded_at_utc": "2026-09-29T08:20:21.280923Z",
+    "authorized_by": "OPERATOR",
+    "operator_request": "ok mqke the extra mt to facilitate the splitm make sure the wp knows this got split if this is needed then record it in the handoff filem update the handoff file to the latest situation",
+    "change_kind": "PRESERVATION_FIRST_EXECUTION_SPLIT",
+    "authorization_scope": "Create four child MT contracts, synchronize WP paperwork and update the existing handoff. No product edit, build, runtime retry or acceptance relaxation authorized by this split.",
+    "parent_role": "MT-032 retains original scope, complete acceptance, downstream dependencies, verdicts and attempt history; children organize remaining review/execution without replacing aggregate independent acceptance.",
+    "children": [
+      {
+        "mt_id": "MT-164",
+        "contract": "MT-164.json",
+        "title": "Indexed grant lookup (backend root cause)",
+        "initial_status": "BLOCKED",
+        "added_by": "WP012-MT032-SPLIT-20260929-MT164"
+      },
+      {
+        "mt_id": "MT-160",
+        "contract": "MT-160.json",
+        "title": "Loom addressability",
+        "initial_status": "PENDING"
+      },
+      {
+        "mt_id": "MT-161",
+        "contract": "MT-161.json",
+        "title": "Backlink UI",
+        "initial_status": "PENDING"
+      },
+      {
+        "mt_id": "MT-162",
+        "contract": "MT-162.json",
+        "title": "Live document behavior",
+        "initial_status": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-163",
+        "contract": "MT-163.json",
+        "title": "Persistence and final integration",
+        "initial_status": "BLOCKED"
+      }
+    ],
+    "acceptance_mapping": [
+      {
+        "parent_acceptance_index_1_based": 1,
+        "children": [
+          "MT-160"
+        ]
+      },
+      {
+        "parent_acceptance_index_1_based": 2,
+        "children": [
+          "MT-160",
+          "MT-162"
+        ]
+      },
+      {
+        "parent_acceptance_index_1_based": 3,
+        "children": [
+          "MT-161",
+          "MT-162",
+          "MT-163"
+        ]
+      },
+      {
+        "parent_acceptance_index_1_based": 4,
+        "children": [
+          "MT-161",
+          "MT-163"
+        ]
+      },
+      {
+        "parent_acceptance_index_1_based": 5,
+        "children": [
+          "MT-160",
+          "MT-163"
+        ]
+      },
+      {
+        "parent_acceptance_index_1_based": 6,
+        "children": [
+          "MT-162",
+          "MT-163"
+        ]
+      },
+      {
+        "parent_acceptance_index_1_based": 7,
+        "children": [
+          "MT-161",
+          "MT-163"
+        ]
+      },
+      {
+        "parent_acceptance_index_1_based": 8,
+        "children": [
+          "MT-163"
+        ]
+      }
+    ],
+    "proof_mapping": [
+      {
+        "parent_proof_index_1_based": 1,
+        "children": [
+          "MT-160",
+          "MT-161",
+          "MT-163"
+        ]
+      },
+      {
+        "parent_proof_index_1_based": 2,
+        "children": [
+          "MT-162"
+        ]
+      },
+      {
+        "parent_proof_index_1_based": 3,
+        "children": [
+          "MT-162",
+          "MT-163"
+        ]
+      },
+      {
+        "parent_proof_index_1_based": 4,
+        "children": [
+          "MT-161",
+          "MT-163"
+        ]
+      },
+      {
+        "parent_proof_index_1_based": 5,
+        "children": [
+          "MT-160",
+          "MT-163"
+        ]
+      }
+    ],
+    "backend_owner": {
+      "mt_id": "MT-154",
+      "bounded_assignment_ref": "MT-154.json#mt032_behavioral_remediation_request",
+      "rule": "Only the authorized document slice blocks MT-162/163; MT-154 full route-family acceptance stays separate. Child contracts grant no backend write authority."
+    },
+    "preserved_prerequisites": [
+      "MT-031",
+      "MT-021",
+      "MT-022"
+    ],
+    "preserved_external_dependents": [
+      "MT-033",
+      "MT-034",
+      "MT-044"
+    ],
+    "proof_policy": {
+      "unchanged_acceptance_refs": [
+        "scope",
+        "hbr_obligations",
+        "hbr_int_009_tier_obligations",
+        "validation_v14.acceptance_disposition"
+      ],
+      "self_seeded_case": "live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof",
+      "self_seeded_case_unchanged": true,
+      "limits": "Existing 10-second self-seeded client (create/save included) and 15-second owned-restart save remain unchanged; preserve authentication, durable receipts, awaited indexing, backlinks/hash/lifecycle/restart/live mounted Argus/screenshots.",
+      "combined_proof": "The existing self-seeded case spans multiple children; this paperwork does not create independent executable selectors. Share its eventual valid result and retain final parent union.",
+      "reuse": "Reuse existing proof only after verifying all asserted inputs/dependencies/configuration unchanged; no child PASS inferred from old green cases. Shared guard self-tests run once in owning target.",
+      "roles": "KERNEL_BUILDER compile/static; independent WP_VALIDATOR runtime/acceptance; integration authority unchanged.",
+      "attempt_accounting": "All children inherit failing-assertion history and consumed authorizations; no new ID resets attempts or revives V19 probe. Pinned896f4e15 CX-EXEC-003/003A applies; no repin or post-pin lifetime cap."
+    },
+    "current_state": {
+      "product_candidate": "4e7b14ba83e686412707fa6e2a5088e3888f2ec3",
+      "aggregate_verdict": "FAIL_V14",
+      "aggregate_verdict_candidate": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
+      "focused_diagnostic": "V19_FAILED_1_OF_1",
+      "diagnostic_ref": "remediation_v15.counter_target_repair.diagnostic_result",
+      "failed_verdict_count": 8,
+      "max_fix_rounds_per_mt": null,
+      "runtime_blocker": "First linked save dropped at10010ms; counter statement3296741us; inner counter/query/permission/write attribution unresolved. Focused diagnostic is not a new aggregate verdict.",
+      "next_action": "MT-164 builder implementation (claimed KERNEL_BUILDER); then independent WP validator union round incl. MT-164 timing test; MT-161/162/163 wait on MT-164.",
+      "next_actor": "KERNEL_BUILDER",
+      "runtime_execution_authorized_by_split": false,
+      "next_action_before_mt164_20260929": "Review existing evidence and requirements per child without runtime reruns. Further backend attribution/repair requires the outstanding scoped decision and evidence-based hypothesis; no automatic retry.",
+      "root_cause_diagnosis_ref": "MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN",
+      "mt164_execution_authorized": "Builder compile/static only (Operator decision WP012-MT032-SPLIT-20260929-MT164)"
+    },
+    "handoff_ref": ".GOV/operator/messages_history/HANDOFF_WP-KERNEL-012_KB-orchestrator_2026-09-24_session7.md",
+    "mt164_addition_20260929": {
+      "decision_id": "WP012-MT032-SPLIT-20260929-MT164",
+      "recorded_at_utc": "2026-09-29T12:01:02Z",
+      "recorded_by": "KERNEL_BUILDER",
+      "operator_decision": {
+        "decision_id": "WP012-MT032-SPLIT-20260929-MT164",
+        "decided_on": "2026-09-29",
+        "recorded_at_utc": "2026-09-29T12:01:02Z",
+        "recorded_by": "KERNEL_BUILDER",
+        "authorized_by": "OPERATOR",
+        "chosen_option": "Add MT-164 backend fix (Recommended)",
+        "operator_quote": "New narrow MT-164, the real first part. It rewrites the grant checks to look up the resource first and then use the full index, and a focused core timing test proves it (grant count fixed, e.g. 50 vs 500). MT-160 narrows to component proof; MT-161/162/163 become BLOCKED on MT-164. I claim MT-164 and a builder sub-agent implements it.",
+        "earlier_operator_instruction_quote": "yes review and commit the split, mt 032 has been in dev hell, i really want this to be resolved and finished ... claim the first part of mt032",
+        "effect": "MT-164 created and claimed by KERNEL_BUILDER; builder compile/static work authorized; MT-160 narrowed to component proof; MT-161/162/163 BLOCKED on MT-164; tests run only by the independent WP validator."
+      },
+      "change": "MT-164 added as the first child (backend grant-lookup root cause); MT-160 narrowed to component proof (AC-160-2 moved to MT-162); MT-161/162/163 BLOCKED on MT-164; explicit test/source ownership recorded in each child.",
+      "children_status": {
+        "MT-164": "BLOCKED (claimed, open fix; no candidate yet)",
+        "MT-160": "PENDING (narrowed; validator_verdict null)",
+        "MT-161": "BLOCKED on MT-164",
+        "MT-162": "BLOCKED on MT-164",
+        "MT-163": "BLOCKED on MT-164"
+      },
+      "review_findings_ref": [
+        "MT-160.json#acceptance_revision_20260929",
+        "MT-161.json#dependencies.backend_document_slice.correction_20260929"
+      ],
+      "diagnosis_ref": "MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN"
+    },
+    "diagnoses": [
+      {
+        "diagnosis_id": "MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN",
+        "recorded_at_utc": "2026-09-29T12:01:02Z",
+        "recorded_by": "KERNEL_BUILDER",
+        "cause": "Grant fns filter resource_grants via resource_id.* link traversal; exact index uses 3 of 4 fields, scanning all grants",
+        "code_refs": [
+          "schema.surql:6044 fn::mt109_has_grant",
+          "schema.surql:6069 fn::mt109_has_workspace_access",
+          "schema.surql:6093 fn::mt109_source_read",
+          "schema.surql:6130 fn::mt120_document_access",
+          "schema.surql:6154 fn::mt120_loom_block_access"
+        ],
+        "evidence_refs": [
+          "product@4e7b14ba:src/backend/handshake_core/src/storage/surreal/schema.surql:6044-6173 (fn::mt109_has_grant, fn::mt109_has_workspace_access, fn::mt109_source_read, fn::mt120_document_access, fn::mt120_loom_block_access)",
+          "product@4e7b14ba:schema.surql:5850 resource_grants_exact_idx (account_id, principal_id, access_space_id, resource_id)",
+          "product@4e7b14ba:schema.surql:5810 protected_resources_external_unique (resource_kind, external_resource_id) UNIQUE",
+          "product@4e7b14ba:schema.surql:3903-3905 knowledge_idempotency_keys PERMISSIONS call fn::mt120_document_access",
+          "product@4e7b14ba:schema.surql:563-567 loom_edges PERMISSIONS call fn::mt120_document_access/fn::mt120_loom_endpoint_access",
+          "product@4e7b14ba:schema.surql:466-470 loom_blocks PERMISSIONS call fn::mt109_source_read/fn::mt120_document_access/fn::mt120_loom_block_access",
+          "product@4e7b14ba:schema.surql:6483 mt120_knowledge_rich_documents_update_guard calls fn::mt120_document_access",
+          "MT-032.json#remediation_v15.diagnostic_result.request_timings[*].lookup_us (~2135801-2213003us idempotency lookup)",
+          "MT-032.json#remediation_v15.counter_target_repair.diagnostic_result.timing_comparison (counter stmt5 3296741us; save_backlinks 5582ms; create receipt 350806us; save dropped 10010ms)"
+        ],
+        "mechanism": "Each check selects resource_grants with account_id/principal_id/access_space_id equality plus resource_id.resource_kind/external_resource_id (and parent_resource_id.*) link predicates, so the exact index matches only its 3-field prefix; every grant held by the principal is read and ~8 record links followed per grant. The checks run per row inside table PERMISSIONS and events on the save path.",
+        "verification": "Verified by code reading at product 4e7b14ba; not timed. Indexed precedent exists: fn::mt109_ledger_access (schema.surql:6314) and fn::mt120_workspace_delete (6696) already filter resource_id = <record>.",
+        "causality_limit": "Per-check scan cost is inferred from source; its share of the 2.1s lookup/3.3s counter/5.6s backlinks timings is unmeasured.",
+        "distinct_from": [
+          "MT032-DOCUMENT-CANDIDATE-QUERY-AMPLIFICATION",
+          "MT032-POST-CAPTURE-AUTHENTICATED-DROP",
+          "MT032-NEGATIVE-FIXTURE-DROP-ASSERTION",
+          "MT032-CREATE-ERROR-ERASURE",
+          "MT032-OWNED-FIXTURE-VAULT-TEARDOWN-ORDER",
+          "MT032_LIVE_DOCUMENT_SAVE_REQUEST_TIMEOUT",
+          "remediation_v15.counter_target_repair.hypothesis (table/index candidate planning in counter UPDATE)"
+        ],
+        "distinction_note": "Earlier causes concerned query count, fixture teardown, error erasure and counter UPDATE targeting; this cause is the unindexed grant scan inside every permission check, independent of query count or statement target.",
+        "repair_owner": "MT-164"
+      }
+    ],
+    "acceptance_mapping_revision_20260929": {
+      "parent_acceptance_index_1_based": 2,
+      "children_before": [
+        "MT-160",
+        "MT-162"
+      ],
+      "children_after": [
+        "MT-162"
+      ],
+      "reason": "AC-160-2 moved to MT-162."
+    }
+  },
   "paperwork_reconciliation_20260928": {
     "id": "WP012-MT032-PAPERWORK-20260928",
     "decision_ref": "packet.json#paperwork_reconciliation_20260928",
@@ -589,7 +852,7 @@
   "title": "E5-MT-032-EverythingIsLoomBlockBacklinks",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-29T04:03:10.939594Z",
+  "updated_at_utc": "2026-09-29T08:20:21.280923Z",
   "validation": {
     "proof_records": [
       {"proof_id":"PR-WP012-MT032-ec596eec-UNION-012","command":"C:/Program Files/Git/bin/bash.exe \"D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/run-round.sh\" ec596eecb70f2820cb357ef95d5820b890c8944f","cwd":".","commit":"ec596eecb70f2820cb357ef95d5820b890c8944f","tree_clean":true,"dirty_file_count":0,"executor_role":"WP_VALIDATOR","executor_session":"/root/wp_validator","target_dir":"WP-KERNEL-012/MT-109/wpv-c3x","started_utc":"2026-09-26T19:33:10.3524503Z","finished_utc":"2026-09-26T23:26:55.5249366Z","exit_code":0,"result_line":"[run-round] done. junit: D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-core.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-native.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-handshake_document.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-handshake_storage_support.xml (core_exit=100 native_exit=100 extracted=handshake_document:exit=0 handshake_storage_support:exit=0)","log_path":"WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ec596eecb70f2820cb357ef95d5820b890c8944f.stdout.log","features":["core:app-runtime,surreal-test-support,test-utils","native:integration,integration_tests,wgpu_screenshots","handshake_document:surreal-test-support","handshake_storage_support:surreal-test-support"],"env_knobs":{"CARGO_TARGET_DIR":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52","execution_inputs_ref":"MT-032.json#remediation_v13.validation_running.execution_inputs"},"covers":["MT-032","MT-154"]},
@@ -648,7 +911,12 @@
     "depends_on": [
       "MT-031",
       "MT-021",
-      "MT-022"
+      "MT-022",
+      "MT-160",
+      "MT-161",
+      "MT-162",
+      "MT-163",
+      "MT-164"
     ],
     "blocks": [
       "MT-033",
@@ -657,7 +925,8 @@
     ],
     "validator_verdict": "FAIL_V14",
     "prior_validator_verdict": "FAIL_V13",
-    "blocked_on": "MT-154: V19 first linked save dropped at10010ms; counter loop3296741us, inner query/permission/write cost unresolved; original live MT032 acceptance remains unclosed",
+    "blocked_on": "MT-164: indexed grant lookup root cause (MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN); prior MT-154/V19 blocker retained in blocked_on_before_mt164_20260929",
+    "blocked_on_before_mt164_20260929": "MT-154: V19 first linked save dropped at10010ms; counter loop3296741us, inner query/permission/write cost unresolved; original live MT032 acceptance remains unclosed",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "WP_VALIDATOR",
     "validated_at_utc": "2026-09-29T04:03:10.939594Z",
@@ -869,7 +1138,8 @@
       "current_escalation_ref": "remediation_v15.counter_target_repair.escalation",
       "prior_resolution_ref": "remediation_v15.counter_target_repair.escalation.prior_decision_state"
     },
-    "active_remediation_ref": "remediation_v15"
+    "active_remediation_ref": "remediation_v15",
+    "split_ref": "execution_split_20260929"
   },
   "scope": {
     "summary": "Make documents, rich-text blocks, canvas placements, code-file nodes and graph nodes addressable through the existing Loom model, with stable identity, authoritative canonical content hashes and live backlinks. Preserve the everything-is-a-Loom-block interconnection requirement.\n\nMaintain loom_address.rs and its LoomBlockAddr, ContentHash, LoomBlockRecord, LoomBlockType, loom_uri, parse_loom_uri and LoomBlockResolver. Addresses use loom://{workspace_id}/{block_id}, remain stable across rename and derive identity from the backend.\n\nReuse the MT015 panel at rich_editor/wikilinks/backlinks_panel.rs and MT024 sidebar at graph/sidebar_panel.rs; do not create a third backlink panel. Bind the existing panel at the bottom of the rich-text editor through rich_editor/renderer/rich_editor_widget.rs. Rows show source_document_id and link_kind; clicks route the source through CMD_OPEN_DOCUMENT on the existing command bus into the live shell. Reuse AccessKit author IDs backlinks-panel (List) and backlink-{source_document_id} (ListItem with Press). Refresh on save invalidation and reject stale document/workspace deliveries.\n\nReuse graph/canvas_board.rs: a placed_block_id produces a loom:// chip in the canvas node header and double-click opens its referenced document through the existing interaction route; an absent placement ID produces no fabricated address. Preserve loom_graph.rs URI tooltips and backlink counts. Reuse the authenticated backend client for document load, backlinks, workspace-scoped Loom blocks/transclusion and canvas boards.\n\nNormal document save through PUT /knowledge/documents/{document_id}/save computes and persists the canonical hash server-side. Reload the saved document and Loom block and compare their hashes with the existing MT020 canonical_content_sha256 implementation. LoomBlockUpdate exposes no writable content_hash; no client PATCH of that field is required. Reuse the existing canonical serializer and sha2 dependency.\n\nPreserve MT031 command registration/shell navigation, MT021 graph and MT022/MT026 canvas placement prerequisites. Preserve URI round-trip, hash determinism, real-created identity, save-derived A-to-B backlink, navigation, AccessKit, canvas and graph proofs in the existing test surfaces. Stateful proof uses isolated Handshake-managed embedded SurrealDB/EventLedger through production APIs, including owning-store/runtime close and reopen. Preserve the existing 10s self-seeded client (including create/save) and 15s owned-restart save deadlines, durable receipts, awaited required indexing, backlink remove/restore/delete, persisted canonical hashes, missing/stale behavior, owned restart, mounted Argus and strict screenshot floor.\n\nBackend remediation remains owned by MT154's authorized document slice. This reconciliation does not expand MT032's allowed paths or authorize backend edits.",
