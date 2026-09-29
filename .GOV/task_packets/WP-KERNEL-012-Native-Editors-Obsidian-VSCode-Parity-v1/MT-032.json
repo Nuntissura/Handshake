@@ -51,7 +51,8 @@
     "create_first_repair": {
       "state": "FOCUSED_CORE_AUTH_PROOF_PASSED_FULL_MT_ACCEPTANCE_PENDING",
       "acceptance_union": {
-        "state": "CAPACITY_ADMITTED_OBSERVERS_PREPARING_NO_RUNTIME",
+        "state": "RUNNING_ACCEPTANCE",
+        "release": {"ref":"MT032-V15-ACCEPTANCE-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75.release.json","released_utc":"2026-09-29T00:31:07.9310832Z","started_utc":"2026-09-29T00:31:13.7762935Z","governance_commit":"bd5b3288","wrapper_pid":223832,"phase_pid":218932,"cap_pid":115944,"bash_pid":218504,"parent_review":"Exact live process births, ready paths/schema/candidate and first capacity independently verified; orchestrator8/8 dispatch and10/10 round, builder16/16, WPV27/27 gates passed"},
         "candidate": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
         "entrypoint": "WPV-union-round.sh",
         "entrypoint_sha256": "1E06DABDF7D6BC3C51566F484729AD724A8625893B44A35340EAE42F341BFBAE",
