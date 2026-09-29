@@ -1944,6 +1944,18 @@
         "answer_text": "Validator reruns only the timing test on de04b8f0 using the retained build, so it's minutes, not an hour. It records the real medians and then issues the verdict. The numbers matter for MT-162: they show how much of the 10s save budget is left.",
         "effect": "Authorizes exactly one capture run of storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count on de04b8f0 with output capture (config 3db73ab0)."
       }
+    },
+    {
+      "recorded_at": "2026-09-29",
+      "recorded_by": "KERNEL_BUILDER root session",
+      "followups": {
+        "answer": "both approved",
+        "created_mts": [
+          "MT-165 session worktree test cleanup",
+          "MT-166 index-bound remaining grant scans"
+        ],
+        "relationship": "Not MT-032 children; not required for MT-032 acceptance."
+      }
     }
   ],
   "mt164_outcome_20260929": {

@@ -1,0 +1,543 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-165",
+  "created_at_utc": "2026-09-29T18:50:00Z",
+  "updated_at_utc": "2026-09-29T18:50:00Z",
+  "identity": {
+    "mt_id": "MT-165",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "E5-MT-165-Session-Worktree-Test-Cleanup",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Tests that allocate session worktrees remove them (git worktree registration and directory) on success and on failure, so no stray worktree or folder remains after a run (CX-GIT-001/003). Covers the MT-141 scheduler test and whichever test created native-mt101-* session worktrees under Handshake_Artifacts/handshake-tool/session_worktrees.",
+    "requirement_refs": [
+      "packet.json#operator_decisions_20260929",
+      "HANDOFF findings-gaps-unknowns-20260929"
+    ],
+    "acceptance_refs": [
+      "AC-165-1",
+      "AC-165-2",
+      "AC-165-3",
+      "AC-165-4"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-165-1",
+        "requirement": "model_session_scheduler_tests removes every git worktree it registers (git worktree remove + prune on the owning repo) and its root directory, on pass and on panic/failure (Drop guard or equivalent), without touching worktrees it did not create."
+      },
+      {
+        "id": "AC-165-2",
+        "requirement": "The test that creates native-mt101-* session worktrees is identified with file:line evidence and given the same cleanup; if it is product runtime rather than a test, record that as a finding and do not change product behavior."
+      },
+      {
+        "id": "AC-165-3",
+        "requirement": "Cleanup never deletes recursively through a reparse point or outside the root the test created; it verifies the target is inside its own recorded root first."
+      },
+      {
+        "id": "AC-165-4",
+        "requirement": "Validator round evidence: git worktree inventory before and after the round is identical (CX-GIT-001), and the per-pid scheduler root is absent after the round."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Authorization-semantics-preserving rewrite of SurrealQL permission functions plus schema revision/pin mechanics; errors widen or deny access.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "max_fix_rounds_per_mt": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [
+      "MT-032.json#execution_split_20260929.diagnoses[0] (MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN)"
+    ],
+    "no_counter_reset": true,
+    "applicability": "Pinned 896f4e15 CX-EXEC-003/003A plus recorded override f6bbcaac (packet.json#paperwork_reconciliation_20260928.authority_resolution). MT-164 is a new cause with its own per-check counters; it does not reset or reuse MT-032/MT-162 assertion history."
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "foreground_or_interactive_tools_forbidden": true,
+    "owning_module": "handshake_core storage/surreal (src/backend/handshake_core/src/storage/surreal) [CX-UNIT-001]",
+    "depends_on": [],
+    "allowed_write_paths": [
+      "src/backend/handshake_core/tests/model_session_scheduler_tests.rs (cleanup of the worktree root it sets via HANDSHAKE_SESSION_WORKTREE_ROOT; no change to assertions)",
+      "the test file(s) that allocate native-mt101-* session worktrees, once identified by inspection (record the exact path in implementation_record before editing; test cleanup only)",
+      "a shared test-support cleanup helper in the same test crate only if two or more tests need it"
+    ],
+    "forbidden_write_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/frontend/**",
+      "src/backend/handshake_document/**",
+      "any other schema.surql/schema.rs statement",
+      "any SQLite/PostgreSQL path (CX-503R)"
+    ],
+    "write_scope_note": "Brief named schema.surql plus one test file. schema.rs is added because the pinned catalog (schema.rs:18 SCHEMA_REVISION=161, :2752 GENERATED_SURREALQL_SHA256, :2836 EXPECTED_SCHEMA_INFO_SHA256, :306-349 re-emitted pre-revision function text) must change with any fn text change; verified by code reading at 4e7b14ba.",
+    "stop_conditions": [
+      "Any needed write outside allowed_write_paths: stop and report file:line; do not edit.",
+      "If identical semantics cannot be expressed with resolve-first lookup (e.g. record-user permissions on protected_resources hide a record the link traversal saw), stop and record operator_decision_request; do not widen via privileged execution.",
+      "Builder runs compile/static checks only (CX-EXEC-014); no cargo test/nextest, no runtime probe.",
+      "EXPECTED_SCHEMA_INFO_SHA256 is historically runtime-measured (schema.rs:2830-2835 PIN-MEASURE); if it cannot be derived statically, record the exact blocker instead of guessing a value."
+    ],
+    "source_ownership_note": {
+      "recorded_at_utc": "2026-09-29T12:01:02Z",
+      "mt164_owns": "Only the five grant/access DEFINE FUNCTION definitions in schema.surql, the schema.rs revision/pin/upgrade entries they force, and the new timing test in resource_authority_tests.rs.",
+      "mt154_overlap": "MT-154 (READY_FOR_VALIDATION, claimed KERNEL_BUILDER-C4-20260923-100258) also lists schema.surql and schema.rs. MT-164 builds on the MT-154 candidate 4e7b14ba, touches no MT-154 statement, and must keep MT-154's schema delta/upgrade tests green; coordinate commits so only one schema.rs revision bump lands per candidate.",
+      "invalidation_warning": "A schema.surql/schema.rs change intersects the relevant inputs of backend-dependent PASS MTs; at round freeze the WP validator returns affected PASS MTs to READY_FOR_VALIDATION (CX-VAL-009)."
+    },
+    "product_worktree": "wtc-native-editors-v1 (branch feat/WP-KERNEL-012)",
+    "base_commit": "4e7b14ba83e686412707fa6e2a5088e3888f2ec3",
+    "artifact_owner_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-164/kb/ (CX-984-002; target/TMP/logs below it; build disk as named in dispatch, KB-OUT-008)",
+    "execution_authorized": true,
+    "execution_authorization_scope": "Builder source edits within allowed_write_paths plus compile/static checks, per Operator decision WP012-MT032-SPLIT-20260929-MT164. Tests are run only by the independent WP validator.",
+    "next_action": "MT-164 builder implementation: rewrite the five fns resolve-first, add schema revision/pins and the timing test, cargo check, commit and push, record proof_records, then submit READY_FOR_VALIDATION after gameplan before_submit.",
+    "artifact_owner_dir_correction": {
+      "recorded_at_utc": "2026-09-29T13:01:00Z",
+      "previous": "Handshake_Artifacts/WP-KERNEL-012/MT-164/kernel_builder/",
+      "actual": "Handshake_Artifacts/WP-KERNEL-012/MT-164/kb/",
+      "reason": "The builder dispatch named MT-164/kb/target (KB-OUT-008); every builder check ran there."
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "MT-165-BUILDER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "claim_refs": [
+          "AC-165-1",
+          "AC-165-2",
+          "AC-165-3"
+        ],
+        "command_or_method": "cd src/backend/handshake_core && CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-165/kb/target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only cargo check --locked --tests --features app-runtime,surreal-test-support,test-utils",
+        "expected": "exit 0; input digest unchanged"
+      },
+      {
+        "check_id": "MT-165-VALIDATOR-INVENTORY",
+        "executor_role": "WP_VALIDATOR",
+        "claim_refs": [
+          "AC-165-1",
+          "AC-165-4"
+        ],
+        "command_or_method": "Union round covering model_session_scheduler_tests (and the AC-165-2 test) with worktree inventory captured before and after",
+        "expected": "tests pass; inventory unchanged; no leftover root"
+      }
+    ]
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-164.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-164.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "parent_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json",
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json",
+    "authority_pin": "896f4e15",
+    "recorded_override": "f6bbcaac65105791d4fcc9b9338799ece1ce08e4",
+    "authority_resolution_ref": "packet.json#paperwork_reconciliation_20260928.authority_resolution"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-164.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "MT-165 open fix: builder implementation commit not yet pushed",
+    "depends_on": [],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER-20260929-185000",
+    "claimed_at_utc": "2026-09-29T18:50:00Z",
+    "claim_ref": "Operator decision 2026-09-29 'both approved'",
+    "completed_by": null,
+    "next_actor": "KERNEL_BUILDER",
+    "status_reason": "Created and claimed; implementation pending.",
+    "rounds_without_output": 0,
+    "diagnosis_refs": []
+  },
+  "scope": {
+    "summary": "Tests that allocate session worktrees remove them (git worktree registration and directory) on success and on failure, so no stray worktree or folder remains after a run (CX-GIT-001/003). Covers the MT-141 scheduler test and whichever test created native-mt101-* session worktrees under Handshake_Artifacts/handshake-tool/session_worktrees.",
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/model_session_scheduler_tests.rs (cleanup of the worktree root it sets via HANDSHAKE_SESSION_WORKTREE_ROOT; no change to assertions)",
+      "the test file(s) that allocate native-mt101-* session worktrees, once identified by inspection (record the exact path in implementation_record before editing; test cleanup only)",
+      "a shared test-support cleanup helper in the same test crate only if two or more tests need it"
+    ],
+    "forbidden_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/frontend/**",
+      "src/backend/handshake_document/**",
+      "any other schema.surql/schema.rs statement",
+      "any SQLite/PostgreSQL path (CX-503R)"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-164-1",
+        "requirement": "Each of fn::mt109_has_grant, fn::mt109_has_workspace_access, fn::mt109_source_read, fn::mt120_document_access and fn::mt120_loom_block_access first resolves the protected_resources record by (resource_kind, external_resource_id) through protected_resources_external_unique (parent/grandparent via that record's links), then selects resource_grants with account_id, principal_id, access_space_id and resource_id = <resolved record> equality, so resource_grants_exact_idx serves all four fields. No resource_id.* link predicate remains in those resource_grants WHERE clauses."
+      },
+      {
+        "id": "AC-164-2",
+        "requirement": "Allow/deny semantics are identical for every existing condition: live session; session and principal delegated_capabilities ('*' or the capability); grant status active, revoked_at NONE, expiry; account/principal/access_space equality; resource lifecycle_state active, owner_account_id, access_space_id, created_by_principal_id.status enabled; resource policy_version <= grant policy_version <= $auth.policy_version where currently checked; resource_kind/external_resource_id; parent and grandparent chain conditions (mt109_source_read, mt120_document_access, mt120_loom_block_access); actions and capability_ids; delegation_chain equality; the reconciliation_queue service-identity special case; the memory.propose/memory.read delegation rule in mt109_source_read. A missing resource returns false without error. Function signatures, callers, table PERMISSIONS clauses and the record-user execution context are unchanged; no privileged/root path is introduced."
+      },
+      {
+        "id": "AC-164-3",
+        "requirement": "Existing authority and denial tests stay green on the candidate: every test in storage::surreal::resource_authority_tests, plus the union's existing core authority selections (schema catalog/pin/upgrade tests, schema::tests::document_grant_single_live_policy_witness_controls_record_user_visibility, api::loom::tests::mt153_loom_route_family_authority_matrix, mt154_non_loom_route_authority_tests, knowledge_fail_closed_tests, knowledge_documents_api_tests, loom_atomic_receipt_tests)."
+      },
+      {
+        "id": "AC-164-4",
+        "requirement": "New focused core timing test storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count runs as record user on the existing embedded SurrealDB resource-authority harness. For N=50 and N=500 active grants held by the same principal on distinct protected resources, it times (i) one SELECT of a knowledge_idempotency_keys row by record id and (ii) one fn::mt120_document_access check; each metric is the median of 5 timed samples after 1 warm-up. It asserts median(N=500)/median(N=50) < 2.0 and every median < 250 ms, asserts every timed probe returned the authorized row/true (no vacuous timing) and a no-grant probe returns empty/false, prints the measured values, and removes everything it creates outside the artifact root (CX-GIT-003)."
+      },
+      {
+        "id": "AC-164-5",
+        "requirement": "The schema catalog stays consistent: because the fn text is part of the pinned catalog, SCHEMA_REVISION advances with a predecessor-upgrade path following the existing revision-160/161 pattern in schema.rs (re-emit the changed DEFINE FUNCTION statements, record the predecessor pins, update GENERATED/INFO pins). A revision-161 store upgrades in place; existing pin/upgrade tests change only as the bump requires and pass."
+      },
+      {
+        "id": "AC-164-6",
+        "requirement": "No SQLite/PostgreSQL connectivity, fallback, cache or fixture path is introduced (CX-503R); the proof uses the Handshake-managed embedded SurrealDB harness only."
+      }
+    ],
+    "proof_targets": [
+      "MT-164-BUILDER-COMPILE",
+      "MT-164-VALIDATOR-UNION"
+    ],
+    "implementation_notes": [
+      "Reuse precedent: fn::mt109_ledger_access (schema.surql:6309-6327) and fn::mt120_workspace_delete (6678-) already use resource_id = <record> equality.",
+      "Resolve with a LET of the single protected_resources row for (kind, external) then compare fields on that row; keep evaluation under the caller's record-user permissions (protected_resources select PERMISSIONS at schema.surql:5771-5776 add owner_account_id.status = 'enabled'; verify parity).",
+      "mt109_source_read and mt120_* also resolve the parent (and grandparent for knowledge_source/rich_document parents) from the resolved row's parent_resource_id links; conditions stay identical.",
+      "Keep mt109_has_grant's reconciliation_queue branch on principal_id.principal_kind/capability_profile_id unchanged.",
+      "Do not change callers, table PERMISSIONS, events or any MT-154 statement.",
+      "Seed test grants through the harness's privileged setup; query as the record user; clean up per CX-GIT-003."
+    ],
+    "operator_decision_request": null
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend permission-function performance repair; no operator surface changes. Downstream visual proof stays with MT-160/161/163."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": "No user-visible behavior or control changes; authorization outcomes are identical by AC-164-2."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "protected_resources",
+      "resource_grants",
+      "all tables whose PERMISSIONS call the five fns"
+    ],
+    "identity_and_scope_contexts": [
+      "Authenticated record-user session ($auth account/principal/access_space/delegation_chain/policy_version)"
+    ],
+    "enforcement_boundaries": [
+      "SurrealDB table PERMISSIONS and events calling the grant fns; no root bypass"
+    ],
+    "same_project_private_resource_cases": [
+      "Existing resource_authority_tests two-account/two-space and default-deny matrices stay green"
+    ],
+    "cross_account_negative_cases": [
+      "cross_account_and_capability_without_grant_fail_closed and direct_record_user_* matrices stay green"
+    ],
+    "derived_resource_non_widening_cases": [
+      "Parent/grandparent chain conditions preserved (memory_source_reads_require_exact_grants_and_preserve_derived_origin)"
+    ],
+    "revocation_and_context_switch_cases": [
+      "exact_capability_and_grant_are_both_required_and_revocation_is_immediate, revoked_session_and_disabled_account_fail_closed, expired_session_fails_closed, access_space_switch_is_same_account_only_and_drops_old_space_grants"
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [
+      "Missing resource returns false, not an error that reveals existence"
+    ],
+    "expected_evidence": [
+      "stable_resource_owner_scope_linkage",
+      "default_deny_negative_test",
+      "same_project_cross_account_isolation_test_when_applicable",
+      "derived_resource_scope_non_widening_test_when_applicable",
+      "actor_owner_access_space_attribution",
+      "revocation_or_context_switch_test_when_applicable",
+      "remote_delegation_sync_scope_test_when_applicable",
+      "argus_or_typed_privacy_state_inspection_when_operator_visible"
+    ],
+    "not_applicable_reason": null,
+    "remote_not_applicable_reason": "No remote/SaaS/MCP/sync surface touched"
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER_EVENTLEDGER",
+      "status": "NOT_APPLICABLE_WITH_REASON",
+      "reason": "Read-side permission evaluation emits no business events; save receipts remain MT-162/MT-154."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "NOT_APPLICABLE_WITH_REASON",
+      "reason": "No new operation or stall surface; timing test prints measured medians as evidence."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE_WITH_REASON",
+      "reason": "No native process or ring surface touched."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "parent_ref": "MT-032.json#execution_split_20260929",
+    "split_decision_id": null,
+    "product_candidate_base": "6391a29f89dd51872c730c66bb9bea5f42d6822c",
+    "status_update_requirements": [
+      "On pushed commit: record SHA and proof_records, set READY_FOR_VALIDATION after gameplan before_submit (KB-PROOF-007).",
+      "On MT-164 verdict: update MT-161/162/163 blocked_on, packet mt_plan/tracker, TASK_BOARD, BUILD_ORDER and handoff.",
+      "Preserve all history; MT-032 aggregate verdict unchanged by MT-164."
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Cleanup removes a worktree the test did not create.",
+      "Cleanup skipped on panic.",
+      "Recursive delete follows a junction into the kernel."
+    ],
+    "minimum_controls": [
+      "Guard removes only paths it recorded at creation, inside its own root.",
+      "Drop-based guard runs on panic.",
+      "Reparse-point check before deletion (AC-165-3)."
+    ]
+  },
+  "hbr_swarm_allocation": "Grant-count independence directly serves multi-agent use (many grants per principal); parallel-lane behavior evidence stays with existing WP swarm proofs; no new waiver.",
+  "title": "E5-MT-165-Session-Worktree-Test-Cleanup",
+  "group": "E5",
+  "parent_split": {
+    "parent_mt": null,
+    "decision_ref": "packet.json#operator_decisions_20260929",
+    "scope_change": "New Operator-approved follow-up MT; not a child of MT-032 and not required for MT-032 acceptance.",
+    "governance_pin_ref": "packet.json#governance_pin",
+    "write_authorization": "execution.allowed_write_paths only"
+  },
+  "operator_decision": {
+    "at": "2026-09-29",
+    "recorded_by": "KERNEL_BUILDER root session",
+    "question": "Optional work while the round runs (new scope, needs Operator OK): (1) MT-141 scheduler test cleanup of the session worktrees it creates; (2) index-bind the two grant queries that still full-scan (protected_resources select permission, fn::mt109_ledger_access).",
+    "answer": "both approved"
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR-20260929-MT164-ROUND2",
+    "validated_at_utc": "2026-09-29T16:35:56Z",
+    "candidate_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df",
+    "proof_records_ref": "MT-164.json#validation.proof_records[PR-WP012-UNION-de04b8f0-CORE]",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-core.xml",
+    "started_at": "2026-09-29T15:15:21.5051720Z",
+    "completed_at": "2026-09-29T16:32:17.6521541Z",
+    "mapped_cases": {
+      "resource_authority_tests": "PASS 16/16 incl grant_check_cost_is_independent_of_grant_count (28.1 s)",
+      "schema_pin_upgrade_tests": "PASS 13/13 incl indexed_grant_revision_161 upgrade and all re-pinned pin tests",
+      "ac_164_3_union_selections": "PASS except 5 stack-overflow aborts that failed identically at 8ea13a9b (MT-154/MT-153 stage/loom scope, not MT-164)"
+    },
+    "unclosed_required_proof": [
+      "AC-164-4 evidence: printed medians and ratio not captured (success output discarded by entrypoint config)"
+    ],
+    "acceptance": {
+      "AC-164-1": "met (static review de04b8f0: resolve-first, LET-bound $auth values, 4-field equality)",
+      "AC-164-2": "met: early-exit chain preserves each old condition; authority/denial tests 16/16 pass",
+      "AC-164-3": "met: all MT-164-induced regressions from FAIL_V1 fixed (55 cases); remaining 5 aborts pre-date MT-164",
+      "AC-164-4": "thresholds met (test passed: ratio < 2.0 and every median < 250 ms asserted, non-vacuous and no-grant probes asserted); measured values NOT recorded",
+      "AC-164-5": "met",
+      "AC-164-6": "met"
+    },
+    "timing": {
+      "values": "not captured this round",
+      "asserted_bounds": "median(N=500)/median(N=50) < 2.0 for both metrics; each median < 250 ms"
+    },
+    "stack_overflows": {
+      "count": 5,
+      "ee9efaba": 59,
+      "baseline_8ea13a9b": 5,
+      "cases": [
+        {
+          "test": "api::loom::tests::mt153_loom_route_family_authority_matrix",
+          "thread": "test thread"
+        },
+        {
+          "test": "api::workspaces::tests::mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows",
+          "thread": "test thread"
+        },
+        {
+          "test": "mt154_non_loom_route_authority_tests::mt154_stage_routes_authority",
+          "thread": "tokio-rt-worker"
+        },
+        {
+          "test": "wp_kernel_012_native_editor_routes_tests::route2_stage_artifact_create_and_resolve",
+          "thread": "tokio-rt-worker"
+        },
+        {
+          "test": "wp_kernel_012_native_editor_routes_tests::stage_flight_projection_failure_returns_500_and_retry_heals_once",
+          "thread": "tokio-rt-worker"
+        }
+      ],
+      "note": "All 5 failed identically at 8ea13a9b (pre-MT-164); 55 cases failing at ee9efaba now pass."
+    },
+    "remediation_scope_note": "Operator-approved scope widening (main.rs, storage/tests.rs 10 MiB stacks) verified as stack-size-only diffs.",
+    "blocker": {
+      "failure_kind": "infrastructure",
+      "failure_class": "ENTRYPOINT-SUCCESS-OUTPUT-NOT-CAPTURED",
+      "fixed_by": "3db73ab0",
+      "needed_decision": "Authorize one capture run of the timing test on unchanged de04b8f0 (CX-EXEC-014 recorded remediation) or accept assertion-bounded evidence for AC-164-4"
+    },
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT164-de04b8f0-union-verdict",
+        "at_utc": "2026-09-29T16:35:56Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT164-de04b8f0-union-verdict",
+        "at_utc": "2026-09-29T16:35:56Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
+      }
+    ]
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "validated_by": "WP_VALIDATOR-20260929-MT164-CAPTURE",
+    "validated_at_utc": "2026-09-29T16:55:24Z",
+    "candidate_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df",
+    "proof_record_ids": [
+      "PR-WP012-UNION-de04b8f0-CORE",
+      "PR-WP012-MT164-CAPTURE-de04b8f0"
+    ],
+    "results_refs": [
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-core.xml",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df-core-mt164-capture.xml"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-164-BUILDER-COMPILE",
+        "result": "implementer compile evidence exit 0 at de04b8f0 (build health only); independent union build of the same commit compiled all selected targets"
+      },
+      {
+        "check_id": "MT-164-VALIDATOR-UNION",
+        "result": "PASS",
+        "resource_authority_tests": "PASS 16/16 (union de04b8f0)",
+        "timing_test": {
+          "n50_idempotency_select_median_ms": 20.845,
+          "n50_document_access_check_median_ms": 21.316,
+          "n500_idempotency_select_median_ms": 12.699,
+          "n500_document_access_check_median_ms": 12.436,
+          "ratio_500_over_50": {
+            "idempotency_select": 0.609,
+            "document_access_check": 0.583
+          },
+          "limits": "ratio < 2.0 met for both; every median < 250 ms met",
+          "interpretation": "Flat in grant count (N=500 not slower than N=50; difference is warm-up/noise). ee9efaba comparison: 4.05/4.27 ratios, 70.5/68.8 ms at N=500.",
+          "test": "storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count",
+          "result": "passed in union (28.1 s) and in capture (30.8 s)"
+        },
+        "schema_pin_upgrade_tests": "PASS 13/13 incl indexed_grant_revision_161_upgrade_preserves_data_and_restarts_current",
+        "ac_164_3_union_selections": "PASS except 5 stack-overflow aborts that fail identically at pre-MT-164 baseline 8ea13a9b: mt153_loom_route_family_authority_matrix (MT-153 FAIL_V2), mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows and mt154_stage_routes_authority (MT-154 FAIL_V3), route2_stage_artifact_create_and_resolve and stage_flight_projection_failure_returns_500_and_retry_heals_once (Stage routes, same signature). Not MT-164 regressions; AC-164-3 requires existing tests to stay green, these were not green before MT-164."
+      }
+    ],
+    "acceptance": {
+      "AC-164-1": "met: all five fns resolve protected_resources first; resource_grants WHERE uses LET-bound account/principal/access_space plus resource_id equality (reviewed de04b8f0)",
+      "AC-164-2": "met: sequential early exits preserve every prior condition per fn (policy_version pair only where it existed; source_read parent/grandparent and memory.propose/read rule; reconciliation_queue clause); 16/16 authority and denial tests pass",
+      "AC-164-3": "met (no regression; 55 FAIL_V1 cases restored; 5 pre-existing reds owned by MT-153/MT-154)",
+      "AC-164-4": "met: medians and ratios above; probe (ii) wording ruled in validation_v1",
+      "AC-164-5": "met: re-pinned INFO/Atelier/Loom pins and rev-161 upgrade pass",
+      "AC-164-6": "met: embedded SurrealDB only"
+    },
+    "scope_check": "diff 4e7b14ba..de04b8f0 touches only allowed_write_paths incl. Operator-widened main.rs/storage/tests.rs (stack-size-only diffs)",
+    "hbr": "HBR-INT-009 tiers NOT_APPLICABLE_WITH_REASON (recorded); UserManual NOT_APPLICABLE (no user-visible change); GUI/Argus not required; resource privacy cases covered by resource_authority_tests",
+    "spec_realism": "proof exercises real embedded SurrealDB record-user permission evaluation; no deferred-live escape; implementer KERNEL_BUILDER, validator independent",
+    "downstream_note": "For MT-162 budget: per-check permission cost ~12-21 ms at 50-500 grants in the debug test profile.",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT164-de04b8f0-capture-verdict",
+        "at_utc": "2026-09-29T16:55:24Z",
+        "decision": "passed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT164-de04b8f0-capture-verdict",
+        "at_utc": "2026-09-29T16:55:24Z",
+        "decision": "passed",
+        "state_effect": "lifecycle.status PASS_V3"
+      }
+    ]
+  },
+  "validation": {
+    "proof_records": []
+  }
+}
