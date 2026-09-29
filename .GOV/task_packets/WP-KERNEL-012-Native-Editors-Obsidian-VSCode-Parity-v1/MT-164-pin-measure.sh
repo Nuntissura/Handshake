@@ -9,7 +9,8 @@ LANE="${3:?existing wpv-c3x lane required}"
 TARGET="${4:?existing C warm target required}"
 NEXTEST="${5:?pinned nextest executable required}"
 ARTIFACTS="${6:?canonical artifacts root required}"
-CONSUMED="$LANE/MT164-PIN-MEASURE.started"
+# One measurement per candidate SHA (legacy marker MT164-PIN-MEASURE.started = 179ffc1f).
+CONSUMED="$LANE/MT164-PIN-MEASURE-${SHA:0:8}.started"
 [[ "$SHA" =~ ^[0-9a-f]{40}$ && ! -e "$CONSUMED" ]] || exit 2
 [[ -d "$LANE" && -d "$TARGET" && -x "$NEXTEST" ]] || exit 2
 export GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never
