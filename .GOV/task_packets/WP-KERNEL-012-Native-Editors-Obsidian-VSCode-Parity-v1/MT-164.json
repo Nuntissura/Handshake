@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-164",
   "created_at_utc": "2026-09-29T12:01:02Z",
-  "updated_at_utc": "2026-09-29T13:01:00Z",
+  "updated_at_utc": "2026-09-29T14:31:39Z",
   "identity": {
     "mt_id": "MT-164",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -227,7 +227,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "blocked_on": null,
     "depends_on": [],
     "blocks": [
@@ -237,13 +237,13 @@
       "MT-032"
     ],
     "active": true,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V1",
     "claimed_by": "KERNEL_BUILDER-20260929-120102",
     "claimed_at_utc": "2026-09-29T12:01:02Z",
     "claim_ref": "KERNEL_BUILDER-20260929-120102: Operator decision WP012-MT032-SPLIT-20260929-MT164 ('I claim MT-164 and a builder sub-agent implements it')",
     "completed_by": null,
-    "next_actor": "WP_VALIDATOR",
-    "status_reason": "Pushed re-pinned candidate ee9efaba (validator-measured INFO/Atelier/Loom pins applied) with builder compile/static evidence; gameplan before_submit PASS (KB-PROOF-007).",
+    "next_actor": "KERNEL_BUILDER",
+    "status_reason": "FAIL_V1 on ee9efaba union: grant-cost ratio 4.05/4.27 (limit 2.0) and 52 previously green core tests now abort with store-engine stack overflow.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN"
@@ -253,7 +253,10 @@
     "validator_required_before_acceptance": {
       "pin_measure": "DONE: pins measured on 179ffc1f (validation.pin_measurement) and applied in ee9efaba.",
       "core_filter": "WPV-union-round.sh CORE_FILTER must admit storage::surreal::resource_authority_tests:: and the new schema test (proof.checks[1].entrypoint_change_required)."
-    }
+    },
+    "validated_by": "WP_VALIDATOR-20260929-MT164-ROUND",
+    "validated_at_utc": "2026-09-29T14:31:39Z",
+    "validated_commit": "ee9efaba664bfa6e2987a847979c19048b3093a4"
   },
   "scope": {
     "summary": "Rewrite the five grant/access SurrealQL functions to resolve the protected resource (and parent chain) first via protected_resources_external_unique and then filter resource_grants by full resource_id equality, using the existing indexed pattern of fn::mt109_ledger_access. Preserve every allow/deny condition. Advance the schema revision/pins the change forces. Add one focused core timing test proving grant-count independence.",
@@ -481,6 +484,80 @@
         "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-164/kb/logs/check-2",
         "static_diff_review": "ee9efaba vs 179ffc1f changes only schema.rs: EXPECTED_SCHEMA_INFO_SHA256=50b06dab..., EXPECTED_ATELIER_CATALOG_SHA256=c1809524..., Loom receipt EXPECTED_CATALOG_SHA256 and mt109_loom_catalog test literal=e02993e2... (validation.pin_measurement MT164-PIN-MEASURE-20260929); PIN-MEASURE PENDING markers removed; PRE_MT109_AUTHORITY_INFO_SHA256, GENERATED and DECLARATIVE unchanged",
         "scope": "Implementer compile/static evidence only (CX-EXEC-014); runtime acceptance pending WP validator"
+      },
+      {
+        "proof_id": "PR-WP012-UNION-ee9efaba-CORE",
+        "executor_role": "WP_VALIDATOR",
+        "candidate_commit": "ee9efaba664bfa6e2987a847979c19048b3093a4",
+        "frozen_at_utc": "2026-09-29T13:07:13Z",
+        "started_at": "2026-09-29T13:07:13.1540507Z",
+        "completed_at": "2026-09-29T14:27:22.7013401Z",
+        "command": "bash .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh ee9efaba664bfa6e2987a847979c19048b3093a4 core-only",
+        "entrypoint_commits": [
+          "e2a0c8df CORE_FILTER",
+          "8364cb31 core-only mode"
+        ],
+        "entrypoint_sha256_lf": "445e59714ea1a288dfa09e6de5cc554cc3d93a3fc003c080d5e39aa75c5b0f45",
+        "config": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/nextest-core.toml (sha256 a974ab0c... = WPV-nextest-core.toml; 60s x5 per test)",
+        "scope": "core-only: handshake_core --lib (CORE_FILTER) + 22 integration binaries, handshake_document and handshake_storage_support unit targets; native phase skipped per dispatch",
+        "canary": "none: HBR canary_check is a REPLACE_ME placeholder; canary excluded by override f6bbcaac",
+        "results": {
+          "core": {
+            "tests": 254,
+            "failed": 60,
+            "runner_exit": 100,
+            "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ee9efaba664bfa6e2987a847979c19048b3093a4-core.xml",
+            "sha256": "be126557f948064902fda130b7dbfd84e9146f0c1f6bcf9ec202087d345b6d1d"
+          },
+          "handshake_document": {
+            "tests": 41,
+            "failed": 0,
+            "runner_exit": 0,
+            "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ee9efaba664bfa6e2987a847979c19048b3093a4-handshake_document.xml",
+            "sha256": "dc00dbe51f3d48520272ef0ecdd07cfe3fb0551b3e1950ff966d6edd361958bc"
+          },
+          "handshake_storage_support": {
+            "tests": 34,
+            "failed": 0,
+            "runner_exit": 0,
+            "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ee9efaba664bfa6e2987a847979c19048b3093a4-handshake_storage_support.xml",
+            "sha256": "9dd086392889ad1e91faca3fff137718894f5ae0ed2930187192e8baa97ab981"
+          },
+          "core_failure_breakdown": "1 assertion (MT-164 timing) + 59 stack-overflow aborts; 6 aborts pre-existing at 8ea13a9b, 52 newly failing vs 8ea13a9b, 1 newly selected"
+        },
+        "logs": {
+          "stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ee9efaba664bfa6e2987a847979c19048b3093a4.stdout.log",
+          "stdout_sha256": "f7964b56a947f77375de728c15ad76192423eab84bec4c04c1124903afa89f91",
+          "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ee9efaba664bfa6e2987a847979c19048b3093a4.stderr.log",
+          "stderr_sha256": "4591846545fbba0daf7bed8933b2e7905bc4b480c9ed543c12808e4655101153",
+          "running_record": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ee9efaba664bfa6e2987a847979c19048b3093a4.identity.json",
+          "exit_record": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ee9efaba664bfa6e2987a847979c19048b3093a4.exit.json",
+          "observations": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ee9efaba664bfa6e2987a847979c19048b3093a4.observations.jsonl",
+          "results_map": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-ee9efaba664bfa6e2987a847979c19048b3093a4-core-results.json"
+        },
+        "capacity": {
+          "target": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
+          "pre_cleanup_bytes": 143301911381,
+          "cleanup": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/cleanup-proposal-ee9efaba.json (280 stale per-export files, 31908061645 bytes)",
+          "start_bytes": 111393858149,
+          "peak_bytes": 137015525531,
+          "end_bytes": 137015525531,
+          "stop_bytes": 147000000000,
+          "cap_bytes": 150000000000,
+          "protective_stop": false
+        },
+        "attribution_basis": "Diff 8ea13a9b..ee9efaba: 4e7b14ba changes only handshake_document BACKLINK_WRITE_STATEMENTS; 179ffc1f/ee9efaba (MT-164) change the five grant fns, schema.rs pins and the timing test. Newly aborting tests (resource authority, breakpoints, atelier routes, workspace delete) do not reach the backlink statement, so the new stack overflows are attributed to MT-164 (CX-VAL-006 narrowing); for document-save cases the diff alone does not exclude 4e7b14ba, but the same abort signature in non-document cases points to MT-164.",
+        "gov_pin_note": "WP pinned 896f4e15 + override f6bbcaac: CX-VAL-009/010 (PASS-MT invalidation at freeze, canary-first) are not adopted for this WP (CX-GOV-PIN-003); no PASS MT status was changed.",
+        "covers": [
+          "MT-136",
+          "MT-154",
+          "MT-155",
+          "MT-157",
+          "MT-158",
+          "MT-159",
+          "MT-164"
+        ],
+        "owning_mt": "MT-164"
       }
     ],
     "pin_measurement": {
@@ -645,5 +722,98 @@
       "storage::surreal::schema::tests::indexed_grant_revision_161_upgrade_preserves_data_and_restarts_current"
     ],
     "repin_commit": "ee9efaba664bfa6e2987a847979c19048b3093a4"
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "validated_by": "WP_VALIDATOR-20260929-MT164-ROUND",
+    "validated_at_utc": "2026-09-29T14:31:39Z",
+    "candidate_commit": "ee9efaba664bfa6e2987a847979c19048b3093a4",
+    "started_at": "2026-09-29T13:07:13.1540507Z",
+    "completed_at": "2026-09-29T14:27:22.7013401Z",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ee9efaba664bfa6e2987a847979c19048b3093a4-core.xml",
+    "proof_record_ids": [
+      "PR-WP012-UNION-ee9efaba-CORE"
+    ],
+    "failure_kind": "product",
+    "failure_classes": [
+      "MT164-GRANT-COST-RATIO",
+      "MT164-GRANT-FN-ENGINE-STACK-OVERFLOW"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-164-BUILDER-COMPILE",
+        "result": "accepted as implementer compile evidence (exit 0, equal input digest ee9efaba); build health only"
+      },
+      {
+        "check_id": "MT-164-VALIDATOR-UNION",
+        "result": "FAIL",
+        "timing_test": {
+          "test": "storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count",
+          "result": "failed",
+          "n50_idempotency_select_median_ms": 17.399,
+          "n50_document_access_check_median_ms": 16.103,
+          "n500_idempotency_select_median_ms": 70.457,
+          "n500_document_access_check_median_ms": 68.774,
+          "ratio_500_over_50": {
+            "idempotency_select": 4.049,
+            "document_access_check": 4.271
+          },
+          "absolute_limit_250ms": "met at both N",
+          "ratio_limit_2_0": "NOT met for either metric",
+          "panic": "resource_authority_tests.rs:3825 idempotency select median ratio N=500/N=50 is 4.049",
+          "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ee9efaba664bfa6e2987a847979c19048b3093a4.stderr.log:2879-2895"
+        },
+        "resource_authority_tests": "16 run: 13 pass; failed: grant_check_cost (assertion), memory_source_reads_require_exact_grants_and_preserve_derived_origin (abort, passed at 8ea13a9b), direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_default_deny (abort, newly selected)",
+        "schema_pin_upgrade_tests": "12/13 pass incl. indexed_grant_revision_161_upgrade_preserves_data_and_restarts_current and all 4 re-pinned pin tests; document_grant_single_live_policy_witness_controls_record_user_visibility aborts (passed at 8ea13a9b)",
+        "ac_164_3_union_selections": "52 core cases that passed at 8ea13a9b now abort (process aborted 0xc00000fd: stack overflow in handshake-test-store-engine thread); e.g. knowledge_documents_api_tests 27 cases, mt157_debug_breakpoints_authority_tests 5/5, mt154 atelier/knowledge routes, owned_workspace_delete_cascades, mt109_c2_memory_surfaces, mounted_record_user_loom_creates",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-ee9efaba664bfa6e2987a847979c19048b3093a4-core-results.json"
+      }
+    ],
+    "acceptance": {
+      "AC-164-1": "met (static review of ee9efaba schema.surql: five fns resolve protected_resources first; resource_grants WHERE uses account/principal/access_space/resource_id equality; no resource_id.* predicate)",
+      "AC-164-2": "static review: conditions preserved condition-by-condition; protected_resources_external_unique is global (kind, external) so LIMIT 1 is exact; runtime NOT met (AC-164-3 aborts)",
+      "AC-164-3": "NOT met: 3 resource_authority_tests and 52 previously green union cases fail",
+      "AC-164-4": "NOT met: ratio 4.049 / 4.271 >= 2.0; medians < 250 ms met; non-vacuous and no-grant probes asserted",
+      "AC-164-5": "met: rev-161 upgrade test and all pin tests pass on re-pinned candidate",
+      "AC-164-6": "met: embedded SurrealDB only; no SQLite/PostgreSQL path in diff"
+    },
+    "ac_164_4_probe_ii_ruling": "Accepted as satisfying AC-164-4(ii): the probe is a record-user SELECT of one knowledge_rich_document_title_anchors row whose select PERMISSIONS predicate is exactly one fn::mt120_document_access call (schema.surql:3807). A direct RETURN cannot return true because protected_resources.external_resource_id is PERMISSIONS FOR select NONE (schema.surql:5784), so the wording deviation is necessary; the no-grant anchor probe returns empty. Measured time includes one record fetch, same as metric (i).",
+    "remediation": {
+      "failed_acceptance_refs": [
+        "AC-164-3",
+        "AC-164-4"
+      ],
+      "failed_checks": [
+        "MT-164-VALIDATOR-UNION"
+      ],
+      "artifact_refs": [
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ee9efaba664bfa6e2987a847979c19048b3093a4.stderr.log:2797-2912",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-ee9efaba664bfa6e2987a847979c19048b3093a4-core-results.json"
+      ],
+      "affected_code_refs": [
+        "schema.surql fn::mt109_has_grant..fn::mt120_loom_block_access (LET $resource/$parent resolution)"
+      ],
+      "repair_direction": [
+        "Remove engine stack overflow in grant fns; hypothesis UNVERIFIED: nested LET SELECTs per call deepen recursion",
+        "Make per-check cost flat: grant cost still scales ~4x for 10x grants; confirm index use on 4-field equality"
+      ]
+    },
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT164-ee9efaba-union-verdict",
+        "at_utc": "2026-09-29T14:31:39Z",
+        "decision": "failed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT164-ee9efaba-union-verdict",
+        "at_utc": "2026-09-29T14:31:39Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V1"
+      }
+    ]
   }
 }
