@@ -222,6 +222,15 @@ if [[ "$MODE" = mt164-capture ]]; then
   (set -o noclobber; date -u +%Y-%m-%dT%H:%M:%SZ > "$CAPTURE_MARKER") || exit 2
 fi
 
+# Test-process thread stacks: 10 MiB (MT-154 FAIL_V3 remediation, diagnosis
+# MT164-UDF-AND-CHAIN-STACK-OVERFLOW; SurrealDB 3.2.0 embedded docs recommend 10 MiB).
+# Exported after all builds so only test processes inherit it. Covers libtest test threads
+# (test/src/lib.rs:695 thread::Builder::new() without stack_size) and tokio runtime workers
+# (tokio-1.53.1 runtime/blocking/pool.rs:463-467 sets stack_size only when configured);
+# std resolves unset sizes from RUST_MIN_STACK (std/src/thread/lifecycle.rs:29-45, rust 1.91.1).
+# Threads with an explicit Builder::stack_size (e.g. storage/tests.rs test store runtime) keep it.
+export RUST_MIN_STACK=10485760
+echo "[run-round] test-process RUST_MIN_STACK=$RUST_MIN_STACK"
 echo "[run-round] nextest CORE run"
 CORE_JUNIT="$EXPORT/src/backend/handshake_core/target/nextest/default/junit.xml"
 CORE_JUNIT_MARKER="$LANE/tmp/core-junit-start-$SHA"
