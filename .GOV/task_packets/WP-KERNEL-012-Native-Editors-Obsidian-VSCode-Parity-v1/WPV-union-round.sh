@@ -12,8 +12,13 @@
 set -euo pipefail
 export GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never
 
-SHA="${1:?usage: run-round.sh <SHA>}"
+SHA="${1:?usage: run-round.sh <SHA> [core-only]}"
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "[run-round] FATAL: full lowercase 40-character SHA required"; exit 2; }
+# MODE core-only: core + extracted crates only; skips native build, backend binary,
+# native preflight and native run (dispatch-scoped rounds whose READY MTs need no native proof).
+MODE="${2:-}"
+[[ -z "$MODE" || "$MODE" = core-only ]] || { echo "[run-round] FATAL: unknown mode $MODE"; exit 2; }
+echo "[run-round] mode=${MODE:-full}"
 LANE="D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x"
 TARGET="C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52"
 # The C: grant covers only this build target; source archives are target inputs.
@@ -144,10 +149,12 @@ echo "[run-round] building core union"
   cargo test --locked -j 2 --no-run --lib --features app-runtime,surreal-test-support,test-utils "${core_test_args[@]}" )
 check_target_cap
 
+if [[ "$MODE" != core-only ]]; then
 echo "[run-round] building native union"
 ( cd "$EXPORT/src/frontend/handshake_native" && \
   cargo test --locked -j 2 --no-run --features integration,integration_tests,wgpu_screenshots "${NATIVE_TARGET_ARGS[@]}" )
 check_target_cap
+fi
 
 for crate in "${EXTRACTED_CRATES[@]}"; do
   echo "[run-round] building extracted $crate unit target"
@@ -156,6 +163,7 @@ for crate in "${EXTRACTED_CRATES[@]}"; do
   check_target_cap
 done
 
+if [[ "$MODE" != core-only ]]; then
 echo "[run-round] building backend binary for HSK_TEST_BACKEND_BIN"
 ( cd "$EXPORT/src/backend/handshake_core" && \
   cargo build --locked --target-dir "$HSK_TEST_BACKEND_TARGET_ROOT" --bin handshake_core --features app-runtime,surreal-test-support )
@@ -182,6 +190,7 @@ grep -q 'test_code_nav_client' "$LANE/logs/native-nextest-groups-$SHA.log" \
 grep -q 'test_completion_hover_accesskit' "$LANE/logs/native-nextest-groups-$SHA.log" \
   || { echo "[run-round] FATAL: MT-008 completion/hover absent from owned-backend group"; exit 3; }
 echo "[run-round] native nextest MT-008 owned-backend group verified"
+fi
 
 # 4. nextest run: core and native; the separately governed ignored proofs for
 #    BLOCKED MT-068/098/140 await their bounded supervisors, not this round.
@@ -231,6 +240,10 @@ else
   CORE_INVALID=1
 fi
 
+if [[ "$MODE" = core-only ]]; then
+  echo "[run-round] core-only mode: native build and run skipped"
+  NATIVE_NEXTEST_EXIT=skipped
+else
 echo "[run-round] nextest NATIVE run (excluding duplicated failure_diagnostic_tests except $OWNER_BIN)"
 NATIVE_JUNIT="$EXPORT/src/frontend/handshake_native/target/nextest/default/junit.xml"
 NATIVE_JUNIT_MARKER="$LANE/tmp/native-junit-start-$SHA"
@@ -258,6 +271,7 @@ if [[ "${NATIVE_INVALID:-0}" != 1 && -f "$NATIVE_JUNIT" && "$NATIVE_JUNIT" -nt "
 else
   echo "[run-round] NATIVE_JUNIT_MISSING_OR_STALE: $NATIVE_JUNIT"
   NATIVE_INVALID=1
+fi
 fi
 
 EXTRACTED_INVALID=0
