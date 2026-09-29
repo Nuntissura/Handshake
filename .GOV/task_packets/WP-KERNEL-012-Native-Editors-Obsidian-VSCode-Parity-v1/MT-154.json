@@ -145,7 +145,7 @@
   "title": "B18-MT-154-Non-Loom-Routes-Account-Session-Authority-And-Residuals",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-26T18:14:25.574050Z",
+  "updated_at_utc": "2026-09-29T14:31:39Z",
  "validation_shared_union_ec596eec": {"schema_id": "hsk.mt_validation_verdict@1", "decision": "inconclusive", "validated_by": "WP_VALIDATOR-SOL-MEDIUM", "validated_at_utc": "2026-09-26T23:36:50.061743Z", "candidate_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f", "proof_records_ref": "MT-032.json#validation.proof_records[PR-WP012-MT032-ec596eec-UNION-012]", "shared_round_ref": "MT-032.json#validation_v12", "contract_floor_refs": ["scope.proof_targets", "scope.acceptance_criteria", "proof", "proof_commands", "hbr_obligations"], "selection_method": "Named MT-prefixed cases only; not all parent/shared regression commands", "observed_cases": [{"classname": "handshake_core", "test": "api::workspaces::tests::mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows", "seconds": 17.869, "result": "passed"}, {"classname": "handshake_core", "test": "storage::surreal::schema::tests::schema_delta_upgrade_statements_re_emit_every_mt154_delta", "seconds": 0.896, "result": "passed"}, {"classname": "handshake_core::knowledge_documents_api_tests", "test": "mt154_save_indexes_document_into_project_knowledge_index", "seconds": 35.787, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_atelier_routes_require_session", "seconds": 20.387, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_calendar_routes_authority", "seconds": 14.193, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_canvases_routes_authority", "seconds": 16.716, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_flight_recorder_runtime_chat_receipt_is_session_attributed", "seconds": 14.411, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_knowledge_crdt_ingestion_memory_retrieval_authority", "seconds": 30.24, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_locus_routes_require_session", "seconds": 13.772, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_preferences_routes_authority_and_receipt_visibility", "seconds": 15.02, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_stage_routes_authority", "seconds": 14.537, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_trace_projection_requires_session", "seconds": 13.011, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt158_locus_job_rows_are_private_to_the_creating_account", "seconds": 16.165, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt158_locus_jobs_require_account_session", "seconds": 13.997, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt159_job_routes_require_account_session", "seconds": 14.262, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt159_locus_ids_do_not_reveal_existence_across_accounts", "seconds": 17.587, "result": "passed"}], "mapped_case_count": 16, "mapped_failure_count": 0, "state_unchanged": true, "prior_verdict_preserved": null, "unmet_required_proof": ["MT-154-CHECK-TESTS current independent cargo-check chain not supplied by union", "MT-154-CLIPPY-CHANGED current independent changed-line diagnostics applicability unclosed", "MT-154-FMT / MT-154-DIFF-CHECK and MT-154-PREDECESSOR-PINS-UNCHANGED static current-range reconciliation remain separate obligations", "Original full MT154 acceptance remains; extracted document/support unit success and selected MT154 tests cannot accept the bounded document slice as the whole MT"], "acceptance_rule": "Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change", "verdict_events": [{"event": "accepted", "idempotency_key": "MT154-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive"}, {"event": "completed", "idempotency_key": "MT154-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive", "state_effect": "unchanged"}]},
   "validation_shared_union_7479972a": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-28T00:11:37Z","candidate_commit":"7479972ac681cd238e58d37e318beab6c8d3b423","proof_records_ref":"MT-032.json#validation.proof_records[PR-WP012-MT032-7479972a-UNION-CONTINUATION1]","shared_round_ref":"MT-032.json#validation_v13","contract_floor_refs":["scope.proof_targets","scope.acceptance_criteria","proof","proof_commands","hbr_obligations"],"selection_method":"Named MT-prefixed cases only; not all parent/shared regression commands; exact classname+name matched against completed current four JUnits","observed_cases":[{"classname":"handshake_core","test":"api::workspaces::tests::mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows","seconds":14.339,"result":"failed","phase":"core","message":"process aborted with code 0xc00000fd: Recursion too deep; the stack overflowed. (os error 1001)"},{"classname":"handshake_core","test":"storage::surreal::schema::tests::schema_delta_upgrade_statements_re_emit_every_mt154_delta","seconds":0.9,"result":"passed","phase":"core"},{"classname":"handshake_core::knowledge_documents_api_tests","test":"mt154_save_indexes_document_into_project_knowledge_index","seconds":37.572,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_atelier_routes_require_session","seconds":23.191,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_calendar_routes_authority","seconds":16.125,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_canvases_routes_authority","seconds":19.178,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_flight_recorder_runtime_chat_receipt_is_session_attributed","seconds":17.081,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_knowledge_crdt_ingestion_memory_retrieval_authority","seconds":36.142,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_locus_routes_require_session","seconds":17.271,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_preferences_routes_authority_and_receipt_visibility","seconds":18.358,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_stage_routes_authority","seconds":15.512,"result":"failed","phase":"core","message":"process aborted with code 0xc00000fd: Recursion too deep; the stack overflowed. (os error 1001)"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_trace_projection_requires_session","seconds":15.142,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt158_locus_job_rows_are_private_to_the_creating_account","seconds":18.627,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt158_locus_jobs_require_account_session","seconds":17.154,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt159_job_routes_require_account_session","seconds":17.514,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt159_locus_ids_do_not_reveal_existence_across_accounts","seconds":22.484,"result":"passed","phase":"core"}],"mapped_case_count":16,"mapped_failure_count":2,"state_unchanged":true,"prior_verdict_preserved":true,"unmet_required_proof":["MT-154-CHECK-TESTS current independent cargo-check chain not supplied by union","MT-154-CLIPPY-CHANGED current independent changed-line diagnostics applicability unclosed","MT-154-FMT / MT-154-DIFF-CHECK and MT-154-PREDECESSOR-PINS-UNCHANGED static current-range reconciliation remain separate obligations","Original full MT154 acceptance remains; extracted document/support unit success and selected MT154 tests cannot accept the bounded document slice as the whole MT","Current selected MT154 owner_workspace_delete and stage_routes_authority abort with stack overflow; own floor fails despite passing schema migration and record-user multi-grant regression","Current MT032 mandatory live save/create floor fails; bounded document slice cannot be accepted"],"acceptance_rule":"Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change","verdict_events":[{"event":"accepted","idempotency_key":"MT154-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT154-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive","state_effect":"unchanged"}],"input_provenance":{"candidate":"7479972ac681cd238e58d37e318beab6c8d3b423","source_diff_ref":"git diff --name-only ec596eecb70f2820cb357ef95d5820b890c8944f..7479972ac681cd238e58d37e318beab6c8d3b423","changed_areas":["core document/SurrealDB authority/schema","handshake_document diagnostics/operations/SurrealDB adapter","handshake_storage_support diagnostics/retry"],"native_source_changed":false,"source_effect":"Shared backend inputs can affect live native cases; exact current JUnits provide observed behavior, not static/unmapped proof."},"current_union":{"core":{"tests":239,"failures":6,"sha256":"9916BFB9B5F8797D461C58555D16A734D29EB4054E37713263B0C727E0DA4BF2"},"native":{"tests":2952,"failures":44,"sha256":"928E026731633A2C63F1ECC21E926DF5A56AFEE828B58C79EF77B990697A962F"},"handshake_document":{"tests":41,"failures":0,"sha256":"2A3F49A172AD702EE44722CA393304084FDA83DDD45DB0CD253147CE9518BD79"},"handshake_storage_support":{"tests":34,"failures":0,"sha256":"A499897A89EAA1497A2D16F31514CD319B53BDEE3160BDE51D09797A7EE82C76"},"all_junits_complete":true,"mt032_verdict_ref":"MT-032.json#validation_v13"},"additional_affected_cases":[{"phase":"core","test":"storage::surreal::schema::tests::document_grant_revision_160_upgrade_requires_exact_catalog_and_restarts_current","result":"passed"},{"phase":"core","test":"storage::surreal::schema::tests::document_grant_single_live_policy_witness_controls_record_user_visibility","result":"passed"}],"record_kind":"bounded_current_union_observation","classification_reason":"Exact selected current-candidate cases failed, but this shared union does not close the MT-specific proof floor; no final failed verdict is issued. READY_FOR_VALIDATION/null lifecycle stays unchanged and failed cases remain explicit blockers.","observed_case_failure_kind":"product"},
   "identity": {
@@ -164,17 +164,17 @@
   },
   "validation_v2": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","verdict":null,"validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:54:37Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-154.scope.acceptance_criteria/proof_targets and own proof/ proof_commands","junit_provenance":{"native_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","core_sha256":"CD420357013FF59A89EA4440C394A8951404DD3700A75D7D066C385D118B7897","freshness":"Both export-local/copy match and after own invocation marker; full49e archive"},"exact_proof_gaps":["Required current-input clippy/format/diff independent floors not fully reconciled; builderDcheck/cheapSQL is not product acceptance","Authorized MT032 latency alternative failed native closure; core route greens do not establish repaired native latency"],"status_effect":"READY_FOR_VALIDATION and null validator_verdict unchanged; submission retained; no infrastructure-driven transition","reuse_disposition":"No unrecorded relevant-input-path/static/special proof reuse credited","runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"One final union consumed; no additional test/build/probe to fill gaps","verdict_events":[{"event":"accepted","idempotency_key":"MT-154-49eac54e-union-inconclusive-v2","at_utc":"2026-09-26T15:54:37Z","payload_ref":"MT-154.json#validation_v2","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT-154-49eac54e-union-inconclusive-v2","at_utc":"2026-09-26T15:56:26Z","state_ref":"MT-154.json#lifecycle","decision":"inconclusive","state_observed":"READY_FOR_VALIDATION; validator_verdict null; submission retained"}]},
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V3",
     "depends_on": [
       "MT-153"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V3",
     "prior_validator_verdict": "FAIL_V1",
-    "next_actor": "WP_VALIDATOR",
-    "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
-    "validated_at_utc": "2026-09-24T07:21:13.185Z",
+    "next_actor": "KERNEL_BUILDER",
+    "validated_by": "WP_VALIDATOR-20260929-MT164-ROUND",
+    "validated_at_utc": "2026-09-29T14:31:39Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -2879,5 +2879,69 @@
       "MT-154-NATIVE-DRAIN (requires a dedicated backend-bin build not covered by run52 as executed)"
     ],
     "log": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/61-core-only-1097ef1c.log"
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "validated_by": "WP_VALIDATOR-20260929-MT164-ROUND",
+    "validated_at_utc": "2026-09-29T14:31:39Z",
+    "candidate_commit": "ee9efaba664bfa6e2987a847979c19048b3093a4",
+    "proof_records_ref": "MT-164.json#validation.proof_records[PR-WP012-UNION-ee9efaba-CORE]",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ee9efaba664bfa6e2987a847979c19048b3093a4-core.xml",
+    "started_at": "2026-09-29T13:07:13.1540507Z",
+    "completed_at": "2026-09-29T14:27:22.7013401Z",
+    "round_scope": "core-only: handshake_core --lib (CORE_FILTER) + 22 integration binaries, handshake_document and handshake_storage_support unit targets; native phase skipped per dispatch",
+    "mapped_cases": {
+      "MT-154-PIN-CONFIRM": "PASS 9/9",
+      "MT-154-ROUTES": "FAIL 9/12 in binary: mt154_stage_routes_authority abort (pre-existing since 7479972a); mt154_atelier_routes_require_session and mt154_knowledge_crdt_ingestion_memory_retrieval_authority abort (new, MT-164)",
+      "MT-154-WORKSPACE-DELETE": "FAIL 0/3: mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows abort (pre-existing since 7479972a); owned_workspace_delete_cascades and mt109_c2_memory_surfaces abort (new, MT-164)",
+      "MT-154-EXISTING-TARGETS": "FAIL: knowledge_crdt_bridge 2, knowledge_ingestion 1, atelier_loom_projection 1 abort (new, MT-164); calendar_storage, memory, retrieval_debug, atelier_stealth pass",
+      "MT-154-KNOWLEDGE-DOCS": "FAIL: 27 aborts incl mt154_save_indexes_document_into_project_knowledge_index (new, MT-164)"
+    },
+    "unclosed_required_proof": [
+      "MT-154-NATIVE-DRAIN (native phase not in this core-only round)",
+      "MT-154-CHECK-TESTS",
+      "MT-154-CLIPPY-CHANGED",
+      "MT-154-FMT",
+      "MT-154-DIFF-CHECK",
+      "MT-154-PREDECESSOR-PINS-UNCHANGED"
+    ],
+    "verdict": "FAIL_V3",
+    "failure_kind": "product",
+    "failure_class": "MT154-STORE-ENGINE-STACK-OVERFLOW",
+    "product_failure_basis": "Own named cases mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows and mt154_stage_routes_authority abort with the same stack overflow at 7479972a, 8ea13a9b and ee9efaba; independent of MT-164.",
+    "dependent_failures": "Other MT-154 cases newly abort because of MT-164 FAIL_V1 (MT164-GRANT-FN-ENGINE-STACK-OVERFLOW); recheck after that fix.",
+    "remediation": {
+      "failed_checks": [
+        "MT-154-ROUTES",
+        "MT-154-WORKSPACE-DELETE"
+      ],
+      "artifact_refs": [
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-ee9efaba664bfa6e2987a847979c19048b3093a4-core-results.json",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ee9efaba664bfa6e2987a847979c19048b3093a4.stderr.log"
+      ],
+      "affected_code_refs": [
+        "api/workspaces.rs owner delete path",
+        "mt154 stage routes (store-engine query depth)"
+      ],
+      "repair_direction": [
+        "Find and remove the query recursion that overflows the store-engine thread on stage/delete paths"
+      ]
+    },
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT154-ee9efaba-union-verdict",
+        "at_utc": "2026-09-29T14:31:39Z",
+        "decision": "failed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT154-ee9efaba-union-verdict",
+        "at_utc": "2026-09-29T14:31:39Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V3"
+      }
+    ]
   }
 }
