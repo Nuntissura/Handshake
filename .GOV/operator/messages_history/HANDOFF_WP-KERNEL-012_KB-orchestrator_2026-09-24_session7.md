@@ -6,7 +6,34 @@ authority: reference_only
 wp_id: WP-KERNEL-012
 ---
 
-<topic id="latest-wp-state-and-resume-guide" wp="WP-KERNEL-012" status="mt164-builder-authorized" updated_at="2026-09-29">
+<topic id="session-2026-09-29-progress" wp="WP-KERNEL-012" status="mt164-union-round-running" updated_at="2026-09-29">
+
+## Resume here
+
+Operator instruction (2026-09-29): Kernel Builder sub-agents do all product coding (after reading Codex + KB protocol); WP validator agents read Codex + WP Validator protocol; the root session does governance paperwork and review only.
+
+| Step | Commit | Result |
+|---|---|---|
+| Split fixed; MT-164 added | gov `45d65bc2` | MT-160 narrowed; MT-161..163 BLOCKED on MT-164 |
+| MT-164 grant-fn rewrite, rev 161->162, timing test | product `179ffc1f`; gov `d4b7ffe2` | `cargo check` exit 0 (12m23s); code-read review by root: semantics preserved, resolution lookup covered by full-index protected_resources permission |
+| Round filter + pin-measure entrypoint | gov `e2a0c8df`, `e4bbe396`, `8364cb31` (core-only round mode, native phase skipped) | — |
+| Pin measurement on 179ffc1f (measurement, not attempt) | gov `fb1a6d20` | 3 pins measured; no unexpected failures |
+| Re-pinned candidate | product `ee9efaba`; gov `ae117763` | `cargo check` exit 0; MT-164 READY_FOR_VALIDATION |
+| Union round on `ee9efaba` (MT-164, MT-154, other READY MTs) | pending | running at time of writing |
+
+## Honest status
+
+No MT has passed this session. The root cause is established by code reading and is plausible for every recorded slow timing, but is not yet measured: the timing test (50 vs 500 grants) is the first proof. Risks: SurrealDB 3.2.0 may not use the 4-field compound index for this equality; per-row permission checks on loom_edges/loom_blocks still run (now cheaper, not removed); remaining save cost (counter loop, update-guard event, double live-document read) may still exceed 10s even if each check is fast. MT-164 PASS does not pass MT-032: MT-162 live save under 10s, MT-161 backlink UI, MT-160 screenshot inspection and MT-163 persistence/final integration remain, plus MT-154's verdict.
+
+## Next
+
+1. Union round verdicts. If MT-164 FAIL on timing: inspect medians, check query plan (EXPLAIN) before any rewrite; do not iterate blind.
+2. If MT-164 PASS: unblock MT-161..163; dispatch one native live self-seeded probe (MT-162) on the passing candidate to measure the save end-to-end. If still over budget, next repairs in order: drop duplicate workspace check in fn::mt120_document_access callers; pass pre-checked document ids for projection edges instead of per-row checks; batch counter recomputation (GROUP BY); remove the double live-document read.
+3. MT-160: validator decides V14 component-proof reuse and inspects the screenshot; can proceed in parallel.
+
+</topic>
+
+<topic id="latest-wp-state-and-resume-guide" wp="WP-KERNEL-012" status="mt164-ready-for-validation" updated_at="2026-09-29">
 
 ## Current scope
 
@@ -20,7 +47,7 @@ The bounded assignment remains the first document-subsystem extraction **and ind
 
 | Execution unit | Current disposition | Relationship |
 |---|---|---|
-| [MT-164](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-164.json): Indexed grant lookup | BLOCKED on its open fix; claimed by KERNEL_BUILDER 2026-09-29; no candidate yet | Backend root cause; first part of MT-032. Owns only the five grant fns in schema.surql, the schema.rs revision/pins they force and a timing test in resource_authority_tests.rs. |
+| [MT-164](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-164.json): Indexed grant lookup | READY_FOR_VALIDATION on `ee9efaba`; union round in progress (see `session-2026-09-29-progress`) | Backend root cause; first part of MT-032. Owns only the five grant fns in schema.surql, the schema.rs revision/pins they force and a timing test in resource_authority_tests.rs. |
 | [MT-160](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-160.json): Loom addressability | PENDING; narrowed to component proof; validator_verdict null | AC-160-1 URI round-trip, AC-160-3 component/AccessKit, AC-160-4 written and inspected screenshot. AC-160-2 live identity moved to MT-162. V14 component proof is a reuse candidate (8ea..4e7 diff touches none of its paths; validator decides). |
 | [MT-161](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-161.json): Backlink UI | BLOCKED on MT-164 | Needs live save-derived backlinks; backend slice now required for live acceptance. |
 | [MT-162](../../task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-162.json): Live document behavior | BLOCKED on MT-164 | Also owns former AC-160-2 live create/load identity and the self-seeded live case. |
