@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-161",
   "created_at_utc": "2026-09-29T08:31:36.101102Z",
-  "updated_at_utc": "2026-09-29T12:01:02Z",
+  "updated_at_utc": "2026-09-29",
   "identity": {
     "mt_id": "MT-161",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -179,7 +179,7 @@
     "policy": "JSON authority; projection on demand only"
   },
   "lifecycle": {
-    "status": "BLOCKED",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-031",
       "MT-021",
@@ -193,13 +193,13 @@
     "active": false,
     "validator_verdict": null,
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER",
+    "next_actor": "WP_VALIDATOR (combined native live self-seeded case on de04b8f0 or later; runtime run needs Operator authorization)",
     "status_reason": "Operator decision WP012-MT032-SPLIT-20260929-MT164: BLOCKED on MT-164. Contract authored only; existing evidence needs scoped independent disposition.",
     "split_ref": "MT-032.json#execution_split_20260929",
     "status_before_mt164_20260929": "PENDING",
     "status_reason_before_mt164_20260929": "Contract authored only; existing evidence needs scoped independent disposition.",
     "validator_verdict_before_20260929": "PENDING",
-    "blocked_on": "MT-164: indexed grant lookup (diagnosis MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN) must pass before live proof"
+    "blocked_on": null
   },
   "scope": {
     "summary": "The existing bottom-of-editor backlink panel renders source_document_id/link_kind, exposes backlinks-panel List and backlink-{source_document_id} ListItem/Press, and routes a mounted click through CMD_OPEN_DOCUMENT, the shared bus and production shell drain. Preserve loading/empty/error/recovery states, session-only cache, save invalidation, stale document/workspace rejection and bus-contention retry. Reuse MT015 panel/runtime and MT024 sidebar; no third panel. MT162 supplies real save-derived data and MT163 proves the live mounted flow.",
@@ -496,5 +496,15 @@
     "decided_on": "2026-09-29",
     "chosen_option": "Add MT-164 backend fix (Recommended)",
     "operator_quote": "New narrow MT-164, the real first part. It rewrites the grant checks to look up the resource first and then use the full index, and a focused core timing test proves it (grant count fixed, e.g. 50 vs 500). MT-160 narrows to component proof; MT-161/162/163 become BLOCKED on MT-164. I claim MT-164 and a builder sub-agent implements it."
-  }
+  },
+  "lifecycle_history": [
+    {
+      "at": "2026-09-29",
+      "by": "KERNEL_BUILDER root session",
+      "reason": "MT-164 PASS_V3 on de04b8f0 (gov 344850e1): grant-check cost flat (500/50 ratio 0.61/0.58; medians 12-21ms debug). Blocking dependency cleared.",
+      "prior_blocked_on": "MT-164: indexed grant lookup (diagnosis MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN) must pass before live proof",
+      "prior_status": "BLOCKED",
+      "new_status": "READY_FOR_VALIDATION"
+    }
+  ]
 }

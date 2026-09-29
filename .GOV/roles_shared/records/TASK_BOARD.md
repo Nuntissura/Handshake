@@ -57,7 +57,7 @@ Rules:
 Entry format (recommended):
 - `- **[WP_ID]** - [ACTIVE] - branch: feat/WP-{ID} - coder: <name/model> - last_sync: YYYY-MM-DD`
 
-- **[WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1]** - [ACTIVE] - branch: feat/WP-KERNEL-012 - coder: KERNEL_BUILDER/Codex - last_sync: 2026-09-29 - MT-032 execution split: `WP012-MT032-SPLIT-20260929`; aggregate BLOCKED/FAIL_V14; product 4e7b14ba unaccepted; MT-164 indexed grant lookup claimed by KERNEL_BUILDER (`WP012-MT032-SPLIT-20260929-MT164`)
+- **[WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1]** - [ACTIVE] - branch: feat/WP-KERNEL-012 - coder: KERNEL_BUILDER/Codex - last_sync: 2026-09-29 - MT-032 execution split: `WP012-MT032-SPLIT-20260929`; aggregate BLOCKED/FAIL_V14; product 4e7b14ba unaccepted; MT-164 indexed grant lookup PASS_V3 on de04b8f0; MT-161/162 READY_FOR_VALIDATION (`WP012-MT032-SPLIT-20260929-MT164`)
 - **[WP-CKC-posekit-overhaul]** - [ACTIVE] - branch: feat/WP-CKC-posekit-overhaul-surreal - coder: KERNEL_BUILDER/Claude - last_sync: 2026-09-05
 
 
@@ -170,7 +170,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 ## In Progress
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
-- **[WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1]** - [IN_PROGRESS] - MT-032 aggregate BLOCKED/FAIL_V14; MT-164 indexed grant lookup (backend root cause, claimed KERNEL_BUILDER) BLOCKED on its open fix; MT-160 addressability narrowed to component proof, PENDING; MT-161 UI, MT-162 live documents and MT-163 persistence/final proof BLOCKED on MT-164 (Operator decision `WP012-MT032-SPLIT-20260929-MT164`); MT-154 retains document implementation ownership. Split: `packet.json#mt032_execution_split_20260929` (`WP012-MT032-SPLIT-20260929`). MT-149 separate handoff history, 2026-09-06: READY_FOR_VALIDATION (4e3fd06f; independent validation pending at that handoff); current MT-149 status remains in its contract.
+- **[WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1]** - [IN_PROGRESS] - MT-032 aggregate BLOCKED/FAIL_V14; MT-164 indexed grant lookup PASS_V3 (de04b8f0); MT-160 addressability narrowed to component proof, PENDING; MT-161 UI and MT-162 live documents READY_FOR_VALIDATION (live round needs Operator authorization); MT-163 persistence/final proof BLOCKED on MT-162 (Operator decision `WP012-MT032-SPLIT-20260929-MT164`); MT-154 retains document implementation ownership. Split: `packet.json#mt032_execution_split_20260929` (`WP012-MT032-SPLIT-20260929`). MT-149 separate handoff history, 2026-09-06: READY_FOR_VALIDATION (4e3fd06f; independent validation pending at that handoff); current MT-149 status remains in its contract.
 - **[WP-CKC-posekit-overhaul]** - [IN_PROGRESS]
 - **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [IN_PROGRESS]
 

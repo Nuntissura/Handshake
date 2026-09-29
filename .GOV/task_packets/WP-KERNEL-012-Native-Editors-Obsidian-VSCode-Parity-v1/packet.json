@@ -1945,5 +1945,20 @@
         "effect": "Authorizes exactly one capture run of storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count on de04b8f0 with output capture (config 3db73ab0)."
       }
     }
-  ]
+  ],
+  "mt164_outcome_20260929": {
+    "mt164": "PASS_V3 on de04b8f0 (gov 344850e1)",
+    "mt161": "READY_FOR_VALIDATION",
+    "mt162": "READY_FOR_VALIDATION",
+    "mt163": "BLOCKED on MT-162",
+    "next_action": "Operator authorization for one native live self-seeded round (MT-161/162 shared case) on de04b8f0",
+    "format_routing": {
+      "api/loom.rs": "MT-153",
+      "storage/surreal/retry.rs": "MT-142",
+      "storage/surreal/workspaces.rs": "MT-154",
+      "native/src/local_account.rs": "unowned (MT-111 commits); needs assignment",
+      "tests/test_flight_recorder_authz.rs": "MT-111",
+      "tests/test_stage_interop.rs": "MT-066"
+    }
+  }
 }

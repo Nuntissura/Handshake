@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-163",
   "created_at_utc": "2026-09-29T08:31:36.101102Z",
-  "updated_at_utc": "2026-09-29T12:01:02Z",
+  "updated_at_utc": "2026-09-29",
   "identity": {
     "mt_id": "MT-163",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -208,7 +208,7 @@
     "status_before_mt164_20260929": "BLOCKED",
     "status_reason_before_mt164_20260929": "V19 first linked save dropped at10010ms; inner counter/query/permission/write cost unresolved; required integrated proof incomplete.",
     "validator_verdict_before_20260929": "PENDING",
-    "blocked_on": "MT-164: indexed grant lookup (diagnosis MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN) must pass before live proof"
+    "blocked_on": "MT-162: live self-seeded save must pass before persistence/final integration proof"
   },
   "scope": {
     "summary": "Complete existing managed SurrealDB/EventLedger close/reopen proof with preserved identity/content/hash/backlinks, stale-version rejection, missing-resource behavior and owned-restart save15s. Reconcile all child criteria and retain the full original unit/component/live selection and final stable-candidate union. Prove actual A-to-B mounted Argus inspect, attributed click and fresh observation plus required strict screenshots. Component success and owned-restart success do not replace failed self-seeded10s acceptance.",
@@ -519,5 +519,15 @@
     "decided_on": "2026-09-29",
     "chosen_option": "Add MT-164 backend fix (Recommended)",
     "operator_quote": "New narrow MT-164, the real first part. It rewrites the grant checks to look up the resource first and then use the full index, and a focused core timing test proves it (grant count fixed, e.g. 50 vs 500). MT-160 narrows to component proof; MT-161/162/163 become BLOCKED on MT-164. I claim MT-164 and a builder sub-agent implements it."
-  }
+  },
+  "lifecycle_history": [
+    {
+      "at": "2026-09-29",
+      "by": "KERNEL_BUILDER root session",
+      "reason": "MT-164 PASS_V3 on de04b8f0 (gov 344850e1): grant-check cost flat (500/50 ratio 0.61/0.58; medians 12-21ms debug). Blocking dependency cleared.",
+      "prior_blocked_on": "MT-164: indexed grant lookup (diagnosis MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN) must pass before live proof",
+      "prior_status": "BLOCKED",
+      "new_status": "BLOCKED"
+    }
+  ]
 }
