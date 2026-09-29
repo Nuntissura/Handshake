@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-162",
   "created_at_utc": "2026-09-29T08:31:36.101102Z",
-  "updated_at_utc": "2026-09-29T17:32:00Z",
+  "updated_at_utc": "2026-09-29T20:35:10Z",
   "identity": {
     "mt_id": "MT-162",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -734,5 +734,33 @@
     "deleted_block_behavior": "404 (authorized-missing), matching contract 'Authorized404 ... unauthorized missing resources retain typed403 concealment'. Static trace: knowledge.rs delete_knowledge_rich_document_atomic soft-deletes the document (deleted_at) and hard-deletes the loom_blocks row; no code changes protected_resources lifecycle or revokes grants on delete, so the RichDocument fs.read grant still authorizes; loom_store::get_loom_block returns NotFound('loom_block') -> api/loom.rs map_storage_error -> 404. Assert unchanged; runtime confirmation pending validator round. No operator_decision_request needed.",
     "other_header_free_calls": "none remaining in live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof (:1439-1863); delete/cleanup/backlink helpers already carry account_context",
     "scope": "MT-162 write path tests/test_loom_address.rs only; backend untouched"
+  },
+  "validation_observation_6391a29f": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR-20260929-ROUND-6391a29f",
+    "validated_at_utc": "2026-09-29T20:35:10Z",
+    "candidate_commit": "6391a29f89dd51872c730c66bb9bea5f42d6822c",
+    "failure_kind": "infrastructure",
+    "failure_class": "CANDIDATE-SUPERSEDED-BEFORE-NATIVE-RELEASE",
+    "detail": "Before native release the product HEAD and origin tip moved to e012e80d (16b43aff MT-165, e012e80d MT-166); the checked-in probe requires HEAD == origin == candidate and the gameplan confirm binding follows product HEAD, so the 6391a29f native case could not be launched. Observers stopped before release; no build, no marker consumed.",
+    "record": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt161-162-self-seeded-native-6391a29f89dd51872c730c66bb9bea5f42d6822c.not-released.json",
+    "static_review": "diff de04b8f0..6391a29f: test_loom_address.rs B-block and deleted-A-block refetches now use with_rich_doc_headers; stale :1207 comment corrected; matches FAIL_V1 remediation",
+    "next": "Native self-seeded case on the next frozen candidate (e012e80d or later); no marker consumed for 6391a29f",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT162-6391a29f-native-not-run",
+        "at_utc": "2026-09-29T20:35:10Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT162-6391a29f-native-not-run",
+        "at_utc": "2026-09-29T20:35:10Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION (infrastructure changes no status, CX-VAL-006)"
+      }
+    ]
   }
 }
