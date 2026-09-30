@@ -15,6 +15,7 @@ WATCH=mt032-v14-statement-watch
 WATCH_SCHEMA=handshake.mt032.statement-watch.ready.v14.1
 CORE_EXPECTED=3
 NATIVE_EXPECTED=2
+WATCH_SUFFIX=
 if [[ "$MODE" = receipt-inner-v15 ]]; then
   CONSUMED="$LANE/MT032-V15-RECEIPT-DIAGNOSTIC.started"
   PROBE=mt032-v15-receipt-probe
@@ -48,6 +49,7 @@ if [[ "$MODE" = mt032-native-selection ]]; then
   CONSUMED="$LANE/MT032-NATIVE-SELECTION-${SHA:0:8}.started"
   PROBE=mt032-native-selection
   WATCH=mt032-v15-receipt-watch
+  WATCH_SUFFIX=-mt032-selection
   WATCH_SCHEMA=handshake.mt032.receipt-watch.ready.v15.1
   CORE_EXPECTED=0
   NATIVE_EXPECTED=any
@@ -86,8 +88,8 @@ fi
 check_watcher() {
   # Core-only mode asserts live decoder output directly; no HTTP watcher is involved.
   [[ "$MODE" != lookup-plan-core-v17 && "$MODE" != create-first-core-v18 ]] || return 0
-  local ready="$LANE/logs/$WATCH-$SHA.ready.json"
-  [[ -f "$ready" && ! -e "$LANE/logs/$WATCH-$SHA.summary.json" ]] || {
+  local ready="$LANE/logs/$WATCH-$SHA$WATCH_SUFFIX.ready.json"
+  [[ -f "$ready" && ! -e "$LANE/logs/$WATCH-$SHA$WATCH_SUFFIX.summary.json" ]] || {
     echo 'MT032_PROBE phase watcher not ready or already stopped'; exit 2;
   }
   grep -Fq "\"schema\":\"$WATCH_SCHEMA\"" "$ready" || exit 2

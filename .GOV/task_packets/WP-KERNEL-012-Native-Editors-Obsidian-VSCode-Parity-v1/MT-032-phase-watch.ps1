@@ -4,7 +4,7 @@ param(
     [Parameter(Mandatory)][string]$StopSignal,
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{40}$')][string]$CandidateSha,
     [ValidateRange(0, 86400)][int]$MaxSeconds = 21600,
-    [ValidateSet('', 'continuation1', 'receipt-inner-v15', 'lookup-plan-v16')][string]$CaptureSuffix = ''
+    [ValidateSet('', 'continuation1', 'receipt-inner-v15', 'lookup-plan-v16', 'mt032-selection')][string]$CaptureSuffix = ''
 )
 
 # Observation only: no process control, fixture mutation, or retention override.
@@ -118,9 +118,9 @@ function Get-ScenarioRoots {
 
 $baseline = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($root in @(Get-ScenarioRoots)) { [void]$baseline.Add($root.Path) }
-$receiptMode = $CaptureSuffix -in @('receipt-inner-v15', 'lookup-plan-v16')
+$receiptMode = $CaptureSuffix -in @('receipt-inner-v15', 'lookup-plan-v16', 'mt032-selection')
 $prefix = Join-Path $logs $(if ($lookupPlanMode) { "mt032-v16-lookup-plan-watch-$CandidateSha" }
-elseif ($receiptMode) { "mt032-v15-receipt-watch-$CandidateSha" } else {
+elseif ($receiptMode) { "mt032-v15-receipt-watch-$CandidateSha" + $(if ($CaptureSuffix -eq 'mt032-selection') { '-mt032-selection' } else { '' }) } else {
     "mt032-v14-statement-watch-$CandidateSha" + $(if ($CaptureSuffix) { "-$CaptureSuffix" } else { '' })
 })
 $capturePath = "$prefix.jsonl"
