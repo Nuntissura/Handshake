@@ -2449,5 +2449,37 @@
     "counters": "CX-EXEC-003A probe consumed (b4faed35); no third probe per orchestrator",
     "needed_decision": "Operator/orchestrator: new approach (e.g. minimal SurrealDB 3.2 reproduction of the bridge predicate outside the product, or a different bridge authorization design for view_def)",
     "status_effect": "none; MT-027 stays FAIL_V7"
+  },
+  "refutation_20260930_upsert_order": {
+    "schema_id": "hsk.mt_hypothesis_refutation@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-09-30T19:20:36Z",
+    "hypothesis_refuted": "HYP-MT027-UPSERT-ORDER: the bridge FOR create predicate is evaluated against a pre-data (unpopulated) new document",
+    "verdict": "REFUTED by source reading (surrealdb-core 3.2.0, product Cargo.lock; paths relative to the crate src/)",
+    "evidence": [
+      "doc/upsert.rs upsert_create (100-142) order: :110 check_permissions_quick_create (rejects only FOR create NONE; check.rs:172-199 comment: Specific predicates are deliberately deferred because the data clause is not yet applied)",
+      "doc/upsert.rs:114 compute_input_data (alter.rs:376-452) then :116 process_record_data (alter.rs:312-360) writes SET/CONTENT into self.current",
+      "doc/upsert.rs:122 default_record_data (alter.rs:203), :124 process_table_fields (field.rs:203-370: DEFAULT, TYPE, VALUE, ASSERT, field PERMISSIONS; ASSERT failure raises, not 0 rows)",
+      "doc/upsert.rs:128 check_create_permissions(stk, ctx, opt, &self.current) (check.rs:372-384 -> process_permissions 448-474, perms off via new_for_permission_predicate) runs on the populated document; store follows at :130",
+      "doc/create.rs:18-38 CREATE runs the identical sequence (quick_create :18, compute_input_data :22, process_record_data :24, fields :34, check_create_permissions :38 on &self.current), so UPSERT vs CREATE cannot change the outcome",
+      "own-field predicates evaluate on populated docs in the same transaction: entity FOR create (schema.surql:3599) view_def term reads entity_kind/entity_key/workspace_id/primary_source_id and passes at stmt 5; loom_blocks FOR create (schema.surql:468) view_def term reads content_type/created_in_session_id/workspace_id and passes at stmt 1",
+      "operator precedence: AND binds tighter than OR (sql/operator.rs:535-549), so schema.surql:4493 parses as OR of AND groups",
+      "upstream corroboration: surrealdb PR #7232 and PR #7419 (open) both assume the CREATE predicate sees the new row"
+    ],
+    "remaining_untested_bridge_terms": [
+      "entity_id.workspace_id = workspace_id",
+      "entity_id.entity_kind = 'loom_block'",
+      "entity_id.entity_key = record::id(block_id)"
+    ],
+    "remaining_note": "these dereference the knowledge_entities row written by stmt 5 in the same transaction; by construction stmt 5 writes entity_key = record::id($block), workspace_id = $workspace, entity_kind = 'loom_block', and the bridge entity_id ASSERT record::exists passes (field.rs:341, before the predicate); no code-level reason found for them to be false",
+    "cause_a_status": "stands: KB-DIAG2 (7612f1cc) committed the transaction without the stmt-6 THROW and the root read found no bridge row, so the SELECT path (c) and update fallthrough (b) are excluded; the create predicate (a) is false",
+    "distinct_from": [
+      "DX-MT-027-20260930-BRIDGE-SELECT-HIDES-ROW (refuted by the b4faed35 probe)",
+      "pre-existing row / update fallthrough (b)",
+      "LET-leak in grant fns (refuted: expr/function.rs:133 isolated ctx)",
+      "create-predicate-false-by-term (a) as evaluated by BRIDGE-DIAG terms outside the predicate"
+    ],
+    "next_approach": "Operator decision: root-harness scratch-table predicate bisect (S1 full bridge create predicate copy, S2 view_def branch only, S3 fn::mt109_has_workspace_access only; first discriminators: S2 minus the three entity_id terms vs S2), no schema.surql change",
+    "status_effect": "none; MT-027 stays FAIL_V7"
   }
 }
