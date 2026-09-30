@@ -9572,6 +9572,27 @@ mod tests {
         }
     }
 
+    /// MT-027 KB-DIAG2 probe (temporary): root-context read of the saved-view bridge row and the
+    /// effective bridge table definition, printed to stderr for the single validator run.
+    async fn kb_diag2_bridge(state: &AppState, view_id: &str) {
+        let result = state
+            .surreal
+            .test_admin_query_bound(
+                "SELECT * FROM ONLY type::record('loom_block_knowledge_bridge', $id); INFO FOR TABLE loom_block_knowledge_bridge;".to_owned(),
+                json!({"id": view_id}),
+            )
+            .await;
+        match result {
+            Ok(mut response) => {
+                let row = response.take::<Option<Value>>(0);
+                let info = response.take::<Option<Value>>(1);
+                eprintln!("KB-DIAG2 root_bridge_row view_id={view_id} row={row:?}");
+                eprintln!("KB-DIAG2 root_bridge_table_info={info:?}");
+            }
+            Err(error) => eprintln!("KB-DIAG2 root_read_error view_id={view_id} error={error}"),
+        }
+    }
+
     async fn mt027_create_pending_view(
         state: &AppState,
         workspace_id: &str,
@@ -10684,6 +10705,7 @@ mod tests {
             serde_json::json!({"block_id": view_id, "title": "C3 view", "definition": serde_json::to_value(mt027_view_definition()).unwrap()}),
         )
         .await;
+        kb_diag2_bridge(&state, &view_id).await;
         assert_eq!(status, StatusCode::OK, "saved view create: {view}");
         let (status, got) = loom_create_request(
             &router,
@@ -12371,6 +12393,7 @@ mod tests {
             json!({"block_id": view_id, "title": "MT153 view", "definition": definition}),
         )
         .await;
+        kb_diag2_bridge(&m.state, &view_id).await;
         m.assert_receipts(family, since, true).await;
         assert_eq!(
             m.row(block_row, json!({"id": view_id})).await["content_type"],
