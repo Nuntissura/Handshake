@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-165",
   "created_at_utc": "2026-09-29T18:50:00Z",
-  "updated_at_utc": "2026-09-29T19:18:00Z",
+  "updated_at_utc": "2026-09-30T03:16:17Z",
   "identity": {
     "mt_id": "MT-165",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -584,5 +584,49 @@
     "ac_165_3_controls": "both guards: canonicalize root and target, require target.starts_with(root) (and != root); refuse when root/target is a reparse point (FILE_ATTRIBUTE_REPARSE_POINT 0x400 or symlink); fallback directory delete only after a recursive reparse-point scan finds none",
     "residual_risk": "a process abort that does not unwind (e.g. stack overflow 0xc00000fd) skips Drop; the next run's git worktree prune clears registrations whose directories are gone, but an aborted run's directory remains for the validator's inventory check (AC-165-4)",
     "shared_helper": "not added: the two tests live in different crates (integration test binary vs lib cfg(test)), so each carries its own small guard"
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR-20260930-FROZEN-37ee7c5b",
+    "validated_at_utc": "2026-09-30T03:16:17Z",
+    "candidate_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+    "proof_records_ref": "MT-166.json#validation.proof_records[PR-WP012-UNION-37ee7c5b-CORE]",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-core.xml",
+    "mapped_cases": {
+      "model_session_scheduler_tests": "11/18 pass; 7 fail with \"git worktree add failed\" (session worktree allocation needs a git repository; the round runs from a git-archive export)",
+      "api::jobs create_model_run_job_launches_runtime_session_and_preserves_native_binding": "FAIL same infrastructure cause (jobs.rs:945)",
+      "AC-165-4 inventory": {
+        "before": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt165-inventory-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-before.txt",
+        "before_sha256": "5cf8f58df4058f9007805801333c815617bcbf25cd07f8945b51233c45089a01",
+        "after": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt165-inventory-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-after.txt",
+        "after_sha256": "0c469d5ff817a5f2be991ef0a22fad1f482660dd8edec460f61e35fe83a9defe",
+        "diff": "identical (git worktree list, branches, scheduler roots, native-mt101 folders)",
+        "scheduler_roots": "14 pre-existing hsk-session-worktrees-model-session-scheduler-* roots in lane tmp before and after; no new root",
+        "native_mt101": "none before or after"
+      }
+    },
+    "unclosed_required_proof": [
+      "AC-165-1/2 cleanup-on-pass/panic never exercised: no worktree could be created in the export",
+      "AC-165-4 identical inventory is vacuous for the same reason"
+    ],
+    "failure_kind": "infrastructure",
+    "failure_class": "ENTRYPOINT-EXPORT-NOT-GIT-CHECKOUT",
+    "needed_decision": "Run these tests from a git checkout (they would create and remove real session worktrees, cf. CX-GIT-001) or provide a disposable git repo for HANDSHAKE_SESSION_WORKTREE_ROOT/owning repo in the entrypoint; Operator/coordinator decision",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT165-37ee7c5b-union-observation",
+        "at_utc": "2026-09-30T03:16:17Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT165-37ee7c5b-union-observation",
+        "at_utc": "2026-09-30T03:16:17Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION (infrastructure, CX-VAL-006)"
+      }
+    ]
   }
 }
