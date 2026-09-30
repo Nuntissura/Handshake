@@ -233,7 +233,7 @@
   "title": "B18-MT-154-Non-Loom-Routes-Account-Session-Authority-And-Residuals",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-29T20:35:10Z",
+  "updated_at_utc": "2026-09-30T03:16:17Z",
   "validation_shared_union_ec596eec": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "decision": "inconclusive",
@@ -3614,5 +3614,46 @@
         "answer": "Return to READY (Recommended)"
       }
     }
-  ]
+  ],
+  "validation_shared_union_37ee7c5b": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR-20260930-FROZEN-37ee7c5b",
+    "validated_at_utc": "2026-09-30T03:16:17Z",
+    "candidate_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+    "proof_records_ref": "MT-166.json#validation.proof_records[PR-WP012-UNION-37ee7c5b-CORE]",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-core.xml",
+    "mapped_cases": {
+      "MT-154-ROUTES": "PASS 12/12",
+      "MT-154-WORKSPACE-DELETE": "PASS 3/3",
+      "MT-154-KNOWLEDGE-DOCS": "PASS 28/28",
+      "MT-154-EXISTING-TARGETS": "PASS",
+      "MT-154-PIN-CONFIRM": "PASS 13/13"
+    },
+    "unclosed_required_proof": [
+      "MT-154-NATIVE-DRAIN (native union not run)",
+      "MT-154-CHECK-TESTS",
+      "MT-154-CLIPPY-CHANGED",
+      "MT-154-FMT",
+      "MT-154-DIFF-CHECK",
+      "MT-154-PREDECESSOR-PINS-UNCHANGED"
+    ],
+    "mapped_failure_count": 0,
+    "state_unchanged": true,
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT154-37ee7c5b-union-observation",
+        "at_utc": "2026-09-30T03:16:17Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT154-37ee7c5b-union-observation",
+        "at_utc": "2026-09-30T03:16:17Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged"
+      }
+    ]
+  }
 }
