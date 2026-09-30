@@ -186,7 +186,7 @@
     "policy": "JSON authority; projection on demand only"
   },
   "lifecycle": {
-    "status": "BLOCKED",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-031",
       "MT-021",
@@ -202,13 +202,13 @@
     "active": false,
     "validator_verdict": null,
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER",
+    "next_actor": "WP_VALIDATOR: full MT-032 test_loom_address selection + owned-restart case + live screenshot floor on 37ee7c5b (AC-163-6)",
     "status_reason": "Operator decision WP012-MT032-SPLIT-20260929-MT164: BLOCKED on MT-164. V19 first linked save dropped at10010ms; inner counter/query/permission/write cost unresolved; required integrated proof incomplete.",
     "split_ref": "MT-032.json#execution_split_20260929",
     "status_before_mt164_20260929": "BLOCKED",
     "status_reason_before_mt164_20260929": "V19 first linked save dropped at10010ms; inner counter/query/permission/write cost unresolved; required integrated proof incomplete.",
     "validator_verdict_before_20260929": "PENDING",
-    "blocked_on": "MT-162: live self-seeded save must pass before persistence/final integration proof"
+    "blocked_on": null
   },
   "scope": {
     "summary": "Complete existing managed SurrealDB/EventLedger close/reopen proof with preserved identity/content/hash/backlinks, stale-version rejection, missing-resource behavior and owned-restart save15s. Reconcile all child criteria and retain the full original unit/component/live selection and final stable-candidate union. Prove actual A-to-B mounted Argus inspect, attributed click and fresh observation plus required strict screenshots. Component success and owned-restart success do not replace failed self-seeded10s acceptance.",
@@ -528,6 +528,14 @@
       "prior_blocked_on": "MT-164: indexed grant lookup (diagnosis MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN) must pass before live proof",
       "prior_status": "BLOCKED",
       "new_status": "BLOCKED"
+    },
+    {
+      "at": "2026-09-30",
+      "by": "KERNEL_BUILDER root session",
+      "prior_status": "BLOCKED",
+      "prior_blocked_on": "MT-162: live self-seeded save must pass before persistence/final integration proof",
+      "new_status": "READY_FOR_VALIDATION",
+      "reason": "MT-162 PASS_V2, MT-161 PASS_V1, MT-164 PASS_V3, MT-166 PASS_V1 on/through 37ee7c5b; pushed candidate 37ee7c5b is newer than this MT's last verdict; no product change required for its scope"
     }
   ]
 }

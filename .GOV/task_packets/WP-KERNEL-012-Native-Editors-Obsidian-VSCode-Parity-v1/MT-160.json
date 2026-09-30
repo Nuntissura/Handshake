@@ -219,7 +219,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-031",
       "MT-021",
@@ -234,7 +234,8 @@
     "creation_decision_ref": "MT-032.json#execution_split_20260929",
     "validator_verdict_before_20260929": "PENDING",
     "status_note_20260929": "Status left as authored (PENDING); PENDING is outside CX-STATUS-001 (adopted via f6bbcaac). Next: builder submits READY_FOR_VALIDATION on candidate after gameplan before_submit, or the parent records the status mapping.",
-    "next_actor": "KERNEL_BUILDER"
+    "next_actor": "WP_VALIDATOR: component/AccessKit proof on 37ee7c5b (or CX-VAL-002 reuse of V14) + independent inspection of MT-032-canvas-loom-chips.png",
+    "blocked_on": null
   },
   "scope": {
     "summary": "Preserve documents, rich-text blocks, code-file nodes, graph nodes and canvas placements as addressable through the existing Loom model. Maintain LoomBlockAddr, ContentHash, LoomBlockRecord, LoomBlockType, loom_uri, parse_loom_uri and LoomBlockResolver; backend-derived identity remains stable across rename. Reuse authenticated workspace-scoped block/transclusion/canvas-board APIs, canonical MT020 serializer/hash and existing sha2. Hash comparison is not client hash PATCH. Preserve canvas header chip, absent-ID guard, double-click navigation, graph tooltip/count and theme guard. MT-162 owns real create/save proof and MT-163 final integration. MT-022 is the inherited folder-tree prerequisite; MT-026 owns canvas placement.",
@@ -581,5 +582,15 @@
       "reason": "Component proof uses no live backend."
     },
     "parent_is_aggregate_not_predecessor": true
-  }
+  },
+  "lifecycle_history": [
+    {
+      "at": "2026-09-30",
+      "by": "KERNEL_BUILDER root session",
+      "prior_status": "PENDING",
+      "prior_blocked_on": null,
+      "new_status": "READY_FOR_VALIDATION",
+      "reason": "MT-162 PASS_V2, MT-161 PASS_V1, MT-164 PASS_V3, MT-166 PASS_V1 on/through 37ee7c5b; pushed candidate 37ee7c5b is newer than this MT's last verdict; no product change required for its scope"
+    }
+  ]
 }
