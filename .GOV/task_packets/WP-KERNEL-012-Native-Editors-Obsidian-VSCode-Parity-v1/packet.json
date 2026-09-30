@@ -327,7 +327,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-30T14:10:10Z",
+  "updated_at_utc": "2026-09-30T14:10:43Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -1988,6 +1988,13 @@
       "question": "In-session sub-agents cannot set GAMEPLAN_ROLE, so the hook evaluated all roles and blocked builder probe runs on validator/round steps. Fix?",
       "chosen_option": "Role prefix in hook (Recommended)",
       "effect": "Global gameplan.py hook honors a GAMEPLAN_ROLE=<role> declaration in the gated command text (env var still wins; conflicting declarations -> all roles); backup gameplan.py.bak-20260930. WP-012 gameplan: GP-008 rescoped any->wp_validator (GP-148); GP-105 and GP-107 retired (MT-032 V15 closed, PASS_V15)."
+    },
+    {
+      "recorded_at_utc": "2026-09-30T14:10:43Z",
+      "recorded_by": "ORCHESTRATOR root session",
+      "decision_id": "WP012-OPERATOR-AFK-AUTONOMY-20260930",
+      "operator_quote": "stop prompting me unless wp kernel 012 is finished and all mt are validated pass. use cheap sub agents to research online or explore codebase or master spec and other mt to find the best solution without me. i am AFK. work on your own, delegate agents, use other agents for help when something is unclear.",
+      "effect": "Orchestrator proceeds autonomously to WP completion (all MTs validator PASS); decisions normally escalated are resolved by research sub-agents against Master Spec/codebase/MT records and recorded here as orchestrator_decision with evidence; Operator is prompted only at WP completion."
     }
   ]
 }
