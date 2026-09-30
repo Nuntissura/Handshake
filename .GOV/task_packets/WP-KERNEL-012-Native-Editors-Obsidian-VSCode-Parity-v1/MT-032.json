@@ -852,7 +852,7 @@
   "title": "E5-MT-032-EverythingIsLoomBlockBacklinks",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-29T08:20:21.280923Z",
+  "updated_at_utc": "2026-09-30T11:26:00Z",
   "validation": {
     "proof_records": [
       {"proof_id":"PR-WP012-MT032-ec596eec-UNION-012","command":"C:/Program Files/Git/bin/bash.exe \"D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/run-round.sh\" ec596eecb70f2820cb357ef95d5820b890c8944f","cwd":".","commit":"ec596eecb70f2820cb357ef95d5820b890c8944f","tree_clean":true,"dirty_file_count":0,"executor_role":"WP_VALIDATOR","executor_session":"/root/wp_validator","target_dir":"WP-KERNEL-012/MT-109/wpv-c3x","started_utc":"2026-09-26T19:33:10.3524503Z","finished_utc":"2026-09-26T23:26:55.5249366Z","exit_code":0,"result_line":"[run-round] done. junit: D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-core.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-native.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-handshake_document.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-handshake_storage_support.xml (core_exit=100 native_exit=100 extracted=handshake_document:exit=0 handshake_storage_support:exit=0)","log_path":"WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ec596eecb70f2820cb357ef95d5820b890c8944f.stdout.log","features":["core:app-runtime,surreal-test-support,test-utils","native:integration,integration_tests,wgpu_screenshots","handshake_document:surreal-test-support","handshake_storage_support:surreal-test-support"],"env_knobs":{"CARGO_TARGET_DIR":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52","execution_inputs_ref":"MT-032.json#remediation_v13.validation_running.execution_inputs"},"covers":["MT-032","MT-154"]},
@@ -906,7 +906,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "BLOCKED",
+    "status": "PASS_V15",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -923,13 +923,17 @@
       "MT-034",
       "MT-044"
     ],
-    "validator_verdict": "FAIL_V14",
-    "prior_validator_verdict": "FAIL_V13",
-    "blocked_on": "MT-164: indexed grant lookup root cause (MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN); prior MT-154/V19 blocker retained in blocked_on_before_mt164_20260929",
+    "validator_verdict": "PASS_V15",
+    "prior_validator_verdict": "FAIL_V14",
+    "blocked_on": null,
+    "blocked_on_before_20260930": "MT-164: indexed grant lookup root cause (MT032-GRANT-LOOKUP-LINK-TRAVERSAL-SCAN); prior MT-154/V19 blocker retained in blocked_on_before_mt164_20260929",
     "blocked_on_before_mt164_20260929": "MT-154: V19 first linked save dropped at10010ms; counter loop3296741us, inner query/permission/write cost unresolved; original live MT032 acceptance remains unclosed",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR",
-    "validated_at_utc": "2026-09-29T04:03:10.939594Z",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+    "completed_by_verdict": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-09-30T11:26:00Z",
+    "status_reason_20260930": "PASS_V15 aggregate on 37ee7c5b: children MT-160..164 PASS; see validation_v15",
     "ready_for_validation_v2_at_utc": "2026-07-15T21:31:57.0694829Z",
     "ready_for_validation_v2_by": "KERNEL_BUILDER",
     "ready_for_validation_v2_reason": "Managed PostgreSQL and mounted native runtime remediation is current and independently hardened: canonical Loom identities/backlinks/hash/update/delete proof passes; async deliveries are queued and identity-bound; save invalidation and sticky index warnings are workspace/source scoped and survive bounded-history eviction; create guards prevent duplicate notes across document and workspace round-trips; both adversarial reviewers returned READY.",
@@ -1008,7 +1012,7 @@
     "claim_takeover_note_2026_07_29": "KERNEL_BUILDER-20260728-221208 claimed the exact FAIL_V2 remediation: rerun the real PostgreSQL document-address/backlink/content-hash path including missing, stale, and restart behavior; correct the stale three-tier diagnostics/UserManual posture now that internal_diagnostics and Palmistry are shipped; and prove the mounted backlink workflow through canonical Argus inspect, safe steer, and fresh post-action observation. Historical validator verdict remains FAIL_V2 until independent V3 validation.",
     "remediation_v3_in_progress": false,
     "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
-    "completed_by": null,
+    "completed_by": "WP_VALIDATOR-20260930-ORCH-SUB",
     "ready_for_validation_at_utc": "2026-09-26T11:24:52Z",
     "ready_for_validation_by": "KERNEL_BUILDER",
     "ready_for_validation_reason": "CX-STATUS-001 admission of clean pushed 49eac54e; source query reductions compiled on stable D inputs. Cheap selector/permission fixtures are advisory, not native latency proof. Details: remediation_v12. No PASS or completion.",
@@ -3031,6 +3035,80 @@
         "at_utc": "2026-09-29T04:03:10.939594Z",
         "payload_ref": "MT-032.json#validation_v14",
         "decision": "failed"
+      }
+    ]
+  },
+  "validation_v15": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "passed",
+    "verdict": "PASS_V15",
+    "kind": "aggregate_records_judgment",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-09-30T11:26:00Z",
+    "candidate_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+    "started_at": "2026-09-30T03:21:42.6896650Z",
+    "completed_at": "2026-09-30T03:31:21.4219675Z",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-mt032-native-selection.xml",
+    "proof_record_ids": [
+      "PR-WP012-MT032-NATIVE-SELECTION-37ee7c5b"
+    ],
+    "supporting_results": {
+      "core": {
+        "ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-core.xml",
+        "sha256": "88a4a10ec2125826881dbf2ae4435c7d49b844a702e7b464fd01e3d132c9efd7",
+        "mt032_scope": "knowledge_documents_api_tests 28/28 pass; the 9 core failures in this JUnit are outside MT-032 selection (mt153 matrix, jobs/model_session_scheduler)"
+      },
+      "self_seeded_round": {
+        "ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-mt161-162-self-seeded-native-round.xml",
+        "result": "1/1 pass"
+      },
+      "extracted_crates": "handshake_document 41/41, handshake_storage_support 34/34 on 37ee7c5b"
+    },
+    "children": {
+      "MT-160": "PASS_V1 on 37ee7c5b",
+      "MT-161": "PASS_V1 on 37ee7c5b",
+      "MT-162": "PASS_V2 on 37ee7c5b",
+      "MT-163": "PASS_V1 on 37ee7c5b",
+      "MT-164": "PASS_V3 on de04b8f0 (ancestor of 37ee7c5b); grant-lookup fix effect observed on 37ee7c5b: max self-seeded save 5.4 s < 10 s"
+    },
+    "acceptance": {
+      "AC1": "proved (MT-160; loom_address round-trip cases pass)",
+      "AC2": "proved (MT-162 PASS_V2; live create/load canonical identity)",
+      "AC3": "proved (MT-161/162/163; live save-derived backlinks, no seeding/rebuild)",
+      "AC4": "proved (MT-161/163; CMD_OPEN_DOCUMENT bus + production shell drain)",
+      "AC5": "proved under Operator ruling WP012-MT160-163-CHIP-PLACEMENT-20260930 (implemented card-footer placement accepted; child ACs amended; parent text 'node header' not edited by validator); screenshots inspected",
+      "AC6": "proved (MT-162/163; reloaded content_sha256/content_hash equal canonical SHA-256)",
+      "AC7": "proved (MT-161/163; backlinks-panel List, backlink-{id} ListItem+Press, mounted click)",
+      "AC8": "proved (MT-163; 50/50 full selection; 10 s self-seeded and 15 s owned-restart deadlines held)"
+    },
+    "proof_targets": "PT1-PT5 proved by 37ee7c5b native selection 50/50 (unit/component, live identity, live save/backlink/hash/remove/restore/delete, mounted bus/Argus/strict screenshots, AccessKit/canvas/graph + owned-restart/missing/stale)",
+    "hbr": {
+      "HBR-INT": "proved: backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring pass; authentic save receipts asserted in live cases (37ee7c5b)",
+      "HBR-SWARM": "proved: mounted_backlink_event_retries_when_bus_is_contended pass (37ee7c5b)",
+      "HBR-VIS": "proved: mounted Argus live case pass; MT-032-canvas-loom-chips.png and MT-032-canvas-live-B.png opened and inspected",
+      "HBR-MAN": "reused under CX-VAL-002: test_manual_content mt032_agent_tool_reference_covers_fixed_backlinks_controls and wave5_surface_topics_exist_and_carry_real_no_context_facts pass in independent 8ea13a9b union native JUnit (sha256 8e05b8fb...); diff 8ea13a9b..37ee7c5b touches no native path except tests/test_loom_address.rs, so manual inputs unchanged; proof 8ea13a9b, candidate 37ee7c5b"
+    },
+    "failures": [],
+    "findings": [
+      "Canvas screenshots resolve inside validator export target (target-r52), not the sole artifact root; failure_kind infrastructure, non-blocking; copies retained"
+    ],
+    "attempt_disposition": "Pass ends FAIL_V14 chain; historical counters and diagnoses retained unchanged",
+    "gameplan_before_verdict": "wp_validator PASS 5/5",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT032-37ee7c5b-aggregate-v15",
+        "at_utc": "2026-09-30T11:26:00Z",
+        "payload_ref": "MT-032.json#validation_v15",
+        "decision": "passed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT032-37ee7c5b-aggregate-v15",
+        "at_utc": "2026-09-30T11:26:00Z",
+        "state_ref": "MT-032.json#lifecycle",
+        "decision": "passed",
+        "state_effect": "lifecycle.status PASS_V15"
       }
     ]
   }

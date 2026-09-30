@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-163",
   "created_at_utc": "2026-09-29T08:31:36.101102Z",
-  "updated_at_utc": "2026-09-30T10:15:21Z",
+  "updated_at_utc": "2026-09-30T11:24:00Z",
   "identity": {
     "mt_id": "MT-163",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -187,7 +187,7 @@
     "policy": "JSON authority; projection on demand only"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "depends_on": [
       "MT-031",
       "MT-021",
@@ -201,16 +201,19 @@
       "MT-032"
     ],
     "active": false,
-    "validator_verdict": null,
-    "completed_by": null,
-    "next_actor": "WP_VALIDATOR: verdict on 37ee7c5b validation_v1 evidence under amended AC-163-3 (no rerun; same candidate)",
-    "status_reason": "Chip placement ruled 2026-09-30 (accept card footer; AC amended). Awaiting validator verdict on existing 37ee7c5b evidence.",
+    "validator_verdict": "PASS_V1",
+    "completed_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "next_actor": "ORCHESTRATOR",
+    "status_reason": "PASS_V1 on 37ee7c5b: full native floor 50/50 under amended AC-163-3 (card footer).",
     "split_ref": "MT-032.json#execution_split_20260929",
     "status_before_mt164_20260929": "BLOCKED",
     "status_reason_before_mt164_20260929": "V19 first linked save dropped at10010ms; inner counter/query/permission/write cost unresolved; required integrated proof incomplete.",
     "validator_verdict_before_20260929": "PENDING",
     "blocked_on": null,
-    "status_reason_before_20260930": "Inconclusive on 37ee7c5b: full native selection 50/50 PASS; AC-163-3 node-header placement awaits Operator ruling."
+    "status_reason_before_20260930": "Inconclusive on 37ee7c5b: full native selection 50/50 PASS; AC-163-3 node-header placement awaits Operator ruling.",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-09-30T11:24:00Z",
+    "validated_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb"
   },
   "scope": {
     "summary": "Complete existing managed SurrealDB/EventLedger close/reopen proof with preserved identity/content/hash/backlinks, stale-version rejection, missing-resource behavior and owned-restart save15s. Reconcile all child criteria and retain the full original unit/component/live selection and final stable-candidate union. Prove actual A-to-B mounted Argus inspect, attributed click and fresh observation plus required strict screenshots. Component success and owned-restart success do not replace failed self-seeded10s acceptance.",
@@ -539,6 +542,14 @@
       "prior_blocked_on": "MT-162: live self-seeded save must pass before persistence/final integration proof",
       "new_status": "READY_FOR_VALIDATION",
       "reason": "MT-162 PASS_V2, MT-161 PASS_V1, MT-164 PASS_V3, MT-166 PASS_V1 on/through 37ee7c5b; pushed candidate 37ee7c5b is newer than this MT's last verdict; no product change required for its scope"
+    },
+    {
+      "at": "2026-09-30T11:24:00Z",
+      "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+      "prior_status": "READY_FOR_VALIDATION",
+      "prior_blocked_on": null,
+      "new_status": "PASS_V1",
+      "reason": "validation_v2 passed on 37ee7c5b"
     }
   ],
   "validation_v1": {
@@ -645,5 +656,64 @@
     "question": "Accept implemented card-footer loom:// chip placement (amend AC-160-3/AC-163-3) or move chip into the card header?",
     "chosen_option": "Accept footer (Recommended)",
     "effect": "AC-160-3 and AC-163-3 'node header' wording amended to 'card footer'; no product change; WP_VALIDATOR judges MT-160/MT-163 on existing 37ee7c5b evidence (validation_v1) without a rerun."
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-09-30T11:24:00Z",
+    "candidate_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+    "started_at": "2026-09-30T03:21:42.6896650Z",
+    "completed_at": "2026-09-30T03:31:21.4219675Z",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-mt032-native-selection.xml",
+    "proof_records_ref": "MT-160.json#validation.proof_records[PR-WP012-MT032-NATIVE-SELECTION-37ee7c5b]",
+    "proof_reuse": "VPX-004 same candidate 37ee7c5b; proof executed by prior independent WP_VALIDATOR session via checked-in MT-032-phase-probe.sh; re-verified 2026-09-30: JUnit sha256 5354273432aa... equal to record, testsuites 50 tests/0 failures/0 errors/0 skipped; PNG sha256 e2a78adb.../8ad97aab... equal to record; no rerun per Operator decision WP012-MT160-163-CHIP-PLACEMENT-20260930",
+    "checks": [
+      {
+        "check_id": "MT-163-PROOF-01",
+        "result": "pass: full MT-032 native floor 50/50 incl both live cases (owned restart, self-seeded A-to-B mounted Argus), strict screenshots inspected"
+      }
+    ],
+    "acceptance": {
+      "AC-163-1": "proved",
+      "AC-163-2": "proved",
+      "AC-163-3": "proved under amended wording (card footer); PNGs inspected, AccessKit chip/absent-ID/tooltip cases pass",
+      "AC-163-4": "proved",
+      "AC-163-5": "proved",
+      "AC-163-6": "proved: 50/50; 10 s self-seeded (max save 5.4 s) and 15 s owned-restart deadlines held; receipts, indexing, remove/restore/delete, missing/stale, restart, Argus, screenshots"
+    },
+    "parent_reconciliation": {
+      "parent_acceptance": "AC1 MT-160 PASS_V1; AC2 MT-162 PASS_V2; AC3/4/7 MT-161 PASS_V1 + this MT; AC5 MT-160 + this MT (footer ruling); AC6 MT-162 + this MT; AC8 this MT",
+      "proof_targets": "PT1-PT5 covered by 37ee7c5b native selection 50/50 plus core knowledge_documents_api 28/28 pass in junit-37ee7c5b-core.xml",
+      "hbr": "HBR-MAN not triggered for MT-163 (no product change); HBR-INT tier cases (backlinks_diagnostics_wire..., save receipts) pass; HBR-SWARM bus contention case pass; HBR-VIS strict screenshots inspected"
+    },
+    "inspection": {
+      "canvas_loom_chips": "Opened by this validator: 900x480; cards p-001/p-002; chips loom://ws-32/blk-7 and blk-8 bottom-left in card footer; no overlap; no fabricated hash",
+      "canvas_live_B": "Opened by this validator: single live card; full live loom:// id wraps 3 lines in card footer, clear of resize grip; no overlap",
+      "note": "Toolbar reads '1 placements' (plural); cosmetic, outside AC"
+    },
+    "findings": [
+      "Screenshot path is crate-relative; from the validator export it resolved inside target-r52 (C:), not the sole artifact root. failure_kind infrastructure (validator export layout); copies retained under wpv-c3x/evidence; non-blocking concern for test owner"
+    ],
+    "failures": [],
+    "spec_realism": "No deferred-live markers; live cases drive real Handshake-managed SurrealDB backend; no implementer completed_by",
+    "operator_decision_ref": "operator_decision_20260930_chip_placement",
+    "gameplan_before_verdict": "wp_validator PASS 5/5",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT163-37ee7c5b-pass-v1",
+        "at_utc": "2026-09-30T11:24:00Z",
+        "decision": "passed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT163-37ee7c5b-pass-v1",
+        "at_utc": "2026-09-30T11:24:00Z",
+        "decision": "passed",
+        "state_effect": "lifecycle.status PASS_V1"
+      }
+    ]
   }
 }
