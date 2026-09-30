@@ -2359,7 +2359,7 @@
         "exit_code": 0,
         "result_line": "FMT_OK loom.rs, FMT_OK workspaces.rs; diff --check clean",
         "invalidated": {
-          "at_utc": "2026-09-30T12:40:00Z",
+          "at_utc": "2026-09-30T11:41:36Z",
           "reason": "stdin-mode rustfmt --check exits 0 even with a diff; file-mode check showed loom.rs:11065/11072 unformatted",
           "superseded_by": "KB-20260930-MT153-FMT-FILEMODE"
         }
@@ -2381,7 +2381,7 @@
     "test_runs": "none by builder (CX-EXEC-014); validator runs MT-153 proof checks on 65a7b6fb",
     "recorded_at_utc": "2026-09-30T10:32:31Z",
     "fmt_correction": {
-      "at_utc": "2026-09-30T12:40:00Z",
+      "at_utc": "2026-09-30T11:41:36Z",
       "finding": "remediation_v4 FMT_OK claim invalid (stdin-mode check); validator found loom.rs not rustfmt-clean",
       "fix_commit": "259495f0596763a58193d44478742c5dde26290a",
       "fix_scope": "formatting only, src/backend/handshake_core/src/api/loom.rs",
