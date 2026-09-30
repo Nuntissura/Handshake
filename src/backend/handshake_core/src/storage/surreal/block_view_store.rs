@@ -346,7 +346,7 @@ const CREATE_TRANSACTION: &str = "BEGIN TRANSACTION; \
     IF array::len((CREATE $bridge_event.record CONTENT { event_id: $bridge_event.event_id, event_version: $bridge_event.event_version, kernel_task_run_id: $bridge_event.kernel_task_run_id, session_run_id: $bridge_event.session_run_id, aggregate_type: $bridge_event.aggregate_type, aggregate_id: $bridge_event.aggregate_id, idempotency_key: $bridge_event.idempotency_key, event_type: $bridge_event.event_type, actor_kind: $bridge_event.actor_kind, actor_id: $bridge_event.actor_id, causation_id: $bridge_event.causation_id, correlation_id: $bridge_event.correlation_id, payload_hash: $bridge_event.payload_hash, source_component: $bridge_event.source_component, payload: $bridge_event.payload, wsids: $bridge_event.wsids, authority_resource_id: $bridge_event.authority_resource_id, authority_session_id: $bridge_event.authority_session_id, authority_capability_id: $bridge_event.authority_capability_id, authority_action: $bridge_event.authority_action, created_at: $bridge_event.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
     IF array::len((CREATE $mutation_event.record CONTENT { event_id: $mutation_event.event_id, event_version: $mutation_event.event_version, kernel_task_run_id: $mutation_event.kernel_task_run_id, session_run_id: $mutation_event.session_run_id, aggregate_type: $mutation_event.aggregate_type, aggregate_id: $mutation_event.aggregate_id, idempotency_key: $mutation_event.idempotency_key, event_type: $mutation_event.event_type, actor_kind: $mutation_event.actor_kind, actor_id: $mutation_event.actor_id, causation_id: $mutation_event.causation_id, correlation_id: $mutation_event.correlation_id, payload_hash: $mutation_event.payload_hash, source_component: $mutation_event.source_component, payload: $mutation_event.payload, wsids: $mutation_event.wsids, authority_resource_id: $mutation_event.authority_resource_id, authority_session_id: $mutation_event.authority_session_id, authority_capability_id: $mutation_event.authority_capability_id, authority_action: $mutation_event.authority_action, created_at: $mutation_event.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
     IF array::len((UPSERT $entity SET entity_id = $entity_id, workspace_id = $workspace, entity_kind = 'loom_block', entity_key = record::id($block), display_name = $display_name, detection_provenance = $detection_provenance, lifecycle_state = 'active', updated_at = $content.updated_at RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
-    array::len((UPSERT $bridge SET block_id = $block, workspace_id = $workspace, entity_id = $entity, index_event_id = $bridge_event.record, updated_at = $content.updated_at RETURN VALUE id)); \
+    IF array::len((UPSERT $bridge SET block_id = $block, workspace_id = $workspace, entity_id = $entity, index_event_id = $bridge_event.record, updated_at = $content.updated_at RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
     IF array::len((CREATE $outbox CONTENT $outbox_content RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
     LET $linked = (UPDATE $block SET event_ledger_event_id = $mutation_event.record RETURN AFTER); \
     IF array::len($linked) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $linked; }; \
@@ -383,10 +383,6 @@ async fn create_view_rows(
         );
         return Err(map_err(error.into()));
     }
-    // MT-027 KB-DIAG2 probe (temporary): statement 6 no longer THROWs, so the transaction commits;
-    // its record-user row count is printed and the test harness reads the bridge row as root.
-    let bridge_rows: Option<i64> = response.take(6).unwrap_or(None);
-    eprintln!("KB-DIAG2 bridge_upsert_record_user_rows={bridge_rows:?}");
     response.take(9).map_err(|error| map_err(error.into()))
 }
 

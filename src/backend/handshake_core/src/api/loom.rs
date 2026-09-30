@@ -479,11 +479,7 @@ async fn create_loom_block_authenticated(
     Extension(authority): Extension<crate::api::authority::AuthorizedResourceContext>,
     Json(payload): Json<CreateLoomBlockRequest>,
 ) -> ApiResult<Json<LoomBlock>> {
-    observe_loom_write(
-        "loom_block_create_request",
-        create_record_user_loom_block(state, workspace_id, payload, authority),
-    )
-    .await
+    create_record_user_loom_block(state, workspace_id, payload, authority).await
 }
 
 #[cfg(test)]
@@ -557,22 +553,6 @@ fn loom_denied() -> ApiError {
             error: "HSK-403-PROTECTED-RESOURCE",
         }),
     )
-}
-
-/// MT-026/MT-027 diagnostics: runs one Loom write request under a server-generated
-/// correlation id so its authority phases and every `query_values_at` statement emit the
-/// existing sanitized `MT032_DOCUMENT_PHASE` / `MT032_DOCUMENT_STATEMENT` timing lines
-/// (fixed labels and durations only, no query data). Behavior and authorization are unchanged.
-async fn observe_loom_write<T>(
-    phase: &'static str,
-    request: impl std::future::Future<Output = ApiResult<T>>,
-) -> ApiResult<T> {
-    handshake_document::diagnostics::DOCUMENT_PHASE_REQUEST_ID
-        .scope(
-            Uuid::now_v7(),
-            handshake_document::diagnostics::observe_document_phase(phase, request, Result::is_err),
-        )
-        .await
 }
 
 /// Authorizes `action` on the exact protected resource through the ResourceBroker. Reads use
@@ -891,6 +871,11 @@ async fn open_daily_journal(
     let title = format!("Daily Note {journal_date}");
     let mut derived = LoomBlockDerived::default();
     derived.full_text_index = Some(format!("# {title}\n\n"));
+    // MT-153: finalize (Flight Recorder + LoomSearchV2 reindex receipt) must run under the same
+    // record-user scope as the create, like the POST /loom/blocks path (loom_create_authority);
+    // outside it the KNOWLEDGE_LOOM_BLOCK_INDEXED receipt carries no authority_* identity and
+    // fn::mt120_loom_receipt hides it from the owner's aggregate read.
+    let finalize_scope = authority.record_user_scope.clone();
     let created = state
         .surreal
         .with_record_user_scope(
@@ -916,7 +901,15 @@ async fn open_daily_journal(
         )
         .await;
     match created {
-        Ok(block) => finalize_loom_block_create(&state, &ctx, &workspace_id, block).await,
+        Ok(block) => {
+            state
+                .surreal
+                .with_record_user_scope(
+                    finalize_scope,
+                    finalize_loom_block_create(&state, &ctx, &workspace_id, block),
+                )
+                .await
+        }
         // A concurrent open won the uq_loom_blocks_journal_key race: return that same note.
         Err(StorageError::Conflict(_)) | Err(StorageError::ConflictDetails { .. }) => {
             let existing =
@@ -3131,25 +3124,22 @@ async fn create_loom_edge_authenticated(
     headers: HeaderMap,
     Json(payload): Json<CreateLoomEdgeRequest>,
 ) -> ApiResult<Json<LoomEdge>> {
-    observe_loom_write("loom_edge_create_request", async {
-        let account = loom_workspace_account(
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+    )
+    .await?;
+    let ctx = account.ctx.clone();
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(
             &state,
-            &headers,
-            &workspace_id,
-            crate::storage::surreal::resource_authority::ResourceAction::Create,
+            &loom_workspace,
+            create_loom_edge_inner(state.clone(), workspace_id, payload, ctx),
         )
-        .await?;
-        let ctx = account.ctx.clone();
-        let loom_workspace = workspace_id.clone();
-        account
-            .run(
-                &state,
-                &loom_workspace,
-                create_loom_edge_inner(state.clone(), workspace_id.clone(), payload, ctx),
-            )
-            .await
-    })
-    .await
+        .await
 }
 
 #[cfg(test)]
@@ -6402,25 +6392,22 @@ async fn create_block_view_authenticated(
     headers: HeaderMap,
     Json(payload): Json<CreateBlockViewRequest>,
 ) -> ApiResult<Json<BlockViewRecord>> {
-    observe_loom_write("loom_view_create_request", async {
-        let account = loom_workspace_account(
+    let account = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+    )
+    .await?;
+    let ctx = account.ctx.clone();
+    let loom_workspace = workspace_id.clone();
+    account
+        .run(
             &state,
-            &headers,
-            &workspace_id,
-            crate::storage::surreal::resource_authority::ResourceAction::Create,
+            &loom_workspace,
+            create_block_view_inner(state.clone(), workspace_id, payload, ctx),
         )
-        .await?;
-        let ctx = account.ctx.clone();
-        let loom_workspace = workspace_id.clone();
-        account
-            .run(
-                &state,
-                &loom_workspace,
-                create_block_view_inner(state.clone(), workspace_id.clone(), payload, ctx),
-            )
-            .await
-    })
-    .await
+        .await
 }
 
 #[cfg(test)]
@@ -9572,27 +9559,6 @@ mod tests {
         }
     }
 
-    /// MT-027 KB-DIAG2 probe (temporary): root-context read of the saved-view bridge row and the
-    /// effective bridge table definition, printed to stderr for the single validator run.
-    async fn kb_diag2_bridge(state: &AppState, view_id: &str) {
-        let result = state
-            .surreal
-            .test_admin_query_bound(
-                "SELECT * FROM ONLY type::record('loom_block_knowledge_bridge', $id); INFO FOR TABLE loom_block_knowledge_bridge;".to_owned(),
-                json!({"id": view_id}),
-            )
-            .await;
-        match result {
-            Ok(mut response) => {
-                let row = response.take::<Option<Value>>(0);
-                let info = response.take::<Option<Value>>(1);
-                eprintln!("KB-DIAG2 root_bridge_row view_id={view_id} row={row:?}");
-                eprintln!("KB-DIAG2 root_bridge_table_info={info:?}");
-            }
-            Err(error) => eprintln!("KB-DIAG2 root_read_error view_id={view_id} error={error}"),
-        }
-    }
-
     async fn mt027_create_pending_view(
         state: &AppState,
         workspace_id: &str,
@@ -10705,7 +10671,6 @@ mod tests {
             serde_json::json!({"block_id": view_id, "title": "C3 view", "definition": serde_json::to_value(mt027_view_definition()).unwrap()}),
         )
         .await;
-        kb_diag2_bridge(&state, &view_id).await;
         assert_eq!(status, StatusCode::OK, "saved view create: {view}");
         let (status, got) = loom_create_request(
             &router,
@@ -12393,7 +12358,6 @@ mod tests {
             json!({"block_id": view_id, "title": "MT153 view", "definition": definition}),
         )
         .await;
-        kb_diag2_bridge(&m.state, &view_id).await;
         m.assert_receipts(family, since, true).await;
         assert_eq!(
             m.row(block_row, json!({"id": view_id})).await["content_type"],
