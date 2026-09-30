@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 169
+generation: 170
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -124,7 +124,7 @@ steps:
 - {id: GP-103, role: orchestrator, at: before_round, do: confirm Operator continuation_v1 unused; original acceptance and diagnostics preserved, check: {type: confirm}, source: Operator approved one same747 continuation after exact23 EXE retention and capacity proof; replaces GP094, state: retired}
 - {id: GP-104, role: wp_validator, at: before_round, do: confirm continuation_v1 unused and separate markers/logs preserve first acceptance, check: {type: confirm}, source: Operator one continuation after capacity stop; no reset or third diagnostic; replaces GP095, state: retired}
 - {id: GP-105, role: any, at: before_round, do: 'confirm receipt timings preserve one transaction, scope, denial and replay behavior', check: {type: confirm}, source: FAIL_V13 compound receipt timing hides lookup/branch costs, state: active}
-- {id: GP-106, role: orchestrator, at: before_round, do: confirm renewed V15 action uses changed hypothesis or repaired candidate and preserves prior attempts, check: {type: confirm}, source: Operator renewed MT032 repair20260928; replaces consumed747-only GP103 without resetting counters, state: active}
+- {id: GP-106, role: orchestrator, at: before_round, do: confirm renewed V15 action uses changed hypothesis or repaired candidate and preserves prior attempts, check: {type: confirm}, source: Operator renewed MT032 repair20260928; replaces consumed747-only GP103 without resetting counters, state: retired}
 - {id: GP-107, role: wp_validator, at: before_round, do: confirm V15 proof targets the changed question or repair with separate evidence and original acceptance retained, check: {type: confirm}, source: Operator renewed MT032 repair20260928; replaces consumed747-only GP104 without resetting counters, state: active}
 - {id: GP-108, role: builder, at: before_round, do: 'confirm pinned Error::internal receives owned String at every new receipt decoding error', check: {type: confirm}, source: 'compile E0308: SurrealDB3.2 Error::internal requires String; three new literals were borrowed', state: retired}
 - {id: GP-109, role: orchestrator, at: before_dispatch, do: confirm preparation edits use documented controller actions without executing product work, check: {type: confirm}, source: 'Paperwork batch blocked: description text matched runtime hook; no command ran', state: retired}
