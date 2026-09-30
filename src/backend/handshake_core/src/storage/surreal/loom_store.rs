@@ -48,10 +48,13 @@ const COLLECTIONS_TABLE: &str = "loom_collections";
 /// Because the receipt CREATE is a real statement in the caller's transaction, a failing
 /// `kernel_event_ledger` write (the test-support fault seam redefines `event_id` with
 /// `ASSERT false`) aborts the whole mutation.
+// MT-153/MT-026: the receipt pre-read compares against the bare bound `$ledger_key` (the
+// ledger's idempotency key). SurrealDB 3.2's streaming planner folds only bare params into
+// index lookups; `$ledger.idempotency_key` fell back to a kernel_event_ledger table scan.
 macro_rules! loom_ledger_append_sql {
     () => {
         concat!(
-            "LET $existing_receipt = (SELECT id, payload_hash FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0]; ",
+            "LET $existing_receipt = (SELECT id, payload_hash FROM kernel_event_ledger WHERE idempotency_key = $ledger_key LIMIT 1)[0]; ",
             "IF $existing_receipt = NONE { ",
             "IF array::len((CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
             "} ELSE IF $existing_receipt.payload_hash != $ledger.payload_hash { THROW 'HSK-LOOM-RECEIPT-DIVERGENT'; }; ",
@@ -1214,6 +1217,8 @@ struct BlockUpdateBinding {
     search: RecordId,
     search_text: String,
     ledger: event_ledger::LedgerWrite,
+    /// Bare copy of `ledger.idempotency_key` for the index-backed receipt pre-read.
+    ledger_key: String,
 }
 
 /// Block metadata mutation (favorite / pinned / title / journal_date / pin_order). MT-150: the
@@ -1327,6 +1332,7 @@ pub(crate) async fn update_loom_block(
                 updated_at: Datetime::from(metadata.timestamp),
                 search: thing("loom_block_search_index", block_id),
                 search_text: loom_search_text(&projected),
+                ledger_key: ledger.idempotency_key.clone(),
                 ledger,
             },
             6,
@@ -1504,6 +1510,8 @@ struct EdgeCreateBinding {
     source: RecordId,
     target: RecordId,
     ledger: event_ledger::LedgerWrite,
+    /// Bare copy of `ledger.idempotency_key` for the index-backed receipt pre-read.
+    ledger_key: String,
 }
 
 /// Edge creation (tag / mention / ...). MT-150: the KNOWLEDGE_LOOM_TAG_MUTATED receipt
@@ -1599,6 +1607,7 @@ pub(crate) async fn create_loom_edge(
                 workspace: thing("workspaces", edge.workspace_id),
                 source,
                 target,
+                ledger_key: ledger.idempotency_key.clone(),
                 ledger,
             },
             6,
@@ -1665,6 +1674,7 @@ pub(crate) async fn delete_loom_edge(
             record: thing(EDGES_TABLE, edge_id),
             source: thing(BLOCKS_TABLE, mapped.source_block_id.clone()),
             target: thing(BLOCKS_TABLE, mapped.target_block_id.clone()),
+            ledger_key: ledger.idempotency_key.clone(),
             ledger,
         },
     )
@@ -1680,6 +1690,8 @@ struct DeleteEdgeBinding {
     source: RecordId,
     target: RecordId,
     ledger: event_ledger::LedgerWrite,
+    /// Bare copy of `ledger.idempotency_key` for the index-backed receipt pre-read.
+    ledger_key: String,
 }
 
 #[derive(SurrealValue)]
@@ -3601,6 +3613,8 @@ struct PinMutationBinding {
     edit_event_id: String,
     updated_at: Datetime,
     ledger: event_ledger::LedgerWrite,
+    /// Bare copy of `ledger.idempotency_key` for the index-backed receipt pre-read.
+    ledger_key: String,
 }
 
 #[derive(SurrealValue)]
@@ -3665,6 +3679,7 @@ async fn mutate_pin(
                 workflow_id: metadata.workflow_id.map(|id| id.to_string()),
                 edit_event_id: metadata.edit_event_id.to_string(),
                 updated_at: Datetime::from(metadata.timestamp),
+                ledger_key: ledger.idempotency_key.clone(),
                 ledger,
             },
             6,
@@ -3786,6 +3801,8 @@ struct FolderCreateBinding {
     sort_order: Option<i64>,
     project_ref: Option<String>,
     ledger: event_ledger::LedgerWrite,
+    /// Bare copy of `ledger.idempotency_key` for the index-backed receipt pre-read.
+    ledger_key: String,
 }
 
 pub(crate) async fn create_loom_folder(
@@ -3835,6 +3852,7 @@ pub(crate) async fn create_loom_folder(
                 sort_mode: folder.sort_mode.as_str().to_owned(),
                 sort_order: folder.sort_order.map(i64::from),
                 project_ref: folder.project_ref,
+                ledger_key: ledger.idempotency_key.clone(),
                 ledger,
             },
             5,
@@ -3930,6 +3948,8 @@ struct FolderUpdateBinding {
     set_project_ref: bool,
     project_ref: Option<String>,
     ledger: event_ledger::LedgerWrite,
+    /// Bare copy of `ledger.idempotency_key` for the index-backed receipt pre-read.
+    ledger_key: String,
     /// MT-151: the folder-tree anchor and the version the cycle walk was decided against.
     reparent: bool,
     anchor: RecordId,
@@ -4050,6 +4070,7 @@ pub(crate) async fn update_loom_folder(
                     .map(|id| thing("loom_folders", id)),
                 set_project_ref: update.project_ref.is_some(),
                 project_ref: update.project_ref.flatten(),
+                ledger_key: ledger.idempotency_key.clone(),
                 ledger,
                 reparent,
                 anchor_key: format!("{FOLDER_TREE_GRAPH_KIND}|{workspace_id}"),
@@ -4073,6 +4094,8 @@ struct FolderDeleteBinding {
     folder: RecordId,
     workspace: RecordId,
     ledger: event_ledger::LedgerWrite,
+    /// Bare copy of `ledger.idempotency_key` for the index-backed receipt pre-read.
+    ledger_key: String,
 }
 
 pub(crate) async fn delete_loom_folder(
@@ -4102,6 +4125,7 @@ pub(crate) async fn delete_loom_folder(
         FolderDeleteBinding {
             folder: thing("loom_folders", folder_id),
             workspace: thing("workspaces", workspace_id),
+            ledger_key: ledger.idempotency_key.clone(),
             ledger,
         },
         6,
@@ -4119,6 +4143,8 @@ struct FolderMemberBinding {
     workspace: RecordId,
     sort_order: Option<i64>,
     ledger: event_ledger::LedgerWrite,
+    /// Bare copy of `ledger.idempotency_key` for the index-backed receipt pre-read.
+    ledger_key: String,
 }
 
 pub(crate) async fn add_block_to_loom_folder(
@@ -4154,6 +4180,7 @@ pub(crate) async fn add_block_to_loom_folder(
             block: thing(BLOCKS_TABLE, block_id),
             workspace: thing("workspaces", workspace_id),
             sort_order: sort_order.map(i64::from),
+            ledger_key: ledger.idempotency_key.clone(),
             ledger,
         },
         5,
@@ -4194,6 +4221,7 @@ pub(crate) async fn remove_block_from_loom_folder(
             block: thing(BLOCKS_TABLE, block_id),
             workspace: thing("workspaces", workspace_id),
             sort_order: None,
+            ledger_key: ledger.idempotency_key.clone(),
             ledger,
         },
         3,

@@ -70,6 +70,8 @@ struct SearchIndexWriteBinding {
     embedding_model: Option<String>,
     indexed_at: Datetime,
     ledger: event_ledger::LedgerWrite,
+    /// Bare copy of `ledger.idempotency_key` for the index-backed receipt lookup (MT-153/MT-026).
+    ledger_key: String,
 }
 
 #[derive(SurrealValue)]
@@ -197,8 +199,8 @@ pub(crate) async fn reindex_loom_block_search(
             "BEGIN TRANSACTION; \
              IF (SELECT VALUE id FROM $block WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-SEARCH-BLOCK-NOT-FOUND'; }; \
              LET $content_type = (SELECT VALUE content_type FROM $block WHERE workspace_id = $workspace LIMIT 1)[0]; \
-             IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0] != NONE { \
-                IF (SELECT VALUE payload_hash FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0] != $ledger.payload_hash { THROW 'HSK-EVENT-LEDGER-IDEMPOTENCY-CONFLICT'; }; \
+             IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $ledger_key LIMIT 1)[0] != NONE { \
+                IF (SELECT VALUE payload_hash FROM kernel_event_ledger WHERE idempotency_key = $ledger_key LIMIT 1)[0] != $ledger.payload_hash { THROW 'HSK-EVENT-LEDGER-IDEMPOTENCY-CONFLICT'; }; \
              } ELSE { \
                 IF array::len((CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
              }; \
@@ -213,6 +215,7 @@ pub(crate) async fn reindex_loom_block_search(
                 embedding: embedding.map(|values| values.iter().map(|value| f64::from(*value)).collect()),
                 embedding_model: embedding_model.map(str::to_owned),
                 indexed_at: Datetime::from(metadata.timestamp),
+                ledger_key: ledger.idempotency_key.clone(),
                 ledger,
             },
             5,

@@ -688,6 +688,8 @@ struct UpdateBindings {
     edit_event_id: String,
     updated_at: Datetime,
     mutation_event: event_ledger::LedgerWrite,
+    /// Bare copy of `mutation_event.idempotency_key` for the index-backed receipt pre-read (MT-153/MT-026).
+    mutation_key: String,
     outbox: RecordId,
     outbox_content: OutboxContent,
 }
@@ -696,7 +698,7 @@ struct UpdateBindings {
 // (BEGIN=0, view guard=1, receipt=2, UPDATE LET=3, outbox guard=4, guard/RETURN=5, COMMIT=6).
 const UPDATE_TRANSACTION: &str = "BEGIN TRANSACTION; \
     IF (SELECT VALUE id FROM $block WHERE workspace_id = $workspace AND content_type = 'view_def' LIMIT 1)[0] = NONE { THROW 'HSK-BLOCK-VIEW-NOT-FOUND'; }; \
-    IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $mutation_event.idempotency_key LIMIT 1)[0] = NONE { IF array::len((CREATE $mutation_event.record CONTENT { event_id: $mutation_event.event_id, event_version: $mutation_event.event_version, kernel_task_run_id: $mutation_event.kernel_task_run_id, session_run_id: $mutation_event.session_run_id, aggregate_type: $mutation_event.aggregate_type, aggregate_id: $mutation_event.aggregate_id, idempotency_key: $mutation_event.idempotency_key, event_type: $mutation_event.event_type, actor_kind: $mutation_event.actor_kind, actor_id: $mutation_event.actor_id, causation_id: $mutation_event.causation_id, correlation_id: $mutation_event.correlation_id, payload_hash: $mutation_event.payload_hash, source_component: $mutation_event.source_component, payload: $mutation_event.payload, wsids: $mutation_event.wsids, authority_resource_id: $mutation_event.authority_resource_id, authority_session_id: $mutation_event.authority_session_id, authority_capability_id: $mutation_event.authority_capability_id, authority_action: $mutation_event.authority_action, created_at: $mutation_event.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; \
+    IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $mutation_key LIMIT 1)[0] = NONE { IF array::len((CREATE $mutation_event.record CONTENT { event_id: $mutation_event.event_id, event_version: $mutation_event.event_version, kernel_task_run_id: $mutation_event.kernel_task_run_id, session_run_id: $mutation_event.session_run_id, aggregate_type: $mutation_event.aggregate_type, aggregate_id: $mutation_event.aggregate_id, idempotency_key: $mutation_event.idempotency_key, event_type: $mutation_event.event_type, actor_kind: $mutation_event.actor_kind, actor_id: $mutation_event.actor_id, causation_id: $mutation_event.causation_id, correlation_id: $mutation_event.correlation_id, payload_hash: $mutation_event.payload_hash, source_component: $mutation_event.source_component, payload: $mutation_event.payload, wsids: $mutation_event.wsids, authority_resource_id: $mutation_event.authority_resource_id, authority_session_id: $mutation_event.authority_session_id, authority_capability_id: $mutation_event.authority_capability_id, authority_action: $mutation_event.authority_action, created_at: $mutation_event.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; \
     LET $updated = (UPDATE $block SET view_definition_json = $definition_json, last_actor_kind = $actor_kind, last_actor_id = $actor_id, last_job_id = $job_id, last_workflow_id = $workflow_id, edit_event_id = $edit_event_id, updated_at = $updated_at, event_ledger_event_id = $mutation_event.record RETURN AFTER); \
     IF array::len($updated) != 1 OR array::len((CREATE $outbox CONTENT $outbox_content RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
     IF array::len($updated) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $updated; }; \
@@ -738,6 +740,7 @@ pub(crate) async fn update_block_view_definition(
                 workflow_id: metadata.workflow_id.map(|id| id.to_string()),
                 edit_event_id: metadata.edit_event_id.to_string(),
                 updated_at: Datetime::from(metadata.timestamp),
+                mutation_key: mutation_event.idempotency_key.clone(),
                 mutation_event,
                 outbox: thing(OUTBOX, flight_event.event_id.to_string()),
                 outbox_content: OutboxContent {
