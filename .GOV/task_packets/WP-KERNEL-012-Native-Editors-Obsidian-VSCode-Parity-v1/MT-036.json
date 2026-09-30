@@ -1679,5 +1679,6 @@
         "state_effect": "lifecycle.status FAIL_V8"
       }
     ]
-  }
+  },
+  "diagnosis_20260930_bb9548e1": {"schema_id": "hsk.mt_diagnosis@1", "diagnosis_id": "DX-MT-036-20260930-BB95-FR-INGEST-2-APPENDS", "kind": "blocker_diagnosis", "failure_kind": "product", "round": "union bb9548e1", "cause": "each emitter event = 2 serial ledger appends (non-bare-param lookup) + 3.7 s loom create; 3rd event late", "evidence_refs": ["../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-3d621de000b7766f/984006ce-8062-4af8-9f5d-e34020ad4fab/backend.stdout.log:126-389 (document create 3.77 s)", "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.stderr.log:4919-4921", "src/backend/handshake_core/src/api/flight_recorder.rs:1479 record_native_editor_event: pending + completion append_kernel_event"], "distinct_from": ["DX-MT-036-20260930-SLOW-RECORD-USER-WRITES (grant-fn index cost; MT-164/166 fixed, failure persists)"], "event_ledger_rs_paths": ["api/flight_recorder.rs:1479 -> storage append_kernel_event (x2 per event) -> event_ledger.rs append (:325) idempotency lookup WHERE idempotency_key = $event.idempotency_key (:396-444)"], "other_paths": ["api/flight_recorder.rs (MT-154/MT-109 scope)"], "cause_status": "code reading + retained timing logs; fix not yet authored", "recorded_at_utc": "2026-09-30T17:30:00Z", "recorded_by": "KERNEL_BUILDER-LANE-B-20260930"}
 }

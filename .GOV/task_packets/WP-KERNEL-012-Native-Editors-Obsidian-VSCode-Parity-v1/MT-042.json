@@ -1031,5 +1031,6 @@
         "state_effect": "lifecycle.status FAIL_V7"
       }
     ]
-  }
+  },
+  "diagnosis_20260930_bb9548e1": {"schema_id": "hsk.mt_diagnosis@1", "diagnosis_id": "DX-MT-042-20260930-BB95-LOOM-STMT3-3S", "kind": "blocker_diagnosis", "failure_kind": "product", "round": "union bb9548e1", "cause": "seed loom block create 5.6 s (7-stmt query stmt 3 = 3.04 s); add-edge exceeds 5 s window", "evidence_refs": ["../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-4027868fac6f2e75/fc50ff6d-2b6f-41c0-a733-0631f8359c16/backend.stdout.log:96-142", "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.stderr.log:4758-4760"], "distinct_from": ["DX-MT-042-20260930-SLOW-RECORD-USER-WRITES (grant-fn index cost; MT-164/166 fixed, failure persists)"], "event_ledger_rs_paths": ["edge create ledger receipt via event_ledger.rs append: NOT_INSPECTED"], "other_paths": ["api/loom.rs / storage/surreal/loom_store.rs edge + block create (MT-153)"], "cause_status": "code reading + retained timing logs; fix not yet authored", "recorded_at_utc": "2026-09-30T17:30:00Z", "recorded_by": "KERNEL_BUILDER-LANE-B-20260930"}
 }
