@@ -1,5 +1,5 @@
 {
-  "candidate": "bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3",
+  "candidate": "b4faed359c07fed260cf8f42633dcf9b1e60ff92",
   "prior_native_proof": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
   "changed_native_test_bins": [
     "test_calendar_interop",
@@ -8,30 +8,27 @@
     "test_stage_interop"
   ],
   "native_src_changed": false,
-  "planned_native_tests_estimate": 158,
+  "planned_native_tests_estimate": 96,
   "core_lib": [
     "api::loom::tests::mt153_loom_route_family_authority_matrix",
     "api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows",
     "api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit",
     "api::workspaces::tests::mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default",
-    "api::jobs::tests::create_model_run_job_launches_runtime_session_and_preserves_native_binding",
     "api::loom::tests::mt109_c3_record_user_assets_collections_and_views"
   ],
   "core_whole": [
     "loom_daily_journal_tests",
     "loom_transclusion_tests",
     "loom_media_tiers_tests",
-    "project_wiki_drift_tests",
-    "model_session_scheduler_tests"
+    "project_wiki_drift_tests"
   ],
   "core_partial": {
     "loom_atomic_receipt_tests": "mt023_*",
-    "wp_kernel_012_native_editor_routes_tests": "route2_stage_artifact_create_and_resolve + mt067_*"
+    "wp_kernel_012_native_editor_routes_tests": "route2_stage_artifact_create_and_resolve",
+    "lib": "mt136_database_surface_proof_(a|b|c)::*"
   },
   "native_whole_binaries": [
-    "test_calendar_interop",
     "test_e7_knowledge_accesskit",
-    "test_e7_swarm_edit_proof",
     "test_fems_interop_proofs",
     "test_stage_interop"
   ],
@@ -156,39 +153,6 @@
       ],
       "reuse": []
     },
-    "MT-043": {
-      "run": [
-        "test_e7_swarm_edit_proof::*"
-      ],
-      "reuse": []
-    },
-    "MT-046": {
-      "run": [
-        "test_interconnect_ckc_to_note::interconnect_ic01_ckc_image_into_note",
-        "test_interconnect_ckc_to_note::interconnect_ic02_ckc_video_into_note",
-        "test_interconnect_ckc_to_note::interconnect_ic03_ckc_moodboard_on_canvas",
-        "test_interconnect_ckc_to_note::interconnect_ic04_ckc_character_wikilink_backlink",
-        "test_interconnect_ckc_to_note::interconnect_ic05_route_selection_to_stage",
-        "test_interconnect_note_code_crossref::interconnect_ic06_open_code_block_from_note",
-        "test_interconnect_note_code_crossref::interconnect_ic07_reference_code_symbol_from_note",
-        "test_interconnect_note_code_crossref::interconnect_ic08_shared_find_replace",
-        "test_interconnect_note_code_crossref::interconnect_ic09_diagnostic_note_reference",
-        "test_interconnect_loom_backlink_search::interconnect_ic10_backlink_cross_surface",
-        "test_interconnect_loom_backlink_search::interconnect_ic11_search_v2_across_surfaces",
-        "test_interconnect_loom_backlink_search::interconnect_ic12_graph_cross_surface_edges",
-        "test_interconnect_loom_backlink_search::interconnect_ic13_ai_link_suggestion",
-        "test_interconnect_loom_backlink_search::interconnect_ic14_quick_switcher_both_editors",
-        "test_interconnect_shared_undo_ledger::interconnect_ic15_undo_rich_editor",
-        "test_interconnect_shared_undo_ledger::interconnect_ic16_undo_code_editor",
-        "test_interconnect_shared_undo_ledger::interconnect_ic17_event_ledger_records",
-        "test_interconnect_shared_undo_ledger::interconnect_ic18_undo_scope_policy"
-      ],
-      "reuse": [
-        "test_interconnect_ckc_to_note::ic01_ic02_ic04_ckc_embed_atom_shape_round_trips",
-        "test_interconnect_loom_backlink_search::ic12_graph_renders_two_nodes_without_panic",
-        "test_interconnect_loom_backlink_search::typed_no_model_skip_classifier_is_fail_closed"
-      ]
-    },
     "MT-064": {
       "run": [
         "test_memory_proposal_argus::mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve",
@@ -222,19 +186,6 @@
         "lib::interop::stage_interop::tests::embed_back_endpoint_absent_is_typed_blocker"
       ],
       "core": "wp_kernel_012_native_editor_routes_tests route2_stage_artifact_create_and_resolve (see CORE list)"
-    },
-    "MT-067": {
-      "run": [
-        "test_calendar_interop::*"
-      ],
-      "reuse": [
-        "lib::interop::calendar_interop::tests::open_or_create_is_idempotent_and_delegates",
-        "lib::interop::calendar_interop::tests::read_paths_are_documented_routes",
-        "lib::interop::calendar_interop::tests::endpoint_unavailable_is_distinct_typed_blocker",
-        "lib::graph::daily_journal_panel::tests::set_activity_unavailable_preserves_resolved_event",
-        "lib::graph::daily_journal_panel::tests::set_event_with_spans_holds_read_only_view"
-      ],
-      "core": "wp_kernel_012_native_editor_routes_tests mt067_ (see CORE list)"
     },
     "MT-079": {
       "run": [],
@@ -300,12 +251,6 @@
         "lib::find_in_files::tests::mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity",
         "lib::find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token"
       ]
-    },
-    "MT-128": {
-      "run": [
-        "test_e7_swarm_edit_proof::*"
-      ],
-      "reuse": []
     },
     "MT-153": {
       "run": [
