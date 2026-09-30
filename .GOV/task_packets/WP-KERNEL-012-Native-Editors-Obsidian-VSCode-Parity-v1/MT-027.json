@@ -2235,5 +2235,37 @@
       "contract module path loom::block_collection_view does not exist; real path graph::block_collection_view",
       "contract core command used --features test-utils only; Cargo.toml requires surreal-test-support,test-utils"
     ]
+  },
+  "probe_20260930": {
+    "schema_id": "hsk.mt_builder_probe@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "authority": "packet.json operator_decisions_20260930 (KB cheap focused tests)",
+    "status_change": "none; MT-027 stays FAIL_V7",
+    "prior_failure_trace": {
+      "run": "8ea13a9b native union",
+      "finding": "403 is HSK_BLOCK_VIEW_CREATE_TRANSACTION_FAILED statement_index=6: record-user UPSERT loom_block_knowledge_bridge returned 0 rows (THROW)",
+      "code_ref": "src/backend/handshake_core/src/storage/surreal/block_view_store.rs CREATE_TRANSACTION (index 6 = UPSERT $bridge)",
+      "log_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-368a110cf51f6ec4/acd72e9a-2284-4873-8760-a77d4599546b/backend.stdout.log",
+      "note": "bridge/entity/loom_blocks PERMISSIONS identical at fe0949d8 (core mt109_c3 record-user view create passed) and HEAD; bridge cause unresolved"
+    },
+    "probe": {
+      "commit": "1f4e0f69241864c40b2deb96d105ba426bb1448c",
+      "command": "cargo test --locked --features integration,integration_tests,wgpu_screenshots --test test_block_collection_view -- --exact block_collection_views_live_surrealdb_self_seed_full_round_trip --nocapture --test-threads=1",
+      "env": "owned backend HSK_TEST_BACKEND_BIN from kb-c5 target (app-runtime,surreal-test-support, built 12:08Z from 259495f0 backend sources); D: artifacts MT-027/kb-20260930",
+      "started_utc": "2026-09-30T12:18:09Z",
+      "result": "FAIL before saved-view POST: seed POST /workspaces/{ws}/loom/edges request_send timeout 15s (backend_proof_support/mod.rs:2407) after 5 block POSTs; workspace create 945ms at 12:19:22Z, timeout ~12:20:29Z",
+      "confounder": "host CPU ~51% from concurrent validator rustc build on C:",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-027/kb-20260930/probe-mt027.log",
+      "diagnostics": "../Handshake_Artifacts/WP-KERNEL-012/MT-027/kb-20260930/e/wp-kernel-012/mt-045/failure-diagnostics/standalone-run/block_collection_views_live_surrealdb_self_seed_full_round_trip"
+    },
+    "counter_evidence": "slow record-user Loom writes persist at 1f4e0f69 (after MT-164/166); weakens DX-*-SLOW-RECORD-USER-WRITES admissions of 2026-09-30",
+    "hypotheses_checked": [
+      {
+        "id": "H1-NESTED-PARAM-LEDGER-LOOKUP",
+        "claim": "loom_ledger_append_sql pre-read WHERE idempotency_key = $ledger.idempotency_key is unindexed",
+        "status": "refuted by code reading: surrealdb-core-3.2.0 src/idx/planner/tree.rs eval_idiom computes Param-start idioms to literals (indexable)"
+      }
+    ],
+    "next": "no statement-level timing exists on Loom create paths; locating the slow statement needs per-statement timing (diagnostic change) or validator-side evidence; orchestrator decision"
   }
 }
