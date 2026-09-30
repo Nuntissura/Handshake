@@ -2338,5 +2338,76 @@
     "reading": "Owner record-user workspace grant checks (fn::mt109_has_workspace_access create/read, fn::mt120_loom_block_access) evaluate false inside the view-create transaction; bridge UPSERT writes nothing (pre/post false) while block/entity/workspace linkage is consistent",
     "native_same_signature": "test_block_collection_view.rs:1706 POST block view 500 HSK-500-LOOM",
     "loom_write_timings_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/loom-write-timings-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.json"
+  },
+  "blocker_20260930_bridge_zero_rows": {
+    "schema_id": "hsk.mt_blocker@1",
+    "kind": "blocker",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-09-30T17:10:53Z",
+    "blocker": "view-create stmt 6 (block_view_store.rs:349) record-user UPSERT loom_block_knowledge_bridge returns 0 rows; which 0-row path is unproven",
+    "round_evidence": {
+      "round_candidate": "bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3",
+      "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3*.stderr.log lines 3473, 4519",
+      "bridge_diag": "{ blk_ct: 'view_def', blk_ws: true, ent_key_ok: true, ent_kind: 'loom_block', ent_ws: true, ev: true, lba: false, post: false, pre: false, ws_create: false, ws_read: false }"
+    },
+    "research_evidence": [
+      "surrealdb-core 3.2.0 (byte-identical in 3.2.4 for all files below); product pins surrealdb =3.2.0 (Cargo.toml:178, :266; Cargo.lock:6334-6335)",
+      "table PERMISSIONS predicates run on legacy Expr::compute with perms off: doc/check.rs:379-381, 448-474 (461 new_for_permission_predicate, 463-465 compute); dbs/options.rs:201-207 perms:false; DML never streaming-planned (exec/planner.rs:639-646, 1334-1350)",
+      "custom fn calls are isolated: expr/function.rs:133 Context::new_isolated (ctx/context.rs:274-299, 998-1007: only access/auth/token/session reach parent, cnf/mod.rs:23); body run with catch_return at expr/function.rs:150; each block a fresh child ctx expr/block.rs:89; LET writes only that child (expr/statements/set.rs:64-66) => repeated LET names across grant fns cannot leak",
+      "BRIDGE-DIAG terms are permission-filtered statement-level reads (fnc/record.rs:12-29 -> val/value/get.rs:567-680 -> val/record_id.rs:430-457 select_document), and the diag's fn:: calls may run on the streaming engine with perms on (dbs/executor.rs:927-969); so pre/post/ws_* cannot separate 'not created' from 'created but hidden'",
+      "doc/upsert.rs 0-row paths: :128 create predicate false (row not written); :130 store then :139 check_select_permissions false (row stored, output dropped; intended per surrealdb#7317); :41-87 RecordExists -> :161 FOR update NONE (bridge schema.surql:4493)"
+    ],
+    "status_effect": "none",
+    "validator_reading_ref": "MT-027.json#diagnostic_run_result_bb9548e1 (its 'writes nothing' reading relies on permission-filtered pre/post; see research_evidence)"
+  },
+  "diagnosis_20260930_bridge_select": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-027-20260930-BRIDGE-SELECT-HIDES-ROW",
+    "kind": "blocker_diagnosis",
+    "failure_class": "OWNED_SAVED_VIEW_CREATE_403",
+    "failure_kind": "product",
+    "cause": "bridge SELECT permission (schema.surql:4492) hides the persisted row at stmt 6",
+    "cause_status": "hypothesis; decided by the KB-DIAG2 probe in the next single run",
+    "evidence_refs": [
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3*.stderr.log:3473",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3*.stderr.log:4519",
+      "surrealdb-core 3.2.0 doc/upsert.rs:130,139; surrealdb#7317",
+      "MT-027.json#blocker_20260930_bridge_zero_rows"
+    ],
+    "distinct_from": [
+      "pre-existing bridge row / update fallthrough (b)",
+      "LET-leak in grant fns (refuted: expr/function.rs:133 isolated ctx)",
+      "create-predicate-false-by-term (a)"
+    ],
+    "recorded_at_utc": "2026-09-30T17:10:53Z",
+    "recorded_by": "KERNEL_BUILDER-20260930"
+  },
+  "probe_20260930_kb_diag2": {
+    "schema_id": "hsk.mt_remediation_diagnostic_run@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-09-30T17:10:53Z",
+    "authority": "CX-EXEC-013 one probe for new diagnosis DX-MT-027-20260930-BRIDGE-SELECT-HIDES-ROW; CX-EXEC-014 named diagnostic run",
+    "replaces": "45019718 BRIDGE-DIAG (reverted in the probe commit)",
+    "candidate_commit": "7612f1cc0b6c9d1b5440e23c572e375f63e9e036",
+    "executor_role": "WP_VALIDATOR",
+    "changes": [
+      "block_view_store.rs:349 stmt 6 = array::len((UPSERT $bridge ... RETURN VALUE id)) with no THROW, so the transaction commits; create_view_rows prints 'KB-DIAG2 bridge_upsert_record_user_rows=<n>' from result index 6",
+      "api/loom.rs tests: kb_diag2_bridge() reads the bridge row by id as root (test_admin_query_bound) plus INFO FOR TABLE loom_block_knowledge_bridge, printing 'KB-DIAG2 root_bridge_row view_id=.. row=..' and 'KB-DIAG2 root_bridge_table_info=..'; called after the owner POST in mt153_loom_route_family_authority_matrix and before the status assert in mt109_c3_record_user_assets_collections_and_views"
+    ],
+    "tests": [
+      "api::loom::tests::mt153_loom_route_family_authority_matrix",
+      "api::loom::tests::mt109_c3_record_user_assets_collections_and_views"
+    ],
+    "how_to_read": {
+      "rows_0_and_root_row_present": "SELECT-permission path (c): row stored, output hidden by schema.surql:4492",
+      "rows_0_and_root_row_absent": "create predicate false (a) at schema.surql:4493",
+      "rows_1": "defect not reproduced at this commit",
+      "table_info": "confirms the effective bridge PERMISSIONS equal schema.surql:4492-4493"
+    },
+    "note": "diagnostic build only: with no THROW a view may commit without a visible bridge row; MT-027/MT-153 acceptance is not judged on it",
+    "keeps": "1457903f Loom create timing until native MT-026 results are in",
+    "status_change": "none; MT-027 stays FAIL_V7",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 7612f1cc0b6c9d1b5440e23c572e375f63e9e036",
+    "candidate_note": "round tip may be a later commit containing 7612f1cc0b6c9d1b5440e23c572e375f63e9e036; orchestrator names it"
   }
 }

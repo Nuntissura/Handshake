@@ -26,7 +26,7 @@
   },
   "validation_v6": {"schema_id":"hsk.mt_validation_verdict@1","decision":"failed","verdict":"FAIL_V6","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:48:02Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-026.scope.acceptance_criteria/proof_targets and own proof_commands","proof_records":[{"executor_role":"WP_VALIDATOR","command_ref":"MT-032.json#remediation_v12.union_entrypoint_binding","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","freshness":"Full49e archive marker; native JUnit15:40:56Z after13:57:25Z invocation marker; export/copy hashes equal","binaries":[{"path":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52\\debug\\deps\\test_canvas_board-ba01ec5e8e1c2650.exe","target":"test_canvas_board","sha256":"D5072E3AD03BC6200C11950BF255C0DD35A23FF170F9FAF8141175CC6A7FFE30"},{"path":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52\\debug\\deps\\test_canvas_board_argus-a19297c36c5a4f3c.exe","target":"test_canvas_board_argus","sha256":"1B57A26896891CEB60F54B865C971BDEDA1248A90D0F2E940742A240B63F83A6"}],"runner_sha256":"6DCA6F19DF0C51F04677DA9E8E51F852394A466DC8EFC21455F15233B756E8AC","exit_code":100}],"failing_checks":[{"check_ids":["PC-026-03","PC-026-04"],"test":"canvas_board_live_surrealdb_self_seeds_mounted_round_trip","target":"handshake-native::test_canvas_board","elapsed_seconds":138.499,"failure_kind":"product","failure_class":"CANVAS_EDGE_PERSIST_REFETCH_TIMEOUT","message":"thread 'canvas_board_live_surrealdb_self_seeds_mounted_round_trip' (197080) panicked at tests\\test_canvas_board.rs:1791:5","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#canvas_board_live_surrealdb_self_seeds_mounted_round_trip"},{"check_ids":["PC-026-03","PC-026-04"],"test":"mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges","target":"handshake-native::test_canvas_board_argus","elapsed_seconds":124.271,"failure_kind":"product","failure_class":"CANVAS_EDGE_PERSIST_REFETCH_TIMEOUT","message":"thread 'mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges' (212916) panicked at tests\\test_canvas_board_argus.rs:220:13","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges"}],"classification_basis":"Mounted semantic-edge persistence/refetch5s and visual-edge request timeout; group/move passes are not controls","proof_floor_disposition":{"required_checks":["PC-026-03","PC-026-04"],"unmapped_acs":[],"remaining_proofs":"Not credited toward PASS; own required product failure establishes FAIL without claiming other floors complete"},"adversarial_review":{"DIFF_ATTACK_SURFACES":["Record-user/runtime persistence boundaries can fail while component tests pass"],"INDEPENDENT_CHECKS_RUN":["Opened own fresh JUnit and retained primary/secondary failure output","Verified actual union compile-selected EXE hashes"],"COUNTERFACTUAL_CHECKS":["Removing the assertion named by thread 'canvas_board_live_surrealdb_self_seeds_mounted_round_trip' (197080) panicked at tests\\test_canvas_board.rs:1791:5 would conceal the required boundary failure"],"BOUNDARY_PROBES":["Mounted semantic-edge persistence/refetch5s and visual-edge request timeout; group/move passes are not controls"],"NEGATIVE_PATH_CHECKS":["Failure capture/cleanup output inspected separately; secondary failure does not replace primary"],"INDEPENDENT_FINDINGS":["CANVAS_EDGE_PERSIST_REFETCH_TIMEOUT"],"RESIDUAL_UNCERTAINTY":["Exact internal root cause unresolved; no hardware/load causal attribution","No whole-MT PASS or full-WP completion"]},"remediation_required":["Diagnose named primary boundary with preserved authorization, deadlines and own acceptance; no midcandidate fix or retry in this consumed cycle"],"attempt_disposition":"One final union consumed; historical verdicts preserved; no new run","verdict_events":[{"event":"accepted","idempotency_key":"MT-026-49eac54e-union-v6","at_utc":"2026-09-26T15:48:02Z","payload_ref":"MT-026.json#validation_v6","decision":"failed"},{"event":"completed","idempotency_key":"MT-026-49eac54e-union-v6","at_utc":"2026-09-26T15:49:30Z","state_ref":"MT-026.json#lifecycle","decision":"failed"}]},
   "lifecycle": {
-    "status": "FAIL_V7",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-021"
@@ -37,7 +37,7 @@
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
     "validated_at_utc": "2026-09-30T17:05:00Z",
     "claimed_by": "KERNEL_BUILDER-20260705-013720",
-    "ready_for_validation_at_utc": "2026-09-30T11:50:06Z",
+    "ready_for_validation_at_utc": "2026-09-30T17:10:53Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: canvas IS mounted (PaneType::AtelierEditor, default Atelier tab) but host consumes ONLY ResizePlacement/AssignSection; PlaceBlock/AddCard/Group/RemovePlacement/SemanticEdge/VisualEdgeAdded/ViewportChanged fall to catch-all None (in-code comment claiming MT-026 paths own them is FALSE) - drop-to-place, +Text card, remove, edge drawing, viewport persistence are inert. No initial getCanvasBoard fetch at mount; post-mutation fetch_board writes into an immediately-dropped cell (pane doc comment claiming refresh feeds back is FALSE). Mounted canvas renders permanently empty. Fix: wire remaining 7 event kinds to existing CanvasBoardClient + initial fetch + board-cell drain into the widget; correct false doc comments.",
@@ -145,14 +145,15 @@
       "prior_validator_verdict": "FAIL_V5",
       "reason": "remediation_v9 newer than last validation"
     },
-    "candidate_commit": "259495f0596763a58193d44478742c5dde26290a",
+    "candidate_commit": "7612f1cc0b6c9d1b5440e23c572e375f63e9e036",
     "diagnosis_refs": [
-      "MT-026.json#diagnosis_20260930"
+      "MT-026.json#diagnosis_20260930_ledger_lookup"
     ],
     "status_before_20260930": "FAIL_V6",
     "blocked_on": null,
     "prior_validator_verdict": "FAIL_V6",
-    "status_reason": "FAIL_V7 on bb9548e1 union round (validation_round_bb9548e1)"
+    "status_reason": "FAIL_V7 on bb9548e1 union round (validation_round_bb9548e1)",
+    "status_before_bb9548e1_resubmission": "FAIL_V7"
   },
   "scope": {
     "summary": "Goal: Port the React LoomCanvasBoard (MT-261 parity) to the native egui frontend (crate handshake-native, lib path handshake_native::). The canvas board is a spatial canvas where LoomBlocks are placed as reference cards (not copies) with real pan/zoom, drag-to-place, edge drawing (semantic and visual), grouping, and viewport persistence. The board itself is a typed LoomBlock (content_type=canvas); placements and edges are authoritative PostgreSQL/EventLedger state. Expected diff shape: one new file src/frontend/handshake_native/src/loom/canvas_board.rs containing LoomCanvasBoard widget, edits to src/frontend/handshake_native/src/loom/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/handshake_native/src/loom/canvas_board.rs — LoomCanvasBoard widget\n- EDIT src/frontend/handshake_native/src/loom/mod.rs — pub mod canvas_board; + re-export\n\nReuse (do not reinvent): the spatial-canvas painting/pan/zoom primitives in the existing WP-011 module src/frontend/handshake_native/src/canvas_board.rs (generic board surface), the Loom graph view in src/frontend/handshake_native/src/loom_graph.rs (block/edge model + graph rendering), the shared HTTP client in src/frontend/handshake_native/src/backend_client.rs (all backend calls route through it), command/selection/clipboard wiring via src/frontend/handshake_native/src/command_registry.rs + src/frontend/handshake_native/src/event_bus.rs, AccessKit exposure via src/frontend/handshake_native/src/accessibility/* (mod.rs, live.rs, registry.rs, snapshot.rs), and MCP tool/action exposure via src/frontend/handshake_native/src/mcp/* where the canvas surface must be model-drivable.\n\nExact APIs / React reference:\n- PRIMARY REACT REFERENCE: app/src/components/LoomCanvasBoard.tsx — the complete React implementation. Key behaviors to port exactly:\n  (a) placeBlockOnCanvas(workspaceId, canvasBlockId, {placedBlockId, x, y, w, h}) on drop (api.ts ~1617+)\n  (b) createCanvasCard(workspaceId, canvasBlockId, {title, body, x, y, w, h}) for free-text cards\n  (c) updateCanvasBoardViewport(workspaceId, canvasBlockId, {pan_x, pan_y, zoom}) on viewport change\n  (d) updateCanvasPlacement(workspaceId, placementId, {groupId}) for grouping\n  (e) removeCanvasPlacement(workspaceId, placementId) for removal (source block kept)\n  (f) createLoomEdge(workspaceId, {sourceBlockId, targetBlockId, edgeType:'mention'}) for semantic edges\n  (g) addCanvasVisualEdge(workspaceId, canvasBlockId, {fromPlacementId, toPlacementId}) for visual edges\n  (h) getCanvasBoard(workspaceId, canvasBlockId) -> LoomCanvasBoardView {board, placements, visual_edges}\n  (i) getLoomBlock(workspaceId, blockId) to resolve live block previews (reference, not copy)\n- Backend bindings: all functions from app/src/lib/api.ts in the section starting at line 1617 (LOOM_CANVAS_BOARD_SCHEMA_ID block), called through src/frontend/handshake_native/src/backend_client.rs.\n\nStep-by-step implementation notes:\n1. Define CanvasPlacementCard { placement_id: String, placed_block_id: String, x: f32, y: f32, w: f32, h: f32, z_index: i32, group_id: Option<String>, live_title: Option<String>, live_content_type: Option<String>, selected: bool }.\n2. Define VisualEdge { visual_edge_id: String, from_placement_id: String, to_placement_id: String }.\n3. Define LoomCanvasBoard widget state: { workspace_id, canvas_block_id, placements: Vec<CanvasPlacementCard>, visual_edges: Vec<VisualEdge>, pan: Vec2, zoom: f32, selected: HashSet<String>, edge_mode: EdgeMode (Semantic | Visual), edge_from: Option<String>, status: String, loading: bool, error: Option<String> }.\n4. On init: call getCanvasBoard -> populate placements + visual_edges + pan + zoom. Then for each placement, call getLoomBlock to resolve live_title + live_content_type. Store results in placements (ref semantics: a missing block shows '(stale reference)', never a copy).\n5. Render loop in show():\n   a. Top toolbar strip (using egui::TopBottomPanel or manual strip at top of allocated rect):\n      - Pan-left / Pan-right buttons (author_id='canvas.pan-left'/'canvas.pan-right'): adjust pan.x by ±40; call updateCanvasBoardViewport on release.\n      - Zoom-out / Zoom-in buttons (author_id='canvas.zoom-out'/'canvas.zoom-in'): adjust zoom by ±0.25 clamped [0.25, 4.0]; call updateCanvasBoardViewport.\n      - Zoom value label (author_id='canvas.zoom-value').\n      - '+ Text card' button (author_id='canvas.add-card'): calls createCanvasCard with default position (40, 40) and title=timestamp.\n      - 'Group (N)' button (author_id='canvas.group'): enabled only if selected.len() >= 2; calls updateCanvasPlacement for each selected with a new group_id.\n      - Edge mode dropdown/toggle (author_id='canvas.edge-mode'): Semantic | Visual.\n      - 'Draw edge from selected' button (author_id='canvas.start-edge'): enabled if selected.len()==1; on click sets edge_from = selected[0].\n   b. Status bar: single line of status text (author_id='canvas.status').\n   c. Canvas surface (fills remaining rect):\n      - Background: draw a dotted grid pattern using Painter::circle_filled at 24px spacing with radius 1px, color gray(203).\n      - Apply pan+zoom transform: translate by pan, then scale by zoom (use Painter with transform via egui::emath::RectTransform or manual coordinate math).\n      - Draw visual edges: for each VisualEdge, find from/to placements, draw dashed line between card centers (stroke 2px, Color32::from_gray(148), dash pattern 6/4).\n      - Draw placement cards: for each CanvasPlacementCard, draw a rounded rect at (x,y,w,h) * zoom + pan. Border: if selected 2px blue, else 1px gray(203). White fill. Show live_title (bold 13px) and live_content_type (muted 11px). Show a remove button ('x') at top-right of card.\n      - Click on empty area: deselect all + start pan drag.\n      - Drag on empty area: pan (mouse delta added to pan; persist on release via updateCanvasBoardViewport).\n      - Scroll wheel: zoom (multiply zoom by 1.15^delta; clamp; zoom toward pointer; persist).\n      - Click on card: toggle selection (shift=additive); if edge_from is set and this card != edge_from, call drawEdge(edge_from, this placement_id); clear edge_from.\n      - Drag FROM external source (egui DragAndDrop or OS drop): accept MIME 'application/x-handshake-loom-block' JSON {blockId, title}; compute drop position in canvas space = (screen_pos - pan) / zoom; call placeBlockOnCanvas; refresh.\n6. Edge drawing: if edge_mode=Semantic, call createLoomEdge(source_block_id, target_block_id, 'mention'); if edge_mode=Visual, call addCanvasVisualEdge(from_placement_id, to_placement_id). Always refresh after.\n7. AccessKit: each placement card gets author_id='canvas.placement.{placement_id}' role=Group, label=live_title, actions=[DefaultAction=select, Remove]. Remove button 'canvas.placement.{placement_id}.remove'. Toolbar buttons as listed above. Status bar 'canvas.status' role=Status. Register all nodes through src/frontend/handshake_native/src/accessibility/*.\n\nDependencies / unblock conditions: MT-021 must be complete for shared HTTP client (src/frontend/handshake_native/src/backend_client.rs). No dependency on MT-022 through MT-025.\n\nRisk if missed: Canvas board (Obsidian Canvas parity, MT-261) is absent from native frontend. This is a key differentiator surface.",
@@ -1724,5 +1725,60 @@
         "state_effect": "lifecycle.status FAIL_V7"
       }
     ]
+  },
+  "diagnosis_20260930_ledger_lookup": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-026-20260930-LEDGER-LOOKUP-SCAN",
+    "kind": "blocker_diagnosis",
+    "failure_class": "CANVAS_EDGE_PERSIST_REFETCH_TIMEOUT",
+    "failure_kind": "product",
+    "cause": "Loom write ledger pre-read on $ledger.idempotency_key is not index-folded; scans kernel_event_ledger ~3s per create",
+    "evidence_refs": [
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/loom-write-timings-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.json (edge q144#2/8 ~3.07 s = loom_ledger_append_sql pre-read; q144#5/8 ~2.68 s; block q19#3/7 3.1-3.8 s = search_store reindex lookup; q19#9/17 ~0.52 s)",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.stderr.log",
+      "src/backend/handshake_core/src/storage/surreal/loom_store.rs:54 (pre-fix macro), :1557-1575 edge create",
+      "src/backend/handshake_core/src/storage/surreal/search_store.rs:196-206",
+      "surrealdb-core 3.2.0 exec/planner/util/params.rs:81-160 (folds only bare Expr::Param); exec/index/analysis.rs:850-869 (Idiom vs Literal only, else table scan)",
+      "MT-164 GP-141 validator measurement: planner folds bare params only"
+    ],
+    "distinct_from": [
+      "DX-MT-026-20260930-SLOW-RECORD-USER-WRITES (grant-scan hypothesis; MT-164/166 did not remove the timeout)"
+    ],
+    "fix": {
+      "commit": "79610d1af37eadd50b917654de51e88948d738cd",
+      "owning_mt": "MT-153 (loom_store.rs/search_store.rs/block_view_store.rs in MT-153 allowed_write_paths)"
+    },
+    "open_risk": "residual edge create stmt #5/8 ~2.7 s vs 5 s client drop, unverified",
+    "recorded_at_utc": "2026-09-30T17:10:53Z",
+    "recorded_by": "KERNEL_BUILDER-20260930"
+  },
+  "remediation_20260930_bb9548e1": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-09-30T17:10:53Z",
+    "remediates": {
+      "verdict_ref": "MT-026.json#validation_round_bb9548e1 (FAIL_V7)",
+      "failed_check": "PC-026-03 canvas_board_live_surrealdb_self_seeds_mounted_round_trip",
+      "failure_class": "CANVAS_EDGE_PERSIST_REFETCH_TIMEOUT",
+      "repair_direction_addressed": "cut edge-create statement cost: #2/8 ledger pre-read made index-backed; #5/8 not changed (open_risk)"
+    },
+    "diagnosis_ref": "MT-026.json#diagnosis_20260930_ledger_lookup",
+    "admission_basis": "CX-VAL-008 new diagnosis id + code change in the affected path (79610d1a); no MT-026 code change",
+    "product_change_in_this_mt": "none",
+    "candidate_commit": "7612f1cc0b6c9d1b5440e23c572e375f63e9e036",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 7612f1cc0b6c9d1b5440e23c572e375f63e9e036",
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target",
+        "exit_code": 0,
+        "inputs": "working tree == 7612f1cc content (both commits made from the checked tree)",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-ledger-key-probe.log",
+        "result_line": "Finished dev profile in 11m 27s; warnings pre-existing, none on changed lines"
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 7612f1cc (GP-139 confirmed: bb9548e1..7612f1cc changes no Loom counter statement)",
+    "next_actor": "WP_VALIDATOR single union run (orchestrator names the round tip)"
   }
 }
