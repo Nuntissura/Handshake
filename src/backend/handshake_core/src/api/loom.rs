@@ -9570,6 +9570,111 @@ mod tests {
         }
     }
 
+    /// MT-027 KB-DIAG3 (temporary, test-only; Operator decision WP012-OPERATOR-DECISIONS-20260930-C):
+    /// root defines scratch tables whose FOR create predicates are the bridge create predicate
+    /// (schema.surql:4493), its OR branches and each view_def term; the owner's record user then, in
+    /// ONE transaction, creates a view_def block and its entity like view-create statements 1/5 and
+    /// CREATEs one scratch row per predicate. Row counts (1 = predicate true, 0 = false) and root
+    /// INFO FOR DB extracts are printed with the KB-DIAG3 tag; scratch rows/tables are removed after.
+    const KB_DIAG3_DEFINE: &str = "DEFINE TABLE OVERWRITE kbdiag3_t_full SCHEMAFULL PERMISSIONS FOR select FULL FOR create WHERE block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'create', 'fs.write') OR (block_id.content_type = 'view_def' AND block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')) OR (block_id.source_rich_document_id != NONE AND record::id(block_id.source_rich_document_id) = record::id(block_id) AND block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt120_document_access(record::id(block_id), record::id(workspace_id), 'update', 'fs.write')) FOR update NONE FOR delete NONE; DEFINE FIELD OVERWRITE block_id ON TABLE kbdiag3_t_full TYPE record<loom_blocks>; DEFINE FIELD OVERWRITE workspace_id ON TABLE kbdiag3_t_full TYPE record<workspaces>; DEFINE FIELD OVERWRITE entity_id ON TABLE kbdiag3_t_full TYPE record<knowledge_entities>; DEFINE TABLE OVERWRITE kbdiag3_t_t1 SCHEMAFULL PERMISSIONS FOR select FULL FOR create WHERE block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'create', 'fs.write') FOR update NONE FOR delete NONE; DEFINE FIELD OVERWRITE block_id ON TABLE kbdiag3_t_t1 TYPE record<loom_blocks>; DEFINE FIELD OVERWRITE workspace_id ON TABLE kbdiag3_t_t1 TYPE record<workspaces>; DEFINE FIELD OVERWRITE entity_id ON TABLE kbdiag3_t_t1 TYPE record<knowledge_entities>; DEFINE TABLE OVERWRITE kbdiag3_t_t2 SCHEMAFULL PERMISSIONS FOR select FULL FOR create WHERE block_id.content_type = 'view_def' AND block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write') FOR update NONE FOR delete NONE; DEFINE FIELD OVERWRITE block_id ON TABLE kbdiag3_t_t2 TYPE record<loom_blocks>; DEFINE FIELD OVERWRITE workspace_id ON TABLE kbdiag3_t_t2 TYPE record<workspaces>; DEFINE FIELD OVERWRITE entity_id ON TABLE kbdiag3_t_t2 TYPE record<knowledge_entities>; DEFINE TABLE OVERWRITE kbdiag3_t_t2_no_entity SCHEMAFULL PERMISSIONS FOR select FULL FOR create WHERE block_id.content_type = 'view_def' AND block_id.workspace_id = workspace_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write') FOR update NONE FOR delete NONE; DEFINE FIELD OVERWRITE block_id ON TABLE kbdiag3_t_t2_no_entity TYPE record<loom_blocks>; DEFINE FIELD OVERWRITE workspace_id ON TABLE kbdiag3_t_t2_no_entity TYPE record<workspaces>; DEFINE FIELD OVERWRITE entity_id ON TABLE kbdiag3_t_t2_no_entity TYPE record<knowledge_entities>; DEFINE TABLE OVERWRITE kbdiag3_t_hwa SCHEMAFULL PERMISSIONS FOR select FULL FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write') FOR update NONE FOR delete NONE; DEFINE FIELD OVERWRITE block_id ON TABLE kbdiag3_t_hwa TYPE record<loom_blocks>; DEFINE FIELD OVERWRITE workspace_id ON TABLE kbdiag3_t_hwa TYPE record<workspaces>; DEFINE FIELD OVERWRITE entity_id ON TABLE kbdiag3_t_hwa TYPE record<knowledge_entities>; DEFINE TABLE OVERWRITE kbdiag3_t_ct SCHEMAFULL PERMISSIONS FOR select FULL FOR create WHERE block_id.content_type = 'view_def' FOR update NONE FOR delete NONE; DEFINE FIELD OVERWRITE block_id ON TABLE kbdiag3_t_ct TYPE record<loom_blocks>; DEFINE FIELD OVERWRITE workspace_id ON TABLE kbdiag3_t_ct TYPE record<workspaces>; DEFINE FIELD OVERWRITE entity_id ON TABLE kbdiag3_t_ct TYPE record<knowledge_entities>; DEFINE TABLE OVERWRITE kbdiag3_t_bws SCHEMAFULL PERMISSIONS FOR select FULL FOR create WHERE block_id.workspace_id = workspace_id FOR update NONE FOR delete NONE; DEFINE FIELD OVERWRITE block_id ON TABLE kbdiag3_t_bws TYPE record<loom_blocks>; DEFINE FIELD OVERWRITE workspace_id ON TABLE kbdiag3_t_bws TYPE record<workspaces>; DEFINE FIELD OVERWRITE entity_id ON TABLE kbdiag3_t_bws TYPE record<knowledge_entities>; DEFINE TABLE OVERWRITE kbdiag3_t_ews SCHEMAFULL PERMISSIONS FOR select FULL FOR create WHERE entity_id.workspace_id = workspace_id FOR update NONE FOR delete NONE; DEFINE FIELD OVERWRITE block_id ON TABLE kbdiag3_t_ews TYPE record<loom_blocks>; DEFINE FIELD OVERWRITE workspace_id ON TABLE kbdiag3_t_ews TYPE record<workspaces>; DEFINE FIELD OVERWRITE entity_id ON TABLE kbdiag3_t_ews TYPE record<knowledge_entities>; DEFINE TABLE OVERWRITE kbdiag3_t_ekind SCHEMAFULL PERMISSIONS FOR select FULL FOR create WHERE entity_id.entity_kind = 'loom_block' FOR update NONE FOR delete NONE; DEFINE FIELD OVERWRITE block_id ON TABLE kbdiag3_t_ekind TYPE record<loom_blocks>; DEFINE FIELD OVERWRITE workspace_id ON TABLE kbdiag3_t_ekind TYPE record<workspaces>; DEFINE FIELD OVERWRITE entity_id ON TABLE kbdiag3_t_ekind TYPE record<knowledge_entities>; DEFINE TABLE OVERWRITE kbdiag3_t_ekey SCHEMAFULL PERMISSIONS FOR select FULL FOR create WHERE entity_id.entity_key = record::id(block_id) FOR update NONE FOR delete NONE; DEFINE FIELD OVERWRITE block_id ON TABLE kbdiag3_t_ekey TYPE record<loom_blocks>; DEFINE FIELD OVERWRITE workspace_id ON TABLE kbdiag3_t_ekey TYPE record<workspaces>; DEFINE FIELD OVERWRITE entity_id ON TABLE kbdiag3_t_ekey TYPE record<knowledge_entities>; DEFINE TABLE OVERWRITE kbdiag3_clone_full SCHEMAFULL PERMISSIONS FOR select FULL FOR create WHERE block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'create', 'fs.write') OR (block_id.content_type = 'view_def' AND block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')) OR (block_id.source_rich_document_id != NONE AND record::id(block_id.source_rich_document_id) = record::id(block_id) AND block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt120_document_access(record::id(block_id), record::id(workspace_id), 'update', 'fs.write')) FOR update NONE FOR delete NONE; DEFINE FIELD OVERWRITE block_id ON TABLE kbdiag3_clone_full TYPE record<loom_blocks> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) REFERENCE ON DELETE CASCADE; DEFINE FIELD OVERWRITE workspace_id ON TABLE kbdiag3_clone_full TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE; DEFINE FIELD OVERWRITE entity_id ON TABLE kbdiag3_clone_full TYPE record<knowledge_entities> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;";
+    const KB_DIAG3_BISECT: &str = "BEGIN TRANSACTION; LET $block = type::record('loom_blocks', $block_key); LET $entity = type::record('knowledge_entities', $entity_key); LET $workspace = type::record('workspaces', $ws); LET $blk = (CREATE $block SET block_id = $block_key, workspace_id = $workspace, created_in_session_id = $auth.id, content_type = 'view_def', title = 'kbdiag3', view_definition_json = '{}', last_actor_kind = 'HUMAN', last_actor_id = 'kbdiag3' RETURN VALUE id); LET $ent = (UPSERT $entity SET entity_id = $entity_key, workspace_id = $workspace, entity_kind = 'loom_block', entity_key = record::id($block), display_name = 'kbdiag3', detection_provenance = {}, lifecycle_state = 'active' RETURN VALUE id); RETURN { blk: array::len($blk), ent: array::len($ent), t_full: array::len((CREATE kbdiag3_t_full SET block_id = $block, workspace_id = $workspace, entity_id = $entity RETURN VALUE id)), t_t1: array::len((CREATE kbdiag3_t_t1 SET block_id = $block, workspace_id = $workspace, entity_id = $entity RETURN VALUE id)), t_t2: array::len((CREATE kbdiag3_t_t2 SET block_id = $block, workspace_id = $workspace, entity_id = $entity RETURN VALUE id)), t_t2_no_entity: array::len((CREATE kbdiag3_t_t2_no_entity SET block_id = $block, workspace_id = $workspace, entity_id = $entity RETURN VALUE id)), t_hwa: array::len((CREATE kbdiag3_t_hwa SET block_id = $block, workspace_id = $workspace, entity_id = $entity RETURN VALUE id)), t_ct: array::len((CREATE kbdiag3_t_ct SET block_id = $block, workspace_id = $workspace, entity_id = $entity RETURN VALUE id)), t_bws: array::len((CREATE kbdiag3_t_bws SET block_id = $block, workspace_id = $workspace, entity_id = $entity RETURN VALUE id)), t_ews: array::len((CREATE kbdiag3_t_ews SET block_id = $block, workspace_id = $workspace, entity_id = $entity RETURN VALUE id)), t_ekind: array::len((CREATE kbdiag3_t_ekind SET block_id = $block, workspace_id = $workspace, entity_id = $entity RETURN VALUE id)), t_ekey: array::len((CREATE kbdiag3_t_ekey SET block_id = $block, workspace_id = $workspace, entity_id = $entity RETURN VALUE id)), clone_full: array::len((CREATE type::record('kbdiag3_clone_full', record::id($block)) SET block_id = $block, workspace_id = $workspace, entity_id = $entity RETURN VALUE id)) }; COMMIT TRANSACTION;";
+    const KB_DIAG3_REMOVE: &str = "REMOVE TABLE IF EXISTS kbdiag3_t_full; REMOVE TABLE IF EXISTS kbdiag3_t_t1; REMOVE TABLE IF EXISTS kbdiag3_t_t2; REMOVE TABLE IF EXISTS kbdiag3_t_t2_no_entity; REMOVE TABLE IF EXISTS kbdiag3_t_hwa; REMOVE TABLE IF EXISTS kbdiag3_t_ct; REMOVE TABLE IF EXISTS kbdiag3_t_bws; REMOVE TABLE IF EXISTS kbdiag3_t_ews; REMOVE TABLE IF EXISTS kbdiag3_t_ekind; REMOVE TABLE IF EXISTS kbdiag3_t_ekey; REMOVE TABLE IF EXISTS kbdiag3_clone_full;";
+
+    async fn kb_diag3_bridge_predicate_bisect(state: &AppState, headers: &HeaderMap, ws: &str) {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        if let Err(error) = state
+            .surreal
+            .test_admin_query(KB_DIAG3_DEFINE.to_owned())
+            .await
+        {
+            eprintln!("KB-DIAG3 define_error={error}");
+            return;
+        }
+        let authority = match crate::api::authority::authorize_request(
+            state,
+            headers,
+            "fs.write",
+            ResourceKind::Workspace,
+            ws,
+            ResourceAction::Create,
+        )
+        .await
+        {
+            Ok(authority) => authority,
+            Err((status, body)) => {
+                eprintln!("KB-DIAG3 authorize_error status={status} body={:?}", body.0);
+                return;
+            }
+        };
+        let block_key = Uuid::now_v7().to_string();
+        let entity_key = format!("KEN-{}", Uuid::now_v7().simple());
+        let cleanup_bindings = serde_json::json!({"b": block_key.clone(), "e": entity_key.clone()});
+        let bindings =
+            serde_json::json!({"block_key": block_key, "entity_key": entity_key, "ws": ws});
+        let result = state
+            .surreal
+            .with_record_user_scope(
+                authority.record_user_scope.clone(),
+                state.surreal.with_storage_operation(move |database| {
+                    Box::pin(async move {
+                        database
+                            .query_values_at::<Value, _>(KB_DIAG3_BISECT, bindings, 6)
+                            .await
+                            .map_err(crate::storage::StorageError::from)
+                    })
+                }),
+            )
+            .await;
+        eprintln!("KB-DIAG3 predicate_rows={result:?}");
+        match state
+            .surreal
+            .test_admin_query("INFO FOR DB;".to_owned())
+            .await
+        {
+            Ok(mut response) => {
+                let info = response
+                    .take::<Option<Value>>(0)
+                    .ok()
+                    .flatten()
+                    .unwrap_or(Value::Null);
+                eprintln!(
+                    "KB-DIAG3 info_bridge_table={}",
+                    info["tables"]["loom_block_knowledge_bridge"]
+                );
+                eprintln!(
+                    "KB-DIAG3 info_fn_has_workspace_access={}",
+                    info["functions"]["mt109_has_workspace_access"]
+                );
+                eprintln!(
+                    "KB-DIAG3 info_fn_loom_block_access={}",
+                    info["functions"]["mt120_loom_block_access"]
+                );
+                eprintln!(
+                    "KB-DIAG3 info_scratch_full={}",
+                    info["tables"]["kbdiag3_t_full"]
+                );
+            }
+            Err(error) => eprintln!("KB-DIAG3 info_error={error}"),
+        }
+        let cleanup = state
+            .surreal
+            .test_admin_query_bound(
+                "DELETE type::record('loom_blocks', $b); DELETE type::record('knowledge_entities', $e);".to_owned(),
+                cleanup_bindings,
+            )
+            .await;
+        if let Err(error) = cleanup {
+            eprintln!("KB-DIAG3 cleanup_error={error}");
+        }
+        if let Err(error) = state
+            .surreal
+            .test_admin_query(KB_DIAG3_REMOVE.to_owned())
+            .await
+        {
+            eprintln!("KB-DIAG3 remove_error={error}");
+        }
+    }
+
     async fn mt027_create_pending_view(
         state: &AppState,
         workspace_id: &str,
@@ -10673,6 +10778,7 @@ mod tests {
         .await;
         assert_eq!(status, StatusCode::OK, "collection read: {read_back}");
         assert_eq!(read_back["members"], serde_json::json!([asset_id]));
+        kb_diag3_bridge_predicate_bisect(&state, &headers, &ws).await;
         let view_id = Uuid::now_v7().to_string();
         let (status, view) = loom_create_request(
             &router,
