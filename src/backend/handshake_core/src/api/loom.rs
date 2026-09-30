@@ -2871,6 +2871,10 @@ async fn patch_loom_block_inner(
             .list_loom_edges_for_block(&workspace_id, &block_id)
             .await
             .map_err(map_storage_error)?;
+        // True once a tag edge was created or deleted. Each create_loom_edge/delete_loom_edge
+        // transaction recomputes mention/tag/backlink counts for both endpoints, the card being
+        // the source (storage/surreal/loom_store.rs create and delete transactions).
+        let mut edges_changed = false;
 
         for tag_block_id in &add_tags {
             // The target must be a real TagHub block (parity with create_loom_edge).
@@ -2907,6 +2911,7 @@ async fn patch_loom_block_inner(
                 )
                 .await
                 .map_err(map_storage_error)?;
+            edges_changed = true;
         }
 
         for tag_block_id in &remove_tags {
@@ -2920,16 +2925,22 @@ async fn patch_loom_block_inner(
                     .delete_loom_edge(&ctx, &workspace_id, &edge.edge_id)
                     .await
                     .map_err(map_storage_error)?;
+                edges_changed = true;
             }
         }
 
         fields_changed.push("tags");
-        // Recompute derived metrics so the returned tag_count is authoritative.
-        state
-            .storage
-            .recompute_block_metrics(&workspace_id, &block_id)
-            .await
-            .map_err(map_storage_error)?;
+        // Recompute derived metrics so the returned tag_count is authoritative. MT-153: when an
+        // edge was created or deleted, its own transaction already recomputed this card's
+        // mention/tag/backlink counts with the same formulas after the last change, so the extra
+        // recompute is skipped; with no edge change this call remains the only recompute.
+        if !edges_changed {
+            state
+                .storage
+                .recompute_block_metrics(&workspace_id, &block_id)
+                .await
+                .map_err(map_storage_error)?;
+        }
         block = state
             .storage
             .get_loom_block(&workspace_id, &block_id)
