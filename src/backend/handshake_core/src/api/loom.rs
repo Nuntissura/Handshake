@@ -11065,14 +11065,20 @@ mod tests {
 
         /// Admin re-read of canonical rows (verification only; never a product flow).
         async fn row(&self, query: &str, bindings: Value) -> Value {
-            eprintln!("MT153 row begin {}", query.chars().take(64).collect::<String>());
+            eprintln!(
+                "MT153 row begin {}",
+                query.chars().take(64).collect::<String>()
+            );
             let mut response = self
                 .state
                 .surreal
                 .test_admin_query_bound(query.to_owned(), bindings)
                 .await
                 .unwrap_or_else(|error| panic!("canonical re-read {query}: {error}"));
-            eprintln!("MT153 row end {}", query.chars().take(64).collect::<String>());
+            eprintln!(
+                "MT153 row end {}",
+                query.chars().take(64).collect::<String>()
+            );
             response
                 .take::<Option<Value>>(0)
                 .unwrap_or_else(|error| panic!("canonical re-read {query}: {error}"))
