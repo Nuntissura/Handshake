@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 171
+generation: 172
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -165,3 +165,4 @@ steps:
 - {id: GP-144, role: builder, at: before_round, do: verify 5 grant fns grant WHERE uses bare LET ids + resource_id = $resource, check: {type: cmd, argv: [python, -c, 'import re,sys;s=open(sys.argv[1],encoding=''utf-8'').read();b=[s[s.index(''DEFINE FUNCTION OVERWRITE fn::''+n+''(''):] for n in (''mt109_has_grant'',''mt109_has_workspace_access'',''mt109_source_read'',''mt120_document_access'',''mt120_loom_block_access'')];b=[x[:x.index(chr(10)+''};'')].split(''FROM resource_grants'')[1] for x in b];sys.exit(1 if any(re.search(r''(account_id|principal_id|access_space_id) = [$]auth[.]'',x) or ''resource_id = $resource'' not in x for x in b) else 0)', ../wtc-native-editors-v1/src/backend/handshake_core/src/storage/surreal/schema.surql], expect_exit: 0, timeout_seconds: 15}, source: 'FAIL_V1 ee9efaba MT164-GRANT-AUTH-IDIOM-NOT-INDEXABLE; replaces GP-141/143 (path, over-broad match)', state: active}
 - {id: GP-145, role: orchestrator, at: before_dispatch, do: confirm no builder push or build dispatched while a head-bound validator round runs, check: {type: confirm}, source: '6391a29f round: builder pushed 16b43aff/e012e80d mid-round; native probe refused; D check overlapped', state: active}
 - {id: GP-146, role: wp_validator, at: before_round, do: confirm host commit free >= 60 GB and core union build -j 1 before launch, check: {type: confirm}, source: 'infra: 1f4e0f69 round rustc-LLVM out of memory; lib+lib-test parallel; foreign builds on host', state: active}
+- {id: GP-147, role: orchestrator, at: before_dispatch, do: confirm no builder build/test dispatched while a validator union build compiles (host RAM shared across disks), check: {type: confirm}, source: '1f4e0f69 round: builder D: probe build + validator C: union build -> rustc LLVM OOM', state: active}
