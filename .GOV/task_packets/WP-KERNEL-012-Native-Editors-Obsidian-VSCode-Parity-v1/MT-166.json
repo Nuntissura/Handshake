@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-166",
   "created_at_utc": "2026-09-29T18:50:00Z",
-  "updated_at_utc": "2026-09-30T00:37:00Z",
+  "updated_at_utc": "2026-09-30T03:16:17Z",
   "identity": {
     "mt_id": "MT-166",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -176,21 +176,24 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "blocked_on": null,
     "depends_on": [],
     "blocks": [],
     "active": true,
-    "validator_verdict": null,
+    "validator_verdict": "PASS_V1",
     "claimed_by": "KERNEL_BUILDER-20260929-185000",
     "claimed_at_utc": "2026-09-29T18:50:00Z",
     "claim_ref": "Operator decision 2026-09-29 'both approved'",
-    "completed_by": null,
-    "next_actor": "WP_VALIDATOR",
+    "completed_by": "WP_VALIDATOR-20260930-FROZEN-37ee7c5b",
+    "next_actor": "ORCHESTRATOR",
     "status_reason": "Re-pinned candidate 37ee7c5b (pins from pin_measurement_1, authority function count 17) with builder compile evidence; gameplan before_submit PASS. Builder frozen for the head-bound round (GP-145).",
     "rounds_without_output": 0,
     "diagnosis_refs": [],
-    "candidate_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb"
+    "candidate_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+    "validated_by": "WP_VALIDATOR-20260930-FROZEN-37ee7c5b",
+    "validated_at_utc": "2026-09-30T03:16:17Z",
+    "validated_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb"
   },
   "scope": {
     "summary": "The two remaining resource_grants queries SurrealDB 3.2's planner cannot index (protected_resources select permission, fn::mt109_ledger_access) compare against bound literals so resource_grants_exact_idx serves all four fields; allow/deny semantics unchanged. Follow-up to diagnosis MT164-GRANT-AUTH-IDIOM-NOT-INDEXABLE.",
@@ -584,6 +587,104 @@
         "static_diff_review": "37ee7c5b vs e012e80d: schema.rs only; 4 pin literals and the authority function count assert (16 -> 17 + contains helper)",
         "d_disk_check": "no cargo/rustc/link/cl processes (Win32_Process scan) before launch",
         "scope": "Implementer compile/static evidence only (CX-EXEC-014); runtime acceptance pending the head-bound WP validator round"
+      },
+      {
+        "proof_id": "PR-WP012-UNION-37ee7c5b-CORE",
+        "executor_role": "WP_VALIDATOR",
+        "candidate_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+        "frozen": "GP-145 builder freeze; HEAD == origin == candidate verified before and after both phases",
+        "started_at": "2026-09-30T00:43:06.0386726Z",
+        "completed_at": "2026-09-30T02:48:15.2002389Z",
+        "command": "bash .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh 37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb core-only",
+        "entrypoint_commit": "531fdef9 (MT-165 targets, MT-166/MT-138 output capture; RUST_MIN_STACK from 77153572)",
+        "config": "nextest-core.toml 11df7512",
+        "results": {
+          "core": {
+            "tests": 274,
+            "failed": 9,
+            "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-core.xml",
+            "sha256": "88a4a10ec2125826881dbf2ae4435c7d49b844a702e7b464fd01e3d132c9efd7"
+          },
+          "handshake_document": {
+            "tests": 41,
+            "failed": 0,
+            "sha256": "c9142f0ba8cea806afb13e2e57eea8edc0937b9431fe87028912fd241fa737c5"
+          },
+          "handshake_storage_support": {
+            "tests": 34,
+            "failed": 0,
+            "sha256": "c6f4297205fb12dde0b6bb95259dfb3034ec6d35d2fddb55af634fb9eba4816c"
+          },
+          "failures": {
+            "api::loom::tests::mt153_loom_route_family_authority_matrix": "product, MT-153 scope (FAIL_V2): loom.rs:11256 anonymous canvas visual-edges POST 401 HSK-401-LOOM-SESSION vs expected 403; same as 6391a29f",
+            "api::jobs::tests::create_model_run_job_launches_runtime_session_and_preserves_native_binding + 7 model_session_scheduler_tests": "infrastructure ENTRYPOINT-EXPORT-NOT-GIT-CHECKOUT: \"git worktree add failed\" because the round runs from a git-archive export (not a repository); 8/8 failures carry that message"
+          },
+          "stack_overflows": 0,
+          "timing": {
+            "MT164": {
+              "n50_ms": [
+                16.628,
+                16.171
+              ],
+              "n500_ms": [
+                14.029,
+                13.95
+              ],
+              "ratio": [
+                0.844,
+                0.863
+              ]
+            },
+            "MT166": {
+              "n50_ms": {
+                "resource_select": 6.386,
+                "ledger_access_check": 16.73
+              },
+              "n500_ms": {
+                "resource_select": 6.934,
+                "ledger_access_check": 17.569
+              },
+              "ratio": {
+                "resource_select": 1.086,
+                "ledger_access_check": 1.05
+              }
+            }
+          },
+          "atelier_pin": "EXPECTED_ATELIER_CATALOG_SHA256=e98e231c... printed 3x (canonical test first+second store and full-schema parity) - identical; mt138 canonical PASS"
+        },
+        "logs": {
+          "stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb.stdout.log",
+          "stdout_sha256": "03d9dbf7d2fa49c0631973b2cbdab86f4afe308bf10e1efb18414a1657bdc700",
+          "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb.stderr.log",
+          "stderr_sha256": "ccac70a15cd1c844f7320bc7fb52aec17f18886fa50b029ccf3b5592ee467fab",
+          "results_map": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-core-results.json",
+          "results_map_sha256": "20291c71df727e13b102e4d7b2b3fc520ff5dc03343ee23a4046ddb6098ab4ed"
+        },
+        "mt165_inventory": {
+          "before": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt165-inventory-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-before.txt",
+          "before_sha256": "5cf8f58df4058f9007805801333c815617bcbf25cd07f8945b51233c45089a01",
+          "after": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt165-inventory-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-after.txt",
+          "after_sha256": "0c469d5ff817a5f2be991ef0a22fad1f482660dd8edec460f61e35fe83a9defe",
+          "diff": "identical (git worktree list, branches, scheduler roots, native-mt101 folders)",
+          "scheduler_roots": "14 pre-existing hsk-session-worktrees-model-session-scheduler-* roots in lane tmp before and after; no new root",
+          "native_mt101": "none before or after"
+        },
+        "capacity": {
+          "C_start_bytes": 89270222784,
+          "C_peak_bytes": 115911693548,
+          "stop_bytes": 147000000000
+        },
+        "covers": [
+          "MT-136",
+          "MT-154",
+          "MT-155",
+          "MT-157",
+          "MT-158",
+          "MT-159",
+          "MT-165",
+          "MT-166"
+        ],
+        "owning_mt": "MT-166"
       }
     ],
     "pin_measurement_1": {
@@ -730,5 +831,69 @@
       ],
       "residual": "stores created at an intermediate unreleased revision-162 candidate (e.g. validator test stores from e012e80d or earlier) have a different GENERATED pin and are rejected as HANDSHAKE_SURREAL_SCHEMA_UNSUPPORTED_LINEAGE, same as for the MT-164 re-pins; test stores are fresh per run"
     }
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "validated_by": "WP_VALIDATOR-20260930-FROZEN-37ee7c5b",
+    "validated_at_utc": "2026-09-30T03:16:17Z",
+    "candidate_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+    "started_at": "2026-09-30T00:43:06.0386726Z",
+    "completed_at": "2026-09-30T02:48:15.2002389Z",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-core.xml",
+    "proof_record_ids": [
+      "PR-WP012-UNION-37ee7c5b-CORE"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-166-BUILDER-COMPILE",
+        "result": "implementer compile evidence (build health only)"
+      },
+      {
+        "check_id": "MT-166-VALIDATOR-UNION",
+        "result": "PASS",
+        "pin_measure": "validation.pin_measurement_1 on e012e80d; re-pinned values confirmed: all 13 schema pin/upgrade tests PASS incl mt138 Atelier (both stores identical e98e231c...)",
+        "resource_authority_tests": "PASS 17/17 incl resource_select_and_ledger_access_cost_is_independent_of_grant_count",
+        "timing": {
+          "n50_ms": {
+            "resource_select": 6.386,
+            "ledger_access_check": 16.73
+          },
+          "n500_ms": {
+            "resource_select": 6.934,
+            "ledger_access_check": 17.569
+          },
+          "ratio": {
+            "resource_select": 1.086,
+            "ledger_access_check": 1.05
+          }
+        },
+        "stack_overflows": 0
+      }
+    ],
+    "acceptance": {
+      "AC-166-1": "met: mt109_ledger_access LET-binds account/principal/space/chain, resource_id = $resource, sequential early exits; conditions preserved (session=$auth.id, delegated caps, lifecycle/owner/space, actions, capability, chain, reconciliation clause)",
+      "AC-166-2": "met: protected_resources select uses fn::mt166_resource_select_grant(id) with identical grant conditions (status, revoked_at, expiry, account/principal/space) as the prior $parent.id subquery",
+      "AC-166-3": "met: authority/denial tests 17/17; stack overflows 0 (<= prior 0); only core red outside infrastructure is mt153 matrix (MT-153 FAIL_V2, failed identically before MT-166)",
+      "AC-166-4": "met: ratios 1.086 / 1.050 < 2.0; medians 6.4-17.6 ms < 250 ms; non-vacuous per test assertions",
+      "AC-166-5": "met: GENERATED/DECLARATIVE static, runtime pins measured then re-pinned; pins pass"
+    },
+    "finding": "SCHEMA_REVISION stays 162 although fn bodies changed (builder revision finding recorded at 4091ebed); not an MT-166 acceptance criterion; routed to Integration Validator/Orchestrator",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT166-37ee7c5b-union-verdict",
+        "at_utc": "2026-09-30T03:16:17Z",
+        "decision": "passed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT166-37ee7c5b-union-verdict",
+        "at_utc": "2026-09-30T03:16:17Z",
+        "decision": "passed",
+        "state_effect": "lifecycle.status PASS_V1"
+      }
+    ]
   }
 }
