@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-24T07:21:13.185Z",
+  "updated_at_utc": "2026-09-30T10:15:21Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -85,7 +85,8 @@
       "by": "KERNEL_BUILDER-C5-20260923-2250",
       "at_utc": "2026-09-23T23:52:39.079Z",
       "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
-    }
+    },
+    "status_reason": "FAIL_V2 causes not reproduced on 37ee7c5b; new anonymous visual-edge 401 assertion diagnosed (MT153-VISUAL-EDGE-ANON-401); builder fix in progress per WP012-MT153-ANON-403-20260930."
   },
   "closure_unit": {
     "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
@@ -1432,7 +1433,26 @@
       "operator_decision_requests",
       "residual_risks"
     ],
-    "attempt_diagnoses": {},
+    "attempt_diagnoses": {
+      "MT-153-ROUTE-MATRIX-37ee7c5b": {
+        "diagnosis_id": "MT153-VISUAL-EDGE-ANON-401",
+        "recorded_at_utc": "2026-09-30T10:15:21Z",
+        "failing_assertion": "api/loom.rs:11256 [canvas] anonymous POST .../visual-edges must be denied: left 401 HSK-401-LOOM-SESSION, right 403",
+        "evidence_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-core.xml#mt153_loom_route_family_authority_matrix",
+        "attempts": [
+          "V1 1097ef1c: canonical re-read single-result take (fixed 3496f18e)",
+          "V2 49eac54e: asset-import stack overflow (not reproduced on 37ee7c5b; MT-164 flattened fns + 10 MiB stacks)",
+          "37ee7c5b union observation (no verdict): passes asset import, fails anonymous visual-edge status"
+        ],
+        "root_cause_hypothesis": "693c3ea7 (MT-026) added a no-session 401 pre-check in authorize_canvas_visual_edge_write and remove_canvas_visual_edge; AC-153-5(b) requires the constant 403",
+        "distinct_from": [
+          "MT153_ASSET_IMPORT_STACK_OVERFLOW",
+          "MT153_WIKI_EDITED_GET_TIMEOUT"
+        ],
+        "intended_fix": "Remove the 3 no-session 401 pre-checks (operator decision WP012-MT153-ANON-403-20260930); align workspace-delete test and matrix journal row",
+        "next_runs": "validator union round on the new candidate (1 run)"
+      }
+    },
     "operator_decision_requests": [],
     "worker_final_status": "ready_for_validation_or_blocked",
     "commit_policy": "The Coder commits product changes on feat/WP-KERNEL-012 (fix/test/style(MT-153) messages). The Integration Validator commits governance (this file) on gov_kernel; the Coder does not edit this file except the handoff report fields if the launcher routes the report here."
@@ -2135,26 +2155,42 @@
         "command_ref": "MT-032.json#remediation_v12.union_entrypoint_binding",
         "command": "Frozen union core nextest --locked --no-fail-fast; one invocation; app-runtime,surreal-test-support,test-utils",
         "runner_sha256": "6DCA6F19DF0C51F04677DA9E8E51F852394A466DC8EFC21455F15233B756E8AC",
-        "mapped_checks": ["MT-153-ROUTE-MATRIX", "MT-153-LOOM-TARGETS"],
+        "mapped_checks": [
+          "MT-153-ROUTE-MATRIX",
+          "MT-153-LOOM-TARGETS"
+        ],
         "junit_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-core.xml",
         "junit_sha256": "CD420357013FF59A89EA4440C394A8951404DD3700A75D7D066C385D118B7897",
         "freshness": "Core marker12:46:39.2251258Z < JUnit13:57:25.3991433Z; export-local original and D copy hashes equal",
         "export_marker": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-49eac54e.sha equals full candidate",
         "binaries": [
-          {"path": "debug/deps/handshake_core-c27f78bb650c9bcb.exe", "sha256": "DE81BE1FCDEF5ED8B0E8A325AA90BD154F2FBD432A551243E6B8208021C25529"},
-          {"path": "debug/deps/project_wiki_drift_tests-fd2c705dfaae7d17.exe", "sha256": "703D260A78D18DB7E176DC88D78A0B7ABD4BE83725764F6D50734CBBFD497C7D"}
+          {
+            "path": "debug/deps/handshake_core-c27f78bb650c9bcb.exe",
+            "sha256": "DE81BE1FCDEF5ED8B0E8A325AA90BD154F2FBD432A551243E6B8208021C25529"
+          },
+          {
+            "path": "debug/deps/project_wiki_drift_tests-fd2c705dfaae7d17.exe",
+            "sha256": "703D260A78D18DB7E176DC88D78A0B7ABD4BE83725764F6D50734CBBFD497C7D"
+          }
         ],
         "target_dir": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
         "log_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-49eac54e.stderr.log",
         "exit_code": 100,
-        "result": {"tests": 223, "passed": 221, "failures": 2, "errors": 0},
+        "result": {
+          "tests": 223,
+          "passed": 221,
+          "failures": 2,
+          "errors": 0
+        },
         "log_hash_disposition": "Live append-only native stage still running; core JUnit is complete and immutable; no final live-log hash yet"
       }
     ],
     "failing_checks": [
       {
         "check_id": "MT-153-ROUTE-MATRIX",
-        "failed_acceptance_refs": ["AC-153-5"],
+        "failed_acceptance_refs": [
+          "AC-153-5"
+        ],
         "test": "api::loom::tests::mt153_loom_route_family_authority_matrix",
         "failure_class": "MT153_ASSET_IMPORT_STACK_OVERFLOW",
         "failure_kind": "product",
@@ -2162,13 +2198,23 @@
         "elapsed_seconds": 75.106,
         "message": "Owned asset-import route aborts with0xc00000fd stack overflow before owner success/canonical-row assertions",
         "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-core.xml#api::loom::tests::mt153_loom_route_family_authority_matrix",
-        "log_lines": [3860, 3861, 4284, 4286, 4288],
-        "affected_code_refs": ["src/backend/handshake_core/src/api/loom.rs:11674-11691"],
+        "log_lines": [
+          3860,
+          3861,
+          4284,
+          4286,
+          4288
+        ],
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/api/loom.rs:11674-11691"
+        ],
         "repair_direction": "Trace owned asset-import request stack; preserve account authorization and canonical asset/receipt assertions"
       },
       {
         "check_id": "MT-153-LOOM-TARGETS",
-        "failed_acceptance_refs": ["no regression"],
+        "failed_acceptance_refs": [
+          "no regression"
+        ],
         "test": "project_wiki_drift_tests::mt242_verdict_attached_on_every_serve_path_fail_closed",
         "failure_class": "MT153_WIKI_EDITED_GET_TIMEOUT",
         "failure_kind": "product",
@@ -2176,28 +2222,88 @@
         "elapsed_seconds": 300.098,
         "message": "After reindex end, edited wiki GET has no end marker; required fresh-to-stale served verdict is not reached",
         "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-core.xml#mt242_verdict_attached_on_every_serve_path_fail_closed",
-        "log_lines": [4497, 4498, 4534, 4535, 4536, 4538],
-        "affected_code_refs": ["src/backend/handshake_core/tests/project_wiki_drift_tests.rs:614-627"],
+        "log_lines": [
+          4497,
+          4498,
+          4534,
+          4535,
+          4536,
+          4538
+        ],
+        "affected_code_refs": [
+          "src/backend/handshake_core/tests/project_wiki_drift_tests.rs:614-627"
+        ],
         "repair_direction": "Trace edited wiki GET through send/decode await; retain fail-closed verdict and current bounds"
       }
     ],
     "adversarial_review": {
       "risk": "HIGH",
-      "DIFF_ATTACK_SURFACES": ["Record-user authority and derived indexing remain mandatory after knowledge selector reductions"],
-      "INDEPENDENT_CHECKS_RUN": ["Opened own core JUnit and both failure streams", "Matched export/copy hashes, marker freshness and current compiled EXE hashes"],
-      "COUNTERFACTUAL_CHECKS": ["Removing owner_ok asset-import assertion in api/loom.rs would conceal failure before canonical asset verification", "Removing edited GET/stale-verdict assertion in project_wiki_drift_tests.rs would conceal failure of served staleness propagation"],
-      "BOUNDARY_PROBES": ["Authenticated owner asset import reached real HTTP route; markdown import200 preceded asset-import abort", "Real edited source reindexed; subsequent served wiki GET never reached response assertion"],
-      "NEGATIVE_PATH_CHECKS": ["Matrix asset-import anonymous/cross/viewer branches after owner operation not reached; not credited"],
-      "INDEPENDENT_FINDINGS": ["Required owner route abort", "Required no-regression served-verdict test timeout"],
-      "RESIDUAL_UNCERTAINTY": ["Internal stack-overflow location unknown", "Edited GET send versus body-decode await unresolved", "CPU advancement is not hardware causation", "No privacy breach inferred from an unreached denial assertion"]
+      "DIFF_ATTACK_SURFACES": [
+        "Record-user authority and derived indexing remain mandatory after knowledge selector reductions"
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "Opened own core JUnit and both failure streams",
+        "Matched export/copy hashes, marker freshness and current compiled EXE hashes"
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Removing owner_ok asset-import assertion in api/loom.rs would conceal failure before canonical asset verification",
+        "Removing edited GET/stale-verdict assertion in project_wiki_drift_tests.rs would conceal failure of served staleness propagation"
+      ],
+      "BOUNDARY_PROBES": [
+        "Authenticated owner asset import reached real HTTP route; markdown import200 preceded asset-import abort",
+        "Real edited source reindexed; subsequent served wiki GET never reached response assertion"
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Matrix asset-import anonymous/cross/viewer branches after owner operation not reached; not credited"
+      ],
+      "INDEPENDENT_FINDINGS": [
+        "Required owner route abort",
+        "Required no-regression served-verdict test timeout"
+      ],
+      "RESIDUAL_UNCERTAINTY": [
+        "Internal stack-overflow location unknown",
+        "Edited GET send versus body-decode await unresolved",
+        "CPU advancement is not hardware causation",
+        "No privacy breach inferred from an unreached denial assertion"
+      ]
     },
     "pending_checks": [],
-    "native_completion": {"candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","completed_at":"2026-09-26T15:40:57.0864701Z","check":"MT-153-NATIVE-LOOM","disposition":"Required native block-view/canvas/E7 regression targets not green; owning MT027/026/042 records carry precise primary findings. Existing FAILV2 remains independently determined by core failures; no new verdict or duplicated remediation.","provenance_ref":"MT-032.json#validation_v11.input_provenance"},
+    "native_completion": {
+      "candidate_commit": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml",
+      "junit_sha256": "B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C",
+      "completed_at": "2026-09-26T15:40:57.0864701Z",
+      "check": "MT-153-NATIVE-LOOM",
+      "disposition": "Required native block-view/canvas/E7 regression targets not green; owning MT027/026/042 records carry precise primary findings. Existing FAILV2 remains independently determined by core failures; no new verdict or duplicated remediation.",
+      "provenance_ref": "MT-032.json#validation_v11.input_provenance"
+    },
     "attempt_disposition": "FAIL recorded from own product proof; no retry/new probe authorized; cumulative MT attempt budget retained",
     "next_actor": "KERNEL_BUILDER via parent steering; diagnosis/remediation only after frozen union completes",
     "verdict_events": [
-      {"event": "accepted", "idempotency_key": "MT153-49eac54e-union-v2", "at_utc": "2026-09-26T13:59:58.7355023Z", "payload_ref": "MT-153.json#validation_v2", "decision": "failed"},
-      {"event": "completed", "idempotency_key": "MT153-49eac54e-union-v2", "at_utc": "2026-09-26T14:01:31.5837420Z", "state_ref": "MT-153.json#lifecycle", "decision": "failed"}
+      {
+        "event": "accepted",
+        "idempotency_key": "MT153-49eac54e-union-v2",
+        "at_utc": "2026-09-26T13:59:58.7355023Z",
+        "payload_ref": "MT-153.json#validation_v2",
+        "decision": "failed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT153-49eac54e-union-v2",
+        "at_utc": "2026-09-26T14:01:31.5837420Z",
+        "state_ref": "MT-153.json#lifecycle",
+        "decision": "failed"
+      }
     ]
+  },
+  "operator_decision_20260930_anonymous_denial": {
+    "decision_id": "WP012-MT153-ANON-403-20260930",
+    "decided_on": "2026-09-30",
+    "recorded_at_utc": "2026-09-30T10:15:21Z",
+    "recorded_by": "KERNEL_BUILDER root session",
+    "authorized_by": "OPERATOR",
+    "chosen_option": "403 everywhere (Recommended)",
+    "question": "Anonymous caller on Loom write routes returning 401 (visual-edge POST/DELETE, daily journal PUT): constant 403 per AC-153-5(b), 403 for visual edges only, or keep 401 and amend AC?",
+    "effect": "Drop no-session 401 pre-checks in add/remove_canvas_visual_edge and open_daily_journal; update workspace-delete test and matrix journal row to expect 403 HSK-403-PROTECTED-RESOURCE. MT-111 401/403 split (693c3ea7) superseded for these routes."
   }
 }

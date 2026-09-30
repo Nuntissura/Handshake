@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-160",
   "created_at_utc": "2026-09-29T08:32:14.504Z",
-  "updated_at_utc": "2026-09-30T03:33:49Z",
+  "updated_at_utc": "2026-09-30T10:15:21Z",
   "identity": {
     "mt_id": "MT-160",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -60,8 +60,9 @@
         "source_parent_index_refs": [
           "MT-032.json#scope.acceptance_criteria/4"
         ],
-        "requirement": "Component/AccessKit evidence: a canvas placed_block_id produces a loom:// chip in the node header (with content-hash suffix) and existing double-click navigation to its document; a missing ID produces no fabricated chip or panic; graph URI tooltip and backlink-count coverage preserved.",
-        "allocation": "Component scope here; live canvas/Argus closure in MT-163."
+        "requirement": "Component/AccessKit evidence: a canvas placed_block_id produces a loom:// chip in the card footer (with content-hash suffix) and existing double-click navigation to its document; a missing ID produces no fabricated chip or panic; graph URI tooltip and backlink-count coverage preserved.",
+        "allocation": "Component scope here; live canvas/Argus closure in MT-163.",
+        "requirement_before_20260930": "Component/AccessKit evidence: a canvas placed_block_id produces a loom:// chip in the node header (with content-hash suffix) and existing double-click navigation to its document; a missing ID produces no fabricated chip or panic; graph URI tooltip and backlink-count coverage preserved."
       },
       {
         "id": "AC-160-4",
@@ -234,9 +235,10 @@
     "creation_decision_ref": "MT-032.json#execution_split_20260929",
     "validator_verdict_before_20260929": "PENDING",
     "status_note_20260929": "Status left as authored (PENDING); PENDING is outside CX-STATUS-001 (adopted via f6bbcaac). Next: builder submits READY_FOR_VALIDATION on candidate after gameplan before_submit, or the parent records the status mapping.",
-    "next_actor": "WP_VALIDATOR: component/AccessKit proof on 37ee7c5b (or CX-VAL-002 reuse of V14) + independent inspection of MT-032-canvas-loom-chips.png",
+    "next_actor": "WP_VALIDATOR: verdict on 37ee7c5b validation_v1 evidence under amended AC-160-3 (no rerun; same candidate)",
     "blocked_on": null,
-    "status_reason": "Inconclusive on 37ee7c5b: all 50 selected cases pass and PNG inspected; chip placement footer vs AC \"node header\" awaits Operator ruling."
+    "status_reason": "Chip placement ruled 2026-09-30 (accept card footer; AC amended). Awaiting validator verdict on existing 37ee7c5b evidence.",
+    "status_reason_before_20260930": "Inconclusive on 37ee7c5b: all 50 selected cases pass and PNG inspected; chip placement footer vs AC \"node header\" awaits Operator ruling."
   },
   "scope": {
     "summary": "Preserve documents, rich-text blocks, code-file nodes, graph nodes and canvas placements as addressable through the existing Loom model. Maintain LoomBlockAddr, ContentHash, LoomBlockRecord, LoomBlockType, loom_uri, parse_loom_uri and LoomBlockResolver; backend-derived identity remains stable across rename. Reuse authenticated workspace-scoped block/transclusion/canvas-board APIs, canonical MT020 serializer/hash and existing sha2. Hash comparison is not client hash PATCH. Preserve canvas header chip, absent-ID guard, double-click navigation, graph tooltip/count and theme guard. MT-162 owns real create/save proof and MT-163 final integration. MT-022 is the inherited folder-tree prerequisite; MT-026 owns canvas placement.",
@@ -270,8 +272,9 @@
         "source_parent_index_refs": [
           "MT-032.json#scope.acceptance_criteria/4"
         ],
-        "requirement": "Component/AccessKit evidence: a canvas placed_block_id produces a loom:// chip in the node header (with content-hash suffix) and existing double-click navigation to its document; a missing ID produces no fabricated chip or panic; graph URI tooltip and backlink-count coverage preserved.",
-        "allocation": "Component scope here; live canvas/Argus closure in MT-163."
+        "requirement": "Component/AccessKit evidence: a canvas placed_block_id produces a loom:// chip in the card footer (with content-hash suffix) and existing double-click navigation to its document; a missing ID produces no fabricated chip or panic; graph URI tooltip and backlink-count coverage preserved.",
+        "allocation": "Component scope here; live canvas/Argus closure in MT-163.",
+        "requirement_before_20260930": "Component/AccessKit evidence: a canvas placed_block_id produces a loom:// chip in the node header (with content-hash suffix) and existing double-click navigation to its document; a missing ID produces no fabricated chip or panic; graph URI tooltip and backlink-count coverage preserved."
       },
       {
         "id": "AC-160-4",
@@ -344,7 +347,7 @@
     "argus_required": true,
     "trace_projection_required_when_non_ui": true,
     "surfaces": [
-      "Canvas block header chip",
+      "Canvas block footer chip",
       "Graph URI tooltip and backlink count"
     ],
     "argus_targets": [
@@ -743,6 +746,21 @@
         "decision": "inconclusive",
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained pending placement ruling"
       }
-    ]
+    ],
+    "operator_decision": {
+      "decision_id": "WP012-MT160-163-CHIP-PLACEMENT-20260930",
+      "answer": "Accept footer",
+      "recorded_at_utc": "2026-09-30T10:15:21Z"
+    }
+  },
+  "operator_decision_20260930_chip_placement": {
+    "decision_id": "WP012-MT160-163-CHIP-PLACEMENT-20260930",
+    "decided_on": "2026-09-30",
+    "recorded_at_utc": "2026-09-30T10:15:21Z",
+    "recorded_by": "KERNEL_BUILDER root session",
+    "authorized_by": "OPERATOR",
+    "question": "Accept implemented card-footer loom:// chip placement (amend AC-160-3/AC-163-3) or move chip into the card header?",
+    "chosen_option": "Accept footer (Recommended)",
+    "effect": "AC-160-3 and AC-163-3 'node header' wording amended to 'card footer'; no product change; WP_VALIDATOR judges MT-160/MT-163 on existing 37ee7c5b evidence (validation_v1) without a rerun."
   }
 }

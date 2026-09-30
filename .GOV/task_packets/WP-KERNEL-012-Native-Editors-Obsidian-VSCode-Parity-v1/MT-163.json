@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-163",
   "created_at_utc": "2026-09-29T08:31:36.101102Z",
-  "updated_at_utc": "2026-09-30T03:33:49Z",
+  "updated_at_utc": "2026-09-30T10:15:21Z",
   "identity": {
     "mt_id": "MT-163",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -58,8 +58,9 @@
       {
         "id": "AC-163-3",
         "parent_acceptance_index_1_based": 5,
-        "requirement": "Canvas placements with placed_block_id display the loom:// chip with the required screenshot and AccessKit evidence; absent IDs produce no fabricated chip. Preserve graph loom:// tooltip and backlink-count coverage. Preserve chip placement in the canvas node header and double-click navigation to the referenced document.",
-        "allocation": "Shared parent criterion; this child owns its scoped part described by scope.summary; MT163 reconciles the complete parent criterion."
+        "requirement": "Canvas placements with placed_block_id display the loom:// chip with the required screenshot and AccessKit evidence; absent IDs produce no fabricated chip. Preserve graph loom:// tooltip and backlink-count coverage. Preserve chip placement in the canvas card footer and double-click navigation to the referenced document.",
+        "allocation": "Shared parent criterion; this child owns its scoped part described by scope.summary; MT163 reconciles the complete parent criterion.",
+        "requirement_before_20260930": "Canvas placements with placed_block_id display the loom:// chip with the required screenshot and AccessKit evidence; absent IDs produce no fabricated chip. Preserve graph loom:// tooltip and backlink-count coverage. Preserve chip placement in the canvas node header and double-click navigation to the referenced document."
       },
       {
         "id": "AC-163-4",
@@ -202,13 +203,14 @@
     "active": false,
     "validator_verdict": null,
     "completed_by": null,
-    "next_actor": "WP_VALIDATOR: full MT-032 test_loom_address selection + owned-restart case + live screenshot floor on 37ee7c5b (AC-163-6)",
-    "status_reason": "Inconclusive on 37ee7c5b: full native selection 50/50 PASS; AC-163-3 node-header placement awaits Operator ruling.",
+    "next_actor": "WP_VALIDATOR: verdict on 37ee7c5b validation_v1 evidence under amended AC-163-3 (no rerun; same candidate)",
+    "status_reason": "Chip placement ruled 2026-09-30 (accept card footer; AC amended). Awaiting validator verdict on existing 37ee7c5b evidence.",
     "split_ref": "MT-032.json#execution_split_20260929",
     "status_before_mt164_20260929": "BLOCKED",
     "status_reason_before_mt164_20260929": "V19 first linked save dropped at10010ms; inner counter/query/permission/write cost unresolved; required integrated proof incomplete.",
     "validator_verdict_before_20260929": "PENDING",
-    "blocked_on": null
+    "blocked_on": null,
+    "status_reason_before_20260930": "Inconclusive on 37ee7c5b: full native selection 50/50 PASS; AC-163-3 node-header placement awaits Operator ruling."
   },
   "scope": {
     "summary": "Complete existing managed SurrealDB/EventLedger close/reopen proof with preserved identity/content/hash/backlinks, stale-version rejection, missing-resource behavior and owned-restart save15s. Reconcile all child criteria and retain the full original unit/component/live selection and final stable-candidate union. Prove actual A-to-B mounted Argus inspect, attributed click and fresh observation plus required strict screenshots. Component success and owned-restart success do not replace failed self-seeded10s acceptance.",
@@ -236,8 +238,9 @@
       {
         "id": "AC-163-3",
         "parent_acceptance_index_1_based": 5,
-        "requirement": "Canvas placements with placed_block_id display the loom:// chip with the required screenshot and AccessKit evidence; absent IDs produce no fabricated chip. Preserve graph loom:// tooltip and backlink-count coverage. Preserve chip placement in the canvas node header and double-click navigation to the referenced document.",
-        "allocation": "Shared parent criterion; this child owns its scoped part described by scope.summary; MT163 reconciles the complete parent criterion."
+        "requirement": "Canvas placements with placed_block_id display the loom:// chip with the required screenshot and AccessKit evidence; absent IDs produce no fabricated chip. Preserve graph loom:// tooltip and backlink-count coverage. Preserve chip placement in the canvas card footer and double-click navigation to the referenced document.",
+        "allocation": "Shared parent criterion; this child owns its scoped part described by scope.summary; MT163 reconciles the complete parent criterion.",
+        "requirement_before_20260930": "Canvas placements with placed_block_id display the loom:// chip with the required screenshot and AccessKit evidence; absent IDs produce no fabricated chip. Preserve graph loom:// tooltip and backlink-count coverage. Preserve chip placement in the canvas node header and double-click navigation to the referenced document."
       },
       {
         "id": "AC-163-4",
@@ -626,6 +629,21 @@
         "decision": "inconclusive",
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained pending placement ruling"
       }
-    ]
+    ],
+    "operator_decision": {
+      "decision_id": "WP012-MT160-163-CHIP-PLACEMENT-20260930",
+      "answer": "Accept footer",
+      "recorded_at_utc": "2026-09-30T10:15:21Z"
+    }
+  },
+  "operator_decision_20260930_chip_placement": {
+    "decision_id": "WP012-MT160-163-CHIP-PLACEMENT-20260930",
+    "decided_on": "2026-09-30",
+    "recorded_at_utc": "2026-09-30T10:15:21Z",
+    "recorded_by": "KERNEL_BUILDER root session",
+    "authorized_by": "OPERATOR",
+    "question": "Accept implemented card-footer loom:// chip placement (amend AC-160-3/AC-163-3) or move chip into the card header?",
+    "chosen_option": "Accept footer (Recommended)",
+    "effect": "AC-160-3 and AC-163-3 'node header' wording amended to 'card footer'; no product change; WP_VALIDATOR judges MT-160/MT-163 on existing 37ee7c5b evidence (validation_v1) without a rerun."
   }
 }
