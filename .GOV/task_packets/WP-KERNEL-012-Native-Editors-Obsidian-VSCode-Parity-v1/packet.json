@@ -327,7 +327,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-29T12:01:02Z",
+  "updated_at_utc": "2026-09-30T11:17:10Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -1972,5 +1972,14 @@
       "tests/test_flight_recorder_authz.rs": "MT-111",
       "tests/test_stage_interop.rs": "MT-066"
     }
-  }
+  },
+  "operator_decisions_20260930": [
+    {
+      "recorded_at_utc": "2026-09-30T11:17:10Z",
+      "recorded_by": "ORCHESTRATOR root session",
+      "decision_id": "WP012-ORCH-SESSION-20260930",
+      "operator_text_summary": "Root session is orchestrator: spawns KERNEL_BUILDER or WP_VALIDATOR sub-agents (each reads Codex + own protocol), steers on a 10-min tick (agent progress + CPU), minimal paperwork (state recovery + MT status only), uses gameplan, updates the handoff regularly, manages cargo builds/tests (reuse; remove stale WP-012 cargo after sub-agent exploration). Coding agent may run cheap tests. Optional: tools in gov runtime folder linked from Codex/protocol.",
+      "effect": "Kernel Builder may run cheap focused tests for this WP (exception to CX-EXEC-014 implementer compile/static-only); independent validator still owns acceptance verdicts."
+    }
+  ]
 }

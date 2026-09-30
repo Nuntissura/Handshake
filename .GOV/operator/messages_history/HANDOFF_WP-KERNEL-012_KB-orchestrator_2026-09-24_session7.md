@@ -1,10 +1,34 @@
 ---
 file_id: HANDOFF-WP-KERNEL-012-KB-ORCHESTRATOR-2026-09-24-SESSION7
 file_kind: operator_handoff
-updated_at: 2026-09-29
+updated_at: 2026-09-30
 authority: reference_only
 wp_id: WP-KERNEL-012
 ---
+
+<topic id="session-2026-09-30-orchestrator" wp="WP-KERNEL-012" status="active" updated_at="2026-09-30">
+
+## Resume here (newest first; typed MT JSON wins on conflict)
+
+Session setup (Operator 2026-09-30, `packet.json#operator_decisions_20260930`): root session = orchestrator. It spawns KERNEL_BUILDER / WP_VALIDATOR sub-agents (each reads Codex + own protocol only), steers on a 10-min tick (agent output + CPU), keeps paperwork to state recovery + MT status, manages cargo reuse/cleanup. Builders may run cheap focused tests.
+
+Recovered after crash (previous session's processes were closed by another session): nothing lost. After the 2026-09-29 20:31 update, work continued to 05:33 on 09-30:
+- MT-165 (session-worktree test cleanup) and MT-166 (index-bound remaining grant scans) added (Operator "both approved").
+- Union round on product `37ee7c5b`: MT-161 PASS_V1, MT-162 PASS_V2 (first linked save 4,850 ms), MT-166 PASS_V1; MT-165 inconclusive (infra: export not a git checkout); MT-154/155/157/158/159/136 observations (tests pass; static floor open).
+- MT-160/163 inconclusive only on chip placement wording; everything else passed (50/50 native selection, live saves max 5.4 s).
+
+This session:
+- Operator: chip in card footer accepted (`WP012-MT160-163-CHIP-PLACEMENT-20260930`); AC-160-3/AC-163-3 amended. Gov `ef59f8f8`.
+- Operator: anonymous Loom writes get constant 403 everywhere (`WP012-MT153-ANON-403-20260930`). MT-153 fix product `65a7b6fb` (api/loom.rs, api/workspaces.rs); builder `cargo check --tests` exit 0; MT-153 READY_FOR_VALIDATION (gov `c67a4108`).
+- Product HEAD = remote tip = `65a7b6fb`.
+
+In flight: WP validator agent — (1) MT-160/163 verdicts on 37ee7c5b evidence + MT-032 aggregate; (2) union round on 65a7b6fb for MT-153 + READY MTs, reusing 37ee7c5b results where inputs do not intersect the diff. Two read-only helpers: stale cargo inventory; open-MT work queue.
+
+Warm targets: validator C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52; builder Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target (D:). One build per disk.
+
+Harness note: the gameplan hook matches command text; put process scans in a script file (not naming the test runner inline).
+
+</topic>
 
 <topic id="findings-gaps-unknowns-20260929" wp="WP-KERNEL-012" status="open" updated_at="2026-09-29">
 
