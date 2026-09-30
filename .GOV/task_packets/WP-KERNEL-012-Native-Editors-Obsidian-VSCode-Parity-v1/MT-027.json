@@ -2481,5 +2481,26 @@
     ],
     "next_approach": "Operator decision: root-harness scratch-table predicate bisect (S1 full bridge create predicate copy, S2 view_def branch only, S3 fn::mt109_has_workspace_access only; first discriminators: S2 minus the three entity_id terms vs S2), no schema.surql change",
     "status_effect": "none; MT-027 stays FAIL_V7"
+  },
+  "operator_decision_20260930": {
+    "decision_id": "WP012-OPERATOR-DECISIONS-20260930-C",
+    "operator_quote": "i will follow your recommendations and grant you the waivers",
+    "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+    "recorded_at_utc": "2026-09-30T20:49:55Z",
+    "packet_ref": "packet.json#operator_decisions_20260930[WP012-OPERATOR-DECISIONS-20260930-C]",
+    "answers": [
+      "MT-027.json#blocker_20260930_bridge_create_false.needed_decision",
+      "MT-027.json#refutation_20260930_upsert_order.next_approach"
+    ],
+    "decision": "Authorize exactly ONE test-only root scratch-table predicate bisect run on the saved-view bridge create predicate (S1/S2/S3 plan; decision_R4 C4). No third probe beyond it, and no schema.surql, schema.rs, block_view_store.rs or product change in the probe commit.",
+    "preconditions": [
+      "per CX-EXEC-003A record first in existing task state: failing assertion, what each attempt changed, root-cause hypothesis with code location, and the intended fix (per outcome)",
+      "a recorded remediation naming the diagnostic run (CX-EXEC-014 practice)",
+      "harness is cfg(test) only and is reverted after the run"
+    ],
+    "fix_ownership": "The eventual fix lands in MT-153-owned files (schema.surql / schema.rs / block_view_store.rs); MT-027.scope.allowed_paths stay frontend-only.",
+    "not_decided": "whether CX-EXEC-013 / CX-VAL-008 apply to this pinned WP (CX-GOV-PIN-002); no adoption is recorded by this decision",
+    "recommendation_ref": "decision_R4_mt027_mt165_backups.md Decision C (C4, C6)",
+    "status_effect": "none (MT-027 stays FAIL_V7)"
   }
 }

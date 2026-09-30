@@ -3116,5 +3116,25 @@
     ],
     "gameplan": "before_submit kernel_builder PASS 2/2 at 13288bf0 (GP-139 confirmed: guards, count formulas, per-edge transactions and auth retained; see option_a_redundancy_proof)",
     "next_actor": "WP_VALIDATOR single union run (orchestrator names the round tip)"
+  },
+  "operator_decision_20260930": {
+    "decision_id": "WP012-OPERATOR-DECISIONS-20260930-C",
+    "operator_quote": "i will follow your recommendations and grant you the waivers",
+    "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+    "recorded_at_utc": "2026-09-30T20:49:55Z",
+    "packet_ref": "packet.json#operator_decisions_20260930[WP012-OPERATOR-DECISIONS-20260930-C]",
+    "answers": "Loom edge create/delete counter recompute design (card-move latency)",
+    "decision": "Measure first: split the edge-create statement (stmt #5 of 8) with timers to attribute the ~2.5 s between the recount subqueries, the four permission-checked writes and per-row permissions. If the recount share is large, apply a targeted in-statement recompute (option c: recompute only the counters the edge_type can change). Option (b) transactional increments/decrements is NOT approved.",
+    "not_approved": [
+      "option (b) transactional increments/decrements",
+      "raising the 5 s client deadline"
+    ],
+    "owner_files": "MT-153 (loom_store.rs, api/loom.rs per MT-153 scope.allowed_paths); any fix lands there",
+    "consumers_to_revalidate": [
+      "MT-042 (tests/test_e7_knowledge_accesskit.rs card-move)",
+      "MT-153 card-move (tests/test_block_collection_view.rs)"
+    ],
+    "recommendation_ref": "decision_R3_contenttypes_counters.md Decision B (B4, B6)",
+    "status_effect": "none (no MT status change by this record)"
   }
 }

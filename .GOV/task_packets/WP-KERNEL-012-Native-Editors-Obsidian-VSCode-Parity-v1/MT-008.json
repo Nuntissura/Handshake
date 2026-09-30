@@ -2022,5 +2022,28 @@
   },
   "diagnosis_20260930_b4faed35": {"schema_id": "hsk.mt_diagnosis@1", "diagnosis_id": "DX-MT-008-20260930-B4FA-HOVER-NOT-OPEN-UNATTRIBUTED", "kind": "blocker_diagnosis", "failure_kind": "product", "round": "union b4faed35", "cause": "hover never opens in ~4 s wait; hover lookup not logged; fixture index had 24 s per-file read_and_index fallback", "evidence_refs": ["../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-56fbaa1154750223/3fbd4e2e-d9d0-4b40-b554-d8f423d98258/backend.stdout.log:37-40 (persist_code_index_batch 0 ms -> finish_index_run 24 s later: Ok(None) fallback read_and_index, api/code_nav_index.rs:476-503)", "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-b4faed359c07fed260cf8f42633dcf9b1e60ff92.stderr.log:4513-4515", "src/frontend/handshake_native/tests/test_completion_hover_accesskit.rs:317-331 (150-iteration wait, hover_state expect)", "src/frontend/handshake_native/src/code_editor/panel.rs:7378 trigger_hover (LSP first, code-nav fallback)"], "distinct_from": ["DX-MT-008-20260930-BB95-CODENAV-SEED-49S (ac005 lookup now passes)", "DX-MT-008-20260930-SLOW-RECORD-USER-WRITES"], "cause_status": "UNVERIFIED: no hover request timing or error in retained evidence; needs a recorded diagnostic run naming hover lookup timing", "fix_owner": "undetermined (hover lookup: storage/surreal/knowledge.rs no owner; index fallback: api/code_nav_index.rs no owner)", "credential_store_fallout": "no: failure precedes native test 74 / not a session-exchange 403", "recorded_at_utc": "2026-09-30T19:30:00Z", "recorded_by": "KERNEL_BUILDER-LANE-B-20260930"},
   "blocker_20260930_b4faed35": {"blocked_on": "attribution of ac006 hover failure (no hover request evidence in retained logs); fix files have no owning MT", "status_change": "none (stays FAIL_V9)", "recorded_at_utc": "2026-09-30T19:30:00Z", "recorded_by": "KERNEL_BUILDER-LANE-B-20260930"},
-  "operator_decision_request_20260930_code_nav_batch_fallback": {"requested_by": "KERNEL_BUILDER-LANE-B-20260930", "requested_at_utc": "2026-09-30T20:10:00Z", "rule": "KB-IMPL-006", "question": "which MT owns the code-nav index batch fallback: persist_code_index_batch returns no result in 0 ms, then per-file read_and_index takes 24 s for one file", "files_without_owning_mt": ["src/backend/handshake_core/src/api/code_nav_index.rs:476-503 (Ok(None) -> per-file read_and_index fallback)"], "evidence_refs": ["../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-56fbaa1154750223/3fbd4e2e-d9d0-4b40-b554-d8f423d98258/backend.stdout.log:37-40 (persist_code_index_batch stage_elapsed_ms=0 at 18:36:29.03; finish_index_run starts 18:36:52.98; total 30.1 s)"], "spec_relevance": "Master Spec v02.206 §2.3.14.17.3 index update propagation <5 s target, 30 s maximum", "note": "ac006 hover failure itself remains unattributed (diagnosis_20260930_b4faed35)"}
+  "operator_decision_request_20260930_code_nav_batch_fallback": {"requested_by": "KERNEL_BUILDER-LANE-B-20260930", "requested_at_utc": "2026-09-30T20:10:00Z", "rule": "KB-IMPL-006", "question": "which MT owns the code-nav index batch fallback: persist_code_index_batch returns no result in 0 ms, then per-file read_and_index takes 24 s for one file", "files_without_owning_mt": ["src/backend/handshake_core/src/api/code_nav_index.rs:476-503 (Ok(None) -> per-file read_and_index fallback)"], "evidence_refs": ["../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-56fbaa1154750223/3fbd4e2e-d9d0-4b40-b554-d8f423d98258/backend.stdout.log:37-40 (persist_code_index_batch stage_elapsed_ms=0 at 18:36:29.03; finish_index_run starts 18:36:52.98; total 30.1 s)"], "spec_relevance": "Master Spec v02.206 §2.3.14.17.3 index update propagation <5 s target, 30 s maximum", "note": "ac006 hover failure itself remains unattributed (diagnosis_20260930_b4faed35)"},
+  "operator_decision_20260930": {
+    "decision_id": "WP012-OPERATOR-DECISIONS-20260930-C",
+    "operator_quote": "i will follow your recommendations and grant you the waivers",
+    "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+    "recorded_at_utc": "2026-09-30T20:49:55Z",
+    "packet_ref": "packet.json#operator_decisions_20260930[WP012-OPERATOR-DECISIONS-20260930-C]",
+    "answers": [
+      "MT-008.json#operator_decision_request_20260930_bb9548e1",
+      "MT-008.json#operator_decision_request_20260930_code_nav_batch_fallback"
+    ],
+    "decision": "Code-nav index cost is owned by a NEW narrow MT (MT-164 pattern), pending authoring (id not yet assigned). Its first step records which guard returns Ok(None) (knowledge_code_index try_index_prepared_batch early guards vs api/code_nav_index.rs fallback) and the stage timings. spec_basis: Master Spec 2.3.14.17.3 Performance Baselines, 02-system-architecture.md:4470-4478. Acceptance is a timing test. The owning module is bound from that first step's evidence, not pre-bound. This MT is to be blocked_on the new MT once it exists.",
+    "new_mt": {
+      "status": "pending authoring",
+      "id": null,
+      "blocked_on_to_be_set_when_it_exists": true
+    },
+    "not_decided": [
+      "whether the 5 s swarm-resave bound (test_e7_swarm_edit_proof.rs:3240-3252) is a product requirement (open for the Operator; MT-043/MT-128 are not changed by this record)"
+    ],
+    "forbidden_meanwhile": "no timeout increases and no weakened authority checks (per authority_check_20260930_seed_timeout decision_applied)",
+    "recommendation_ref": "decision_R2_ownership.md section 5(a)",
+    "status_effect": "none (lifecycle.blocked_on is set when the new MT exists; no status change by this record)"
+  }
 }

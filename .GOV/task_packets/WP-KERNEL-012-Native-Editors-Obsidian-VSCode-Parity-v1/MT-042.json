@@ -1102,5 +1102,25 @@
     ]
   },
   "diagnosis_20260930_b4faed35": {"schema_id": "hsk.mt_diagnosis@1", "diagnosis_id": "DX-MT-042-20260930-B4FA-KANBAN-TAG-EDGE-WRITES", "kind": "blocker_diagnosis", "failure_kind": "product", "round": "union b4faed35", "cause": "kanban-move = Loom block PATCH add/remove tag; tag-edge CREATE/UPDATE statement (~2.7 s, open q#5) pushes past 5 s", "evidence_refs": ["../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-4027868fac6f2e75/227753de-33b5-4fcb-8763-1266db30b7f3/backend.stdout.log (last request 18:38:59.73; PATCH not instrumented; delete 18:39:07 403 stmt 10 in unwind)", "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-b4faed359c07fed260cf8f42633dcf9b1e60ff92.stderr.log:4548-4550", "src/frontend/handshake_native/src/graph/block_collection_view.rs:1586-1604 CardMove add/remove tags", "src/frontend/handshake_native/src/backend_client.rs:8693 card_move_request -> PATCH loom block", "MT-153.json#hypothesis_20260930_event_ledger_key.lane_a_statement_map.edge_create_8_statement_q5 (loom_store.rs:1566-1567 ~2.7 s, open)"], "distinct_from": ["DX-MT-042-20260930-BB95-LOOM-STMT3-3S (add-edge now passes)", "DX-MT-042-20260930-SLOW-RECORD-USER-WRITES"], "cause_status": "code reading; PATCH latency not directly measured (no request timing in log) - hypothesis", "fix_owner": "MT-153 (loom_store.rs edge write)", "credential_store_fallout": "no: failure precedes native test 74 / not a session-exchange 403", "recorded_at_utc": "2026-09-30T19:30:00Z", "recorded_by": "KERNEL_BUILDER-LANE-B-20260930"},
-  "blocker_20260930_b4faed35": {"blocked_on": "MT-153 loom_store.rs:1566-1567 edge write cost (lane A open q#5)", "status_change": "none (stays FAIL_V8)", "recorded_at_utc": "2026-09-30T19:30:00Z", "recorded_by": "KERNEL_BUILDER-LANE-B-20260930"}
+  "blocker_20260930_b4faed35": {"blocked_on": "MT-153 loom_store.rs:1566-1567 edge write cost (lane A open q#5)", "status_change": "none (stays FAIL_V8)", "recorded_at_utc": "2026-09-30T19:30:00Z", "recorded_by": "KERNEL_BUILDER-LANE-B-20260930"},
+  "operator_decision_20260930": {
+    "decision_id": "WP012-OPERATOR-DECISIONS-20260930-C",
+    "operator_quote": "i will follow your recommendations and grant you the waivers",
+    "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+    "recorded_at_utc": "2026-09-30T20:49:55Z",
+    "packet_ref": "packet.json#operator_decisions_20260930[WP012-OPERATOR-DECISIONS-20260930-C]",
+    "answers": "Loom edge create/delete counter recompute design (card-move latency)",
+    "decision": "Measure first: split the edge-create statement (stmt #5 of 8) with timers to attribute the ~2.5 s between the recount subqueries, the four permission-checked writes and per-row permissions. If the recount share is large, apply a targeted in-statement recompute (option c: recompute only the counters the edge_type can change). Option (b) transactional increments/decrements is NOT approved.",
+    "not_approved": [
+      "option (b) transactional increments/decrements",
+      "raising the 5 s client deadline"
+    ],
+    "owner_files": "MT-153 (loom_store.rs, api/loom.rs per MT-153 scope.allowed_paths); any fix lands there",
+    "consumers_to_revalidate": [
+      "MT-042 (tests/test_e7_knowledge_accesskit.rs card-move)",
+      "MT-153 card-move (tests/test_block_collection_view.rs)"
+    ],
+    "recommendation_ref": "decision_R3_contenttypes_counters.md Decision B (B4, B6)",
+    "status_effect": "none (no MT status change by this record)"
+  }
 }

@@ -2011,6 +2011,184 @@
         "you will colaborate with the buddy before instructing other agents or making descicions, you will explain you choices and descicions, the buddy only keeps you on track of the workflow order. skill use, it does not touch code or gov. it us purely to keep you on track, you use agents for work, you do not work yourself, you delegate after deliberation wuth your buddy. you use sub agents to explore code, research online or other as if your hands"
       ],
       "effect": "State-recovery record only; no obligation beyond the Operator's words."
+    },
+    {
+      "decision_id": "WP012-OPERATOR-DECISIONS-20260930-C",
+      "operator_quote": "i will follow your recommendations and grant you the waivers",
+      "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+      "recorded_at_utc": "2026-09-30T20:49:55Z",
+      "approved_recommendations": [
+        {
+          "n": 1,
+          "topic": "credentials (CredWriteW error 8; handshake-local-accounts leak)",
+          "status": "approved",
+          "recommendation": "probe before (expect error 8), delete ONLY the 78 hash-proven targets (listed in packet.json#credential_cleanup_20260930.approved_targets), probe after (expect clean write/read/delete); the 22 unproven entries NOT approved (need separate Operator confirmation); never Adobe/Xbox; record CX-GIT-003 leak defect.",
+          "source": "decision_R1_credentials.md sections 3, 5, 6"
+        },
+        {
+          "n": 2,
+          "topic": "code-nav index cost ownership",
+          "status": "approved",
+          "recommendation": "new narrow MT (MT-164 pattern) for code-nav index cost, first step records which guard returns Ok(None); spec_basis 2.3.14.17.3 (02-system-architecture.md:4470-4478); timing-test acceptance; owning module bound from that first step's evidence (not pre-bound); MT-008/064/065 blocked_on it.",
+          "source": "decision_R2_ownership.md section 5(a)"
+        },
+        {
+          "n": 3,
+          "topic": "5 s swarm-resave bound (test_e7_swarm_edit_proof.rs:3240-3252)",
+          "status": "NOT_DECIDED",
+          "recommendation": "NOT decided: whether the 5 s swarm-resave bound (test_e7_swarm_edit_proof.rs:3240-3252) is a product requirement; open for the Operator.",
+          "source": "decision_R2_ownership.md sections 1, 5(b)"
+        },
+        {
+          "n": 4,
+          "topic": "MT-046 ic03/ic04 CKC content types",
+          "status": "approved",
+          "recommendation": "MT-046: do not widen content types; seed ic03/ic04 with `note`; real CKC proof left to MT-395.",
+          "source": "decision_R3_contenttypes_counters.md Decision A (A-1, A5/A6)"
+        },
+        {
+          "n": 5,
+          "topic": "MT-042/MT-153 Loom edge counters",
+          "status": "approved_with_exclusion",
+          "recommendation": "MT-042/153 counters: measure first (split edge-create stmt #5/8 with timers), targeted recompute if the recount share is large; option (b) increments NOT approved.",
+          "source": "decision_R3_contenttypes_counters.md Decision B (B4, B6)"
+        },
+        {
+          "n": 6,
+          "topic": "MT-027 saved-view bridge",
+          "status": "approved",
+          "recommendation": "MT-027: exactly one test-only root scratch-table predicate bisect run, intended fix recorded first per CX-EXEC-003A; fix lands in MT-153-owned files.",
+          "source": "decision_R4_mt027_mt165_backups.md Decision C (C4, C6)"
+        },
+        {
+          "n": 7,
+          "topic": "waivers",
+          "status": "granted",
+          "recommendation": "waivers granted: MT-165 (60->180 s job-wait, timing-only, assertions unchanged); the MT-113-owned manual_content_editors.rs edit covering MT-122's manual gap.",
+          "source": "decision_R4_mt027_mt165_backups.md Decision D; MT-122.json#remediation_20260930_d99be6cf_manual.file_owner_note"
+        },
+        {
+          "n": 8,
+          "topic": "global gameplan.py.bak-20260930 files",
+          "status": "operator_action_only",
+          "recommendation": "global gameplan.py.bak-20260930 files: Operator's own action; no agent touches them.",
+          "source": "decision_R4_mt027_mt165_backups.md Decision E"
+        }
+      ],
+      "effect": "Records the Operator's approval of the eight orchestrator recommendations and the two waivers; item 3 stays open and item 8 is the Operator's own action. No MT status or workflow change by this record (CX-EXEC-011); per-MT application is recorded in each MT's operator_decision_20260930 / waiver_20260930."
     }
-  ]
+  ],
+  "credential_cleanup_20260930": {
+    "decision_ref": "WP012-OPERATOR-DECISIONS-20260930-C",
+    "generated_utc": "2026-09-30T20:47:50Z",
+    "approved_targets": [
+      "01a0da69-b598-7c43-b6f8-10244c8f5ddd.handshake-local-accounts-7095832dbe6c0794ebb5fb8c467d99e8b1362bf90007b942ed6ab39ffcdecdfe",
+      "01a0da6a-767f-7731-8c77-d5896af521c8.handshake-local-accounts-2d95024a766ff9190f94da84a55975666ce2c52df5898ee36af3ed91a8fd3f5f",
+      "01a0da6b-343a-7b83-afe9-a8441a05ca91.handshake-local-accounts-1d91ba151f1e28b1a5b7ed32a861228d8666387a4c5ec3556b7eb0cbd64780db",
+      "01a0da6b-e98d-7521-bd58-931d244dafcd.handshake-local-accounts-688a8165e017a05ada1435894de45700fb60436be68c061f099951e0c31d9ebf",
+      "01a0da6c-ab8f-7d23-88c6-dc2ce57c75a7.handshake-local-accounts-19cdc2989b9f8fc42601c4677e9063576c1b8972aa8e3eac89ab856dc3c91416",
+      "01a0da6d-6a26-7291-a1ea-6199e71023ef.handshake-local-accounts-c69a67fba8fec604c97f4bfa73c334f849da1eb077eb4576169db4acb511aa94",
+      "01a0da6e-3f0d-78a2-bbc1-63cb25ba754e.handshake-local-accounts-b025bfa656ebc39f6442f510dd74cbeee04077d15c55e734269994b756e9bd68",
+      "01a0da6e-fb0c-7363-b644-a54c1d7d1ac4.handshake-local-accounts-9a8ffab7cb5e6c1e5ddbd59f0c8974635766265820ccc0a85cd079e590f602fc",
+      "01a0da6f-bc59-7750-a2c4-4ac9be97a611.handshake-local-accounts-73cefd62d8852aefcde42e5ffd275e302bf1d46a0bec0dfc7f20a879fd8f92f0",
+      "01a0da70-7e08-7a33-a9a0-50b7248f5bdc.handshake-local-accounts-a25ba6d6d55e19fe4b86f3ddf043bcbab2b854c4ef65a93e539cb15776ef5c36",
+      "01a0da71-3e75-7310-a518-ac75c25dc8a0.handshake-local-accounts-8c135ce45a41ee6da2f0e59ca1bd9fb128771bdd81089bed0f23ed630d619fa2",
+      "01a0de32-faa9-7922-a3aa-e9921efc35b6.handshake-local-accounts-fe34e03e754896a05025c6af5cd93c90f69ec4e948f05c860e79e6e69b6ce89e",
+      "01a0de33-b8c1-7ca2-add5-0686159163af.handshake-local-accounts-d22efa7c614ce8006155828b6696718390f2b91c5bbec6bf0f9e3a556db14859",
+      "01a0de34-7dbc-7af2-b552-68df037aff15.handshake-local-accounts-fdddc8f9e17961d786024a3bd4a5c649c4610ba49fcb1b41f7689da5f8aaef54",
+      "01a0de35-2eee-73a3-abd9-0087f2b55fc0.handshake-local-accounts-e0d265a487adaac067a805676fd5f871a0106d694f193aff465f99f4f1d2fd50",
+      "01a0de35-f311-7e71-b6b4-3f9400aecae6.handshake-local-accounts-64760d24d6e5bb9693485ac843cc359625a29b81f4e7bbc266a19d3d09035e01",
+      "01a0de36-b035-7771-a983-df94098f67dc.handshake-local-accounts-8e6d6a1283eed69aaf497f1d2bef1afa358573258da9e8044072fad2e077800a",
+      "01a0de37-84ed-7c41-8ae1-42e0b03c4194.handshake-local-accounts-259ee049d03797a757bf18b8713629ca39bb8f2d6f6db8474fa4407b3c157b4a",
+      "01a0de38-41cd-7231-af42-88200c5ca373.handshake-local-accounts-dfa3eb48d806de520e974ab244609e3f27b4f13d522d54beab3cdc5053bbbc02",
+      "01a0de38-fcad-79c2-aec3-e15d655160a8.handshake-local-accounts-b65b76df68597b5aa1914937e4ea505f33e437fbefc08a7db3425749815ac382",
+      "01a0de39-bffd-7593-a2c8-17e88d81777e.handshake-local-accounts-987303fe65a4766d4d6bdca3d7b484908a1bc16e61d7497163cc11b4a080eb31",
+      "01a0de3a-8352-7313-9a86-d3c07387d726.handshake-local-accounts-0c9d5e5b3c2ec0ae556e519814d2dde954b2f8c8ae593176626948eefed30879",
+      "01a0dfdf-c733-71f2-b0ef-3bb09a07ad1c.handshake-local-accounts-3d24160da74060f4fdeecaa851a870875a7c254e1ac23830153430e21f5e9f2d",
+      "01a0dfe0-83ca-7872-8ae5-b2a178ced9a7.handshake-local-accounts-77e9a85c47956e5600100c2a1bde79e9fe2ea12f71b9ee5794f74bf3e354aba3",
+      "01a0dfe1-4086-7c10-985a-5d19aedf24b9.handshake-local-accounts-a7d0bc8b399daa70402fa1a8ff6884763625621f05ebb22807129a34d0b30544",
+      "01a0dfe1-f389-7330-9973-71c97e17a896.handshake-local-accounts-9a8e51cd8baf399185764b4a475f46b2e8d6d5cd7d10156b910162bb9f22f4dd",
+      "01a0dfe2-aeb1-75a2-aaee-7fe19594b195.handshake-local-accounts-e651d01c3b28cf1b5ac62183f0cd880e82541802e9dd16eb1c140dfe1072d8a1",
+      "01a0dfe3-6cbf-7272-ad30-b69e6a4ad2f5.handshake-local-accounts-ab6c5bcade00d98b17821ce4759f8d0e87e0e07899fff832342427252e203ec3",
+      "01a0dfe4-3ebc-7442-9805-b363e8437519.handshake-local-accounts-2231bb04ee2b9fb6e68feae9fc452177586fde2c62d29aa2029043d4dab33f73",
+      "01a0dfe4-f65b-7c70-ba82-24b24638ad6a.handshake-local-accounts-8312916d2e994cdcc676525e9e2f2921918463697bc491eac46a6512d8a13935",
+      "01a0dfe5-ada7-7272-a99b-211190e05220.handshake-local-accounts-388a0b487ac35dfcd00dec2b4d2457bc68b3a955dcb00b21d6556e6218a06016",
+      "01a0dfe6-65ef-7231-a9a9-83e7b288c324.handshake-local-accounts-9c6efbe23a0d8ff50ae3cd2f1df89624d4ec5755340f7919a2b8b8fea7aca156",
+      "01a0dfe7-1ddd-7fc3-a6a6-98bb0a48dc78.handshake-local-accounts-e3401a6451d555dc2273292f49f0689e30b7591bb16dc60d3d9f70ef9cf1c2d0",
+      "01a0e50c-bad8-7331-b441-e7d7baaebb00.handshake-local-accounts-273b3f9a522400e0b721c4a1736ad74b13843d336400430f33c66b28b7441827",
+      "01a0e50d-9ef0-7550-a95a-896d67d81490.handshake-local-accounts-1e29f7bcc98f5892b980b966ac4bee033a10717844d99c936ac6dcccbac6ef36",
+      "01a0e50e-85f0-7373-ae65-8284eae26fd5.handshake-local-accounts-bbf3f52fa29e3213d9c567e5b43d7975577bad6ef36790ec3718c5ca92f75b6d",
+      "01a0e50f-5eb4-7591-b2d4-c56483776677.handshake-local-accounts-5c69fab4eea0566e08bb2f505eafb24f0164a5e69b8b288f84e791f8d86ccbfc",
+      "01a0e510-4334-79c1-86fa-8ee6d5ce0710.handshake-local-accounts-dcfa2608f924f6bd52cfecca81f448deafbd64b99ff64257624305047bcf9f8e",
+      "01a0e511-28ae-77b3-8141-87f5fb62cd8f.handshake-local-accounts-f5f5883dbe6c42d8291e7b30671bb6a46e8a424f459423c2f32495c361a1a1ae",
+      "01a0e512-2e2c-7dc3-b952-af6d40497a60.handshake-local-accounts-c869bf54df6b3539cd19cc28a6270c0ab665dc080a093665193d8eab5a08c105",
+      "01a0e513-16a9-7893-8b10-e5ad7c9a743a.handshake-local-accounts-4cf43ce965ca37cc85036933a47e3cc3598b905b75dc82cc65a2adeaee17983d",
+      "01a0e513-ff09-7072-8be6-0239afbf67f8.handshake-local-accounts-e17aabe48e40d74cca28f8fcfdbc2a1a78fafa9e2bd1ce1253b8ce119759b8c6",
+      "01a0e514-e3cf-7e93-829e-1f2019670d61.handshake-local-accounts-5bc532617970db7d5a2f39e56764c311d7e609b0dc500c4adcc1d3cbda80c228",
+      "01a0e515-c5ce-7522-8170-92db2ef03ef1.handshake-local-accounts-53b7140b9fcdb51311673a0d4537c2c0a98c4592f5e66101461e73475ae64549",
+      "01a0e531-8a3e-71d1-91c2-753f014db726.handshake-local-accounts-f61e63b1c63dd02fa2b178d58e9016ed041bf6aede2e10851830201901f78274",
+      "01a0e535-055c-7c73-a43d-f5ac780c1ced.handshake-local-accounts-1e8c65940b43fbf53b369a45bf8aee13a071ba6321ff6aba6ffba83665ebc2ea",
+      "01a0e538-8406-7c91-8567-0be994cc8ce2.handshake-local-accounts-08ed70f7d14397480e814c4231df8230f8d654ac968769a2dc60d6019e22d2ca",
+      "01a0e53a-77d9-7721-b0a3-2cee9477993b.handshake-local-accounts-55785d8b52d3070eaf9a7050e8a41d32df0600e8c8235c703083411f20db30e0",
+      "01a0eb22-664b-7e51-b955-1fb97d744a3b.handshake-local-accounts-a14748885cad67b628123fbfefbf10d48bea7ec4ba3310660a7c92c0deb2441a",
+      "01a0eb23-2399-76b3-be17-efdb9061b056.handshake-local-accounts-9805767a997ffc46db634e0d91e66b8c853e8363a063dc61d3aa8575444d4fe5",
+      "01a0eb23-def6-7970-9655-a2b4a365dc82.handshake-local-accounts-c31d00fe9973225a3bf72e3af32ebf0e45256b0bc231d8a4e3a8eadd0a4bd75c",
+      "01a0eb24-8ed9-74f0-91f5-4f36ee70126b.handshake-local-accounts-dadf0c9c09903190405d3c2794ba457507897a2410850e556f0be2284cdf7048",
+      "01a0eb25-4976-7330-abcd-73c441cb5a67.handshake-local-accounts-4dea26af02e3adf8fb1c1121c549b92d10ef036b0083c95533dbd8f558756721",
+      "01a0eb26-0228-7362-a01e-18c06c401634.handshake-local-accounts-556c53927567c62d9449d4d335762f26540659ecfc3a0bee694c3d813415b53e",
+      "01a0eb26-d435-7513-85bd-b0565b9e17e0.handshake-local-accounts-cb687926415fa7baa7226084fa46cbd78fb8526ac7d507fdbd703fd09752bafc",
+      "01a0eb27-8e8e-7b61-8d25-c047a81f21e3.handshake-local-accounts-cdc2e609d1a69a8903afd3225f6d857e999894846ff22a244b5a864d7b3b53d5",
+      "01a0eb28-4907-7793-a85d-b2a1d3322130.handshake-local-accounts-775111d5c9e2852955d15bd8903b368fb711b63b71d33c907b9441d1ec264d21",
+      "01a0eb29-0274-7750-bb95-d7cfb34cfef7.handshake-local-accounts-ea1a10234ab9838c6e7c5489ae8130b3d5cb5bba66bcd0249781b073c4ef4134",
+      "01a0eb29-bc94-7b82-8c21-7f1581fdce28.handshake-local-accounts-fdb5d0ea8fb754beb82b15ad219f658b74924df91a3d11583604e6614f868a00",
+      "01a0eb41-4b1e-7773-912e-1699be296c09.handshake-local-accounts-d2fec0dcb5aba0ba3cdf3a57d629954d839ce56b85c74d4a76e0abd845eb6f8e",
+      "01a0eb44-caa8-76d3-ba89-0b7b1adfa779.handshake-local-accounts-f86d21f6d084af958fd59b4fa3d9d03740fa67bd7bf76fbe52c739aa2c8bc13d",
+      "01a0eb48-3adc-7983-bb47-367ad9248479.handshake-local-accounts-3c447a9213e06e3ea24fd128c323c86616fd8d18ffece5ad3c8335055238b0bf",
+      "01a0eb4a-09df-7ac1-b6df-ed9c6eb0fae8.handshake-local-accounts-ff2a6412df96741ff311f410c651924bfa0eb53e8edc5341d74dc2b1672e7386",
+      "01a0f31d-de79-7c92-8c1f-118c82e8e3d9.handshake-local-accounts-0ec69e5fa830065e6d1c4f630838e7c71ec15e7e501aafc25bff816b1ab7111c",
+      "01a0f31e-bb6a-73c2-9fcd-f7434cab56de.handshake-local-accounts-405186002a3e560ec82bb31674b929094bcc7e4b40898db440196b3f7e1150d5",
+      "01a0f31f-96e0-7d30-bb70-a9f09c7c8642.handshake-local-accounts-e23799b0f8b0fd269894c70eee2f94c970df0f9c394a14f9a145e9f64c793820",
+      "01a0f320-6a72-7c70-938d-f8500aa8dfa4.handshake-local-accounts-f23709ae8fd9d4b66c51b75846dcf760adbcd9a9a8f66ad97f846f9513447eae",
+      "01a0f321-3ff5-7891-933d-dddb15081a60.handshake-local-accounts-0a59488bf0da421d3a412fe3c21593b3529d8426a2a8166c64cd164f4330244f",
+      "01a0f322-141f-7440-830f-2a74446e419a.handshake-local-accounts-5ba73bf7baa1528dc22bcd2145ac2b19e1d3204951deb7f0b195d1bfa35fc5b3",
+      "01a0f322-f373-7773-a7cb-927e8b16fff9.handshake-local-accounts-da85d5c83244c1b486ab005e7a8e5b0f24feec88503c52624479c6234e83157a",
+      "01a0f323-cd84-75b0-8eb3-1297710cdd62.handshake-local-accounts-8ae5225d7323daa6df16fea0ed617211ede605a8cfc2544575adad8e82daeee7",
+      "01a0f324-a757-7752-ad57-f87d420d8296.handshake-local-accounts-5c641c5b479a7f75e8853cd370f02155cc3fc1c13985fb2a62fc87daf89c1e26",
+      "01a0f325-7c69-7602-a20e-f540a405dc8e.handshake-local-accounts-405f1a550ba840289ce9cc379e7951d2be9911e0af3e913ecb4c0659a9eef676",
+      "01a0f326-56f9-7b42-b0e1-c87ceaf8d02e.handshake-local-accounts-c34853f9faf714d8372b8e5ec783cc768e6fa3ca6208a84dbd0d054d97593e1b",
+      "01a0f39f-3ae8-78c2-97dd-1d4a9f565e59.handshake-local-accounts-f34b3976f6f23245844087592c9eb3737fdd72c87b87a5af31eb6d044e48f422",
+      "01a0f39f-ff2c-7ba3-9ee9-5be141e2b32f.handshake-local-accounts-06694e2a7ac1627fec62447e017e712e284f1da6b3698b740d00b06f0cba5897",
+      "01a0f3a0-c93f-7053-90f1-bc04ccad0a06.handshake-local-accounts-e041a915c0012c4804fcbe040d4b7c59144f1897ba669f8c2d67f482d575d3f7",
+      "01a0f3a1-868f-7fe1-924a-1344e5524f85.handshake-local-accounts-6da0b07c0e910f04e89fb2a80291c872b334c2838fe52da3a02fc86b517ef5ec"
+    ],
+    "not_approved_unproven_count": 22,
+    "evidence_ref": "decision_R1 research (copied); regenerated read-only by R1 research agent 2026-09-30; names only, no secrets",
+    "method": "probe -> delete exactly these targets -> probe",
+    "proof_rule": "cmdkey /list target names only (no blobs); name = target minus 'LegacyGeneric:target=' prefix (delete with cmdkey /delete:<name>); namespace = 64-hex suffix; proven iff sha256 of compact JSON [\"<abs runtime data dir>\\handshake-surreal\",\"handshake\",\"primary\"] equals the namespace for a preserved data dir under Handshake_Artifacts/WP-KERNEL-012/**/backend-runtime/**/data (675 dirs scanned); everything else unproven.",
+    "counts": {
+      "proven": 78,
+      "unproven": 22,
+      "total_handshake": 100,
+      "total_all_targets": 319
+    },
+    "never_touch": [
+      "Adobe entries",
+      "Xbox/Xbl entries",
+      "every target not in approved_targets"
+    ],
+    "defect_cx_git_003": {
+      "statement": "backend_proof_support/mod.rs OwnedVaultScope leaves <uuid>.handshake-local-accounts-<hash> credentials in the Windows Credential Manager after failed/killed/attached/failed-cleanup runs: 100 leftover entries counted 2026-09-30 (78 proven fixture-owned across 78 preserved runtime dirs).",
+      "rule": "CX-GIT-003",
+      "routing": "implementer; MT-032 vs MT-154 vs a new shared-helper defect is an Operator decision (not made here)",
+      "evidence_ref": "decision_R1_credentials.md section 4 items 1-7",
+      "minimum_controls": [
+        "Windows Job Object (kill-on-close) for the owned backend plus a recovery sweep at fixture start over a persistent owned-namespace ledger written before first login",
+        "cleanup_after_reap failures fail the test (not WARN-only) in PendingChild Drop and during unwind",
+        "capture scope before spawn-side owner setup and register the namespace in the ledger at spawn",
+        "attached-backend logins tracked or forbidden",
+        "post-round leftover count of handshake-local-accounts entries as a validator gate",
+        "core-side writers (authority.rs tests) use the same ledger/teardown"
+      ]
+    }
+  }
 }

@@ -1637,5 +1637,25 @@
     ]
   },
   "diagnosis_20260930_bb9548e1": {"schema_id": "hsk.mt_diagnosis@1", "diagnosis_id": "DX-MT-046-20260930-BB95-THREE-CAUSES", "kind": "blocker_diagnosis", "failure_kind": "product", "round": "union bb9548e1", "cause": "ic03/04 CKC types not in record-user allowlist; ic06 code-nav index timeout; ic10/12 block create 6.4-6.9 s", "evidence_refs": ["../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-973ebf93a07f1b6e/a4ac9c2d-c387-45be-80ba-e4e26c084741/backend.stdout.log:73-77 + ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.stderr.log:5343-5345 (400 HSK-400-LOOM-VALIDATION)", "src/backend/handshake_core/src/storage/surreal/loom_canvas_store.rs:1271-1284 allowlist excludes ckc_moodboard/ckc_character (schema.surql:503 allows them)", "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-c382ab9e1929666f/531f3886-ba9a-46d3-a1ec-124cd3f501b3/backend.stdout.log:78-84 (ic06 index; client TimedOut ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.stderr.log:5430)", "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-f0c00e434f8080d0/58dfbf97-291a-499b-a6fa-0297d5bf6bab/backend.stdout.log:131-142 (ic10: 7-stmt query stmt 3 = 3.88 s; block create 6.95 s)", "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-23bbd95f78f9ce9f/9ab276a3-d30b-464d-9644-684b498a13c2/backend.stdout.log:131-142 (ic12: stmt 3 = 3.53 s; 6.44 s)"], "distinct_from": ["DX-MT-046-20260930-SLOW-RECORD-USER-WRITES (grant-fn index cost; MT-164/166 fixed, failure persists)"], "event_ledger_rs_paths": ["register_root -> knowledge_ingestion/engine.rs:903 append_receipt_event -> event_ledger.rs append (:325) idempotency lookup WHERE idempotency_key = $event.idempotency_key (:396-444)", "ic10/12 7-statement query in loom block create: owning code not yet attributed (statement 3 dominates)"], "other_paths": ["loom_canvas_store.rs allowlist (MT-153 scope; product decision open)", "api/code_nav_index.rs (no owning MT)"], "cause_status": "code reading + retained timing logs; fix not yet authored", "recorded_at_utc": "2026-09-30T17:30:00Z", "recorded_by": "KERNEL_BUILDER-LANE-B-20260930"},
-  "operator_decision_request_20260930_bb9548e1": {"requested_by": "KERNEL_BUILDER-LANE-B-20260930", "requested_at_utc": "2026-09-30T17:30:00Z", "rule": "KB-IMPL-006", "question": "which MT owns this fix", "files_without_owning_mt": ["src/backend/handshake_core/src/api/code_nav_index.rs", "kernel_queue_store.rs:141, promotion_store.rs:90-152 (lane-A candidates; on-path NOT_INSPECTED)"], "note": "ic03/ic04: see existing open block-type question in MT-046.json (record-user creatable content types); loom_canvas_store.rs:1271-1284 is in MT-153 scope"}
+  "operator_decision_request_20260930_bb9548e1": {"requested_by": "KERNEL_BUILDER-LANE-B-20260930", "requested_at_utc": "2026-09-30T17:30:00Z", "rule": "KB-IMPL-006", "question": "which MT owns this fix", "files_without_owning_mt": ["src/backend/handshake_core/src/api/code_nav_index.rs", "kernel_queue_store.rs:141, promotion_store.rs:90-152 (lane-A candidates; on-path NOT_INSPECTED)"], "note": "ic03/ic04: see existing open block-type question in MT-046.json (record-user creatable content types); loom_canvas_store.rs:1271-1284 is in MT-153 scope"},
+  "operator_decision_20260930": {
+    "decision_id": "WP012-OPERATOR-DECISIONS-20260930-C",
+    "operator_quote": "i will follow your recommendations and grant you the waivers",
+    "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+    "recorded_at_utc": "2026-09-30T20:49:55Z",
+    "packet_ref": "packet.json#operator_decisions_20260930[WP012-OPERATOR-DECISIONS-20260930-C]",
+    "answers": [
+      "C1V-LOOM-CONTENT-TYPES",
+      "MT-046.json#operator_decision_request_20260930_bb9548e1"
+    ],
+    "decision": "Do not widen record-user Loom content types. Seed ic03/ic04 with `note` blocks (CTRL-8 generic note fallback, scenario PARTIAL, typed blocker naming MT-395). Real CKC projection proof is left to MT-395.",
+    "stale_question_note": "The recorded C1V-LOOM-CONTENT-TYPES question text is stale: current code allows note/file/annotated_file/tag_hub/journal/canvas (loom_canvas_store.rs:1268-1284; decision_R3 A2).",
+    "not_done": [
+      "no ckc_moodboard/ckc_character record-user creation",
+      "no schema revision or pin change",
+      "no Master Spec enrichment"
+    ],
+    "recommendation_ref": "decision_R3_contenttypes_counters.md Decision A (A-1)",
+    "status_effect": "none recorded here (MT-046 lifecycle unchanged; edit of ic03/ic04 seeding follows under the existing MT-046 remediation flow)"
+  }
 }
