@@ -852,7 +852,7 @@
   "title": "E5-MT-032-EverythingIsLoomBlockBacklinks",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-30T11:26:00Z",
+  "updated_at_utc": "2026-09-30T11:36:00Z",
   "validation": {
     "proof_records": [
       {"proof_id":"PR-WP012-MT032-ec596eec-UNION-012","command":"C:/Program Files/Git/bin/bash.exe \"D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/run-round.sh\" ec596eecb70f2820cb357ef95d5820b890c8944f","cwd":".","commit":"ec596eecb70f2820cb357ef95d5820b890c8944f","tree_clean":true,"dirty_file_count":0,"executor_role":"WP_VALIDATOR","executor_session":"/root/wp_validator","target_dir":"WP-KERNEL-012/MT-109/wpv-c3x","started_utc":"2026-09-26T19:33:10.3524503Z","finished_utc":"2026-09-26T23:26:55.5249366Z","exit_code":0,"result_line":"[run-round] done. junit: D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-core.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-native.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-handshake_document.xml , D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ec596eecb70f2820cb357ef95d5820b890c8944f-handshake_storage_support.xml (core_exit=100 native_exit=100 extracted=handshake_document:exit=0 handshake_storage_support:exit=0)","log_path":"WP-KERNEL-012/MT-109/wpv-c3x/logs/union-ec596eecb70f2820cb357ef95d5820b890c8944f.stdout.log","features":["core:app-runtime,surreal-test-support,test-utils","native:integration,integration_tests,wgpu_screenshots","handshake_document:surreal-test-support","handshake_storage_support:surreal-test-support"],"env_knobs":{"CARGO_TARGET_DIR":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52","execution_inputs_ref":"MT-032.json#remediation_v13.validation_running.execution_inputs"},"covers":["MT-032","MT-154"]},
@@ -3111,5 +3111,22 @@
         "state_effect": "lifecycle.status PASS_V15"
       }
     ]
+  },
+  "candidate_diff_decision_65a7b6fb": {
+    "decided_at_utc": "2026-09-30T11:36:00Z",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "rule": "CX-VAL-002/CX-VAL-009",
+    "proof_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+    "candidate_commit": "65a7b6fb6f7e0383674f2a0e5d85a0eb0c2d81c6",
+    "diff_paths": [
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/src/api/workspaces.rs"
+    ],
+    "diff_hunks": "loom.rs: open_daily_journal, authorize_canvas_visual_edge_write, remove_canvas_visual_edge (no-session 401 -> constant 403) + tests module; workspaces.rs: tests only",
+    "relevant_input_paths_basis": "scope.allowed_paths (recorded contract paths); bound backend routes checked separately",
+    "intersection": [],
+    "bound_route_check": "Bound routes (knowledge documents create/load/save/backlinks, GET loom/blocks, transclusion, canvas-boards GET) have no changed handler; changed handlers (daily journal PUT, visual-edge POST/DELETE anonymous branch) are not bound or exercised by test_loom_address",
+    "decision": "evidence remains valid on 65a7b6fb; status unchanged at round freeze",
+    "observation": "test_loom_address is in the 65a7b6fb union native selection; its result is recorded as an observation and a red would be routed as a regression"
   }
 }

@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-163",
   "created_at_utc": "2026-09-29T08:31:36.101102Z",
-  "updated_at_utc": "2026-09-30T11:24:00Z",
+  "updated_at_utc": "2026-09-30T11:36:00Z",
   "identity": {
     "mt_id": "MT-163",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -715,5 +715,22 @@
         "state_effect": "lifecycle.status PASS_V1"
       }
     ]
+  },
+  "candidate_diff_decision_65a7b6fb": {
+    "decided_at_utc": "2026-09-30T11:36:00Z",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "rule": "CX-VAL-002/CX-VAL-009",
+    "proof_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+    "candidate_commit": "65a7b6fb6f7e0383674f2a0e5d85a0eb0c2d81c6",
+    "diff_paths": [
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/src/api/workspaces.rs"
+    ],
+    "diff_hunks": "loom.rs: open_daily_journal, authorize_canvas_visual_edge_write, remove_canvas_visual_edge (no-session 401 -> constant 403) + tests module; workspaces.rs: tests only",
+    "relevant_input_paths_basis": "scope.allowed_paths (recorded contract paths); bound backend routes checked separately",
+    "intersection": [],
+    "bound_route_check": "Bound routes (knowledge documents create/load/save/backlinks, GET loom/blocks, transclusion, canvas-boards GET) have no changed handler; changed handlers (daily journal PUT, visual-edge POST/DELETE anonymous branch) are not bound or exercised by test_loom_address",
+    "decision": "evidence remains valid on 65a7b6fb; status unchanged at round freeze",
+    "observation": "test_loom_address is in the 65a7b6fb union native selection; its result is recorded as an observation and a red would be routed as a regression"
   }
 }
