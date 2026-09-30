@@ -479,7 +479,11 @@ async fn create_loom_block_authenticated(
     Extension(authority): Extension<crate::api::authority::AuthorizedResourceContext>,
     Json(payload): Json<CreateLoomBlockRequest>,
 ) -> ApiResult<Json<LoomBlock>> {
-    create_record_user_loom_block(state, workspace_id, payload, authority).await
+    observe_loom_write(
+        "loom_block_create_request",
+        create_record_user_loom_block(state, workspace_id, payload, authority),
+    )
+    .await
 }
 
 #[cfg(test)]
@@ -553,6 +557,22 @@ fn loom_denied() -> ApiError {
             error: "HSK-403-PROTECTED-RESOURCE",
         }),
     )
+}
+
+/// MT-026/MT-027 diagnostics: runs one Loom write request under a server-generated
+/// correlation id so its authority phases and every `query_values_at` statement emit the
+/// existing sanitized `MT032_DOCUMENT_PHASE` / `MT032_DOCUMENT_STATEMENT` timing lines
+/// (fixed labels and durations only, no query data). Behavior and authorization are unchanged.
+async fn observe_loom_write<T>(
+    phase: &'static str,
+    request: impl std::future::Future<Output = ApiResult<T>>,
+) -> ApiResult<T> {
+    handshake_document::diagnostics::DOCUMENT_PHASE_REQUEST_ID
+        .scope(
+            Uuid::now_v7(),
+            handshake_document::diagnostics::observe_document_phase(phase, request, Result::is_err),
+        )
+        .await
 }
 
 /// Authorizes `action` on the exact protected resource through the ResourceBroker. Reads use
@@ -3111,22 +3131,25 @@ async fn create_loom_edge_authenticated(
     headers: HeaderMap,
     Json(payload): Json<CreateLoomEdgeRequest>,
 ) -> ApiResult<Json<LoomEdge>> {
-    let account = loom_workspace_account(
-        &state,
-        &headers,
-        &workspace_id,
-        crate::storage::surreal::resource_authority::ResourceAction::Create,
-    )
-    .await?;
-    let ctx = account.ctx.clone();
-    let loom_workspace = workspace_id.clone();
-    account
-        .run(
+    observe_loom_write("loom_edge_create_request", async {
+        let account = loom_workspace_account(
             &state,
-            &loom_workspace,
-            create_loom_edge_inner(state.clone(), workspace_id, payload, ctx),
+            &headers,
+            &workspace_id,
+            crate::storage::surreal::resource_authority::ResourceAction::Create,
         )
-        .await
+        .await?;
+        let ctx = account.ctx.clone();
+        let loom_workspace = workspace_id.clone();
+        account
+            .run(
+                &state,
+                &loom_workspace,
+                create_loom_edge_inner(state.clone(), workspace_id.clone(), payload, ctx),
+            )
+            .await
+    })
+    .await
 }
 
 #[cfg(test)]
@@ -6379,22 +6402,25 @@ async fn create_block_view_authenticated(
     headers: HeaderMap,
     Json(payload): Json<CreateBlockViewRequest>,
 ) -> ApiResult<Json<BlockViewRecord>> {
-    let account = loom_workspace_account(
-        &state,
-        &headers,
-        &workspace_id,
-        crate::storage::surreal::resource_authority::ResourceAction::Create,
-    )
-    .await?;
-    let ctx = account.ctx.clone();
-    let loom_workspace = workspace_id.clone();
-    account
-        .run(
+    observe_loom_write("loom_view_create_request", async {
+        let account = loom_workspace_account(
             &state,
-            &loom_workspace,
-            create_block_view_inner(state.clone(), workspace_id, payload, ctx),
+            &headers,
+            &workspace_id,
+            crate::storage::surreal::resource_authority::ResourceAction::Create,
         )
-        .await
+        .await?;
+        let ctx = account.ctx.clone();
+        let loom_workspace = workspace_id.clone();
+        account
+            .run(
+                &state,
+                &loom_workspace,
+                create_block_view_inner(state.clone(), workspace_id.clone(), payload, ctx),
+            )
+            .await
+    })
+    .await
 }
 
 #[cfg(test)]
