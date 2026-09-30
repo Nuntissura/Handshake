@@ -1,7 +1,8 @@
 {
-  "candidate": "1f4e0f69241864c40b2deb96d105ba426bb1448c",
+  "candidate": "bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3",
   "prior_native_proof": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
   "changed_native_test_bins": [
+    "test_calendar_interop",
     "test_loom_address",
     "test_memory_proposal_argus",
     "test_stage_interop"
@@ -13,7 +14,8 @@
     "api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows",
     "api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit",
     "api::workspaces::tests::mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default",
-    "api::jobs::tests::create_model_run_job_launches_runtime_session_and_preserves_native_binding"
+    "api::jobs::tests::create_model_run_job_launches_runtime_session_and_preserves_native_binding",
+    "api::loom::tests::mt109_c3_record_user_assets_collections_and_views"
   ],
   "core_whole": [
     "loom_daily_journal_tests",
