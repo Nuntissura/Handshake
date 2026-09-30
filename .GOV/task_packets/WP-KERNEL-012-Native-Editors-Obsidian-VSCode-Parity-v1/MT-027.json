@@ -2289,7 +2289,7 @@
     "recorded_at_utc": "2026-09-30T14:18:16Z",
     "authority": "CX-EXEC-014 recorded remediation naming a diagnostic run; orchestrator decision option (2): validator executes in its lane",
     "remediates": "MT-027.json#validation_v7 OWNED_SAVED_VIEW_CREATE_403; hypothesis MT-027.json#hypothesis_20260930_bridge",
-    "candidate_commit": "final tip after lane B push; orchestrator will name the SHA",
+    "candidate_commit": "bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3",
     "candidate_note": "single union validator round on the final tip; contains 45019718 (bridge diagnostic) and 1457903f (Loom create timing)",
     "executor_role": "WP_VALIDATOR",
     "crate": "src/backend/handshake_core (lib, features app-runtime,surreal-test-support,test-utils)",
