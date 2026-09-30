@@ -234,8 +234,358 @@
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
   "updated_at_utc": "2026-09-29T20:35:10Z",
- "validation_shared_union_ec596eec": {"schema_id": "hsk.mt_validation_verdict@1", "decision": "inconclusive", "validated_by": "WP_VALIDATOR-SOL-MEDIUM", "validated_at_utc": "2026-09-26T23:36:50.061743Z", "candidate_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f", "proof_records_ref": "MT-032.json#validation.proof_records[PR-WP012-MT032-ec596eec-UNION-012]", "shared_round_ref": "MT-032.json#validation_v12", "contract_floor_refs": ["scope.proof_targets", "scope.acceptance_criteria", "proof", "proof_commands", "hbr_obligations"], "selection_method": "Named MT-prefixed cases only; not all parent/shared regression commands", "observed_cases": [{"classname": "handshake_core", "test": "api::workspaces::tests::mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows", "seconds": 17.869, "result": "passed"}, {"classname": "handshake_core", "test": "storage::surreal::schema::tests::schema_delta_upgrade_statements_re_emit_every_mt154_delta", "seconds": 0.896, "result": "passed"}, {"classname": "handshake_core::knowledge_documents_api_tests", "test": "mt154_save_indexes_document_into_project_knowledge_index", "seconds": 35.787, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_atelier_routes_require_session", "seconds": 20.387, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_calendar_routes_authority", "seconds": 14.193, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_canvases_routes_authority", "seconds": 16.716, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_flight_recorder_runtime_chat_receipt_is_session_attributed", "seconds": 14.411, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_knowledge_crdt_ingestion_memory_retrieval_authority", "seconds": 30.24, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_locus_routes_require_session", "seconds": 13.772, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_preferences_routes_authority_and_receipt_visibility", "seconds": 15.02, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_stage_routes_authority", "seconds": 14.537, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt154_trace_projection_requires_session", "seconds": 13.011, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt158_locus_job_rows_are_private_to_the_creating_account", "seconds": 16.165, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt158_locus_jobs_require_account_session", "seconds": 13.997, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt159_job_routes_require_account_session", "seconds": 14.262, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt159_locus_ids_do_not_reveal_existence_across_accounts", "seconds": 17.587, "result": "passed"}], "mapped_case_count": 16, "mapped_failure_count": 0, "state_unchanged": true, "prior_verdict_preserved": null, "unmet_required_proof": ["MT-154-CHECK-TESTS current independent cargo-check chain not supplied by union", "MT-154-CLIPPY-CHANGED current independent changed-line diagnostics applicability unclosed", "MT-154-FMT / MT-154-DIFF-CHECK and MT-154-PREDECESSOR-PINS-UNCHANGED static current-range reconciliation remain separate obligations", "Original full MT154 acceptance remains; extracted document/support unit success and selected MT154 tests cannot accept the bounded document slice as the whole MT"], "acceptance_rule": "Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change", "verdict_events": [{"event": "accepted", "idempotency_key": "MT154-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive"}, {"event": "completed", "idempotency_key": "MT154-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive", "state_effect": "unchanged"}]},
-  "validation_shared_union_7479972a": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-28T00:11:37Z","candidate_commit":"7479972ac681cd238e58d37e318beab6c8d3b423","proof_records_ref":"MT-032.json#validation.proof_records[PR-WP012-MT032-7479972a-UNION-CONTINUATION1]","shared_round_ref":"MT-032.json#validation_v13","contract_floor_refs":["scope.proof_targets","scope.acceptance_criteria","proof","proof_commands","hbr_obligations"],"selection_method":"Named MT-prefixed cases only; not all parent/shared regression commands; exact classname+name matched against completed current four JUnits","observed_cases":[{"classname":"handshake_core","test":"api::workspaces::tests::mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows","seconds":14.339,"result":"failed","phase":"core","message":"process aborted with code 0xc00000fd: Recursion too deep; the stack overflowed. (os error 1001)"},{"classname":"handshake_core","test":"storage::surreal::schema::tests::schema_delta_upgrade_statements_re_emit_every_mt154_delta","seconds":0.9,"result":"passed","phase":"core"},{"classname":"handshake_core::knowledge_documents_api_tests","test":"mt154_save_indexes_document_into_project_knowledge_index","seconds":37.572,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_atelier_routes_require_session","seconds":23.191,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_calendar_routes_authority","seconds":16.125,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_canvases_routes_authority","seconds":19.178,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_flight_recorder_runtime_chat_receipt_is_session_attributed","seconds":17.081,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_knowledge_crdt_ingestion_memory_retrieval_authority","seconds":36.142,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_locus_routes_require_session","seconds":17.271,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_preferences_routes_authority_and_receipt_visibility","seconds":18.358,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_stage_routes_authority","seconds":15.512,"result":"failed","phase":"core","message":"process aborted with code 0xc00000fd: Recursion too deep; the stack overflowed. (os error 1001)"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt154_trace_projection_requires_session","seconds":15.142,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt158_locus_job_rows_are_private_to_the_creating_account","seconds":18.627,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt158_locus_jobs_require_account_session","seconds":17.154,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt159_job_routes_require_account_session","seconds":17.514,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt159_locus_ids_do_not_reveal_existence_across_accounts","seconds":22.484,"result":"passed","phase":"core"}],"mapped_case_count":16,"mapped_failure_count":2,"state_unchanged":true,"prior_verdict_preserved":true,"unmet_required_proof":["MT-154-CHECK-TESTS current independent cargo-check chain not supplied by union","MT-154-CLIPPY-CHANGED current independent changed-line diagnostics applicability unclosed","MT-154-FMT / MT-154-DIFF-CHECK and MT-154-PREDECESSOR-PINS-UNCHANGED static current-range reconciliation remain separate obligations","Original full MT154 acceptance remains; extracted document/support unit success and selected MT154 tests cannot accept the bounded document slice as the whole MT","Current selected MT154 owner_workspace_delete and stage_routes_authority abort with stack overflow; own floor fails despite passing schema migration and record-user multi-grant regression","Current MT032 mandatory live save/create floor fails; bounded document slice cannot be accepted"],"acceptance_rule":"Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change","verdict_events":[{"event":"accepted","idempotency_key":"MT154-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT154-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive","state_effect":"unchanged"}],"input_provenance":{"candidate":"7479972ac681cd238e58d37e318beab6c8d3b423","source_diff_ref":"git diff --name-only ec596eecb70f2820cb357ef95d5820b890c8944f..7479972ac681cd238e58d37e318beab6c8d3b423","changed_areas":["core document/SurrealDB authority/schema","handshake_document diagnostics/operations/SurrealDB adapter","handshake_storage_support diagnostics/retry"],"native_source_changed":false,"source_effect":"Shared backend inputs can affect live native cases; exact current JUnits provide observed behavior, not static/unmapped proof."},"current_union":{"core":{"tests":239,"failures":6,"sha256":"9916BFB9B5F8797D461C58555D16A734D29EB4054E37713263B0C727E0DA4BF2"},"native":{"tests":2952,"failures":44,"sha256":"928E026731633A2C63F1ECC21E926DF5A56AFEE828B58C79EF77B990697A962F"},"handshake_document":{"tests":41,"failures":0,"sha256":"2A3F49A172AD702EE44722CA393304084FDA83DDD45DB0CD253147CE9518BD79"},"handshake_storage_support":{"tests":34,"failures":0,"sha256":"A499897A89EAA1497A2D16F31514CD319B53BDEE3160BDE51D09797A7EE82C76"},"all_junits_complete":true,"mt032_verdict_ref":"MT-032.json#validation_v13"},"additional_affected_cases":[{"phase":"core","test":"storage::surreal::schema::tests::document_grant_revision_160_upgrade_requires_exact_catalog_and_restarts_current","result":"passed"},{"phase":"core","test":"storage::surreal::schema::tests::document_grant_single_live_policy_witness_controls_record_user_visibility","result":"passed"}],"record_kind":"bounded_current_union_observation","classification_reason":"Exact selected current-candidate cases failed, but this shared union does not close the MT-specific proof floor; no final failed verdict is issued. READY_FOR_VALIDATION/null lifecycle stays unchanged and failed cases remain explicit blockers.","observed_case_failure_kind":"product"},
+  "validation_shared_union_ec596eec": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
+    "validated_at_utc": "2026-09-26T23:36:50.061743Z",
+    "candidate_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f",
+    "proof_records_ref": "MT-032.json#validation.proof_records[PR-WP012-MT032-ec596eec-UNION-012]",
+    "shared_round_ref": "MT-032.json#validation_v12",
+    "contract_floor_refs": [
+      "scope.proof_targets",
+      "scope.acceptance_criteria",
+      "proof",
+      "proof_commands",
+      "hbr_obligations"
+    ],
+    "selection_method": "Named MT-prefixed cases only; not all parent/shared regression commands",
+    "observed_cases": [
+      {
+        "classname": "handshake_core",
+        "test": "api::workspaces::tests::mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows",
+        "seconds": 17.869,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core",
+        "test": "storage::surreal::schema::tests::schema_delta_upgrade_statements_re_emit_every_mt154_delta",
+        "seconds": 0.896,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::knowledge_documents_api_tests",
+        "test": "mt154_save_indexes_document_into_project_knowledge_index",
+        "seconds": 35.787,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_atelier_routes_require_session",
+        "seconds": 20.387,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_calendar_routes_authority",
+        "seconds": 14.193,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_canvases_routes_authority",
+        "seconds": 16.716,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_flight_recorder_runtime_chat_receipt_is_session_attributed",
+        "seconds": 14.411,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_knowledge_crdt_ingestion_memory_retrieval_authority",
+        "seconds": 30.24,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_locus_routes_require_session",
+        "seconds": 13.772,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_preferences_routes_authority_and_receipt_visibility",
+        "seconds": 15.02,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_stage_routes_authority",
+        "seconds": 14.537,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_trace_projection_requires_session",
+        "seconds": 13.011,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt158_locus_job_rows_are_private_to_the_creating_account",
+        "seconds": 16.165,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt158_locus_jobs_require_account_session",
+        "seconds": 13.997,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt159_job_routes_require_account_session",
+        "seconds": 14.262,
+        "result": "passed"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt159_locus_ids_do_not_reveal_existence_across_accounts",
+        "seconds": 17.587,
+        "result": "passed"
+      }
+    ],
+    "mapped_case_count": 16,
+    "mapped_failure_count": 0,
+    "state_unchanged": true,
+    "prior_verdict_preserved": null,
+    "unmet_required_proof": [
+      "MT-154-CHECK-TESTS current independent cargo-check chain not supplied by union",
+      "MT-154-CLIPPY-CHANGED current independent changed-line diagnostics applicability unclosed",
+      "MT-154-FMT / MT-154-DIFF-CHECK and MT-154-PREDECESSOR-PINS-UNCHANGED static current-range reconciliation remain separate obligations",
+      "Original full MT154 acceptance remains; extracted document/support unit success and selected MT154 tests cannot accept the bounded document slice as the whole MT"
+    ],
+    "acceptance_rule": "Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT154-ec596eec-bounded-observation",
+        "at_utc": "2026-09-26T23:36:50.061743Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT154-ec596eec-bounded-observation",
+        "at_utc": "2026-09-26T23:36:50.061743Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged"
+      }
+    ]
+  },
+  "validation_shared_union_7479972a": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
+    "validated_at_utc": "2026-09-28T00:11:37Z",
+    "candidate_commit": "7479972ac681cd238e58d37e318beab6c8d3b423",
+    "proof_records_ref": "MT-032.json#validation.proof_records[PR-WP012-MT032-7479972a-UNION-CONTINUATION1]",
+    "shared_round_ref": "MT-032.json#validation_v13",
+    "contract_floor_refs": [
+      "scope.proof_targets",
+      "scope.acceptance_criteria",
+      "proof",
+      "proof_commands",
+      "hbr_obligations"
+    ],
+    "selection_method": "Named MT-prefixed cases only; not all parent/shared regression commands; exact classname+name matched against completed current four JUnits",
+    "observed_cases": [
+      {
+        "classname": "handshake_core",
+        "test": "api::workspaces::tests::mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows",
+        "seconds": 14.339,
+        "result": "failed",
+        "phase": "core",
+        "message": "process aborted with code 0xc00000fd: Recursion too deep; the stack overflowed. (os error 1001)"
+      },
+      {
+        "classname": "handshake_core",
+        "test": "storage::surreal::schema::tests::schema_delta_upgrade_statements_re_emit_every_mt154_delta",
+        "seconds": 0.9,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::knowledge_documents_api_tests",
+        "test": "mt154_save_indexes_document_into_project_knowledge_index",
+        "seconds": 37.572,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_atelier_routes_require_session",
+        "seconds": 23.191,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_calendar_routes_authority",
+        "seconds": 16.125,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_canvases_routes_authority",
+        "seconds": 19.178,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_flight_recorder_runtime_chat_receipt_is_session_attributed",
+        "seconds": 17.081,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_knowledge_crdt_ingestion_memory_retrieval_authority",
+        "seconds": 36.142,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_locus_routes_require_session",
+        "seconds": 17.271,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_preferences_routes_authority_and_receipt_visibility",
+        "seconds": 18.358,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_stage_routes_authority",
+        "seconds": 15.512,
+        "result": "failed",
+        "phase": "core",
+        "message": "process aborted with code 0xc00000fd: Recursion too deep; the stack overflowed. (os error 1001)"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt154_trace_projection_requires_session",
+        "seconds": 15.142,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt158_locus_job_rows_are_private_to_the_creating_account",
+        "seconds": 18.627,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt158_locus_jobs_require_account_session",
+        "seconds": 17.154,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt159_job_routes_require_account_session",
+        "seconds": 17.514,
+        "result": "passed",
+        "phase": "core"
+      },
+      {
+        "classname": "handshake_core::mt154_non_loom_route_authority_tests",
+        "test": "mt159_locus_ids_do_not_reveal_existence_across_accounts",
+        "seconds": 22.484,
+        "result": "passed",
+        "phase": "core"
+      }
+    ],
+    "mapped_case_count": 16,
+    "mapped_failure_count": 2,
+    "state_unchanged": true,
+    "prior_verdict_preserved": true,
+    "unmet_required_proof": [
+      "MT-154-CHECK-TESTS current independent cargo-check chain not supplied by union",
+      "MT-154-CLIPPY-CHANGED current independent changed-line diagnostics applicability unclosed",
+      "MT-154-FMT / MT-154-DIFF-CHECK and MT-154-PREDECESSOR-PINS-UNCHANGED static current-range reconciliation remain separate obligations",
+      "Original full MT154 acceptance remains; extracted document/support unit success and selected MT154 tests cannot accept the bounded document slice as the whole MT",
+      "Current selected MT154 owner_workspace_delete and stage_routes_authority abort with stack overflow; own floor fails despite passing schema migration and record-user multi-grant regression",
+      "Current MT032 mandatory live save/create floor fails; bounded document slice cannot be accepted"
+    ],
+    "acceptance_rule": "Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT154-7479972a-bounded-observation",
+        "at_utc": "2026-09-28T00:11:37Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT154-7479972a-bounded-observation",
+        "at_utc": "2026-09-28T00:11:37Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged"
+      }
+    ],
+    "input_provenance": {
+      "candidate": "7479972ac681cd238e58d37e318beab6c8d3b423",
+      "source_diff_ref": "git diff --name-only ec596eecb70f2820cb357ef95d5820b890c8944f..7479972ac681cd238e58d37e318beab6c8d3b423",
+      "changed_areas": [
+        "core document/SurrealDB authority/schema",
+        "handshake_document diagnostics/operations/SurrealDB adapter",
+        "handshake_storage_support diagnostics/retry"
+      ],
+      "native_source_changed": false,
+      "source_effect": "Shared backend inputs can affect live native cases; exact current JUnits provide observed behavior, not static/unmapped proof."
+    },
+    "current_union": {
+      "core": {
+        "tests": 239,
+        "failures": 6,
+        "sha256": "9916BFB9B5F8797D461C58555D16A734D29EB4054E37713263B0C727E0DA4BF2"
+      },
+      "native": {
+        "tests": 2952,
+        "failures": 44,
+        "sha256": "928E026731633A2C63F1ECC21E926DF5A56AFEE828B58C79EF77B990697A962F"
+      },
+      "handshake_document": {
+        "tests": 41,
+        "failures": 0,
+        "sha256": "2A3F49A172AD702EE44722CA393304084FDA83DDD45DB0CD253147CE9518BD79"
+      },
+      "handshake_storage_support": {
+        "tests": 34,
+        "failures": 0,
+        "sha256": "A499897A89EAA1497A2D16F31514CD319B53BDEE3160BDE51D09797A7EE82C76"
+      },
+      "all_junits_complete": true,
+      "mt032_verdict_ref": "MT-032.json#validation_v13"
+    },
+    "additional_affected_cases": [
+      {
+        "phase": "core",
+        "test": "storage::surreal::schema::tests::document_grant_revision_160_upgrade_requires_exact_catalog_and_restarts_current",
+        "result": "passed"
+      },
+      {
+        "phase": "core",
+        "test": "storage::surreal::schema::tests::document_grant_single_live_policy_witness_controls_record_user_visibility",
+        "result": "passed"
+      }
+    ],
+    "record_kind": "bounded_current_union_observation",
+    "classification_reason": "Exact selected current-candidate cases failed, but this shared union does not close the MT-specific proof floor; no final failed verdict is issued. READY_FOR_VALIDATION/null lifecycle stays unchanged and failed cases remain explicit blockers.",
+    "observed_case_failure_kind": "product"
+  },
   "identity": {
     "mt_id": "MT-154",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -250,9 +600,50 @@
     "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
-  "validation_v2": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","verdict":null,"validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:54:37Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-154.scope.acceptance_criteria/proof_targets and own proof/ proof_commands","junit_provenance":{"native_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","core_sha256":"CD420357013FF59A89EA4440C394A8951404DD3700A75D7D066C385D118B7897","freshness":"Both export-local/copy match and after own invocation marker; full49e archive"},"exact_proof_gaps":["Required current-input clippy/format/diff independent floors not fully reconciled; builderDcheck/cheapSQL is not product acceptance","Authorized MT032 latency alternative failed native closure; core route greens do not establish repaired native latency"],"status_effect":"READY_FOR_VALIDATION and null validator_verdict unchanged; submission retained; no infrastructure-driven transition","reuse_disposition":"No unrecorded relevant-input-path/static/special proof reuse credited","runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"One final union consumed; no additional test/build/probe to fill gaps","verdict_events":[{"event":"accepted","idempotency_key":"MT-154-49eac54e-union-inconclusive-v2","at_utc":"2026-09-26T15:54:37Z","payload_ref":"MT-154.json#validation_v2","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT-154-49eac54e-union-inconclusive-v2","at_utc":"2026-09-26T15:56:26Z","state_ref":"MT-154.json#lifecycle","decision":"inconclusive","state_observed":"READY_FOR_VALIDATION; validator_verdict null; submission retained"}]},
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "verdict": null,
+    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
+    "validated_at_utc": "2026-09-26T15:54:37Z",
+    "candidate_commit": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
+    "started_at": "2026-09-26T12:09:56.9854857Z",
+    "completed_at": "2026-09-26T15:40:57.0864701Z",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml",
+    "source_of_truth": "MT-154.scope.acceptance_criteria/proof_targets and own proof/ proof_commands",
+    "junit_provenance": {
+      "native_sha256": "B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C",
+      "core_sha256": "CD420357013FF59A89EA4440C394A8951404DD3700A75D7D066C385D118B7897",
+      "freshness": "Both export-local/copy match and after own invocation marker; full49e archive"
+    },
+    "exact_proof_gaps": [
+      "Required current-input clippy/format/diff independent floors not fully reconciled; builderDcheck/cheapSQL is not product acceptance",
+      "Authorized MT032 latency alternative failed native closure; core route greens do not establish repaired native latency"
+    ],
+    "status_effect": "READY_FOR_VALIDATION and null validator_verdict unchanged; submission retained; no infrastructure-driven transition",
+    "reuse_disposition": "No unrecorded relevant-input-path/static/special proof reuse credited",
+    "runtime_provenance_ref": "MT-032.json#validation_v11.input_provenance",
+    "attempt_disposition": "One final union consumed; no additional test/build/probe to fill gaps",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT-154-49eac54e-union-inconclusive-v2",
+        "at_utc": "2026-09-26T15:54:37Z",
+        "payload_ref": "MT-154.json#validation_v2",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT-154-49eac54e-union-inconclusive-v2",
+        "at_utc": "2026-09-26T15:56:26Z",
+        "state_ref": "MT-154.json#lifecycle",
+        "decision": "inconclusive",
+        "state_observed": "READY_FOR_VALIDATION; validator_verdict null; submission retained"
+      }
+    ]
+  },
   "lifecycle": {
-    "status": "FAIL_V3",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-153"
     ],
@@ -260,7 +651,7 @@
     "active": false,
     "validator_verdict": "FAIL_V3",
     "prior_validator_verdict": "FAIL_V1",
-    "next_actor": "KERNEL_BUILDER",
+    "next_actor": "WP_VALIDATOR (next frozen round: native drain and static checks decide the verdict)",
     "validated_by": "WP_VALIDATOR-20260929-MT164-ROUND",
     "validated_at_utc": "2026-09-29T14:31:39Z",
     "completed_by": null,
@@ -280,7 +671,8 @@
       "by": "KERNEL_BUILDER-C5-20260923-2250",
       "at_utc": "2026-09-23T23:52:39.079Z",
       "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
-    }
+    },
+    "blocked_on": null
   },
   "closure_unit": {
     "outcome": "Every non-Loom route row in scope.routes (calendar, stage, atelier/intake, canvases, flight recorder, preferences, locus, kernel trace projection, knowledge CRDT/ingestion/memory/retrieval, workspace delete residuals) runs under the authenticated account session with least-privilege permissions or is explicitly decision-gated; plus four residual defects are fixed: the native create-note drain, root-written receipts, the revision-158/159 predecessor-checksum tests, and the workspace-delete guard residue.",
@@ -2441,10 +2833,20 @@
     "evidence_ref": "MT-032.remediation_v11.diagnostic_result",
     "review_ref": "MT-032.remediation_v11.post_probe_review",
     "blocked_action": "Backend behavioral repair beyond the approved sanitized instrumentation",
-    "authority_refs": ["MT-032.scope.forbidden_paths", "MT-032.remediation_v11.operator_decision", "KB-IMPL-005/006"],
+    "authority_refs": [
+      "MT-032.scope.forbidden_paths",
+      "MT-032.remediation_v11.operator_decision",
+      "KB-IMPL-005/006"
+    ],
     "requested_scope": "MT-154-owned behavioral remediation of authenticated RichDocument create/save latency; exact diff reviewed before build",
     "success": "Both native cases complete within existing 10s/15s deadlines with all required durable and authority proofs preserved",
-    "constraints": ["No timeout increase", "No weakened authority or revocation checks", "No guessed concurrent authority writes", "No cache deletion", "No second diagnostic replay"],
+    "constraints": [
+      "No timeout increase",
+      "No weakened authority or revocation checks",
+      "No guessed concurrent authority writes",
+      "No cache deletion",
+      "No second diagnostic replay"
+    ],
     "proof_route": "Source-backed repair, existing D compile/static checks and independent cheap review, then the one unused required union",
     "risk": "No safe complete fix identified yet; serial latency observed but internal cost cause and concurrent-write equivalence unproved",
     "operator_decision": {
@@ -2467,7 +2869,10 @@
         "buddy": "/root/handoff_drift; read-only source review",
         "validator": "/root/technical_failure; independent execution/verdict",
         "batch_owner": "MT-154",
-        "covered_mts": ["MT-154", "MT-032"],
+        "covered_mts": [
+          "MT-154",
+          "MT-032"
+        ],
         "scope": "Existing bounded document create/save latency repair; distinguish the retained receipt inner-cost failure before selecting a measured repair",
         "allowed_product_paths_ref": "renewed_assignments[MT032-MEASURED-REPAIR-20260927].allowed_product_paths",
         "additional_proof_path": "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs",
@@ -2482,7 +2887,11 @@
         "implementation_checkpoint": {
           "candidate_commit": "699477d5888f6cec0b65cbea66b0dd09b9df88be",
           "pushed_verified": "Parent observed clean product HEAD and live origin feat/WP-KERNEL-012 at699477",
-          "changed_files": ["src/backend/handshake_core/src/storage/surreal/event_ledger.rs", "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs", "src/backend/handshake_storage_support/src/diagnostics.rs"],
+          "changed_files": [
+            "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+            "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs",
+            "src/backend/handshake_storage_support/src/diagnostics.rs"
+          ],
           "change": "Separate observed receipt lookup and CREATE/replay timing inside the same authenticated transaction; preserve unobserved path; add focused decoding/replay/record-user denial proofs",
           "compile": "D storage-support attempt2 exit0; core attempt2 E0308 fixed with owned String; core-only attempt3 exit0; no tests run",
           "logs": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260928-receipt-inner-attempt{2,3}-*",
@@ -2494,183 +2903,228 @@
         },
         "status_effect": "No lifecycle/verdict reset or acceptance inferred"
       },
-    {"id":"MT032-MEASURED-REPAIR-20260927","recorded_at_utc":"2026-09-27T12:18:46.829462Z","operator_decision_ref":"MT-032.remediation_v14.operator_decision","base_product_commit":"ec596eecb70f2820cb357ef95d5820b890c8944f","owner":"document_coder; sole product editor","batch_owner":"MT-154","covered_mts":["MT-154","MT-032"],"scope_override":"Extend existing document-slice ownership for sanitized inner diagnostics and the measured MT032 repair only","allowed_product_paths":["src/backend/handshake_document/**","src/backend/handshake_storage_support/**","src/backend/handshake_core/src/api/knowledge_documents.rs","src/backend/handshake_core/src/storage/surreal.rs","src/backend/handshake_core/src/storage/surreal/knowledge.rs","src/backend/handshake_core/src/storage/surreal/database.rs","src/backend/handshake_core/src/storage/surreal/event_ledger.rs (document receipt diagnostics or evidenced repair only)","src/backend/handshake_core/src/storage/surreal/resource_authority.rs (document request diagnostics only)","src/backend/handshake_core/src/storage/surreal/schema.surql (fn::mt120_document_access only)","src/backend/handshake_core/src/storage/surreal/schema.rs (exact revision160 predecessor upgrade, reversible document-function delta, current fingerprints and relevant proofs only)"],"scope_rule":"MT032 backend prohibition retained; MT154 owns backend changes; no unrelated behavior edits","attempt_history":{"preserve":true,"latest_verdict":"MT-032.validation_v12 FAIL_V12","failed_verdict_count":6,"max_fix_rounds_per_mt":3,"reset_counters":false,"exception_ref":"MT-032.remediation_v14.operator_decision","diagnostic_run_limit":1,"acceptance_run_limit":1},"proof_route_ref":"MT-032.remediation_v14.proof_route","diagnosis_ref":"MT-032.remediation_v14.diagnosis","status_effect":"No MT154 acceptance inferred; full existing scope/proof remains","diagnostic_extension_refs":["MT-032.remediation_v14.diagnostic_extension_v1"],"measured_schema_repair":{
-      "recorded_at_utc": "2026-09-27T17:28:28.616178+00:00",
-      "approval_basis": "Existing Operator bounded MT154 create/save latency repair; file list is implementation declaration, not new Operator whitelist",
-      "evidence_ref": "MT-032.remediation_v14.diagnostic_extension_v1.diagnostic_result",
-      "changed_hypothesis": "Remove one explicit duplicate live document-grant SELECT per mt120_document_access call inside measured document/projection/version/receipt mutations; returned COMMIT timings exclude commit as their dominant cost",
-      "exact_change": "Replace has_grant rich_document call with live_session and both delegated-capability checks; retain independent workspace read; add both policy-version bounds to existing parent-checked document-grant SELECT; preserve all its original predicates",
-      "equivalence_basis": "Unique(resource_kind,external_resource_id) makes both document-grant witnesses refer to same resource; parent predicates depend only on that resource; stricter policy-valid grant remains existential; no first-grant selection/cache",
-      "limits": "Per-function latency unmeasured; changed source reduces duplicate live query work, not proof of speedup or MT032 PASS",
-      "migration": "Exact revision160 generated/INFO/catalog/source identity to new revision; reversible function delta preserves historical predecessor pins; no unrelated schema or authority semantics",
-      "proof_route": "PIN-MEASURE and the approved acceptance continuation completed; current independent evidence is MT-032.validation_v13 and MT-154.validation_shared_union_7479972a; no further run authorized",
-      "budget": "Original diagnostic, approved diagnostic extension, PIN-MEASURE, acceptance1/1 and continuation1/1 consumed; no third diagnostic, automatic retry or counter reset",
-      "owner": "root orchestration only; kernel_builder intended sole future implementation writer pending the recorded continuation decision and typed assignment; wp_validator owns independent proof/verdicts",
-      "state": "INDEPENDENT_ACCEPTANCE_COMPLETED_FAILED_OPERATOR_DECISION_REQUIRED",
-      "updated_at_utc": "2026-09-28T00:24:53Z",
-      "prior_running_checkpoint": {
-        "updated_at_utc": "2026-09-27T20:18:35.229457+00:00",
-        "state": "INDEPENDENT_ACCEPTANCE_CONTINUATION_RUNNING",
-        "owner": "document_coder sole product writer; wp_validator independent semantic/source/pin/acceptance proof",
-        "proof_route": "Existing MT-154-PIN-MEASURE one batched measurement by sole WPV on warm C (current jobs2/per-test timeout/owned roots overrides; no outer timeout), current pins updated from observed values, PIN-CONFIRM plus authorization/upgrade obligations in remaining single acceptance union",
-        "budget_at_declaration": "No third native diagnostic; PIN-MEASURE is existing measurement_not_attempt and consumes neither native diagnostic nor acceptance counter; sole PIN-CONFIRM is part of acceptance0/1",
-        "candidate_proof": "Pin-only final changes format/static reviewed; builder gate16/16; D compile remains a7ae3657 input proof; no current runtime verdict",
-        "independent_acceptance_ref": "MT-032.remediation_v14.acceptance",
-        "independent_result_commit": "173ebaba",
-        "core_compile": "7479972 core union Finished28m50s,23 required executables listed and runner advanced to native; runtime proof absent"
-      },
-      "current_result_ref": "MT-032.validation_v13",
-      "current_mt154_observation_ref": "MT-154.validation_shared_union_7479972a",
-      "coordination_handoff_ref": ".GOV/operator/messages_history/HANDOFF_WP-KERNEL-012_KB-orchestrator_2026-09-24_session7.md#buddy-system-and-implementation-owner",
-      "status_effect": "Coordination synchronization only; MT032 remains independently FAIL_V13/BLOCKED; MT154 bounded observation is inconclusive, lifecycle unchanged; no new implementation or run authority",
-      "implementation": {
-        "commit": "a7ae3657d3feeaaac09700165b1db08b322eca11",
-        "files": [
-          "src/backend/handshake_core/src/storage/surreal/schema.surql",
-          "src/backend/handshake_core/src/storage/surreal/schema.rs"
+      {
+        "id": "MT032-MEASURED-REPAIR-20260927",
+        "recorded_at_utc": "2026-09-27T12:18:46.829462Z",
+        "operator_decision_ref": "MT-032.remediation_v14.operator_decision",
+        "base_product_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f",
+        "owner": "document_coder; sole product editor",
+        "batch_owner": "MT-154",
+        "covered_mts": [
+          "MT-154",
+          "MT-032"
         ],
-        "tree_clean": true,
-        "live_remote_matches": true,
-        "source_digest": "1097d0f369ff64f47c460f0e0e0584483d9a19f4b6e27157044c61f501e3da61",
-        "source_inputs": 1242,
-        "D_check_exit": 0,
-        "D_check_finished_utc": "2026-09-27T17:45:53Z",
-        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260927-document-grant-attempt1-handshake_core-check.log",
-        "exit": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260927-document-grant-attempt1-handshake_core-check.log.exit",
-        "schema_source_sha256": "009ee238f7935479a9c507f8b1e8cc59ef306dd80765b8e74bc9665909d7a3f2",
-        "INFO_pin": "ZERO_PENDING_MT154_PIN_MEASURE_FAIL_CLOSED",
-        "added_acceptance_tests": [
-          "document_grant_revision_160_upgrade_requires_exact_catalog_and_restarts_current",
-          "document_grant_single_live_policy_witness_controls_record_user_visibility"
+        "scope_override": "Extend existing document-slice ownership for sanitized inner diagnostics and the measured MT032 repair only",
+        "allowed_product_paths": [
+          "src/backend/handshake_document/**",
+          "src/backend/handshake_storage_support/**",
+          "src/backend/handshake_core/src/api/knowledge_documents.rs",
+          "src/backend/handshake_core/src/storage/surreal.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/database.rs",
+          "src/backend/handshake_core/src/storage/surreal/event_ledger.rs (document receipt diagnostics or evidenced repair only)",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority.rs (document request diagnostics only)",
+          "src/backend/handshake_core/src/storage/surreal/schema.surql (fn::mt120_document_access only)",
+          "src/backend/handshake_core/src/storage/surreal/schema.rs (exact revision160 predecessor upgrade, reversible document-function delta, current fingerprints and relevant proofs only)"
         ],
-        "proof_limit": "Compile/static source review only; no runtime latency, authorization or migration verdict",
-        "checkpoint_kind": "Historical a7ae3657 compile and pre-measurement pin state; final candidate below"
-      },
-      "temporal_review": "Predicate equivalence limited stable authority/time. Old scans sampled wall-clock expiry separately; consolidated query changes sampling time, including backward-clock boundary decisions. Fresh expires_at > time::now remains; no cached authorization/time or new clock policy. Independent source review found no violation of current-grant/expiry fail-closed spec02:2754,2760,2772; runtime expiry/revocation proof remains required.",
-      "current_candidate": {
-        "commit": "7479972ac681cd238e58d37e318beab6c8d3b423",
-        "source_digest": "80172838769922dd1cfeb52eea3b653491bf7619716a840a2e48dfdbe3c841d8",
-        "source_inputs": 1242,
-        "tree_clean": true,
-        "live_remote_matches": true,
-        "pin_commits": [
-          "948cb020eb9b91031500c30a4fec9a860d08435b",
-          "7479972ac681cd238e58d37e318beab6c8d3b423"
-        ],
-        "measurement_ref": "MT-032.remediation_v14.pin_measurement",
-        "measurement_result_commit": "a2c061ac",
-        "current_info": "99a02cba2ef3a195bb49013d86a19e20e02e58a05363b39c46ddda4ebacc0c9a",
-        "current_loom": "299e8dc80fbab95f43d178a8d09c6b3760f6dfad9edc85215c865adf6b2edd98",
-        "current_atelier": "b26f957864d7f730201bf8196bb8c77c85ea79ce46604eb745ba3d535f8f0250",
-        "historical_pins": "unchanged",
-        "review_correction": "948cb020 missed second Loom assertion; parent caught before acceptance; 7479972 corrects it; GP100 full consumer scan",
-        "proof": "Independent continuation completed: core233/239, native2908/2952, document41/41, storage_support34/34; MT032 native22/24 with two mandatory live HTTP timeouts; FAIL_V13. MT154 selected16 cases include two stack overflows; bounded observation inconclusive, full own proof unmet",
-        "remaining": "Operator continuation decision before further product mutation, diagnostic or acceptance; goal still requires independent MT032 PASS and original MT154 acceptance remains unclosed",
-        "budgets": "Original diagnostics, PIN-MEASURE, acceptance1/1 and explicitly approved continuation1/1 consumed; no reset or additional run",
-        "independent_acceptance_ref": "MT-032.remediation_v14.acceptance.continuation1",
-        "independent_result_commit": "6bb6904d",
-        "independent_result_terminology_commit": "1973be61",
-        "current_union_observation_commits": ["1941bb53", "c7458f2d"],
-        "current_core_compile": "7479972 core compile completed; subsequent current JUnit239 cases,233passed/6failed, runner100; proof and hashes in MT-032.remediation_v14.acceptance.continuation1",
-        "capacity_continuation_proposal": {
-          "state": "RETAINED_HASH_VERIFIED_AND_REMOVED_C_COPIES",
-          "cause": "Parent admitted149008080335-byte forecast under150GB cap without reconciling later147GB supervisor stop; actual core boundary136123124081 also exceeded estimated core growth",
-          "observed_stop_bytes": 147095037951,
-          "final_bytes": 147095046637,
-          "final_headroom": 2904953363,
-          "proposal": "Retain and hash-verify exactly23 superseded ec core EXEs on D, then selectively remove their C copies after fresh ownership/no-use checks; preserve all current747 outputs, compiler caches and historical evidence",
-          "paths": [
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_documents_api_tests-e898a85b182747e5.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_fail_closed_tests-c520c25ade6eb445.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_atomic_receipt_tests-627f03054ec42ffd.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_block_collection_views_tests-e5a6decd26bf997a.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\wp_kernel_012_native_editor_routes_tests-d409425592c863a6.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_daily_journal_tests-fac76f15d8293baa.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_transclusion_tests-bef906bca735d543.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_media_tiers_tests-fc2aa4f0216691dc.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\project_wiki_drift_tests-30f666ea79893336.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\mt154_non_loom_route_authority_tests-4cfc78fddef2ecf5.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_crdt_bridge_api_tests-9c62ba2df5aa0060.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_ingestion_api_tests-bd98126ff684be7f.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_memory_api_tests-fb11120cd10e72a0.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_retrieval_debug_api_tests-f1b35485d9a118b3.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\atelier_stealth_window_tests-dc202f127590699f.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\atelier_loom_projection_api_tests-1748196e71582d0e.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\calendar_storage_tests-d7a627b630f85d41.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\mt155_product_screenshot_capture_route_auth_tests-aa47266547685ba4.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\kernel_product_screenshot_capture_tests-78ec4f6075b79e83.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\mt157_debug_breakpoints_authority_tests-03f176372944bd37.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\micro_task_executor_tests-a2cbd00eab019765.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\mt151_early_lock_release_race_tests-5c1eb7ca4680a9e7.exe",
-            "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\handshake_core-d8eb56cbd0d35165.exe"
-          ],
-          "bytes": 4541819392,
-          "source_evidence": "Existing117 symbol proposal ties each EXE to prior ec compile/fingerprint; current747 completed core log lists distinct executable hashes",
-          "limit": "This provision would yield7.446GB below150GB cap and4.446GB below147GB stop before remaining growth; recompute residual native/owning-crate output and scratch against147GB stop before launch; size alone is not readiness",
-          "execution": "One explicitly authorized continuation of same frozen candidate and existing export/targets; preserve consumed attempt and all prior counters",
-          "no_action": "Retention completed; continuation launch tracked in operator_continuation_v1"
+        "scope_rule": "MT032 backend prohibition retained; MT154 owns backend changes; no unrelated behavior edits",
+        "attempt_history": {
+          "preserve": true,
+          "latest_verdict": "MT-032.validation_v12 FAIL_V12",
+          "failed_verdict_count": 6,
+          "max_fix_rounds_per_mt": 3,
+          "reset_counters": false,
+          "exception_ref": "MT-032.remediation_v14.operator_decision",
+          "diagnostic_run_limit": 1,
+          "acceptance_run_limit": 1
         },
-        "operator_continuation_v1": {
-          "recorded_at_utc": "2026-09-27T19:58:05.877263+00:00",
-          "operator_reply": "yes approved",
-          "approved_question": "Approve one continuation of the same candidate after preserving the 23 obsolete executables on D and verifying sufficient capacity?",
-          "candidate": "7479972ac681cd238e58d37e318beab6c8d3b423",
-          "limit": 1,
-          "state": "COMPLETED_FAILED_PRODUCT",
-          "prior_state": "RUNNING_ACCEPTANCE",
-          "completed_utc": "2026-09-27T23:41:56.0551858Z",
-          "result_ref": "MT-032.validation_v13",
-          "scope": "Operator-approved baseline23 EXE retention plus capacity verification and one same-candidate continuation; routine supplemental obsolete owned-output retention follows CX107/CX984006 with exact manifests, hashes and no-active-use checks",
-          "preserve": "First attempt marker/logs/results and consumed counters; current747 outputs and warm caches;150GB cap; existing deadlines and authorization",
-          "executor": "wp_validator",
-          "runtime_record_ref": "MT-032.remediation_v14.acceptance.continuation1",
-          "supplemental_retention": {
-            "authority": "Codex CX107 exception and CX984006 routine owned-output cleanup; no separate approval required",
-            "reason": "Exact23 release leaves95,343,725-byte forecast shortfall with unchanged4GBscratch and250MBextracted-test provision",
-            "count": 3,
-            "bytes": 200003584,
-            "proposal_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/capacity-v14-acceptance-continuation1-native3-proposal.json",
-            "proposal_sha256": "bba5f936896bc7b6b9395c33a24337fbb932b207270bd85bc787067aa2666a86",
-            "preservation": "Retain/hash-verify D copies before selective C removal; all current747 replacements and compiler caches preserved",
-            "state": "RETAINED_HASH_VERIFIED_AND_REMOVED_C_COPIES"
+        "proof_route_ref": "MT-032.remediation_v14.proof_route",
+        "diagnosis_ref": "MT-032.remediation_v14.diagnosis",
+        "status_effect": "No MT154 acceptance inferred; full existing scope/proof remains",
+        "diagnostic_extension_refs": [
+          "MT-032.remediation_v14.diagnostic_extension_v1"
+        ],
+        "measured_schema_repair": {
+          "recorded_at_utc": "2026-09-27T17:28:28.616178+00:00",
+          "approval_basis": "Existing Operator bounded MT154 create/save latency repair; file list is implementation declaration, not new Operator whitelist",
+          "evidence_ref": "MT-032.remediation_v14.diagnostic_extension_v1.diagnostic_result",
+          "changed_hypothesis": "Remove one explicit duplicate live document-grant SELECT per mt120_document_access call inside measured document/projection/version/receipt mutations; returned COMMIT timings exclude commit as their dominant cost",
+          "exact_change": "Replace has_grant rich_document call with live_session and both delegated-capability checks; retain independent workspace read; add both policy-version bounds to existing parent-checked document-grant SELECT; preserve all its original predicates",
+          "equivalence_basis": "Unique(resource_kind,external_resource_id) makes both document-grant witnesses refer to same resource; parent predicates depend only on that resource; stricter policy-valid grant remains existential; no first-grant selection/cache",
+          "limits": "Per-function latency unmeasured; changed source reduces duplicate live query work, not proof of speedup or MT032 PASS",
+          "migration": "Exact revision160 generated/INFO/catalog/source identity to new revision; reversible function delta preserves historical predecessor pins; no unrelated schema or authority semantics",
+          "proof_route": "PIN-MEASURE and the approved acceptance continuation completed; current independent evidence is MT-032.validation_v13 and MT-154.validation_shared_union_7479972a; no further run authorized",
+          "budget": "Original diagnostic, approved diagnostic extension, PIN-MEASURE, acceptance1/1 and continuation1/1 consumed; no third diagnostic, automatic retry or counter reset",
+          "owner": "root orchestration only; kernel_builder intended sole future implementation writer pending the recorded continuation decision and typed assignment; wp_validator owns independent proof/verdicts",
+          "state": "INDEPENDENT_ACCEPTANCE_COMPLETED_FAILED_OPERATOR_DECISION_REQUIRED",
+          "updated_at_utc": "2026-09-28T00:24:53Z",
+          "prior_running_checkpoint": {
+            "updated_at_utc": "2026-09-27T20:18:35.229457+00:00",
+            "state": "INDEPENDENT_ACCEPTANCE_CONTINUATION_RUNNING",
+            "owner": "document_coder sole product writer; wp_validator independent semantic/source/pin/acceptance proof",
+            "proof_route": "Existing MT-154-PIN-MEASURE one batched measurement by sole WPV on warm C (current jobs2/per-test timeout/owned roots overrides; no outer timeout), current pins updated from observed values, PIN-CONFIRM plus authorization/upgrade obligations in remaining single acceptance union",
+            "budget_at_declaration": "No third native diagnostic; PIN-MEASURE is existing measurement_not_attempt and consumes neither native diagnostic nor acceptance counter; sole PIN-CONFIRM is part of acceptance0/1",
+            "candidate_proof": "Pin-only final changes format/static reviewed; builder gate16/16; D compile remains a7ae3657 input proof; no current runtime verdict",
+            "independent_acceptance_ref": "MT-032.remediation_v14.acceptance",
+            "independent_result_commit": "173ebaba",
+            "core_compile": "7479972 core union Finished28m50s,23 required executables listed and runner advanced to native; runtime proof absent"
           },
-          "capacity_result": {
-            "receipts": [
-              {
-                "manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-continuation1-core-exes-7479972a/manifest.json",
-                "manifest_sha256": "8190ebce26a87b80a5a7857bc8e41a1437aca905b99804d3ac76fc1d1a4e1087",
-                "removal_result": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-continuation1-core-exes-7479972a/removal-result.json",
-                "removed_count": 23,
-                "removed_bytes": 4541819392
-              },
-              {
-                "manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-continuation1-native3-exes-7479972a/manifest.json",
-                "manifest_sha256": "108c296cfdce12d9b7cf0d818e05d7e33668cb5c945f2014d8b7fb77a9908eed",
-                "removal_result": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-continuation1-native3-exes-7479972a/removal-result.json",
-                "removed_count": 3,
-                "removed_bytes": 200003584
-              }
+          "current_result_ref": "MT-032.validation_v13",
+          "current_mt154_observation_ref": "MT-154.validation_shared_union_7479972a",
+          "coordination_handoff_ref": ".GOV/operator/messages_history/HANDOFF_WP-KERNEL-012_KB-orchestrator_2026-09-24_session7.md#buddy-system-and-implementation-owner",
+          "status_effect": "Coordination synchronization only; MT032 remains independently FAIL_V13/BLOCKED; MT154 bounded observation is inconclusive, lifecycle unchanged; no new implementation or run authority",
+          "implementation": {
+            "commit": "a7ae3657d3feeaaac09700165b1db08b322eca11",
+            "files": [
+              "src/backend/handshake_core/src/storage/surreal/schema.surql",
+              "src/backend/handshake_core/src/storage/surreal/schema.rs"
             ],
-            "C_bytes": 142353223661,
-            "remaining_native_allowance": 292116480,
-            "extracted_unit_allowance": 250000000,
-            "scratch_allowance": 4000000000,
-            "projected_peak": 146895340141,
-            "stop_threshold": 147000000000,
-            "forecast_margin": 104659859,
-            "cap": 150000000000,
-            "limit": "Allowance, not a guaranteed bound; preserve owned-process capacity supervisor at147GB",
-            "parent_reconciliation": "Exact26 source absence/D presence and size; both verified manifests; current replacements preserved;40freshnative integrations+lib already built, canvas Argus remains"
+            "tree_clean": true,
+            "live_remote_matches": true,
+            "source_digest": "1097d0f369ff64f47c460f0e0e0584483d9a19f4b6e27157044c61f501e3da61",
+            "source_inputs": 1242,
+            "D_check_exit": 0,
+            "D_check_finished_utc": "2026-09-27T17:45:53Z",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260927-document-grant-attempt1-handshake_core-check.log",
+            "exit": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260927-document-grant-attempt1-handshake_core-check.log.exit",
+            "schema_source_sha256": "009ee238f7935479a9c507f8b1e8cc59ef306dd80765b8e74bc9665909d7a3f2",
+            "INFO_pin": "ZERO_PENDING_MT154_PIN_MEASURE_FAIL_CLOSED",
+            "added_acceptance_tests": [
+              "document_grant_revision_160_upgrade_requires_exact_catalog_and_restarts_current",
+              "document_grant_single_live_policy_witness_controls_record_user_visibility"
+            ],
+            "proof_limit": "Compile/static source review only; no runtime latency, authorization or migration verdict",
+            "checkpoint_kind": "Historical a7ae3657 compile and pre-measurement pin state; final candidate below"
           },
-          "started_utc": "2026-09-27T20:16:48.2861038Z",
-          "consumed": 1,
-          "exec_handle": 94548,
-          "identity_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v14-acceptance-7479972ac681cd238e58d37e318beab6c8d3b423-continuation1.identity.json",
-          "bash_pid": 223180,
-          "bash_start_utc": "2026-09-27T20:16:48.2810241Z"
+          "temporal_review": "Predicate equivalence limited stable authority/time. Old scans sampled wall-clock expiry separately; consolidated query changes sampling time, including backward-clock boundary decisions. Fresh expires_at > time::now remains; no cached authorization/time or new clock policy. Independent source review found no violation of current-grant/expiry fail-closed spec02:2754,2760,2772; runtime expiry/revocation proof remains required.",
+          "current_candidate": {
+            "commit": "7479972ac681cd238e58d37e318beab6c8d3b423",
+            "source_digest": "80172838769922dd1cfeb52eea3b653491bf7619716a840a2e48dfdbe3c841d8",
+            "source_inputs": 1242,
+            "tree_clean": true,
+            "live_remote_matches": true,
+            "pin_commits": [
+              "948cb020eb9b91031500c30a4fec9a860d08435b",
+              "7479972ac681cd238e58d37e318beab6c8d3b423"
+            ],
+            "measurement_ref": "MT-032.remediation_v14.pin_measurement",
+            "measurement_result_commit": "a2c061ac",
+            "current_info": "99a02cba2ef3a195bb49013d86a19e20e02e58a05363b39c46ddda4ebacc0c9a",
+            "current_loom": "299e8dc80fbab95f43d178a8d09c6b3760f6dfad9edc85215c865adf6b2edd98",
+            "current_atelier": "b26f957864d7f730201bf8196bb8c77c85ea79ce46604eb745ba3d535f8f0250",
+            "historical_pins": "unchanged",
+            "review_correction": "948cb020 missed second Loom assertion; parent caught before acceptance; 7479972 corrects it; GP100 full consumer scan",
+            "proof": "Independent continuation completed: core233/239, native2908/2952, document41/41, storage_support34/34; MT032 native22/24 with two mandatory live HTTP timeouts; FAIL_V13. MT154 selected16 cases include two stack overflows; bounded observation inconclusive, full own proof unmet",
+            "remaining": "Operator continuation decision before further product mutation, diagnostic or acceptance; goal still requires independent MT032 PASS and original MT154 acceptance remains unclosed",
+            "budgets": "Original diagnostics, PIN-MEASURE, acceptance1/1 and explicitly approved continuation1/1 consumed; no reset or additional run",
+            "independent_acceptance_ref": "MT-032.remediation_v14.acceptance.continuation1",
+            "independent_result_commit": "6bb6904d",
+            "independent_result_terminology_commit": "1973be61",
+            "current_union_observation_commits": [
+              "1941bb53",
+              "c7458f2d"
+            ],
+            "current_core_compile": "7479972 core compile completed; subsequent current JUnit239 cases,233passed/6failed, runner100; proof and hashes in MT-032.remediation_v14.acceptance.continuation1",
+            "capacity_continuation_proposal": {
+              "state": "RETAINED_HASH_VERIFIED_AND_REMOVED_C_COPIES",
+              "cause": "Parent admitted149008080335-byte forecast under150GB cap without reconciling later147GB supervisor stop; actual core boundary136123124081 also exceeded estimated core growth",
+              "observed_stop_bytes": 147095037951,
+              "final_bytes": 147095046637,
+              "final_headroom": 2904953363,
+              "proposal": "Retain and hash-verify exactly23 superseded ec core EXEs on D, then selectively remove their C copies after fresh ownership/no-use checks; preserve all current747 outputs, compiler caches and historical evidence",
+              "paths": [
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_documents_api_tests-e898a85b182747e5.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_fail_closed_tests-c520c25ade6eb445.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_atomic_receipt_tests-627f03054ec42ffd.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_block_collection_views_tests-e5a6decd26bf997a.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\wp_kernel_012_native_editor_routes_tests-d409425592c863a6.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_daily_journal_tests-fac76f15d8293baa.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_transclusion_tests-bef906bca735d543.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\loom_media_tiers_tests-fc2aa4f0216691dc.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\project_wiki_drift_tests-30f666ea79893336.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\mt154_non_loom_route_authority_tests-4cfc78fddef2ecf5.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_crdt_bridge_api_tests-9c62ba2df5aa0060.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_ingestion_api_tests-bd98126ff684be7f.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_memory_api_tests-fb11120cd10e72a0.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\knowledge_retrieval_debug_api_tests-f1b35485d9a118b3.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\atelier_stealth_window_tests-dc202f127590699f.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\atelier_loom_projection_api_tests-1748196e71582d0e.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\calendar_storage_tests-d7a627b630f85d41.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\mt155_product_screenshot_capture_route_auth_tests-aa47266547685ba4.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\kernel_product_screenshot_capture_tests-78ec4f6075b79e83.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\mt157_debug_breakpoints_authority_tests-03f176372944bd37.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\micro_task_executor_tests-a2cbd00eab019765.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\mt151_early_lock_release_race_tests-5c1eb7ca4680a9e7.exe",
+                "C:\\.target\\WP-KERNEL-012\\MT-109\\wpv-c3x\\target-r52\\debug\\deps\\handshake_core-d8eb56cbd0d35165.exe"
+              ],
+              "bytes": 4541819392,
+              "source_evidence": "Existing117 symbol proposal ties each EXE to prior ec compile/fingerprint; current747 completed core log lists distinct executable hashes",
+              "limit": "This provision would yield7.446GB below150GB cap and4.446GB below147GB stop before remaining growth; recompute residual native/owning-crate output and scratch against147GB stop before launch; size alone is not readiness",
+              "execution": "One explicitly authorized continuation of same frozen candidate and existing export/targets; preserve consumed attempt and all prior counters",
+              "no_action": "Retention completed; continuation launch tracked in operator_continuation_v1"
+            },
+            "operator_continuation_v1": {
+              "recorded_at_utc": "2026-09-27T19:58:05.877263+00:00",
+              "operator_reply": "yes approved",
+              "approved_question": "Approve one continuation of the same candidate after preserving the 23 obsolete executables on D and verifying sufficient capacity?",
+              "candidate": "7479972ac681cd238e58d37e318beab6c8d3b423",
+              "limit": 1,
+              "state": "COMPLETED_FAILED_PRODUCT",
+              "prior_state": "RUNNING_ACCEPTANCE",
+              "completed_utc": "2026-09-27T23:41:56.0551858Z",
+              "result_ref": "MT-032.validation_v13",
+              "scope": "Operator-approved baseline23 EXE retention plus capacity verification and one same-candidate continuation; routine supplemental obsolete owned-output retention follows CX107/CX984006 with exact manifests, hashes and no-active-use checks",
+              "preserve": "First attempt marker/logs/results and consumed counters; current747 outputs and warm caches;150GB cap; existing deadlines and authorization",
+              "executor": "wp_validator",
+              "runtime_record_ref": "MT-032.remediation_v14.acceptance.continuation1",
+              "supplemental_retention": {
+                "authority": "Codex CX107 exception and CX984006 routine owned-output cleanup; no separate approval required",
+                "reason": "Exact23 release leaves95,343,725-byte forecast shortfall with unchanged4GBscratch and250MBextracted-test provision",
+                "count": 3,
+                "bytes": 200003584,
+                "proposal_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/capacity-v14-acceptance-continuation1-native3-proposal.json",
+                "proposal_sha256": "bba5f936896bc7b6b9395c33a24337fbb932b207270bd85bc787067aa2666a86",
+                "preservation": "Retain/hash-verify D copies before selective C removal; all current747 replacements and compiler caches preserved",
+                "state": "RETAINED_HASH_VERIFIED_AND_REMOVED_C_COPIES"
+              },
+              "capacity_result": {
+                "receipts": [
+                  {
+                    "manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-continuation1-core-exes-7479972a/manifest.json",
+                    "manifest_sha256": "8190ebce26a87b80a5a7857bc8e41a1437aca905b99804d3ac76fc1d1a4e1087",
+                    "removal_result": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-continuation1-core-exes-7479972a/removal-result.json",
+                    "removed_count": 23,
+                    "removed_bytes": 4541819392
+                  },
+                  {
+                    "manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-continuation1-native3-exes-7479972a/manifest.json",
+                    "manifest_sha256": "108c296cfdce12d9b7cf0d818e05d7e33668cb5c945f2014d8b7fb77a9908eed",
+                    "removal_result": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-continuation1-native3-exes-7479972a/removal-result.json",
+                    "removed_count": 3,
+                    "removed_bytes": 200003584
+                  }
+                ],
+                "C_bytes": 142353223661,
+                "remaining_native_allowance": 292116480,
+                "extracted_unit_allowance": 250000000,
+                "scratch_allowance": 4000000000,
+                "projected_peak": 146895340141,
+                "stop_threshold": 147000000000,
+                "forecast_margin": 104659859,
+                "cap": 150000000000,
+                "limit": "Allowance, not a guaranteed bound; preserve owned-process capacity supervisor at147GB",
+                "parent_reconciliation": "Exact26 source absence/D presence and size; both verified manifests; current replacements preserved;40freshnative integrations+lib already built, canvas Argus remains"
+              },
+              "started_utc": "2026-09-27T20:16:48.2861038Z",
+              "consumed": 1,
+              "exec_handle": 94548,
+              "identity_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v14-acceptance-7479972ac681cd238e58d37e318beab6c8d3b423-continuation1.identity.json",
+              "bash_pid": 223180,
+              "bash_start_utc": "2026-09-27T20:16:48.2810241Z"
+            }
+          }
         }
-      }
-    }},
+      },
       {
         "closure_boundary": {
           "id": "WP012-DOCUMENT-CLOSURE-20260928",
@@ -2874,7 +3328,10 @@
     "operator_decision_ref": "MT-032.remediation_v11.operator_decision",
     "recorded_at_utc": "2026-09-26T02:01:43Z",
     "batch_owner": "MT-154",
-    "covered_mts": ["MT-154", "MT-032"],
+    "covered_mts": [
+      "MT-154",
+      "MT-032"
+    ],
     "base_commit": "bc0153f187140026d7818bfd6f8f2225583ac9e8",
     "candidate_commit": "d9277d04f03490f9ceac1c9f4684e02757d8d43a",
     "compile_evidence": {
@@ -2887,9 +3344,16 @@
       "tests_run": false
     },
     "assigned_builder": "01a0d677-2c57-7813-9075-c273d1c4637f",
-    "owned_paths": ["src/backend/handshake_core/src/api/knowledge_documents.rs"],
+    "owned_paths": [
+      "src/backend/handshake_core/src/api/knowledge_documents.rs"
+    ],
     "scope": "Sanitized correlated phase boundaries for authorization and create/save awaits; preserve runtime behavior",
-    "excluded": ["SQL or document content logging", "credentials", "timeout increases", "guessed persistence fixes"],
+    "excluded": [
+      "SQL or document content logging",
+      "credentials",
+      "timeout increases",
+      "guessed persistence fixes"
+    ],
     "proof_route": "MT-032 approved single diagnostic replay; subsequent acceptance remains independent union",
     "status_effect": "none; diagnostic dependency is not an MT-154 acceptance submission"
   },
@@ -2899,7 +3363,9 @@
     "updated_at_utc": "2026-09-24T13:24:31.754Z",
     "status": "CANDIDATE_PUSHED",
     "batch_owner": "MT-154",
-    "covered_mts": ["MT-154"],
+    "covered_mts": [
+      "MT-154"
+    ],
     "base_sha": "9c13b642e50a909e9d0ea1246a050f6be74f18cc",
     "candidate_sha": "86956b66e471d451dfdd6c8da13ae0a876337727",
     "pushed_verified": "origin refs/heads/feat/WP-KERNEL-012; subsequently advanced by builder2 to 10eb7c1295f8ac39335a6b03598fa595a8195462",
@@ -2937,7 +3403,9 @@
     ],
     "test_runs": "No tests run by builder under explicit Operator instruction; cargo check --tests compiles only. Independent runtime proof belongs to the next coordinated validator union, not frozen 4ffda19b.",
     "readiness_basis": "Operator-authorized CX-STATUS-001 transition after newer compiled/pushed remediation. Historical validation_v1 remains unchanged; no builder PASS or FAIL issued.",
-    "open": ["Independent runtime validation pending; historical FAIL_V1 remains evidence, not a verdict on this candidate."]
+    "open": [
+      "Independent runtime validation pending; historical FAIL_V1 remains evidence, not a verdict on this candidate."
+    ]
   },
   "validation_v1": {
     "schema_id": "hsk.mt_validation_verdict@1",
@@ -3133,5 +3601,18 @@
         "state_effect": "unchanged: FAIL_V3"
       }
     ]
-  }
+  },
+  "lifecycle_history": [
+    {
+      "at": "2026-09-30",
+      "by": "KERNEL_BUILDER root session",
+      "prior_status": "FAIL_V3",
+      "new_status": "READY_FOR_VALIDATION",
+      "reason": "FAIL_V3 cause (stack overflow) fixed by validator config commit 77153572 (RUST_MIN_STACK, CX-VAL-007); both FAIL_V3 cases and all MT-154 union tests pass on 6391a29f",
+      "operator_decision": {
+        "question": "MT-154's two FAIL_V3 cases now pass via the 10 MiB test-stack config commit. Return it to READY_FOR_VALIDATION now?",
+        "answer": "Return to READY (Recommended)"
+      }
+    }
+  ]
 }
