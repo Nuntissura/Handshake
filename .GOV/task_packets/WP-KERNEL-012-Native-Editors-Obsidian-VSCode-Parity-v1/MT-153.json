@@ -3038,6 +3038,21 @@
       "remove the redundant recompute_block_metrics after tag edits (edge create/delete transactions already recompute both endpoints' counts) - small gain, no semantic change",
       "replace the in-transaction array::len recompute UPDATEs with transactional increments/decrements of the known endpoint counters - larger gain, changes the MT-152 counter design; needs orchestrator/buddy decision"
     ],
-    "status": "hypothesis; fix pending decision"
+    "status": "hypothesis; fix pending decision",
+    "option_a_redundancy_proof": {
+      "recorded_at_utc": "2026-09-30T19:11:49Z",
+      "recompute_block_metrics_sets": "loom_store.rs:1836: UPDATE $record (the card) SET mention_count, tag_count, backlink_count from loom_edges subqueries (source=$record mention/tag; target=$record mention|tag), guard: 0 rows -> denied_or_missing",
+      "edge_create_covers": "loom_store.rs create_loom_edge transaction (UPDATE $source ... at 1566): same three fields with identical formulas for $source = the card (PATCH creates tag edges with source_block_id = block_id); 0 rows -> THROW HSK-403 (same guard class)",
+      "edge_delete_covers": "loom_store.rs delete_loom_edge transaction (UPDATE $source ...): same three fields, identical formulas, $source = the edge's source = the card; 0 rows -> THROW HSK-403",
+      "ordering": "PATCH runs all creates, then all deletes, sequentially; the last edge transaction recomputes the card after every edge change of this request, the same state recompute_block_metrics would read",
+      "not_covered_paths": [
+        "tags requested but no edge changed (all add_tags already tagged, remove_tags not present): recompute_block_metrics is the only recompute -> KEPT",
+        "no tag change at all (move without tags): tags branch not entered; recompute never ran before either -> unchanged"
+      ],
+      "change": "api/loom.rs patch_loom_block_inner: edges_changed flag; recompute_block_metrics runs only when no edge was created or deleted",
+      "gp139_basis": "guards (403 on 0-row card update), count formulas, per-edge transactions and record-user authorization are unchanged; only a duplicate recompute after an edge transaction is skipped",
+      "known_risk": "(a) alone may not fit the 5 s deadline; MT-153 re-fail is a known risk",
+      "option_b": "NOT implemented: replacing array::len recomputes with increments changes MT-152's approved counter design; referred to the Operator"
+    }
   }
 }
