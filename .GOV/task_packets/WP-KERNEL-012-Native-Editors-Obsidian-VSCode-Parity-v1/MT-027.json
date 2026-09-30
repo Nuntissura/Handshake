@@ -2281,6 +2281,6 @@
     "hypothesis": "Record-user UPSERT of loom_block_knowledge_bridge yields 0 rows: (a) FOR create predicate schema.surql:4493 view_def branch false, or (b) bridge row pre-exists so UPSERT takes update path (FOR update NONE), or (c) FOR select predicate schema.surql:4492 hides output",
     "code_reading": "(a)/(c) terms read true by inspection (loom_blocks/entity writes in same tx pass the same fn::mt109_has_workspace_access checks); SurrealDB 3.2 upsert falls to update on RecordExists (doc/upsert.rs) -> Ignore under FOR update NONE",
     "probe_plan": "one probe: temporary uncommitted diagnostic replacing stmt 6 THROW text with evaluated predicate terms + record::exists($bridge); run core api::loom::tests::mt153_loom_route_family_authority_matrix and api::loom::tests::mt109_c3_record_user_assets_collections_and_views on D: kb-c5 -j 4; then fix + one confirming run",
-    "recorded_at_utc": "2026-09-30T12:50:00Z"
+    "recorded_at_utc": "2026-09-30T13:50:00Z"
   }
 }
