@@ -793,17 +793,13 @@ async fn open_daily_journal(
         )
     };
     // Master Spec §2.3.13.12.4: the daily note is created and read under the authenticated
-    // account session (LM-RLS-001: members create; viewers only read an existing note).
+    // account session (LM-RLS-001: members create; viewers only read an existing note). A caller
+    // without a session gets the constant denial (MT-153 AC-153-5(b)).
     if crate::api::authority::authenticated_session_credentials(&state, &headers)
         .await
         .is_err()
     {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            Json(ErrorResponse {
-                error: "HSK-401-LOOM-SESSION",
-            }),
-        ));
+        return Err(denied());
     }
     // MT-109 C3: the workspace read grant is checked before any lookup, and the natural-key lookup
     // itself runs as the record user, so an unauthorized caller learns nothing about the workspace
@@ -6240,9 +6236,9 @@ struct AddVisualEdgeRequest {
     label: Option<String>,
 }
 
-/// Visual-edge routes use the account authorization of the other Canvas mutation routes, with the
-/// MT-111 status split: 401 = no valid account session, 403 = authenticated but not permitted on the
-/// owning canvas board (constant shape, so an unknown board or edge is indistinguishable).
+/// Visual-edge routes use the account authorization of the other Canvas mutation routes: no valid
+/// account session, or no edit grant on the owning canvas board, gets the constant 403 (MT-153
+/// AC-153-5), so an anonymous caller, an unknown board and an unknown edge are indistinguishable.
 async fn authorize_canvas_visual_edge_write(
     state: &AppState,
     headers: &HeaderMap,
@@ -6253,12 +6249,7 @@ async fn authorize_canvas_visual_edge_write(
         .await
         .is_err()
     {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            Json(ErrorResponse {
-                error: "HSK-401-LOOM-SESSION",
-            }),
-        ));
+        return Err(loom_denied());
     }
     crate::api::authority::authorize_request(
         state,
@@ -6269,14 +6260,7 @@ async fn authorize_canvas_visual_edge_write(
         ResourceAction::Update,
     )
     .await
-    .map_err(|_| {
-        (
-            StatusCode::FORBIDDEN,
-            Json(ErrorResponse {
-                error: "HSK-403-PROTECTED-RESOURCE",
-            }),
-        )
-    })
+    .map_err(|_| loom_denied())
 }
 
 async fn add_canvas_visual_edge(
@@ -6317,17 +6301,6 @@ async fn remove_canvas_visual_edge(
     Path((workspace_id, visual_edge_id)): Path<(String, String)>,
     headers: HeaderMap,
 ) -> ApiResult<StatusCode> {
-    if crate::api::authority::authenticated_session_credentials(&state, &headers)
-        .await
-        .is_err()
-    {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            Json(ErrorResponse {
-                error: "HSK-401-LOOM-SESSION",
-            }),
-        ));
-    }
     let denied = || {
         (
             StatusCode::FORBIDDEN,
@@ -6336,6 +6309,12 @@ async fn remove_canvas_visual_edge(
             }),
         )
     };
+    if crate::api::authority::authenticated_session_credentials(&state, &headers)
+        .await
+        .is_err()
+    {
+        return Err(denied());
+    }
     // MT-109 C3: the owning board is resolved as the record user under the workspace read grant,
     // then the delete runs as the record user under that board's edit grant.
     let reader = loom_workspace_account(
@@ -11195,6 +11174,9 @@ mod tests {
             }
         }
 
+        /// (b)(c)(d): anonymous, second account and same-account viewer are denied the write with
+        /// the constant 403 body; the family's canonical rows (`snapshot`, bound to `$ws`) and the
+        /// workspace receipts are unchanged afterwards.
         async fn assert_write_denied(
             &self,
             family: &str,
@@ -11203,62 +11185,22 @@ mod tests {
             body: Value,
             snapshot: &str,
         ) {
-            self.assert_write_denied_with(
-                family,
-                method,
-                path,
-                body,
-                snapshot,
-                StatusCode::FORBIDDEN,
-                MT153_DENIAL,
-            )
-            .await
-        }
-
-        /// (b)(c)(d): anonymous, second account and same-account viewer are denied the write with
-        /// the constant body; the family's canonical rows (`snapshot`, bound to `$ws`) and the
-        /// workspace receipts are unchanged afterwards.
-        #[allow(clippy::too_many_arguments)]
-        async fn assert_write_denied_with(
-            &self,
-            family: &str,
-            method: &str,
-            path: &str,
-            body: Value,
-            snapshot: &str,
-            anonymous_status: StatusCode,
-            anonymous_error: &str,
-        ) {
             let uri = self.uri(path);
             let before = self.ws_row(snapshot).await;
             let since = self.ledger_sequence().await;
-            for (who, headers, status, error) in [
-                (
-                    "anonymous",
-                    &self.anonymous,
-                    anonymous_status,
-                    anonymous_error,
-                ),
-                (
-                    "second account",
-                    &self.other,
-                    StatusCode::FORBIDDEN,
-                    MT153_DENIAL,
-                ),
-                (
-                    "same-account viewer",
-                    &self.viewer,
-                    StatusCode::FORBIDDEN,
-                    MT153_DENIAL,
-                ),
+            for (who, headers) in [
+                ("anonymous", &self.anonymous),
+                ("second account", &self.other),
+                ("same-account viewer", &self.viewer),
             ] {
                 let (actual, denial) = self.call(headers, method, &uri, body.clone()).await;
                 assert_eq!(
-                    actual, status,
+                    actual,
+                    StatusCode::FORBIDDEN,
                     "[{family}] {who} {method} {uri} must be denied: {denial}"
                 );
                 assert_eq!(
-                    denial["error"], error,
+                    denial["error"], MT153_DENIAL,
                     "[{family}] {who} {method} {uri} denial body: {denial}"
                 );
             }
@@ -12471,14 +12413,12 @@ mod tests {
             journal_row["journal_date"], "2026-09-23",
             "[{family}] canonical journal row: {journal_row}"
         );
-        m.assert_write_denied_with(
+        m.assert_write_denied(
             family,
             "PUT",
             "/loom/journals/2026-09-25",
             Value::Null,
             "RETURN { rows: (SELECT * FROM loom_blocks WHERE workspace_id = type::record('workspaces', $ws) AND content_type = 'journal' ORDER BY id) };",
-            StatusCode::UNAUTHORIZED,
-            "HSK-401-LOOM-SESSION",
         )
         .await;
         let (status, _) = m

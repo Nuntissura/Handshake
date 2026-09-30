@@ -2900,7 +2900,8 @@ pub(crate) mod tests {
     /// MT-109 C1-FDELETE (Operator decision 2026-09-22): an owner-authorized workspace delete cascades
     /// to its rich documents, their immutable version history and its Canvas boards with zero residue
     /// and one audit event; a non-owner delete is 403 and leaves every row intact. Canvas visual-edge
-    /// routes are 401 without a session and 403 for an authenticated non-owner (MT-111 split).
+    /// routes return the constant 403 both without a session and for an authenticated non-owner
+    /// (MT-153 AC-153-5, Operator decision 2026-09-30).
     #[tokio::test]
     async fn owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -2987,7 +2988,7 @@ pub(crate) mod tests {
         let edge_body =
             json!({"from_placement_id": placements[0], "to_placement_id": placements[1]});
 
-        // Visual edges: no session -> 401, authenticated non-owner -> 403, owner -> created.
+        // Visual edges: no session -> 403, authenticated non-owner -> 403, owner -> created.
         let (status, body) = owned_route_json(
             loom(),
             "POST",
@@ -2996,8 +2997,8 @@ pub(crate) mod tests {
             Some(edge_body.clone()),
         )
         .await?;
-        assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
-        assert_eq!(body["error"], "HSK-401-LOOM-SESSION");
+        assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+        assert_eq!(body["error"], "HSK-403-PROTECTED-RESOURCE");
         let (status, body) = owned_route_json(
             loom(),
             "POST",
@@ -3018,7 +3019,7 @@ pub(crate) mod tests {
         let edge_delete_uri = format!("/workspaces/{ws}/loom/canvas-visual-edges/{edge_id}");
         let (status, _) =
             owned_route_json(loom(), "DELETE", &edge_delete_uri, &HeaderMap::new(), None).await?;
-        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        assert_eq!(status, StatusCode::FORBIDDEN);
         let (status, body) =
             owned_route_json(loom(), "DELETE", &edge_delete_uri, &other_headers, None).await?;
         assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
