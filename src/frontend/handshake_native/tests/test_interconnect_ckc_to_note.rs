@@ -399,7 +399,9 @@ fn interconnect_ic01_ckc_image_into_note() {
     );
     let asset_id = asset["asset_id"]
         .as_str()
-        .expect("requires_surrealdb: POST /loom/import returns an asset_id (LoomImportResult.asset_id)")
+        .expect(
+            "requires_surrealdb: POST /loom/import returns an asset_id (LoomImportResult.asset_id)",
+        )
         .to_owned();
     // (2) create a note carrying the CKC image embed hsLink (refKind=HS_images, refValue=asset_id).
     let doc = doc_with_ckc_embed("HS_images", &asset_id, "sunset.png");
