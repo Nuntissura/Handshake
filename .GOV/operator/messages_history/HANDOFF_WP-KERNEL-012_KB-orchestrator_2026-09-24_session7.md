@@ -31,6 +31,8 @@ Round 1f4e0f69 r1 crashed: rustc LLVM OOM (builder probe build + validator build
 
 Warm targets: validator C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52; builder Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target (D:). One build per disk.
 
+Operator scope rule (2026-09-30): the orchestrator and its sub-agents never edit global files (~/.claude, ~/.codex, .globals, global skills) nor the Handshake Codex; work stays inside the WP-012 repo/worktrees and artifact folders. Already done before that rule (Operator-approved option, then objected to scope): gameplan.py role-prefix patch in ~/.claude and ~/.codex skills, backups gameplan.py.bak-20260930; left as-is pending Operator instruction. Operator is AFK: no prompts until WP-012 complete with all MTs PASS (packet.json operator_decisions_20260930).
+
 Harness note: the gameplan hook matches command text; put process scans in a script file (not naming the test runner inline).
 
 </topic>
