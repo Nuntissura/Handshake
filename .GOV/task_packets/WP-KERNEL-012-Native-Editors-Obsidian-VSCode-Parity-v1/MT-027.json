@@ -2502,5 +2502,42 @@
     "not_decided": "whether CX-EXEC-013 / CX-VAL-008 apply to this pinned WP (CX-GOV-PIN-002); no adoption is recorded by this decision",
     "recommendation_ref": "decision_R4_mt027_mt165_backups.md Decision C (C4, C6)",
     "status_effect": "none (MT-027 stays FAIL_V7)"
+  },
+  "hypothesis_20260930_kb_diag3": {
+    "schema_id": "hsk.mt_attempt_hypothesis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_before_run": true,
+    "recorded_at_utc": "2026-09-30T20:58:21Z",
+    "authority": "Operator decision WP012-OPERATOR-DECISIONS-20260930-C item 6: exactly ONE test-only root scratch-table predicate bisect",
+    "failing_assertion": "owner saved-view create 403 (api/loom.rs mt153 matrix / mt109_c3; native test_block_collection_view.rs:1706): block_view_store.rs:349 bridge UPSERT 0 rows",
+    "attempts_so_far": [
+      "bb9548e1 BRIDGE-DIAG (45019718): terms evaluated outside the predicate, inconclusive",
+      "b4faed35 KB-DIAG2 (7612f1cc): committed without THROW, root read found no bridge row -> create predicate (a) false"
+    ],
+    "hypothesis": "one of the bridge-only terms (entity_id.workspace_id, entity_id.entity_kind, entity_id.entity_key = record::id(block_id)) or has_workspace_access(create) is false inside the bridge create predicate in the same transaction",
+    "code_location": "schema.surql:4493 (loom_block_knowledge_bridge FOR create); block_view_store.rs:349",
+    "probe": {
+      "commit": "b504f70ee8e266c8e4db439bb671a44a74bedd08",
+      "test": "api::loom::tests::mt109_c3_record_user_assets_collections_and_views (core lib, features app-runtime,surreal-test-support,test-utils)",
+      "harness": "kb_diag3_bridge_predicate_bisect: root DEFINEs kbdiag3_{t_full,t_t1,t_t2,t_t2_no_entity,t_hwa,t_ct,t_bws,t_ews,t_ekind,t_ekey} (plain record fields) and kbdiag3_clone_full (bridge field defs incl ASSERT/REFERENCE); owner record user in one tx creates a view_def block + entity (like stmts 1/5) and one row per table",
+      "output": "stderr 'KB-DIAG3 predicate_rows=Ok([{blk, ent, t_full, t_t1, t_t2, t_t2_no_entity, t_hwa, t_ct, t_bws, t_ews, t_ekind, t_ekey, clone_full}])' (1 = predicate true, 0 = false) and 'KB-DIAG3 info_*' INFO FOR DB extracts (bridge table, has_workspace_access, loom_block_access, scratch full)",
+      "cleanup": "root deletes the diagnostic block/entity and removes kbdiag3_* tables"
+    },
+    "how_to_read": {
+      "t_full=0 and clone_full=0": "reproduced outside the product transaction; the zero terms among t_ct/t_bws/t_ews/t_ekind/t_ekey/t_hwa name the cause",
+      "t_t2_no_entity=1 and t_t2=0": "cause is in the three entity_id.* terms (the zero among t_ews/t_ekind/t_ekey)",
+      "t_hwa=0": "cause is fn::mt109_has_workspace_access(create, fs.write) in this context",
+      "t_full=1 and clone_full=0": "cause is the bridge field definitions (ASSERT/REFERENCE) interacting with the predicate",
+      "t_full=1 and clone_full=1": "not reproduced by the scratch tables; the product transaction's other statements (ledger receipts, search upsert) matter",
+      "info_bridge_table differs from schema.surql:4491-4494": "deployed definition drift"
+    },
+    "intended_fix_per_outcome": {
+      "entity_id term false (t_ews/t_ekind/t_ekey=0)": "compare against the bridge's own fields instead of the entity deref in the view_def branch, or fix the stmt-5 entity values (block_view_store.rs) so the deref matches; schema.surql change comes back to orchestrator/buddy before any edit (pin re-measure)",
+      "t_hwa=0": "correct the has_workspace_access call/arguments used by the bridge view_def branch; schema change -> orchestrator/buddy first",
+      "clone_full=0 only": "adjust the bridge field definitions/order (schema) -> orchestrator/buddy first",
+      "not reproduced": "record blocker; move the bridge write for view_def to the same shape as the bundle path (loom_canvas_store OWNED_LOOM_BUNDLE_SQL) after decision"
+    },
+    "owner_of_fix": "MT-153-owned files (block_view_store.rs / schema.surql)",
+    "status_effect": "none; MT-027 stays FAIL_V7"
   }
 }

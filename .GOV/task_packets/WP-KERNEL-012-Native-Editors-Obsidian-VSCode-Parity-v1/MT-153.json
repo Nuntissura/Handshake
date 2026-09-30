@@ -3136,5 +3136,37 @@
     ],
     "recommendation_ref": "decision_R3_contenttypes_counters.md Decision B (B4, B6)",
     "status_effect": "none (no MT status change by this record)"
+  },
+  "hypothesis_20260930_edge_counter_cost": {
+    "schema_id": "hsk.mt_attempt_hypothesis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_before_run": true,
+    "recorded_at_utc": "2026-09-30T20:58:21Z",
+    "authority": "Operator decision WP012-OPERATOR-DECISIONS-20260930-C item 5 (measure first; option (b) increments NOT approved)",
+    "failing_assertion": "Loom edge-create statement #5/8 costs 2.4-3.0 s (../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/loom-write-timings-b4faed359c07fed260cf8f42633dcf9b1e60ff92.json); card-move PATCH and graph add-edge exceed their client deadlines",
+    "code_location": "src/backend/handshake_core/src/storage/surreal/loom_store.rs create_loom_edge apply-once block (edge CREATE, receipt link UPDATE, source/target UPDATE with 3 loom_edges recount subqueries each)",
+    "hypothesis": "the six in-transaction recount subqueries (per-row loom_edges select permission) dominate #5/8; if so, a targeted recompute (2 subqueries instead of 6, within the recorded MT-152 design) is the fix",
+    "measurement": {
+      "commit": "45b8fb6d",
+      "timers": [
+        "create_loom_edge split into five guarded top-level statements: 5 exists guard, 6 edge CREATE, 7 receipt link UPDATE, 8 source recount UPDATE, 9 target recount UPDATE (result index 10)",
+        "SurrealDatabase::create_loom_edge / delete_loom_edge wrapped in observe_loom_edge_write -> MT032_DOCUMENT_PHASE (phase loom_edge_create_storage / loom_edge_delete_storage) and MT032_DOCUMENT_STATEMENT per statement (delete: DELETE, source recount, target recount already top-level)"
+      ],
+      "limit": "statements 8/9 time the whole UPDATE (update permission + 3 recounts); the recount share inside them is not separated"
+    },
+    "decision_rule": "targeted recompute only if statements 8+9 are the large share of the edge create; otherwise report the dominant statement",
+    "intended_fix_if_recount_dominates": "recompute only the counters the edge type can change (tag edge: source tag_count + target backlink_count; mention: source mention_count + target backlink_count) = 2 subqueries instead of 6, same formulas and transaction",
+    "status": "diagnostic in next single run"
+  },
+  "remediation_20260930_edge_timers": {
+    "schema_id": "hsk.mt_remediation_diagnostic_run@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-09-30T20:58:21Z",
+    "authority": "CX-EXEC-003A/CX-EXEC-014; Operator decision WP012-OPERATOR-DECISIONS-20260930-C item 5",
+    "diagnostic_commit": "45b8fb6d",
+    "timers": "MT032_DOCUMENT_PHASE phase=loom_edge_create_storage / loom_edge_delete_storage and MT032_DOCUMENT_STATEMENT statement_index 0-11 (create) / per statement (delete) in the owned backend stdout logs",
+    "read_by": "WP_VALIDATOR loom-write-timings extraction (same as bb9548e1/b4faed35)",
+    "revert": "after the numbers are recorded, together with the fix",
+    "status_change": "none"
   }
 }

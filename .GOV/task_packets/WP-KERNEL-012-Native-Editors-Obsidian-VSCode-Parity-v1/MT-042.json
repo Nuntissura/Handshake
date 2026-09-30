@@ -1122,5 +1122,18 @@
     ],
     "recommendation_ref": "decision_R3_contenttypes_counters.md Decision B (B4, B6)",
     "status_effect": "none (no MT status change by this record)"
+  },
+  "diagnostic_20260930_edge_timers": {
+    "schema_id": "hsk.mt_remediation_diagnostic_run@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-09-30T20:58:21Z",
+    "authority": "CX-EXEC-003A/CX-EXEC-014; Operator decision WP012-OPERATOR-DECISIONS-20260930-C item 5",
+    "diagnostic_commit": "45b8fb6d",
+    "timers": "MT032_DOCUMENT_PHASE phase=loom_edge_create_storage / loom_edge_delete_storage and MT032_DOCUMENT_STATEMENT statement_index 0-11 (create) / per statement (delete) in the owned backend stdout logs",
+    "read_by": "WP_VALIDATOR loom-write-timings extraction (same as bb9548e1/b4faed35)",
+    "revert": "after the numbers are recorded, together with the fix",
+    "status_change": "none",
+    "hypothesis_ref": "MT-153.json#hypothesis_20260930_edge_counter_cost",
+    "note": "MT-042 graph add-edge timeout shares the edge-create cost; fix lands in MT-153-owned files"
   }
 }
