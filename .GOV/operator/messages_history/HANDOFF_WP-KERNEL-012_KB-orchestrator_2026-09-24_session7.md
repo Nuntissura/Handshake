@@ -8,7 +8,51 @@ wp_id: WP-KERNEL-012
 
 <topic id="session-2026-09-30-orchestrator" wp="WP-KERNEL-012" status="active" updated_at="2026-09-30">
 
-## Resume here (evidence-audited 2026-09-30 ~14:25Z; typed MT JSON wins on conflict)
+## State at 2026-09-30 ~19:40Z (incomplete, awaiting Operator)
+
+Evidence: gov `git log` (tip `8befc42e`, 21:20 +0200 = 19:20Z), MT `lifecycle` fields vs session-start gov `cdfe6c73`, `packet.json#operator_decisions_20260930`, product `git ls-remote`, product source and `gameplan.yaml`. Typed MT JSON wins on conflict. This section wins over the 14:25Z audit below wherever they differ (stale below: section 2 totals and READY list, section 3 tips and the local-only `45019718` diagnostic, section 4 round r2 and its next actions; `45019718` was reverted by `7612f1cc`, diagnostics `1457903f`/`7612f1cc` reverted by `5f730733`).
+
+### A. Product tip
+
+- `feat/WP-KERNEL-012` = `d99be6cfc82e4d683d82c34c65d74dae17b74575` (`git ls-remote origin` in `wtc-native-editors-v1`; local HEAD equal, not ahead). Tip commits: `d99be6cf` MT-113/MT-122 Find in Files; `13288bf0` MT-153 card-move recompute skip; `5f730733` MT-153 daily-journal scope; `be4d0c94` MT-036 teardown double-delete; `b4faed35` MT-153 index-backed ledger lookups.
+
+### B. MT statuses changed this session (vs `cdfe6c73`; `lifecycle.status`)
+
+- Now 125 PASS_*, 13 READY_FOR_VALIDATION, 20 BLOCKED (list unchanged from the 14:25Z audit), 8 FAIL_*; 119 PASS_* at `cdfe6c73`. No MT that was PASS_* at `cdfe6c73` is non-PASS now (compared all MT JSONs).
+- To PASS: MT-032 BLOCKED -> PASS_V15; MT-026 FAIL_V6 -> PASS_V8 (b4faed35); MT-067 FAIL_V7 -> PASS_V8 (bb9548e1); MT-160 READY -> PASS_V1; MT-163 READY -> PASS_V1; MT-165 READY -> PASS_V4 (bb9548e1).
+- FAIL -> READY_FOR_VALIDATION: MT-023 (was FAIL_V7, candidate 259495f0); MT-036 (FAIL_V7, candidate be4d0c94); MT-066 (FAIL_V7, candidate 259495f0); MT-153 (FAIL_V2, candidate 13288bf0).
+- FAIL version advanced (still FAIL): MT-008 V7 -> V9; MT-042 V6 -> V8; MT-043 V5 -> V6; MT-046 V7 -> V8; MT-064 V7 -> V9; MT-065 V7 -> V9.
+- READY -> FAIL: MT-128 -> FAIL_V3.
+- READY, status unchanged, candidate now `d99be6cf`: MT-113, MT-122 (MT-122 PT-122-2 remains WP-end proof).
+- Unchanged: MT-027 FAIL_V7.
+- READY now (13): MT-023 036 066 079 113 122 136 153 154 155 157 158 159.
+
+### C. Rounds
+
+- `1f4e0f69` r1: host OOM (rustc-LLVM), infrastructure; r2: killed when the validator agent stopped, infrastructure; no status change (gov `37f62656`).
+- `bb9548e1`: wrapper killed at native 170/210 by the 2 h harness background limit (GP-153; MT-153.json cause: validator launched the wrapper as a 2 h harness background task); verdicts on core JUnit plus this round's hashed native log only (gov `2cae85f1`).
+- `b4faed35`: complete (MT-153.json `validation_round_b4faed35`: started 17:33:20Z, completed 18:51:58Z), launched detached per GP-153; verdicts gov `1d41e397`. Native vault CredWriteW error 8 from test ~74, not counted (infrastructure); selection defect: MT-008 code_nav live names unmatched.
+
+### D. Blockers awaiting Operator
+
+- Windows Credential Manager `CredWriteW` error 8 (MT-153.json `validation_round_b4faed35`: post-round vault probe fails error 8). `cmdkey /list` at ~19:40Z lists 100 `handshake-local-accounts-*` targets. UNVERIFIED: the orchestrator brief's total of 1,431 credentials is not recorded in the repo and not reproduced (`cmdkey /list` in this shell lists 319 targets). GP-131 (wp_validator, before_round) needs a working vault write|read|delete when the selected proof uses the OS vault. Deleting another test's entries needs Operator approval (Codex CX-GIT-003; the earlier exact-86 approval is retired, GP-047). Test-side cleanup is `OwnedVaultScope::cleanup_after_reap` (`src/frontend/handshake_native/tests/backend_proof_support/mod.rs:468-489`): deletes only targets added beyond its own baseline; called from Drop (`PendingChild` `:629-632`, `LiveBackend` `:4449`) and from the explicit `assert_cleanup` paths (`:1800`, `:1876`).
+- MT-027 bridge FOR create false (`schema.surql:4493`, stmt 6 of `block_view_store.rs` CREATE_TRANSACTION): cause unknown after two refuted hypotheses (SELECT-hides-row, refuted by the b4faed35 probe; UPSERT-order / unpopulated document, refuted by surrealdb-core 3.2.0 source reading, `MT-027.json#refutation_20260930_upsert_order`). Probe budget consumed; proposed next approach needs an Operator decision: root-harness scratch-table predicate bisect (S1 full predicate, S2 view_def branch, S3 `fn::mt109_has_workspace_access`; no schema change).
+- Code-nav index cost vs Master Spec §2.3.14.17.3 (`02-system-architecture.md:4470-4478`, "Index update propagation" <5 s target / 30 s maximum): `api/code_nav_index.rs` has no owning MT (MT-008, MT-064, MT-065; MT-064/065 seed timeout authority check found the spec binds index duration and the timeout is unchanged; `register_root` 3.6 s -> 0.67 s after b4faed35).
+- `storage/surreal/knowledge.rs` document-create cost has no owning MT (MT-043, MT-128 ownership requests, KB-IMPL-006).
+- MT-046 `C1V-LOOM-CONTENT-TYPES` (OPEN_OPERATOR_DECISION): record users may create only `note` and `canvas` Loom content types (`loom_canvas_store.rs` ~1182; schema create permission), so tag_hub and other block kinds fail with 400 HSK-400-LOOM-VALIDATION; Operator must decide the creatable content types (affects ic03/ic04).
+- MT-153 option (b): replacing `array::len` recomputes with increments changes MT-152's approved counter design; NOT implemented, referred to the Operator. Option (a) (`13288bf0`) carries a known 5 s-deadline re-fail risk.
+- MT-042 edge-create cost: edge create 2.4-3.0 s per statement-level timings (stmt #5/8 ~2.7 s at `loom_store.rs:1566-1567`, open; the ~3.0 s ledger pre-read at stmt #2 was fixed in `79610d1a`).
+
+### E. Rules in force
+
+- `WP012-OPERATOR-INSTRUCTIONS-20260930-B` (packet.json, 14:34:58Z), verbatim: "fix all failing mt and do a single cargo test what the fuck are you doing, have you not read the handofffile"; "dont delete cargo if this can be reused, avoid costly rebuilds"; "you do not work on globals"; "you do not touch the codex either"; "STOP FUCKING INVENTING THINGS"; "you will colaborate with the buddy before instructing other agents or making descicions, you will explain you choices and descicions, the buddy only keeps you on track of the workflow order. skill use, it does not touch code or gov. it us purely to keep you on track, you use agents for work, you do not work yourself, you delegate after deliberation wuth your buddy. you use sub agents to explore code, research online or other as if your hands".
+- Applied: buddy workflow (deliberate with the buddy before instructing agents or deciding; delegate work to sub-agents); no edits to global files or the Codex; reuse cargo targets (no deletion of reusable build output); one build per physical disk at a time (KB-OUT-008, CX-984-002; GP-146/GP-147: foreign host builds contributed to the r1 OOM); round wrapper launched detached from agent tool calls (GP-153).
+
+### F. Next action after Operator decisions
+
+1. Operator-approved credential cleanup (CX-GIT-003). 2. Fresh vault write|read|delete probe (GP-131). 3. One union round on the tip `d99be6cf` covering all READY MTs.
+
+## Earlier audit (evidence-audited 2026-09-30 ~14:25Z; typed MT JSON wins on conflict; superseded where it differs from the State section above)
 
 Session start = gov `cdfe6c73` (03:33Z). Evidence: `git log cdfe6c73..HEAD` (gov), product worktree `wtc-native-editors-v1` log + `git ls-remote`, MT `lifecycle` fields vs `cdfe6c73`, `packet.json#operator_decisions_20260930`, logs under `Handshake_Artifacts/WP-KERNEL-012`. Times are UTC unless stated.
 
