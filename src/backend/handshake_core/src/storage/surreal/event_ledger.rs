@@ -111,6 +111,9 @@ pub(crate) struct LedgerWrite {
 #[derive(SurrealValue)]
 struct EventBindings {
     event: LedgerWrite,
+    /// Bare copy of `event.idempotency_key`: SurrealDB 3.2's streaming planner folds only bare
+    /// params into index lookups, so `$event.idempotency_key` scanned kernel_event_ledger (MT-153).
+    event_key: String,
 }
 
 #[derive(SurrealValue)]
@@ -178,6 +181,9 @@ impl From<LedgerWrite> for LedgerBulkInsert {
 struct EventPairBindings {
     first: LedgerWrite,
     second: LedgerWrite,
+    /// Bare copies of `first`/`second.idempotency_key` for index-backed lookups (MT-153).
+    first_key: String,
+    second_key: String,
     idempotency_keys: Vec<String>,
 }
 
@@ -376,12 +382,12 @@ pub(crate) async fn append(
                                     operation_elapsed_us: $operation_finished - $operation_started }; \
                             };";
                         let measured = database
-                            .query_values(TIMED_CREATE, EventBindings { event: write })
+                            .query_values(TIMED_CREATE, EventBindings { event_key: write.idempotency_key.clone(), event: write })
                             .await?;
                         return decode_timed_append(measured, &timing, false);
                     }
                     return database
-                        .query_first(CREATE, EventBindings { event: write })
+                        .query_first(CREATE, EventBindings { event_key: write.idempotency_key.clone(), event: write })
                         .await;
                 }
                 if let Some(timing) = timing {
@@ -393,14 +399,14 @@ pub(crate) async fn append(
                             "IF true { \
                                  LET $lookup_started = time::micros(); \
                                  LET $existing = (SELECT VALUE id FROM kernel_event_ledger \
-                                     WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; \
+                                     WHERE idempotency_key = $event_key LIMIT 1)[0]; \
                                  LET $lookup_finished = time::micros(); \
                                  IF $existing != NONE { \
                                      LET $rows = (SELECT event_id, event_sequence, event_version, kernel_task_run_id, \
                                          session_run_id, aggregate_type, aggregate_id, idempotency_key, event_type, \
                                          actor_kind, actor_id, causation_id, correlation_id, payload_hash, \
                                          source_component, payload, created_at FROM kernel_event_ledger \
-                                         WHERE idempotency_key = $event.idempotency_key LIMIT 1); \
+                                         WHERE idempotency_key = $event_key LIMIT 1); \
                                      LET $operation_finished = time::micros(); \
                                      RETURN { rows: $rows, replay: true, \
                                          lookup_elapsed_us: $lookup_finished - $lookup_started, \
@@ -428,7 +434,7 @@ pub(crate) async fn append(
                                          operation_elapsed_us: $operation_finished - $lookup_finished }; \
                                  }; \
                              };",
-                            EventBindings { event: write },
+                            EventBindings { event_key: write.idempotency_key.clone(), event: write },
                         )
                         .await?;
                     return decode_timed_append(measured, &timing, true);
@@ -436,12 +442,12 @@ pub(crate) async fn append(
                 database
                     .query_first(
                         "IF (SELECT VALUE id FROM kernel_event_ledger \
-                             WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0] != NONE { \
+                             WHERE idempotency_key = $event_key LIMIT 1)[0] != NONE { \
                              RETURN SELECT event_id, event_sequence, event_version, kernel_task_run_id, \
                                  session_run_id, aggregate_type, aggregate_id, idempotency_key, event_type, \
                                  actor_kind, actor_id, causation_id, correlation_id, payload_hash, \
                                  source_component, payload, created_at FROM kernel_event_ledger \
-                                 WHERE idempotency_key = $event.idempotency_key LIMIT 1; \
+                                 WHERE idempotency_key = $event_key LIMIT 1; \
                          } ELSE { \
                              RETURN CREATE $event.record CONTENT { \
                                  event_id: $event.event_id, event_version: $event.event_version, \
@@ -460,7 +466,7 @@ pub(crate) async fn append(
                                   created_at: $event.created_at \
                              }; \
                          };",
-                        EventBindings { event: write },
+                        EventBindings { event_key: write.idempotency_key.clone(), event: write },
                     )
                     .await
             })
@@ -608,6 +614,8 @@ pub(crate) async fn append_pair_atomic_with_causation(
             .iter()
             .map(|event| event.idempotency_key.clone())
             .collect(),
+        first_key: first_write.idempotency_key.clone(),
+        second_key: second_write.idempotency_key.clone(),
         first: first_write,
         second: second_write,
     };
@@ -622,7 +630,7 @@ pub(crate) async fn append_pair_atomic_with_causation(
                            idempotency_key, event_type, actor_kind, actor_id, causation_id, \
                            correlation_id, payload_hash, source_component, payload, created_at \
                            FROM kernel_event_ledger \
-                           WHERE idempotency_key = $first.idempotency_key LIMIT 1)[0]; \
+                           WHERE idempotency_key = $first_key LIMIT 1)[0]; \
                          IF $first_stored != NONE { \
                            IF $first_stored.event_version != $first.event_version \
                               OR $first_stored.kernel_task_run_id != $first.kernel_task_run_id \
@@ -657,13 +665,13 @@ pub(crate) async fn append_pair_atomic_with_causation(
                            } RETURN NONE; \
                          }; \
                          LET $actual_first = (SELECT event_id FROM kernel_event_ledger \
-                           WHERE idempotency_key = $first.idempotency_key LIMIT 1)[0]; \
+                           WHERE idempotency_key = $first_key LIMIT 1)[0]; \
                          LET $second_stored = (SELECT event_id, event_sequence, event_version, \
                            kernel_task_run_id, session_run_id, aggregate_type, aggregate_id, \
                            idempotency_key, event_type, actor_kind, actor_id, causation_id, \
                            correlation_id, payload_hash, source_component, payload, created_at \
                            FROM kernel_event_ledger \
-                           WHERE idempotency_key = $second.idempotency_key LIMIT 1)[0]; \
+                           WHERE idempotency_key = $second_key LIMIT 1)[0]; \
                          IF $second_stored != NONE { \
                            IF $second_stored.event_version != $second.event_version \
                               OR $second_stored.kernel_task_run_id != $second.kernel_task_run_id \
