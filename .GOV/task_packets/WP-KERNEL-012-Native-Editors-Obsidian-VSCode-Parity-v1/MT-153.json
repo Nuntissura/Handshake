@@ -2817,6 +2817,15 @@
     "attempts_so_far": [
       "none on these call sites"
     ],
-    "run": "single union validator run on the next candidate (orchestrator names it)"
+    "run": "single union validator run on the next candidate (orchestrator names it)",
+    "lane_a_statement_map": {
+      "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/loom-write-timings-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.json",
+      "block_create_7_statement_q3": "3.1-3.9 s = search_store.rs:200-201 (loom_search::reindex_block via finalize_loom_block_create: IF ledger lookup on $ledger.idempotency_key, else CREATE) - fixed in 79610d1a",
+      "block_create_7_statement_q4": "0.49-0.68 s = search_store.rs LET $written UPSERT loom_block_search_index (permission cost; unchanged)",
+      "block_create_17_statement_q9": "~0.52 s = loom_canvas_store.rs OWNED_LOOM_BUNDLE_SQL CREATE $bridge (permission cost; unchanged)",
+      "edge_create_8_statement_q2": "~3.0 s = loom_store.rs loom_ledger_append_sql! pre-read - fixed in 79610d1a",
+      "edge_create_8_statement_q5": "~2.7 s = loom_store.rs:1566-1567 edge CREATE/UPDATE + endpoint counter UPDATEs (unchanged; open risk)",
+      "consumers": "lane B MT-042, MT-046 ic10/ic12"
+    }
   }
 }
