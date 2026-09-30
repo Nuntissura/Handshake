@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-162",
   "created_at_utc": "2026-09-29T08:31:36.101102Z",
-  "updated_at_utc": "2026-09-29T20:35:10Z",
+  "updated_at_utc": "2026-09-30T03:16:17Z",
   "identity": {
     "mt_id": "MT-162",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -162,7 +162,7 @@
     "policy": "JSON authority; projection on demand only"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V2",
     "depends_on": [
       "MT-031",
       "MT-021",
@@ -175,9 +175,9 @@
       "MT-163"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V1",
-    "completed_by": null,
-    "next_actor": "WP_VALIDATOR",
+    "validator_verdict": "PASS_V2",
+    "completed_by": "WP_VALIDATOR-20260930-FROZEN-37ee7c5b",
+    "next_actor": "ORCHESTRATOR (MT-163 unblock)",
     "status_reason": "FAIL_V1 remediation pushed as 6391a29f (authenticated Loom block refetches, corrected comment) with builder compile evidence; gameplan before_submit PASS (KB-PROOF-007).",
     "split_ref": "MT-032.json#execution_split_20260929",
     "status_before_mt164_20260929": "BLOCKED",
@@ -185,9 +185,9 @@
     "validator_verdict_before_20260929": "PENDING",
     "blocked_on": null,
     "mt160_dependency_note": "Kept for sequenced writes to backend_client.rs/loom_address.rs (MT-160 first).",
-    "validated_by": "WP_VALIDATOR-20260929-NATIVE-SELF-SEEDED",
-    "validated_at_utc": "2026-09-29T17:23:03Z",
-    "validated_commit": "de04b8f0b6f9d9acd848bb7abb7aac6fb5e392df",
+    "validated_by": "WP_VALIDATOR-20260930-FROZEN-37ee7c5b",
+    "validated_at_utc": "2026-09-30T03:16:17Z",
+    "validated_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
     "candidate_commit": "6391a29f89dd51872c730c66bb9bea5f42d6822c"
   },
   "scope": {
@@ -718,6 +718,63 @@
         "input_digest_before_after": "equal (git hash-object test_loom_address.rs 25945b3e); committed tree 6391a29f contains this blob",
         "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-162/kb/logs/check-1",
         "scope": "Implementer compile/static evidence only (CX-EXEC-014); runtime acceptance pending WP validator"
+      },
+      {
+        "proof_id": "PR-WP012-MT161-162-SELF-SEEDED-37ee7c5b",
+        "executor_role": "WP_VALIDATOR",
+        "candidate_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+        "command": "bash .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032-phase-probe.sh 37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb ... self-seeded-native-round",
+        "started_at": "2026-09-30T02:49:34.2044338Z",
+        "completed_at": "2026-09-30T03:11:31.2443499Z",
+        "backend": "rebuilt for 37ee7c5b in lane backend-bin (D), sha256 781011857f048033d734b70c2787cf3e0366676795902dc385323c07e42fad12; not reused",
+        "native_test_exe": "test_loom_address-d9c7a9a7b6a68b3d.exe",
+        "result": {
+          "tests": 1,
+          "passed": 1,
+          "case": "live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof",
+          "seconds": 170.44
+        },
+        "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-mt161-162-self-seeded-native-round.xml",
+        "junit_sha256": "b001e667ef1b10df79f1472bfca7caf3dcddf0278a0d0f6f97e29facecf7d874",
+        "stdout_sha256": "cb8364edd16ed3224e23374632ce2b81cda1095801bbb9ece70c562181df4eda",
+        "stderr_sha256": "698078b184c5d812cd7264e0b8d94b56f88dd054770a74c27a293fbf09edf771",
+        "phase_capture": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v15-receipt-watch-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb.jsonl",
+        "phase_capture_sha256": "cf9bc5901c64d42cf8d3c97ce9b5b5fbe415fc55eef1a6b3c1bac7a26e516552",
+        "save_timings_ms": {
+          "first_linked_save": {
+            "transaction": 1475,
+            "receipt": 257,
+            "backlinks": 2165,
+            "backlink_write": 2044,
+            "counter_loop_statement5_us": 1191683,
+            "embeds": 14,
+            "index": 901,
+            "total": 4850
+          },
+          "de04b8f0_first_linked_save": {
+            "transaction": 1772,
+            "receipt": 284,
+            "backlinks": 2665,
+            "counter_loop_statement5_us": 1537796,
+            "index": 1097,
+            "total": 5894
+          },
+          "other_saves_total": {
+            "remove_link": 4512,
+            "restore_link": 5241,
+            "save_b": 3504
+          },
+          "budget": "all saves < 10 s (max 5.241 s)"
+        },
+        "capacity": {
+          "C_peak_bytes": 116213944820,
+          "D_free_kib_after": 1675216972
+        },
+        "covers": [
+          "MT-161",
+          "MT-162"
+        ],
+        "owning_mt": "MT-162"
       }
     ]
   },
@@ -760,6 +817,74 @@
         "at_utc": "2026-09-29T20:35:10Z",
         "decision": "inconclusive",
         "state_effect": "unchanged: READY_FOR_VALIDATION (infrastructure changes no status, CX-VAL-006)"
+      }
+    ]
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "validated_by": "WP_VALIDATOR-20260930-FROZEN-37ee7c5b",
+    "validated_at_utc": "2026-09-30T03:16:17Z",
+    "candidate_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+    "started_at": "2026-09-30T02:49:34.2044338Z",
+    "completed_at": "2026-09-30T03:11:31.2443499Z",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-mt161-162-self-seeded-native-round.xml",
+    "proof_record_ids": [
+      "PR-WP012-MT161-162-SELF-SEEDED-37ee7c5b"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-162-PROOF-01",
+        "result": "PASS 1/1 (live self-seeded case, 170.4 s, 10 s client deadline held)"
+      }
+    ],
+    "acceptance": {
+      "AC-162-1": "proved (live create/load canonical block_id, LoomBlockAddr)",
+      "AC-162-2": "proved (live save-derived backlinks, no seeding/rebuild)",
+      "AC-162-3": "proved (fresh document content_sha256 and authenticated Loom block content_hash equal canonical SHA-256; deleted A block authorized 404)"
+    },
+    "fail_v1_remediation": "6391a29f authenticated Loom block refetches; test-only change",
+    "save_timings_ms": {
+      "first_linked_save": {
+        "transaction": 1475,
+        "receipt": 257,
+        "backlinks": 2165,
+        "backlink_write": 2044,
+        "counter_loop_statement5_us": 1191683,
+        "embeds": 14,
+        "index": 901,
+        "total": 4850
+      },
+      "de04b8f0_first_linked_save": {
+        "transaction": 1772,
+        "receipt": 284,
+        "backlinks": 2665,
+        "counter_loop_statement5_us": 1537796,
+        "index": 1097,
+        "total": 5894
+      },
+      "other_saves_total": {
+        "remove_link": 4512,
+        "restore_link": 5241,
+        "save_b": 3504
+      },
+      "budget": "all saves < 10 s (max 5.241 s)"
+    },
+    "hbr": "HBR-MAN change_condition not triggered (test-only diff, no behavior/manual input change); HBR-VIS component/AccessKit assertions in case pass; strict screenshot closure allocated to MT-163",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT162-37ee7c5b-native-verdict",
+        "at_utc": "2026-09-30T03:16:17Z",
+        "decision": "passed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT162-37ee7c5b-native-verdict",
+        "at_utc": "2026-09-30T03:16:17Z",
+        "decision": "passed",
+        "state_effect": "lifecycle.status PASS_V2"
       }
     ]
   }
