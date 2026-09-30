@@ -267,8 +267,16 @@ fn is_terminal_state(state: &JobState) -> bool {
     )
 }
 
+/// Floor for every job wait in this file. A model_run allocates its session worktree with a full
+/// `git worktree add --detach` checkout of the owning repo (workspace_safety.rs
+/// ensure_session_worktree_allocation) while the job is `running`; under a union round's disk load
+/// that checkout alone exceeded the former 60 s floor (MT-165 r2: git worktree child alive
+/// 13:51:33-13:52:12Z, job still `running` at the deadline). The bound stays below the per-test
+/// terminate-after budget (setup + workflow start + wait < 300 s).
+const MIN_JOB_WAIT_MS: u64 = 180_000;
+
 fn wait_timeout_ms(timeout_ms: u64) -> u64 {
-    timeout_ms.max(60_000)
+    timeout_ms.max(MIN_JOB_WAIT_MS)
 }
 
 async fn wait_for_state(
