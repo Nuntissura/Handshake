@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-30T11:41:00Z",
+  "updated_at_utc": "2026-09-30T14:40:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -2427,5 +2427,100 @@
       }
     ],
     "verdict": "none yet; runtime checks await the union round"
+  },
+  "round_1f4e0f69_infrastructure": {
+    "recorded_at_utc": "2026-09-30T14:40:00Z",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "record_scope": "single record for the union round on 1f4e0f69; no MT status changed (CX-VAL-006)",
+    "candidate_commit": "1f4e0f69241864c40b2deb96d105ba426bb1448c",
+    "entrypoint": "WPV-union-round.sh (gov a8a89edd MT-165 repo, f8fd8b5a/0c21af7e named selection, c046b60f core -j 1)",
+    "selection_ref": "WPV-round-selection.json (gov 0c21af7e)",
+    "attempts": [
+      {
+        "id": "r1",
+        "wrapper_pid": 263592,
+        "wrapper_start_utc": "2026-09-30T12:10:56.2559533Z",
+        "bash_pid": 213680,
+        "bash_start_utc": "2026-09-30T12:11:05.0555247Z",
+        "exit_code": 101,
+        "completed_utc": "2026-09-30T12:24:06.4895264Z",
+        "failure_kind": "infrastructure",
+        "failure_class": "HOST-OOM-RUSTC-LLVM",
+        "evidence": "rustc-LLVM ERROR: out of memory (0xc0000409) compiling handshake_core lib + lib test at -j 2; foreign builds on host",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-1f4e0f69241864c40b2deb96d105ba426bb1448c.stderr.log",
+        "tests_run": 0,
+        "remedy": "core union build -j 1 (c046b60f); gameplan GP-146",
+        "session_git_cleanup": "trap ran: worktree list main-only; git dir and export .git pointer recycled"
+      },
+      {
+        "id": "r2",
+        "wrapper_pid": 193268,
+        "wrapper_start_utc": "2026-09-30T12:26:56.6124272Z",
+        "bash_pid": 183764,
+        "bash_start_utc": "2026-09-30T12:27:08.4791080Z",
+        "state": "INTERRUPTED",
+        "failure_kind": "infrastructure",
+        "failure_class": "ROUND-KILLED-WITH-AGENT-STOP",
+        "evidence": "validator agent stopped by mistake ~14:11Z; wrapper/bash/test processes gone; log stops at native 42/210; no exit record, no JUnit",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-1f4e0f69241864c40b2deb96d105ba426bb1448c-r2.stderr.log",
+        "log_sha256": "af1d650ca37fa20c7a5d20c99f390bcb1d68ea9ec47c67176c612c13e59445f9",
+        "session_git_cleanup": "trap not run (killed); validator verified worktree list main-only, empty wt root, no round scheduler roots; recycled sg/1f4e0f69.git, sg/1f4e0f69-wt and export .git pointer at 14:36Z (logs/session-git-1f4e0f69...log)",
+        "relaunch": "none (orchestrator: fix all failing MTs first, then one validator run)"
+      }
+    ],
+    "observations_r2_not_verdicts": {
+      "core": {
+        "run": 45,
+        "passed": 43,
+        "nextest_exit": 100,
+        "failures": [
+          {
+            "test": "handshake_core api::loom::tests::mt153_loom_route_family_authority_matrix",
+            "mt": "MT-153",
+            "assertion": "loom.rs:11059 owner_ok: [block-view definitions] owner POST /workspaces/{ws}/loom/views/definitions -> 403 {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}",
+            "note": "canvas family incl anonymous visual-edge 403 now passes; block-view family first reached"
+          },
+          {
+            "test": "handshake_core::model_session_scheduler_tests trust002_cross_session_provenance_fields_are_persisted",
+            "mt": "MT-165",
+            "assertion": "model_session_scheduler_tests.rs:314 timed out waiting for terminal state for job (current=running)",
+            "note": "other 17 scheduler tests pass (7 failed on git worktree add at 37ee7c5b)"
+          }
+        ],
+        "passed_groups": "MT-153 workspace-delete 2/2, loom_daily_journal 4/4, loom_transclusion 2/2, loom_media_tiers 6/6, project_wiki_drift 4/4; MT-023 mt023_ 2/2; MT-066 route2 1/1; MT-067 mt067_ 3/3; MT-165 api::jobs create_model_run_job 1/1 + scheduler 17/18"
+      },
+      "native_partial": {
+        "selected": 210,
+        "completed": 42,
+        "passed": "test_calendar_interop 35 other cases, test_canvas_board_argus 3 (mt026_ argus), test_author_id_budget 1 (MT-113/122 mounted bookmark)",
+        "failures": [
+          {
+            "test": "handshake-native::test_block_collection_view block_collection_views_live_surrealdb_self_seed_full_round_trip",
+            "mts": [
+              "MT-153 (NATIVE-LOOM)",
+              "MT-027"
+            ],
+            "assertion": "test_block_collection_view.rs:1706 managed-SurrealDB create: POST block view 403 HSK-403-PROTECTED-RESOURCE (same signature as matrix failure)"
+          },
+          {
+            "test": "handshake-native::test_calendar_interop open_or_create_daily_note_is_idempotent_against_real_backend_live",
+            "mts": [
+              "MT-067"
+            ],
+            "assertion": "test_calendar_interop.rs:481 activity_span_correlated FR row not within 5 s; :683 cleanup left scoped FR residue"
+          },
+          {
+            "test": "handshake-native::test_canvas_board canvas_board_live_surrealdb_self_seeds_mounted_round_trip",
+            "mts": [
+              "MT-026",
+              "MT-153 (NATIVE-LOOM)"
+            ],
+            "assertion": "test_canvas_board.rs:1791 timed out waiting for mounted host proof 'mounted semantic-edge host persists canonical edge'"
+          }
+        ],
+        "not_reached": 168
+      }
+    },
+    "next": "Operator workflow: all failing MTs fixed first, then one validator run; target-r52 and backend-bin kept warm"
   }
 }
