@@ -88,7 +88,7 @@
     },
     "status_reason": "FAIL_V3 on bb9548e1 union round (validation_round_bb9548e1)",
     "status_before_20260930": "FAIL_V2",
-    "candidate_commit": "7612f1cc0b6c9d1b5440e23c572e375f63e9e036",
+    "candidate_commit": "b4faed359c07fed260cf8f42633dcf9b1e60ff92",
     "blocked_on": null,
     "diagnosis_refs": [
       "MT-026.json#diagnosis_20260930_ledger_lookup",
@@ -96,7 +96,9 @@
     ],
     "ready_for_validation_at_utc": "2026-09-30T17:10:53Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
-    "status_before_bb9548e1_resubmission": "FAIL_V3"
+    "status_before_bb9548e1_resubmission": "FAIL_V3",
+    "candidate_updated_at_utc": "2026-09-30T17:28:51Z",
+    "candidate_update_note": "7612f1cc -> b4faed35 (adds event_ledger.rs bare-key lookups, MT-153); before_submit kernel_builder PASS 2/2 at b4faed35 (GP-139 confirmed: no counter statement changed)"
   },
   "closure_unit": {
     "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
@@ -2784,8 +2786,8 @@
       "MT-026.json#diagnosis_20260930_ledger_lookup",
       "MT-027.json#diagnosis_20260930_bridge_select"
     ],
-    "candidate_commit": "7612f1cc0b6c9d1b5440e23c572e375f63e9e036",
-    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 7612f1cc0b6c9d1b5440e23c572e375f63e9e036",
+    "candidate_commit": "b4faed359c07fed260cf8f42633dcf9b1e60ff92",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = b4faed359c07fed260cf8f42633dcf9b1e60ff92",
     "implementer_checks": [
       {
         "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
@@ -2795,10 +2797,24 @@
         "inputs": "working tree == 7612f1cc content (both commits made from the checked tree)",
         "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-ledger-key-probe.log",
         "result_line": "Finished dev profile in 11m 27s; warnings pre-existing, none on changed lines"
+      },
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target",
+        "exit_code": 0,
+        "inputs": "working tree == b4faed35 content",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-event-ledger-key.log"
       }
     ],
-    "gameplan": "before_submit kernel_builder PASS 2/2 at 7612f1cc (GP-139 confirmed: bb9548e1..7612f1cc changes no Loom counter statement)",
-    "next_actor": "WP_VALIDATOR single union run (orchestrator names the round tip)"
+    "gameplan": "before_submit kernel_builder PASS 2/2 at b4faed35 (GP-139 confirmed)",
+    "next_actor": "WP_VALIDATOR single union run (orchestrator names the round tip)",
+    "fix_followup": {
+      "commit": "b4faed359c07fed260cf8f42633dcf9b1e60ff92",
+      "change": "event_ledger.rs bare $event_key/$first_key/$second_key idempotency lookups",
+      "hypothesis_ref": "MT-153.json#hypothesis_20260930_event_ledger_key"
+    },
+    "reproof_note": "1457903f (timing) and 7612f1cc (KB-DIAG2) are diagnostic code in MT-153 files; their later revert changes MT-153 inputs, so a PASS from the b4faed35 run needs re-proof after the revert (CX-VAL-002)"
   },
   "hypothesis_20260930_event_ledger_key": {
     "schema_id": "hsk.mt_attempt_hypothesis@1",
