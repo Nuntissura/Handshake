@@ -1,12 +1,13 @@
 {
-  "candidate": "259495f0596763a58193d44478742c5dde26290a",
+  "candidate": "1f4e0f69241864c40b2deb96d105ba426bb1448c",
   "prior_native_proof": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
   "changed_native_test_bins": [
     "test_loom_address",
+    "test_memory_proposal_argus",
     "test_stage_interop"
   ],
   "native_src_changed": false,
-  "planned_native_tests_estimate": 157,
+  "planned_native_tests_estimate": 158,
   "core_lib": [
     "api::loom::tests::mt153_loom_route_family_authority_matrix",
     "api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows",
@@ -184,6 +185,22 @@
         "test_interconnect_ckc_to_note::ic01_ic02_ic04_ckc_embed_atom_shape_round_trips",
         "test_interconnect_loom_backlink_search::ic12_graph_renders_two_nodes_without_panic",
         "test_interconnect_loom_backlink_search::typed_no_model_skip_classifier_is_fail_closed"
+      ]
+    },
+    "MT-064": {
+      "run": [
+        "test_memory_proposal_argus::mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve",
+        "test_fems_interop_proofs::proof_fems_02_propose_creates_proposal_and_event",
+        "test_fems_interop_proofs::proof_fems_duplicate_submission_replays_one_proposal_and_one_event"
+      ],
+      "reuse": [
+        "test_memory_proposal::* (8ea13a9b all pass)",
+        "lib::fems::memory_proposal::tests::build_proposal_sets_class_and_full_provenance_from_text_range",
+        "lib::fems::memory_proposal::tests::content_hash_reuses_loom_primitive_and_matches_block_hash",
+        "lib::fems::memory_proposal::tests::review_gated_is_always_true_hard_true_for_procedural",
+        "lib::fems::memory_proposal::tests::propose_command_descriptor_is_palette_driven",
+        "lib::fems::memory_proposal::tests::shared_bus_command_captures_workspace_versioned_selection",
+        "lib::fems::memory_proposal::tests::submit_body_shape_is_review_gated_proposal"
       ]
     },
     "MT-065": {
