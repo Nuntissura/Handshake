@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-166",
   "created_at_utc": "2026-09-29T18:50:00Z",
-  "updated_at_utc": "2026-09-29T20:59:56Z",
+  "updated_at_utc": "2026-09-30T00:37:00Z",
   "identity": {
     "mt_id": "MT-166",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -187,10 +187,10 @@
     "claim_ref": "Operator decision 2026-09-29 'both approved'",
     "completed_by": null,
     "next_actor": "WP_VALIDATOR",
-    "status_reason": "Pushed e012e80d with builder compile evidence; gameplan before_submit PASS. Runtime pins need validator PIN-MEASURE before the confirming round (AC-166-5).",
+    "status_reason": "Re-pinned candidate 37ee7c5b (pins from pin_measurement_1, authority function count 17) with builder compile evidence; gameplan before_submit PASS. Builder frozen for the head-bound round (GP-145).",
     "rounds_without_output": 0,
     "diagnosis_refs": [],
-    "candidate_commit": "e012e80dede1385f529ef1736c2cbdc30ffea48b"
+    "candidate_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb"
   },
   "scope": {
     "summary": "The two remaining resource_grants queries SurrealDB 3.2's planner cannot index (protected_resources select permission, fn::mt109_ledger_access) compare against bound literals so resource_grants_exact_idx serves all four fields; allow/deny semantics unchanged. Follow-up to diagnosis MT164-GRANT-AUTH-IDIOM-NOT-INDEXABLE.",
@@ -564,6 +564,26 @@
         "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-166/kb/logs/check-1",
         "d_disk_check": "no cargo/rustc/link processes (Win32_Process scan) before launch",
         "scope": "Implementer compile/static evidence only (CX-EXEC-014); pin measurement and runtime acceptance pending WP validator"
+      },
+      {
+        "check_id": "MT-166-BUILDER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "covered_mts": [
+          "MT-166"
+        ],
+        "candidate": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+        "crate": "handshake_core",
+        "command": "cd src/backend/handshake_core && CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-164/kb/target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only cargo check --locked --tests -j 8 --features app-runtime,surreal-test-support,test-utils",
+        "target_note": "MT-164/kb warm target reused (same crate/features, MT-164 closed); logs/TMP under MT-166/kb",
+        "started_at_utc": "2026-09-30T00:30:34Z",
+        "completed_at_utc": "2026-09-30T00:34:59Z",
+        "exit": 0,
+        "result": "pass; 0 errors; rustfmt --check clean on schema.rs",
+        "input_digest_before_after": "equal (git hash-object schema.surql 54ca4fef, schema.rs fca5def4, resource_authority_tests.rs f3957169); committed tree 37ee7c5b contains these blobs",
+        "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-166/kb/logs/check-2",
+        "static_diff_review": "37ee7c5b vs e012e80d: schema.rs only; 4 pin literals and the authority function count assert (16 -> 17 + contains helper)",
+        "d_disk_check": "no cargo/rustc/link/cl processes (Win32_Process scan) before launch",
+        "scope": "Implementer compile/static evidence only (CX-EXEC-014); runtime acceptance pending the head-bound WP validator round"
       }
     ],
     "pin_measurement_1": {
@@ -686,6 +706,29 @@
     "equivalence_note": "Moving resource_id.* checks out of the grant WHERE is exact because every candidate row has resource_id = $resource, so each check reads the same record; a dangling $resource gives NONE and false in both forms. Early exits are pure reads with no side effects.",
     "revision_decision": "No new revision: 162 is unreleased and re-pinned in place (MT-164 precedent); the rev-161->162 upgrade and older paths re-emit the helper, ledger access and protected_resources table from SCHEMA.",
     "ac_166_4_test": "storage::surreal::resource_authority_tests::resource_select_and_ledger_access_cost_is_independent_of_grant_count: N=50/500 (3 base grants + fillers), metric (iii) record-user SELECT of a granted protected_resources row, metric (iv) record-user SELECT of a native-editor kernel_event_ledger receipt whose select PERMISSIONS run ledger_reader -> ledger_producer -> ledger_access on the granted flight_recorder resource (principal holds fr.ingest.native_editor); median of 5 after 1 warm-up, ratio < 2.0, medians < 250 ms, every timed probe returns its row, denied probes (ungranted protected_resources row; receipt whose authority resource has no fr.ingest.native_editor grant) return nothing; the harness removes the store (CX-GIT-003).",
-    "pin_status": "GENERATED ad8af766863b079f8eb2f37d5f8bb7f973319a981e7e25f950a5c00095bc5667 (sha256 of committed schema.surql); DECLARATIVE 50d3244b292a63e7928a04ce9fc9f7c575580531f20167441b6e802cdfc27a8e (static replica of compiled_schema_catalog_entries, reproduces previous a50bd154 on the unchanged source); EXPECTED_SCHEMA_INFO_SHA256, EXPECTED_ATELIER_CATALOG_SHA256, Loom EXPECTED_CATALOG_SHA256 (+ mt109_loom_catalog test literal) PIN-MEASURE PENDING (4d4f7e12 values retained)."
+    "pin_status": "GENERATED ad8af766863b079f8eb2f37d5f8bb7f973319a981e7e25f950a5c00095bc5667 (sha256 of committed schema.surql); DECLARATIVE 50d3244b292a63e7928a04ce9fc9f7c575580531f20167441b6e802cdfc27a8e (static replica of compiled_schema_catalog_entries, reproduces previous a50bd154 on the unchanged source); EXPECTED_SCHEMA_INFO_SHA256, EXPECTED_ATELIER_CATALOG_SHA256, Loom EXPECTED_CATALOG_SHA256 (+ mt109_loom_catalog test literal) PIN-MEASURE PENDING (4d4f7e12 values retained).",
+    "repin_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+    "repin_1": {
+      "recorded_at_utc": "2026-09-30T00:37:00Z",
+      "applied_from": "validation.pin_measurement_1 (gov 4d07e84f) on e012e80d",
+      "pins": {
+        "EXPECTED_SCHEMA_INFO_SHA256": "81a9de3dfbaaf65fdbd2e57ad31e9bec7dd01865e871819d4bf4664cb13a718d",
+        "EXPECTED_ATELIER_CATALOG_SHA256": "e98e231c40f88f614b4ed36bbe0990406f0851ea86ba15177e85b02c2ea0271a (single-store measurement; determinism confirmed by the round)",
+        "LOOM_RECEIPT_EXPECTED_CATALOG_SHA256": "6a224fa74f38e204df71ddfe1a7d4e162bd2c5ee1d2c4900e2fcc506d2fa5b74 (const and mt109_loom_catalog test literal)"
+      },
+      "count_fix": "mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin: authority_catalog_names(\"function\").len() 16 -> 17 plus assert it contains mt166_resource_select_grant; static count of the MT109 authority core block in schema.surql = 17 including the helper. No other hard-coded authority function count or name list exists (authority_catalog_names callers at schema.rs ~3862/3870 derive names from the core block; FUNCTION_DEFINITION_COUNT already 56).",
+      "unchanged": "GENERATED ad8af766..., DECLARATIVE 50d3244b..., PRE_MT109_AUTHORITY_INFO_SHA256 (measurement matched)"
+    },
+    "revision_finding": {
+      "decision": "SCHEMA_REVISION stays 162; in-place re-pin is consistent and no bump is required",
+      "evidence": [
+        "origin/main carries no storage/surreal schema at all (git ls-tree origin/main src/backend/handshake_core/src/storage/surreal/ is empty) and 179ffc1f (which introduced revision 162) is not an ancestor of origin/main, so revision 162 is unreleased",
+        "MT-164 re-pinned revision 162 in place across 179ffc1f -> ee9efaba -> 4d4f7e12 -> de04b8f0 with different GENERATED pins, following the revision-160 'unreleased, re-pinned in place' precedent (schema.rs GENERATED pin comment)",
+        "revision-161 upgrade (upgrade_pre_indexed_grant_current, schema.rs ~6817) and revision-160 upgrade (~6926) both apply indexed_grant_upgrade_statements(), which emits INDEXED_GRANT_FUNCTIONS + MT166_GRANT_FUNCTIONS (fn::mt166_resource_select_grant, fn::mt109_ledger_access) + the current protected_resources table statement",
+        "older paths reach the same statements via schema_delta_upgrade_statements (MT166_GRANT_FUNCTIONS heads + protected_resources table enclosing statement), emitted last",
+        "restore_pre_indexed_grant_schema undoes MT-166 before MT-164; static check reproduces the revision-161 GENERATED pin 009ee238"
+      ],
+      "residual": "stores created at an intermediate unreleased revision-162 candidate (e.g. validator test stores from e012e80d or earlier) have a different GENERATED pin and are rejected as HANDSHAKE_SURREAL_SCHEMA_UNSUPPORTED_LINEAGE, same as for the MT-164 re-pins; test stores are fresh per run"
+    }
   }
 }
