@@ -2289,8 +2289,8 @@
     "recorded_at_utc": "2026-09-30T14:18:16Z",
     "authority": "CX-EXEC-014 recorded remediation naming a diagnostic run; orchestrator decision option (2): validator executes in its lane",
     "remediates": "MT-027.json#validation_v7 OWNED_SAVED_VIEW_CREATE_403; hypothesis MT-027.json#hypothesis_20260930_bridge",
-    "candidate_commit": "45019718b65989dce416cd50aaf43ef4f7ce188c",
-    "candidate_note": "diagnostic-only commit on top of 1f4e0f69; pushed only after round r2 finishes (orchestrator release); not an acceptance candidate",
+    "candidate_commit": "final tip after lane B push; orchestrator will name the SHA",
+    "candidate_note": "single union validator round on the final tip; contains 45019718 (bridge diagnostic) and 1457903f (Loom create timing)",
     "executor_role": "WP_VALIDATOR",
     "crate": "src/backend/handshake_core (lib, features app-runtime,surreal-test-support,test-utils)",
     "tests": [
@@ -2307,6 +2307,20 @@
     },
     "note_on_403_mapping": "a BRIDGE-DIAG THROW is not the HSK-403 literal, so the route may answer 500 instead of 403 at this commit; the diagnostic line is the evidence, not the status",
     "next_commit": "reverts the diagnostic (new commit, no history rewrite) together with the evidence-selected fix",
-    "status_change": "none; MT-027 stays FAIL_V7"
+    "status_change": "none; MT-027 stays FAIL_V7",
+    "diagnostic_commits": [
+      {
+        "commit": "45019718b65989dce416cd50aaf43ef4f7ce188c",
+        "file": "src/backend/handshake_core/src/storage/surreal/block_view_store.rs:349",
+        "change": "block_view_store.rs:349 CREATE_TRANSACTION stmt 6 wrapped in one block statement (statement count and take(9) unchanged): LET $diag_pre = record::exists($bridge); UPSERT $bridge ... RETURN VALUE id; if row count != 1 THROW 'BRIDGE-DIAG ' + <string> {...}"
+      },
+      {
+        "commit": "1457903f4e0f976d78eef5cfcd9b78e7196dc4ef",
+        "file": "src/backend/handshake_core/src/api/loom.rs (observe_loom_write)",
+        "change": "record-user Loom block, edge and view create routes run under a server-generated DOCUMENT_PHASE_REQUEST_ID; authority phases and each query_values_at statement emit MT032_DOCUMENT_PHASE / MT032_DOCUMENT_STATEMENT lines (phase labels loom_block_create_request, loom_edge_create_request, loom_view_create_request; durations only, no query data)",
+        "behavior": "responses, authorization and statements unchanged"
+      }
+    ],
+    "updated_at_utc": "2026-09-30T14:37:28Z"
   }
 }

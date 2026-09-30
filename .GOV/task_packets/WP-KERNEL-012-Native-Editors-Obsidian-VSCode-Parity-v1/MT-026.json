@@ -1632,5 +1632,23 @@
     "implementer_checks": [],
     "gameplan": "before_submit kernel_builder PASS 2/2 at 259495f0 (GP-139 confirmed: 65a7b6fb..259495f0 touches no counter code)",
     "next_actor": "WP_VALIDATOR union round on 259495f0"
+  },
+  "hypothesis_20260930_edge_timeout": {
+    "schema_id": "hsk.mt_attempt_hypothesis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-09-30T14:37:28Z",
+    "failing_test": "handshake-native::test_canvas_board canvas_board_live_surrealdb_self_seeds_mounted_round_trip",
+    "failing_assertion": "test_canvas_board.rs:1791 timed out waiting for 'mounted semantic-edge host persists canonical edge' (board.error.is_none())",
+    "observed": "round r2 on 1f4e0f69 (218s): board.error = POST /workspaces/{ws}/loom/edges request timeout (reqwest kind=timeout); retained backend log shows 17 protected_resource_authorization_denied capability_id=fs.read warnings",
+    "evidence_refs": [
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-1f4e0f69241864c40b2deb96d105ba426bb1448c-r2.stderr.log:4848",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-63b29cdc319c8d5d/d0a3004b-ade0-4861-9ed8-65778a3fa5f9/backend.stdout.log",
+      "MT-027.json#probe_20260930 (KB probe on 1f4e0f69: seed edge POST >15s)"
+    ],
+    "hypothesis": "record-user Loom edge create (api/loom.rs create_loom_edge_authenticated -> loom_store.rs create_loom_edge transaction) exceeds the client timeout; the slow authority phase or statement is not yet attributed",
+    "attribution": "1457903f (observe_loom_write) emits per-phase and per-statement timings for the edge create request in the next run",
+    "supersedes_diagnosis": "MT-026.json#diagnosis_20260930 slow-write hypothesis (MT-164/166 fixes did not remove the edge timeout)",
+    "next_run": "single union validator round on the final tip (orchestrator names SHA)",
+    "status_change": "none"
   }
 }
