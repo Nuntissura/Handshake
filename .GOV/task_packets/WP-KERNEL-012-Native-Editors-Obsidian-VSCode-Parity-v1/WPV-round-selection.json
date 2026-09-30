@@ -1,0 +1,303 @@
+{
+  "candidate": "259495f0596763a58193d44478742c5dde26290a",
+  "prior_native_proof": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
+  "changed_native_test_bins": [
+    "test_loom_address",
+    "test_stage_interop"
+  ],
+  "native_src_changed": false,
+  "planned_native_tests_estimate": 157,
+  "core_lib": [
+    "api::loom::tests::mt153_loom_route_family_authority_matrix",
+    "api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows",
+    "api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit",
+    "api::workspaces::tests::mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default",
+    "api::jobs::tests::create_model_run_job_launches_runtime_session_and_preserves_native_binding"
+  ],
+  "core_whole": [
+    "loom_daily_journal_tests",
+    "loom_transclusion_tests",
+    "loom_media_tiers_tests",
+    "project_wiki_drift_tests",
+    "model_session_scheduler_tests"
+  ],
+  "core_partial": {
+    "loom_atomic_receipt_tests": "mt023_*",
+    "wp_kernel_012_native_editor_routes_tests": "route2_stage_artifact_create_and_resolve + mt067_*"
+  },
+  "native_whole_binaries": [
+    "test_calendar_interop",
+    "test_e7_knowledge_accesskit",
+    "test_e7_swarm_edit_proof",
+    "test_fems_interop_proofs",
+    "test_stage_interop"
+  ],
+  "per_mt": {
+    "MT-008": {
+      "run": [
+        "test_code_nav_client::ac001_lookup_symbols_returns_populated_live_symbol",
+        "test_code_nav_client::ac002_get_symbol_returns_populated_live_definition",
+        "test_code_nav_client::ac003_get_references_returns_populated_live_caller",
+        "test_completion_hover_accesskit::ac005_live_backend_completion_reaches_accesskit_and_stale_gutter",
+        "test_completion_hover_accesskit::ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc"
+      ],
+      "reuse": [
+        "test_lsp_client::lsp_client_graceful_unconfigured_is_not_running",
+        "test_lsp_client::lsp_client_graceful_all_methods_return_empty_without_server",
+        "test_lsp_client::lsp_publish_diagnostics_notification_is_routed_to_channel",
+        "test_lsp_client::lsp_publish_diagnostics_notification_reaches_panel_gutter",
+        "test_completion_hover_accesskit::ac005_completion_popup_emits_listbox_and_item_nodes",
+        "test_completion_hover_accesskit::ac005_completion_keyboard_select_and_accept_inserts",
+        "test_completion_hover_accesskit::ac005_accesskit_click_accepts_completion_and_post_action_state_is_observable",
+        "test_completion_hover_accesskit::ac006_hover_tooltip_contains_identifier",
+        "test_completion_hover_accesskit::ac006_accesskit_click_go_to_definition_moves_caret_and_closes_hover",
+        "test_completion_hover_accesskit::ac007_staleness_check_pushes_gutter_diagnostic_marker",
+        "test_lsp_client::real_language_server_end_to_end_runtime_proof",
+        "test_completion_hover_accesskit::mt008_mounted_real_lsp_canonical_argus"
+      ]
+    },
+    "MT-023": {
+      "run": [
+        "test_tags_panel::tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip",
+        "test_tags_panel_argus::mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve",
+        "test_tags_panel_argus::mt023_mounted_tags_panel_empty_state_canonical_argus"
+      ],
+      "reuse": [
+        "lib::graph::tags_panel::tests::filtered_tags_prefix_match",
+        "lib::graph::tags_panel::tests::empty_tags_is_empty",
+        "test_tags_panel::proof2_three_tag_rows_present",
+        "test_tags_panel::proof3_search_filter_narrows_rows",
+        "test_tags_panel::ac3_tag_click_fires_open_tag",
+        "test_tags_panel::ac8_empty_no_tags",
+        "test_tags_panel::proof4_hub_page_title_and_members",
+        "test_tags_panel::ac5_member_click_fires_open_member",
+        "test_tags_panel::proof5_add_tag_selects_candidate_and_fires_edge",
+        "test_tags_panel::proof5_tag_edge_request_shape"
+      ],
+      "core": "loom_atomic_receipt_tests mt023_ (see CORE list)"
+    },
+    "MT-026": {
+      "run": [
+        "test_canvas_board::canvas_board_live_surrealdb_self_seeds_mounted_round_trip",
+        "test_canvas_board_argus::mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve",
+        "test_canvas_board_argus::mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges",
+        "test_canvas_board_argus::mt026_mounted_canvas_canonical_argus_move_placement",
+        "test_canvas_board_argus::mt026_mounted_canvas_canonical_argus_group_placements",
+        "test_canvas_board_argus::mt026_mounted_canvas_empty_state_canonical_argus"
+      ],
+      "reuse": [
+        "lib::graph::canvas_board::tests::transform_round_trips_under_1px",
+        "lib::graph::canvas_board::tests::drop_position_is_canvas_space",
+        "lib::graph::canvas_board::tests::zoom_steps_clamp_and_round",
+        "lib::graph::canvas_board::tests::edge_event_maps_mode_to_ids",
+        "lib::graph::canvas_board::tests::empty_board_has_no_cards",
+        "test_canvas_board::canvas_accesskit_placements_and_toolbar",
+        "test_canvas_board::canvas_zoom_label_and_buttons",
+        "test_canvas_board::canvas_pan_buttons",
+        "test_canvas_board::canvas_add_card",
+        "test_canvas_board::canvas_drop_to_place_via_drag_payload",
+        "test_canvas_board::canvas_group_two",
+        "test_canvas_board::canvas_semantic_edge",
+        "test_canvas_board::canvas_visual_edge_mode",
+        "test_canvas_board::canvas_remove_placement",
+        "test_canvas_board::canvas_removal_receipt_requires_absence_and_source_block_retention",
+        "test_canvas_board::canvas_empty_no_stale_text",
+        "test_canvas_board::canvas_screenshot_has_card",
+        "test_canvas_board::client_viewport_body_is_board_state_wrapped",
+        "test_canvas_board::client_place_block_body",
+        "test_canvas_board::client_create_card_body",
+        "test_canvas_board::client_semantic_and_visual_edge_bodies"
+      ]
+    },
+    "MT-036": {
+      "run": [
+        "test_event_emitter::event_emitter_native_editor_round_trip",
+        "test_event_emitter::event_emitter_native_editor_round_trip",
+        "test_event_emitter::event_emitter_workspace_generations_are_bounded_and_reclaimed",
+        "test_event_emitter::event_emitter_workspace_revisit_preserves_original_emitter_session_generation"
+      ],
+      "reuse": [
+        "test_event_emitter::post_body_matches_verified_native_editor_schema",
+        "test_event_emitter::failed_emit_lands_in_error_ring",
+        "test_event_emitter::failed_post_with_runtime_lands_in_error_ring",
+        "test_event_emitter::surface_extension_seam_is_object_safe",
+        "test_event_emitter::registry_dispatches_to_mock_surface",
+        "test_event_emitter::flight_recorder_pane_lists_event",
+        "test_event_emitter::undo_paths_emit_undo_fired_exactly_once_with_scope",
+        "lib::event_emitter::tests::failed_post_lands_in_error_ring_no_panic",
+        "lib::event_emitter::tests::emit_without_runtime_records_no_runtime_error_and_does_not_panic",
+        "lib::surface_extension_seam::tests::registered_mock_surface_receives_selection_and_event_callbacks",
+        "lib::flight_recorder_pane::tests::load_now_transitions_to_loaded_with_rows",
+        "lib::event_emitter::tests::action_payload_is_preserved_without_runtime_chat_lossy_folding",
+        "lib::event_emitter::tests::actor_id_format_is_descriptive_and_valid",
+        "lib::event_emitter::tests::all_actions_have_distinct_wire_strings",
+        "lib::event_emitter::tests::authenticated_document_save_preserves_receipt_actor_while_other_events_use_emitter_actor",
+        "lib::event_emitter::tests::backpressure_drops_to_error_ring_when_permits_exhausted",
+        "lib::event_emitter::tests::build_post_body_has_every_required_native_editor_field_snake_case",
+        "lib::event_emitter::tests::calendar_projection_replay_reuses_one_immutable_envelope_but_reconstruction_is_new",
+        "lib::event_emitter::tests::closed_worker_is_permanent_and_visible",
+        "lib::event_emitter::tests::document_saved_serializes_to_native_schema",
+        "lib::event_emitter::tests::emit_without_runtime_records_no_runtime_error_and_does_not_panic",
+        "lib::event_emitter::tests::error_ring_is_bounded_at_cap",
+        "lib::event_emitter::tests::failed_post_lands_in_error_ring_no_panic",
+        "lib::event_emitter::tests::ingest_url_is_workspace_scoped_from_the_event",
+        "lib::event_emitter::tests::nonempty_event_workspace_is_never_relabelled",
+        "lib::event_emitter::tests::pending_frame_queue_coalesces_duplicate_ids_and_discards_stale_generation",
+        "lib::event_emitter::tests::successful_emit_posts_correct_body_through_transport",
+        "lib::event_emitter::tests::transport_retries_reuse_producer_event_identity"
+      ]
+    },
+    "MT-042": {
+      "run": [
+        "test_e7_knowledge_accesskit::*"
+      ],
+      "reuse": []
+    },
+    "MT-043": {
+      "run": [
+        "test_e7_swarm_edit_proof::*"
+      ],
+      "reuse": []
+    },
+    "MT-046": {
+      "run": [
+        "test_interconnect_ckc_to_note::interconnect_ic01_ckc_image_into_note",
+        "test_interconnect_ckc_to_note::interconnect_ic02_ckc_video_into_note",
+        "test_interconnect_ckc_to_note::interconnect_ic03_ckc_moodboard_on_canvas",
+        "test_interconnect_ckc_to_note::interconnect_ic04_ckc_character_wikilink_backlink",
+        "test_interconnect_ckc_to_note::interconnect_ic05_route_selection_to_stage",
+        "test_interconnect_note_code_crossref::interconnect_ic06_open_code_block_from_note",
+        "test_interconnect_note_code_crossref::interconnect_ic07_reference_code_symbol_from_note",
+        "test_interconnect_note_code_crossref::interconnect_ic08_shared_find_replace",
+        "test_interconnect_note_code_crossref::interconnect_ic09_diagnostic_note_reference",
+        "test_interconnect_loom_backlink_search::interconnect_ic10_backlink_cross_surface",
+        "test_interconnect_loom_backlink_search::interconnect_ic11_search_v2_across_surfaces",
+        "test_interconnect_loom_backlink_search::interconnect_ic12_graph_cross_surface_edges",
+        "test_interconnect_loom_backlink_search::interconnect_ic13_ai_link_suggestion",
+        "test_interconnect_loom_backlink_search::interconnect_ic14_quick_switcher_both_editors",
+        "test_interconnect_shared_undo_ledger::interconnect_ic15_undo_rich_editor",
+        "test_interconnect_shared_undo_ledger::interconnect_ic16_undo_code_editor",
+        "test_interconnect_shared_undo_ledger::interconnect_ic17_event_ledger_records",
+        "test_interconnect_shared_undo_ledger::interconnect_ic18_undo_scope_policy"
+      ],
+      "reuse": [
+        "test_interconnect_ckc_to_note::ic01_ic02_ic04_ckc_embed_atom_shape_round_trips",
+        "test_interconnect_loom_backlink_search::ic12_graph_renders_two_nodes_without_panic",
+        "test_interconnect_loom_backlink_search::typed_no_model_skip_classifier_is_fail_closed"
+      ]
+    },
+    "MT-065": {
+      "run": [
+        "test_fems_interop_proofs::*"
+      ],
+      "reuse": []
+    },
+    "MT-066": {
+      "run": [
+        "test_stage_interop::*"
+      ],
+      "reuse": [
+        "lib::interop::stage_interop::tests::build_from_text_range_selection",
+        "lib::interop::stage_interop::tests::build_from_canvas_node_payload",
+        "lib::interop::stage_interop::tests::embed_back_builds_mt014_hslink_with_provenance",
+        "lib::interop::stage_interop::tests::embed_back_endpoint_absent_is_typed_blocker"
+      ],
+      "core": "wp_kernel_012_native_editor_routes_tests route2_stage_artifact_create_and_resolve (see CORE list)"
+    },
+    "MT-067": {
+      "run": [
+        "test_calendar_interop::*"
+      ],
+      "reuse": [
+        "lib::interop::calendar_interop::tests::open_or_create_is_idempotent_and_delegates",
+        "lib::interop::calendar_interop::tests::read_paths_are_documented_routes",
+        "lib::interop::calendar_interop::tests::endpoint_unavailable_is_distinct_typed_blocker",
+        "lib::graph::daily_journal_panel::tests::set_activity_unavailable_preserves_resolved_event",
+        "lib::graph::daily_journal_panel::tests::set_event_with_spans_holds_read_only_view"
+      ],
+      "core": "wp_kernel_012_native_editor_routes_tests mt067_ (see CORE list)"
+    },
+    "MT-079": {
+      "run": [],
+      "reuse": [
+        "test_app_host_mount::editors_render_live_in_app_tree_and_screenshot",
+        "test_app_host_mount::editor_mounts_thread_session_context",
+        "test_app_host_mount::code_pane_undo_dispatches_through_bus",
+        "test_app_host_mount::shell_navigator_opens_mounted_editor_panes",
+        "test_app_host_mount::rich_pending_events_drain_and_route",
+        "test_app_host_mount::rich_pending_events_drain_while_document_is_loading",
+        "test_app_host_mount::mounted_tag_event_resolves_canonical_name_to_real_hub_id",
+        "test_app_host_mount::mt079_mounted_editor_panes_canonical_argus_lifecycle",
+        "test_app_host_mount::mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus",
+        "test_app_host_mount::mt079_code_pane_command_bus_canonical_argus",
+        "test_app_host_mount::mt079_rich_pending_events_canonical_argus",
+        "lib::editor_pane_factories::tests::session_context_is_bound_only_with_workspace_and_runtime",
+        "lib::editor_pane_factories::tests::code_mount_pane_type_and_unbound_stays_unwired",
+        "lib::editor_pane_factories::tests::code_mount_threads_runtime_and_workspace_when_bound",
+        "lib::editor_pane_factories::tests::rich_mount_threads_context_and_drains_events",
+        "test_app_host_mount_secondary::secondary_panes_render_live_in_app_tree_and_screenshot",
+        "test_app_host_mount_secondary::canvas_resize_event_routes_to_host",
+        "test_app_host_mount_secondary::graph_depth_changed_requeries_with_new_backlink_depth",
+        "test_app_host_mount_secondary::outgoing_links_click_routes_to_nav",
+        "test_app_host_mount_secondary::relevant_memory_shows_endpoint_missing_empty_state",
+        "test_app_host_mount_secondary::code_text_node_exposes_swarm_edit_actions",
+        "test_app_host_mount_secondary::code_text_setvalue_dispatch_mutates_buffer",
+        "test_theme::no_hardcoded_color32_outside_theme_module"
+      ]
+    },
+    "MT-113": {
+      "run": [
+        "test_author_id_budget::mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query"
+      ],
+      "reuse": [
+        "lib::find_in_files::tests::mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize",
+        "lib::find_in_files::tests::mt113_measured_regression_inputs_now_compose_in_budget",
+        "lib::find_in_files::tests::mt113_every_route_that_fits_is_byte_identical_to_the_legacy_composition",
+        "lib::find_in_files::tests::mt113_bookmark_stable_id_is_byte_identical_where_it_fits_and_still_dedups",
+        "lib::find_in_files::tests::mt113_bounded_routes_stay_injective_across_both_regimes",
+        "lib::find_in_files::tests::mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity",
+        "lib::find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token",
+        "lib::find_in_files::tests::mt113_mt029_exact_reversibility_contract_is_unchanged",
+        "lib::find_in_files::tests::mt113_baseline_long_query_bookmark_remove_completion_token_is_silently_dropped",
+        "lib::find_in_files::tests::mt113_baseline_twenty_three_character_query_is_the_first_failing_input",
+        "lib::mcp::action::tests::mt113_over_budget_pending_target_is_loud_at_authoring_time",
+        "lib::mcp::action::tests::mt113_over_budget_observer_author_id_is_loud_at_authoring_time",
+        "lib::mcp::action::tests::mt113_completion_unavailable_marker_names_the_failure_at_the_proof_surface",
+        "lib::mcp::action::tests::mt113_author_budget_is_the_stricter_of_the_two_so_siblings_cannot_diverge",
+        "test_find_in_files::accesskit_result_ids_are_utf8_injective_and_exactly_reversible",
+        "lib::find_in_files::tests::result_author_id_is_injective_and_reversible"
+      ]
+    },
+    "MT-122": {
+      "run": [
+        "test_author_id_budget::mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query"
+      ],
+      "reuse": [
+        "lib::find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane",
+        "lib::find_in_files::tests::mt119_saved_search_controls_stay_inside_the_find_pane",
+        "test_find_in_files::find_in_files_screenshot",
+        "test_find_in_files::find_in_files_screenshot_long_title_narrow_pane_mt122",
+        "lib::find_in_files::tests::mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize",
+        "lib::find_in_files::tests::mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity",
+        "lib::find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token"
+      ]
+    },
+    "MT-128": {
+      "run": [
+        "test_e7_swarm_edit_proof::*"
+      ],
+      "reuse": []
+    },
+    "MT-153": {
+      "run": [
+        "test_block_collection_view::block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "test_canvas_board::canvas_board_live_surrealdb_self_seeds_mounted_round_trip"
+      ],
+      "reuse": []
+    }
+  },
+  "notes": [
+    "MT-036 PC-036-04: '(compile gate)' covered by the union native build/compile of selected targets; not a test selection",
+    "MT-036 PC-036-05: 'all targets event_emitter' resolved from 8ea13a9b junit names; lib unit tests reused, integration binaries run"
+  ]
+}

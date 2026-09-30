@@ -209,7 +209,20 @@ NATIVE_TESTS=(
   test_runtime_chat_pane test_stage_interop test_tags_panel
   test_tags_panel_argus test_theme
 )
-NATIVE_TARGET_ARGS=(--lib)
+NATIVE_LIB=1
+# Named-test round selection (Operator 2026-09-30: run only the named proof tests of the MTs the round
+# judges, CX-EXEC-014; reuse passed results under CX-VAL-002). WPV-round-selection.sh is generated per
+# candidate and committed with its WPV-round-selection.json manifest; it overrides CORE_TESTS,
+# NATIVE_TESTS, NATIVE_LIB, CORE_FILTER, NATIVE_FILTER and EXTRACTED_CRATES. Mode full requires it.
+SELECTION_FILE="$(dirname "$(readlink -f "$0")")/WPV-round-selection.sh"
+if [[ -z "$MODE" ]]; then
+  [ -f "$SELECTION_FILE" ] || { echo "[run-round] FATAL: round selection missing: $SELECTION_FILE"; exit 2; }
+  # shellcheck source=/dev/null
+  source "$SELECTION_FILE"
+  [ "${ROUND_SELECTION_SHA:-}" = "$SHA" ] || { echo "[run-round] FATAL: round selection is for ${ROUND_SELECTION_SHA:-none}, not $SHA"; exit 2; }
+  echo "[run-round] round selection: core ${#CORE_TESTS[@]} targets + lib, native ${#NATIVE_TESTS[@]} targets lib=$NATIVE_LIB"
+fi
+NATIVE_TARGET_ARGS=(); [[ "$NATIVE_LIB" = 1 ]] && NATIVE_TARGET_ARGS=(--lib)
 for t in "${NATIVE_TESTS[@]}"; do NATIVE_TARGET_ARGS+=(--test "$t"); done
 
 core_test_args=(); for t in "${CORE_TESTS[@]}"; do core_test_args+=(--test "$t"); done
@@ -222,7 +235,8 @@ if [[ "$MODE" = mt164-capture ]]; then
   EXTRACTED_CRATES=()
   CORE_JUNIT_NAME="junit-$SHA-core-mt164-capture.xml"
 fi
-EXTRACTED_CRATES=(handshake_document handshake_storage_support)
+[[ -n "$MODE" || -n "${ROUND_SELECTION_SHA:-}" ]] || EXTRACTED_CRATES=(handshake_document handshake_storage_support)
+[[ "$MODE" = core-only ]] && EXTRACTED_CRATES=(handshake_document handshake_storage_support)
 [[ "$MODE" = mt164-capture ]] && EXTRACTED_CRATES=()
 
 echo "[run-round] building core union"
@@ -283,7 +297,7 @@ fi
 #    once confirmed.
 OWNER_BIN="test_app_host_mount"
 EXCLUDE_FILTER="not (test(/backend_proof_support::failure_diagnostic_tests::/) and not binary($OWNER_BIN))"
-CORE_FILTER='not binary(handshake_core) or test(/^(api::flight_recorder::tests::document_saved_receipt_|storage::surreal::retry::tests::|storage::surreal::resource_authority_tests::|storage::surreal::schema::tests::(declarative_schema_catalog_is_complete_and_content_sensitive|mt139_current_schema_info_pin_matches_fresh_mem_catalog|mt109_loom_catalog_dependencies_are_complete_and_deterministic|mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin|mt138_full_schema_atelier_noop_matches_bounded_projection|mt109_authority_catalog_pins_are_deterministic|mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current|canvas_receipt_revision_158_upgrade_requires_exact_catalog_and_restarts_current|standalone_loom_revision_159_upgrade_requires_exact_catalog_and_restarts_current|schema_delta_upgrade_statements_re_emit_every_mt154_delta|document_grant_revision_160_upgrade_requires_exact_catalog_and_restarts_current|indexed_grant_revision_161_upgrade_preserves_data_and_restarts_current|document_grant_single_live_policy_witness_controls_record_user_visibility)$|api::loom::tests::(mt153_loom_route_family_authority_matrix|mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows)$|api::workspaces::tests::(owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit|mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default|mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows)$|api::kernel::tests::|storage::surreal::mt136_database_surface_proof_(a|b|c)::|api::debug_adapter::|api::jobs::tests::(create_job_rejects_unknown_job_kind|create_job_allows_terminal_when_authorized|create_model_run_job_launches_runtime_session_and_preserves_native_binding)$)/)'
+[[ -n "${ROUND_SELECTION_SHA:-}" ]] || CORE_FILTER='not binary(handshake_core) or test(/^(api::flight_recorder::tests::document_saved_receipt_|storage::surreal::retry::tests::|storage::surreal::resource_authority_tests::|storage::surreal::schema::tests::(declarative_schema_catalog_is_complete_and_content_sensitive|mt139_current_schema_info_pin_matches_fresh_mem_catalog|mt109_loom_catalog_dependencies_are_complete_and_deterministic|mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin|mt138_full_schema_atelier_noop_matches_bounded_projection|mt109_authority_catalog_pins_are_deterministic|mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current|canvas_receipt_revision_158_upgrade_requires_exact_catalog_and_restarts_current|standalone_loom_revision_159_upgrade_requires_exact_catalog_and_restarts_current|schema_delta_upgrade_statements_re_emit_every_mt154_delta|document_grant_revision_160_upgrade_requires_exact_catalog_and_restarts_current|indexed_grant_revision_161_upgrade_preserves_data_and_restarts_current|document_grant_single_live_policy_witness_controls_record_user_visibility)$|api::loom::tests::(mt153_loom_route_family_authority_matrix|mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows)$|api::workspaces::tests::(owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit|mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default|mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows)$|api::kernel::tests::|storage::surreal::mt136_database_surface_proof_(a|b|c)::|api::debug_adapter::|api::jobs::tests::(create_job_rejects_unknown_job_kind|create_job_allows_terminal_when_authorized|create_model_run_job_launches_runtime_session_and_preserves_native_binding)$)/)'
 if [[ "$MODE" = mt164-capture ]]; then
   CORE_FILTER='binary(=handshake_core) & test(=storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count)'
   (set -o noclobber; date -u +%Y-%m-%dT%H:%M:%SZ > "$CAPTURE_MARKER") || exit 2
@@ -346,7 +360,7 @@ set +e
 ( cd "$EXPORT/src/frontend/handshake_native" && \
   "$NEXTEST" nextest run --locked --no-fail-fast \
     --config-file "$LANE/nextest.toml" \
-    --features integration,integration_tests,wgpu_screenshots -E "$EXCLUDE_FILTER" "${NATIVE_TARGET_ARGS[@]}" )
+    --features integration,integration_tests,wgpu_screenshots -E "${NATIVE_FILTER:-$EXCLUDE_FILTER}" "${NATIVE_TARGET_ARGS[@]}" )
 NATIVE_NEXTEST_EXIT=$?
 set -e
 if [[ "$NATIVE_NEXTEST_EXIT" != 0 && "$NATIVE_NEXTEST_EXIT" != 100 ]]; then
