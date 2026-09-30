@@ -22,7 +22,7 @@
   "title": "E7-MT-128-Give-The-MT-043-Live-Child-A-Wall-Clock-Budget-That-Is-Not-1.4-Seconds-From-Reaping-Itself",
   "group": "E7-Swarm-Proof",
   "created_at_utc": "2026-08-13T06:15:00Z",
-  "updated_at_utc": "2026-09-23T23:27:08.158Z",
+  "updated_at_utc": "2026-09-30T17:05:00Z",
  "validation_shared_union_ec596eec": {"schema_id": "hsk.mt_validation_verdict@1", "decision": "inconclusive", "validated_by": "WP_VALIDATOR-SOL-MEDIUM", "validated_at_utc": "2026-09-26T23:36:50.061743Z", "candidate_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f", "proof_records_ref": "MT-032.json#validation.proof_records[PR-WP012-MT032-ec596eec-UNION-012]", "shared_round_ref": "MT-032.json#validation_v12", "contract_floor_refs": ["scope.proof_targets", "scope.acceptance_criteria", "proof", "proof_commands", "hbr_obligations"], "selection_method": "Exact named test binary; not an assertion of required25case coverage", "observed_cases": [{"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "ac07_action_namespace_guard_rejects_transient_widget_ids", "seconds": 0.085, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "ac07_no_keyboard_simulation_in_test_body", "seconds": 0.088, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "ac09_process_tree_termination_is_bounded", "seconds": 1.65, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "ac09_step_timeout_fires_on_a_stuck_condition", "seconds": 0.243, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "ac10_surfaces_importable_and_constructible", "seconds": 0.084, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "ctrl01_agent_holds_only_a_channel_handle", "seconds": 0.089, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "interconnect_support::backend_proof_support::backend_binary_guard_tests::accepts_canonical_wp_mt_owner_backend_target", "seconds": 0.09, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_binary_outside_declared_target", "seconds": 0.075, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_repo_local_target", "seconds": 0.084, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_stale_backend_binary", "seconds": 0.09, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_target_outside_artifact_root", "seconds": 0.08, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "mt043_process_agent_child", "seconds": 0.091, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "proof_log_lock_never_steals_from_a_live_slow_writer", "seconds": 0.811, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "proof_log_lock_recovers_after_a_killed_writer", "seconds": 0.656, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "proof_payload_is_single_line_and_cannot_inject_a_verdict", "seconds": 0.088, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "step4_search_result_surface_is_gated_seeded", "seconds": 0.094, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "swarm_edit_live_conflict_merge_search_and_receipts", "seconds": 49.543, "result": "failed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "swarm_edit_proof_all_steps", "seconds": 0.201, "result": "passed"}, {"classname": "handshake-native::test_e7_swarm_edit_proof", "test": "watchdog_failure_write_is_bounded_under_live_log_contention", "seconds": 0.156, "result": "passed"}], "mapped_case_count": 19, "mapped_failure_count": 1, "state_unchanged": true, "prior_verdict_preserved": null, "unmet_required_proof": ["PT-128-1 / AC-128-4 required25/0 under concurrent build load NOT_MET: this selected test binary reports19cases with1product failure; no concurrent Cargo was started under one-Cargo authority", "PT-128-2 / AC-128-3 forced-stall RED/reap cleanup proof absent from current union", "AC-128-1 recorded measured worst-case/headroom derivation applicability remains separate from current selected run", "AC-128-5 no-product-change and conditional MAN invocation-condition review not established by JUnit"], "acceptance_rule": "Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change", "verdict_events": [{"event": "accepted", "idempotency_key": "MT128-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive"}, {"event": "completed", "idempotency_key": "MT128-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive", "state_effect": "unchanged"}]},
   "validation_shared_union_7479972a": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-28T00:11:37Z","candidate_commit":"7479972ac681cd238e58d37e318beab6c8d3b423","proof_records_ref":"MT-032.json#validation.proof_records[PR-WP012-MT032-7479972a-UNION-CONTINUATION1]","shared_round_ref":"MT-032.json#validation_v13","contract_floor_refs":["scope.proof_targets","scope.acceptance_criteria","proof","proof_commands","hbr_obligations"],"selection_method":"Exact named test binary; not an assertion of required25case coverage; exact classname+name matched against completed current four JUnits","observed_cases":[{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"ac07_action_namespace_guard_rejects_transient_widget_ids","seconds":0.098,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"ac07_no_keyboard_simulation_in_test_body","seconds":0.084,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"ac09_process_tree_termination_is_bounded","seconds":1.574,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"ac09_step_timeout_fires_on_a_stuck_condition","seconds":0.24,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"ac10_surfaces_importable_and_constructible","seconds":0.09,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"ctrl01_agent_holds_only_a_channel_handle","seconds":0.083,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"interconnect_support::backend_proof_support::backend_binary_guard_tests::accepts_canonical_wp_mt_owner_backend_target","seconds":0.083,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_binary_outside_declared_target","seconds":0.078,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_repo_local_target","seconds":0.089,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_stale_backend_binary","seconds":0.09,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_target_outside_artifact_root","seconds":0.079,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"mt043_process_agent_child","seconds":0.094,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"proof_log_lock_never_steals_from_a_live_slow_writer","seconds":0.804,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"proof_log_lock_recovers_after_a_killed_writer","seconds":0.651,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"proof_payload_is_single_line_and_cannot_inject_a_verdict","seconds":0.109,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"step4_search_result_surface_is_gated_seeded","seconds":0.102,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"swarm_edit_live_conflict_merge_search_and_receipts","seconds":58.866,"result":"failed","phase":"native","message":"thread 'swarm_edit_live_conflict_merge_search_and_receipts' (195420) panicked at tests\\test_e7_swarm_edit_proof.rs:647:9"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"swarm_edit_proof_all_steps","seconds":0.203,"result":"passed","phase":"native"},{"classname":"handshake-native::test_e7_swarm_edit_proof","test":"watchdog_failure_write_is_bounded_under_live_log_contention","seconds":0.154,"result":"passed","phase":"native"}],"mapped_case_count":19,"mapped_failure_count":1,"state_unchanged":true,"prior_verdict_preserved":true,"unmet_required_proof":["PT-128-1 / AC-128-4 required25/0 under concurrent build load NOT_MET: this selected test binary reports19cases with1product failure on current747; no concurrent Cargo was started under one-Cargo authority","PT-128-2 / AC-128-3 forced-stall RED/reap cleanup proof absent from current union","AC-128-1 recorded measured worst-case/headroom derivation applicability remains separate from current selected run","AC-128-5 no-product-change and conditional MAN invocation-condition review not established by JUnit"],"acceptance_rule":"Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change","verdict_events":[{"event":"accepted","idempotency_key":"MT128-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT128-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive","state_effect":"unchanged"}],"input_provenance":{"candidate":"7479972ac681cd238e58d37e318beab6c8d3b423","source_diff_ref":"git diff --name-only ec596eecb70f2820cb357ef95d5820b890c8944f..7479972ac681cd238e58d37e318beab6c8d3b423","changed_areas":["core document/SurrealDB authority/schema","handshake_document diagnostics/operations/SurrealDB adapter","handshake_storage_support diagnostics/retry"],"native_source_changed":false,"source_effect":"Shared backend inputs can affect live native cases; exact current JUnits provide observed behavior, not static/unmapped proof."},"current_union":{"core":{"tests":239,"failures":6,"sha256":"9916BFB9B5F8797D461C58555D16A734D29EB4054E37713263B0C727E0DA4BF2"},"native":{"tests":2952,"failures":44,"sha256":"928E026731633A2C63F1ECC21E926DF5A56AFEE828B58C79EF77B990697A962F"},"handshake_document":{"tests":41,"failures":0,"sha256":"2A3F49A172AD702EE44722CA393304084FDA83DDD45DB0CD253147CE9518BD79"},"handshake_storage_support":{"tests":34,"failures":0,"sha256":"A499897A89EAA1497A2D16F31514CD319B53BDEE3160BDE51D09797A7EE82C76"},"all_junits_complete":true,"mt032_verdict_ref":"MT-032.json#validation_v13"},"record_kind":"bounded_current_union_observation","classification_reason":"Exact selected current-candidate cases failed, but this shared union does not close the MT-specific proof floor; no final failed verdict is issued. READY_FOR_VALIDATION/null lifecycle stays unchanged and failed cases remain explicit blockers.","observed_case_failure_kind":"product"},
   "authority_files": {
@@ -131,13 +131,13 @@
   },
   "validation_v3": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","verdict":null,"validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:54:37Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-128.scope.acceptance_criteria/proof_targets and own proof/ proof_commands","junit_provenance":{"native_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","core_sha256":"CD420357013FF59A89EA4440C394A8951404DD3700A75D7D066C385D118B7897","freshness":"Both export-local/copy match and after own invocation marker; full49e archive"},"exact_proof_gaps":["PT-128-2/AC-128-3 forced-stall RED and cleanup not in this ordinary union","PT-128-1/AC-128-4 concurrent build-load25/0 special proof absent; ordinary target does not replace it"],"status_effect":"READY_FOR_VALIDATION and null validator_verdict unchanged; submission retained; no infrastructure-driven transition","reuse_disposition":"No unrecorded relevant-input-path/static/special proof reuse credited","runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"One final union consumed; no additional test/build/probe to fill gaps","verdict_events":[{"event":"accepted","idempotency_key":"MT-128-49eac54e-union-inconclusive-v3","at_utc":"2026-09-26T15:54:37Z","payload_ref":"MT-128.json#validation_v3","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT-128-49eac54e-union-inconclusive-v3","at_utc":"2026-09-26T15:56:26Z","state_ref":"MT-128.json#lifecycle","decision":"inconclusive","state_observed":"READY_FOR_VALIDATION; validator_verdict null; submission retained"}]},
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V3",
     "active": false,
     "depends_on": [],
     "blocks": [
       "MT-108"
     ],
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V3",
     "claimed_by": "KERNEL_BUILDER-20260818-130753",
     "claimed_at_utc": "2026-08-18T15:40:00Z",
     "claim_note_2026_08_18": "Claimed by KERNEL_BUILDER-20260818-130753. Found on claim: the budget machinery (HSK_MT128_CHILD_BUDGET_MS lower-only override, 120s canonical budget derived from the measured 57.43s loaded child, HSK_MT128_FORCE_STALL_MS injected-stall RED path, typed MT128_BOUNDED_CHILD_REAP report with elapsed/budget/last_gate) was already implemented. The REAL remaining work was that the proof file itself still verified rows by spawning psql with PL/pgSQL DO-blocks against the deleted PostgreSQL — dead at runtime and forbidden language. Ported 2026-08-18 under this MT: sidecar now publishes the fixture backend base URL; pre-reap witness and crash-window cleanup run bounded through the product HTTP surface with embedded-store containment when the backend is reaped; the six former SQL verification sites moved to product-API proofs (document loads, /kernel/events/aggregates reads, loom backlinks projection) or containment observations (the retired shared-cluster FR-mirror sweep); the test fn was renamed swarm_edit_live_conflict_merge_search_and_receipts (PostgreSQL language purge). Embedded-store re-measurement of the child budget (pivot_impact requirement) pending the proof runs.",
@@ -157,10 +157,10 @@
       "released_by": "KERNEL_BUILDER-20260815-173127",
       "released_at_utc": "2026-08-16T05:10:00Z"
     },
-    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
-    "validated_at_utc": "2026-09-16T23:19:55.450Z",
-    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "WP_VALIDATOR",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-09-30T17:05:00Z",
+    "validated_commit": "bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_bb9548e1.remediation_required",
     "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY",
     "ready_for_validation_transition": {
       "at_utc": "2026-09-23T23:27:08.158Z",
@@ -169,7 +169,9 @@
       "prior_validator_verdict": "FAIL_V2",
       "reason": "remediation recorded after the last validation; awaiting re-validation on the next candidate",
       "prior_next_actor": "KERNEL_BUILDER"
-    }
+    },
+    "blocked_on": null,
+    "status_reason": "FAIL_V3 on bb9548e1 union round (validation_round_bb9548e1)"
   },
   "hbr_obligations": {
     "MAN": "UserManual must state the governed invocation condition for this proof - that it needs a machine not under concurrent build load - if the budget cannot be made load-independent.",
@@ -796,5 +798,71 @@
     "status": "CLASSES_FIXED_STATIC_NEW_CLASSES_OPEN",
     "note": "This MT's validated classes have round-3 fixes (see failure_classes/REPRESENTATIVE_RUNS); live representatives now fail in newly exposed classes C1V-LOOM-CONTENT-TYPES / C1V-LEGACY-ROOT-CREATE-ROUTES / C1V-BACKEND-HARNESS-AUTH, so not READY.",
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "validation_round_bb9548e1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-09-30T17:05:00Z",
+    "candidate_commit": "bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3",
+    "started_at": "2026-09-30T14:45:49.7837728Z",
+    "completed_at": "2026-09-30T16:45:55Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3-core.xml",
+      "core_junit_sha256": "24c11524c6fcf6c4ff2349fb191403dc1bff5f52c80e4634b7f99a94621b2f2a",
+      "native_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.stderr.log",
+      "native_log_sha256": "061e75b9be88221b69e55d400a0692954a153a144f8906b42a7a919af9178120",
+      "native_note": "native JUnit not written (wrapper killed at 16:45:55Z, 170/210 completed); native results are this round's nextest result lines in the hashed log (CX-VAL-001); unreached tests have no result"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-bb9548e1"
+    ],
+    "gameplan_before_verdict": "wp_validator PASS 5/5",
+    "decision": "failed",
+    "verdict": "FAIL_V3",
+    "checks_run": {
+      "test_e7_swarm_edit_proof (whole)": "29 PASS, 1 FAIL"
+    },
+    "failures": [
+      {
+        "check": "proof_commands[0]",
+        "test": "swarm_edit_live_conflict_merge_search_and_receipts",
+        "failure_kind": "product",
+        "failure_class": "SWARM_MERGED_RESAVE_RECEIPT_TIMEOUT",
+        "assertion": "tests/test_e7_swarm_edit_proof.rs:3252: loser merged resave did not return a receipt within five seconds; :647 timeout cleanup backend reachability unresolved",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.stderr.log",
+        "affected_code_refs": [
+          "tests/test_e7_swarm_edit_proof.rs:3252"
+        ],
+        "repair_direction": "Shared with MT-043; live child budget/receipt latency"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "proof_commands[0]",
+        "test": "swarm_edit_live_conflict_merge_search_and_receipts",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.stderr.log",
+        "affected_code_refs": [
+          "tests/test_e7_swarm_edit_proof.rs:3252"
+        ],
+        "repair_direction": "Shared with MT-043; live child budget/receipt latency"
+      }
+    ],
+    "note": "PT-128-1/2 special proofs remain WP-end items",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "128-bb9548e1-round",
+        "at_utc": "2026-09-30T17:05:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-128.json#validation_round_bb9548e1"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "128-bb9548e1-round",
+        "at_utc": "2026-09-30T17:05:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V3"
+      }
+    ]
   }
 }

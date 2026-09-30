@@ -14,7 +14,7 @@
   "title": "E3-MT023-TagsTagHubs",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-24T04:08:15.141Z",
+  "updated_at_utc": "2026-09-30T17:05:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-023.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1780,5 +1780,48 @@
     "implementer_checks": [],
     "gameplan": "before_submit kernel_builder PASS 2/2 at 259495f0 (GP-139 confirmed: 65a7b6fb..259495f0 touches no counter code)",
     "next_actor": "WP_VALIDATOR union round on 259495f0"
+  },
+  "validation_round_bb9548e1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-09-30T17:05:00Z",
+    "candidate_commit": "bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3",
+    "started_at": "2026-09-30T14:45:49.7837728Z",
+    "completed_at": "2026-09-30T16:45:55Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3-core.xml",
+      "core_junit_sha256": "24c11524c6fcf6c4ff2349fb191403dc1bff5f52c80e4634b7f99a94621b2f2a",
+      "native_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.stderr.log",
+      "native_log_sha256": "061e75b9be88221b69e55d400a0692954a153a144f8906b42a7a919af9178120",
+      "native_note": "native JUnit not written (wrapper killed at 16:45:55Z, 170/210 completed); native results are this round's nextest result lines in the hashed log (CX-VAL-001); unreached tests have no result"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-bb9548e1"
+    ],
+    "gameplan_before_verdict": "wp_validator PASS 5/5",
+    "decision": "inconclusive",
+    "checks_run": {
+      "loom_atomic_receipt_tests mt023_ (PC-023-05)": "PASS 2/2",
+      "test_tags_panel live (PC-023-03)": "NOT REACHED",
+      "test_tags_panel_argus mt023_ (PC-023-04)": "NOT REACHED"
+    },
+    "proof_reuse": "PC-023-01/02 non-live passed in 8ea13a9b; inputs unchanged",
+    "unclosed": "PC-023-03/04 live tests not reached (round wrapper killed at native 170/210); no failure evidence",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "023-bb9548e1-round",
+        "at_utc": "2026-09-30T17:05:00Z",
+        "decision": "inconclusive",
+        "payload_ref": "MT-023.json#validation_round_bb9548e1"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "023-bb9548e1-round",
+        "at_utc": "2026-09-30T17:05:00Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
+      }
+    ]
   }
 }

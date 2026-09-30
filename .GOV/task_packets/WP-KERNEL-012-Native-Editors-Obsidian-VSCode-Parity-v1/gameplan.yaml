@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 181
+generation: 182
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -171,3 +171,4 @@ steps:
 - {id: GP-150, role: any, at: before_round, do: 'confirm receipt timings preserve one transaction, scope, denial and replay behavior', check: {type: confirm}, source: restore GP-105 FAIL_V13; unapproved retire reverted (CX-EXEC-011), state: active}
 - {id: GP-151, role: wp_validator, at: before_round, do: confirm V15 proof targets the changed question or repair with separate evidence and original acceptance retained, check: {type: confirm}, source: restore GP-107; unapproved retire reverted (CX-EXEC-011), state: active}
 - {id: GP-152, role: orchestrator, at: before_dispatch, do: forbid stopping a validator agent while its round runs, check: {type: confirm}, source: r2 1f4e0f69 died at native 42/210 when validator agent was stopped, state: active}
+- {id: GP-153, role: wp_validator, at: before_round, do: confirm round wrapper launched detached from agent tool calls; no tool-timeout owns its process tree, check: {type: confirm}, source: 'infra: bb9548e1 round wrapper killed at 2h harness background limit; native 170/210', state: active}

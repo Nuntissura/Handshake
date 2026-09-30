@@ -2322,5 +2322,21 @@
       }
     ],
     "updated_at_utc": "2026-09-30T14:37:28Z"
+  },
+  "diagnostic_run_result_bb9548e1": {
+    "recorded_at_utc": "2026-09-30T17:06:00Z",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "kind": "diagnostic_run_result (not a verdict; MT-027 status unchanged)",
+    "candidate_commit": "bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3",
+    "proof_record_ref": "MT-153.json#validation.proof_records[PR-WP012-UNION-bb9548e1]",
+    "tests": {
+      "api::loom::tests::mt109_c3_record_user_assets_collections_and_views": "FAIL loom.rs:10687 saved view create: {\"error\":\"HSK-500-LOOM\"}",
+      "api::loom::tests::mt153_loom_route_family_authority_matrix": "FAIL loom.rs:11085 owner POST views/definitions -> 500 HSK-500-LOOM"
+    },
+    "bridge_diag_line": "KB-DIAG HSK_BLOCK_VIEW_CREATE_TRANSACTION_FAILED statement_index=6 error=An error occurred: BRIDGE-DIAG { blk_ct: 'view_def', blk_ws: true, ent_key_ok: true, ent_kind: 'loom_block', ent_ws: true, ev: true, lba: false, post: false, pre: false, ws_create: false, ws_read: false }",
+    "bridge_diag_log_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.stderr.log (lines 3473, 4519)",
+    "reading": "Owner record-user workspace grant checks (fn::mt109_has_workspace_access create/read, fn::mt120_loom_block_access) evaluate false inside the view-create transaction; bridge UPSERT writes nothing (pre/post false) while block/entity/workspace linkage is consistent",
+    "native_same_signature": "test_block_collection_view.rs:1706 POST block view 500 HSK-500-LOOM",
+    "loom_write_timings_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/loom-write-timings-bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3.json"
   }
 }
