@@ -2425,5 +2425,48 @@
     "target_r52_bytes_after": 126934782891,
     "projection": "last round growth 13.3 GB -> projected peak ~140.2 GB < 147 GB stop < 150 GB cap",
     "note": "handoff counted ~28 exports around 14:22Z; actual 31 including sibling export-e9973e8c"
-  }
+  },
+  "operator_decisions_20261001": [
+    {
+      "recorded_at_utc": "2026-10-01T00:10:00Z",
+      "recorded_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+      "relayed_by": "ORCHESTRATOR root session",
+      "decision_id": "WP012-OPERATOR-GP146-FLOOR-20261001",
+      "authorized_by": "OPERATOR",
+      "operator_quote": "change it so you can proceed",
+      "context": "bd8c7532 union round blocked by GP-146 (commit free >= 60 GB); Operator keeps other applications open",
+      "change": {
+        "retired_step": "GP-146",
+        "retired_value": "commit free >= 60 GB (source: 1f4e0f69 r1 rustc-LLVM OOM at -j 2)",
+        "new_step": "GP-154",
+        "new_value": "verify commit free >= 45 GB before launch; core union build -j 1",
+        "new_role": "wp_validator",
+        "at": "before_round",
+        "tool": "gameplan retire/add/validate (validate OK)"
+      },
+      "measurements": {
+        "commit_free_mb_samples_2026_09_30T21_57_to_21_59Z": [
+          50573,
+          54468,
+          56866,
+          55049
+        ],
+        "earlier_samples_21_33_to_21_36Z": [
+          51180,
+          51694,
+          51435,
+          52380
+        ],
+        "commit_limit_mb": 142761,
+        "top_holders_mb": {
+          "chrome(297)": 41062,
+          "facial-04f2a95376a9c6dc": 4136,
+          "ChatGPT": 2447,
+          "vmmemWSL": 2122
+        },
+        "process_commit_total_mb": 68014
+      },
+      "confounder": "Foreign facial CPU benchmark (cargo PID 236376 created 21:58:57Z; test binary facial-04f2a95376a9c6dc PID 278420; facial-cli worker 274828) runs concurrently; not touched; failures classified from their own output evidence (CX-VAL-006), never from timing correlation alone"
+    }
+  ]
 }
