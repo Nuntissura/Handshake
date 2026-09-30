@@ -240,8 +240,10 @@ fi
 [[ "$MODE" = mt164-capture ]] && EXTRACTED_CRATES=()
 
 echo "[run-round] building core union"
+# -j 1: handshake_core lib and lib-test compiled in parallel hit rustc-LLVM out of memory on 1f4e0f69
+# (2026-09-30, host shared with foreign builds); build them one at a time.
 ( cd "$EXPORT/src/backend/handshake_core" && \
-  cargo test --locked -j 2 --no-run --lib --features app-runtime,surreal-test-support,test-utils "${core_test_args[@]}" )
+  cargo test --locked -j 1 --no-run --lib --features app-runtime,surreal-test-support,test-utils "${core_test_args[@]}" )
 check_target_cap
 
 if [[ "$NATIVE_SKIP" != 1 ]]; then
