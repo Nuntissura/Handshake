@@ -1,14 +1,16 @@
 {
-  "candidate": "b4faed359c07fed260cf8f42633dcf9b1e60ff92",
+  "candidate": "bd8c753223c2714707d6c78d7550448340c85c35",
   "prior_native_proof": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
   "changed_native_test_bins": [
     "test_calendar_interop",
+    "test_event_emitter",
+    "test_interconnect_ckc_to_note",
     "test_loom_address",
     "test_memory_proposal_argus",
     "test_stage_interop"
   ],
   "native_src_changed": false,
-  "planned_native_tests_estimate": 96,
+  "planned_native_tests_estimate": 101,
   "core_lib": [
     "api::loom::tests::mt153_loom_route_family_authority_matrix",
     "api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows",
@@ -28,34 +30,11 @@
     "lib": "mt136_database_surface_proof_(a|b|c)::*"
   },
   "native_whole_binaries": [
-    "test_e7_knowledge_accesskit",
-    "test_fems_interop_proofs",
+    "test_manual_content",
+    "test_manual_pane_editors",
     "test_stage_interop"
   ],
   "per_mt": {
-    "MT-008": {
-      "run": [
-        "test_code_nav_client::ac001_lookup_symbols_returns_populated_live_symbol",
-        "test_code_nav_client::ac002_get_symbol_returns_populated_live_definition",
-        "test_code_nav_client::ac003_get_references_returns_populated_live_caller",
-        "test_completion_hover_accesskit::ac005_live_backend_completion_reaches_accesskit_and_stale_gutter",
-        "test_completion_hover_accesskit::ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc"
-      ],
-      "reuse": [
-        "test_lsp_client::lsp_client_graceful_unconfigured_is_not_running",
-        "test_lsp_client::lsp_client_graceful_all_methods_return_empty_without_server",
-        "test_lsp_client::lsp_publish_diagnostics_notification_is_routed_to_channel",
-        "test_lsp_client::lsp_publish_diagnostics_notification_reaches_panel_gutter",
-        "test_completion_hover_accesskit::ac005_completion_popup_emits_listbox_and_item_nodes",
-        "test_completion_hover_accesskit::ac005_completion_keyboard_select_and_accept_inserts",
-        "test_completion_hover_accesskit::ac005_accesskit_click_accepts_completion_and_post_action_state_is_observable",
-        "test_completion_hover_accesskit::ac006_hover_tooltip_contains_identifier",
-        "test_completion_hover_accesskit::ac006_accesskit_click_go_to_definition_moves_caret_and_closes_hover",
-        "test_completion_hover_accesskit::ac007_staleness_check_pushes_gutter_diagnostic_marker",
-        "test_lsp_client::real_language_server_end_to_end_runtime_proof",
-        "test_completion_hover_accesskit::mt008_mounted_real_lsp_canonical_argus"
-      ]
-    },
     "MT-023": {
       "run": [
         "test_tags_panel::tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip",
@@ -76,47 +55,9 @@
       ],
       "core": "loom_atomic_receipt_tests mt023_ (see CORE list)"
     },
-    "MT-026": {
-      "run": [
-        "test_canvas_board::canvas_board_live_surrealdb_self_seeds_mounted_round_trip",
-        "test_canvas_board_argus::mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve",
-        "test_canvas_board_argus::mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges",
-        "test_canvas_board_argus::mt026_mounted_canvas_canonical_argus_move_placement",
-        "test_canvas_board_argus::mt026_mounted_canvas_canonical_argus_group_placements",
-        "test_canvas_board_argus::mt026_mounted_canvas_empty_state_canonical_argus"
-      ],
-      "reuse": [
-        "lib::graph::canvas_board::tests::transform_round_trips_under_1px",
-        "lib::graph::canvas_board::tests::drop_position_is_canvas_space",
-        "lib::graph::canvas_board::tests::zoom_steps_clamp_and_round",
-        "lib::graph::canvas_board::tests::edge_event_maps_mode_to_ids",
-        "lib::graph::canvas_board::tests::empty_board_has_no_cards",
-        "test_canvas_board::canvas_accesskit_placements_and_toolbar",
-        "test_canvas_board::canvas_zoom_label_and_buttons",
-        "test_canvas_board::canvas_pan_buttons",
-        "test_canvas_board::canvas_add_card",
-        "test_canvas_board::canvas_drop_to_place_via_drag_payload",
-        "test_canvas_board::canvas_group_two",
-        "test_canvas_board::canvas_semantic_edge",
-        "test_canvas_board::canvas_visual_edge_mode",
-        "test_canvas_board::canvas_remove_placement",
-        "test_canvas_board::canvas_removal_receipt_requires_absence_and_source_block_retention",
-        "test_canvas_board::canvas_empty_no_stale_text",
-        "test_canvas_board::canvas_screenshot_has_card",
-        "test_canvas_board::client_viewport_body_is_board_state_wrapped",
-        "test_canvas_board::client_place_block_body",
-        "test_canvas_board::client_create_card_body",
-        "test_canvas_board::client_semantic_and_visual_edge_bodies"
-      ]
-    },
     "MT-036": {
       "run": [
         "test_event_emitter::event_emitter_native_editor_round_trip",
-        "test_event_emitter::event_emitter_native_editor_round_trip",
-        "test_event_emitter::event_emitter_workspace_generations_are_bounded_and_reclaimed",
-        "test_event_emitter::event_emitter_workspace_revisit_preserves_original_emitter_session_generation"
-      ],
-      "reuse": [
         "test_event_emitter::post_body_matches_verified_native_editor_schema",
         "test_event_emitter::failed_emit_lands_in_error_ring",
         "test_event_emitter::failed_post_with_runtime_lands_in_error_ring",
@@ -124,6 +65,11 @@
         "test_event_emitter::registry_dispatches_to_mock_surface",
         "test_event_emitter::flight_recorder_pane_lists_event",
         "test_event_emitter::undo_paths_emit_undo_fired_exactly_once_with_scope",
+        "test_event_emitter::event_emitter_native_editor_round_trip",
+        "test_event_emitter::event_emitter_workspace_generations_are_bounded_and_reclaimed",
+        "test_event_emitter::event_emitter_workspace_revisit_preserves_original_emitter_session_generation"
+      ],
+      "reuse": [
         "lib::event_emitter::tests::failed_post_lands_in_error_ring_no_panic",
         "lib::event_emitter::tests::emit_without_runtime_records_no_runtime_error_and_does_not_panic",
         "lib::surface_extension_seam::tests::registered_mock_surface_receives_selection_and_event_callbacks",
@@ -147,33 +93,32 @@
         "lib::event_emitter::tests::transport_retries_reuse_producer_event_identity"
       ]
     },
-    "MT-042": {
+    "MT-046": {
       "run": [
-        "test_e7_knowledge_accesskit::*"
-      ],
-      "reuse": []
-    },
-    "MT-064": {
-      "run": [
-        "test_memory_proposal_argus::mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve",
-        "test_fems_interop_proofs::proof_fems_02_propose_creates_proposal_and_event",
-        "test_fems_interop_proofs::proof_fems_duplicate_submission_replays_one_proposal_and_one_event"
+        "test_interconnect_ckc_to_note::interconnect_ic01_ckc_image_into_note",
+        "test_interconnect_ckc_to_note::interconnect_ic02_ckc_video_into_note",
+        "test_interconnect_ckc_to_note::interconnect_ic03_ckc_moodboard_on_canvas",
+        "test_interconnect_ckc_to_note::interconnect_ic04_ckc_character_wikilink_backlink",
+        "test_interconnect_ckc_to_note::interconnect_ic05_route_selection_to_stage",
+        "test_interconnect_note_code_crossref::interconnect_ic06_open_code_block_from_note",
+        "test_interconnect_note_code_crossref::interconnect_ic07_reference_code_symbol_from_note",
+        "test_interconnect_note_code_crossref::interconnect_ic08_shared_find_replace",
+        "test_interconnect_note_code_crossref::interconnect_ic09_diagnostic_note_reference",
+        "test_interconnect_loom_backlink_search::interconnect_ic10_backlink_cross_surface",
+        "test_interconnect_loom_backlink_search::interconnect_ic11_search_v2_across_surfaces",
+        "test_interconnect_loom_backlink_search::interconnect_ic12_graph_cross_surface_edges",
+        "test_interconnect_loom_backlink_search::interconnect_ic13_ai_link_suggestion",
+        "test_interconnect_loom_backlink_search::interconnect_ic14_quick_switcher_both_editors",
+        "test_interconnect_shared_undo_ledger::interconnect_ic15_undo_rich_editor",
+        "test_interconnect_shared_undo_ledger::interconnect_ic16_undo_code_editor",
+        "test_interconnect_shared_undo_ledger::interconnect_ic17_event_ledger_records",
+        "test_interconnect_shared_undo_ledger::interconnect_ic18_undo_scope_policy",
+        "test_interconnect_ckc_to_note::ic01_ic02_ic04_ckc_embed_atom_shape_round_trips"
       ],
       "reuse": [
-        "test_memory_proposal::* (8ea13a9b all pass)",
-        "lib::fems::memory_proposal::tests::build_proposal_sets_class_and_full_provenance_from_text_range",
-        "lib::fems::memory_proposal::tests::content_hash_reuses_loom_primitive_and_matches_block_hash",
-        "lib::fems::memory_proposal::tests::review_gated_is_always_true_hard_true_for_procedural",
-        "lib::fems::memory_proposal::tests::propose_command_descriptor_is_palette_driven",
-        "lib::fems::memory_proposal::tests::shared_bus_command_captures_workspace_versioned_selection",
-        "lib::fems::memory_proposal::tests::submit_body_shape_is_review_gated_proposal"
+        "test_interconnect_loom_backlink_search::ic12_graph_renders_two_nodes_without_panic",
+        "test_interconnect_loom_backlink_search::typed_no_model_skip_classifier_is_fail_closed"
       ]
-    },
-    "MT-065": {
-      "run": [
-        "test_fems_interop_proofs::*"
-      ],
-      "reuse": []
     },
     "MT-066": {
       "run": [
@@ -217,7 +162,9 @@
     },
     "MT-113": {
       "run": [
-        "test_author_id_budget::mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query"
+        "test_author_id_budget::mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+        "test_manual_content::*",
+        "test_manual_pane_editors::*"
       ],
       "reuse": [
         "lib::find_in_files::tests::mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize",
@@ -240,7 +187,9 @@
     },
     "MT-122": {
       "run": [
-        "test_author_id_budget::mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query"
+        "test_author_id_budget::mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+        "test_manual_content::*",
+        "test_manual_pane_editors::*"
       ],
       "reuse": [
         "lib::find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane",
