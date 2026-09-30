@@ -2247,5 +2247,183 @@
       "untouched": "22 unproven handshake-local-accounts names, Adobe, Xbox and all other targets",
       "conclusion": "Leftover fixture credentials exhausted the Credential Manager (CredWriteW error 8); removing the 78 proven targets restored writes (GP-131)"
     }
+  },
+  "export_cleanup_20260930": {
+    "recorded_utc": "2026-09-30T21:45:00Z",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "operator_quote": "Delete old source exports",
+    "operator_quote_fallback": "if deleting does not work move to bin",
+    "option_text": "Remove about 20 superseded export-* folders (about 0.3 GB each, roughly 7 GB). These are source snapshots of old candidate commits, not reusable build output.",
+    "relayed_by": "ORCHESTRATOR root session",
+    "scope": "all export-* directories under C:/.target/WP-KERNEL-012/MT-109/wpv-c3x (30 inside target-r52 + sibling export-e9973e8c); none for candidate bd8c7532 existed; export-*.sha marker files left in place",
+    "retention_check": "No live record retains an export: MT-164 export-179ffc1f/export-de04b8f0 retention was for its completed acceptance union (MT-164 PASS_V3); MT-032 export-49eac54e mention is a historic launch precondition",
+    "safety_checks": "each path inside C:/.target/WP-KERNEL-012/, no .git entry, 0 reparse points, 0 processes referencing an export or building",
+    "count_removed": 31,
+    "bytes_removed_total": 8676218129,
+    "bytes_removed_inside_target_r52": 8395857664,
+    "method": "deleted by explicit path (shutil.rmtree, long-path prefix); recycle fallback not needed",
+    "recycle_fallback_used": 0,
+    "per_directory": [
+      {
+        "dir": "export-e9973e8c",
+        "bytes": 280360465,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-0f297d4a",
+        "bytes": 279287797,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-14bd4349",
+        "bytes": 281128240,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-179ffc1f",
+        "bytes": 279383521,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-1c5214bc",
+        "bytes": 280358896,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-1cdfde38",
+        "bytes": 280229632,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-1f4e0f69",
+        "bytes": 279509837,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-1f5b3d70",
+        "bytes": 279345677,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-2bf51103",
+        "bytes": 280655920,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-3596f28d",
+        "bytes": 280116177,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-37ee7c5b",
+        "bytes": 279969822,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-3b22f415",
+        "bytes": 280273062,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-49eac54e",
+        "bytes": 280593205,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-4d4f7e12",
+        "bytes": 279387517,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-4e7b14ba",
+        "bytes": 279337811,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-4ffda19b",
+        "bytes": 279247844,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-584858e6",
+        "bytes": 280129526,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-6391a29f",
+        "bytes": 279912184,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-699477d5",
+        "bytes": 279323079,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-7479972a",
+        "bytes": 280815446,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-8ea13a9b",
+        "bytes": 280842805,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-a78a43ac",
+        "bytes": 279282981,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-a7ae3657",
+        "bytes": 279316923,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-b4faed35",
+        "bytes": 279589283,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-bb9548e1",
+        "bytes": 279515132,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-d9277d04",
+        "bytes": 279186527,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-de04b8f0",
+        "bytes": 279774645,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-e012e80d",
+        "bytes": 279414406,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-ec596eec",
+        "bytes": 280745699,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-ee9efaba",
+        "bytes": 279853275,
+        "result": "deleted gone"
+      },
+      {
+        "dir": "export-f8fc6e2b",
+        "bytes": 279330795,
+        "result": "deleted gone"
+      }
+    ],
+    "per_directory_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/export-cleanup-20260930.jsonl",
+    "target_r52_bytes_before": 135330640555,
+    "target_r52_bytes_after": 126934782891,
+    "projection": "last round growth 13.3 GB -> projected peak ~140.2 GB < 147 GB stop < 150 GB cap",
+    "note": "handoff counted ~28 exports around 14:22Z; actual 31 including sibling export-e9973e8c"
   }
 }
