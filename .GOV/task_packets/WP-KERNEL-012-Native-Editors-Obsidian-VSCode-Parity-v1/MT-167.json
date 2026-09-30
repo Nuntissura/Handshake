@@ -1,0 +1,420 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-167",
+  "created_at_utc": "2026-09-30T21:30:00Z",
+  "updated_at_utc": "2026-09-30T21:30:00Z",
+  "identity": {
+    "mt_id": "MT-167",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "E1-MT-167-Code-Nav-Index-Cost-Within-Spec-Baseline",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "The code-nav index route indexes small roots within the Master Spec §2.3.14.17.3 index-propagation baseline (<5 s target, 30 s max) by removing the evidenced cause of the 0 ms batch Ok(None) -> 24 s per-file fallback, proven by a median-of-N timing test, with indexing semantics unchanged.",
+    "requirement_refs": [
+      "packet.json#operator_decisions_20260930[WP012-OPERATOR-DECISIONS-20260930-C] item 2",
+      "MT-008.json#operator_decision_request_20260930_code_nav_batch_fallback",
+      "MT-064.json#operator_decision_request_20260930_index_cost",
+      "MT-065.json#operator_decision_request_20260930_index_cost",
+      "MT-065.json#authority_check_20260930_seed_timeout"
+    ],
+    "acceptance_refs": [
+      "AC-167-1",
+      "AC-167-2",
+      "AC-167-3",
+      "AC-167-4",
+      "AC-167-5"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-167-1",
+        "requirement": "Before any product edit, the builder records in implementation_record.owning_module_evidence which guard makes persist_code_index_batch return Ok(None) (0 ms) for the MT-008 fixture file and the FEMS seed files: an exact return site in src/backend/handshake_core/src/knowledge_code_index/engine.rs try_index_prepared_batch (:899-933 and following) or in src/backend/handshake_core/src/api/code_nav_index.rs (:476-503 fallback), with file:line and the input that triggers it. owning_module is bound to exactly that module from this evidence (CX-UNIT-001); the other path is not edited."
+      },
+      {
+        "id": "AC-167-2",
+        "requirement": "The code-nav index route (POST /workspaces/{workspace_id}/code-nav/index) indexes the MT-008 fixture root and the FEMS seed root without the per-file read_and_index fallback for eligible code files, or, where the fallback is semantically required, with fallback cost bounded so the route meets AC-167-3. Indexed symbols, doc passages, edges, receipts, stale marking and failure semantics are unchanged (existing code-nav / knowledge-code-index tests stay green)."
+      },
+      {
+        "id": "AC-167-3",
+        "requirement": "Median-of-N timing proof against Master Spec 02-system-architecture.md:4470-4478 §2.3.14.17.3 (Index update propagation target <5 s, maximum 30 s): a focused core test times the full code-nav index request as the record user on the Handshake-managed embedded SurrealDB harness for the MT-008 fixture root and the FEMS two-file seed root, N=5 timed samples after 1 warm-up each, asserts every median < 5 s (target) and every sample < 30 s (maximum), asserts each timed run indexed the expected files/symbols (no vacuous timing), prints the measured values, and removes everything it creates outside the artifact root (CX-GIT-003)."
+      },
+      {
+        "id": "AC-167-4",
+        "requirement": "Downstream re-proof: MT-008 PC-008-05 (ac005/ac006 live), MT-064 PC-064-04 and MT-065 PC-065-01 (FEMS 01-04) no longer fail at the seed code-nav index request; this MT does not change their assertions or timeouts."
+      },
+      {
+        "id": "AC-167-5",
+        "requirement": "Authority and privacy are unchanged: record-user execution context, grant checks, EventLedger receipts and Flight Recorder events for indexing are identical; no root/privileged path, no SQLite/PostgreSQL path (CX-503R)."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Performance repair on the embedded-SurrealDB code index writer; must preserve indexing, receipt and authority semantics; owning module bound only from evidence.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "max_fix_rounds_per_mt": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [
+      "MT-008.json#diagnosis_20260930_b4faed35",
+      "MT-064.json#diagnosis_20260930_b4faed35",
+      "MT-065.json#diagnosis_20260930_b4faed35"
+    ],
+    "no_counter_reset": true
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "foreground_or_interactive_tools_forbidden": true,
+    "owning_module": "UNBOUND until AC-167-1 evidence is recorded; candidates: handshake_core knowledge_code_index (src/backend/handshake_core/src/knowledge_code_index/engine.rs try_index_prepared_batch) OR handshake_core api::code_nav_index (src/backend/handshake_core/src/api/code_nav_index.rs). Exactly one is bound (CX-UNIT-001); do not pre-bind both.",
+    "depends_on": [],
+    "first_step": "Record which guard returns Ok(None) (engine.rs:899-933 and following vs code_nav_index.rs:476-503) for the MT-008 fixture and FEMS seed inputs, by code reading plus, if needed, one recorded diagnostic run named in a remediation (CX-EXEC-014); bind owning_module; only then edit.",
+    "allowed_write_paths": [
+      "the ONE owning module bound by AC-167-1 evidence (knowledge_code_index/engine.rs OR api/code_nav_index.rs) - recorded in implementation_record before editing",
+      "one new focused core timing test file under src/backend/handshake_core/tests/ (AC-167-3), registered in src/backend/handshake_core/Cargo.toml [[test]] if required"
+    ],
+    "forbidden_write_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/frontend/**",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "src/backend/handshake_core/src/storage/surreal/event_ledger.rs (MT-153)",
+      "src/backend/handshake_core/src/knowledge_ingestion/engine.rs (MT-154)",
+      "any SQLite/PostgreSQL path (CX-503R)"
+    ],
+    "stop_conditions": [
+      "The Ok(None) cause lies outside both candidate modules (e.g. ingestion engine, schema, ledger): record file:line and operator_decision_request; do not edit.",
+      "Removing the fallback would change indexing semantics (relationships, passages, test-mapping, config, failure capture): record operator_decision_request.",
+      "Meeting the <5 s median needs schema/permission changes: stop and record the blocker (schema owners MT-153/154).",
+      "Builder runs compile/static checks only (CX-EXEC-014); the timing test is executed by the WP validator."
+    ],
+    "product_worktree": "wtc-native-editors-v1 (branch feat/WP-KERNEL-012)",
+    "artifact_owner_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/ (CX-984-002; build disk as named in dispatch, KB-OUT-008)",
+    "execution_authorized": true,
+    "execution_authorization_scope": "Operator decision WP012-OPERATOR-DECISIONS-20260930-C item 2 (approved recommendations): new narrow MT for the code-nav index cost; contract authored 2026-09-30; product edits only after AC-167-1 binds the owning module."
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "MT-167-OWNING-MODULE-EVIDENCE",
+        "executor_role": "KERNEL_BUILDER",
+        "claim_refs": [
+          "AC-167-1"
+        ],
+        "command_or_method": "code reading of engine.rs try_index_prepared_batch guards and code_nav_index.rs batch/fallback against the MT-008 fixture and FEMS seed inputs; recorded in implementation_record.owning_module_evidence with file:line",
+        "expected": "exactly one return site identified; owning_module bound",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "implementation_record.owning_module_evidence"
+        ]
+      },
+      {
+        "check_id": "MT-167-BUILDER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "claim_refs": [
+          "AC-167-2",
+          "AC-167-5"
+        ],
+        "command_or_method": "cd src/backend/handshake_core && CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-167/kb/target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only cargo check --locked --tests --features app-runtime,surreal-test-support,test-utils",
+        "expected": "exit 0; input digest unchanged",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "validation.proof_records"
+        ]
+      },
+      {
+        "check_id": "MT-167-VALIDATOR-TIMING",
+        "executor_role": "WP_VALIDATOR",
+        "claim_refs": [
+          "AC-167-3",
+          "AC-167-2",
+          "AC-167-5"
+        ],
+        "command_or_method": "union round: the new focused core timing test (median of N=5 after 1 warm-up, MT-008 fixture root + FEMS seed root) plus existing code-nav / knowledge-code-index tests",
+        "expected": "medians < 5 s, every sample < 30 s, non-vacuous counts; existing tests green",
+        "timeout_seconds": 1200,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "junit",
+          "printed medians"
+        ]
+      },
+      {
+        "check_id": "MT-167-DOWNSTREAM",
+        "executor_role": "WP_VALIDATOR",
+        "claim_refs": [
+          "AC-167-4"
+        ],
+        "command_or_method": "MT-008 PC-008-05, MT-064 PC-064-04, MT-065 PC-065-01 in the same union round",
+        "expected": "no failure at the seed code-nav index request",
+        "timeout_seconds": 1200,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "junit"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-167.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-167.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json",
+    "precedent": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-164.json (packet.json#mt032_execution_split_20260929.mt164_addition_20260929)"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-167.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "AC-167-1 owning-module evidence not yet recorded (contract authored; no implementation started)",
+    "depends_on": [],
+    "blocks": [
+      "MT-008",
+      "MT-064",
+      "MT-065"
+    ],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "next_actor": "KERNEL_BUILDER (AC-167-1 evidence, then bind owning_module)",
+    "rounds_without_output": 0,
+    "diagnosis_refs": []
+  },
+  "scope": {
+    "summary": "Bring the code-nav index route within Master Spec §2.3.14.17.3 (index update propagation <5 s target, 30 s max) by fixing the evidenced cause of persist_code_index_batch returning Ok(None) in 0 ms and falling back to the ~24 s per-file writer; prove with a median-of-N timing test.",
+    "allowed_paths": [
+      "the ONE owning module bound by AC-167-1 evidence (knowledge_code_index/engine.rs OR api/code_nav_index.rs) - recorded in implementation_record before editing",
+      "one new focused core timing test file under src/backend/handshake_core/tests/ (AC-167-3), registered in src/backend/handshake_core/Cargo.toml [[test]] if required"
+    ],
+    "forbidden_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/frontend/**",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "src/backend/handshake_core/src/storage/surreal/event_ledger.rs (MT-153)",
+      "src/backend/handshake_core/src/knowledge_ingestion/engine.rs (MT-154)",
+      "any SQLite/PostgreSQL path (CX-503R)"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-167-1",
+        "requirement": "Before any product edit, the builder records in implementation_record.owning_module_evidence which guard makes persist_code_index_batch return Ok(None) (0 ms) for the MT-008 fixture file and the FEMS seed files: an exact return site in src/backend/handshake_core/src/knowledge_code_index/engine.rs try_index_prepared_batch (:899-933 and following) or in src/backend/handshake_core/src/api/code_nav_index.rs (:476-503 fallback), with file:line and the input that triggers it. owning_module is bound to exactly that module from this evidence (CX-UNIT-001); the other path is not edited."
+      },
+      {
+        "id": "AC-167-2",
+        "requirement": "The code-nav index route (POST /workspaces/{workspace_id}/code-nav/index) indexes the MT-008 fixture root and the FEMS seed root without the per-file read_and_index fallback for eligible code files, or, where the fallback is semantically required, with fallback cost bounded so the route meets AC-167-3. Indexed symbols, doc passages, edges, receipts, stale marking and failure semantics are unchanged (existing code-nav / knowledge-code-index tests stay green)."
+      },
+      {
+        "id": "AC-167-3",
+        "requirement": "Median-of-N timing proof against Master Spec 02-system-architecture.md:4470-4478 §2.3.14.17.3 (Index update propagation target <5 s, maximum 30 s): a focused core test times the full code-nav index request as the record user on the Handshake-managed embedded SurrealDB harness for the MT-008 fixture root and the FEMS two-file seed root, N=5 timed samples after 1 warm-up each, asserts every median < 5 s (target) and every sample < 30 s (maximum), asserts each timed run indexed the expected files/symbols (no vacuous timing), prints the measured values, and removes everything it creates outside the artifact root (CX-GIT-003)."
+      },
+      {
+        "id": "AC-167-4",
+        "requirement": "Downstream re-proof: MT-008 PC-008-05 (ac005/ac006 live), MT-064 PC-064-04 and MT-065 PC-065-01 (FEMS 01-04) no longer fail at the seed code-nav index request; this MT does not change their assertions or timeouts."
+      },
+      {
+        "id": "AC-167-5",
+        "requirement": "Authority and privacy are unchanged: record-user execution context, grant checks, EventLedger receipts and Flight Recorder events for indexing are identical; no root/privileged path, no SQLite/PostgreSQL path (CX-503R)."
+      }
+    ],
+    "proof_targets": [
+      "MT-167-OWNING-MODULE-EVIDENCE",
+      "MT-167-BUILDER-COMPILE",
+      "MT-167-VALIDATOR-TIMING",
+      "MT-167-DOWNSTREAM"
+    ],
+    "evidence_refs": [
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-56fbaa1154750223/3fbd4e2e-d9d0-4b40-b554-d8f423d98258/backend.stdout.log:37-40 (persist_code_index_batch 0 ms; finish_index_run 24 s later; total 30.1 s)",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-65bcbd5131bf5c0b/7568aacc-8f22-454f-8def-60d72bb1a949/backend.stdout.log (FEMS seed: ingestion 5 s; code batch still running at delete)"
+    ],
+    "operator_decision_request": null
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend indexing performance; no operator surface change. Visible effect is proven downstream by MT-008/064/065 live proofs."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": "No control or documented behavior changes; indexing results are identical (AC-167-2)."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "knowledge code index rows",
+      "kernel_event_ledger receipts for index runs"
+    ],
+    "identity_and_scope_contexts": [
+      "authenticated record-user session of the indexing workspace"
+    ],
+    "enforcement_boundaries": [
+      "existing record-user PERMISSIONS; no root path (AC-167-5)"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [
+      "existing code-nav authority tests stay green"
+    ],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [
+      "stable_resource_owner_scope_linkage",
+      "default_deny_negative_test",
+      "same_project_cross_account_isolation_test_when_applicable",
+      "derived_resource_scope_non_widening_test_when_applicable",
+      "actor_owner_access_space_attribution",
+      "revocation_or_context_switch_test_when_applicable",
+      "remote_delegation_sync_scope_test_when_applicable",
+      "argus_or_typed_privacy_state_inspection_when_operator_visible"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER_EVENTLEDGER",
+      "status": "UNCHANGED",
+      "reason": "Index-run receipts keep their current EventLedger shape; spec §2.3.14.4.6 FR latency logging is not widened by this MT."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "UNCHANGED",
+      "reason": "Existing code_nav_index stage timing logs remain the diagnostic surface."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE_WITH_REASON",
+      "reason": "No native process surface."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "status_update_requirements": [
+      "Record AC-167-1 evidence and bind owning_module before editing.",
+      "On pushed commit: record SHA and proof_records, gameplan before_submit, READY_FOR_VALIDATION.",
+      "On PASS: clear MT-008/064/065 lifecycle.blocked_on."
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Binding the wrong module (both candidate paths edited, or a fix in the route while the cause is an engine guard).",
+      "Forcing the batch path for files it does not support drops relationships, passages, test-mapping or failure capture.",
+      "Timing test is vacuous (indexes zero files) or flaky under union-round load.",
+      "Fix meets the median only by skipping work (e.g. no symbols), not by removing cost.",
+      "Change touches schema/ledger/ingestion files owned by MT-153/154."
+    ],
+    "minimum_controls": [
+      "AC-167-1 evidence recorded and one owning_module bound before any edit; the other path is forbidden.",
+      "AC-167-2: existing code-nav / knowledge-code-index tests stay green; symbol/passage/edge counts asserted equal before/after on the fixture.",
+      "AC-167-3: timing test asserts non-zero indexed files/symbols per run; median of 5 after warm-up.",
+      "forbidden_write_paths enforced; stop conditions route out-of-module causes to operator_decision_request."
+    ]
+  },
+  "title": "E1-MT-167-Code-Nav-Index-Cost-Within-Spec-Baseline",
+  "group": "E1",
+  "spec_basis": {
+    "spec_version": "v02.206",
+    "anchor": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:4470-4478",
+    "section": "§2.3.14.17.3 Performance Baselines (under §2.3.14 AI-Ready Data Architecture, :2825; AST-aware code chunking in scope, :3060-3066)",
+    "quote": "##### 2.3.14.17.3 Performance Baselines | Operation | Target | Maximum | ... | Index update propagation | <5s | 30s |",
+    "related": [
+      "02-system-architecture.md:3071-3081 §2.3.14.4.6 (SHOULD <5 s for local operations; FR MUST log index update latency)",
+      "02-system-architecture.md:4458 §2.3.14.17.2 SHOULD 4 'Update indexes within 5 seconds'"
+    ]
+  },
+  "hbr_swarm_allocation": "Faster indexing serves parallel agents seeding code-nav; no new swarm surface; no waiver.",
+  "operator_decision": {
+    "decision_id": "WP012-OPERATOR-DECISIONS-20260930-C",
+    "ref": "packet.json#operator_decisions_20260930[WP012-OPERATOR-DECISIONS-20260930-C]",
+    "effect": "Narrow MT for code-nav index cost approved; MT-008/064/065 blocked_on MT-167."
+  },
+  "validation": {
+    "proof_records": []
+  },
+  "implementation_record": {
+    "owning_module_evidence": null,
+    "status": "not_started"
+  },
+  "authored_by": "KERNEL_BUILDER-LANE-B-20260930",
+  "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-164 precedent shape"
+}

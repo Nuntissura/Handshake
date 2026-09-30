@@ -532,7 +532,8 @@
           "MT-051",
           "MT-052",
           "MT-053",
-          "MT-054"
+          "MT-054",
+          "MT-167"
         ],
         "summary": "Text buffer (ropey) + tree-sitter highlighting; large-file virtualization; multi-cursor/column-select; find/replace + replace-in-file; code folding; minimap/outline + go-to-line; gutter (diagnostics/breakpoints); LSP client (completion/hover/def/refs/diagnostics); diff/merge editor; Monaco-parity keymap. EXPANSION: signature help, rename symbol (WorkspaceEdit), code actions/quick-fix lightbulb, format document/selection, line-edit transforms, diagnostic nav + jump history, in-file symbol jump + sticky scroll, bracket/indent/word-wrap chrome."
       },
@@ -860,7 +861,8 @@
       "MT-161",
       "MT-162",
       "MT-163",
-      "MT-164"
+      "MT-164",
+      "MT-167"
     ],
     "active_id": null,
     "next_id": "MT-164",
@@ -1028,7 +1030,8 @@
       "MT-161": "BLOCKED",
       "MT-162": "BLOCKED",
       "MT-163": "BLOCKED",
-      "MT-164": "BLOCKED"
+      "MT-164": "BLOCKED",
+      "MT-167": "BLOCKED"
     },
     "kernel_builder_sequence_note": "KERNEL_BUILDER re-sequence 2026-06-24: the E8 proof capstones MT-044 (parity suite, depends_on 001-043+047-062), MT-045 (perf proof), MT-046 (interconnection proof) are DEFERRED to the END of the WP - they prove the whole editor set + most of their proofs require live WP-scoped embedded SurrealDB/EventLedger (NEEDS_MANAGED_RESOURCE_PROOF). Build the remaining FEATURE MTs first in numeric order: E1-deepening 047-054, E2-deepening 055-059, E3-deepening 060-062, E9 063-065, E10 066-068+074, E11 host-mount 069-071 (the convergence point that mounts the editors live + clears the carry-forwards), E12 072-073, E13 i18n 075-078. THEN run the 044-046 capstones last for a truthful comprehensive parity manifest.",
     "wp_status": "IN_PROGRESS_OPEN_REPAIR",
@@ -1084,14 +1087,28 @@
     "execution_split_ref": "MT-032.json#execution_split_20260929",
     "next_action": "MT-164 builder implementation (claimed KERNEL_BUILDER, compile/static only); WP validator then runs the union round with MT-164's timing test; MT-161/162/163 BLOCKED on MT-164; MT-160 narrowed to component proof.",
     "next_id_before_mt164_20260929": "MT-160",
-    "next_action_before_mt164_20260929": "Review MT-160 existing evidence within split contracts; no runtime dispatch authorized by the split. MT-162/163 retain scoped MT-154 document blocker."
+    "next_action_before_mt164_20260929": "Review MT-160 existing evidence within split contracts; no runtime dispatch authorized by the split. MT-162/163 retain scoped MT-154 document blocker.",
+    "mt167_addition_20260930": {
+      "decision_id": "WP012-OPERATOR-DECISIONS-20260930-C",
+      "decision_ref": "packet.json#operator_decisions_20260930[WP012-OPERATOR-DECISIONS-20260930-C] item 2",
+      "contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-167.json",
+      "authored_by": "KERNEL_BUILDER-LANE-B-20260930",
+      "authored_at_utc": "2026-09-30T21:30:00Z",
+      "summary": "Narrow MT for the code-nav index cost (0 ms batch Ok(None) -> ~24 s per-file fallback) against Master Spec §2.3.14.17.3; owning module bound from AC-167-1 evidence before any product edit.",
+      "blocks": [
+        "MT-008",
+        "MT-064",
+        "MT-065"
+      ],
+      "numbering_note": "MT-167 = next free id by contract-file census (MT-165, MT-166 exist); mt_plan.next_id/declared_ids were stale at MT-164 and are not otherwise rewritten here."
+    }
   },
   "microtasks": {
     "contract_glob": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-*.json",
     "authoring_status": "AUTHORED",
     "authored_at_utc": "2026-06-21T00:00:00Z",
-    "authored_count": 163,
-    "authored_via": "46 base via workflow wf_3d7b88d0-301 (2026-06-19); +28 expansion MT-047..MT-074 via workflow wf_01ae2073-72e (2026-06-21); +4 i18n MT-075..MT-078 (E13) authored directly by KERNEL_BUILDER 2026-06-22 (operator-ordered scope expansion, based on the existing MT template). All reviewed by KERNEL_BUILDER. ; +47 MT-079..MT-127 authored across the V2/V3/V4 remediation waves; +1 MT-128 authored 2026-08-13 by KERNEL_BUILDER-20260812-113007 (MT-043 live-child wall-clock budget, isolated while re-proving AC-120-3). Count corrected from 81 to 128 by direct file census of the contract glob, which is the authority - the stale number was never load-bearing because discovery is glob-based, but a wrong count invites a wrong completeness claim. ; +5 MT-129..MT-133 authored 2026-08-13 from root-caused MT-108 sweep failures and the MT-117 contract conflict. ; +2 MT-140..MT-141 authored 2026-08-18 by KERNEL_BUILDER-20260818-130753 under the Operator SurrealDB-only directive: MT-140 owns the frontend test-suite PostgreSQL-language purge and the broken run_fixture_sql call sites the fixture conversion left behind; MT-141 owns the backend test-suite port off sqlx (~190 files), which MT-137's notes had flagged as needing its own microtask. Count 141 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 by an Operator-requested governance subagent for SurrealDB-only parallel swarm concurrency/load hardening, bounded retry with jitter, coarse-lock replacement, lifecycle stress, structured metrics and two-lens adversarial validation. Count 142 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 (Operator-requested SurrealDB swarm concurrency/load MT). Count 142 by direct file census of the contract glob on 2026-09-02; MT-136-candidate-boundary.json is a non-contract sidecar and is excluded. ; +5 MT-153..MT-157 operator scope expansion 2026-09-23 (authority migration + security residuals): MT-153 Loom routes account-session authority (IN_PROGRESS, KERNEL_BUILDER-C3), MT-154 non-Loom routes account-session authority + residuals (create-note drain, root-written receipts, revision-158/159 predecessor checksums, workspace-delete residue), MT-155 authenticate /kernel/product_screenshot_capture/execute, MT-156 debug bundle export/download authority, MT-157 durable debugger breakpoints under account session. Authored by an Orchestrator governance subagent on Operator direction. authored_count incremented by 5 as instructed; note the direct file census of the contract glob is 157 MT-*.json contracts (MT-001..MT-157; MT-136-candidate-boundary.json excluded), so the pre-existing count (144) was already stale by 8. ; +4 MT-160..MT-163 authored 2026-09-29 on Operator-approved preservation-first MT-032 split. Exact numeric MT contract census159 before/163 after; correct stale149, exclude MT-136-candidate-boundary.json."
+    "authored_count": 164,
+    "authored_via": "46 base via workflow wf_3d7b88d0-301 (2026-06-19); +28 expansion MT-047..MT-074 via workflow wf_01ae2073-72e (2026-06-21); +4 i18n MT-075..MT-078 (E13) authored directly by KERNEL_BUILDER 2026-06-22 (operator-ordered scope expansion, based on the existing MT template). All reviewed by KERNEL_BUILDER. ; +47 MT-079..MT-127 authored across the V2/V3/V4 remediation waves; +1 MT-128 authored 2026-08-13 by KERNEL_BUILDER-20260812-113007 (MT-043 live-child wall-clock budget, isolated while re-proving AC-120-3). Count corrected from 81 to 128 by direct file census of the contract glob, which is the authority - the stale number was never load-bearing because discovery is glob-based, but a wrong count invites a wrong completeness claim. ; +5 MT-129..MT-133 authored 2026-08-13 from root-caused MT-108 sweep failures and the MT-117 contract conflict. ; +2 MT-140..MT-141 authored 2026-08-18 by KERNEL_BUILDER-20260818-130753 under the Operator SurrealDB-only directive: MT-140 owns the frontend test-suite PostgreSQL-language purge and the broken run_fixture_sql call sites the fixture conversion left behind; MT-141 owns the backend test-suite port off sqlx (~190 files), which MT-137's notes had flagged as needing its own microtask. Count 141 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 by an Operator-requested governance subagent for SurrealDB-only parallel swarm concurrency/load hardening, bounded retry with jitter, coarse-lock replacement, lifecycle stress, structured metrics and two-lens adversarial validation. Count 142 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 (Operator-requested SurrealDB swarm concurrency/load MT). Count 142 by direct file census of the contract glob on 2026-09-02; MT-136-candidate-boundary.json is a non-contract sidecar and is excluded. ; +5 MT-153..MT-157 operator scope expansion 2026-09-23 (authority migration + security residuals): MT-153 Loom routes account-session authority (IN_PROGRESS, KERNEL_BUILDER-C3), MT-154 non-Loom routes account-session authority + residuals (create-note drain, root-written receipts, revision-158/159 predecessor checksums, workspace-delete residue), MT-155 authenticate /kernel/product_screenshot_capture/execute, MT-156 debug bundle export/download authority, MT-157 durable debugger breakpoints under account session. Authored by an Orchestrator governance subagent on Operator direction. authored_count incremented by 5 as instructed; note the direct file census of the contract glob is 157 MT-*.json contracts (MT-001..MT-157; MT-136-candidate-boundary.json excluded), so the pre-existing count (144) was already stale by 8. ; +4 MT-160..MT-163 authored 2026-09-29 on Operator-approved preservation-first MT-032 split. Exact numeric MT contract census159 before/163 after; correct stale149, exclude MT-136-candidate-boundary.json. ; +1 MT-167 authored 2026-09-30 by KERNEL_BUILDER-LANE-B-20260930 on Operator decision WP012-OPERATOR-DECISIONS-20260930-C (code-nav index cost vs spec §2.3.14.17.3; MT-164 precedent shape)."
   },
   "packet_acceptance_matrix": {
     "schema": "PACKET_ACCEPTANCE_MATRIX_V1",

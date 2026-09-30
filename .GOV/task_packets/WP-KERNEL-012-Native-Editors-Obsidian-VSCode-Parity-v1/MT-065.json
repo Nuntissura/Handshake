@@ -149,7 +149,7 @@
       "MT-065.json#diagnosis_20260930"
     ],
     "status_before_20260930": "FAIL_V7",
-    "blocked_on": null,
+    "blocked_on": "MT-167 (code-nav index cost; Operator decision WP012-OPERATOR-DECISIONS-20260930-C)",
     "prior_validator_verdict": "FAIL_V8",
     "status_reason": "FAIL_V9 on b4faed35 union round (validation_round_b4faed35)"
   },
