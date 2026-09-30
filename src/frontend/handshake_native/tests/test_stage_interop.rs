@@ -2969,8 +2969,11 @@ fn product_api_only_and_shared_backend_client() {
     }
     // The stage_interop client reuses the shared backend pool + base url (no second HTTP stack).
     let interop_src = include_str!("../src/interop/stage_interop.rs");
+    // rustfmt splits `account.authorize(..)` across lines, so match the authorize call on the
+    // server-validated AuthenticatedContext (local_account::AuthenticatedContext::authorize).
     assert!(
-        interop_src.contains("account.authorize(")
+        interop_src.contains(".authorize(request_builder)")
+            && interop_src.contains("crate::local_account::AuthenticatedContext")
             && interop_src.contains("with_authenticated_context")
             && !interop_src.contains("x-hsk-actor-kind")
             && !interop_src.contains("native-stage-action:"),
