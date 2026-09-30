@@ -273,8 +273,7 @@ impl Drop for IndexedCodeFixture {
 /// (`source_document_content` is code-only); this fixture makes the mounted provenance and backend
 /// authority the same exact indexed file.
 fn seed_code_authority(
-    base: &str,
-    session_token: &str,
+    live: &LiveBackend,
     workspace_id: &str,
     rt: &tokio::runtime::Handle,
 ) -> IndexedCodeFixture {
@@ -288,17 +287,15 @@ fn seed_code_authority(
     let root = std::fs::canonicalize(root).expect("canonicalize MT-064 code-authority root");
     std::fs::write(root.join("target.rs"), &content).expect("write MT-064 canonical source file");
 
-    let client = reqwest::Client::builder()
-        .connect_timeout(Duration::from_secs(5))
-        .timeout(Duration::from_secs(15))
-        .build()
-        .expect("build bounded code-authority client");
-    let url = format!("{base}/workspaces/{workspace_id}/code-nav/index");
+    // The index route is account-authorized (authorize_request): it needs the proof account's session
+    // token AND the native channel-binding token, both presented by `LiveBackend::authenticated`. The
+    // app's MCP token alone is not an account session and is constantly denied (403).
+    let url = format!("{}/workspaces/{workspace_id}/code-nav/index", live.base);
     let body = serde_json::json!({"root_path": root.to_string_lossy()});
     let indexed: serde_json::Value = rt.block_on(async {
-        let response = client
-            .post(&url)
-            .header("x-hsk-session-token", session_token)
+        let response = live
+            .authenticated(reqwest::Client::new().post(&url))
+            .timeout(Duration::from_secs(15))
             .header("x-hsk-actor-id", "native-editor-fems-index")
             .header("x-hsk-actor-kind", "operator")
             .header("x-hsk-kernel-task-run-id", "mt064-argus-index")
@@ -320,8 +317,7 @@ fn seed_code_authority(
         "canonical MT-064 code authority indexes cleanly: {indexed}"
     );
     let lookup = get_json_session(
-        base,
-        session_token,
+        live,
         &format!(
             "/knowledge/code/symbols?workspace_id={workspace_id}&name={symbol_name}&path=target.rs&limit=1"
         ),
@@ -513,12 +509,7 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
     // (0d) Seed a REAL indexed code file, then load the code pane under that exact canonical source id.
     // The mounted dialog submits its full code snapshot; the backend validates it byte-for-byte against
     // this KSRC/code-file authority before persisting the proposal.
-    let code_fixture = seed_code_authority(
-        &live.base,
-        app.mcp_token().as_hex(),
-        &workspace_id,
-        app_rt.handle(),
-    );
+    let code_fixture = seed_code_authority(&live, &workspace_id, app_rt.handle());
     let provenance_document_id = code_fixture.source_id.clone();
     let content = code_fixture.content.as_str();
     load_code_document(
@@ -808,14 +799,12 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
         Some(event_id.as_str())
     );
 
-    let session_hex = harness.state().mcp_token().as_hex().to_owned();
     let deadline = Instant::now() + Duration::from_secs(30);
 
     // (6) LIVE SurrealDB readback: the proposal row is a persisted, review-gated pending_review row.
     // Memory routes are session-gated, so the readback carries the mounted app's session token.
     let readback = get_json_session(
-        &live.base,
-        &session_hex,
+        &live,
         &format!("/workspaces/{workspace_id}/memory/proposals/{proposal_id}"),
         app_rt.handle(),
     );
@@ -837,8 +826,7 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
     // (7) LIVE Flight Recorder / EventLedger: the correlated FR-EVT-MEM-001 event lands with the EXACT
     // normative shape (the FAIL_V2 root cause) and carries NO raw memory content.
     let fr_row = poll_fr_event(
-        &live.base,
-        &session_hex,
+        &live,
         &workspace_id,
         &proposal_id,
         deadline,
@@ -863,8 +851,7 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
         fr_row["payload"]["proposal_hash"]
     );
     let proposal_artifact = get_json_session(
-        &live.base,
-        &session_hex,
+        &live,
         &format!("/workspaces/{workspace_id}/memory/proposals/{proposal_id}/artifact"),
         app_rt.handle(),
     );
@@ -1026,24 +1013,19 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
     drop(app_rt);
 }
 
-/// A session-authenticated GET against a live product route (memory routes are session-gated). Sends the
-/// mounted app's MCP session token + the stage headers and asserts a 2xx JSON body.
+/// An account-authenticated GET against a live product route (memory, code-nav and Flight Recorder
+/// routes run authorize_request). Presents the proof account's session + channel-binding tokens (the
+/// same account bound into the mounted app) plus the stage headers and asserts a 2xx JSON body.
 fn get_json_session(
-    base: &str,
-    session_token: &str,
+    live: &LiveBackend,
     path: &str,
     rt: &tokio::runtime::Handle,
 ) -> serde_json::Value {
-    let client = reqwest::Client::builder()
-        .connect_timeout(Duration::from_secs(5))
-        .timeout(Duration::from_secs(15))
-        .build()
-        .expect("build bounded MT-064 GET client");
-    let url = format!("{base}{path}");
+    let url = format!("{}{path}", live.base);
     rt.block_on(async {
-        let response = client
-            .get(&url)
-            .header("x-hsk-session-token", session_token)
+        let response = live
+            .authenticated(reqwest::Client::new().get(&url))
+            .timeout(Duration::from_secs(15))
             .header("x-hsk-actor-id", "native-editor-fems-argus")
             .header("x-hsk-actor-kind", "operator")
             .header("x-hsk-kernel-task-run-id", "mt064-argus-verify")
@@ -1063,8 +1045,7 @@ fn get_json_session(
 /// row. Product write routes await their recorder append before responding, but a short bounded poll
 /// tolerates a projection that becomes visible just after the authority commit.
 fn poll_fr_event(
-    base: &str,
-    session_token: &str,
+    live: &LiveBackend,
     workspace_id: &str,
     proposal_id: &str,
     deadline: Instant,
@@ -1073,7 +1054,7 @@ fn poll_fr_event(
     let path = format!("/api/flight_recorder?event_type=memory_write_proposed&wsid={workspace_id}");
     let poll_deadline = deadline.max(Instant::now() + Duration::from_secs(15));
     loop {
-        let rows = get_json_session(base, session_token, &path, rt);
+        let rows = get_json_session(live, &path, rt);
         if let Some(row) = rows.as_array().into_iter().flatten().find(|row| {
             row["payload"]["proposal_id"] == proposal_id
                 && row["payload"]["event_code"] == "FR-EVT-MEM-001"
