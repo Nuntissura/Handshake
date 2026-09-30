@@ -2189,6 +2189,43 @@
         "post-round leftover count of handshake-local-accounts entries as a validator gate",
         "core-side writers (authority.rs tests) use the same ledger/teardown"
       ]
+    },
+    "result": {
+      "executed_utc": "2026-09-30T21:05:00Z",
+      "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+      "probe_before": {
+        "receipt": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/gp043-vault-probe-88149b00-6d87-46d9-807e-47e9ce263f6a.json",
+        "success": false,
+        "failed_phase": "CredWriteW",
+        "windows_error_code": 8
+      },
+      "precheck": {
+        "total_targets": 319,
+        "handshake_local_accounts": 100,
+        "approved_present": 78,
+        "approved_missing": 0,
+        "set_changed": false,
+        "list_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/cmdkey-targets-before-20260930.txt"
+      },
+      "deleted": 78,
+      "retry_with_legacygeneric_prefix": 0,
+      "per_target_failures": [],
+      "log_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/cmdkey-delete-78-20260930.jsonl",
+      "postcheck": {
+        "total_targets": 241,
+        "handshake_local_accounts": 22,
+        "removed_equals_approved": true,
+        "unexpected_removed": 0,
+        "new_entries": 0,
+        "list_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/cmdkey-targets-after-20260930.txt"
+      },
+      "probe_after": {
+        "receipt": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/gp043-vault-probe-77b19dc9-ba50-4e2d-8212-eed325b3ea3e.json",
+        "success": true,
+        "write_read_delete": "clean"
+      },
+      "untouched": "22 unproven handshake-local-accounts names, Adobe, Xbox and all other targets",
+      "conclusion": "Leftover fixture credentials exhausted the Credential Manager (CredWriteW error 8); removing the 78 proven targets restored writes (GP-131)"
     }
   }
 }
