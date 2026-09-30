@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-160",
   "created_at_utc": "2026-09-29T08:32:14.504Z",
-  "updated_at_utc": "2026-09-29T12:01:02Z",
+  "updated_at_utc": "2026-09-30T03:33:49Z",
   "identity": {
     "mt_id": "MT-160",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -235,7 +235,8 @@
     "validator_verdict_before_20260929": "PENDING",
     "status_note_20260929": "Status left as authored (PENDING); PENDING is outside CX-STATUS-001 (adopted via f6bbcaac). Next: builder submits READY_FOR_VALIDATION on candidate after gameplan before_submit, or the parent records the status mapping.",
     "next_actor": "WP_VALIDATOR: component/AccessKit proof on 37ee7c5b (or CX-VAL-002 reuse of V14) + independent inspection of MT-032-canvas-loom-chips.png",
-    "blocked_on": null
+    "blocked_on": null,
+    "status_reason": "Inconclusive on 37ee7c5b: all 50 selected cases pass and PNG inspected; chip placement footer vs AC \"node header\" awaits Operator ruling."
   },
   "scope": {
     "summary": "Preserve documents, rich-text blocks, code-file nodes, graph nodes and canvas placements as addressable through the existing Loom model. Maintain LoomBlockAddr, ContentHash, LoomBlockRecord, LoomBlockType, loom_uri, parse_loom_uri and LoomBlockResolver; backend-derived identity remains stable across rename. Reuse authenticated workspace-scoped block/transclusion/canvas-board APIs, canonical MT020 serializer/hash and existing sha2. Hash comparison is not client hash PATCH. Preserve canvas header chip, absent-ID guard, double-click navigation, graph tooltip/count and theme guard. MT-162 owns real create/save proof and MT-163 final integration. MT-022 is the inherited folder-tree prerequisite; MT-026 owns canvas placement.",
@@ -592,5 +593,156 @@
       "new_status": "READY_FOR_VALIDATION",
       "reason": "MT-162 PASS_V2, MT-161 PASS_V1, MT-164 PASS_V3, MT-166 PASS_V1 on/through 37ee7c5b; pushed candidate 37ee7c5b is newer than this MT's last verdict; no product change required for its scope"
     }
-  ]
+  ],
+  "validation": {
+    "proof_records": [
+      {
+        "proof_id": "PR-WP012-MT032-NATIVE-SELECTION-37ee7c5b",
+        "executor_role": "WP_VALIDATOR",
+        "candidate_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+        "command": "bash .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032-phase-probe.sh 37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb ... mt032-native-selection",
+        "entrypoint_commits": [
+          "43dfe7e3 mt032-native-selection mode",
+          "a66523fc watcher capture suffix"
+        ],
+        "selection": "test_loom_address binary (failure_diagnostic duplicates excluded as in the union) + lib loom_address::, loom_graph::, canvas_board chip, wikilinks runtime loom_address_ cases (the V13 MT-032 floor)",
+        "reuse": "CX-VAL-002/VPX-008: export-37ee7c5b and cargo-fingerprinted native/backend outputs from the 37ee7c5b frozen round reused unchanged (backend build no-op); only the native lib test harness was newly linked. No test result reused; V14/V13 component results not reused because 6391a29f changed test_loom_address.rs.",
+        "started_at": "2026-09-30T03:21:42.6896650Z",
+        "completed_at": "2026-09-30T03:31:21.4219675Z",
+        "result": {
+          "tests": 50,
+          "passed": 50,
+          "failed": 0,
+          "runner_exit": 0
+        },
+        "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-mt032-native-selection.xml",
+        "junit_sha256": "5354273432aaae8c6f9567b626dd05d4c6f09b09870d080acb77cea6e1f09775",
+        "stdout_sha256": "223313ba9dba29013adeb262305508372394a714dabc4d00ed9e233c1a075b4b",
+        "stderr_sha256": "dca88bf504c5ad6ade579564f7ea693962fc28298ce5e3b6bc4123d61f96df54",
+        "phase_capture": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt032-v15-receipt-watch-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-mt032-selection.jsonl",
+        "phase_capture_sha256": "1fe4456585dc137666a865e70261fd54f85b8cda557419d916f7e4f823e6324b",
+        "save_timings_ms": {
+          "owned_restart": {
+            "creates": [
+              3451,
+              3426
+            ],
+            "saves_total": [
+              5078,
+              3452
+            ],
+            "first_save": {
+              "transaction": 1509,
+              "receipt": 237,
+              "backlinks": 2389,
+              "index": 885
+            },
+            "deadline": "15 s save"
+          },
+          "self_seeded": {
+            "creates": [
+              3872,
+              3858
+            ],
+            "saves_total": [
+              5375,
+              4719,
+              4472,
+              3367
+            ],
+            "deadline": "10 s create/save"
+          }
+        },
+        "screenshots": {
+          "MT-032-canvas-loom-chips.png": {
+            "written": "C:/.target/.../target-r52/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-032 at 2026-09-30T03:27:05Z",
+            "bytes": 35952,
+            "sha256": "e2a78adbcc4a68f6fb904ce18ba160e2d05d221a7d8e99d2dc8a22dccdc99141",
+            "retained_copy": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/evidence/mt032-screenshots-37ee7c5b/MT-032-canvas-loom-chips.png"
+          },
+          "MT-032-canvas-live-B.png": {
+            "written": "same dir at 2026-09-30T03:30:10Z",
+            "bytes": 37921,
+            "sha256": "8ad97aabca9a46f584b7a9992fb64e7a3b3bd27248fbd719b7988386f6a7a5e2",
+            "retained_copy": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/evidence/mt032-screenshots-37ee7c5b/MT-032-canvas-live-B.png"
+          }
+        },
+        "inspection": {
+          "canvas_loom_chips": "900x480 dark canvas, toolbar and \"2 placements\". Two cards \"Title p-001\"/\"Title p-002\" with subtitle \"note\". Green monospace chips \"loom://ws-32/blk-7\" and \"loom://ws-32/blk-8\" at the BOTTOM-left of each card (footer), not in the header. No content-hash suffix (these cards carry no resolved hash, so none is fabricated). No overlap; text inside card bounds.",
+          "canvas_live_B": "Single card \"Title live-B\"/\"note\"; chip wraps to 3 lines in the card footer: \"loom://01a0f05c-77c5-7dd0-845c-4f412d40de20/KRD-01a0f05c7bed7071bc9ca476f9331e05\" (full live workspace/block id, not fabricated). No hash suffix (live card has no resolved content_hash). Zoomed crop: last line ends clear of the resize grip; no overlap.",
+          "empty_id": "No empty-ID card is rendered in either PNG; absent-ID behavior proved only by AccessKit/component tests (empty_placement_has_no_loom_chip, empty_placed_block_id_has_no_loom_chip, both PASS).",
+          "hash_suffix": "Proved by AccessKit test canvas_node_loom_chip_includes_content_hash_suffix (\"loom://ws-32/blk-9 #44136fa3\"); not visible in any required PNG."
+        },
+        "finding_placement": "AC-160-3 and AC-163-3 require the loom:// chip \"in the node header\" (\"preserve chip placement in the canvas node header\"); the implementation paints it in the card FOOTER (canvas_board.rs:3432-3468, chip_top = card bottom - text height) and both screenshots show footer placement. The MT-032 origin code comment also says \"card footer\", so the contract wording and the preserved implementation disagree.",
+        "finding_artifact_root": "The tests write screenshots via the crate-relative \"../../../../Handshake_Artifacts/handshake-test\" path, which from the export resolves inside the C: build target (target-r52/Handshake_Artifacts), outside the sole artifact root (CX-984-014: evidence stays under the root). Copies retained under the lane evidence folder; route to the test owner.",
+        "capacity": {
+          "C_first_bytes": 89497696023,
+          "C_peak_bytes": 89828897000
+        },
+        "covers": [
+          "MT-160",
+          "MT-163"
+        ],
+        "owning_mt": "MT-160"
+      }
+    ]
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "validated_by": "WP_VALIDATOR-20260930-MT160-163",
+    "validated_at_utc": "2026-09-30T03:33:49Z",
+    "candidate_commit": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+    "started_at": "2026-09-30T03:21:42.6896650Z",
+    "completed_at": "2026-09-30T03:31:21.4219675Z",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb-mt032-native-selection.xml",
+    "proof_record_ids": [
+      "PR-WP012-MT032-NATIVE-SELECTION-37ee7c5b"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-160-ADDRESSABILITY",
+        "result": "named component cases 50/50 PASS (nonzero); canvas PNG written, non-empty, decodable, opened and inspected"
+      }
+    ],
+    "acceptance": {
+      "AC-160-1": "met (loom_uri round-trip, malformed/empty rejection, block types, encoded resolver routes: lib + boundary cases pass)",
+      "AC-160-3": "NOT closed: chip, hash suffix (AccessKit), absent-ID guard, double-click navigation, tooltip/count all pass; but the chip is rendered in the card FOOTER, not \"in the node header\" as written",
+      "AC-160-4": "met: MT-032-canvas-loom-chips.png written on 37ee7c5b, 35952 bytes, decodes 900x480, independently inspected"
+    },
+    "inspection": {
+      "canvas_loom_chips": "900x480 dark canvas, toolbar and \"2 placements\". Two cards \"Title p-001\"/\"Title p-002\" with subtitle \"note\". Green monospace chips \"loom://ws-32/blk-7\" and \"loom://ws-32/blk-8\" at the BOTTOM-left of each card (footer), not in the header. No content-hash suffix (these cards carry no resolved hash, so none is fabricated). No overlap; text inside card bounds.",
+      "canvas_live_B": "Single card \"Title live-B\"/\"note\"; chip wraps to 3 lines in the card footer: \"loom://01a0f05c-77c5-7dd0-845c-4f412d40de20/KRD-01a0f05c7bed7071bc9ca476f9331e05\" (full live workspace/block id, not fabricated). No hash suffix (live card has no resolved content_hash). Zoomed crop: last line ends clear of the resize grip; no overlap.",
+      "empty_id": "No empty-ID card is rendered in either PNG; absent-ID behavior proved only by AccessKit/component tests (empty_placement_has_no_loom_chip, empty_placed_block_id_has_no_loom_chip, both PASS).",
+      "hash_suffix": "Proved by AccessKit test canvas_node_loom_chip_includes_content_hash_suffix (\"loom://ws-32/blk-9 #44136fa3\"); not visible in any required PNG."
+    },
+    "findings": [
+      "AC-160-3 and AC-163-3 require the loom:// chip \"in the node header\" (\"preserve chip placement in the canvas node header\"); the implementation paints it in the card FOOTER (canvas_board.rs:3432-3468, chip_top = card bottom - text height) and both screenshots show footer placement. The MT-032 origin code comment also says \"card footer\", so the contract wording and the preserved implementation disagree.",
+      "The tests write screenshots via the crate-relative \"../../../../Handshake_Artifacts/handshake-test\" path, which from the export resolves inside the C: build target (target-r52/Handshake_Artifacts), outside the sole artifact root (CX-984-014: evidence stays under the root). Copies retained under the lane evidence folder; route to the test owner."
+    ],
+    "operator_decision_request": {
+      "question": "Chip placement: accept the implemented card-footer placement (amend AC-160-3/AC-163-3 \"node header\" wording) or require moving the loom:// chip into the card header (product change in canvas_board.rs)?",
+      "owner": "Operator",
+      "evidence": [
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/evidence/mt032-screenshots-37ee7c5b/MT-032-canvas-loom-chips.png",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/evidence/mt032-screenshots-37ee7c5b/MT-032-canvas-live-B.png",
+        "canvas_board.rs:3432-3468"
+      ]
+    },
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT160-37ee7c5b-selection-verdict",
+        "at_utc": "2026-09-30T03:33:49Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT160-37ee7c5b-selection-verdict",
+        "at_utc": "2026-09-30T03:33:49Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained pending placement ruling"
+      }
+    ]
+  }
 }
