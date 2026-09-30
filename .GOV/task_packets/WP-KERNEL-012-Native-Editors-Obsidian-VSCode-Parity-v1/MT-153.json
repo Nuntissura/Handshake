@@ -2799,5 +2799,24 @@
     ],
     "gameplan": "before_submit kernel_builder PASS 2/2 at 7612f1cc (GP-139 confirmed: bb9548e1..7612f1cc changes no Loom counter statement)",
     "next_actor": "WP_VALIDATOR single union run (orchestrator names the round tip)"
+  },
+  "hypothesis_20260930_event_ledger_key": {
+    "schema_id": "hsk.mt_attempt_hypothesis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_before_run": true,
+    "recorded_at_utc": "2026-09-30T17:11:31Z",
+    "authority": "orchestrator dispatch (buddy-checked): extend bare-param ledger-key fix to event_ledger.rs; CX-EXEC-003A",
+    "failing_assertions": "write-latency timeouts on routes appending through storage/surreal/event_ledger.rs (lane B diagnosis in gov f28a35c3: edge creates, emitter events, code-nav root registration; MT-008/036/042/043/064/065/128 FAIL on bb9548e1)",
+    "code_locations": [
+      "src/backend/handshake_core/src/storage/surreal/event_ledger.rs:396,403 (timed append lookup/replay read, WHERE idempotency_key = $event.idempotency_key)",
+      "src/backend/handshake_core/src/storage/surreal/event_ledger.rs:439,444 (append IF lookup/replay read)",
+      "src/backend/handshake_core/src/storage/surreal/event_ledger.rs:625,660 ($first.idempotency_key), :666 ($second.idempotency_key) (pair append)"
+    ],
+    "hypothesis": "same as MT-026.json#diagnosis_20260930_ledger_lookup: SurrealDB 3.2 streaming planner folds only bare params, so $event/$first/$second.idempotency_key lookups scan kernel_event_ledger under record-user select permission",
+    "intended_fix": "bind bare $event_key (EventBindings) and $first_key/$second_key (EventPairBindings) and compare against them; statement counts, result indexes, ledger content and authorization unchanged; no schema.surql change",
+    "attempts_so_far": [
+      "none on these call sites"
+    ],
+    "run": "single union validator run on the next candidate (orchestrator names it)"
   }
 }
