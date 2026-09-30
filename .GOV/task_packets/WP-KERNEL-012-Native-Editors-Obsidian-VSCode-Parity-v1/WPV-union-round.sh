@@ -107,6 +107,72 @@ export HANDSHAKE_GPU_SCREENSHOT="${HANDSHAKE_GPU_SCREENSHOT:-1}"   # this host h
 export HANDSHAKE_WORKSPACE_ROOT="$OWNER_ROOT/workspace-root"
 mkdir -p "$HANDSHAKE_WORKSPACE_ROOT"
 
+# MT-165 disposable session-worktree repo (Operator decision WP012-MT165-DISPOSABLE-GIT-REPO-20260930).
+# Session-worktree code runs `git -C <repo> worktree add|remove` where <repo> is fixed at compile time:
+# CARGO_MANIFEST_DIR/../../.. (workflows.rs repo_root_from_manifest_dir; api/jobs.rs and
+# model_session_scheduler_tests.rs guards) = this export root, which is not a git checkout. Make the
+# export a throwaway repo whose git dir lives under the WP artifact root (the export only gets a .git
+# pointer file), HEAD = the exact candidate fetched read-only from the builder worktree (no branch, no
+# push, nothing ever merged back). HANDSHAKE_SESSION_WORKTREE_ROOT (workspace_safety.rs
+# session_worktree_path) points session worktrees into the lane; model_session_scheduler_tests
+# overrides it with $TMP/hsk-session-worktrees-model-session-scheduler-<pid>, also in the lane.
+# On every exit (success, failure, TERM/INT) the trap records `git worktree list`; with no leftover
+# session worktree it moves the git dir, the pointer file and the session root to the Recycle Bin
+# (WPV-recycle.ps1, shell API, silent). Leftovers are kept and logged for the MT-165 verdict.
+# A force-killed script (TerminateProcess) cannot run the trap; the validator then cleans by hand.
+SESSION_GIT_DIR="$LANE/sg/${SHA:0:8}.git"
+export HANDSHAKE_SESSION_WORKTREE_ROOT="$LANE/sg/${SHA:0:8}-wt"
+SESSION_GIT_LOG="$LANE/logs/session-git-$SHA.log"
+RECYCLE_HELPER="$(dirname "$(readlink -f "$0")")/WPV-recycle.ps1"
+[ -f "$RECYCLE_HELPER" ] || { echo "[run-round] FATAL: recycle helper missing: $RECYCLE_HELPER"; exit 2; }
+[[ "$SESSION_GIT_DIR" == "$HANDSHAKE_ARTIFACTS_ROOT/WP-KERNEL-012/"* ]] || { echo "[run-round] FATAL: session git dir outside WP artifact root"; exit 2; }
+[ ! -e "$EXPORT/.git" ] || { echo "[run-round] FATAL: export already holds .git (prior session repo preserved for review): $EXPORT/.git"; exit 2; }
+[ ! -e "$SESSION_GIT_DIR" ] && [ ! -e "$HANDSHAKE_SESSION_WORKTREE_ROOT" ] \
+  || { echo "[run-round] FATAL: prior session git dir or root preserved for review under $LANE/sg"; exit 2; }
+mkdir -p "$LANE/sg"
+SESSION_GIT_MARKER="$LANE/tmp/session-git-start-$SHA"
+touch "$SESSION_GIT_MARKER"
+session_git_cleanup() {
+  local rc=$?
+  trap - EXIT
+  set +e
+  {
+    echo "cleanup_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ) script_exit=$rc"
+    echo "--- git worktree list --porcelain (export repo)"
+    git -C "$EXPORT" worktree list --porcelain
+    echo "--- session root entries: $HANDSHAKE_SESSION_WORKTREE_ROOT"
+    [ -d "$HANDSHAKE_SESSION_WORKTREE_ROOT" ] && ls -A "$HANDSHAKE_SESSION_WORKTREE_ROOT"
+    echo "--- scheduler roots created this round under $TMP"
+    find "$TMP" -maxdepth 1 -name 'hsk-session-worktrees-model-session-scheduler-*' -newer "$SESSION_GIT_MARKER"
+  } >> "$SESSION_GIT_LOG" 2>&1
+  local registered leftover_dirs scheduler_roots
+  registered="$(git -C "$EXPORT" worktree list --porcelain 2>/dev/null | grep -c '^worktree ')"
+  leftover_dirs=0; [ -d "$HANDSHAKE_SESSION_WORKTREE_ROOT" ] && leftover_dirs="$(ls -A "$HANDSHAKE_SESSION_WORKTREE_ROOT" | wc -l)"
+  scheduler_roots="$(find "$TMP" -maxdepth 1 -name 'hsk-session-worktrees-model-session-scheduler-*' -newer "$SESSION_GIT_MARKER" | wc -l)"
+  if [[ "$registered" == 1 && "$leftover_dirs" == 0 && "$scheduler_roots" == 0 ]]; then
+    for p in "$SESSION_GIT_DIR" "$EXPORT/.git" "$HANDSHAKE_SESSION_WORKTREE_ROOT"; do
+      [ -e "$p" ] || continue
+      case "$p" in "$EXPORT/.git") root="$EXPORT" ;; *) root="$HANDSHAKE_ARTIFACTS_ROOT/WP-KERNEL-012" ;; esac
+      pwsh -NoProfile -NonInteractive -File "$RECYCLE_HELPER" -Path "$p" -AllowedRoot "$root" >> "$SESSION_GIT_LOG" 2>&1 \
+        || echo "SESSION_GIT_RECYCLE_FAILED $p" >> "$SESSION_GIT_LOG"
+    done
+    echo "[run-round] SESSION_GIT_REMOVED (recycle bin); log $SESSION_GIT_LOG"
+  else
+    echo "SESSION_GIT_LEFTOVERS registered_worktrees=$registered session_root_entries=$leftover_dirs scheduler_roots=$scheduler_roots" >> "$SESSION_GIT_LOG"
+    echo "[run-round] SESSION_GIT_LEFTOVERS kept for MT-165 review; log $SESSION_GIT_LOG"
+  fi
+  exit "$rc"
+}
+trap session_git_cleanup EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
+git init -q --separate-git-dir="$SESSION_GIT_DIR" "$EXPORT"
+git -C "$EXPORT" -c core.longpaths=true fetch -q --depth=1 --no-tags \
+  --upload-pack="git -c uploadpack.allowAnySHA1InWant=true upload-pack" "$WORKTREE" "$SHA"
+git -C "$EXPORT" update-ref --no-deref HEAD "$SHA"
+[ "$(git -C "$EXPORT" rev-parse HEAD)" = "$SHA" ] || { echo "[run-round] FATAL: session repo HEAD is not the candidate"; exit 2; }
+echo "[run-round] session git repo $SESSION_GIT_DIR HEAD=$SHA; HANDSHAKE_SESSION_WORKTREE_ROOT=$HANDSHAKE_SESSION_WORKTREE_ROOT" | tee -a "$SESSION_GIT_LOG"
+
 # 2. Build core union (--no-run), native union (--no-run), and the backend
 #    binary, one cargo invocation per crate, no timeout wrapper.
 CORE_TESTS=(

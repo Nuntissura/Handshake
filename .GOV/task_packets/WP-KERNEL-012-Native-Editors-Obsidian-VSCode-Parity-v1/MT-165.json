@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-165",
   "created_at_utc": "2026-09-29T18:50:00Z",
-  "updated_at_utc": "2026-09-30T03:16:17Z",
+  "updated_at_utc": "2026-09-30T11:55:00Z",
   "identity": {
     "mt_id": "MT-165",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -628,5 +628,23 @@
         "state_effect": "unchanged: READY_FOR_VALIDATION (infrastructure, CX-VAL-006)"
       }
     ]
+  },
+  "operator_decision_20260930_disposable_git_repo": {
+    "decision_id": "WP012-MT165-DISPOSABLE-GIT-REPO-20260930",
+    "decided_on": "2026-09-30",
+    "authorized_by": "OPERATOR",
+    "relayed_by": "ORCHESTRATOR root session",
+    "recorded_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "recorded_at_utc": "2026-09-30T11:55:00Z",
+    "answers": "validation_v1.needed_decision (ENTRYPOINT-EXPORT-NOT-GIT-CHECKOUT)",
+    "chosen_option": "Disposable git repo",
+    "decision": "The checked-in test entrypoint creates a throwaway git repo per round under the WP artifact root (Handshake_Artifacts/WP-KERNEL-012/<owner>/...) and points HANDSHAKE_SESSION_WORKTREE_ROOT and the owning repo at it, so session-worktree tests (MT-165 targets, model_session_scheduler_tests, api::jobs create_model_run_job) create/remove worktrees there, never on the real Handshake repo. Implemented as a commit to the entrypoint config (CX-VAL-007); MT-165 and those tests are included in the round.",
+    "addition": "The temp repo must not outlive its purpose: at the end of each round (success, failure or abort) the entrypoint moves it to the Windows Recycle Bin (shell API, silent flags) after verifying git worktree list shows no remaining session worktrees and the path is inside the WP artifact root. Nothing from it is ever merged into the real repo. Worktrees left behind by a test are recorded as an MT-165 product failure (with paths) before removal; the cleanup result is reported with the round results.",
+    "traced_wiring": {
+      "owning_repo": "Not env-configurable: compile-time CARGO_MANIFEST_DIR/../../.. (dependency_policy/mod.rs:267 repo_root_from_manifest_dir used by workflows.rs:8222/9215; capability_registry_workflow repo_root_from_manifest_dir in api/jobs.rs:613 guard; env!(CARGO_MANIFEST_DIR) in model_session_scheduler_tests.rs:109) = export root. Entrypoint therefore runs git init --separate-git-dir: git dir under <artifact root>/WP-KERNEL-012/MT-109/wpv-c3x/sg/<sha8>.git, export gets a .git pointer file.",
+      "worktree_root": "HANDSHAKE_SESSION_WORKTREE_ROOT (workspace_safety.rs:357) set to <lane>/sg/<sha8>-wt; model_session_scheduler_tests.rs:230 overrides it per process with $TMP/hsk-session-worktrees-model-session-scheduler-<pid> ($TMP = <lane>/tmp)",
+      "head": "exact candidate fetched read-only (depth 1, uploadpack.allowAnySHA1InWant on the upload side) from the builder worktree; detached HEAD, no branch",
+      "provenance_side_effects": "native source_provenance.rs and MT-066/067 proofs use HANDSHAKE_PROOF_SOURCE_SHA first (set by entrypoint), so the new repo does not alter them; no build.rs uses git"
+    }
   }
 }
