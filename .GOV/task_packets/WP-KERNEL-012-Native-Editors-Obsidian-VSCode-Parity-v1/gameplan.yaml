@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 172
+generation: 176
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -26,7 +26,7 @@ steps:
 - {id: GP-005, role: any, at: before_round, do: confirm deepest generated path < 260 chars or long paths enabled, check: {type: confirm}, source: 'preset:build-round', state: active}
 - {id: GP-006, role: any, at: before_round, do: confirm test entrypoint + config unchanged since last green round, check: {type: confirm}, source: 'preset:build-round', state: retired}
 - {id: GP-007, role: any, at: before_round, do: forbid timeout wrapper around test entrypoint, check: {type: file, path: ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/run-round.sh, not_contains: 'timeout '}, source: 'preset:build-round', state: retired}
-- {id: GP-008, role: any, at: before_round, do: record candidate SHA = pushed HEAD; later pushes -> next round, check: {type: confirm}, source: 'preset:build-round', state: active}
+- {id: GP-008, role: any, at: before_round, do: record candidate SHA = pushed HEAD; later pushes -> next round, check: {type: confirm}, source: 'preset:build-round', state: retired}
 - {id: GP-009, role: any, at: before_round, do: confirm env vars|config files read by changed code set for test run, check: {type: confirm}, source: 'preset:build-round', state: retired}
 - {id: GP-010, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
 - {id: GP-011, role: any, at: on_resume, do: confirm statuses recounted from source records; memory counts == 0, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -123,9 +123,9 @@ steps:
 - {id: GP-102, role: orchestrator, at: before_round, do: confirm projected peak including scratch stays below active capacity-stop threshold using observed phase growth, check: {type: confirm}, source: 'fail: acceptance stopped at147GB;149GB forecast fit150GB cap but exceeded supervisor threshold', state: active}
 - {id: GP-103, role: orchestrator, at: before_round, do: confirm Operator continuation_v1 unused; original acceptance and diagnostics preserved, check: {type: confirm}, source: Operator approved one same747 continuation after exact23 EXE retention and capacity proof; replaces GP094, state: retired}
 - {id: GP-104, role: wp_validator, at: before_round, do: confirm continuation_v1 unused and separate markers/logs preserve first acceptance, check: {type: confirm}, source: Operator one continuation after capacity stop; no reset or third diagnostic; replaces GP095, state: retired}
-- {id: GP-105, role: any, at: before_round, do: 'confirm receipt timings preserve one transaction, scope, denial and replay behavior', check: {type: confirm}, source: FAIL_V13 compound receipt timing hides lookup/branch costs, state: active}
+- {id: GP-105, role: any, at: before_round, do: 'confirm receipt timings preserve one transaction, scope, denial and replay behavior', check: {type: confirm}, source: FAIL_V13 compound receipt timing hides lookup/branch costs, state: retired}
 - {id: GP-106, role: orchestrator, at: before_round, do: confirm renewed V15 action uses changed hypothesis or repaired candidate and preserves prior attempts, check: {type: confirm}, source: Operator renewed MT032 repair20260928; replaces consumed747-only GP103 without resetting counters, state: retired}
-- {id: GP-107, role: wp_validator, at: before_round, do: confirm V15 proof targets the changed question or repair with separate evidence and original acceptance retained, check: {type: confirm}, source: Operator renewed MT032 repair20260928; replaces consumed747-only GP104 without resetting counters, state: active}
+- {id: GP-107, role: wp_validator, at: before_round, do: confirm V15 proof targets the changed question or repair with separate evidence and original acceptance retained, check: {type: confirm}, source: Operator renewed MT032 repair20260928; replaces consumed747-only GP104 without resetting counters, state: retired}
 - {id: GP-108, role: builder, at: before_round, do: 'confirm pinned Error::internal receives owned String at every new receipt decoding error', check: {type: confirm}, source: 'compile E0308: SurrealDB3.2 Error::internal requires String; three new literals were borrowed', state: retired}
 - {id: GP-109, role: orchestrator, at: before_dispatch, do: confirm preparation edits use documented controller actions without executing product work, check: {type: confirm}, source: 'Paperwork batch blocked: description text matched runtime hook; no command ran', state: retired}
 - {id: GP-110, role: orchestrator, at: before_dispatch, do: verify controller flags against command help before editing preparation checks, check: {type: confirm}, source: 'Paperwork add rejected: used --when instead of required --at; no mutation occurred', state: retired}
@@ -166,3 +166,4 @@ steps:
 - {id: GP-145, role: orchestrator, at: before_dispatch, do: confirm no builder push or build dispatched while a head-bound validator round runs, check: {type: confirm}, source: '6391a29f round: builder pushed 16b43aff/e012e80d mid-round; native probe refused; D check overlapped', state: active}
 - {id: GP-146, role: wp_validator, at: before_round, do: confirm host commit free >= 60 GB and core union build -j 1 before launch, check: {type: confirm}, source: 'infra: 1f4e0f69 round rustc-LLVM out of memory; lib+lib-test parallel; foreign builds on host', state: active}
 - {id: GP-147, role: orchestrator, at: before_dispatch, do: confirm no builder build/test dispatched while a validator union build compiles (host RAM shared across disks), check: {type: confirm}, source: '1f4e0f69 round: builder D: probe build + validator C: union build -> rustc LLVM OOM', state: active}
+- {id: GP-148, role: wp_validator, at: before_round, do: record candidate SHA = pushed HEAD; later pushes -> next round, check: {type: confirm}, source: 'rescoped from GP-008 (any): builder local probes are not rounds; Operator 2026-09-30', state: active}
