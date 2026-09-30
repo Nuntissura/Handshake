@@ -26,8 +26,14 @@
   },
   "validation_v6": {"schema_id":"hsk.mt_validation_verdict@1","decision":"failed","verdict":"FAIL_V6","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:48:02Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-042.scope.acceptance_criteria/proof_targets and own proof_commands","proof_records":[{"executor_role":"WP_VALIDATOR","command_ref":"MT-032.json#remediation_v12.union_entrypoint_binding","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","freshness":"Full49e archive marker; native JUnit15:40:56Z after13:57:25Z invocation marker; export/copy hashes equal","binaries":[{"path":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52\\debug\\deps\\test_e7_knowledge_accesskit-2d119dc94b394925.exe","target":"test_e7_knowledge_accesskit","sha256":"FDD37C3A9574CE740501BEA02E6CECD7A6321B55BD2B951B404AE09E21C09FCC"}],"runner_sha256":"6DCA6F19DF0C51F04677DA9E8E51F852394A466DC8EFC21455F15233B756E8AC","exit_code":100}],"failing_checks":[{"check_ids":["AC-042-01","AC-042-07"],"test":"ac10_live_surrealdb_populated_graph_accesskit_round_trip","target":"handshake-native::test_e7_knowledge_accesskit","elapsed_seconds":94.995,"failure_kind":"product","failure_class":"MOUNTED_GRAPH_EDGE_PERSIST_REFETCH_TIMEOUT","message":"thread 'ac10_live_surrealdb_populated_graph_accesskit_round_trip' (189860) panicked at tests\\test_e7_knowledge_accesskit.rs:2212:9","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#ac10_live_surrealdb_populated_graph_accesskit_round_trip"}],"classification_basis":"Host-routed graph.add-edge did not persist/refetch within5s; required real round trip failed","proof_floor_disposition":{"required_checks":["AC-042-01","AC-042-07"],"unmapped_acs":"Own contract additional requirements not credited","remaining_proofs":"Not credited toward PASS; own required product failure establishes FAIL without claiming other floors complete"},"adversarial_review":{"DIFF_ATTACK_SURFACES":["Record-user/runtime persistence boundaries can fail while component tests pass"],"INDEPENDENT_CHECKS_RUN":["Opened own fresh JUnit and retained primary/secondary failure output","Verified actual union compile-selected EXE hashes"],"COUNTERFACTUAL_CHECKS":["Removing the assertion named by thread 'ac10_live_surrealdb_populated_graph_accesskit_round_trip' (189860) panicked at tests\\test_e7_knowledge_accesskit.rs:2212:9 would conceal the required boundary failure"],"BOUNDARY_PROBES":["Host-routed graph.add-edge did not persist/refetch within5s; required real round trip failed"],"NEGATIVE_PATH_CHECKS":["Failure capture/cleanup output inspected separately; secondary failure does not replace primary"],"INDEPENDENT_FINDINGS":["MOUNTED_GRAPH_EDGE_PERSIST_REFETCH_TIMEOUT"],"RESIDUAL_UNCERTAINTY":["Exact internal root cause unresolved; no hardware/load causal attribution","No whole-MT PASS or full-WP completion"]},"remediation_required":["Diagnose named primary boundary with preserved authorization, deadlines and own acceptance; no midcandidate fix or retry in this consumed cycle"],"attempt_disposition":"One final union consumed; historical verdicts preserved; no new run","verdict_events":[{"event":"accepted","idempotency_key":"MT-042-49eac54e-union-v6","at_utc":"2026-09-26T15:48:02Z","payload_ref":"MT-042.json#validation_v6","decision":"failed"},{"event":"completed","idempotency_key":"MT-042-49eac54e-union-v6","at_utc":"2026-09-26T15:49:30Z","state_ref":"MT-042.json#lifecycle","decision":"failed"}]},
   "lifecycle": {
-    "candidate_invalidation_49eac54e": {"candidate_sha":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","prior_status":"PASS_V5","authority":"CX-VAL-009/CX-VAL-010; Operator final union dispatch","reason":"Document create/backlink proof depends on changed API/storage and shared live helper","round_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"},
-    "status": "FAIL_V6",
+    "candidate_invalidation_49eac54e": {
+      "candidate_sha": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
+      "prior_status": "PASS_V5",
+      "authority": "CX-VAL-009/CX-VAL-010; Operator final union dispatch",
+      "reason": "Document create/backlink proof depends on changed API/storage and shared live helper",
+      "round_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"
+    },
+    "status": "READY_FOR_VALIDATION",
     "active": true,
     "depends_on": [
       "MT-021",
@@ -86,7 +92,7 @@
     "claimed_by": "KERNEL_BUILDER-20260707-224033",
     "claimed_at_utc": "2026-07-08T04:38:40.574Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-24T10:05:00.000Z",
+    "ready_for_validation_at_utc": "2026-09-30T11:50:06Z",
     "ready_for_validation_v2_at_utc": "2026-07-18T10:33:14.0007281Z",
     "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
     "rfv_evidence_2026_07_08": {
@@ -111,7 +117,7 @@
       "review_proof": "Two independent post-fix adversarial source reviews returned PASS after finding and forcing remediation of misleading edge/lane Click capabilities, lossy lane/card/row identities, incomplete reverse routing, offscreen edge omission, an unbounded psql child, and a Focus false-pass.",
       "v1_preservation": "lifecycle.validator_verdict and validation_v1 remain FAIL_V1 as historical validator authority; this builder transition requests independent validation V2 and does not self-issue PASS."
     },
-    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "remediation_v3_in_progress": false,
     "ready_for_validation_summary": "MT-042 V4 remediation is runtime-complete. The 24-case AccessKit/live-PostgreSQL suite and the canonical integration+WGPU suite are green. The final canonical bundle contains terminal attributable receipts for graph open, Canvas place/remove, Kanban move, semantic edge add/remove, malformed payload rejection, and backend-error Retry/recovery; every required full-shell frame was directly inspected; no action is indeterminate or unresolved; exact PostgreSQL mutations/non-mutations, workspace cleanup, owned-backend shutdown, socket closure, and runtime-root removal are proven. Historical validator_verdict remains FAIL_V4 pending independent validation.",
     "ready_for_validation_v4_at_utc": "2026-08-02T09:17:42.8957181Z",
@@ -138,7 +144,12 @@
       "previous_status": "COMPLETED",
       "new_status": "PASS_V5",
       "reason": "Align lifecycle.status with validator_verdict per the WP convention (status == validator_verdict for PASS); verdict, completed_by and validation_vN untouched."
-    }
+    },
+    "candidate_commit": "259495f0596763a58193d44478742c5dde26290a",
+    "diagnosis_refs": [
+      "MT-042.json#diagnosis_20260930"
+    ],
+    "status_before_20260930": "FAIL_V6"
   },
   "scope": {
     "summary": "GOAL: Expose every interactive action on the native knowledge graph, canvas board, and block-collection views (table/Kanban/calendar) through the WP-011 AccessKit surface with stable author_ids. An out-of-process swarm agent must be able to: navigate the graph to a node by block_id, open a node, add/remove an edge, pan/zoom the canvas, place a block on canvas by id, move a Kanban card between lanes, sort a table column, navigate calendar views — all purely via the AccessKit action channel with no screen-scraping.\n\nEXPECTED DIFF SHAPE:\n  CREATE  src/frontend/handshake_native/src/accessibility/knowledge_action_registry.rs\n    — defines KnowledgeActionId enum covering graph, canvas, and collection actions\n    — defines KnowledgeActionNode struct (same shape as EditorActionNode from MT-041)\n    — defines KnowledgeActionRegistry (same Arc<Mutex<>> pattern)\n    — graph node AccessKit nodes are keyed by block_id so a swarm agent can target a specific note by its Loom block id\n  EDIT    src/frontend/handshake_native/src/graph/graph_pane.rs\n    — register graph-level actions: graph.pan-left, graph.pan-right, graph.zoom-in, graph.zoom-out, graph.zoom-reset, graph.open-node (with block_id parameter), graph.add-edge (source_id, target_id), graph.remove-edge (edge_id), graph.select-node, graph.deselect-all\n    — register per-node AccessKit nodes keyed 'graph.node.<block_id>': role=TreeItem, actions=['activate' (open), 'expand', 'collapse']; nodes are populated from the in-memory graph projection and updated on graph refresh\n  EDIT    src/frontend/handshake_native/src/graph/canvas_pane.rs\n    — register canvas-level actions: canvas.pan-left, canvas.pan-right, canvas.zoom-in, canvas.zoom-out, canvas.zoom-reset, canvas.add-card (title parameter), canvas.place-block (block_id, x, y), canvas.remove-placement (placement_id), canvas.add-edge (source_id, target_id, edge_mode), canvas.remove-edge (edge_id), canvas.select-card (placement_id), canvas.deselect-all\n    — register per-placement AccessKit nodes keyed 'canvas.card.<placement_id>': role=Group, actions=['activate' (open block), 'move' (x, y), 'delete']\n  EDIT    src/frontend/handshake_native/src/graph/collection_pane.rs\n    — register collection-level actions: collection.sort (field, direction), collection.filter (field, value), collection.kanban-move (block_id, from_lane, to_lane), collection.calendar-next, collection.calendar-prev, collection.calendar-today, collection.open-block (block_id)\n    — register per-row AccessKit nodes keyed 'collection.row.<block_id>': role=Row, actions=['activate']\n  EDIT    src/frontend/handshake_native/src/accessibility/mod.rs\n    — add pub mod knowledge_action_registry\n  CREATE  src/frontend/handshake_native/tests/test_e7_knowledge_accesskit.rs\n    — kittest: open graph pane with synthetic blocks, assert per-node AccessKit entries; dispatch graph.open-node, assert navigation; dispatch canvas.place-block, assert new card node; dispatch collection.kanban-move, assert lane change reflected in AccessKit tree\n\nFILES TO CREATE/EDIT (all under allowed paths):\n  src/frontend/handshake_native/src/accessibility/knowledge_action_registry.rs  (NEW)\n  src/frontend/handshake_native/src/graph/graph_pane.rs                          (EDIT)\n  src/frontend/handshake_native/src/graph/canvas_pane.rs                         (EDIT)\n  src/frontend/handshake_native/src/graph/collection_pane.rs                     (EDIT)\n  src/frontend/handshake_native/src/accessibility/mod.rs                         (EDIT)\n  src/frontend/handshake_native/tests/test_e7_knowledge_accesskit.rs            (NEW)\n\nREUSE (existing WP-011 modules — do NOT recreate):\n  src/frontend/handshake_native/src/accessibility/*.rs (mod.rs, live.rs, registry.rs, snapshot.rs) — the existing AccessKit adapter + node registry surface; KnowledgeActionRegistry pushes diffs into this same adapter.\n  src/frontend/handshake_native/src/loom_graph.rs — existing graph rendering surface; knowledge graph_pane.rs builds on its in-memory graph projection.\n  src/frontend/handshake_native/src/canvas_board.rs — existing canvas board surface; knowledge canvas_pane.rs builds on its placement/viewport state.\n  src/frontend/handshake_native/src/command_registry.rs + src/frontend/handshake_native/src/event_bus.rs — the shared command/selection/event bus used to dispatch parameterized actions and broadcast selection/refresh events.\n  src/frontend/handshake_native/src/mcp/*.rs (tools.rs, action.rs, attribution.rs, session.rs, ...) — the MCP action/tool channel that surfaces AccessKit actions to out-of-process swarm agents.\n\nDEPENDENCIES / UNBLOCK CONDITIONS:\n  - WP-KERNEL-011 spike: egui + AccessKit adapter exists and is operational (same dependency as MT-041); the adapter lives in src/frontend/handshake_native/src/accessibility/.\n  - MT-021 (local graph view) and MT-022 (global graph view) complete: src/frontend/handshake_native/src/graph/graph_pane.rs exists with a rendered node set and pan/zoom actions.\n  - MT-023 (folder tree + tags) complete: tags and tag-hub interaction points exist.\n  - MT-025 (wiki-page projection) and MT-026 (canvas board) complete: src/frontend/handshake_native/src/graph/canvas_pane.rs exists with placement management.\n  - MT-027 (block-collection views) complete: src/frontend/handshake_native/src/graph/collection_pane.rs exists with table/Kanban/calendar views.\n\nRISK IF MISSED: MT-043 SwarmEditProof requires a swarm agent to 'navigate graph', 'add backlink', and 'drive canvas' purely via AccessKit. If MT-042 is absent those actions have no AccessKit surface and the proof test cannot be written. MT-044 parity gate cannot include knowledge-surface model-accessibility criteria.",
@@ -907,5 +918,49 @@
     "target_reuse": "No builds in this follow-up; canonical supervisor now consumes existing CARGO_TARGET_DIR, never creates a fourth target.",
     "lifecycle_unchanged": true,
     "verdict_unchanged": true
+  },
+  "diagnosis_20260930": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-042-20260930-SLOW-RECORD-USER-WRITES",
+    "kind": "blocker_diagnosis",
+    "failure_class": "MOUNTED_GRAPH_EDGE_PERSIST_REFETCH_TIMEOUT",
+    "failure_kind": "product",
+    "cause": "graph add-edge persist/refetch missed 5s window: record-user writes slow at 8ea13a9b; MT-164/166 index grants",
+    "cause_status": "evidence-based hypothesis; last failing run 8ea13a9b predates the fixes; no native run of these tests since",
+    "failing_tests": [
+      "ac10_live_surrealdb_populated_graph_accesskit_round_trip"
+    ],
+    "evidence_refs": [
+      "179ffc1f MT-164 indexed grant lookup",
+      "4d4f7e12 MT-164 flattened grant fns",
+      "de04b8f0 MT-164 PASS_V3",
+      "e012e80d MT-166 index-bound select grant + ledger access",
+      "37ee7c5b MT-166 PASS_V1",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75-native.xml",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/mt-045/failure-diagnostics/standalone-run/live_backend--ac001_lookup_symbols_returns_populated_live_symbol (8ea13a9b: register_root 3351ms, ingest batch 9443ms, 1 file)",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-f0c00e434f8080d0/76db1aa6-b5c0-4970-8dfb-9f883f7e4c5b/backend.stdout.log (8ea13a9b: native save_request 9842ms, one statement 1255ms)"
+    ],
+    "distinct_from": [
+      "prior verdict: exact internal root cause unresolved / no host cause (no earlier diagnosis id)"
+    ],
+    "recorded_at_utc": "2026-09-30T11:50:06Z",
+    "recorded_by": "KERNEL_BUILDER-20260930"
+  },
+  "remediation_20260930": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-09-30T11:50:06Z",
+    "remediates": {
+      "verdict": "FAIL_V6",
+      "failure_class": "MOUNTED_GRAPH_EDGE_PERSIST_REFETCH_TIMEOUT",
+      "diagnosis_ref": "MT-042.json#diagnosis_20260930"
+    },
+    "admission_basis": "CX-VAL-008 new diagnosis citing fix commits landed after the last failing run (8ea13a9b)",
+    "product_change_in_this_mt": "none; fixes are shared backend commits cited in evidence_refs",
+    "candidate_commit": "259495f0596763a58193d44478742c5dde26290a",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 259495f0596763a58193d44478742c5dde26290a",
+    "implementer_checks": [],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 259495f0 (GP-139 confirmed: 65a7b6fb..259495f0 touches no counter code)",
+    "next_actor": "WP_VALIDATOR union round on 259495f0"
   }
 }

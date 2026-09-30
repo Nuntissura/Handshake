@@ -26,8 +26,14 @@
   },
   "validation_v5": {"schema_id":"hsk.mt_validation_verdict@1","decision":"failed","verdict":"FAIL_V5","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:48:02Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-043.scope.acceptance_criteria/proof_targets and own proof_commands","proof_records":[{"executor_role":"WP_VALIDATOR","command_ref":"MT-032.json#remediation_v12.union_entrypoint_binding","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","freshness":"Full49e archive marker; native JUnit15:40:56Z after13:57:25Z invocation marker; export/copy hashes equal","binaries":[{"path":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52\\debug\\deps\\test_e7_swarm_edit_proof-60733a2122131a2f.exe","target":"test_e7_swarm_edit_proof","sha256":"8AEA388A21E0BD3BAE78E64460741FE9484DA777E8CDB390297B4DAF077EE3E4"}],"runner_sha256":"6DCA6F19DF0C51F04677DA9E8E51F852394A466DC8EFC21455F15233B756E8AC","exit_code":100}],"failing_checks":[{"check_ids":["AC-043-01","AC-043-02"],"test":"swarm_edit_live_conflict_merge_search_and_receipts","target":"handshake-native::test_e7_swarm_edit_proof","elapsed_seconds":49.16,"failure_kind":"product","failure_class":"MOUNTED_SLASH_NOTE_CREATE_TIMEOUT","message":"thread 'swarm_edit_live_conflict_merge_search_and_receipts' (161972) panicked at tests\\test_e7_swarm_edit_proof.rs:647:9","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#swarm_edit_live_conflict_merge_search_and_receipts"}],"classification_basis":"Primary mounted slash-note creation lacked backend identity within5s; secondary cleanup reachability unresolved, not primary","proof_floor_disposition":{"required_checks":["AC-043-01","AC-043-02"],"unmapped_acs":"Own contract additional requirements not credited","remaining_proofs":"Not credited toward PASS; own required product failure establishes FAIL without claiming other floors complete"},"adversarial_review":{"DIFF_ATTACK_SURFACES":["Record-user/runtime persistence boundaries can fail while component tests pass"],"INDEPENDENT_CHECKS_RUN":["Opened own fresh JUnit and retained primary/secondary failure output","Verified actual union compile-selected EXE hashes"],"COUNTERFACTUAL_CHECKS":["Removing the assertion named by thread 'swarm_edit_live_conflict_merge_search_and_receipts' (161972) panicked at tests\\test_e7_swarm_edit_proof.rs:647:9 would conceal the required boundary failure"],"BOUNDARY_PROBES":["Primary mounted slash-note creation lacked backend identity within5s; secondary cleanup reachability unresolved, not primary"],"NEGATIVE_PATH_CHECKS":["Failure capture/cleanup output inspected separately; secondary failure does not replace primary"],"INDEPENDENT_FINDINGS":["MOUNTED_SLASH_NOTE_CREATE_TIMEOUT"],"RESIDUAL_UNCERTAINTY":["Exact internal root cause unresolved; no hardware/load causal attribution","No whole-MT PASS or full-WP completion"]},"remediation_required":["Diagnose named primary boundary with preserved authorization, deadlines and own acceptance; no midcandidate fix or retry in this consumed cycle"],"attempt_disposition":"One final union consumed; historical verdicts preserved; no new run","verdict_events":[{"event":"accepted","idempotency_key":"MT-043-49eac54e-union-v5","at_utc":"2026-09-26T15:48:02Z","payload_ref":"MT-043.json#validation_v5","decision":"failed"},{"event":"completed","idempotency_key":"MT-043-49eac54e-union-v5","at_utc":"2026-09-26T15:49:30Z","state_ref":"MT-043.json#lifecycle","decision":"failed"}]},
   "lifecycle": {
-    "candidate_invalidation_49eac54e": {"candidate_sha":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","prior_status":"PASS_V4","authority":"CX-VAL-009/CX-VAL-010; Operator final union dispatch","reason":"Swarm live document save/backlink proof depends on changed API/storage and shared helper","round_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"},
-    "status": "FAIL_V5",
+    "candidate_invalidation_49eac54e": {
+      "candidate_sha": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
+      "prior_status": "PASS_V4",
+      "authority": "CX-VAL-009/CX-VAL-010; Operator final union dispatch",
+      "reason": "Swarm live document save/backlink proof depends on changed API/storage and shared helper",
+      "round_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"
+    },
+    "status": "READY_FOR_VALIDATION",
     "active": true,
     "depends_on": [
       "MT-041",
@@ -103,7 +109,7 @@
     "claimed_by": "KERNEL_BUILDER-20260709-swarm",
     "claimed_at_utc": "2026-07-08T23:54:21.114Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-08T23:54:21.114Z",
+    "ready_for_validation_at_utc": "2026-09-30T11:50:06Z",
     "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-09)",
     "rfv_evidence_2026_07_09": {
       "by": "KERNEL_BUILDER-20260709-swarm",
@@ -119,7 +125,13 @@
       "proofs": "cargo test --features integration --test test_e7_swarm_edit_proof -j1 -- --nocapture --test-threads=1: 13 passed, 0 failed, 0 ignored. External artifact and checked-in fixture SHA-256 matched (76A5D685...), both are 54 lines, and a raw-byte scan found zero double-LF blank records. Negative/concurrency checks passed for namespace rejection, payload escaping, live-lock non-stealing, stale-lock recovery, watchdog contention, process-tree termination, and crash-window cleanup. The live path recorded distinct actor A/B receipts, managed-PG conflict/refetch/keep-server/merge/resave, live search result activation, EventLedger/Flight Recorder attribution, graph identities, and cleanup.",
       "independent_review": "PASS — READY_FOR_VALIDATION_V2 (mt043_final_review, 2026-07-18). Residual non-blocking notes: graph assertion is observed after persistence by a fresh Graph observer; stdout did not include a separate cargo build --tests invocation.",
       "artifact_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-043"
-    }
+    },
+    "candidate_commit": "259495f0596763a58193d44478742c5dde26290a",
+    "diagnosis_refs": [
+      "MT-043.json#diagnosis_20260930"
+    ],
+    "ready_for_validation_by": "KERNEL_BUILDER-20260930",
+    "status_before_20260930": "FAIL_V5"
   },
   "scope": {
     "summary": "GOAL: Author and run a proof suite that demonstrates an out-of-process agent can CREATE a note, EDIT code in the code editor, ADD a backlink between two blocks, and RUN a search — all exclusively via the AccessKit action channel registered by MT-041 and MT-042. No keyboard simulation, no screen-scraping, no direct Rust function calls from the test into the application under test. The agent talks to the running Handshake native UI through the AccessKit IPC mechanism only.\n\nThis MT is a PROOF task, not a feature task. It delivers:\n  (1) A proof harness binary/test in src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs\n  (2) A runtime proof log file at src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt (checked in, regenerated on each run, must be non-empty and must include a 'PROOF_PASS' marker)\n  (3) Zero new application code is permitted — this MT exercises the MT-041 and MT-042 surfaces as-delivered. If a gap is found (an action is missing, an author_id is wrong, a backend call does not happen), the MT raises a TYPED BLOCKER against MT-041 or MT-042 and does NOT patch application code inline.\n\nEXPECTED DIFF SHAPE:\n  CREATE  src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs\n    — Rust integration test (cargo test -p handshake-native --test test_e7_swarm_edit_proof)\n    — Spawns the Handshake native UI in a background thread using egui_kittest in headless mode\n    — Plays the full 4-step swarm scenario purely via AccessKit action dispatch (step details below)\n    — Asserts backend state after each step via direct DB query (real PostgreSQL test instance)\n    — Writes a proof log to src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt\n  CREATE  src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt\n    — Checked-in file; regenerated by the test; must end with 'PROOF_PASS' on the final line\n    — Format: one line per proof step, including action dispatched, AccessKit response, and DB assertion result\n\nFILES TO CREATE (all under allowed paths):\n  src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs        (NEW)\n  src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt  (NEW, generated by test)\n\nNO APPLICATION CODE CHANGES are permitted in this MT. If application code changes are needed, file a typed blocker.\n\nREUSE (existing WP-011 modules under src/frontend/handshake_native/src/ — exercise as-delivered, do not modify):\n  - AccessKit action channel + tree: accessibility/mod.rs, accessibility/live.rs, accessibility/registry.rs, accessibility/snapshot.rs (the WP-011 AccessKit surface this proof drives).\n  - MCP / out-of-process action dispatch surface: mcp/mod.rs, mcp/action.rs, mcp/tools.rs, mcp/attribution.rs (author_id attribution and action routing for swarm agents).\n  - Command/action namespace + bus: command_registry.rs and event_bus.rs (shared command/selection/event bus that registered actions flow through).\n  - Graph node surface for backlink/search assertions: loom_graph.rs (graph.node.<id> nodes).\n  - Canvas card surface (if referenced by MT-042 actions): canvas_board.rs (canvas.card.<placement_id> nodes).\n\nDEPENDENCIES / UNBLOCK CONDITIONS:\n  - MT-041 DONE: every editor action (format, find, save, multi-cursor) is accessible via AccessKit with stable author_ids.\n  - MT-042 DONE: every graph/canvas/collection action is accessible via AccessKit with stable author_ids; graph.node.<block_id> and canvas.card.<placement_id> nodes are populated.\n  - MT-037 and MT-038 (E6 backend wiring) DONE: the create-note and save-note and search backend APIs are wired and reachable from the native UI.\n  - MT-028 (Loom Search v2 native surface) DONE: loom search v2 AccessKit surface is available; otherwise the search step falls back to the find-in-files AccessKit surface from MT-029.\n  - Cross-WP: the WP-011 AccessKit adapter (accessibility/* + mcp/*) must already expose the cloneable action channel; if it does not, file a typed blocker against WP-KERNEL-011 (see implementation_notes).\n\nRISK IF MISSED: The WP-KERNEL-012 acceptance criterion 'Model-vision parity: every editor and knowledge action is exposed via the WP-011 AccessKit surface so a swarm agent can author/edit code and notes and drive the graph/canvas by stable id; proven' cannot be satisfied. MT-044 (parity gate) and MT-046 (interconnection proof) reference this proof as a prerequisite.",
@@ -594,5 +606,49 @@
     "pass_basis": "MT-043 PASS_V4. The complete current-head proof target passes 14/14. Its independently supervised live child performs all four required AccessKit-only actions in one isolated real-PostgreSQL scenario, survives a killed editor-agent process, preserves and merges acknowledged work exactly once, proves distinct EventLedger/Flight Recorder attribution, cleans all owned rows/state, completes within the bound, and publishes a 56-line 19-action PROOF_PASS log in both required locations.",
     "remediation_required": false,
     "residual_uncertainty": "No acceptance-blocking uncertainty remains for MT-043. The tracked proof log contains run-specific IDs by contract and will change on every authoritative rerun; consumers must compare its terminal marker and current-run integrity rather than expect byte stability across runs."
+  },
+  "diagnosis_20260930": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-043-20260930-SLOW-RECORD-USER-WRITES",
+    "kind": "blocker_diagnosis",
+    "failure_class": "MOUNTED_SLASH_NOTE_CREATE_TIMEOUT",
+    "failure_kind": "product",
+    "cause": "slash-note create lacked backend id within 5s: document create slow (save 9.8s) at 8ea13a9b; MT-164/166 grants",
+    "cause_status": "evidence-based hypothesis; last failing run 8ea13a9b predates the fixes; no native run of these tests since",
+    "failing_tests": [
+      "swarm_edit_live_conflict_merge_search_and_receipts"
+    ],
+    "evidence_refs": [
+      "179ffc1f MT-164 indexed grant lookup",
+      "4d4f7e12 MT-164 flattened grant fns",
+      "de04b8f0 MT-164 PASS_V3",
+      "e012e80d MT-166 index-bound select grant + ledger access",
+      "37ee7c5b MT-166 PASS_V1",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75-native.xml",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/mt-045/failure-diagnostics/standalone-run/live_backend--ac001_lookup_symbols_returns_populated_live_symbol (8ea13a9b: register_root 3351ms, ingest batch 9443ms, 1 file)",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-f0c00e434f8080d0/76db1aa6-b5c0-4970-8dfb-9f883f7e4c5b/backend.stdout.log (8ea13a9b: native save_request 9842ms, one statement 1255ms)"
+    ],
+    "distinct_from": [
+      "prior verdict: exact internal root cause unresolved / no host cause (no earlier diagnosis id)"
+    ],
+    "recorded_at_utc": "2026-09-30T11:50:06Z",
+    "recorded_by": "KERNEL_BUILDER-20260930"
+  },
+  "remediation_20260930": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-09-30T11:50:06Z",
+    "remediates": {
+      "verdict": "FAIL_V5",
+      "failure_class": "MOUNTED_SLASH_NOTE_CREATE_TIMEOUT",
+      "diagnosis_ref": "MT-043.json#diagnosis_20260930"
+    },
+    "admission_basis": "CX-VAL-008 new diagnosis citing fix commits landed after the last failing run (8ea13a9b)",
+    "product_change_in_this_mt": "none; fixes are shared backend commits cited in evidence_refs",
+    "candidate_commit": "259495f0596763a58193d44478742c5dde26290a",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 259495f0596763a58193d44478742c5dde26290a",
+    "implementer_checks": [],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 259495f0 (GP-139 confirmed: 65a7b6fb..259495f0 touches no counter code)",
+    "next_actor": "WP_VALIDATOR union round on 259495f0"
   }
 }

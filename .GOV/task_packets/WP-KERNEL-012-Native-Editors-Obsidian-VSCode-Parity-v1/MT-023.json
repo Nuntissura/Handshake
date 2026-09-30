@@ -26,7 +26,7 @@
   },
   "validation_v7": {"schema_id":"hsk.mt_validation_verdict@1","decision":"failed","verdict":"FAIL_V7","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:48:02Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-023.scope.acceptance_criteria/proof_targets and own proof_commands","proof_records":[{"executor_role":"WP_VALIDATOR","command_ref":"MT-032.json#remediation_v12.union_entrypoint_binding","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","freshness":"Full49e archive marker; native JUnit15:40:56Z after13:57:25Z invocation marker; export/copy hashes equal","binaries":[{"path":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52\\debug\\deps\\test_tags_panel-7064f7e2b51e2709.exe","target":"test_tags_panel","sha256":"634EE7314F505375CEED4E9FC631887B1DAD8B1F48439FF330D77D4B509D5DC8"}],"runner_sha256":"6DCA6F19DF0C51F04677DA9E8E51F852394A466DC8EFC21455F15233B756E8AC","exit_code":100}],"failing_checks":[{"check_ids":["PC-023-03"],"test":"tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip","target":"handshake-native::test_tags_panel","elapsed_seconds":125.274,"failure_kind":"product","failure_class":"MOUNTED_TAG_ADD_REFRESH_TIMEOUT","message":"thread 'tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip' (208224) panicked at tests\\test_tags_panel.rs:1077:5","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip"}],"classification_basis":"Persisted add not shown and in-flight state not cleared within10s; required mounted refresh boundary failed","proof_floor_disposition":{"required_checks":["PC-023-03"],"unmapped_acs":[],"remaining_proofs":"Not credited toward PASS; own required product failure establishes FAIL without claiming other floors complete"},"adversarial_review":{"DIFF_ATTACK_SURFACES":["Record-user/runtime persistence boundaries can fail while component tests pass"],"INDEPENDENT_CHECKS_RUN":["Opened own fresh JUnit and retained primary/secondary failure output","Verified actual union compile-selected EXE hashes"],"COUNTERFACTUAL_CHECKS":["Removing the assertion named by thread 'tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip' (208224) panicked at tests\\test_tags_panel.rs:1077:5 would conceal the required boundary failure"],"BOUNDARY_PROBES":["Persisted add not shown and in-flight state not cleared within10s; required mounted refresh boundary failed"],"NEGATIVE_PATH_CHECKS":["Failure capture/cleanup output inspected separately; secondary failure does not replace primary"],"INDEPENDENT_FINDINGS":["MOUNTED_TAG_ADD_REFRESH_TIMEOUT"],"RESIDUAL_UNCERTAINTY":["Exact internal root cause unresolved; no hardware/load causal attribution","No whole-MT PASS or full-WP completion"]},"remediation_required":["Diagnose named primary boundary with preserved authorization, deadlines and own acceptance; no midcandidate fix or retry in this consumed cycle"],"attempt_disposition":"One final union consumed; historical verdicts preserved; no new run","verdict_events":[{"event":"accepted","idempotency_key":"MT-023-49eac54e-union-v7","at_utc":"2026-09-26T15:48:02Z","payload_ref":"MT-023.json#validation_v7","decision":"failed"},{"event":"completed","idempotency_key":"MT-023-49eac54e-union-v7","at_utc":"2026-09-26T15:49:30Z","state_ref":"MT-023.json#lifecycle","decision":"failed"}]},
   "lifecycle": {
-    "status": "FAIL_V7",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-021"
@@ -86,8 +86,8 @@
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
     "claimed_by": "KERNEL_BUILDER-20260723-082350",
-    "ready_for_validation_at_utc": "2026-09-22T20:51:09.293Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-C1",
+    "ready_for_validation_at_utc": "2026-09-30T11:50:06Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "ready_for_validation_reason": "MT-023 V4 remediation is implemented and independently reviewed: exact mounted tag navigation now reaches a terminal Applied receipt bound to the authoritative PostgreSQL hub-membership request, stale and count deliveries cannot supersede it, Back wins same-frame races, typed runtime failures replace perpetual loading, and the fresh GPU PNG visibly agrees with the terminal AccessKit tree. Official validator revalidation remains pending.",
     "external_resource_proof_status": "PASS_V4_REAL_POSTGRESQL_GPU",
     "missing_resource": null,
@@ -113,7 +113,12 @@
       "prior_validator_verdict": "FAIL_V6",
       "reason": "remediation recorded after the last validation; awaiting re-validation on the next candidate",
       "prior_next_actor": "KERNEL_BUILDER"
-    }
+    },
+    "candidate_commit": "259495f0596763a58193d44478742c5dde26290a",
+    "diagnosis_refs": [
+      "MT-023.json#diagnosis_20260930"
+    ],
+    "status_before_20260930": "FAIL_V7"
   },
   "scope": {
     "summary": "Goal: Implement a Tags panel and Tag Hubs panel in the native egui frontend. The Tags panel lists all tag blocks (content_type='tag_hub') across the workspace fetched from the real PostgreSQL backend, shows the number of blocks linked to each tag, and lets the user click a tag to open it as a filter (fires on_filter_tag callback). The Tag Hubs panel renders tag_hub-typed LoomBlocks as first-class content pages (like Obsidian's 'tag page'): showing the hub's title, description (from content_json), and the list of blocks tagged with it. Expected diff shape: one new file src/frontend/handshake_native/src/loom/tags_panel.rs containing LoomTagsPanel and LoomTagHubPanel widgets, edits to src/frontend/handshake_native/src/loom/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/handshake_native/src/loom/tags_panel.rs — LoomTagsPanel (tag list) + LoomTagHubPanel (tag hub page)\n- EDIT src/frontend/handshake_native/src/loom/mod.rs — pub mod tags_panel; + re-exports\n\nExact APIs / React reference:\n- React reference: WorkspaceSidebar.tsx (app/src/components/WorkspaceSidebar.tsx) calls queryLoomView with contentType filter (LoomViewQuery.contentType, api.ts line 1061). bookmarkKind() in WorkspaceSidebar.tsx line 44 identifies tag_hub blocks. The React component does not have a standalone Tags panel; this is a new surface.\n- LoomBlock.content_type == 'tag_hub' (api.ts line 933) is the tag hub block type.\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/views/all?content_type=tag_hub — list all tag hub blocks\n  - GET /workspaces/{workspace_id}/loom/views/all?tag_ids={tag_hub_block_id} — list blocks tagged with a specific tag hub\n  - GET /workspaces/{workspace_id}/loom/blocks/{block_id} — load tag hub block detail\n  - GET /workspaces/{workspace_id}/loom/views/sorted?tag_ids={tag_hub_block_id} — grouped members of a tag hub\n  - POST /workspaces/{workspace_id}/loom/edges (createLoomEdge edge_type='tag') — tag a block with a hub (future use; wire callback slot)\n\nStep-by-step implementation notes:\n1. Define TagEntry { block_id: String, title: String, member_count: u32 } in tags_panel.rs.\n2. Define LoomTagsPanel { workspace_id: String, tags: Vec<TagEntry>, on_open_tag: Callback<String>, on_filter_tag: Callback<String>, loading: bool, error: Option<String>, search_filter: String }.\n3. On init, call GET /workspaces/{id}/loom/views/all?content_type=tag_hub to enumerate all tag hubs. For each hub, member_count = members.len() (or show 0 if not yet loaded). Display a flat list sorted by title.\n4. Render a search box at top of panel (egui::TextEdit::singleline, author_id='tags.search', placeholder='Filter tags...'). Filter displayed tags client-side by title prefix match.\n5. Each tag row: colored tag chip (egui::Button with background color derived from title hash), member count badge, click fires on_open_tag(block_id) to navigate to the hub page.\n6. LoomTagHubPanel (separate widget, shown when a tag hub block_id is provided as the active page):\n   a. Load tag hub block via GET /workspaces/{id}/loom/blocks/{block_id}.\n   b. Load members via GET /workspaces/{id}/loom/views/all?tag_ids={block_id}, limit=100.\n   c. Render hub title as H1, description from content_json if present.\n   d. Render members as a scrollable list of block rows (title + content_type). Click on member -> on_open(member_block_id).\n   e. 'Add tag to block' button (author_id='tag-hub.add-tag.{block_id}'): opens a quick-switcher-style popup to search for a block and tag it (fires POST /workspaces/{id}/loom/edges with edge_type='tag', source=selected_block_id, target=hub_block_id).\n7. AccessKit:\n   - LoomTagsPanel: search box author_id='tags.search', each tag row 'tags.row.{block_id}' role=ListItem with DefaultAction=open, member count as accessible description.\n   - LoomTagHubPanel: hub title label 'tag-hub.title.{block_id}', member list items 'tag-hub.member.{block_id}', add-tag button 'tag-hub.add-tag.{block_id}'.\n\nReuse pointers (existing WP-011 modules under src/frontend/handshake_native/src/): reuse the existing Loom graph/knowledge surface in loom_graph.rs for the tag_hub block model and graph navigation; reuse command_registry.rs + event_bus.rs for the shared selection/command bus and for emitting on_open/on_filter navigation events; reuse accessibility/ (mod.rs, live.rs, registry.rs, snapshot.rs) for AccessKit author_id registration of tag rows and hub panel nodes; reuse mcp/ for exposing tag navigation as parallel-model actions where applicable. The new tags_panel surface is added inside a new loom/ subdir under src/frontend/handshake_native/src/.\n\nDependencies / unblock conditions: MT-021 must be complete for shared HTTP client infrastructure. MT-023 does not depend on MT-022. Cross-WP: this MT builds on the WP-011 native shell modules listed above (loom_graph.rs, command_registry.rs, event_bus.rs, accessibility/*, mcp/*).\n\nRisk if missed: Tag-based navigation and filtering are unavailable. MT-027 (BlockCollectionViews kanban lanes) depends on tag identity resolved here.",
@@ -1729,5 +1734,51 @@
       "contract module path loom::tags_panel does not exist; real path graph::tags_panel",
       "canonical Argus tests need the stage binding env"
     ]
+  },
+  "diagnosis_20260930": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-023-20260930-SLOW-RECORD-USER-WRITES",
+    "kind": "blocker_diagnosis",
+    "failure_class": "MOUNTED_TAG_ADD_REFRESH_TIMEOUT",
+    "failure_kind": "product",
+    "cause": "mounted tag add/refresh missed 10s window: record-user writes slow (1-9s) at 8ea13a9b; MT-164/166 index grant fns",
+    "cause_status": "evidence-based hypothesis; last failing run 8ea13a9b predates the fixes; no native run of these tests since",
+    "failing_tests": [
+      "tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip"
+    ],
+    "evidence_refs": [
+      "179ffc1f MT-164 indexed grant lookup",
+      "4d4f7e12 MT-164 flattened grant fns",
+      "de04b8f0 MT-164 PASS_V3",
+      "e012e80d MT-166 index-bound select grant + ledger access",
+      "37ee7c5b MT-166 PASS_V1",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75-native.xml",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/mt-045/failure-diagnostics/standalone-run/live_backend--ac001_lookup_symbols_returns_populated_live_symbol (8ea13a9b: register_root 3351ms, ingest batch 9443ms, 1 file)",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-f0c00e434f8080d0/76db1aa6-b5c0-4970-8dfb-9f883f7e4c5b/backend.stdout.log (8ea13a9b: native save_request 9842ms, one statement 1255ms)"
+    ],
+    "distinct_from": [
+      "C1V-NATIVE-AUTH-LOGIN",
+      "NOT-RUN-MASKED",
+      "prior verdict: exact internal root cause unresolved / no host cause (no earlier diagnosis id)"
+    ],
+    "recorded_at_utc": "2026-09-30T11:50:06Z",
+    "recorded_by": "KERNEL_BUILDER-20260930"
+  },
+  "remediation_20260930": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-09-30T11:50:06Z",
+    "remediates": {
+      "verdict": "FAIL_V7",
+      "failure_class": "MOUNTED_TAG_ADD_REFRESH_TIMEOUT",
+      "diagnosis_ref": "MT-023.json#diagnosis_20260930"
+    },
+    "admission_basis": "CX-VAL-008 new diagnosis citing fix commits landed after the last failing run (8ea13a9b)",
+    "product_change_in_this_mt": "none; fixes are shared backend commits cited in evidence_refs",
+    "candidate_commit": "259495f0596763a58193d44478742c5dde26290a",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 259495f0596763a58193d44478742c5dde26290a",
+    "implementer_checks": [],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 259495f0 (GP-139 confirmed: 65a7b6fb..259495f0 touches no counter code)",
+    "next_actor": "WP_VALIDATOR union round on 259495f0"
   }
 }

@@ -88,7 +88,7 @@
     },
     "status_reason": "FAIL_V2 causes not reproduced on 37ee7c5b; MT153-VISUAL-EDGE-ANON-401 fixed in 65a7b6fb per WP012-MT153-ANON-403-20260930; builder compile/static pass.",
     "status_before_20260930": "FAIL_V2",
-    "candidate_commit": "65a7b6fb6f7e0383674f2a0e5d85a0eb0c2d81c6"
+    "candidate_commit": "259495f0596763a58193d44478742c5dde26290a"
   },
   "closure_unit": {
     "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
@@ -2321,7 +2321,7 @@
       "operator_decision_ref": "operator_decision_20260930_anonymous_denial"
     },
     "base_sha": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
-    "candidate_sha": "65a7b6fb6f7e0383674f2a0e5d85a0eb0c2d81c6",
+    "candidate_sha": "259495f0596763a58193d44478742c5dde26290a",
     "candidate_tree": "749888f9256dcd0b98d0c4edf028e480b250d7cb",
     "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 65a7b6fb6f7e0383674f2a0e5d85a0eb0c2d81c6",
     "changed_files": [
@@ -2357,12 +2357,37 @@
         ],
         "command": "rustfmt 1.97.1 --edition 2021 --check (stdin) on both changed files; git diff --check",
         "exit_code": 0,
-        "result_line": "FMT_OK loom.rs, FMT_OK workspaces.rs; diff --check clean"
+        "result_line": "FMT_OK loom.rs, FMT_OK workspaces.rs; diff --check clean",
+        "invalidated": {
+          "at_utc": "2026-09-30T12:40:00Z",
+          "reason": "stdin-mode rustfmt --check exits 0 even with a diff; file-mode check showed loom.rs:11065/11072 unformatted",
+          "superseded_by": "KB-20260930-MT153-FMT-FILEMODE"
+        }
+      },
+      {
+        "proof_id": "KB-20260930-MT153-FMT-FILEMODE",
+        "executor_role": "KERNEL_BUILDER",
+        "covers": [
+          "MT-153"
+        ],
+        "command": "rustfmt --edition 2021 --check <file> (file mode, rustfmt 1.9.0 / toolchain 1.97.1) on api/loom.rs and api/workspaces.rs",
+        "before": "loom.rs exit 1 (diffs at 11065, 11072 only, confined to loom.rs); workspaces.rs exit 0",
+        "fix_commit": "259495f0596763a58193d44478742c5dde26290a",
+        "after": "loom.rs exit 0, workspaces.rs exit 0 at 259495f0",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-027/kb-20260930/mt153-fmt-check.log"
       }
     ],
     "gameplan": "before_submit kernel_builder PASS 2/2 at 65a7b6fb (GP-023; GP-139 confirmed: diff touches no counter code)",
     "test_runs": "none by builder (CX-EXEC-014); validator runs MT-153 proof checks on 65a7b6fb",
-    "recorded_at_utc": "2026-09-30T10:32:31Z"
+    "recorded_at_utc": "2026-09-30T10:32:31Z",
+    "fmt_correction": {
+      "at_utc": "2026-09-30T12:40:00Z",
+      "finding": "remediation_v4 FMT_OK claim invalid (stdin-mode check); validator found loom.rs not rustfmt-clean",
+      "fix_commit": "259495f0596763a58193d44478742c5dde26290a",
+      "fix_scope": "formatting only, src/backend/handshake_core/src/api/loom.rs",
+      "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 259495f0596763a58193d44478742c5dde26290a",
+      "tree": "6a1f1162ce148a62a3e4735c123698251d691cbe"
+    }
   },
   "round_65a7b6fb_prep": {
     "recorded_at_utc": "2026-09-30T11:41:00Z",

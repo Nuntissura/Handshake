@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V7",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-063",
@@ -42,8 +42,8 @@
     "remediation_v3_in_progress": false,
     "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "remediation_v3_review_hardening_completed_at_utc": "2026-07-26T01:20:15.6333794Z",
-    "ready_for_validation_at_utc": "2026-09-22T20:51:09.293Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-C1",
+    "ready_for_validation_at_utc": "2026-09-30T11:50:06Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "completed_by": null,
     "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_THREE_INDEPENDENT_FINAL_REVIEWS_NO_PRODUCT_BLOCKER",
@@ -143,7 +143,12 @@
       "prior_validator_verdict": "FAIL_V6",
       "reason": "remediation recorded after the last validation; awaiting re-validation on the next candidate",
       "prior_next_actor": "KERNEL_BUILDER"
-    }
+    },
+    "candidate_commit": "259495f0596763a58193d44478742c5dde26290a",
+    "diagnosis_refs": [
+      "MT-065.json#diagnosis_20260930"
+    ],
+    "status_before_20260930": "FAIL_V7"
   },
   "scope": {
     "summary": "PROOF MT (no app code changes; proof only). GOAL: deliver a runtime proof suite that proves the native editor <-> FEMS (Pillar 12 typed-memory system, the project's typed-memory edge described as Pillar 12) interop works end-to-end against a REAL PostgreSQL database and the REAL EventLedger — no mocks, no stubs, no in-memory fakes, no SQLite. The suite proves three load-bearing interop claims: (1) a MemoryPack request issued from a document/editor context returns provenance-linked memory items that the native 'Relevant Memory' panel actually renders; (2) a 'Propose to Memory' action from the editor creates a review-gated proposal row in PostgreSQL AND emits an FR-EVT-MEM-001 event into the live EventLedger; (3) every FEMS editor action (open the Relevant Memory panel, trigger a MemoryPack refresh, invoke 'Propose to Memory', confirm/cancel the proposal) is reachable purely via AccessKit ids so an out-of-process swarm agent can drive the entire flow without screen-scraping or synthetic key events.\n\nWHAT THIS MT IS NOT: it does NOT implement the FEMS panel, the MemoryPack client, the proposal action, or the AccessKit registration — those are delivered by MT-063 (FEMS Relevant Memory panel + MemoryPack client), MT-064 ('Propose to Memory' action + proposal lifecycle), and MT-041 (editor actions exposed through AccessKit). This MT ONLY writes the runtime proof suite that exercises and asserts that already-built behavior. Do not add features. Do not edit any non-test source file. If a needed behavior or backend API is missing, do NOT implement it here — record it as a typed blocker (see implementation_notes) and fail the affected proof with a descriptive message, never a silent skip.\n\nEXPECTED DIFF SHAPE: a single new test file:\n  CREATE  src/frontend/handshake_native/tests/test_fems_interop_proofs.rs  (~350-550 lines)\n    - one Rust integration-test module that boots the native editor shell in an egui_kittest harness (the in-process UI test harness from the WP-011 toolkit), connected to a REAL handshake_core backend talking to a REAL PostgreSQL instance and the REAL EventLedger.\n    - four #[test] (or #[tokio::test] if the harness is async) proof functions: proof_fems_01_memorypack_render, proof_fems_02_propose_creates_proposal_and_event, proof_fems_03_swarm_drives_fems_via_accesskit, proof_fems_04_procedural_proposal_stays_review_gated.\n    - shared test fixtures at the top of the file: a fn that resolves the live PostgreSQL DSN and EventLedger endpoint from the standard test-config surface (env vars / workspace test config — see implementation_notes), a fn that creates a throwaway workspace_id + a seed document with known content, and a teardown that removes only the rows this test created (never TRUNCATE shared tables).\n\nHOW TO BUILD THE SUITE (step-by-step, no-context implementable):\n  1. Reuse WP-011 shell primitives — do NOT re-create them. Get the pane registry (src/frontend/handshake_native/src/pane_registry.rs), the command bus (src/frontend/handshake_native/src/command_registry.rs + src/frontend/handshake_native/src/event_bus.rs), and the AccessKit id registry (src/frontend/handshake_native/src/accessibility/registry.rs) from the WP-011 shell (the same surfaces MT-031 wired the editor panes into and MT-041 registered actions into). Construct the kittest app exactly the way MT-041's harness (src/frontend/handshake_native/tests/test_e7_editor_action_accesskit.rs) constructs it, then additionally mount the FEMS Relevant Memory panel from MT-063 and enable the 'Propose to Memory' action from MT-064. Treat MT-041's harness as the canonical pattern for: building the egui_kittest app, advancing frames, querying the AccessKit tree by author_id, and dispatching AccessKit actions (ctx.perform_accesskit_action(node_id, action_id)).\n  2. Real PostgreSQL only (HARD CONSTRAINT). The backend under test MUST be configured to use PostgreSQL + the EventLedger. There must be NO SQLite anywhere in this suite or its configuration. Resolve the live DSN from the project's standard integration-test config (env var such as HANDSHAKE_TEST_PG_DSN or the workspace test config file — confirm the exact key against the E6/backend-wiring MTs and existing integration tests before hardcoding). If the DSN is absent, the proof MUST fail with a clear 'live PostgreSQL DSN not configured' message — never silently fall back to an in-memory or SQLite store, and never pass green on an absent backend.\n  3. proof_fems_01_memorypack_render: create a throwaway workspace and a seed document whose content deterministically matches at least one memory item already present (or seeded by the fixture) so a MemoryPack request returns at least one hit. Open the editor on that document, open the FEMS Relevant Memory panel via its AccessKit action, trigger the MemoryPack request (the panel issues GET /workspaces/{workspace_id}/memory/pack against the live backend), advance frames until the response renders, then ASSERT: (a) the HTTP/IPC call hit the real backend (observable via the returned payload referencing real PG row ids, not a fixture constant), (b) the panel's AccessKit subtree contains >= 1 rendered memory item node, and (c) each rendered item carries provenance linkage (source id / origin reference) — assert the provenance field is present and non-empty on at least one item. No mocked response.\n  4. proof_fems_02_propose_creates_proposal_and_event: with the same live workspace, select editor content and invoke the 'Propose to Memory' action (MT-064) via its AccessKit id. After the action completes, ASSERT against the LIVE backend, not the UI alone: (a) a new proposal row exists in PostgreSQL for this workspace_id (query via the backend's proposals read API — GET /workspaces/{workspace_id}/memory/proposals — and assert the new proposal id is present), and (b) an FR-EVT-MEM-001 event was emitted into the live EventLedger (query GET /api/flight_recorder, filter for event type FR-EVT-MEM-001 correlated to this workspace_id / proposal id, assert exactly the expected event appears). Both the proposal row and the ledger event must reference the same proposal identity so the proof shows the write and the event are correlated, not coincidental.\n  5. proof_fems_03_swarm_drives_fems_via_accesskit: prove the swarm path. Drive the ENTIRE FEMS flow purely through AccessKit ids as an out-of-process agent would: discover the FEMS panel-open action, the MemoryPack-refresh action, the 'Propose to Memory' action, and the proposal confirm/cancel actions by author_id only (no direct Rust calls into the panel, no synthetic key events, no screen-scraping). For each step, look up the node by its stable author_id (per MT-041's 'editor.<pane>.<action>' convention extended for FEMS, e.g. editor.fems.panel-open, editor.fems.memorypack-refresh, editor.fems.propose, editor.fems.proposal-confirm), dispatch the AccessKit activate action, advance a frame, and assert the resulting state. ASSERT that the full sequence (open panel -> refresh MemoryPack -> propose -> reach review-gated proposal) is completable using only AccessKit ids, and that every targeted id is stable (deterministic, no random segments) so a stored swarm reference stays valid across frames.\n  6. proof_fems_04_procedural_proposal_stays_review_gated: prove the safety invariant. A 'Propose to Memory' action — even one triggered procedurally / by an agent in proof_fems_03 — must create a REVIEW-GATED proposal and must NOT auto-commit into memory. After triggering the propose action end-to-end, ASSERT against the live backend that: (a) the proposal's status is the review-gated/pending state (not committed/applied), (b) no corresponding committed memory item was created as a side effect (query the live memory store and assert the proposed content did NOT appear as an active memory item without an explicit review/confirm), and (c) the FR-EVT-MEM-001 event records the proposal as pending review, not as an applied write. This proof is the regression guard for the typed-memory edge: it must fail loudly if any path lets a procedural proposal bypass the human/agent review gate.\n\nDEPENDENCIES / UNBLOCK CONDITIONS:\n  - MT-063 COMPLETE: the native FEMS 'Relevant Memory' panel and the MemoryPack client (GET /workspaces/{workspace_id}/memory/pack) exist and render provenance-linked items.\n  - MT-064 COMPLETE: the 'Propose to Memory' editor action exists, creates a review-gated proposal via POST /workspaces/{workspace_id}/memory/proposals, and emits FR-EVT-MEM-001.\n  - MT-041 COMPLETE: editor actions (and, by extension, the FEMS actions) are exposed through the WP-011 AccessKit surface with stable author_ids; this MT reuses MT-041's kittest harness pattern and AccessKit id/action conventions.\n  - A live PostgreSQL + EventLedger backend reachable from the test environment, configured via the project's standard integration-test config. No SQLite.\n\nRISK IF MISSED: FEMS interop is asserted but never proven; the typed-memory edge (Pillar 12) could regress silently — a broken MemoryPack render, a proposal that auto-commits past the review gate, a missing FR-EVT-MEM-001 event, or an AccessKit id drift that breaks the swarm path — all without any failing test. This MT is the E9 cluster's end-to-end interop guarantee for the editor<->FEMS edge.",
@@ -1359,5 +1364,51 @@
         "reason": "build/warnings gate (cargo build --tests)"
       }
     ]
+  },
+  "diagnosis_20260930": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-065-20260930-SLOW-RECORD-USER-WRITES",
+    "kind": "blocker_diagnosis",
+    "failure_class": "FEMS_SEED_CODE_NAV_INDEX_TIMEOUT",
+    "failure_kind": "product",
+    "cause": "FEMS seed POST code-nav/index hit 8s timeout (test :498) at 49eac54e/8ea13a9b; MT-164/166 index grant fns",
+    "cause_status": "evidence-based hypothesis; last failing run 8ea13a9b predates the fixes; no native run of these tests since",
+    "failing_tests": [
+      "proof_fems_* (11 live cases) at test_fems_interop_proofs.rs:498"
+    ],
+    "evidence_refs": [
+      "179ffc1f MT-164 indexed grant lookup",
+      "4d4f7e12 MT-164 flattened grant fns",
+      "de04b8f0 MT-164 PASS_V3",
+      "e012e80d MT-166 index-bound select grant + ledger access",
+      "37ee7c5b MT-166 PASS_V1",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-8ea13a9b6650eecc819acfacbbf0c5d8299e9f75-native.xml",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/mt-045/failure-diagnostics/standalone-run/live_backend--ac001_lookup_symbols_returns_populated_live_symbol (8ea13a9b: register_root 3351ms, ingest batch 9443ms, 1 file)",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-f0c00e434f8080d0/76db1aa6-b5c0-4970-8dfb-9f883f7e4c5b/backend.stdout.log (8ea13a9b: native save_request 9842ms, one statement 1255ms)"
+    ],
+    "distinct_from": [
+      "NOT-RUN-MASKED",
+      "2bf51103 workspace-list visibility at :681 (validation_v7)",
+      "prior verdict: exact internal root cause unresolved / no host cause (no earlier diagnosis id)"
+    ],
+    "recorded_at_utc": "2026-09-30T11:50:06Z",
+    "recorded_by": "KERNEL_BUILDER-20260930"
+  },
+  "remediation_20260930": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-09-30T11:50:06Z",
+    "remediates": {
+      "verdict": "FAIL_V7",
+      "failure_class": "FEMS_SEED_CODE_NAV_INDEX_TIMEOUT",
+      "diagnosis_ref": "MT-065.json#diagnosis_20260930"
+    },
+    "admission_basis": "CX-VAL-008 new diagnosis citing fix commits landed after the last failing run (8ea13a9b)",
+    "product_change_in_this_mt": "none; fixes are shared backend commits cited in evidence_refs",
+    "candidate_commit": "259495f0596763a58193d44478742c5dde26290a",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 259495f0596763a58193d44478742c5dde26290a",
+    "implementer_checks": [],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 259495f0 (GP-139 confirmed: 65a7b6fb..259495f0 touches no counter code)",
+    "next_actor": "WP_VALIDATOR union round on 259495f0"
   }
 }
