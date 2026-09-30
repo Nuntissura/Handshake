@@ -478,11 +478,24 @@ impl LiveWorkspaceGuard<'_> {
             &format!("/api/flight_recorder?wsid={}", self.workspace_id),
             &self.session_token,
         );
+        // The delete route records its own `fs.write` authorization audit AFTER purging the
+        // workspace's rows, and this very read records its `fr.read` audit before listing. Those
+        // two authorization-audit families must outlive the delete; every other row is residue.
+        let residue = flight_recorder_rows.as_array().map(|rows| {
+            rows.iter()
+                .filter(|row| {
+                    let audit = row["event_type"].as_str() == Some("capability_action")
+                        && row["policy_decision_id"].as_str().is_some_and(|id| {
+                            id.starts_with("workspace-delete:")
+                                || id.starts_with("native-fr-capability:")
+                        });
+                    !audit
+                })
+                .collect::<Vec<_>>()
+        });
         assert!(
-            flight_recorder_rows
-                .as_array()
-                .is_some_and(|rows| rows.is_empty()),
-            "MT-067 workspace cleanup left scoped Flight Recorder residue: {flight_recorder_rows}"
+            residue.as_ref().is_some_and(|rows| rows.is_empty()),
+            "MT-067 workspace cleanup left scoped Flight Recorder residue: {residue:?} (all rows: {flight_recorder_rows})"
         );
     }
 
@@ -666,10 +679,17 @@ fn wait_for_calendar_fr(
     kind: &str,
     matches_fixture: impl Fn(&serde_json::Value) -> bool,
 ) -> serde_json::Value {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    // MT-067 r2 remediation: every recorder GET writes a durable `capability_action` audit row, and
+    // the recorder returns only the newest 200 rows by event timestamp. An unfiltered 20 ms poll
+    // therefore (a) buried a late-ingested native row beneath its own newer audit rows and (b) loaded
+    // the backend while the app's single ordered emitter was still delivering the date's receipts.
+    // The `surface` filter is applied in storage BEFORE the 200-row window and selects only
+    // native-editor rows of the Daily Journal pane; the poll is paced, and the bound covers serial
+    // ingestion of every receipt of one date on the live backend.
+    let deadline = std::time::Instant::now() + CALENDAR_FR_ARRIVAL_BOUND;
     loop {
         let rows = backend.get_json_with_session_token(
-            &format!("/api/flight_recorder?wsid={workspace_id}"),
+            &format!("/api/flight_recorder?wsid={workspace_id}&surface={CALENDAR_FR_SURFACE}"),
             session_token,
         );
         if let Some(row) = rows.as_array().and_then(|rows| {
@@ -682,11 +702,19 @@ fn wait_for_calendar_fr(
         }
         assert!(
             std::time::Instant::now() < deadline,
-            "automatic {kind} Flight Recorder row did not arrive within five seconds"
+            "automatic {kind} Flight Recorder row did not arrive within {:?}",
+            CALENDAR_FR_ARRIVAL_BOUND
         );
-        std::thread::sleep(std::time::Duration::from_millis(20));
+        std::thread::sleep(CALENDAR_FR_POLL_INTERVAL);
     }
 }
+
+/// The native-editor surface every Daily Journal receipt is recorded under (`pane_id`).
+const CALENDAR_FR_SURFACE: &str = "pane-daily-journal";
+/// Liveness bound for one automatic receipt to become durable through the ordered emitter.
+const CALENDAR_FR_ARRIVAL_BOUND: std::time::Duration = std::time::Duration::from_secs(60);
+/// Recorder poll pacing; each poll is itself an audited durable write on the backend.
+const CALENDAR_FR_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(250);
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Artifact hygiene (CX-212E / SCREENSHOT RULE): all artifacts go to the EXTERNAL root ONLY.
@@ -2048,7 +2076,7 @@ fn open_or_create_daily_note_is_idempotent_against_real_backend_live() {
         "the exact ActivitySpan correlation must be strictly later than its exact CalendarEvent binding"
     );
     let all_fr = live.get_json_with_session_token(
-        &format!("/api/flight_recorder?wsid={workspace_id}"),
+        &format!("/api/flight_recorder?wsid={workspace_id}&surface={CALENDAR_FR_SURFACE}"),
         &session_token,
     );
     let all_fr = all_fr.as_array().expect("workspace FR rows are an array");
