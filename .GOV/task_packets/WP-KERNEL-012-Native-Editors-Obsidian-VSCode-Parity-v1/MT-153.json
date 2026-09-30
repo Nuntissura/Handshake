@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-30T10:15:21Z",
+  "updated_at_utc": "2026-09-30T10:32:31Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -51,7 +51,7 @@
     "active": true,
     "validator_verdict": "FAIL_V2",
     "prior_validator_verdict": "FAIL_V1",
-    "next_actor": "KERNEL_BUILDER",
+    "next_actor": "WP_VALIDATOR: MT-153 proof checks on 65a7b6fb (route matrix, workspace delete, Loom targets, native Loom)",
     "ready_status_repair": {
       "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
       "rule": "CX-STATUS-001",
@@ -86,7 +86,9 @@
       "at_utc": "2026-09-23T23:52:39.079Z",
       "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
     },
-    "status_reason": "FAIL_V2 causes not reproduced on 37ee7c5b; new anonymous visual-edge 401 assertion diagnosed (MT153-VISUAL-EDGE-ANON-401); builder fix in progress per WP012-MT153-ANON-403-20260930."
+    "status_reason": "FAIL_V2 causes not reproduced on 37ee7c5b; MT153-VISUAL-EDGE-ANON-401 fixed in 65a7b6fb per WP012-MT153-ANON-403-20260930; builder compile/static pass.",
+    "status_before_20260930": "FAIL_V2",
+    "candidate_commit": "65a7b6fb6f7e0383674f2a0e5d85a0eb0c2d81c6"
   },
   "closure_unit": {
     "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
@@ -2305,5 +2307,61 @@
     "chosen_option": "403 everywhere (Recommended)",
     "question": "Anonymous caller on Loom write routes returning 401 (visual-edge POST/DELETE, daily journal PUT): constant 403 per AC-153-5(b), 403 for visual edges only, or keep 401 and amend AC?",
     "effect": "Drop no-session 401 pre-checks in add/remove_canvas_visual_edge and open_daily_journal; update workspace-delete test and matrix journal row to expect 403 HSK-403-PROTECTED-RESOURCE. MT-111 401/403 split (693c3ea7) superseded for these routes."
+  },
+  "remediation_v4": {
+    "session": "KERNEL_BUILDER-20260930",
+    "status": "CANDIDATE_PUSHED",
+    "executor_role": "KERNEL_BUILDER",
+    "batch_owner": "MT-153",
+    "covered_mts": [
+      "MT-153"
+    ],
+    "remediates": {
+      "diagnosis_ref": "handoff.attempt_diagnoses.MT-153-ROUTE-MATRIX-37ee7c5b",
+      "operator_decision_ref": "operator_decision_20260930_anonymous_denial"
+    },
+    "base_sha": "37ee7c5bf637b77426e7b1f3cbe3361e6530f3fb",
+    "candidate_sha": "65a7b6fb6f7e0383674f2a0e5d85a0eb0c2d81c6",
+    "candidate_tree": "749888f9256dcd0b98d0c4edf028e480b250d7cb",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 65a7b6fb6f7e0383674f2a0e5d85a0eb0c2d81c6",
+    "changed_files": [
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/src/api/workspaces.rs"
+    ],
+    "what_changed": "open_daily_journal, authorize_canvas_visual_edge_write, remove_canvas_visual_edge: session check kept; missing session now returns constant 403 HSK-403-PROTECTED-RESOURCE (was 401 HSK-401-LOOM-SESSION). Matrix journal row + workspace-delete visual-edge asserts expect 403; single-caller assert_write_denied_with folded into assert_write_denied.",
+    "design_note": "Session check retained rather than removed: authorize_request may accept legacy non-session credentials (MT-111 Stage path), so removal could widen access.",
+    "proof_records": [
+      {
+        "proof_id": "KB-20260930-MT153-CHECK-TESTS",
+        "executor_role": "KERNEL_BUILDER",
+        "covers": [
+          "MT-153"
+        ],
+        "command": "cargo check --locked -j 6 --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target",
+        "env_knobs": {
+          "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+        },
+        "started_utc": "2026-09-30T10:20:41Z",
+        "exit_code": 0,
+        "result_line": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 10m 47s; 0 error lines; no warnings on changed lines",
+        "inputs": "worktree at base 37ee7c5b + the two changed files, byte-identical to candidate 65a7b6fb blobs; sha256 before == after (../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260930-mt153-anon403-check-inputs-before.txt / -inputs-after.txt)",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/20260930-mt153-anon403-check.log"
+      },
+      {
+        "proof_id": "KB-20260930-MT153-FMT-DIFF",
+        "executor_role": "KERNEL_BUILDER",
+        "covers": [
+          "MT-153"
+        ],
+        "command": "rustfmt 1.97.1 --edition 2021 --check (stdin) on both changed files; git diff --check",
+        "exit_code": 0,
+        "result_line": "FMT_OK loom.rs, FMT_OK workspaces.rs; diff --check clean"
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 65a7b6fb (GP-023; GP-139 confirmed: diff touches no counter code)",
+    "test_runs": "none by builder (CX-EXEC-014); validator runs MT-153 proof checks on 65a7b6fb",
+    "recorded_at_utc": "2026-09-30T10:32:31Z"
   }
 }
