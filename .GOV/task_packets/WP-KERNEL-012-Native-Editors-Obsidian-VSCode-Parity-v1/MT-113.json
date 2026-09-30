@@ -101,7 +101,9 @@
       "prior_validator_verdict": "FAIL_V2",
       "reason": "remediation recorded after the last validation; awaiting re-validation on the next candidate",
       "prior_next_actor": "KERNEL_BUILDER"
-    }
+    },
+    "candidate_commit": "d99be6cfc82e4d683d82c34c65d74dae17b74575",
+    "status_reason": "Resubmitted on d99be6cf: HBR-MAN manual gap (validation_v3.exact_proof_gaps[0]) closed in manual_content_editors.rs"
   },
   "scope": {
     "summary": "Bound author_id composition so that user-supplied content can never push a completion token past its byte budget and silently disable Argus observability for that control.",
@@ -1628,5 +1630,6 @@
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
       }
     ]
-  }
+  },
+  "remediation_20260930_d99be6cf": {"schema_id": "hsk.mt_remediation_handoff@1", "by": "KERNEL_BUILDER-LANE-B-20260930", "at_utc": "2026-09-30T20:40:00Z", "remediates": {"gap": "MT-113.json#validation_v3.exact_proof_gaps[0] / validation_round_b4faed35.unclosed (HBR-MAN)", "decision": "inconclusive (b4faed35)"}, "cause": "registered manual still described every Find-in-Files route as hex-encoded/exactly reversible; no bounded/digested regime or typed failure", "fix_commit": "d99be6cfc82e4d683d82c34c65d74dae17b74575", "changed_files": ["src/frontend/handshake_native/src/manual_content_editors.rs (Find in Files paragraph)"], "manual_content_added": ["256-byte route budget (stricter pending_target/observer_author_id; context 512) for result/preview/preview-before/after/bookmark-restore/remove routes", "VERBATIM regime (exact hex, reversible) vs DIGESTED regime (zsha256-<64 hex> per component, pane scope digested only if still over budget; z outside hex; resolve by recomputation against live rows, never decode/guess)", "bookmark stable id bounded at 1024 bytes (framed zsha256- components; exact dedup; Remove semantic value within 2048 B)", "typed handshake.click-completion-unavailable/v1 marker (effect, context, generation, field, bytes, budget), named Argus receipt reason, debug authoring-time assert, recovery"], "code_refs": ["find_in_files.rs:244-356 compose_author_id", "find_in_files.rs:1284-1327 stable_id", "find_in_files.rs:1594-1610 observer_value", "mcp/action.rs:325-400,1545-1556"], "admission_basis": "CX-VAL-008 changed affected code", "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = d99be6cfc82e4d683d82c34c65d74dae17b74575", "implementer_checks": [{"executor_role": "KERNEL_BUILDER", "command": "cd src/frontend/handshake_native && CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-154/kb-c5/target CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only cargo check --locked -j 4 --lib", "exit": 0, "result": "pass; 0 warnings; rustfmt --check clean", "input_digest_before_after": "equal (git hash-object src/manual_content_editors.rs 29d89154 before/after)", "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/logs/mt113-check.log"}], "gameplan": "kernel_builder before_submit PASS 2/2 at d99be6cf (GP-139 confirmed: 13288bf0..d99be6cf = manual_content_editors.rs only)", "status_change": "none (READY_FOR_VALIDATION; candidate d99be6cf)", "next_actor": "WP_VALIDATOR union round on d99be6cfc82e4d683d82c34c65d74dae17b74575"}
 }
