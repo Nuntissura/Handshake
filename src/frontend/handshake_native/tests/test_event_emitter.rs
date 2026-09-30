@@ -2773,6 +2773,10 @@ fn event_emitter_native_editor_round_trip() {
             "isolated workspace cleanup -> {status}: {body}"
         );
     });
+    // The explicit delete above succeeded, so the fixture no longer owns this workspace. A second
+    // delete from `assert_cleanup` targets a resource whose grant is gone and is denied with the
+    // constant-shape 403 (not 404), failing an already-clean teardown.
+    managed_backend.workspace_id.clear();
     managed_backend.assert_cleanup();
     let candidate_identity_after = mt036_candidate_identity();
     assert_eq!(
