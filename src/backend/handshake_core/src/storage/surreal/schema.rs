@@ -3119,10 +3119,11 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT-164 remediation_v1 re-pin: LET-bound grant lookup and flattened grant functions (previous
 // 50b06dab0370f14fce0b3591b94abf87420957aa8258117f40563f42be3d29b4, the ee9efaba pin); measured by
 // WP validator PIN-MEASURE 2 on 4d4f7e12 (MT-164.json validation.pin_measurement_2).
-// MT-166 PIN-MEASURE PENDING: protected_resources select permission, new helper function and
-// ledger access body changed; the value below is the 4d4f7e12 measurement and must be re-measured.
+// MT-166 re-pin: protected_resources select grant helper and flattened ledger access (previous
+// ca2d667c22b022170d1e1ec6419dcd809bdeca385fae9cd972205a89ff9af573); measured by WP validator
+// PIN-MEASURE on e012e80d (MT-166.json validation.pin_measurement_1).
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "ca2d667c22b022170d1e1ec6419dcd809bdeca385fae9cd972205a89ff9af573";
+    "81a9de3dfbaaf65fdbd2e57ad31e9bec7dd01865e871819d4bf4664cb13a718d";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -3139,9 +3140,10 @@ pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
 // PIN-MEASURE MT164-PIN-MEASURE-20260929 on 179ffc1f.
 // MT-164 remediation_v1 re-pin (previous c18095249805f8822a3a23aea6f58d1866522584f097b715c3957e66346af052);
 // measured by WP validator PIN-MEASURE 2 on 4d4f7e12.
-// MT-166 PIN-MEASURE PENDING: authority core changed; value below is the 4d4f7e12 measurement.
+// MT-166 re-pin (previous 06abcd428ba60a72ad66d7d0f9a9b9b9331dba1c871c791a3078dcbed3a9b998): measured
+// by WP validator PIN-MEASURE on e012e80d from one store; the confirming round checks determinism.
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
-    "06abcd428ba60a72ad66d7d0f9a9b9b9331dba1c871c791a3078dcbed3a9b998";
+    "e98e231c40f88f614b4ed36bbe0990406f0851ea86ba15177e85b02c2ea0271a";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 /// Second allowlisted lineage (MT-142): every store bootstrapped at schema revision 157 before
@@ -4019,10 +4021,10 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // measured by WP validator PIN-MEASURE MT164-PIN-MEASURE-20260929 on 179ffc1f.
     // NINTH pin (MT-164 remediation_v1, previous e02993e2ec6ec2195d8de737b3c5a62b332b1d3105a889c5179b083c2932d5fb):
     // measured by WP validator PIN-MEASURE 2 on 4d4f7e12.
-    // MT-166 PIN-MEASURE PENDING (also the test literal in
-    // mt109_loom_catalog_dependencies_are_complete_and_deterministic): 4d4f7e12 value; re-measure.
+    // TENTH pin (MT-166, previous 07cc44c4f68e05f89698dfa9a1eb5a34b0807d57618ead55ff9b572cfe41e718):
+    // measured by WP validator PIN-MEASURE on e012e80d.
     const EXPECTED_CATALOG_SHA256: &str =
-        "07cc44c4f68e05f89698dfa9a1eb5a34b0807d57618ead55ff9b572cfe41e718";
+        "6a224fa74f38e204df71ddfe1a7d4e162bd2c5ee1d2c4900e2fcc506d2fa5b74";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -8020,8 +8022,9 @@ mod tests {
             assert_eq!(authority_catalog_names("access").len(), 1);
             // The authority core includes the existing document/workspace receipt helpers
             // plus mt120_loom_block_access, mt120_loom_endpoint_access (MT-109 C3) and
-            // mt120_loom_receipt.
-            assert_eq!(authority_catalog_names("function").len(), 16);
+            // mt120_loom_receipt, and (MT-166) mt166_resource_select_grant.
+            assert_eq!(authority_catalog_names("function").len(), 17);
+            assert!(authority_catalog_names("function").contains("mt166_resource_select_grant"));
             let mut saved = database
                 .query("RETURN (INFO FOR DB).functions.mt109_live_session;")
                 .await?;
@@ -8931,7 +8934,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "07cc44c4f68e05f89698dfa9a1eb5a34b0807d57618ead55ff9b572cfe41e718"
+            "6a224fa74f38e204df71ddfe1a7d4e162bd2c5ee1d2c4900e2fcc506d2fa5b74"
         );
     }
 
