@@ -7,8 +7,11 @@
 //! `content_json` SHAPE round-trips structurally (the hsLink atom the backend persists), so the backend half is
 //! the durable save/reload, not the whole proof.
 //!
-//! The backend authority has dedicated `ckc_moodboard` and `ckc_character` content types. IC-03/04 assert
-//! those exact persisted types; a generic note fallback is not accepted.
+//! IC-03/04 scenario scope is PARTIAL (Operator decision WP012-OPERATOR-DECISIONS-20260930-C): record-user
+//! Loom creation does not admit the `ckc_moodboard`/`ckc_character` content types, so both scenarios seed a
+//! generic `note` block (CTRL-8 fallback) and record a typed blocker naming MT-395, which owns the real CKC
+//! projection proof. The canvas placement, native canvas state, backlink and fail-closed assertions are
+//! unchanged.
 //!
 //! ## Artifact hygiene (CX-212E, HARD)
 //! No artifact is ever written under `src/`. The hygiene guard fails the run on a repo-local artifact dir.
@@ -514,14 +517,15 @@ fn interconnect_ic03_ckc_moodboard_on_canvas() {
     let ws = be.workspace_id.clone();
     let block = be.post_json(
         &format!("/workspaces/{ws}/loom/blocks"),
-        &serde_json::json!({ "title": "IC-03 moodboard", "content_type": "ckc_moodboard" }),
+        &serde_json::json!({ "title": "IC-03 moodboard", "content_type": "note" }),
     );
     let block_id = block["block_id"]
         .as_str()
         .or_else(|| block["id"].as_str())
         .expect("requires_surrealdb: block id")
         .to_owned();
-    assert_eq!(block["content_type"], "ckc_moodboard");
+    // PARTIAL (Operator decision 2026-09-30-C): generic note seed; typed CKC type blocked on MT-395.
+    assert_eq!(block["content_type"], "note");
     // Create a canvas board and place the block on it.
     let board = be.post_json(
         &format!("/workspaces/{ws}/loom/canvas-boards"),
@@ -606,8 +610,16 @@ fn interconnect_ic03_ckc_moodboard_on_canvas() {
         "placement_id": placement_id,
         "event_ledger_event_id": board_event_id,
         "negative_missing_board_status": negative_status,
+        "scenario_scope": "PARTIAL",
+        "seed_content_type": "note",
+        "typed_blocker": serde_json::json!({
+            "kind": "ckc_record_user_content_type_deferred",
+            "blocked_on": "MT-395",
+            "decision": "WP012-OPERATOR-DECISIONS-20260930-C",
+            "reason": "record-user Loom creation does not admit ckc_moodboard/ckc_character (loom_canvas_store.rs create_record_user_loom_bundle allowlist); scenario seeded with a generic note block (CTRL-8); real CKC projection proof is MT-395"
+        }),
     }));
-    println!("IC-03 LIVE-SURREALDB PASS: typed CKC moodboard persisted and placed on a canvas");
+    println!("IC-03 LIVE-SURREALDB PARTIAL: note-seeded moodboard block placed on a canvas; typed CKC blocked on MT-395");
 }
 
 #[test]
@@ -617,14 +629,15 @@ fn interconnect_ic04_ckc_character_wikilink_backlink() {
     let ws = be.workspace_id.clone();
     let character = be.post_json(
         &format!("/workspaces/{ws}/loom/blocks"),
-        &serde_json::json!({ "title": "IC-04 character", "content_type": "ckc_character" }),
+        &serde_json::json!({ "title": "IC-04 character", "content_type": "note" }),
     );
     let character_block_id = character["block_id"]
         .as_str()
         .or_else(|| character["id"].as_str())
         .expect("requires_surrealdb: character block id")
         .to_owned();
-    assert_eq!(character["content_type"], "ckc_character");
+    // PARTIAL (Operator decision 2026-09-30-C): generic note seed; typed CKC type blocked on MT-395.
+    assert_eq!(character["content_type"], "note");
     // A Loom-block wikilink uses the canonical `note` hsLink ref kind and the
     // exact target block id. CKC remains the target block's content type; a
     // `character` ref kind would encode `character:<id>` as an embed identity
@@ -702,8 +715,16 @@ fn interconnect_ic04_ckc_character_wikilink_backlink() {
         "note_block_id": note_block_id,
         "event_ledger_event_id": save_event_id,
         "negative_missing_character_status": negative_status,
+        "scenario_scope": "PARTIAL",
+        "seed_content_type": "note",
+        "typed_blocker": serde_json::json!({
+            "kind": "ckc_record_user_content_type_deferred",
+            "blocked_on": "MT-395",
+            "decision": "WP012-OPERATOR-DECISIONS-20260930-C",
+            "reason": "record-user Loom creation does not admit ckc_moodboard/ckc_character (loom_canvas_store.rs create_record_user_loom_bundle allowlist); scenario seeded with a generic note block (CTRL-8); real CKC projection proof is MT-395"
+        }),
     }));
-    println!("IC-04 LIVE-SURREALDB PASS: typed CKC character backlink persisted and reloaded");
+    println!("IC-04 LIVE-SURREALDB PARTIAL: note-seeded character backlink persisted and reloaded; typed CKC blocked on MT-395");
 }
 
 /// Mounted CKC navigation producer for the MT-046 canonical Argus matrix. This stays outside the
