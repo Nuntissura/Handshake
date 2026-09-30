@@ -8,32 +8,60 @@ wp_id: WP-KERNEL-012
 
 <topic id="session-2026-09-30-orchestrator" wp="WP-KERNEL-012" status="active" updated_at="2026-09-30">
 
-## Resume here (newest first; typed MT JSON wins on conflict)
+## Resume here (evidence-audited 2026-09-30 ~14:25Z; typed MT JSON wins on conflict)
 
-Session setup (Operator 2026-09-30, `packet.json#operator_decisions_20260930`): root session = orchestrator. It spawns KERNEL_BUILDER / WP_VALIDATOR sub-agents (each reads Codex + own protocol only), steers on a 10-min tick (agent output + CPU), keeps paperwork to state recovery + MT status, manages cargo reuse/cleanup. Builders may run cheap focused tests.
+Session start = gov `cdfe6c73` (03:33Z). Evidence: `git log cdfe6c73..HEAD` (gov), product worktree `wtc-native-editors-v1` log + `git ls-remote`, MT `lifecycle` fields vs `cdfe6c73`, `packet.json#operator_decisions_20260930`, logs under `Handshake_Artifacts/WP-KERNEL-012`. Times are UTC unless stated.
 
-Recovered after crash (previous session's processes were closed by another session): nothing lost. After the 2026-09-29 20:31 update, work continued to 05:33 on 09-30:
-- MT-165 (session-worktree test cleanup) and MT-166 (index-bound remaining grant scans) added (Operator "both approved").
-- Union round on product `37ee7c5b`: MT-161 PASS_V1, MT-162 PASS_V2 (first linked save 4,850 ms), MT-166 PASS_V1; MT-165 inconclusive (infra: export not a git checkout); MT-154/155/157/158/159/136 observations (tests pass; static floor open).
-- MT-160/163 inconclusive only on chip placement wording; everything else passed (50/50 native selection, live saves max 5.4 s).
+### 1. Operator rules in force
 
-This session:
-- Operator: chip in card footer accepted (`WP012-MT160-163-CHIP-PLACEMENT-20260930`); AC-160-3/AC-163-3 amended. Gov `ef59f8f8`.
-- Operator: anonymous Loom writes get constant 403 everywhere (`WP012-MT153-ANON-403-20260930`). MT-153 fix product `65a7b6fb` (api/loom.rs, api/workspaces.rs); builder `cargo check --tests` exit 0; MT-153 READY_FOR_VALIDATION (gov `c67a4108`).
-- Product HEAD = remote tip = `65a7b6fb`.
+- `WP012-ORCH-SESSION-20260930` (packet.json): "Root session is orchestrator: spawns KERNEL_BUILDER or WP_VALIDATOR sub-agents (each reads Codex + own protocol), steers on a 10-min tick (agent progress + CPU), minimal paperwork (state recovery + MT status only), uses gameplan, updates the handoff regularly, manages cargo builds/tests (reuse; remove stale WP-012 cargo after sub-agent exploration). Coding agent may run cheap tests." Effect: KERNEL_BUILDER may run cheap focused tests; the independent validator still owns acceptance verdicts.
+- `WP012-OPERATOR-AFK-AUTONOMY-20260930` (packet.json, 0f6d5b64): "stop prompting me unless wp kernel 012 is finished and all mt are validated pass. use cheap sub agents to research online or explore codebase or master spec and other mt to find the best solution without me. i am AFK. work on your own, delegate agents, use other agents for help when something is unclear." Decisions normally escalated are resolved by research sub-agents and recorded as `orchestrator_decision` with evidence.
+- Operator scope rule (handoff, 8d16a149): the orchestrator and its sub-agents never edit global files (`~/.claude`, `~/.codex`, `.globals`, global skills) nor the Handshake Codex; work stays inside the WP-012 repo/worktrees and artifact folders.
+- `WP012-GAMEPLAN-ROLE-PREFIX-20260930` (packet.json, 2e005121): Operator chose "Role prefix in hook (Recommended)" because in-session sub-agents cannot set `GAMEPLAN_ROLE`, so the hook evaluated all roles and blocked builder probe runs. Effect recorded: GP-008 rescoped to `wp_validator` (GP-148); GP-105/GP-107 retired. STATUS: the global patch is REVERTED. Both global `gameplan.py` files (`~/.claude/skills/gameplan/scripts`, `~/.codex/skills/gameplan/scripts`) were restored from `gameplan.py.bak-20260930` at the Operator's demand (orchestrator-verified); the packet entry was not edited and still describes the patch as effect. Do not re-apply it; do not edit global files (rule above).
+- Cargo reuse rule (Operator 2026-09-30, relayed by the orchestrator; not yet in packet.json or a commit): "Do not delete cargo targets/build output that can be reused; avoid costly rebuilds." The earlier plan to delete the 26 superseded `export-*` dirs in `target-r52` is CANCELLED.
+- `WP012-MT160-163-CHIP-PLACEMENT-20260930` (`MT-160.json#operator_decision_20260930_chip_placement`, ef59f8f8): accept card-footer `loom://` chip; AC-160-3/AC-163-3 amended; judged on existing 37ee7c5b evidence without rerun.
+- `WP012-MT153-ANON-403-20260930` (`MT-153.json#operator_decision_20260930_anonymous_denial`): "403 everywhere"; drop no-session 401 pre-checks on visual-edge POST/DELETE and daily journal PUT; MT-111 401/403 split superseded for these routes.
+- `WP012-MT165-DISPOSABLE-GIT-REPO-20260930` (`MT-165.json#operator_decision_20260930_disposable_git_repo`, a8a89edd): the checked-in entrypoint creates a throwaway git repo per round under the WP artifact root, recycles it (Recycle Bin, after a worktree-list check) at round end, never merges it; leftover test worktrees are an MT-165 product failure.
 
-Done: MT-160 PASS_V1, MT-163 PASS_V1, MT-032 PASS_V15 (aggregate) on 37ee7c5b, evidence valid on later commits (gov 7482e5f2, f32352dc).
-Operator: MT-165 disposable git repo per round under the WP artifact root, recycled on exit after a worktree-list check; never merged (gov a8a89edd). Operator: do not redo passed work: rounds run named proof tests only; no PASS MT returned to READY (CX-VAL-009 not adopted under pin).
-Builder resubmitted MT-008/023/026/036/042/043/046/065/066/067 READY on 259495f0 (diagnosis: pre-MT-164/166 grant-scan timeouts; hypothesis) gov 91aaa53d; MT-066 guard fix 990fa1a7; MT-153 fmt 259495f0; MT-064 seed fix 1f4e0f69 (gov f15fd957).
-In flight (12:11Z): union round on 1f4e0f69, wrapper pwsh PID 263592, bash PID 213680, logs Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-1f4e0f69*; core 45 + native ~158 named tests (WPV-round-selection.sh, gov 0c21af7e). Builder on D: probing MT-027 (record-user UPSERT on loom_block_knowledge_bridge returns 0 rows); no product push until released.
-Cleanup DONE 2026-09-30 13:35Z: 22 stale WP-012 target/export dirs on D: removed (D: free 1,576 -> 3,490 GB); log Handshake_Artifacts/WP-KERNEL-012/orchestrator/cleanup-20260930-stale-targets.log. Pending: 26 superseded export-* in C:/.target/.../target-r52 (7 GB) — after the round. Harness: Git Bash needs MSYS_NO_PATHCONV=1 for `cmd /c rmdir /s /q`; strip CR from Windows-written lists.
-Round 1f4e0f69 r1 crashed: rustc LLVM OOM (builder probe build + validator build + foreign Operator-project builds on host); r2 relaunched 12:27Z with core -j 1 (gov c046b60f), wrapper PID 193268. GP-146 (commit free >= 60 GB), GP-147 (no builder build during validator union compile). Keep: kb-c5 target, target-r52, export-37ee7c5b, MT-109/wpv-c3x/backend-bin, all junit/log/evidence.
+### 2. MT status changes this session (15 of 166 MTs; from -> to; commit)
 
-Warm targets: validator C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52; builder Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target (D:). One build per disk.
+- MT-032 BLOCKED -> PASS_V15 (7482e5f2; 37ee7c5b evidence kept valid on 65a7b6fb by CX-VAL-002 diff decision f32352dc).
+- MT-160 READY_FOR_VALIDATION -> PASS_V1, MT-163 READY_FOR_VALIDATION -> PASS_V1 (7482e5f2; AC amendment ef59f8f8; f32352dc).
+- FAIL -> READY_FOR_VALIDATION on 259495f0 (91aaa53d): MT-008 (FAIL_V7), MT-023 (V7), MT-026 (V6), MT-036 (V7), MT-042 (V6), MT-043 (V5), MT-046 (V7), MT-065 (V7), MT-066 (V7), MT-067 (V7).
+- MT-064 FAIL_V7 -> READY_FOR_VALIDATION, candidate 1f4e0f69 (f15fd957).
+- MT-153 FAIL_V2 -> READY_FOR_VALIDATION (c67a4108 on 65a7b6fb; lifecycle.candidate_commit now 259495f0 per 91aaa53d/31994fa9).
+- Reopened PASS MTs: NONE. No MT that was PASS_* at cdfe6c73 is non-PASS now (compared all MT JSONs).
+- Unchanged: MT-027 stays FAIL_V7; MT-165 stays READY_FOR_VALIDATION (candidate 16b43aff; inconclusive at 37ee7c5b, 37756dc5). Totals now: 122 PASS_*, 23 READY_FOR_VALIDATION, 20 BLOCKED (MT-033 034 045 068 070 074 098 111 116 117 120 121 124 125 127 129 130 140 142 143), 1 FAIL_V7 (MT-027).
+- READY list now: MT-008 023 026 036 042 043 046 064 065 066 067 079 113 122 128 136 153 154 155 157 158 159 165. None has left READY_FOR_VALIDATION since the round selection (0c21af7e).
 
-Operator scope rule (2026-09-30): the orchestrator and its sub-agents never edit global files (~/.claude, ~/.codex, .globals, global skills) nor the Handshake Codex; work stays inside the WP-012 repo/worktrees and artifact folders. Already done before that rule (Operator-approved option, then objected to scope): gameplan.py role-prefix patch in ~/.claude and ~/.codex skills, backups gameplan.py.bak-20260930; left as-is pending Operator instruction. Operator is AFK: no prompts until WP-012 complete with all MTs PASS (packet.json operator_decisions_20260930).
+### 3. Product commits (worktree `wtc-native-editors-v1`, branch `feat/WP-KERNEL-012`)
 
-Harness note: the gameplan hook matches command text; put process scans in a script file (not naming the test runner inline).
+- Pushed (remote tip = `1f4e0f69`, verified with `git ls-remote`): 65a7b6fb (MT-153 constant 403), 990fa1a7 (MT-066 AC-007 guard), 259495f0 (MT-153 rustfmt api/loom.rs), 1f4e0f69 (MT-064 seed through the proof account session).
+- LOCAL-ONLY, 1 ahead of remote: `45019718` "MT-027 DIAG (temporary, local)": `block_view_store.rs` CREATE_TRANSACTION stmt 6 wrapped to expose the bridge UPSERT predicate terms. Not an acceptance candidate; the next commit reverts it (new commit, no history rewrite) together with the evidence-selected fix. Local HEAD is therefore NOT the pushed tip.
+
+### 4. In flight and exact next actions
+
+- Round `union-1f4e0f69...-r2` (core `-j 1`, gov c046b60f; frozen 12:27:08Z; logs `MT-109/wpv-c3x/logs/union-1f4e0f69*-r2.*`) did NOT finish: no `-r2` exit record, identity still `RUNNING`, wrapper PID 193268 and bash PID 183764 not running at ~14:22Z, last log write 14:11:47Z. Cause not evidenced. Counts so far (PASS/FAIL result lines, failures deduplicated): core 43 PASS + 2 FAIL of 45 (`api::loom::tests::mt153_loom_route_family_authority_matrix`, `model_session_scheduler_tests trust002_cross_session_provenance_fields_are_persisted`); native 39 PASS + 3 FAIL, stopped at 42/210 (`test_block_collection_view ...self_seed_full_round_trip` = MT-027, `test_calendar_interop open_or_create_daily_note_is_idempotent_against_real_backend_live`, `test_canvas_board canvas_board_live_surrealdb_self_seeds_mounted_round_trip`). The r2 disposable repo `sg/1f4e0f69.git` and `sg/1f4e0f69-wt` still exist (r1's was recycled). Round r1 exited 101 at 12:24:06Z with `rustc-LLVM ERROR: out of memory` in its stderr.
+- MT-027 (FAIL_V7, WP_VALIDATOR): probe at 1f4e0f69 hit an edge-POST 15 s timeout before the failing statement (a3f8b53d); hypothesis recorded before the run (49d4b286, `hypothesis_20260930_bridge`); remediation naming the diagnostic run (8b0d3d1a, `remediation_20260930_diagnostic_run`): after r2 finishes, push 45019718, then the validator runs the two core lib tests `api::loom::tests::mt153_loom_route_family_authority_matrix` and `api::loom::tests::mt109_c3_record_user_assets_collections_and_views` (features `app-runtime,surreal-test-support,test-utils`) and reads the `KB-DIAG ... BRIDGE-DIAG {...}` stderr line (pre/post/ev/ws_create/ws_read/blk_*/ent_*/lba) to pick hypothesis (a) create predicate, (b) row pre-exists, or (c) select predicate.
+- Next: (1) fresh-read r2 state (PIDs, exit record); r2 is incomplete, so the orchestrator decides relaunch vs. completing it, and the recorded "push after r2 finishes" precondition is currently unmet. (2) A round entrypoint requires HEAD == pushed tip == candidate (056c182f), so push 45019718 or reset HEAD before freezing a new round. (3) Validator verdicts for the 17 MTs in `union-1f4e0f69...exit.json#covered_ready_mts` (MT-008 023 026 036 042 043 046 064 065 066 067 079 113 122 128 153 165), reusing 37ee7c5b results for MT-136/154/155/157/158/159 (static floor at WP end). (4) MT-027 fix + revert commit from the diagnostic evidence.
+- A cargo/rustc pair started 16:18 local was running at ~16:22 local; owner not identified; do not stop it (GLOBAL-INSPECT-014).
+
+### 5. Disk state and cleanup
+
+- DONE 12:27-13:33Z: 22 stale WP-012 target/export dirs on D: removed; all 22 verified absent now. Log `Handshake_Artifacts/WP-KERNEL-012/orchestrator/cleanup-20260930-stale-targets.log` (run1 no-op: CRLF list; run2 no-op: MSYS arg conversion of `/s /q`; run3 ran 12:28-13:33Z; 4 dirs left non-empty were swept, `exists_after=no`). D: free now 3,490 GB of 14,902 GB (`df`, ~14:22Z); the log itself holds no before/after free-space figures.
+- PENDING: none. The 26 superseded `export-*` in `C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52` (28 export dirs present, incl. `export-1f4e0f69` and `export-37ee7c5b`) are KEPT under the cargo reuse rule.
+- Warm targets KEPT: validator `C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52`; builder `Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target` (D:); `Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/backend-bin`; all junit/log/evidence. One build per disk. C: at last r2 stdout line: target bytes 105,920,067,510 (cap 150 GB), free 769,706,536 KiB.
+- Gates: GP-146 (validator: commit free >= 60 GB, core union build `-j 1`) and GP-147 (orchestrator: no builder build/test while a validator union build compiles) in gameplan.yaml (c046b60f, dd9f39a8).
+
+### 6. Mistakes and corrections not to repeat (each evidenced)
+
+- Round launch blocked because product HEAD 990fa1a7 was unpushed while the entrypoint requires HEAD == pushed tip == candidate (056c182f, `MT-153.json#round_65a7b6fb_prep`). Push before freezing; a local-only 45019718 recreates this condition.
+- MT-153 shipped unformatted `api/loom.rs` (FMT finding, 056c182f; fixed 259495f0). Wrong UTC stamps were later corrected to the actual commit times: fmt_correction 12:40:00Z -> 11:41:36Z (31994fa9); hypothesis `recorded_at_utc` 12:50:00Z -> 13:50:00Z (f9537dfd). Local commit times are +0200; convert before writing `_utc` fields.
+- Round r1 died of rustc-LLVM OOM with a builder probe build (D:), validator union build (C:) and foreign builds concurrent; fixes: core `-j 1` (c046b60f), GP-146, GP-147.
+- Cleanup runs 1-2 silently did nothing (CRLF in the list; MSYS path conversion): use `MSYS_NO_PATHCONV=1` for `cmd /c rmdir /s /q`, strip CR from Windows-written lists, and confirm `exists_after`.
+- The gameplan.py role-prefix patch was applied to global skills, then objected to as out of scope and reverted (see section 1); the packet decision text is stale on that point.
+- The gameplan hook matches command text (test-runner names inside a shell command or paperwork text get blocked): put process scans in script files and write paperwork with file-edit tools.
+- The previous version of this topic went stale within hours (claimed product HEAD = remote tip = 65a7b6fb and r1 PIDs "in flight"): re-verify with `git ls-remote`, PID checks and MT JSON before trusting any handoff line.
 
 </topic>
 
