@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-30T10:32:31Z",
+  "updated_at_utc": "2026-09-30T11:41:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -2363,5 +2363,44 @@
     "gameplan": "before_submit kernel_builder PASS 2/2 at 65a7b6fb (GP-023; GP-139 confirmed: diff touches no counter code)",
     "test_runs": "none by builder (CX-EXEC-014); validator runs MT-153 proof checks on 65a7b6fb",
     "recorded_at_utc": "2026-09-30T10:32:31Z"
+  },
+  "round_65a7b6fb_prep": {
+    "recorded_at_utc": "2026-09-30T11:41:00Z",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "candidate_commit": "65a7b6fb6f7e0383674f2a0e5d85a0eb0c2d81c6",
+    "launch_blocker": {
+      "kind": "infrastructure",
+      "cause": "Product worktree HEAD 990fa1a7 (MT-066 builder commit, unpushed) != remote tip 65a7b6fb; WPV-union-round.sh requires HEAD == pushed tip == candidate",
+      "observed_utc": "2026-09-30T11:35:58Z..11:39:36Z",
+      "needed": "Builder pushes 990fa1a7 (round then freezes it; includes 65a7b6fb) or restores HEAD to pushed tip",
+      "state_effect": "none (CX-VAL-006)"
+    },
+    "static_findings": [
+      {
+        "check_id": "MT-153-FMT",
+        "result": "FAIL",
+        "failure_kind": "product",
+        "failure_class": "MT153-LOOM-RS-RUSTFMT-DRIFT",
+        "evidence": "rustfmt 1.9.0 (toolchain 1.97.1) --edition 2021 --check on 65a7b6fb:api/loom.rs (file mode) exit 1; 2 diffs at 11065/11072 (MT153 row begin/end eprintln! from fe3b0c01f); same drift at 37ee7c5b",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt153-fmt-65a7b6fb-loom.rs.log",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/api/loom.rs:11065-11072"
+        ],
+        "repair_direction": "rustfmt the two eprintln! calls (or remove the debug prints); builder stdin --check exits 0 on diff, use file mode",
+        "note": "KB-20260930-MT153-FMT-DIFF FMT_OK used stdin mode, which does not fail on a diff"
+      },
+      {
+        "check_id": "MT-153-FMT(workspaces.rs)",
+        "result": "PASS",
+        "evidence": "file-mode rustfmt --check exit 0"
+      },
+      {
+        "check_id": "MT-153-DIFF-CHECK",
+        "result": "PASS",
+        "evidence": "git diff --check 37ee7c5b 65a7b6fb exit 0, empty",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/mt153-diffcheck-65a7b6fb.log"
+      }
+    ],
+    "verdict": "none yet; runtime checks await the union round"
   }
 }
