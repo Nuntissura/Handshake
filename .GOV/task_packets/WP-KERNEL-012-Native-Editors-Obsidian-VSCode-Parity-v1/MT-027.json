@@ -2282,5 +2282,31 @@
     "code_reading": "(a)/(c) terms read true by inspection (loom_blocks/entity writes in same tx pass the same fn::mt109_has_workspace_access checks); SurrealDB 3.2 upsert falls to update on RecordExists (doc/upsert.rs) -> Ignore under FOR update NONE",
     "probe_plan": "one probe: temporary uncommitted diagnostic replacing stmt 6 THROW text with evaluated predicate terms + record::exists($bridge); run core api::loom::tests::mt153_loom_route_family_authority_matrix and api::loom::tests::mt109_c3_record_user_assets_collections_and_views on D: kb-c5 -j 4; then fix + one confirming run",
     "recorded_at_utc": "2026-09-30T13:50:00Z"
+  },
+  "remediation_20260930_diagnostic_run": {
+    "schema_id": "hsk.mt_remediation_diagnostic_run@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-09-30T14:18:16Z",
+    "authority": "CX-EXEC-014 recorded remediation naming a diagnostic run; orchestrator decision option (2): validator executes in its lane",
+    "remediates": "MT-027.json#validation_v7 OWNED_SAVED_VIEW_CREATE_403; hypothesis MT-027.json#hypothesis_20260930_bridge",
+    "candidate_commit": "45019718b65989dce416cd50aaf43ef4f7ce188c",
+    "candidate_note": "diagnostic-only commit on top of 1f4e0f69; pushed only after round r2 finishes (orchestrator release); not an acceptance candidate",
+    "executor_role": "WP_VALIDATOR",
+    "crate": "src/backend/handshake_core (lib, features app-runtime,surreal-test-support,test-utils)",
+    "tests": [
+      "api::loom::tests::mt153_loom_route_family_authority_matrix",
+      "api::loom::tests::mt109_c3_record_user_assets_collections_and_views"
+    ],
+    "changed_statement": "block_view_store.rs:349 CREATE_TRANSACTION stmt 6 wrapped in one block statement (statement count and take(9) unchanged): LET $diag_pre = record::exists($bridge); UPSERT $bridge ... RETURN VALUE id; if row count != 1 THROW 'BRIDGE-DIAG ' + <string> {...}",
+    "expected_output": "stderr line 'KB-DIAG HSK_BLOCK_VIEW_CREATE_TRANSACTION_FAILED statement_index=6 error=... BRIDGE-DIAG {...}' with object fields: pre (record::exists($bridge) before UPSERT), post (after UPSERT), ev (record::exists($bridge_event.record)), ws_create (fn::mt109_has_workspace_access(ws,'create','fs.write')), ws_read (fn::mt109_has_workspace_access(ws,'read','fs.read')), blk_ct ($block.content_type), blk_ws, ent_ws, ent_kind, ent_key_ok, lba (fn::mt120_loom_block_access(block,ws,'create','fs.write'))",
+    "interpretation": {
+      "pre_true": "hypothesis (b): row pre-exists -> UPSERT update path hits FOR update NONE",
+      "pre_false_post_false": "hypothesis (a): FOR create predicate false; the false term among ws_create/blk_ct/blk_ws/ent_* names the cause",
+      "pre_false_post_true": "hypothesis (c): row created but FOR select predicate hides the RETURN VALUE output (ws_read/blk_* terms)",
+      "no_diag_line_and_route_200": "defect not reproduced at this commit; record as such"
+    },
+    "note_on_403_mapping": "a BRIDGE-DIAG THROW is not the HSK-403 literal, so the route may answer 500 instead of 403 at this commit; the diagnostic line is the evidence, not the status",
+    "next_commit": "reverts the diagnostic (new commit, no history rewrite) together with the evidence-selected fix",
+    "status_change": "none; MT-027 stays FAIL_V7"
   }
 }
