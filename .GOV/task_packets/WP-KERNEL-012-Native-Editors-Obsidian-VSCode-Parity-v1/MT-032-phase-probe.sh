@@ -8,7 +8,7 @@ TARGET="${4:?existing C warm target required}"
 NEXTEST="${5:?pinned nextest executable required}"
 ARTIFACTS="${6:?canonical artifacts root required}"
 MODE="${7:-}"
-[[ -z "$MODE" || "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = lookup-plan-core-v17 || "$MODE" = create-first-core-v18 || "$MODE" = counter-target-native-v19 || "$MODE" = self-seeded-native-round ]] || exit 2
+[[ -z "$MODE" || "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = lookup-plan-core-v17 || "$MODE" = create-first-core-v18 || "$MODE" = counter-target-native-v19 || "$MODE" = self-seeded-native-round || "$MODE" = mt032-native-selection ]] || exit 2
 CONSUMED="$LANE/MT032-V14-STATEMENT-DIAGNOSTIC.started"
 PROBE=mt032-v14-statement-probe
 WATCH=mt032-v14-statement-watch
@@ -40,6 +40,17 @@ if [[ "$MODE" = create-first-core-v18 ]]; then
   PROBE=mt032-v18-create-first-core-proof
   CORE_EXPECTED=3
   NATIVE_EXPECTED=0
+fi
+if [[ "$MODE" = mt032-native-selection ]]; then
+  # MT-160/MT-163 final native selection (V13 22/24 floor): the whole test_loom_address binary
+  # (duplicated failure_diagnostic_tests excluded as in the union) plus the named lib cases.
+  # One invocation per candidate SHA; reuses the candidate export; same watcher/config as V19.
+  CONSUMED="$LANE/MT032-NATIVE-SELECTION-${SHA:0:8}.started"
+  PROBE=mt032-native-selection
+  WATCH=mt032-v15-receipt-watch
+  WATCH_SCHEMA=handshake.mt032.receipt-watch.ready.v15.1
+  CORE_EXPECTED=0
+  NATIVE_EXPECTED=any
 fi
 if [[ "$MODE" = self-seeded-native-round ]]; then
   # Operator-approved MT-161/MT-162 native live self-seeded round (handoff topic
@@ -95,7 +106,7 @@ check_cap() {
 check_cap 4000000000
 EXPORT="$TARGET/export-${SHA:0:8}"
 MARKER="$TARGET/export-${SHA:0:8}.sha"
-if [[ "$MODE" = self-seeded-native-round && -d "$EXPORT" ]]; then
+if [[ ( "$MODE" = self-seeded-native-round || "$MODE" = mt032-native-selection ) && -d "$EXPORT" ]]; then
   [[ -f "$MARKER" && "$(cat "$MARKER")" = "$SHA" ]] || { echo 'MT032_PROBE existing export not bound to candidate'; exit 2; }
   echo "MT032_PROBE reusing immutable export $EXPORT"
 else
@@ -173,14 +184,16 @@ if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = look
   fi
   check_watcher
 fi
-if [[ "$MODE" = counter-target-native-v19 || "$MODE" = self-seeded-native-round ]]; then
+if [[ "$MODE" = counter-target-native-v19 || "$MODE" = self-seeded-native-round || "$MODE" = mt032-native-selection ]]; then
   # Changed counter target: preserve prior proofs and admit one native invocation.
   [[ ! -e "$LANE/$PROBE-$SHA.started" && ! -e "$LANE/$PROBE-$SHA.exit" && ! -e "$LANE/junit-$SHA-$PROBE.xml" ]] || exit 2
   (set -o noclobber; printf '%s' "$SHA" > "$CONSUMED") || exit 2
 fi
 echo 'MT032_PROBE native compile'
+NATIVE_BUILD_TARGETS=(--test test_loom_address)
+[[ "$MODE" = mt032-native-selection ]] && NATIVE_BUILD_TARGETS=(--lib --test test_loom_address)
 (cd "$EXPORT/src/frontend/handshake_native" && cargo test --locked -j 2 --no-run \
-  --features integration,integration_tests,wgpu_screenshots --test test_loom_address)
+  --features integration,integration_tests,wgpu_screenshots "${NATIVE_BUILD_TARGETS[@]}")
 check_cap
 echo 'MT032_PROBE backend compile'
 (cd "$EXPORT/src/backend/handshake_core" && cargo build --locked -j 2 \
@@ -192,7 +205,7 @@ check_cap
 check_watcher
 INVOCATION="$LANE/$PROBE-$SHA.started"
 [[ ! -e "$INVOCATION" ]] || { echo 'MT032_PROBE already invoked; no automatic replay'; exit 2; }
-if [[ "$MODE" != receipt-inner-v15 && "$MODE" != lookup-plan-v16 && "$MODE" != counter-target-native-v19 && "$MODE" != self-seeded-native-round ]]; then
+if [[ "$MODE" != receipt-inner-v15 && "$MODE" != lookup-plan-v16 && "$MODE" != counter-target-native-v19 && "$MODE" != self-seeded-native-round && "$MODE" != mt032-native-selection ]]; then
   (set -o noclobber; printf '%s' "$SHA" > "$CONSUMED") || exit 2
 fi
 date -u +%Y-%m-%dT%H:%M:%SZ > "$INVOCATION"
@@ -201,22 +214,28 @@ FILTER='binary(=test_loom_address) & (test(=live_surrealdb_owned_restart_preserv
 if [[ "$MODE" = lookup-plan-v16 ]]; then
   FILTER='binary(=test_loom_address) & test(=live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash)'
 fi
-if [[ "$MODE" = counter-target-native-v19 || "$MODE" = self-seeded-native-round ]]; then
+if [[ "$MODE" = mt032-native-selection ]]; then
+  FILTER='(binary(=test_loom_address) & not test(/backend_proof_support::failure_diagnostic_tests::/)) | (kind(lib) & test(/^(loom_address::tests::|loom_graph::tests::|graph::canvas_board::tests::(placed_card_has_loom_addr_chip|empty_placed_block_id_has_no_loom_chip)$|rich_editor::wikilinks::runtime::tests::loom_address_)/))'
+elif [[ "$MODE" = counter-target-native-v19 || "$MODE" = self-seeded-native-round ]]; then
   FILTER='binary(=test_loom_address) & test(=live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof)'
 fi
 set +e
 (cd "$EXPORT/src/frontend/handshake_native" && "$NEXTEST" nextest run --locked --no-fail-fast --build-jobs 2 \
   --config-file "$LANE/nextest.toml" --features integration,integration_tests,wgpu_screenshots \
-  --test test_loom_address -E "$FILTER")
+  "${NATIVE_BUILD_TARGETS[@]}" -E "$FILTER")
 RESULT=$?
 set -e
-if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = counter-target-native-v19 || "$MODE" = self-seeded-native-round ]]; then
+if [[ "$MODE" = receipt-inner-v15 || "$MODE" = lookup-plan-v16 || "$MODE" = counter-target-native-v19 || "$MODE" = self-seeded-native-round || "$MODE" = mt032-native-selection ]]; then
   (set -o noclobber; printf '%s\n' "$RESULT" > "$LANE/$PROBE-$SHA.exit") || exit 2
 fi
 [[ "$RESULT" = 0 || "$RESULT" = 100 ]] || exit "$RESULT"
 [[ -f "$JUNIT" && "$JUNIT" -nt "$INVOCATION" ]] || exit 4
 COUNT="$(sed -n 's/^<testsuites[^>]* tests="\([0-9][0-9]*\)".*/\1/p' "$JUNIT" | head -n 1)"
-[[ "$COUNT" = "$NATIVE_EXPECTED" ]] || { echo "MT032_PROBE invalid test count=$COUNT"; exit 4; }
+if [[ "$NATIVE_EXPECTED" = any ]]; then
+  [[ "$COUNT" =~ ^[0-9]+$ && "$COUNT" -gt 0 ]] || { echo "MT032_PROBE invalid test count=$COUNT"; exit 4; }
+else
+  [[ "$COUNT" = "$NATIVE_EXPECTED" ]] || { echo "MT032_PROBE invalid test count=$COUNT"; exit 4; }
+fi
 cp "$JUNIT" "$LANE/junit-$SHA-$PROBE.xml"
 sha256sum "$LANE/junit-$SHA-$PROBE.xml" "$HSK_TEST_BACKEND_BIN"
 check_cap
