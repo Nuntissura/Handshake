@@ -14,7 +14,7 @@
   "title": "E10-MT-066-StageRouteAndCaptureInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-09-30T17:05:00Z",
+  "updated_at_utc": "2026-09-30T19:05:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-066.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1985,6 +1985,49 @@
         "event": "completed",
         "idempotency_key": "066-bb9548e1-round",
         "at_utc": "2026-09-30T17:05:00Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
+      }
+    ]
+  },
+  "validation_round_b4faed35": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-09-30T19:05:00Z",
+    "candidate_commit": "b4faed359c07fed260cf8f42633dcf9b1e60ff92",
+    "started_at": "2026-09-30T17:33:20.0531645Z",
+    "completed_at": "2026-09-30T18:51:58.3442342Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-b4faed359c07fed260cf8f42633dcf9b1e60ff92-core.xml",
+      "core_junit_sha256": "487e8cfc305ec9a7261ba9e5c52a8d74fdb230e6cd6fe0cc078ca12b7f6ed5d4",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-b4faed359c07fed260cf8f42633dcf9b1e60ff92-native.xml",
+      "native_junit_sha256": "3d514bc823a82cae5287e60cc0914360706b092b14ca016cc648324b9d6c48a1",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-b4faed359c07fed260cf8f42633dcf9b1e60ff92.stderr.log",
+      "log_sha256": "854901fa4c1f9832c4d7dd850b8f00c177db3a2865881c5ec5d919ae296ed405"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-b4faed35"
+    ],
+    "gameplan_before_verdict": "wp_validator PASS 5/5",
+    "decision": "inconclusive",
+    "checks_run": {
+      "test_stage_interop (whole)": "32 PASS incl product_api_only_and_shared_backend_client (AC-007); 4 live FAIL infrastructure",
+      "wp_kernel_012_native_editor_routes_tests route2 (PC-066-03)": "PASS"
+    },
+    "proof_reuse": "PC-066-02 lib passed in 8ea13a9b; inputs unchanged",
+    "unclosed": "4 live stage tests: OS credential store CredWriteW error 8 (local_account_session_vault_write_failed windows_error_code=Some(8)) from native test ~74 on; session-exchange 403 Account authentication denied at backend_proof_support/mod.rs:906; failure_kind infrastructure (CX-VAL-006), no status effect; validator vault probe fails error 8 after the round",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "066-b4faed35-round",
+        "at_utc": "2026-09-30T19:05:00Z",
+        "decision": "inconclusive",
+        "payload_ref": "MT-066.json#validation_round_b4faed35"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "066-b4faed35-round",
+        "at_utc": "2026-09-30T19:05:00Z",
         "decision": "inconclusive",
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
       }

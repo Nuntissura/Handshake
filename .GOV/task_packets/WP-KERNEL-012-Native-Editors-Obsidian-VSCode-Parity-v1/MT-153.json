@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-30T17:05:00Z",
+  "updated_at_utc": "2026-09-30T19:05:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V4",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -49,9 +49,9 @@
       "MT-157"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V3",
-    "prior_validator_verdict": "FAIL_V2",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_bb9548e1.remediation_required",
+    "validator_verdict": "FAIL_V4",
+    "prior_validator_verdict": "FAIL_V3",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_b4faed35.remediation_required",
     "ready_status_repair": {
       "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
       "rule": "CX-STATUS-001",
@@ -65,8 +65,8 @@
       "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
     },
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
-    "validated_at_utc": "2026-09-30T17:05:00Z",
-    "validated_commit": "bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3",
+    "validated_at_utc": "2026-09-30T19:05:00Z",
+    "validated_commit": "b4faed359c07fed260cf8f42633dcf9b1e60ff92",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -86,7 +86,7 @@
       "at_utc": "2026-09-23T23:52:39.079Z",
       "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
     },
-    "status_reason": "FAIL_V3 on bb9548e1 union round (validation_round_bb9548e1)",
+    "status_reason": "FAIL_V4 on b4faed35 union round (validation_round_b4faed35)",
     "status_before_20260930": "FAIL_V2",
     "candidate_commit": "b4faed359c07fed260cf8f42633dcf9b1e60ff92",
     "blocked_on": null,
@@ -1998,6 +1998,69 @@
           "MT-027 (diagnostic)"
         ],
         "owning_mt": "MT-153"
+      },
+      {
+        "proof_id": "PR-WP012-UNION-b4faed35",
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-20260930-ORCH-SUB",
+        "candidate_commit": "b4faed359c07fed260cf8f42633dcf9b1e60ff92",
+        "command": [
+          "C:/Program Files/Git/bin/bash.exe",
+          ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+          "b4faed359c07fed260cf8f42633dcf9b1e60ff92"
+        ],
+        "launch": "detached via Win32_Process.Create (GP-153)",
+        "wrapper": {
+          "pid": 243520,
+          "start_utc": "2026-09-30T17:33:07.7731184Z"
+        },
+        "bash": {
+          "pid": 235100,
+          "start_utc": "2026-09-30T17:33:20.1580104Z"
+        },
+        "selection": "WPV-round-selection.sh gov adac7035",
+        "target_dir": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
+        "tree_clean": true,
+        "started_utc": "2026-09-30T17:33:20.0531645Z",
+        "completed_utc": "2026-09-30T18:51:58.3442342Z",
+        "exit_code": 0,
+        "core": {
+          "tests": 27,
+          "passed": 26,
+          "failed": 1,
+          "exit_code": 100,
+          "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-b4faed359c07fed260cf8f42633dcf9b1e60ff92-core.xml",
+          "junit_sha256": "487e8cfc305ec9a7261ba9e5c52a8d74fdb230e6cd6fe0cc078ca12b7f6ed5d4"
+        },
+        "native": {
+          "tests": 126,
+          "exit_code": 100,
+          "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-b4faed359c07fed260cf8f42633dcf9b1e60ff92-native.xml",
+          "junit_sha256": "3d514bc823a82cae5287e60cc0914360706b092b14ca016cc648324b9d6c48a1",
+          "infrastructure": "OS vault CredWriteW error 8 from ~test 74: session-exchange 403 in 14 live tests (not counted); post-round vault probe fails error 8",
+          "selection_defect": "test_code_nav_client live_backend::ac001..003 not matched (bare names); MT-008 PC-008-01 unrun"
+        },
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-b4faed359c07fed260cf8f42633dcf9b1e60ff92.stderr.log",
+        "log_sha256": "854901fa4c1f9832c4d7dd850b8f00c177db3a2865881c5ec5d919ae296ed405",
+        "session_git": "exit trap ran: worktree list main-only; git dir + export .git pointer recycled",
+        "inventory": "before == after",
+        "covers": [
+          "MT-008",
+          "MT-023",
+          "MT-026",
+          "MT-036",
+          "MT-042",
+          "MT-064",
+          "MT-065",
+          "MT-066",
+          "MT-079",
+          "MT-113",
+          "MT-122",
+          "MT-136",
+          "MT-153",
+          "MT-027 (probe)"
+        ],
+        "owning_mt": "MT-153"
       }
     ]
   },
@@ -2843,5 +2906,102 @@
       "edge_create_8_statement_q5": "~2.7 s = loom_store.rs:1566-1567 edge CREATE/UPDATE + endpoint counter UPDATEs (unchanged; open risk)",
       "consumers": "lane B MT-042, MT-046 ic10/ic12"
     }
+  },
+  "validation_round_b4faed35": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-09-30T19:05:00Z",
+    "candidate_commit": "b4faed359c07fed260cf8f42633dcf9b1e60ff92",
+    "started_at": "2026-09-30T17:33:20.0531645Z",
+    "completed_at": "2026-09-30T18:51:58.3442342Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-b4faed359c07fed260cf8f42633dcf9b1e60ff92-core.xml",
+      "core_junit_sha256": "487e8cfc305ec9a7261ba9e5c52a8d74fdb230e6cd6fe0cc078ca12b7f6ed5d4",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-b4faed359c07fed260cf8f42633dcf9b1e60ff92-native.xml",
+      "native_junit_sha256": "3d514bc823a82cae5287e60cc0914360706b092b14ca016cc648324b9d6c48a1",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-b4faed359c07fed260cf8f42633dcf9b1e60ff92.stderr.log",
+      "log_sha256": "854901fa4c1f9832c4d7dd850b8f00c177db3a2865881c5ec5d919ae296ed405"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-b4faed35"
+    ],
+    "gameplan_before_verdict": "wp_validator PASS 5/5",
+    "decision": "failed",
+    "verdict": "FAIL_V4",
+    "checks_run": {
+      "MT-153-ROUTE-MATRIX mt153_loom_route_family_authority_matrix": "FAIL",
+      "mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows": "PASS",
+      "MT-153-WORKSPACE-DELETE": "PASS 2/2",
+      "MT-153-LOOM-TARGETS": "PASS 16/16",
+      "MT-153-NATIVE-LOOM block_collection_views live": "FAIL",
+      "MT-153-NATIVE-LOOM canvas_board live": "PASS",
+      "MT-153-BUILD-LIB": "PASS (union build)",
+      "MT-153-FMT (file mode @b4faed35)": "PASS",
+      "MT-153-DIFF-CHECK 37ee7c5b..b4faed35": "PASS"
+    },
+    "proof_reuse": "MT-153-PIN-CONFIRM 7/7 on 37ee7c5b (schema files unchanged 37ee7c5b..b4faed35)",
+    "failures": [
+      {
+        "check": "MT-153-ROUTE-MATRIX",
+        "test": "api::loom::tests::mt153_loom_route_family_authority_matrix",
+        "failure_kind": "product",
+        "failure_class": "LOOM_INDEX_RECEIPT_AGGREGATE_READ_EMPTY",
+        "assertion": "src/backend/handshake_core/src/api/loom.rs:11209: [daily journal] owner reads KNOWLEDGE_LOOM_BLOCK_INDEXED receipt via /kernel/events/aggregates/loom_block_search_index/{id} -> []",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-b4faed359c07fed260cf8f42633dcf9b1e60ff92-core.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/api/loom.rs:11209"
+        ],
+        "repair_direction": "Block-view family now passes (probe); owner aggregate read of the index receipt returns empty"
+      },
+      {
+        "check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "failure_kind": "product",
+        "failure_class": "LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT",
+        "assertion": "tests/test_block_collection_view.rs:1743: managed-SurrealDB mutation: request to /workspaces/{ws}/loom/blocks/{id} timed out",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-b4faed359c07fed260cf8f42633dcf9b1e60ff92-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:1743"
+        ],
+        "repair_direction": "View create passes now; block mutation request exceeds client deadline"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "MT-153-ROUTE-MATRIX",
+        "test": "api::loom::tests::mt153_loom_route_family_authority_matrix",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-b4faed359c07fed260cf8f42633dcf9b1e60ff92-core.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/api/loom.rs:11209"
+        ],
+        "repair_direction": "Block-view family now passes (probe); owner aggregate read of the index receipt returns empty"
+      },
+      {
+        "failed_check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-b4faed359c07fed260cf8f42633dcf9b1e60ff92-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:1743"
+        ],
+        "repair_direction": "View create passes now; block mutation request exceeds client deadline"
+      }
+    ],
+    "note": "block-view create passes only under the MT-027 probe (no THROW); bridge row still absent (KB-DIAG2). CHECK-TESTS/CLIPPY-CHANGED remain WP-end",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "153-b4faed35-round",
+        "at_utc": "2026-09-30T19:05:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-153.json#validation_round_b4faed35"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "153-b4faed35-round",
+        "at_utc": "2026-09-30T19:05:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V4"
+      }
+    ]
   }
 }

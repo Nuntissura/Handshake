@@ -2409,5 +2409,26 @@
     "status_change": "none; MT-027 stays FAIL_V7",
     "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 7612f1cc0b6c9d1b5440e23c572e375f63e9e036",
     "candidate_note": "round tip may be a later commit containing 7612f1cc0b6c9d1b5440e23c572e375f63e9e036; orchestrator names it"
+  },
+  "probe_run_result_b4faed35": {
+    "recorded_at_utc": "2026-09-30T19:10:00Z",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "kind": "probe_run_result (not a verdict; MT-027 status unchanged)",
+    "probe_ref": "probe_20260930_kb_diag2",
+    "candidate_commit": "b4faed359c07fed260cf8f42633dcf9b1e60ff92",
+    "proof_record_ref": "MT-153.json#validation.proof_records[PR-WP012-UNION-b4faed35]",
+    "tests": {
+      "api::loom::tests::mt109_c3_record_user_assets_collections_and_views": "PASS (probe removes THROW)",
+      "api::loom::tests::mt153_loom_route_family_authority_matrix": "FAIL later, loom.rs:11209 daily journal receipt read []"
+    },
+    "kb_diag2_lines": [
+      "KB-DIAG2 bridge_upsert_record_user_rows=Some(0)",
+      "KB-DIAG2 root_bridge_row view_id=01a0f387-ef73-7f92-8ec6-01a9beefd441 row=Ok(None)",
+      "KB-DIAG2 root_bridge_table_info=(fields/indexes; see file)"
+    ],
+    "kb_diag2_file": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/kb-diag2-b4faed359c07fed260cf8f42633dcf9b1e60ff92.txt",
+    "reading": "Record-user UPSERT returns 0 rows and root read finds no bridge row: nothing is written (not hidden). All bridge fields PERMISSIONS FULL; block_id ASSERT record::exists($value) AND record::id($value) = record::id($this.id). INFO FOR TABLE omits table-level permissions.",
+    "loom_write_timings_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/loom-write-timings-b4faed359c07fed260cf8f42633dcf9b1e60ff92.json",
+    "loom_write_timings_summary": "block create 2.5-3.0 s (#4/7 ~0.5 s, #9/17 ~0.45 s); edge create 2.8-3.4 s with #5/8 = 2.38-2.96 s dominant (#2/8 now ~3 ms); view create 1.45-1.68 s"
   }
 }
