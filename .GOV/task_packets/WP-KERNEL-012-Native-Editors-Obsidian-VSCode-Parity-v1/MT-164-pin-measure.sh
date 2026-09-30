@@ -15,7 +15,7 @@ CONSUMED="$LANE/MT164-PIN-MEASURE-${SHA:0:8}.started"
 [[ -d "$LANE" && -d "$TARGET" && -x "$NEXTEST" ]] || exit 2
 export GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never
 # Lane config must equal checked-in WPV-nextest-core.toml (CX-VAL-007); hash updated with the config.
-[[ "$(sha256sum "$LANE/nextest-core.toml" | cut -d ' ' -f1)" = 491c91535ea5ad034b05702ef5360520a72fc6870398fef1a9fa6f0a5e012296 ]] || exit 2
+[[ "$(sha256sum "$LANE/nextest-core.toml" | cut -d ' ' -f1)" = 11df75124abc399934b6b552e4d04468ea7d9c546e4c0cabaadc315f8f04de35 ]] || exit 2
 [[ -z "$(git -C "$WORKTREE" status --porcelain)" ]] || exit 2
 [[ "$(git -C "$WORKTREE" rev-parse HEAD)" = "$SHA" ]] || exit 2
 [[ "$(git -C "$WORKTREE" ls-remote origin refs/heads/feat/WP-KERNEL-012 | cut -f1)" = "$SHA" ]] || exit 2
