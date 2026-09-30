@@ -88,7 +88,7 @@
     },
     "status_reason": "FAIL_V4 on b4faed35 union round (validation_round_b4faed35)",
     "status_before_20260930": "FAIL_V2",
-    "candidate_commit": "13288bf010ae376ba47256fb34270a34524765a5",
+    "candidate_commit": "bd8c753223c2714707d6c78d7550448340c85c35",
     "blocked_on": null,
     "diagnosis_refs": [
       "MT-153.json#hypothesis_20260930_journal_scope",
@@ -98,8 +98,8 @@
     "ready_for_validation_at_utc": "2026-09-30T19:14:38Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "status_before_bb9548e1_resubmission": "FAIL_V3",
-    "candidate_updated_at_utc": "2026-09-30T17:28:51Z",
-    "candidate_update_note": "7612f1cc -> b4faed35 (adds event_ledger.rs bare-key lookups, MT-153); before_submit kernel_builder PASS 2/2 at b4faed35 (GP-139 confirmed: no counter statement changed)",
+    "candidate_updated_at_utc": "2026-09-30T21:04:34Z",
+    "candidate_update_note": "13288bf0 -> bd8c7532 (round tip: + 45b8fb6d edge timers, b504f70e KB-DIAG3, lane B 8b5da801/bd8c7532); before_submit kernel_builder PASS 2/2 at bd8c7532; 45b8fb6d (edge timers, loom_store.rs/database.rs) and b504f70e (KB-DIAG3, api/loom.rs tests) are diagnostic code in MT-153 files; their later revert changes MT-153 inputs, so a PASS from the bd8c7532 run needs re-proof after the revert (CX-VAL-002)",
     "status_before_b4faed35_resubmission": "FAIL_V4"
   },
   "closure_unit": {
@@ -3090,8 +3090,8 @@
       ],
       "reproof": "MT-153 inputs changed by the reverts; PASS evidence from b4faed35 is not reused (CX-VAL-002)"
     },
-    "candidate_commit": "13288bf010ae376ba47256fb34270a34524765a5",
-    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 13288bf010ae376ba47256fb34270a34524765a5",
+    "candidate_commit": "bd8c753223c2714707d6c78d7550448340c85c35",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = bd8c753223c2714707d6c78d7550448340c85c35",
     "implementer_checks": [
       {
         "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
@@ -3114,8 +3114,9 @@
         "exit_code": 0
       }
     ],
-    "gameplan": "before_submit kernel_builder PASS 2/2 at 13288bf0 (GP-139 confirmed: guards, count formulas, per-edge transactions and auth retained; see option_a_redundancy_proof)",
-    "next_actor": "WP_VALIDATOR single union run (orchestrator names the round tip)"
+    "gameplan": "before_submit kernel_builder PASS 2/2 at bd8c7532 (GP-139 confirmed after MT-153.json#gp139_check_20260930_edge_split)",
+    "next_actor": "WP_VALIDATOR single union run (orchestrator names the round tip)",
+    "reproof_note_round_tip": "45b8fb6d (edge timers, loom_store.rs/database.rs) and b504f70e (KB-DIAG3, api/loom.rs tests) are diagnostic code in MT-153 files; their later revert changes MT-153 inputs, so a PASS from the bd8c7532 run needs re-proof after the revert (CX-VAL-002)"
   },
   "operator_decision_20260930": {
     "decision_id": "WP012-OPERATOR-DECISIONS-20260930-C",
@@ -3168,5 +3169,25 @@
     "read_by": "WP_VALIDATOR loom-write-timings extraction (same as bb9548e1/b4faed35)",
     "revert": "after the numbers are recorded, together with the fix",
     "status_change": "none"
+  },
+  "gp139_check_20260930_edge_split": {
+    "schema_id": "hsk.gp139_diff_check@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-09-30T21:04:34Z",
+    "subject": "45b8fb6d split of create_loom_edge apply-once block (loom_store.rs) + observe_loom_edge_write wrapper (database.rs)",
+    "method": "git show 45b8fb6d^/45b8fb6d:loom_store.rs; concatenated the create_loom_edge concat! string literals; compared the pre-block prefix, the post-block suffix and the apply-once statements; reviewed git diff 45b8fb6d^ 45b8fb6d -- database.rs",
+    "results": {
+      "prefix_identical (BEGIN, endpoint guard, receipt pre-read/append/bind macro)": true,
+      "suffix_identical (SELECT * FROM $edge, COMMIT)": true,
+      "old_inner_statement_count": 5,
+      "new_guarded_statement_count": 5,
+      "statements_identical_in_order": true,
+      "each_new_statement_guarded_by_existing_receipt_none": true,
+      "begin_commit_single_transaction": true,
+      "result_index": "6 -> 10 (read statement moved by the four added statement boundaries; same read)",
+      "database_rs": "create/delete wrapped in observe_loom_edge_write (task-local DOCUMENT_PHASE_REQUEST_ID + observe_document_phase timing only); mutation_metadata, guarded_storage_mutation, record-user scope and authorization unchanged"
+    },
+    "counts": "counter formulas unchanged (identical UPDATE $source/$target text); only statement boundaries added",
+    "gp139": "holds: guards, counts, single transaction and auth retained -> GP-139 confirmed at bd8c7532"
   }
 }

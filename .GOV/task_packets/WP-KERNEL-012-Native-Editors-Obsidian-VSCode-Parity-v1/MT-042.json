@@ -1134,6 +1134,9 @@
     "revert": "after the numbers are recorded, together with the fix",
     "status_change": "none",
     "hypothesis_ref": "MT-153.json#hypothesis_20260930_edge_counter_cost",
-    "note": "MT-042 graph add-edge timeout shares the edge-create cost; fix lands in MT-153-owned files"
+    "note": "MT-042 graph add-edge timeout shares the edge-create cost; fix lands in MT-153-owned files",
+    "candidate_commit": "bd8c753223c2714707d6c78d7550448340c85c35",
+    "candidate_updated_at_utc": "2026-09-30T21:04:34Z",
+    "reproof_note": "45b8fb6d (edge timers, loom_store.rs/database.rs) and b504f70e (KB-DIAG3, api/loom.rs tests) are diagnostic code in MT-153 files; their later revert changes MT-153 inputs, so a PASS from the bd8c7532 run needs re-proof after the revert (CX-VAL-002)"
   }
 }
