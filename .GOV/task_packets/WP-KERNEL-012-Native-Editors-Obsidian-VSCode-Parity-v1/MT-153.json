@@ -3003,5 +3003,41 @@
         "state_effect": "lifecycle.status FAIL_V4"
       }
     ]
+  },
+  "hypothesis_20260930_journal_scope": {
+    "schema_id": "hsk.mt_attempt_hypothesis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_before_run": true,
+    "recorded_at_utc": "2026-09-30T19:06:45Z",
+    "failing_assertion": "MT-153.json#validation_round_b4faed35 LOOM_INDEX_RECEIPT_AGGREGATE_READ_EMPTY: api/loom.rs:11209 [daily journal] owner GET /kernel/events/aggregates/loom_block_search_index/{id} -> [] although the KNOWLEDGE_LOOM_BLOCK_INDEXED row exists",
+    "code_location": "src/backend/handshake_core/src/api/loom.rs open_daily_journal (800-930): only create_record_user_loom_bundle runs inside with_record_user_scope; finalize_loom_block_create (Flight Recorder + loom_search::reindex_block -> search_store.rs reindex receipt) ran after the scope ended",
+    "cause": "journal reindex receipt appended outside record-user scope, so authority_* is NONE and fn::mt120_loom_receipt (schema.surql:6253-6256) hides it from the owner",
+    "contrast": "POST /loom/blocks wraps the whole handler incl. finalize in the scope via loom_create_authority (api/loom.rs:104-143)",
+    "not_a_regression_of": "79610d1a (changed only the pre-read WHERE binding; receipt content unchanged)",
+    "intended_fix": "clone record_user_scope before the create and run finalize_loom_block_create inside with_record_user_scope(finalize_scope, ...) (api/loom.rs, MT-153 allowed path)",
+    "attempts_so_far": [
+      "none (family reached for the first time in round b4faed35)"
+    ]
+  },
+  "hypothesis_20260930_cardmove_timeout": {
+    "schema_id": "hsk.mt_attempt_hypothesis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_before_run": true,
+    "recorded_at_utc": "2026-09-30T19:06:45Z",
+    "failing_assertion": "MT-153.json#validation_round_b4faed35 LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT: tests/test_block_collection_view.rs:1743 Kanban card-move PATCH /workspaces/{ws}/loom/blocks/{id} request timed out",
+    "credential_fallout_check": "product, not credential fallout: the test is native #2/126, before the CredWriteW error-8 failures (~#74) in ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-b4faed359c07fed260cf8f42633dcf9b1e60ff92.stderr.log",
+    "client_deadline": "src/frontend/handshake_native/src/backend_client.rs:9579 block_view_send .timeout(5 s)",
+    "code_location": "src/backend/handshake_core/src/api/loom.rs patch_loom_block_inner: update_loom_block, list_loom_edges_for_block, per add_tag get_loom_block + create_loom_edge, per remove_tag delete_loom_edge, recompute_block_metrics (loom_store.rs:1829), get_loom_block, Flight Recorder, refresh_loom_block_embedding (search_store reindex)",
+    "cause": "one card-move PATCH chains several record-user Loom writes; edge create alone costs 2.4-3.0 s (stmt #5/8), exceeding the 5 s client deadline",
+    "evidence_refs": [
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/loom-write-timings-b4faed359c07fed260cf8f42633dcf9b1e60ff92.json (edge create #5/8 2.4-3.0 s; block create 2.5-3.0 s; view create ~1.5 s)",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-b4faed359c07fed260cf8f42633dcf9b1e60ff92.stderr.log"
+    ],
+    "unattributed": "the PATCH itself has no statement timing; the #5/8 cost (edge CREATE/UPDATE + two endpoint counter-recompute UPDATEs with loom_edges subqueries under per-row select permission, loom_store.rs:1566-1567) is not split further",
+    "candidate_fixes": [
+      "remove the redundant recompute_block_metrics after tag edits (edge create/delete transactions already recompute both endpoints' counts) - small gain, no semantic change",
+      "replace the in-transaction array::len recompute UPDATEs with transactional increments/decrements of the known endpoint counters - larger gain, changes the MT-152 counter design; needs orchestrator/buddy decision"
+    ],
+    "status": "hypothesis; fix pending decision"
   }
 }
