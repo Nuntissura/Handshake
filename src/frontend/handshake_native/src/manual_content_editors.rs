@@ -1742,14 +1742,35 @@ find-in-files.path-filter, find-in-files.toggle-case, find-in-files.toggle-word,
 find-in-files.toggle-regex; then activate find-in-files.search. Replacement text uses find-in-files.replace; \
 the destructive controls are find-in-files.preview-replace, find-in-files.apply, and find-in-files.cancel. \
 Bookmark Search is find-in-files.save-bookmark. Operator-visible terminal state is exposed at \
-find-in-files.status and bookmark lifecycle state at find-in-files.bookmark-status. These controls and \
+find-in-files.status and bookmark lifecycle state at find-in-files.bookmark-status. If a control's \
+click-completion token still cannot be composed within its budget, the control publishes a typed \
+handshake.click-completion-unavailable/v1 marker (effect, context, generation, field, bytes, budget) in \
+place of the token, and the Argus receipt names it as completion token unavailable: field ... over its \
+...-byte budget, instead of ending indeterminate with no reason; debug builds also assert at authoring \
+time. Report that field and budget; the control cannot be terminalised until its author_id fits. \
+At narrow panes (420 px or less) the three static action rows wrap onto further lines instead of \
+running off the pane. In each result row the [source_kind] badge stays visible at the row's right edge \
+and a long hit title is elided with an ellipsis; hover the elided title to read the full title in a \
+tooltip, which is how two long, similar hits stay distinguishable. The whole result row remains the \
+single click target. Saved-search bookmark labels elide the same way, with the full label on hover. \
+These controls and \
 bookmarks are panel-local; no dedicated Settings preference is required. The panel follows every page from \
 GET /workspaces/{workspace_id}/loom/graph-search \
 (q, limit, offset, source_kinds, tag_ids, path, case_sensitive, whole_word, regex), rejects malformed producer \
-payloads, and lists the complete bounded result set with stable reversible targets. The actual row author_id is \
-find-in-files.result.{hex(source_kind UTF-8 bytes)}.{hex(ref_id UTF-8 bytes)}: it is hex-encoded, \
-each byte is lowercase two-digit hex, decoding is exact, and a no-context model should discover dynamic row \
-ids with argus.inspect (legacy list_widgets is secondary) instead of guessing them. Exact fixtures: source_kind=document with \
+payloads, and lists the complete bounded result set with stable, injective targets. Every content-derived \
+route (result, preview, preview-before, preview-after, bookmark-restore, bookmark-remove) is bounded to the \
+256-byte click-completion author_id budget: the stricter pending_target/observer_author_id limit is used for \
+every route (context allows 512 bytes) so a synchronous control and its asynchronous sibling stay equally \
+provable. Two regimes apply. VERBATIM, the normal case: whenever the full route, including any \
+.pane-{hex(pane_id)} scope, fits in 256 bytes, the row author_id is \
+find-in-files.result.{hex(source_kind UTF-8 bytes)}.{hex(ref_id UTF-8 bytes)}: each byte is lowercase \
+two-digit hex and decoding is exact. DIGESTED: when the verbatim route would exceed 256 bytes (for example a \
+very long ref_id path), each content component is written as zsha256-{64 lowercase hex SHA-256 of its exact \
+UTF-8 bytes}, and the pane scope is digested the same way only if the route is still over budget. The z \
+sentinel is outside the hex alphabet, so a digested component never collides with a verbatim one and distinct \
+content keeps distinct routes, but a digested route cannot be decoded back to its text: resolve it against \
+the live result rows (the panel recomputes each row's route) and never guess or truncate it. A no-context \
+model should always discover dynamic row ids with argus.inspect (legacy list_widgets is secondary). Exact fixtures: source_kind=document with \
 ref_id=KRD-1:/foo?x=1 becomes \
 find-in-files.result.646f63756d656e74.4b52442d313a2f666f6f3f783d31; source_kind=文档 with \
 ref_id=résumé/東京 becomes \
@@ -1771,7 +1792,12 @@ remain distinct saved rows instead of evicting one another. \
 Every saved row exposes \
 find-in-files.bookmark-restore.{hex(bookmark_id UTF-8 bytes)} and \
 find-in-files.bookmark-remove.{hex(bookmark_id UTF-8 bytes)}; bookmark id saved:文/1 becomes the exact \
-suffix 73617665643ae696872f31 on both routes. A failed mount-time GET exposes \
+suffix 73617665643ae696872f31 on both routes (verbatim regime; a route over the 256-byte budget is \
+digested as described for result rows). The bookmark id itself is bounded at 1024 bytes: when the \
+verbatim id would be longer (roughly a query over 450 characters), every component keeps its \
+.{utf8_len}- frame but is written as its zsha256- digest, so re-saving the same search still dedups \
+exactly while the derived Remove semantic value stays inside its 2048-byte budget. \
+A failed mount-time GET exposes \
 find-in-files.bookmark-retry; Retry reissues the bounded GET for the active workspace, and another failure \
 returns to the visible Retry state. Restore repopulates query, kind, tag, path, case, whole-word, and regex; \
 Remove persists the shortened list, so a fresh panel mount must not rediscover the removed row. \
