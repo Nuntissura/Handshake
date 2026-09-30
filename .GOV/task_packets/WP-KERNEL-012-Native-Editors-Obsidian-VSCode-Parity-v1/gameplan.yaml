@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 176
+generation: 181
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -166,4 +166,8 @@ steps:
 - {id: GP-145, role: orchestrator, at: before_dispatch, do: confirm no builder push or build dispatched while a head-bound validator round runs, check: {type: confirm}, source: '6391a29f round: builder pushed 16b43aff/e012e80d mid-round; native probe refused; D check overlapped', state: active}
 - {id: GP-146, role: wp_validator, at: before_round, do: confirm host commit free >= 60 GB and core union build -j 1 before launch, check: {type: confirm}, source: 'infra: 1f4e0f69 round rustc-LLVM out of memory; lib+lib-test parallel; foreign builds on host', state: active}
 - {id: GP-147, role: orchestrator, at: before_dispatch, do: confirm no builder build/test dispatched while a validator union build compiles (host RAM shared across disks), check: {type: confirm}, source: '1f4e0f69 round: builder D: probe build + validator C: union build -> rustc LLVM OOM', state: active}
-- {id: GP-148, role: wp_validator, at: before_round, do: record candidate SHA = pushed HEAD; later pushes -> next round, check: {type: confirm}, source: 'rescoped from GP-008 (any): builder local probes are not rounds; Operator 2026-09-30', state: active}
+- {id: GP-148, role: wp_validator, at: before_round, do: record candidate SHA = pushed HEAD; later pushes -> next round, check: {type: confirm}, source: 'rescoped from GP-008 (any): builder local probes are not rounds; Operator 2026-09-30', state: retired}
+- {id: GP-149, role: any, at: before_round, do: record candidate SHA = pushed HEAD; later pushes -> next round, check: {type: confirm}, source: 'restore GP-008 preset:build-round; unapproved rescope reverted (CX-EXEC-011)', state: active}
+- {id: GP-150, role: any, at: before_round, do: 'confirm receipt timings preserve one transaction, scope, denial and replay behavior', check: {type: confirm}, source: restore GP-105 FAIL_V13; unapproved retire reverted (CX-EXEC-011), state: active}
+- {id: GP-151, role: wp_validator, at: before_round, do: confirm V15 proof targets the changed question or repair with separate evidence and original acceptance retained, check: {type: confirm}, source: restore GP-107; unapproved retire reverted (CX-EXEC-011), state: active}
+- {id: GP-152, role: orchestrator, at: before_dispatch, do: forbid stopping a validator agent while its round runs, check: {type: confirm}, source: r2 1f4e0f69 died at native 42/210 when validator agent was stopped, state: active}

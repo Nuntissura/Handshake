@@ -1987,14 +1987,30 @@
       "decision_id": "WP012-GAMEPLAN-ROLE-PREFIX-20260930",
       "question": "In-session sub-agents cannot set GAMEPLAN_ROLE, so the hook evaluated all roles and blocked builder probe runs on validator/round steps. Fix?",
       "chosen_option": "Role prefix in hook (Recommended)",
-      "effect": "Global gameplan.py hook honors a GAMEPLAN_ROLE=<role> declaration in the gated command text (env var still wins; conflicting declarations -> all roles); backup gameplan.py.bak-20260930. WP-012 gameplan: GP-008 rescoped any->wp_validator (GP-148); GP-105 and GP-107 retired (MT-032 V15 closed, PASS_V15)."
+      "effect": "Global gameplan.py hook honors a GAMEPLAN_ROLE=<role> declaration in the gated command text (env var still wins; conflicting declarations -> all roles); backup gameplan.py.bak-20260930. WP-012 gameplan: GP-008 rescoped any->wp_validator (GP-148); GP-105 and GP-107 retired (MT-032 V15 closed, PASS_V15).",
+      "reverted_20260930": "Global gameplan.py patch restored from backup at Operator demand; GP-148 retired and GP-008/105/107 content restored as GP-149/150/151 (rescope/retire were orchestrator changes without Operator approval, CX-EXEC-011)."
     },
     {
       "recorded_at_utc": "2026-09-30T14:10:43Z",
       "recorded_by": "ORCHESTRATOR root session",
       "decision_id": "WP012-OPERATOR-AFK-AUTONOMY-20260930",
       "operator_quote": "stop prompting me unless wp kernel 012 is finished and all mt are validated pass. use cheap sub agents to research online or explore codebase or master spec and other mt to find the best solution without me. i am AFK. work on your own, delegate agents, use other agents for help when something is unclear.",
-      "effect": "Orchestrator proceeds autonomously to WP completion (all MTs validator PASS); decisions normally escalated are resolved by research sub-agents against Master Spec/codebase/MT records and recorded here as orchestrator_decision with evidence; Operator is prompted only at WP completion."
+      "effect": "Orchestrator proceeds autonomously to WP completion (all MTs validator PASS); decisions normally escalated are resolved by research sub-agents against Master Spec/codebase/MT records and recorded here as orchestrator_decision with evidence; Operator is prompted only at WP completion.",
+      "limit_20260930": "Does not cover workflow decisions (Codex CX-EXEC-011): roles, statuses, round procedure and approval points stay Operator-owned."
+    },
+    {
+      "recorded_at_utc": "2026-09-30T14:34:58Z",
+      "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+      "decision_id": "WP012-OPERATOR-INSTRUCTIONS-20260930-B",
+      "operator_quotes_verbatim": [
+        "fix all failing mt and do a single cargo test what the fuck are you doing, have you not read the handofffile",
+        "dont delete cargo if this can be reused, avoid costly rebuilds",
+        "you do not work on globals",
+        "you do not touch the codex either",
+        "STOP FUCKING INVENTING THINGS",
+        "you will colaborate with the buddy before instructing other agents or making descicions, you will explain you choices and descicions, the buddy only keeps you on track of the workflow order. skill use, it does not touch code or gov. it us purely to keep you on track, you use agents for work, you do not work yourself, you delegate after deliberation wuth your buddy. you use sub agents to explore code, research online or other as if your hands"
+      ],
+      "effect": "State-recovery record only; no obligation beyond the Operator's words."
     }
   ]
 }
