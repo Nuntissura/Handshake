@@ -4945,6 +4945,21 @@
     ],
     "correction": "the orchestrator's earlier UNVERIFIED hypothesis (the d9ce6017 Kanban manual sentence changed manual content without a pin update) is refuted: the failing assertion reads keyed_lock.rs source, not manual text; cause = 22c64a06",
     "routing": "MT-153 remediation routed to MT-152; MT-152 stays PASS_V6 (not reopened) per orchestrator 2026-10-01",
-    "intended_fix": "user_manual/seed.rs (MT-153 path): the test reads ../handshake_storage_support/src/keyed_lock.rs (canonical) and checks the handshake_core re-export; the two manual citations point at handshake_storage_support/src/keyed_lock.rs"
+    "intended_fix": "user_manual/seed.rs (MT-153 path): the test reads ../handshake_storage_support/src/keyed_lock.rs (canonical) and checks the handshake_core re-export; the two manual citations point at handshake_storage_support/src/keyed_lock.rs",
+    "additional_stale_references": {
+      "extended_at_utc": "2026-10-01T08:03:51Z",
+      "by": "KERNEL_BUILDER-20260930",
+      "source": "orchestrator 2026-10-01: include in the same commit",
+      "items": [
+        "seed.rs:2417 (MT-142/152 swarm section) `storage/surreal/keyed_lock.rs` -> canonical handshake_storage_support/src/keyed_lock.rs (re-exported)",
+        "seed.rs:2419 `keyed_lock.rs:55-67` (LockKey variants) -> handshake_storage_support/src/keyed_lock.rs:77-90 (pub enum LockKey {Record, NaturalKey, Workspace})",
+        "seed.rs:2419 `:97-102` (LockMode::Disabled no-op guards) -> :120-125 (pub enum LockMode { Keyed, Disabled /// Every acquire returns immediately with a no-op guard })",
+        "seed.rs:2419 `:196-205` -> :351-355 (fn begin: `if self.inner.mode == LockMode::Disabled { return None; }`)",
+        "seed.rs:2867 JSON contention_shaper `(storage/surreal/keyed_lock.rs)` -> handshake_storage_support/src/keyed_lock.rs, re-exported by storage/surreal/keyed_lock.rs",
+        "seed.rs:2873 JSON acquisition `(keyed_lock.rs acquire_many)` -> handshake_storage_support/src/keyed_lock.rs acquire_many :329, ordered_unique :364-367"
+      ],
+      "verified_against": "src/backend/handshake_storage_support/src/keyed_lock.rs at d9ce6017 (awk line print): :39 deadlock-freedom doc, :77-90 LockKey, :120-125 LockMode, :329 acquire_many, :351-355 begin Disabled -> None, :364-367 ordered_unique sort/dedup",
+      "note": "the :55-67/:97-102/:196-205 ranges did not match the pre-22c64a06 handshake_core file either (its :55-67 were module docs/imports at 979230d6) - corrected to the canonical file"
+    }
   }
 }
