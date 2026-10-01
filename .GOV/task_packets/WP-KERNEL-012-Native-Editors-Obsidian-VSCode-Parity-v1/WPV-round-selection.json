@@ -1,11 +1,9 @@
 {
-  "candidate": "7548bc72c8c819c139d6257674a84bd95a215b0d",
-  "prior_native_proof": "d9ce6017e91430c69d410b555bd79fd5f6916926",
-  "changed_native_test_bins": [
-    "test_block_collection_view"
-  ],
+  "candidate": "791a81dd23cee301006995a2b7bb550cfeba4471",
+  "prior_native_proof": "7548bc72c8c819c139d6257674a84bd95a215b0d,d9ce6017e91430c69d410b555bd79fd5f6916926",
+  "changed_native_test_bins": [],
   "native_src_changed": false,
-  "planned_native_tests_estimate": 95,
+  "planned_native_tests_estimate": 84,
   "core_lib": [
     "api::loom::tests::mt153_loom_route_family_authority_matrix",
     "api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows",
@@ -37,11 +35,18 @@
     "loom_block_collection_views_tests": "MT027_CORE exact 6"
   },
   "intersection": {
-    "candidate": "7548bc72c8c819c139d6257674a84bd95a215b0d",
-    "rule": "CX-VAL-002: reuse only if recorded input paths do not intersect the diff from the reuse basis",
+    "candidate": "791a81dd23cee301006995a2b7bb550cfeba4471",
+    "rule": "CX-VAL-002",
     "diffs": {
+      "7548bc72": [
+        "src/backend/handshake_core/src/api/loom.rs",
+        "src/backend/handshake_core/src/storage/block_view_outbox.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema.surql"
+      ],
       "d9ce6017": [
         "src/backend/handshake_core/src/api/loom.rs",
+        "src/backend/handshake_core/src/storage/block_view_outbox.rs",
         "src/backend/handshake_core/src/storage/surreal/schema.rs",
         "src/backend/handshake_core/src/storage/surreal/schema.surql",
         "src/backend/handshake_core/src/user_manual/seed.rs",
@@ -49,6 +54,7 @@
       ],
       "e4566f11": [
         "src/backend/handshake_core/src/api/loom.rs",
+        "src/backend/handshake_core/src/storage/block_view_outbox.rs",
         "src/backend/handshake_core/src/storage/surreal/database.rs",
         "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
         "src/backend/handshake_core/src/storage/surreal/schema.rs",
@@ -59,6 +65,7 @@
       "37ee7c5b": [
         "src/backend/handshake_core/src/api/loom.rs",
         "src/backend/handshake_core/src/api/workspaces.rs",
+        "src/backend/handshake_core/src/storage/block_view_outbox.rs",
         "src/backend/handshake_core/src/storage/surreal/block_view_store.rs",
         "src/backend/handshake_core/src/storage/surreal/database.rs",
         "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
@@ -81,56 +88,50 @@
     },
     "per_mt": {
       "MT-079": {
-        "reuse_basis": "d9ce6017 (PC-079-01..05 23/23 PASS, native non-live)",
-        "recorded_inputs": "native lib src + test_app_host_mount(_secondary).rs, test_theme.rs",
+        "reuse_basis": "d9ce6017 23/23 (shown non-intersecting through 7548bc72)",
         "intersection": [],
-        "decision": "reuse d9ce6017 PASS 23/23 (no intersection)"
+        "decision": "reuse (7548bc72..791a81dd native: none)"
       },
       "MT-122": {
-        "reuse_basis": "d9ce6017 (PC-122-01..05, test_manual_content 41/41) and e4566f11 (test_manual_pane_editors 10/10)",
-        "recorded_inputs": "native lib src + find_in_files test files; PC-122-05 and test_manual_content also the live backend binary",
+        "reuse_basis": "PC-122-01..04 d9ce6017; test_manual_pane_editors e4566f11; PC-122-05 + test_manual_content 7548bc72",
         "intersection": {
-          "native_lib_src_since_d9ce6017": [],
-          "backend_since_d9ce6017": [
+          "native_since_7548bc72": [],
+          "backend_since_7548bc72": [
             "src/backend/handshake_core/src/api/loom.rs",
+            "src/backend/handshake_core/src/storage/block_view_outbox.rs",
             "src/backend/handshake_core/src/storage/surreal/schema.rs",
-            "src/backend/handshake_core/src/storage/surreal/schema.surql",
-            "src/backend/handshake_core/src/user_manual/seed.rs"
-          ],
-          "native_since_e4566f11": [
-            "src/frontend/handshake_native/tests/test_block_collection_view.rs"
+            "src/backend/handshake_core/src/storage/surreal/schema.surql"
           ]
         },
-        "decision": "reuse PC-122-01..04 (d9ce6017) and test_manual_pane_editors (e4566f11: only native change since is tests/test_block_collection_view.rs, not its input); run PC-122-05 and test_manual_content (live backend changed)"
+        "decision": "reuse non-live; run PC-122-05 and test_manual_content (live backend changed)"
       },
       "MT-136": {
-        "reuse_basis": "d9ce6017 (surface proofs a/b/c)",
+        "reuse_basis": "7548bc72",
         "intersection": [
           "src/backend/handshake_core/src/api/loom.rs",
+          "src/backend/handshake_core/src/storage/block_view_outbox.rs",
           "src/backend/handshake_core/src/storage/surreal/schema.rs",
-          "src/backend/handshake_core/src/storage/surreal/schema.surql",
-          "src/backend/handshake_core/src/user_manual/seed.rs"
+          "src/backend/handshake_core/src/storage/surreal/schema.surql"
         ],
-        "decision": "run mt136_database_surface_proof_(a|b|c) (backend lib changed)"
+        "decision": "run surface proofs a/b/c (backend lib changed)"
       },
       "MT-027": {
-        "reuse_basis": "d9ce6017",
+        "reuse_basis": "7548bc72 (PC-027-02 non-live 11/11), d9ce6017 (PC-027-01 lib)",
         "intersection": [
-          "src/frontend/handshake_native/tests/test_block_collection_view.rs",
           "src/backend/handshake_core/src/api/loom.rs",
+          "src/backend/handshake_core/src/storage/block_view_outbox.rs",
           "src/backend/handshake_core/src/storage/surreal/schema.rs",
-          "src/backend/handshake_core/src/storage/surreal/schema.surql",
-          "src/backend/handshake_core/src/user_manual/seed.rs"
+          "src/backend/handshake_core/src/storage/surreal/schema.surql"
         ],
-        "decision": "run test_block_collection_view named tests (test file changed) + live; reuse lib graph::block_collection_view tests (native lib src unchanged since d9ce6017); run core loom_block_collection_views_tests 6"
+        "decision": "reuse non-live native (no native change); run live BCV + core loom_block_collection_views_tests 6 (backend changed)"
       },
       "MT-154/157/158/159": {
-        "reuse_basis": "37ee7c5b pin proofs",
+        "reuse_basis": "7548bc72 pin proofs",
         "intersection": [
           "src/backend/handshake_core/src/storage/surreal/schema.rs",
           "src/backend/handshake_core/src/storage/surreal/schema.surql"
         ],
-        "decision": "run their named pin tests (schema.rs/schema.surql changed)"
+        "decision": "run named pin tests"
       }
     }
   },
@@ -141,24 +142,24 @@
   "per_mt": {
     "MT-027": {
       "run": [
-        "test_block_collection_view::table_renders_three_rows_with_titles",
-        "test_block_collection_view::table_sort_click_emits_backend_sort_then_toggles",
-        "test_block_collection_view::kanban_card_drag_emits_card_move_then_requery_lands_card",
-        "test_block_collection_view::calendar_renders_two_day_buckets",
-        "test_block_collection_view::calendar_date_range_validates_then_emits",
-        "test_block_collection_view::kind_switch_emits_kind_change",
-        "test_block_collection_view::new_view_creates_and_switches",
-        "test_block_collection_view::empty_states_render_without_panic",
-        "test_block_collection_view::client_update_view_wraps_definition",
-        "test_block_collection_view::client_card_move_top_level_tags",
-        "test_block_collection_view::client_create_view_body",
         "test_block_collection_view::block_collection_views_live_surrealdb_self_seed_full_round_trip"
       ],
       "reuse": [
-        "lib::graph::block_collection_view::tests::flip_direction_same_field_toggles_asc_desc",
-        "lib::graph::block_collection_view::tests::bucket_key_journal_date_uses_value_or_undated",
-        "lib::graph::block_collection_view::tests::card_move_tags_handle_untagged_lane",
-        "lib::graph::block_collection_view::tests::calendar_buckets_empty_result_is_empty"
+        "lib::graph::block_collection_view::tests::flip_direction_same_field_toggles_asc_desc (d9ce6017)",
+        "lib::graph::block_collection_view::tests::bucket_key_journal_date_uses_value_or_undated (d9ce6017)",
+        "lib::graph::block_collection_view::tests::card_move_tags_handle_untagged_lane (d9ce6017)",
+        "lib::graph::block_collection_view::tests::calendar_buckets_empty_result_is_empty (d9ce6017)",
+        "test_block_collection_view::table_renders_three_rows_with_titles (7548bc72)",
+        "test_block_collection_view::table_sort_click_emits_backend_sort_then_toggles (7548bc72)",
+        "test_block_collection_view::kanban_card_drag_emits_card_move_then_requery_lands_card (7548bc72)",
+        "test_block_collection_view::calendar_renders_two_day_buckets (7548bc72)",
+        "test_block_collection_view::calendar_date_range_validates_then_emits (7548bc72)",
+        "test_block_collection_view::kind_switch_emits_kind_change (7548bc72)",
+        "test_block_collection_view::new_view_creates_and_switches (7548bc72)",
+        "test_block_collection_view::empty_states_render_without_panic (7548bc72)",
+        "test_block_collection_view::client_update_view_wraps_definition (7548bc72)",
+        "test_block_collection_view::client_card_move_top_level_tags (7548bc72)",
+        "test_block_collection_view::client_create_view_body (7548bc72)"
       ],
       "core": "loom_block_collection_views_tests exact list (6) (see CORE list)"
     },
@@ -171,29 +172,29 @@
     "MT-079": {
       "run": [],
       "reuse": [
-        "test_app_host_mount::editors_render_live_in_app_tree_and_screenshot",
-        "test_app_host_mount::editor_mounts_thread_session_context",
-        "test_app_host_mount::code_pane_undo_dispatches_through_bus",
-        "test_app_host_mount::shell_navigator_opens_mounted_editor_panes",
-        "test_app_host_mount::rich_pending_events_drain_and_route",
-        "test_app_host_mount::rich_pending_events_drain_while_document_is_loading",
-        "test_app_host_mount::mounted_tag_event_resolves_canonical_name_to_real_hub_id",
-        "test_app_host_mount::mt079_mounted_editor_panes_canonical_argus_lifecycle",
-        "test_app_host_mount::mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus",
-        "test_app_host_mount::mt079_code_pane_command_bus_canonical_argus",
-        "test_app_host_mount::mt079_rich_pending_events_canonical_argus",
-        "lib::editor_pane_factories::tests::session_context_is_bound_only_with_workspace_and_runtime",
-        "lib::editor_pane_factories::tests::code_mount_pane_type_and_unbound_stays_unwired",
-        "lib::editor_pane_factories::tests::code_mount_threads_runtime_and_workspace_when_bound",
-        "lib::editor_pane_factories::tests::rich_mount_threads_context_and_drains_events",
-        "test_app_host_mount_secondary::secondary_panes_render_live_in_app_tree_and_screenshot",
-        "test_app_host_mount_secondary::canvas_resize_event_routes_to_host",
-        "test_app_host_mount_secondary::graph_depth_changed_requeries_with_new_backlink_depth",
-        "test_app_host_mount_secondary::outgoing_links_click_routes_to_nav",
-        "test_app_host_mount_secondary::relevant_memory_shows_endpoint_missing_empty_state",
-        "test_app_host_mount_secondary::code_text_node_exposes_swarm_edit_actions",
-        "test_app_host_mount_secondary::code_text_setvalue_dispatch_mutates_buffer",
-        "test_theme::no_hardcoded_color32_outside_theme_module"
+        "test_app_host_mount::editors_render_live_in_app_tree_and_screenshot (d9ce6017)",
+        "test_app_host_mount::editor_mounts_thread_session_context (d9ce6017)",
+        "test_app_host_mount::code_pane_undo_dispatches_through_bus (d9ce6017)",
+        "test_app_host_mount::shell_navigator_opens_mounted_editor_panes (d9ce6017)",
+        "test_app_host_mount::rich_pending_events_drain_and_route (d9ce6017)",
+        "test_app_host_mount::rich_pending_events_drain_while_document_is_loading (d9ce6017)",
+        "test_app_host_mount::mounted_tag_event_resolves_canonical_name_to_real_hub_id (d9ce6017)",
+        "test_app_host_mount::mt079_mounted_editor_panes_canonical_argus_lifecycle (d9ce6017)",
+        "test_app_host_mount::mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus (d9ce6017)",
+        "test_app_host_mount::mt079_code_pane_command_bus_canonical_argus (d9ce6017)",
+        "test_app_host_mount::mt079_rich_pending_events_canonical_argus (d9ce6017)",
+        "lib::editor_pane_factories::tests::session_context_is_bound_only_with_workspace_and_runtime (d9ce6017)",
+        "lib::editor_pane_factories::tests::code_mount_pane_type_and_unbound_stays_unwired (d9ce6017)",
+        "lib::editor_pane_factories::tests::code_mount_threads_runtime_and_workspace_when_bound (d9ce6017)",
+        "lib::editor_pane_factories::tests::rich_mount_threads_context_and_drains_events (d9ce6017)",
+        "test_app_host_mount_secondary::secondary_panes_render_live_in_app_tree_and_screenshot (d9ce6017)",
+        "test_app_host_mount_secondary::canvas_resize_event_routes_to_host (d9ce6017)",
+        "test_app_host_mount_secondary::graph_depth_changed_requeries_with_new_backlink_depth (d9ce6017)",
+        "test_app_host_mount_secondary::outgoing_links_click_routes_to_nav (d9ce6017)",
+        "test_app_host_mount_secondary::relevant_memory_shows_endpoint_missing_empty_state (d9ce6017)",
+        "test_app_host_mount_secondary::code_text_node_exposes_swarm_edit_actions (d9ce6017)",
+        "test_app_host_mount_secondary::code_text_setvalue_dispatch_mutates_buffer (d9ce6017)",
+        "test_theme::no_hardcoded_color32_outside_theme_module (d9ce6017)"
       ]
     },
     "MT-122": {
@@ -202,13 +203,13 @@
         "test_manual_content::*"
       ],
       "reuse": [
-        "lib::find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane",
-        "lib::find_in_files::tests::mt119_saved_search_controls_stay_inside_the_find_pane",
-        "test_find_in_files::find_in_files_screenshot",
-        "test_find_in_files::find_in_files_screenshot_long_title_narrow_pane_mt122",
-        "lib::find_in_files::tests::mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize",
-        "lib::find_in_files::tests::mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity",
-        "lib::find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token"
+        "lib::find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane (d9ce6017)",
+        "lib::find_in_files::tests::mt119_saved_search_controls_stay_inside_the_find_pane (d9ce6017)",
+        "test_find_in_files::find_in_files_screenshot (d9ce6017)",
+        "test_find_in_files::find_in_files_screenshot_long_title_narrow_pane_mt122 (d9ce6017)",
+        "lib::find_in_files::tests::mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize (d9ce6017)",
+        "lib::find_in_files::tests::mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity (d9ce6017)",
+        "lib::find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token (d9ce6017)"
       ]
     },
     "MT-153": {
