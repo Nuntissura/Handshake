@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-10-01T16:45:00Z",
+  "updated_at_utc": "2026-10-01T17:40:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -8670,5 +8670,69 @@
     "gameplan": "before_submit kernel_builder PASS 2/2 at 9191e8b5; GP-158 confirmed (api/loom.rs hunks only remove diagnostic lines in the block-view reconciler; edge/counter txn untouched)",
     "selection_note": "runtime re-proof of the MT-153 floor on 9191e8b5 (api/loom.rs changed: diagnostic logs removed; net vs 1d1f583a = P2 only); MT-153-CHECK-TESTS / MT-153-CLIPPY-CHANGED remain for the WP-end extra build; MT-027 stays PASS_V18 (not resubmitted)",
     "next_actor": "WP_VALIDATOR single union round"
+  },
+  "validation_round_9191e8b5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T17:40:00Z",
+    "candidate_commit": "9191e8b5cf459f0056f64153634046b5c52ab646",
+    "started_at": "2026-10-01T16:41:28.1952542Z",
+    "completed_at": "2026-10-01T17:28:11.6316236Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-9191e8b5cf459f0056f64153634046b5c52ab646-core.xml",
+      "core_junit_sha256": "2f17816b0138cabaa55febf1d7b84bb9907ada36dd010602572798ab3e63b6d0",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-9191e8b5cf459f0056f64153634046b5c52ab646-native.xml",
+      "native_junit_sha256": "eb517457cfd853695252a1278956b752a393a15eba51280c67b1cbc337063b2a",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-9191e8b5cf459f0056f64153634046b5c52ab646.stdout.log",
+      "log_sha256": "9216abcb4c7239b70a0603ea454ff4a885aef0d2bdb7226df9f07da118dcac00",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-9191e8b5cf459f0056f64153634046b5c52ab646.stderr.log",
+      "stderr_log_sha256": "204822756e472d4c5f6db8765c1e792ab2ad489bb25ff556f6d54e1f8a9761d0",
+      "observations": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-9191e8b5cf459f0056f64153634046b5c52ab646.observations.jsonl",
+      "export_identity_sha256": "05ddf6a50f044a5e2339b0415f16d3863fe0b55849eb04dc04ca2ea598d9b538",
+      "selection": "WPV-round-selection.json (gov 2665ba6f; CX-VAL-002 intersection under key 'intersection')",
+      "observer": "WPV-round-observer.ps1 (gov 2dd08b56), spin capture armed"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-9191e8b5"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 35/35, before_verdict PASS 5/5 at 9191e8b5",
+    "decision": "inconclusive",
+    "checks_run": {
+      "MT-153-ROUTE-MATRIX (2)": "PASS 2/2",
+      "MT-153-WORKSPACE-DELETE (2)": "PASS 2/2",
+      "api::loom::tests::mt153_owner_workspace_delete_removes_saved_view": "PASS",
+      "api::loom::tests::mt027_block_view_publication_survives_outage_restart_races_and_retention": "PASS",
+      "MT-153-LOOM-TARGETS (4 targets)": "PASS 16/16",
+      "user_manual lib tests": "PASS 27/27",
+      "MT-153-NATIVE-LOOM block_collection_views live": "PASS (153.4 s)",
+      "MT-153-NATIVE-LOOM canvas_board live": "PASS",
+      "MT-153-FMT rustfmt 1.97.1 --edition 2021 --check, api/loom.rs @9191e8b5": "PASS",
+      "MT-153-DIFF-CHECK c1920348..9191e8b5, 37ee7c5b..9191e8b5": "PASS",
+      "MT-153-BUILD-LIB": "PASS (union build)"
+    },
+    "proof_reuse": "MT-153-PIN-CONFIRM 7/7 and the pin tests: PASS on 5da8b75a (schema.rs/schema.surql unchanged 5da8b75a..9191e8b5, CX-VAL-002)",
+    "backend_cpu_spin": {
+      "status": "did not recur (third consecutive round without it: f4e66906, c1920348, 9191e8b5; weak evidence)",
+      "bcv_backend_cpu": "pid 9668: cpu 27.6 @17:24:38Z, 55.9 @17:25:11, 88.8 @17:25:45, 119.2 @17:26:18 (~1 core while busy) with writes rising 8.58 -> 9.47 MB and the test process active (cpu 1.1 -> 35.5 s); BCV live ran 153.4 s"
+    },
+    "diagnostic_revert": "mt153_diag_bv_publish lines removed in 9191e8b5 (P2 kept); not re-extracted",
+    "unclosed": "MT-153-CHECK-TESTS and MT-153-CLIPPY-CHANGED: WP-end extra build (CX-VAL-005; MT-153.json#status_20261001_check_tests_clippy_changed_wp_end). Every runtime proof of the floor passes on 9191e8b5 (this round) or is reused (pins).",
+    "note": "rebuild accounting compiled_crates=1 (handshake_core) relinked_test_binaries=20 backend_bin_relinked=1 refresh_mode=incremental; backend build profile dev; GP-131 vault probe success (b0af5232); credentials 243/24 before and after (the 2 recorded CX-GIT-003 leftovers; no new leftover); no leftover store dirs; session git repo recycled; observer 91 polls, 0 errors, spin capture did not fire; peak C 88.52 GB",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "153-9191e8b5-round",
+        "at_utc": "2026-10-01T17:40:00Z",
+        "decision": "inconclusive",
+        "payload_ref": "MT-153.json#validation_round_9191e8b5"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "153-9191e8b5-round",
+        "at_utc": "2026-10-01T17:40:00Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
+      }
+    ]
   }
 }
