@@ -34,7 +34,7 @@
   "remediation_plan_20261001_laneb": {
     "schema_id": "hsk.mt_remediation_handoff@1",
     "by": "KERNEL_BUILDER lane B (WP-KERNEL-012, orchestrator-steered)",
-    "at_utc": "2026-10-01T19:40:00Z",
+    "at_utc": "2026-10-01T18:35:24Z",
     "remediates": "MT-117.json#validation_v3 (decision blocked, blocked_on_mt_ref MT-066.json, candidate 49eac54e) remaining_proof_gaps AC-117-3/4/5",
     "stale_blocker_check": "MT-066 PASS_V9 (validation_round_e4566f11); co-blockers MT-067 PASS_V8, MT-032 PASS_V15. lifecycle.depends_on also lists MT-074, which is BLOCKED (formal chain MT-068 -> MT-034 -> MT-008 -> MT-167): per orchestrator 2026-10-01 MT-117 stays BLOCKED with blocked_on MT-074 (CX-STATUS-002); these edits are disjoint unblocked work (KB-IMPL-005)",
     "mt130_cycle": "MT-117 does not depend on MT-130 in its own record (depends_on MT-066/067/074; blocks []). What MT-117 needed from MT-130 (calendar-chip value relocation) is in code at 79146c48 and Operator-ratified 2026-09-14 (MT-130.json#operator_decision_20260914). The open MT-130 question is only MT-130's own write scope. Overlap: the AC-117-4 edit below is the same assertion as MT-130 AC-130-2",
@@ -64,7 +64,40 @@
       "src/frontend/handshake_native/src/app.rs (mt117_bounded_completion_tests module only)"
     ],
     "proof_plan": "one batch cargo check on the final lane-B HEAD (MT-117 + MT-074 edits) after the round's compile phase, on orchestrator go; batch_owner/covered_mts recorded (KB-IMPL-001)",
-    "status": "EDITING (orchestrator go 2026-10-01; local commit only, no push during round)"
+    "status": "IMPLEMENTED at product 222b33cc (local; push after round 4d0da145 ends, GP-145); MT-117 stays BLOCKED on MT-074",
+    "fix_commit": {
+      "commit": "222b33cc97421388d7be78b8d0a3b0eb577f9928",
+      "parent": "4d0da14584dc63e676a322527091caa933c4fc82",
+      "branch": "feat/WP-KERNEL-012",
+      "committed_at_utc": "2026-10-01T18:36:25Z",
+      "changed_files": [
+        "src/frontend/handshake_native/tests/test_other_pillar_interop_proofs.rs (6 finish() -> finish_require_no_indeterminate(): op01, op02, op03, op04 stage/calendar/locus)",
+        "src/frontend/handshake_native/src/app.rs (+53, mt117_bounded_completion_tests::mt117_observer_is_inert_without_a_dispatched_argus_action; test code only)"
+      ],
+      "pushed": false
+    },
+    "validation": {
+      "proof_records": [
+        {
+          "proof_id": "PR-WP012-MT117-KB-LANEB-CHECK-02",
+          "executor_role": "KERNEL_BUILDER (implementer compile/static evidence, not a verdict)",
+          "batch_owner": "MT-117",
+          "covered_mts": ["MT-117"],
+          "command": "cargo check --locked --tests --features integration,integration_tests,wgpu_screenshots -j 2",
+          "cwd": "src/frontend/handshake_native",
+          "env": "CARGO_TARGET_DIR=Handshake_Artifacts/WP-KERNEL-012/MT-143/kb-laneb/target; CARGO_INCREMENTAL=0; CARGO_PROFILE_DEV_DEBUG=line-tables-only; CARGO_PROFILE_TEST_DEBUG=line-tables-only",
+          "inputs": "product HEAD 222b33cc, clean tree",
+          "started_after": "orchestrator signal: round 4d0da145 compile phase over (GP-147)",
+          "exit_code": 0,
+          "result_line": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 53s; compiling=0 checking=1 (handshake-native); warnings only in test \"test_code_nav_client\" (2, pre-existing, not in the changed files)",
+          "input_digest_before": "ca8da39a5077032b8a71e3f96fb2050c55b18af05a869285242227bc2b062942 (1760 files)",
+          "input_digest_after": "ca8da39a5077032b8a71e3f96fb2050c55b18af05a869285242227bc2b062942 (equal)",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-143/kb-laneb/logs/02-check-mt117.log",
+          "log_sha256": "1cc8273b7158a88330b0440513c366741deb2e6d5ae9b1326d0ccb8e3024005c",
+          "finished_at_utc": "2026-10-01T19:14:42Z"
+        }
+      ]
+    }
   },
   "lifecycle": {
     "status": "BLOCKED",

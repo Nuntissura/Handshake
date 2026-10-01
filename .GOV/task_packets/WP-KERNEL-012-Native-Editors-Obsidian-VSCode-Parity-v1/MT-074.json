@@ -14,7 +14,7 @@
   "title": "E10-MT-074-OtherPillarInteropProofSuite",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-10-01T20:05:00Z",
+  "updated_at_utc": "2026-10-01T18:38:09Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-074.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -28,7 +28,7 @@
   "remediation_20261001_laneb": {
     "schema_id": "hsk.mt_remediation_handoff@1",
     "by": "KERNEL_BUILDER lane B (WP-KERNEL-012, orchestrator-steered)",
-    "at_utc": "2026-10-01T20:05:00Z",
+    "at_utc": "2026-10-01T18:38:09Z",
     "remediates": "MT-074.json#validation_v7 (decision blocked, blocked_on_mt_ref MT-066.json, candidate 49eac54e) remaining_proof_gaps AC-074-8, AC-074-10",
     "stale_blocker_check": "lifecycle.blocked_on MT-066 is PASS_V9 (MT-066.json#validation_round_e4566f11); validation_v7 co-blocker MT-032 PASS_V15. lifecycle.depends_on includes MT-068, which is BLOCKED (formal chain MT-068 -> MT-034 -> MT-008 -> MT-167), so MT-074 stays BLOCKED with blocked_on MT-068 (CX-STATUS-002; orchestrator 2026-10-01)",
     "ac_074_8": {

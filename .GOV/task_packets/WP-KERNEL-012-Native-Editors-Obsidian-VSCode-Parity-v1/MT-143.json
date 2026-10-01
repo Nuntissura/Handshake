@@ -34,7 +34,7 @@
   "remediation_plan_20261001_laneb": {
     "schema_id": "hsk.mt_remediation_handoff@1",
     "by": "KERNEL_BUILDER lane B (WP-KERNEL-012, orchestrator-steered)",
-    "at_utc": "2026-10-01T17:47:00Z",
+    "at_utc": "2026-10-01T17:42:25Z",
     "remediates": "MT-143.json#validation_v3 (decision blocked, candidate 49eac54e)",
     "stale_blocker_check": {
       "MT-067": "PASS_V8 (MT-067.json#validation_round_bb9548e1; covers open_or_create_daily_note_is_idempotent_against_real_backend_live / test_calendar_interop)",
@@ -107,7 +107,7 @@
     "status": "READY_FOR_VALIDATION",
     "blocked_on": null,
     "ready_for_validation_transition_20261001": {
-      "at_utc": "2026-10-01T18:35:00Z",
+      "at_utc": "2026-10-01T18:26:03Z",
       "by": "KERNEL_BUILDER lane B",
       "from_status": "BLOCKED",
       "prior_blocked_on": "MT-067",
@@ -863,7 +863,7 @@
     "next_actor": "KERNEL_BUILDER",
     "no_context_instruction": "FAIL_V1 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V2."
   },
-  "updated_at_utc": "2026-10-01T18:35:00Z",
+  "updated_at_utc": "2026-10-01T18:26:03Z",
   "remediation_v2": {
     "session": "KERNEL_BUILDER-C1",
     "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",

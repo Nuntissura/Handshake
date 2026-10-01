@@ -22,7 +22,7 @@
   "title": "E10-MT-130-Resolve-The-Calendar-Chip-Value-Contract-Two-Readers-Cannot-Both-Be-Satisfied",
   "group": "E10-Interop",
   "created_at_utc": "2026-08-13T09:40:00Z",
-  "updated_at_utc": "2026-10-01T17:45:00Z",
+  "updated_at_utc": "2026-10-01T17:42:25Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-130.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -65,7 +65,7 @@
   "operator_decision_request_20261001_write_scope": {
     "rule": "KB-IMPL-006",
     "by": "KERNEL_BUILDER lane B (WP-KERNEL-012, orchestrator-steered)",
-    "at_utc": "2026-10-01T17:45:00Z",
+    "at_utc": "2026-10-01T17:42:25Z",
     "status": "OPEN",
     "stale_blocker_check": "lifecycle.blocked_on MT-066 is PASS_V9 (MT-066.json#validation_round_e4566f11); validation_v3 co-blockers MT-067 PASS_V8, MT-032 PASS_V15. The dependency blocker is resolved; the remaining items below are not.",
     "recorded_gaps": [

@@ -22,7 +22,7 @@
   "title": "E11-MT-121-Size-The-MCP-Snapshot-Viewport-So-Model-Visible-Bounds-Describe-The-Real-Window",
   "group": "E11-Argus",
   "created_at_utc": "2026-08-12T11:40:00Z",
-  "updated_at_utc": "2026-10-01T19:15:00Z",
+  "updated_at_utc": "2026-10-01T18:31:04Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-121.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -34,7 +34,7 @@
   "dependency_resolution_20261001_mt032": {
     "schema_id": "hsk.mt_remediation_handoff@1",
     "by": "KERNEL_BUILDER lane B (WP-KERNEL-012, orchestrator-steered)",
-    "at_utc": "2026-10-01T19:15:00Z",
+    "at_utc": "2026-10-01T18:31:04Z",
     "resolves": "MT-121.json#validation_v3 (decision blocked, blocker_kind dependency on MT-032, candidate 49eac54e)",
     "recorded_gap_verbatim": "PC-121-04 requires the whole test_find_in_files target. Required live search/replace/bookmark roundtrip failed83.095s at POST /knowledge/documents request_send TimedOut before the required operations, then ManagedWorkspaceCleanup Drop used logged-out account and aborted. Known document-create dependency MT-032 FAIL_V11 remains; viewport/manual source review does not replace this runtime proof.",
     "blocker_current_state": "MT-032 lifecycle.status PASS_V15 (MT-032.json#validation_v15, decision passed, candidate 37ee7c5b): AC2 'proved (MT-162 PASS_V2; live create/load canonical identity)', AC8 save deadlines held",
@@ -206,7 +206,7 @@
     "blocked_on": null,
     "blocked_on_mt_ref": null,
     "ready_for_validation_transition_20261001": {
-      "at_utc": "2026-10-01T19:15:00Z",
+      "at_utc": "2026-10-01T18:31:04Z",
       "by": "KERNEL_BUILDER lane B (orchestrator go)",
       "from_status": "BLOCKED",
       "prior_blocked_on": "MT-032 (MT-032.json#lifecycle)",
