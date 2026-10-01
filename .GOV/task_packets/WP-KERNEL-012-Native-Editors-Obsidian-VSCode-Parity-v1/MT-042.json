@@ -14,7 +14,7 @@
   "title": "E7-MT-042-KnowledgeGraphAccessKit",
   "group": "E7 Model-vision parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-30T19:05:00Z",
+  "updated_at_utc": "2026-10-01T05:35:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-042.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -33,7 +33,7 @@
       "reason": "Document create/backlink proof depends on changed API/storage and shared live helper",
       "round_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"
     },
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V9",
     "active": true,
     "depends_on": [
       "MT-021",
@@ -47,10 +47,10 @@
       "MT-043",
       "MT-044"
     ],
-    "validator_verdict": "FAIL_V8",
+    "validator_verdict": "FAIL_V9",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
-    "validated_at_utc": "2026-09-30T19:05:00Z",
+    "validated_at_utc": "2026-10-01T05:35:00Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: the NEEDS_MANAGED_RESOURCE_PROOF test ac10_live_pg_round_trip is an unconditional panic! stub - NO real live-test body exists behind the #[ignore] and the integration feature gates nothing here; AC-042-05/06/07/10 + PROOF-042-D DB halves are un-runnable until the test is authored (MT-044/045/046 show the correct pattern). Same live-host orphan as MT-041: install_knowledge_action_registry never called by any host - knowledge.* actions exist only in kittests. Positive: real AccessKit click dispatch with JSON payloads, verified route corrections, malformed-payload no-panic. Fix: author the real live-PG round-trip body (placements row, tag-edge move, edge row SELECTs); shared registry install via the E11 wiring bundle.",
@@ -135,9 +135,9 @@
       "adversarial_review": "PASS: independent reviewer verified 24/24 raw, 1/1 canonical, all nine PNGs, 35/35 hashes, exact persisted state, zero unresolved actions, and complete owned-resource teardown.",
       "validator_boundary": "Builder remediation only. lifecycle.validator_verdict and validation_v4 remain historical FAIL_V4 until independent validator review."
     },
-    "validated_commit": "b4faed359c07fed260cf8f42633dcf9b1e60ff92",
+    "validated_commit": "fea3ce0a509ae54f669fb122bf1bf64e68cb1421",
     "completed_at_utc": "2026-09-16T23:19:49.801Z",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_b4faed35.remediation_required",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_fea3ce0a.remediation_required",
     "status_alignment_2026_09_17": {
       "by": "ORCHESTRATOR (Claude, session 2026-09-16)",
       "at_utc": "2026-09-16T23:21:33.923Z",
@@ -151,8 +151,8 @@
     ],
     "status_before_20260930": "FAIL_V6",
     "blocked_on": null,
-    "prior_validator_verdict": "FAIL_V7",
-    "status_reason": "FAIL_V8 on b4faed35 union round (validation_round_b4faed35)",
+    "prior_validator_verdict": "FAIL_V8",
+    "status_reason": "FAIL_V9 on fea3ce0a union round (validation_round_fea3ce0a)",
     "status_before_fea3ce0a_resubmission": "FAIL_V8"
   },
   "scope": {
@@ -1233,5 +1233,73 @@
     ],
     "gameplan": "before_submit kernel_builder PASS 2/2 at fea3ce0a (GP-139 backed by MT-153.json#gp139_check_20261001_f1)",
     "next_actor": "WP_VALIDATOR single union run"
+  },
+  "validation_round_fea3ce0a": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T05:35:00Z",
+    "candidate_commit": "fea3ce0a509ae54f669fb122bf1bf64e68cb1421",
+    "started_at": "2026-10-01T04:21:56.0889992Z",
+    "completed_at": "2026-10-01T05:23:03.9071682Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-fea3ce0a509ae54f669fb122bf1bf64e68cb1421-core.xml",
+      "core_junit_sha256": "0ed88f012c391e689b9e02f33a2aab0440fbc396ce919107b92fa97f5ec9ac50",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-fea3ce0a509ae54f669fb122bf1bf64e68cb1421-native.xml",
+      "native_junit_sha256": "8760c2101e51af38d6aad85cdd6edd8cd27428f2a71c9d60ab0cd8cada4fc23a",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-fea3ce0a509ae54f669fb122bf1bf64e68cb1421.stderr.log",
+      "log_sha256": "1b5d58cc919b1e6ad8d89ba33a4612c1c8f5ba2e0552b87c59ed7d5d8f3c37a9"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-fea3ce0a"
+    ],
+    "gameplan_before_verdict": "wp_validator PASS 5/5",
+    "decision": "failed",
+    "verdict": "FAIL_V9",
+    "checks_run": {
+      "test_e7_knowledge_accesskit (whole, PROOF-042-A)": "39 PASS, 1 FAIL"
+    },
+    "failures": [
+      {
+        "check": "PROOF-042-A",
+        "test": "ac10_live_surrealdb_populated_graph_accesskit_round_trip",
+        "failure_kind": "product",
+        "failure_class": "MOUNTED_KANBAN_MOVE_PERSIST_REFETCH_TIMEOUT",
+        "assertion": "tests/test_e7_knowledge_accesskit.rs:2480: host-routed collection.kanban-move did not persist and refetch within five seconds",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-fea3ce0a509ae54f669fb122bf1bf64e68cb1421-native.xml",
+        "affected_code_refs": [
+          "tests/test_e7_knowledge_accesskit.rs:2480"
+        ],
+        "repair_direction": "Kanban-move persist/refetch still misses 5 s after F1/F3 (shared DX-MT-153-20261001-CARDMOVE-SPLIT-EDGE-TRANSACTIONS)",
+        "prior_failure_class": "MOUNTED_KANBAN_MOVE_PERSIST_REFETCH_TIMEOUT"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "PROOF-042-A",
+        "test": "ac10_live_surrealdb_populated_graph_accesskit_round_trip",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-fea3ce0a509ae54f669fb122bf1bf64e68cb1421-native.xml",
+        "affected_code_refs": [
+          "tests/test_e7_knowledge_accesskit.rs:2480"
+        ],
+        "repair_direction": "Kanban-move persist/refetch still misses 5 s after F1/F3 (shared DX-MT-153-20261001-CARDMOVE-SPLIT-EDGE-TRANSACTIONS)"
+      }
+    ],
+    "note": "first round on export-current (VPX-011): rebuild accounting compiled_crates=5 (handshake_core, handshake_document, handshake_native, handshake_storage_support, palmistry = path crates only, cold) relinked_test_binaries=28 backend_bin_relinked=1; backend build profile dev (debug-backend override not applied, Operator decision pending)",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "042-fea3ce0a-round",
+        "at_utc": "2026-10-01T05:35:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-042.json#validation_round_fea3ce0a"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "042-fea3ce0a-round",
+        "at_utc": "2026-10-01T05:35:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V9"
+      }
+    ]
   }
 }

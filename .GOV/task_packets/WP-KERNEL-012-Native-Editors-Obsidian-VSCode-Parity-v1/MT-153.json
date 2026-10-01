@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-10-01T02:55:00Z",
+  "updated_at_utc": "2026-10-01T05:35:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V7",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -49,9 +49,9 @@
       "MT-157"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V6",
-    "prior_validator_verdict": "FAIL_V5",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_e4566f11.remediation_required",
+    "validator_verdict": "FAIL_V7",
+    "prior_validator_verdict": "FAIL_V6",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_fea3ce0a.remediation_required",
     "ready_status_repair": {
       "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
       "rule": "CX-STATUS-001",
@@ -65,8 +65,8 @@
       "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
     },
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
-    "validated_at_utc": "2026-10-01T02:55:00Z",
-    "validated_commit": "e4566f11265a59d769dc8e3701576081bfdbd166",
+    "validated_at_utc": "2026-10-01T05:35:00Z",
+    "validated_commit": "fea3ce0a509ae54f669fb122bf1bf64e68cb1421",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -86,7 +86,7 @@
       "at_utc": "2026-09-23T23:52:39.079Z",
       "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
     },
-    "status_reason": "FAIL_V6 on e4566f11 union round (validation_round_e4566f11)",
+    "status_reason": "FAIL_V7 on fea3ce0a union round (validation_round_fea3ce0a)",
     "status_before_20260930": "FAIL_V2",
     "candidate_commit": "fea3ce0a509ae54f669fb122bf1bf64e68cb1421",
     "blocked_on": null,
@@ -2201,6 +2201,93 @@
           "MT-153"
         ],
         "owning_mt": "MT-153"
+      },
+      {
+        "proof_id": "PR-WP012-UNION-fea3ce0a",
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-20260930-ORCH-SUB",
+        "candidate_commit": "fea3ce0a509ae54f669fb122bf1bf64e68cb1421",
+        "command": [
+          "C:/Program Files/Git/bin/bash.exe",
+          ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+          "fea3ce0a509ae54f669fb122bf1bf64e68cb1421"
+        ],
+        "launch": "detached via Win32_Process.Create (GP-153)",
+        "wrapper": {
+          "pid": 206332,
+          "start_utc": "2026-10-01T04:21:42.1096976Z"
+        },
+        "bash": {
+          "pid": 220204,
+          "start_utc": "2026-10-01T04:21:56.1606188Z"
+        },
+        "selection": "WPV-round-selection.sh gov aeaa009d",
+        "target_dir": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
+        "target_bytes_start": 75667797885,
+        "tree_clean": true,
+        "export": {
+          "path": "target-r52/export-current",
+          "prelaunch": "full replace 106 s, VERIFY_OK 7166, identity sha256 6c544962ce278bdf78808fade53565d6392a7d8e437c5c3e40f16b157670f361",
+          "round_refresh": "incremental 0 changes, VERIFY_OK 7166, identity sha256 48c2fc9be26c18ecd143cc8b4bfe7ba7d294deaeae7d7d9c4b27616dd3a1c25d",
+          "tree_id": "b0c0a857a5511d5f999ffed0acad8e40eb8430d6",
+          "manifest_sha256": "2e778b835c7fedb1624e65731558ae97eb58d43315128f6332f858ab7b102648"
+        },
+        "rebuild_accounting": {
+          "compiled_crates": 5,
+          "names": [
+            "handshake_core",
+            "handshake_document",
+            "handshake_native",
+            "handshake_storage_support",
+            "palmistry"
+          ],
+          "relinked_test_binaries": 28,
+          "backend_bin_relinked": 1,
+          "note": "first round on export-current: cold build of path crates only; no crates.io dependency rebuilt"
+        },
+        "backend_build_profile": "dev (debug-backend override not applied; Operator decision pending)",
+        "started_utc": "2026-10-01T04:21:56.0889992Z",
+        "completed_utc": "2026-10-01T05:23:03.9071682Z",
+        "exit_code": 0,
+        "core": {
+          "tests": 29,
+          "passed": 29,
+          "failed": 0,
+          "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-fea3ce0a509ae54f669fb122bf1bf64e68cb1421-core.xml",
+          "junit_sha256": "0ed88f012c391e689b9e02f33a2aab0440fbc396ce919107b92fa97f5ec9ac50"
+        },
+        "native": {
+          "tests": 43,
+          "passed": 41,
+          "failed": 2,
+          "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-fea3ce0a509ae54f669fb122bf1bf64e68cb1421-native.xml",
+          "junit_sha256": "8760c2101e51af38d6aad85cdd6edd8cd27428f2a71c9d60ab0cd8cada4fc23a"
+        },
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-fea3ce0a509ae54f669fb122bf1bf64e68cb1421.stderr.log",
+        "log_sha256": "1b5d58cc919b1e6ad8d89ba33a4612c1c8f5ba2e0552b87c59ed7d5d8f3c37a9",
+        "memory_floor": "GP-154 45 GB; commit free 56.5 GB at launch",
+        "credentials": {
+          "before": {
+            "total": 241,
+            "handshake_local_accounts": 22
+          },
+          "after": {
+            "total": 241,
+            "handshake_local_accounts": 22
+          },
+          "new_leftovers": 0
+        },
+        "session_git": "exit trap ran; git dir + export .git pointer recycled",
+        "inventory": "git worktree/branch lists identical; tmp scheduler shells 14 -> 1 by validator recycle (13 empty shells of dead PIDs from 2026-09-24, gov 5c5fbe38; 139908 kept: PID running); log logs/scheduler-shells-recycle-20261001.log",
+        "covers": [
+          "MT-027",
+          "MT-042",
+          "MT-079",
+          "MT-122",
+          "MT-136",
+          "MT-153"
+        ],
+        "owning_mt": "MT-153"
       }
     ]
   },
@@ -3731,5 +3818,82 @@
     "subject": "VPX-011 implementation deviation",
     "note": "export verification compares exported file bytes against the candidate's git archive instead of recomputing git blob ids (core.autocrlf makes working-tree blob recomputation unreliable); technically at least as strict as the VPX-011 text",
     "decision_owner": "Operator: whether to correct the VPX-011 text to match the implementation"
+  },
+  "validation_round_fea3ce0a": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T05:35:00Z",
+    "candidate_commit": "fea3ce0a509ae54f669fb122bf1bf64e68cb1421",
+    "started_at": "2026-10-01T04:21:56.0889992Z",
+    "completed_at": "2026-10-01T05:23:03.9071682Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-fea3ce0a509ae54f669fb122bf1bf64e68cb1421-core.xml",
+      "core_junit_sha256": "0ed88f012c391e689b9e02f33a2aab0440fbc396ce919107b92fa97f5ec9ac50",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-fea3ce0a509ae54f669fb122bf1bf64e68cb1421-native.xml",
+      "native_junit_sha256": "8760c2101e51af38d6aad85cdd6edd8cd27428f2a71c9d60ab0cd8cada4fc23a",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-fea3ce0a509ae54f669fb122bf1bf64e68cb1421.stderr.log",
+      "log_sha256": "1b5d58cc919b1e6ad8d89ba33a4612c1c8f5ba2e0552b87c59ed7d5d8f3c37a9"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-fea3ce0a"
+    ],
+    "gameplan_before_verdict": "wp_validator PASS 5/5",
+    "decision": "failed",
+    "verdict": "FAIL_V7",
+    "checks_run": {
+      "MT-153-ROUTE-MATRIX mt153_loom_route_family_authority_matrix": "PASS",
+      "mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows": "PASS",
+      "MT-153-WORKSPACE-DELETE": "PASS 2/2",
+      "MT-153-LOOM-TARGETS": "PASS 16/16",
+      "MT-153-NATIVE-LOOM canvas_board live": "PASS",
+      "MT-153-NATIVE-LOOM block_collection_views live": "FAIL",
+      "MT-153-FMT (file mode @fea3ce0a)": "PASS",
+      "MT-153-DIFF-CHECK 37ee7c5b..fea3ce0a": "PASS",
+      "MT-153-BUILD-LIB": "PASS (union build)"
+    },
+    "proof_reuse": "MT-153-PIN-CONFIRM 7/7 on 37ee7c5b (schema files unchanged 37ee7c5b..fea3ce0a)",
+    "failures": [
+      {
+        "check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "failure_kind": "product",
+        "failure_class": "LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT",
+        "assertion": "tests/test_block_collection_view.rs:1743: managed-SurrealDB mutation: request to /workspaces/{ws}/loom/blocks/{id} timed out",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-fea3ce0a509ae54f669fb122bf1bf64e68cb1421-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:1743"
+        ],
+        "repair_direction": "Same as MT-027: Loom block mutation still exceeds client deadline after the card-move split",
+        "prior_failure_class": "LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-fea3ce0a509ae54f669fb122bf1bf64e68cb1421-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:1743"
+        ],
+        "repair_direction": "Same as MT-027: Loom block mutation still exceeds client deadline after the card-move split"
+      }
+    ],
+    "note": "CHECK-TESTS/CLIPPY-CHANGED remain WP-end extra-build items. first round on export-current (VPX-011): rebuild accounting compiled_crates=5 (handshake_core, handshake_document, handshake_native, handshake_storage_support, palmistry = path crates only, cold) relinked_test_binaries=28 backend_bin_relinked=1; backend build profile dev (debug-backend override not applied, Operator decision pending)",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "153-fea3ce0a-round",
+        "at_utc": "2026-10-01T05:35:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-153.json#validation_round_fea3ce0a"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "153-fea3ce0a-round",
+        "at_utc": "2026-10-01T05:35:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V7"
+      }
+    ]
   }
 }

@@ -22,7 +22,7 @@
   "title": "E12-MT-122-Bound-Find-In-Files-Static-Chrome-And-Result-Rows-So-Neither-Pushes-Content-Off-Pane",
   "group": "E12-Search",
   "created_at_utc": "2026-08-12T11:42:00Z",
-  "updated_at_utc": "2026-10-01T02:55:00Z",
+  "updated_at_utc": "2026-10-01T05:35:00Z",
  "validation_shared_union_ec596eec": {"schema_id": "hsk.mt_validation_verdict@1", "decision": "inconclusive", "validated_by": "WP_VALIDATOR-SOL-MEDIUM", "validated_at_utc": "2026-09-26T23:36:50.061743Z", "candidate_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f", "proof_records_ref": "MT-032.json#validation.proof_records[PR-WP012-MT032-ec596eec-UNION-012]", "shared_round_ref": "MT-032.json#validation_v12", "contract_floor_refs": ["scope.proof_targets", "scope.acceptance_criteria", "proof", "proof_commands", "hbr_obligations"], "selection_method": "Each fn listed in proof_commands.commands[].evidence matched to current JUnit testcase; no full-suite claim", "observed_cases": [{"classname": "handshake-native", "test": "find_in_files::tests::mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity", "seconds": 0.088, "result": "passed"}, {"classname": "handshake-native", "test": "find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token", "seconds": 0.118, "result": "passed"}, {"classname": "handshake-native", "test": "find_in_files::tests::mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize", "seconds": 0.281, "result": "passed"}, {"classname": "handshake-native", "test": "find_in_files::tests::mt119_saved_search_controls_stay_inside_the_find_pane", "seconds": 0.091, "result": "passed"}, {"classname": "handshake-native", "test": "find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane", "seconds": 0.1, "result": "passed"}, {"classname": "handshake-native::test_author_id_budget", "test": "mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query", "seconds": 47.472, "result": "passed"}, {"classname": "handshake-native::test_find_in_files", "test": "find_in_files_screenshot", "seconds": 1.659, "result": "passed"}, {"classname": "handshake-native::test_find_in_files", "test": "find_in_files_screenshot_long_title_narrow_pane_mt122", "seconds": 2.251, "result": "passed"}], "mapped_case_count": 8, "mapped_failure_count": 0, "state_unchanged": true, "prior_verdict_preserved": null, "unmet_required_proof": ["PT-122-2 / AC-122-5 original fix-reverted RED output plus GREEN applicability not established by current GREEN-only union", "AC-122-2 title recovery tooltip/wrap proof not asserted by mapped test", "PT-122-1 / AC-122-3 generated PNG must be opened/described and compared with original visual baseline; current screenshot test PASS alone is insufficient"], "acceptance_rule": "Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change", "verdict_events": [{"event": "accepted", "idempotency_key": "MT122-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive"}, {"event": "completed", "idempotency_key": "MT122-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive", "state_effect": "unchanged"}], "unmapped_acs": [{"ac": "AC-122-2", "reason": "no test asserts the elide tooltip / title recovery (relies on egui show_tooltip_when_elided default, find_in_files.rs:3963)"}, {"ac": "AC-122-3", "reason": "partial: 'inspected, described, re-baselined with reason' needs a human to open the PNG"}]},
   "validation_shared_union_7479972a": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-28T00:11:37Z","candidate_commit":"7479972ac681cd238e58d37e318beab6c8d3b423","proof_records_ref":"MT-032.json#validation.proof_records[PR-WP012-MT032-7479972a-UNION-CONTINUATION1]","shared_round_ref":"MT-032.json#validation_v13","contract_floor_refs":["scope.proof_targets","scope.acceptance_criteria","proof","proof_commands","hbr_obligations"],"selection_method":"Each fn listed in proof_commands.commands[].evidence matched to current JUnit testcase; no full-suite claim; exact classname+name matched against completed current four JUnits","observed_cases":[{"classname":"handshake-native","test":"find_in_files::tests::mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity","seconds":0.094,"result":"passed","phase":"native"},{"classname":"handshake-native","test":"find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token","seconds":0.115,"result":"passed","phase":"native"},{"classname":"handshake-native","test":"find_in_files::tests::mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize","seconds":0.289,"result":"passed","phase":"native"},{"classname":"handshake-native","test":"find_in_files::tests::mt119_saved_search_controls_stay_inside_the_find_pane","seconds":0.095,"result":"passed","phase":"native"},{"classname":"handshake-native","test":"find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane","seconds":0.091,"result":"passed","phase":"native"},{"classname":"handshake-native::test_author_id_budget","test":"mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query","seconds":52.836,"result":"passed","phase":"native"},{"classname":"handshake-native::test_find_in_files","test":"find_in_files_screenshot","seconds":4.079,"result":"passed","phase":"native"},{"classname":"handshake-native::test_find_in_files","test":"find_in_files_screenshot_long_title_narrow_pane_mt122","seconds":3.487,"result":"passed","phase":"native"}],"mapped_case_count":8,"mapped_failure_count":0,"state_unchanged":true,"prior_verdict_preserved":true,"unmet_required_proof":["PT-122-2 / AC-122-5 original fix-reverted RED output plus GREEN applicability not established by current GREEN-only union","AC-122-2 title recovery tooltip/wrap proof not asserted by mapped test","PT-122-1 / AC-122-3 generated PNG must be opened/described and compared with original visual baseline; current screenshot test PASS alone is insufficient"],"acceptance_rule":"Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change","verdict_events":[{"event":"accepted","idempotency_key":"MT122-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT122-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive","state_effect":"unchanged"}],"unmapped_acs":[{"ac":"AC-122-2","reason":"no test asserts the elide tooltip / title recovery (relies on egui show_tooltip_when_elided default, find_in_files.rs:3963)"},{"ac":"AC-122-3","reason":"partial: 'inspected, described, re-baselined with reason' needs a human to open the PNG"}],"input_provenance":{"candidate":"7479972ac681cd238e58d37e318beab6c8d3b423","source_diff_ref":"git diff --name-only ec596eecb70f2820cb357ef95d5820b890c8944f..7479972ac681cd238e58d37e318beab6c8d3b423","changed_areas":["core document/SurrealDB authority/schema","handshake_document diagnostics/operations/SurrealDB adapter","handshake_storage_support diagnostics/retry"],"native_source_changed":false,"source_effect":"Shared backend inputs can affect live native cases; exact current JUnits provide observed behavior, not static/unmapped proof."},"current_union":{"core":{"tests":239,"failures":6,"sha256":"9916BFB9B5F8797D461C58555D16A734D29EB4054E37713263B0C727E0DA4BF2"},"native":{"tests":2952,"failures":44,"sha256":"928E026731633A2C63F1ECC21E926DF5A56AFEE828B58C79EF77B990697A962F"},"handshake_document":{"tests":41,"failures":0,"sha256":"2A3F49A172AD702EE44722CA393304084FDA83DDD45DB0CD253147CE9518BD79"},"handshake_storage_support":{"tests":34,"failures":0,"sha256":"A499897A89EAA1497A2D16F31514CD319B53BDEE3160BDE51D09797A7EE82C76"},"all_junits_complete":true,"mt032_verdict_ref":"MT-032.json#validation_v13"}},
   "authority_files": {
@@ -1473,6 +1473,48 @@
         "event": "completed",
         "idempotency_key": "122-e4566f11-round",
         "at_utc": "2026-10-01T02:55:00Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
+      }
+    ]
+  },
+  "validation_round_fea3ce0a": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T05:35:00Z",
+    "candidate_commit": "fea3ce0a509ae54f669fb122bf1bf64e68cb1421",
+    "started_at": "2026-10-01T04:21:56.0889992Z",
+    "completed_at": "2026-10-01T05:23:03.9071682Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-fea3ce0a509ae54f669fb122bf1bf64e68cb1421-core.xml",
+      "core_junit_sha256": "0ed88f012c391e689b9e02f33a2aab0440fbc396ce919107b92fa97f5ec9ac50",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-fea3ce0a509ae54f669fb122bf1bf64e68cb1421-native.xml",
+      "native_junit_sha256": "8760c2101e51af38d6aad85cdd6edd8cd27428f2a71c9d60ab0cd8cada4fc23a",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-fea3ce0a509ae54f669fb122bf1bf64e68cb1421.stderr.log",
+      "log_sha256": "1b5d58cc919b1e6ad8d89ba33a4612c1c8f5ba2e0552b87c59ed7d5d8f3c37a9"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-fea3ce0a"
+    ],
+    "gameplan_before_verdict": "wp_validator PASS 5/5",
+    "decision": "inconclusive",
+    "checks_run": {
+      "test_author_id_budget mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query (PC-122-05)": "PASS"
+    },
+    "proof_reuse": "manual binaries (test_manual_content 41/41, test_manual_pane_editors 10/10) passed on e4566f11; native inputs unchanged e4566f11..fea3ce0a (CX-VAL-002); PC-122-01..04 from 8ea13a9b",
+    "unclosed": "PT-122-2 independent reverted-fix RED log remains a WP-end extra-build proof (CX-VAL-005)",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "122-fea3ce0a-round",
+        "at_utc": "2026-10-01T05:35:00Z",
+        "decision": "inconclusive",
+        "payload_ref": "MT-122.json#validation_round_fea3ce0a"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "122-fea3ce0a-round",
+        "at_utc": "2026-10-01T05:35:00Z",
         "decision": "inconclusive",
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
       }
