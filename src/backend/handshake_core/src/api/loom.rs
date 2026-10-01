@@ -2651,10 +2651,22 @@ fn block_view_flight_actor(ctx: &WriteContext) -> (FlightRecorderActor, String) 
     (actor, actor_id)
 }
 
+/// MT-153: the background reconciler leaves pending rows younger than this to the request path
+/// that committed them, so the two publishers never publish the same fresh event at once. Rows
+/// whose request-path publication failed are still covered once they are older than this.
+const BLOCK_VIEW_RECONCILER_SETTLE_SECS: i64 = 30;
+
 fn spawn_block_view_reconciler(state: AppState) {
     tokio::spawn(async move {
         loop {
-            if let Err(error) = reconcile_block_view_events(&state, None, None).await {
+            if let Err(error) = reconcile_pending_block_view_events(
+                &state,
+                None,
+                Some(chrono::Duration::seconds(BLOCK_VIEW_RECONCILER_SETTLE_SECS)),
+                "reconciler",
+            )
+            .await
+            {
                 let (status, body) = error;
                 tracing::error!(
                     target: "handshake_core::loom_api",
@@ -2733,7 +2745,10 @@ async fn reconcile_block_view_events(
             block_view_outbox::ScopedPublicationEvent::Published => return Ok(()),
             block_view_outbox::ScopedPublicationEvent::Pending(event) => event,
         };
+        let started = Instant::now();
+        mt153_diag_bv_publish("request", event.event_id, "enter", started);
         if let Err(error) = record_block_view_event_idempotent(state, event.clone()).await {
+            mt153_diag_bv_publish("request", event.event_id, "failed", started);
             let error_summary = format!("{}:{}", error.0, error.1 .0.error);
             block_view_outbox::record_failure(
                 &state.surreal,
@@ -2745,20 +2760,55 @@ async fn reconcile_block_view_events(
             .map_err(map_storage_error)?;
             return Err(error);
         }
+        mt153_diag_bv_publish("request", event.event_id, "recorded", started);
         block_view_outbox::mark_published(&state.surreal, workspace_id, event.event_id)
             .await
             .map_err(map_storage_error)?;
+        mt153_diag_bv_publish("request", event.event_id, "marked", started);
         return Ok(());
     }
 
+    reconcile_pending_block_view_events(state, workspace_id, None, "unscoped").await
+}
+
+/// DIAGNOSTIC (MT-153, round 1d1f583a BACKEND_CPU_SPIN_STALLS_MOUNTED_VIEW_LOAD): names which
+/// publisher entered a publication and whether it left. To be reverted once the cause is attributed.
+fn mt153_diag_bv_publish(path: &str, event_id: Uuid, stage: &str, started: Instant) {
+    tracing::info!(
+        target: "handshake_core::loom_api",
+        path,
+        event_id = %event_id,
+        stage,
+        elapsed_ms = started.elapsed().as_millis() as u64,
+        "mt153_diag_bv_publish"
+    );
+}
+
+/// Drain pending block-view publications oldest first. With `min_age`, rows younger than it are
+/// left to their request path; because a page is ordered by `created_at` (== event timestamp),
+/// the first too-young row ends the pass.
+async fn reconcile_pending_block_view_events(
+    state: &AppState,
+    workspace_id: Option<&str>,
+    min_age: Option<chrono::Duration>,
+    path: &str,
+) -> ApiResult<()> {
     loop {
         let pending = block_view_outbox::list_pending(&state.surreal, workspace_id, None, 200)
             .await
             .map_err(map_storage_error)?;
         let pending_count = pending.len();
         let mut first_error = None;
+        let mut reached_unsettled = false;
         for (event_workspace_id, event) in pending {
+            if min_age.is_some_and(|min_age| Utc::now() - event.timestamp < min_age) {
+                reached_unsettled = true;
+                break;
+            }
+            let started = Instant::now();
+            mt153_diag_bv_publish(path, event.event_id, "enter", started);
             if let Err(error) = record_block_view_event_idempotent(state, event.clone()).await {
+                mt153_diag_bv_publish(path, event.event_id, "failed", started);
                 let error_summary = format!("{}:{}", error.0, error.1 .0.error);
                 block_view_outbox::record_failure(
                     &state.surreal,
@@ -2771,14 +2821,16 @@ async fn reconcile_block_view_events(
                 first_error.get_or_insert(error);
                 continue;
             }
+            mt153_diag_bv_publish(path, event.event_id, "recorded", started);
             block_view_outbox::mark_published(&state.surreal, &event_workspace_id, event.event_id)
                 .await
                 .map_err(map_storage_error)?;
+            mt153_diag_bv_publish(path, event.event_id, "marked", started);
         }
         if let Some(error) = first_error {
             return Err(error);
         }
-        if pending_count < 200 {
+        if reached_unsettled || pending_count < 200 {
             return Ok(());
         }
     }
