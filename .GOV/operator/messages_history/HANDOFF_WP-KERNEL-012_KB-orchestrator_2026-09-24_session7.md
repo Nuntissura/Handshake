@@ -6,9 +6,98 @@ authority: reference_only
 wp_id: WP-KERNEL-012
 ---
 
-<topic id="session-2026-09-30-orchestrator" wp="WP-KERNEL-012" status="active" updated_at="2026-09-30">
+<topic id="session-2026-09-30-orchestrator" wp="WP-KERNEL-012" status="active" updated_at="2026-10-01">
 
-## State at 2026-09-30 ~19:40Z (incomplete, awaiting Operator)
+## State at 2026-10-01 ~04:00Z (AFK autonomy; Operator asleep, do not expect a reply)
+
+Evidence: gov `git log` (tip `ad5462e5`, 05:54:52 +0200 = 03:54:52Z; session start `cdfe6c73` 03:33:49Z on 2026-09-30), MT `lifecycle.status` re-read from all 167 `MT-NNN.json` and compared with `git show cdfe6c73:` (script, utf-8), `packet.json#operator_decisions_20260930` / `_20261001` / `credential_cleanup_20260930` / `stale_crate_builds_cleanup_20261001`, round records `MT-153.json#validation_round_*`, product `git ls-remote` and `git worktree list`. Typed MT JSON wins on conflict. This section wins over every section below wherever they differ (the 19:40Z state below is stale on: totals, READY list, product tip, rounds after `b4faed35`, blockers D, next action F). Commit times below are +0200 local unless marked Z.
+
+### 1. MT status now (167 MTs, MT-001..MT-167)
+
+- 129 PASS_*, 9 FAIL_*, 21 BLOCKED, 8 READY_FOR_VALIDATION. At `cdfe6c73`: 119 PASS_*, 13 FAIL_*, 21 BLOCKED, 13 READY_FOR_VALIDATION (166 MTs; MT-167 did not exist).
+- FAIL (9): MT-008 V9, MT-027 V8, MT-042 V8, MT-043 V6, MT-046 V9, MT-064 V9, MT-065 V9, MT-128 V3, MT-153 V6.
+- READY_FOR_VALIDATION (8): MT-079, MT-122 (candidate `2bff1b40`), MT-136, MT-154, MT-155, MT-157, MT-158, MT-159.
+- BLOCKED (21): MT-033 034 045 068 070 074 098 111 116 117 120 121 124 125 127 129 130 140 142 143 167.
+- Reopened PASS MTs: none (no MT that was PASS_* at `cdfe6c73` is non-PASS now).
+- DRIFT (not fixed here): `packet.json#tracker.mt_status` still differs from `lifecycle.status` for 7 MTs: MT-023 (READY vs PASS_V9), MT-027 (FAIL_V7 vs FAIL_V8), MT-036 (READY vs PASS_V10), MT-046 (READY vs FAIL_V9), MT-066 (READY vs PASS_V9), MT-113 (READY vs PASS_V4), MT-153 (READY vs FAIL_V6). Precedent resync: gov `73d63008`.
+
+### 2. MT status changes since `cdfe6c73` (from -> to)
+
+Net changes (lifecycle.status, now vs `cdfe6c73`):
+
+- To PASS (10): MT-023 FAIL_V7 -> PASS_V9; MT-026 FAIL_V6 -> PASS_V8; MT-032 BLOCKED -> PASS_V15; MT-036 FAIL_V7 -> PASS_V10; MT-066 FAIL_V7 -> PASS_V9; MT-067 FAIL_V7 -> PASS_V8; MT-113 READY_FOR_VALIDATION -> PASS_V4; MT-160 READY_FOR_VALIDATION -> PASS_V1; MT-163 READY_FOR_VALIDATION -> PASS_V1; MT-165 READY_FOR_VALIDATION -> PASS_V4.
+- READY -> FAIL: MT-128 READY_FOR_VALIDATION -> FAIL_V3.
+- FAIL version advanced (still FAIL): MT-008 V7 -> V9; MT-027 V7 -> V8; MT-042 V6 -> V8; MT-043 V5 -> V6; MT-046 V7 -> V9; MT-064 V7 -> V9; MT-065 V7 -> V9; MT-153 V2 -> V6.
+- New: MT-167 created BLOCKED (`ce349891`, 22:57; code-nav index cost).
+- Unchanged: MT-079, MT-122, MT-136, MT-154, MT-155, MT-157, MT-158, MT-159 (READY); the 20 other BLOCKED.
+
+Every transition in order (git history of `lifecycle.status`; hh:mm Z):
+
+- 10:32Z `c67a4108` MT-153 FAIL_V2 -> READY. 11:24Z `7482e5f2` MT-032 BLOCKED -> PASS_V15; MT-160, MT-163 READY -> PASS_V1.
+- 11:50Z `91aaa53d` FAIL -> READY: MT-008 (V7), 023 (V7), 026 (V6), 036 (V7), 042 (V6), 043 (V5), 046 (V7), 065 (V7), 066 (V7), 067 (V7). 12:10Z `f15fd957` MT-064 FAIL_V7 -> READY.
+- 16:53Z `2cae85f1` (round `bb9548e1`) READY -> MT-067 PASS_V8, MT-165 PASS_V4; FAIL: MT-008 V8, 026 V7, 036 V8, 042 V7, 043 V6, 046 V8, 064 V8, 065 V8, 128 V3, 153 V3.
+- 17:11Z `a8e6ed5e` MT-026, MT-153 FAIL -> READY. 17:29Z `69a7b43b` MT-008, 036, 042, 064, 065 FAIL -> READY.
+- 18:56Z `1d41e397` (round `b4faed35`) MT-026 READY -> PASS_V8; FAIL: MT-008 V9, 036 V9, 042 V8, 064 V9, 065 V9, 153 V4. 19:10Z `09b7a034` MT-036 FAIL_V9 -> READY. 19:14Z `bb41ac4d` MT-153 FAIL_V4 -> READY.
+- 20:57Z `ce349891` MT-167 created BLOCKED. 21:05Z `be63c32e` MT-046 FAIL_V8 -> READY.
+- 00:08Z (2026-10-01) `5806b158` (round `bd8c7532`) MT-036 READY -> PASS_V10; FAIL: MT-023 V8, 046 V9, 066 V8, 113 V3, 122 V3, 153 V5.
+- 00:23Z `94f1e53e` MT-027 FAIL_V7 -> READY; MT-153 FAIL_V5 -> READY. 00:42Z `0fe1ac35` MT-113, MT-122 FAIL_V3 -> READY; `a2720a0a` MT-066 FAIL_V8 -> READY. 00:46Z `0edb95f2` MT-023 FAIL_V8 -> READY.
+- 02:43Z `0a66cc4c` (round `e4566f11`) MT-023 READY -> PASS_V9; MT-066 READY -> PASS_V9; MT-113 READY -> PASS_V4; MT-027 READY -> FAIL_V8; MT-153 READY -> FAIL_V6.
+
+### 3. Rounds this session (candidate, outcome, gov SHA of verdicts)
+
+- `1f4e0f69` r1 (12:10:56Z-12:24:06Z): exit 101, host `rustc-LLVM ERROR: out of memory` (infrastructure; `-j 2` core build with foreign builds). r2: killed when the validator agent stopped (infrastructure). No status change; partial results as observations. Gov `37f62656`; remedy `c046b60f` (core `-j 1`), GP-146/GP-147.
+- `bb9548e1` (14:45:49Z-16:45:55Z; wrapper killed at native 170/210 by the 2 h harness background limit, GP-153): MT-067 PASS_V8, MT-165 PASS_V4; FAIL MT-008 V8, 026 V7, 036 V8, 042 V7, 043 V6, 046 V8, 064 V8, 065 V8, 128 V3, 153 V3; inconclusive MT-023/066/079/113/122. Gov `2cae85f1` (cut verdicts on core JUnit plus the hashed native log produced).
+- `b4faed35` (17:33:20Z-18:51:58Z, detached per GP-153): MT-026 PASS_V8; FAIL MT-008 V9, 036 V9, 042 V8, 064 V9, 065 V9, 153 V4; inconclusive MT-023/066/079/113/122/136; MT-027 KB-DIAG2 probe result. Gov `1d41e397`.
+- `bd8c7532` (22:04:01Z-00:05:57Z): MT-036 PASS_V10; FAIL MT-023 V8, 046 V9, 066 V8, 113 V3, 122 V3, 153 V5; inconclusive MT-079/136; MT-027 KB-DIAG3 and MT-042 edge-timer results (observations). Gov `5806b158`.
+- `e4566f11` (01:24:21Z-02:41:27Z): MT-023 PASS_V9, MT-066 PASS_V9, MT-113 PASS_V4; FAIL MT-027 V8, MT-153 V6 (`block_collection_views_live_surrealdb_self_seed_full_round_trip`, `tests/test_block_collection_view.rs:1743`, `LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT`: card-move PATCH over the 5 s client deadline `backend_client.rs:9579`; matrix and view create now PASS); inconclusive MT-079/122/136. Gov `0a66cc4c`.
+
+### 4. Product and gov tips
+
+- Product `feat/WP-KERNEL-012` = `e4566f11265a59d769dc8e3701576081bfdbd166` (`git ls-remote origin` in `wtc-native-editors-v1`; local HEAD equal). Local uncommitted builder WIP (F1+F3, not committed, not pushed, no cargo check recorded yet): `src/backend/handshake_core/src/api/loom.rs` and `src/backend/handshake_core/src/storage/surreal/loom_store.rs`.
+- Key product commits since session start: `65a7b6fb` MT-153 constant 403; `259495f0` rustfmt `api/loom.rs`; `1f4e0f69` MT-064 seed via proof account; `bb9548e1` MT-165 180 s job-wait floor (MT-067 `0f89d446`); `79610d1a`/`b4faed35` MT-153 index-backed ledger lookups; `be4d0c94` MT-036 teardown; `13288bf0` MT-153 card-move recompute skip; `5f730733` MT-153 journal scope; `d99be6cf` MT-113/122 Find in Files; `8b5da801`/`bd8c7532` MT-046 note seed; `df5d1804` MT-153/MT-027 bridge CREATE not UPSERT (KB-DIAG3 `b504f70e` reverted by `6205332b`); `2bff1b40` MT-113/122 manual needles restored; `c56c5360` MT-066; `0c416dc4` MT-046 negative-path 403; `e02dfc08` edge timers `45b8fb6d` reverted; `e4566f11` MT-023 tag-hub PATCH auth (round candidate).
+- `git worktree list` (product repo) shows exactly one worktree on `feat/WP-KERNEL-012` (`wtc-native-editors-v1`) and no sibling WP-012 worktree; other entries are other branches (`wtc-ac5-baseline` detached `3bbc72b3`, ownership not evidenced; do not touch).
+- Gov `gov_kernel` tip at 04:00Z `ec693a70` (05:58:43 +0200; local = `origin/gov_kernel`): the validator committed and pushed the export-current scripts (`WPV-union-round.sh`, `MT-032-phase-probe.sh`, `WPV-export-refresh.sh`, `WPV-export-verify.py`, `gameplan.yaml` GP-155, `packet.json` entry `WP012-OPERATOR-STABLE-EXPORT-20261001`) after `ad5462e5` (MT-153 F1+F3 hypothesis). The only gov dirt left at that moment was this handoff file.
+
+### 5. Operator decisions and rules in force
+
+- AFK autonomy (`WP012-OPERATOR-AFK-AUTONOMY-20260930`): "stop prompting me unless wp kernel 012 is finished and all mt are validated pass. use cheap sub agents to research online or explore codebase or master spec and other mt to find the best solution without me. i am AFK. work on your own, delegate agents, use other agents for help when something is unclear." Limit recorded: does not cover workflow decisions (CX-EXEC-011).
+- Buddy collaboration + delegation (`WP012-OPERATOR-INSTRUCTIONS-20260930-B`): "you will colaborate with the buddy before instructing other agents or making descicions, you will explain you choices and descicions, the buddy only keeps you on track of the workflow order. skill use, it does not touch code or gov. it us purely to keep you on track, you use agents for work, you do not work yourself, you delegate after deliberation wuth your buddy. you use sub agents to explore code, research online or other as if your hands".
+- Scope: "you do not work on globals"; "you do not touch the codex either"; "STOP FUCKING INVENTING THINGS". Only exception: `WP012-STABLE-EXPORT-PATH-RULES-20261001`, Operator: "VPX-011 in WPV protocol, KB-CAD-VPX-002 pointer, Global 023-025, WP-012 scripts now" (`scope_note`: covers this rule change only). Evidence: VPX-011 in `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md:102` and KB-CAD-VPX-002 in `.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md:81` (gov `a0be2f5a`); GLOBAL-VALIDATION-023-025 present in `~/.claude/CLAUDE.md` (seen in session context), Codex twin UNVERIFIED; protocol rules apply from the next WP (governance_pin `896f4e15`), WP-012 receives the behavior only through the CX-VAL-007 entrypoint-script commit (committed `ec693a70`, item 6 below).
+- Cargo reuse: "dont delete cargo if this can be reused, avoid costly rebuilds"; single test run: "fix all failing mt and do a single cargo test what the fuck are you doing, have you not read the handofffile" (fix all failing MTs first, then one union round).
+- Credential cleanup (`WP012-OPERATOR-DECISIONS-20260930-C`): "i will follow your recommendations and grant you the waivers". Executed 20:47-21:05Z: probe before error 8 (CredWriteW), 78 hash-proven `handshake-local-accounts-*` targets deleted, probe after clean write/read/delete (gov `ed13aa3a`). 22 unproven entries untouched and NOT approved.
+- GP-146 -> GP-154 (`WP012-OPERATOR-GP146-FLOOR-20261001`): Operator "change it so you can proceed"; GP-146 (commit free >= 60 GB) retired, GP-154 (commit free >= 45 GB before launch, core union build `-j 1`, wp_validator, before_round) added (gov `e1f78b25`).
+- Old source exports: Operator "Delete old source exports" (fallback "if deleting does not work move to bin"): 31 dirs, 8.68 GB removed (gov `8ca2b789`).
+- Stale crate builds: Operator "Delete stale crate builds (Recommended)": 2,450 files, 78.76 GB listed first (sha256 `565fb163...`), deleted, `target-r52` 140.83 -> 62.07 GB, 0 failures (gov `f9d4b537`, `cfcc344d`).
+- Operator approvals 2026-09-30-C that stay in force: MT-165 and MT-113-owned `manual_content_editors.rs` waivers granted; code-nav index cost -> new MT-167; MT-046 ic03/ic04 seed `note` only (typed CKC left to WP-KERNEL-017 MT-395); MT-042/153 edge counters measured first, option (b) increments NOT approved; MT-027 exactly one scratch-table bisect (consumed, `df5d1804` fixed the bridge). Item 3 (5 s swarm-resave bound) NOT_DECIDED.
+- Latest (2026-10-01, relayed): "if your stuck use a cheap sub agent to reseach online before running expensive time consuming tests" (recorded verbatim in `packet.json#operator_decisions_20261001`, id `WP012-OPERATOR-CHEAP-RESEARCH-BEFORE-TESTS-20261001`).
+- Latest bedtime orders (relayed, verbatim): "update the current handoff file first, and gameplan if needed. then push gov kernel with dirt. then make a commit and push of wp kernel 012, be sure no existing unused subling wp worktree exist for wp kernel 012, merge or move to bin. do not expect the operator to reply, work autonomous."
+
+### 6. Open items
+
+- MT-027 and MT-153 (FAIL_V8 / FAIL_V6 on `e4566f11`) card-move PATCH timeout: diagnosis `DX-MT-153-20261001-CARDMOVE-SPLIT-EDGE-TRANSACTIONS` (`MT-153.json#diagnosis_20261001_cardmove_split_edge_txns`, code reading only; create txn median 3.27 s, delete txn never timed). Builder hypothesis `MT-153.json#hypothesis_20261001_cardmove_f1_f3` (gov `ad5462e5`): F1 (`create_loom_edge` sets `event_ledger_event_id` in the CREATE, drops the second write, ~0.89 s) + F3 (`patch_loom_block_inner` skips the no-field `update_loom_block`) IN PROGRESS (uncommitted); F2 (single card-move transaction) HELD by the orchestrator; sufficiency UNVERIFIED (may still exceed 5 s).
+- MT-042: same request class (kanban-move), `diagnosis_ref_20261001_cardmove` recorded; FAIL_V8 on `b4faed35`, not re-verdicted since.
+- MT-008, MT-064, MT-065: `blocked_on` MT-167 (code-nav index cost, spec section 2.3.14.17.3; MT-167 BLOCKED, AC-167-1 owning-module evidence not yet recorded, no implementation started).
+- MT-043, MT-128: FAIL (document create 3.5 s, merged resave misses 5 s); Operator decision on whether the 5 s swarm-resave bound (`test_e7_swarm_edit_proof.rs:3240-3252`) is a product requirement is NOT_DECIDED.
+- MT-046 (FAIL_V9 on `bd8c7532`): ic04/ic10/ic12 wikilink -> `loom_edges` projection defect; the candidate owner is `src/backend/handshake_document/src/surreal.rs` (`resolve_backlink_rows` / `project_to_loom`), no owning MT, owner undecided (`next_actor` ORCHESTRATOR, `MT-046.json#remediation_20261001_0c416dc4`); ic06 blocked on MT-167; ic03/ic04 negative-path 403 fix `0c416dc4` recorded, no verdict at `e4566f11`.
+- Debug-backend research pending: live native proofs launch `target/debug/handshake_core.exe` with no `[profile.dev.package]` override, so surrealdb-core evaluates permission chains at opt-level 0; magnitude UNVERIFIED, outside MT-153 paths, forces a surrealdb-core rebuild; no research record found in the WP-012 gov files. Per the latest Operator instruction, run a cheap research sub-agent before another expensive round.
+- WP-end extra-build items: MT-153 CHECK-TESTS and CLIPPY-CHANGED; MT-079 (AC-079-8 bare app build/clippy/full-suite and AC-079-7 static proof); MT-136 (inconclusive every round, owned-module real-consumer disposition not established by JUnit); MT-122 PT-122-2 independent fix-reverted RED log.
+- MT-045 / CX-GIT-003 credential-leak defect: the 78 leaked fixture credentials were cleaned, but the leak defect itself (fixtures leaving vault entries; test-side cleanup `OwnedVaultScope::cleanup_after_reap`, `tests/backend_proof_support/mod.rs:468-489`, per the 19:40Z audit below) has no routing record in the WP-012 MT JSON files (search for the leak finding found none; UNVERIFIED elsewhere); the approved recommendation said "record CX-GIT-003 leak defect". MT-045 itself is BLOCKED (end-of-WP release-profile supervisor perf run); owner of the fix undecided.
+- Export-current script change (validator, COMMITTED `ec693a70`, gate GP-155): `WPV-export-refresh.sh`, `WPV-export-verify.py`, edits to `WPV-union-round.sh` (sources the refresh, per-round compiled-crate accounting) and `MT-032-phase-probe.sh`, implementing VPX-011 for WP-012 (CX-VAL-007); packet record states scratch-root functional checks only, no build, no round (`no_build_no_round: true`); the first round on `export-current` is a cold build of the path crates (packet projection target-r52 62.07 -> ~76 GB). No round has run on `export-current` yet: `export-current` does not exist under `C:/.target/WP-KERNEL-012/MT-109/wpv-c3x` (checked 04:00Z).
+- Packet tracker drift (7 MTs, section 1).
+
+### 7. Next actions (in order)
+
+1. This handoff, then gov push (the paperwork agent commits this handoff and any remaining dirt with explicit paths; no rebase, no force). Done at write time: validator export-current scripts already pushed in `ec693a70`.
+2. Builder finishes F1+F3 (`create_loom_edge` CREATE-with-receipt; skip no-field `update_loom_block`); `cargo check` (core lib+tests) on D: `kb-c5` only when no cargo/rustc runs; GP-139 diff check before confirm; resubmit MT-027 and MT-153 (and MT-042) READY with the candidate. If F1+F3 is judged insufficient, F2 or a delete-transaction timing is next, not a resubmission of the same fix.
+3. Commit and push product `feat/WP-KERNEL-012` (verify with `git ls-remote origin`); confirm no unused sibling WP-012 worktree (currently none). Round entrypoints require HEAD == pushed tip == candidate.
+4. Cheap research sub-agent(s) before the next expensive round: debug-backend opt-level/profile question; any other point where the builder or validator is stuck.
+5. Validator: the export-current scripts are committed (`ec693a70`); satisfy GP-155 (identity matches the candidate) and run one union round on the new candidate under GP-154 (commit free >= 45 GB, `-j 1`, detached per GP-153), covering all READY MTs (MT-027, 042, 153 once resubmitted; MT-079, 122, 136, 154, 155, 157, 158, 159). Record compiled-crate counts.
+6. Orchestrator decisions to resolve without the Operator where the AFK instruction covers them (research sub-agent + record), else leave NOT_DECIDED and surface at WP completion: MT-046 backlink-projection owner; MT-043/MT-128 5 s resave bound (Operator-owned, NOT_DECIDED); MT-045 credential-leak routing; packet tracker resync.
+7. After all failing MTs are fixed and the single union round passes: WP-end extra-build proofs (section 6), then report to the Operator that WP-KERNEL-012 is finished only when all MTs are validator PASS.
+
+## Earlier state (superseded where it differs from the 2026-10-01 section above)
+
+### State at 2026-09-30 ~19:40Z (incomplete, awaiting Operator)
 
 Evidence: gov `git log` (tip `8befc42e`, 21:20 +0200 = 19:20Z), MT `lifecycle` fields vs session-start gov `cdfe6c73`, `packet.json#operator_decisions_20260930`, product `git ls-remote`, product source and `gameplan.yaml`. Typed MT JSON wins on conflict. This section wins over the 14:25Z audit below wherever they differ (stale below: section 2 totals and READY list, section 3 tips and the local-only `45019718` diagnostic, section 4 round r2 and its next actions; `45019718` was reverted by `7612f1cc`, diagnostics `1457903f`/`7612f1cc` reverted by `5f730733`).
 
