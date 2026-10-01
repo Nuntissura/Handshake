@@ -2535,6 +2535,19 @@
     "matches_approval": "yes: 2,450 files / 78.76 GB; crate set = workspace crates (incl. handshake_document/handshake_storage_support, which the 78.8 GB estimate already contained)",
     "retention_check": "no live retention: 21 record mentions are provenance (binary path + sha256) of completed runs; MT-164 retained handshake_core-4eee2bbf is not in the list",
     "target_r52_bytes_before": 140831890500,
-    "state": "LIST_RECORDED_BEFORE_DELETE"
+    "state": "DELETED",
+    "result": {
+      "executed_utc": "2026-10-01T01:20:00Z",
+      "removed": 2450,
+      "removed_bytes": 78764557549,
+      "recycled": 0,
+      "failures": [],
+      "skipped": [],
+      "safety": "each path verified inside target-r52/debug/deps, not a reparse point, size unchanged; list sha256 re-verified before deleting; 0 processes using target-r52",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/stale-crate-builds-delete-20261001.jsonl",
+      "target_r52_bytes_before": 140831890500,
+      "target_r52_bytes_after": 62067332951,
+      "projection": "after 62.07 GB + ~13.9 GB per round -> peak ~76.0 GB < 147 GB stop"
+    }
   }
 }
