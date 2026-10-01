@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-10-01T05:35:00Z",
+  "updated_at_utc": "2026-10-01T08:15:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V8",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -49,9 +49,9 @@
       "MT-157"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V7",
-    "prior_validator_verdict": "FAIL_V6",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_fea3ce0a.remediation_required",
+    "validator_verdict": "FAIL_V8",
+    "prior_validator_verdict": "FAIL_V7",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_d9ce6017.remediation_required",
     "ready_status_repair": {
       "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
       "rule": "CX-STATUS-001",
@@ -65,8 +65,8 @@
       "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
     },
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
-    "validated_at_utc": "2026-10-01T05:35:00Z",
-    "validated_commit": "fea3ce0a509ae54f669fb122bf1bf64e68cb1421",
+    "validated_at_utc": "2026-10-01T08:15:00Z",
+    "validated_commit": "d9ce6017e91430c69d410b555bd79fd5f6916926",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -86,7 +86,7 @@
       "at_utc": "2026-09-23T23:52:39.079Z",
       "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
     },
-    "status_reason": "FAIL_V7 on fea3ce0a union round (validation_round_fea3ce0a)",
+    "status_reason": "FAIL_V8 on d9ce6017 union round (validation_round_d9ce6017)",
     "status_before_20260930": "FAIL_V2",
     "candidate_commit": "d9ce6017e91430c69d410b555bd79fd5f6916926",
     "blocked_on": null,
@@ -4772,5 +4772,109 @@
       "verdict_ref": "MT-153.json#validation_round_fea3ce0a (FAIL_V7)",
       "failure_class": "LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT"
     }
+  },
+  "validation_round_d9ce6017": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T08:15:00Z",
+    "candidate_commit": "d9ce6017e91430c69d410b555bd79fd5f6916926",
+    "started_at": "2026-10-01T06:52:00.3682810Z",
+    "completed_at": "2026-10-01T07:45:54.3147345Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-d9ce6017e91430c69d410b555bd79fd5f6916926-core.xml",
+      "core_junit_sha256": "10a8a52480bb174e3c5a65ffd5db170b14d47ffdcbc768eacf581c9d9d478e81",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-d9ce6017e91430c69d410b555bd79fd5f6916926-native.xml",
+      "native_junit_sha256": "f64472363e4caab469ada977871699baaf1432b34fd12444427608020818b929",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-d9ce6017e91430c69d410b555bd79fd5f6916926.stdout.log",
+      "log_sha256": "98a497bd385b80e433ff49b4421aacc7b449a80efa45716ebd202d46b116ccff",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-d9ce6017e91430c69d410b555bd79fd5f6916926.stderr.log",
+      "stderr_log_sha256": "6b1cbc84247b2abe51d3baddbd803c819a0595bb541c34d748b1cff76e1f30cb",
+      "export_identity_sha256": "ef36b6fb8d41dbd2c76456512fa8984340a62515c9f0036d860e82d0793aaa52",
+      "selection": "WPV-round-selection.json (gov 474d0777; CX-VAL-002 intersection under key 'intersection')"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-d9ce6017"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 34/34, before_verdict PASS 5/5 at d9ce6017",
+    "decision": "failed",
+    "verdict": "FAIL_V8",
+    "checks_run": {
+      "MT-153-ROUTE-MATRIX (2)": "PASS 2/2",
+      "MT-153-WORKSPACE-DELETE (2)": "PASS 2/2",
+      "MT-153-LOOM-TARGETS (4 targets)": "PASS 16/16",
+      "MT-153-NATIVE-LOOM canvas_board live": "PASS",
+      "MT-153-NATIVE-LOOM block_collection_views live": "FAIL",
+      "user_manual lib tests (user_manual_obligation; seed.rs changed)": "26 PASS, 1 FAIL (pre-existing, see findings)",
+      "MT-153-FMT rustfmt 1.97.1 --edition 2021 --check, 4 changed .rs files @d9ce6017": "PASS 4/4",
+      "MT-153-DIFF-CHECK 37ee7c5b..d9ce6017, fea3ce0a..d9ce6017, 39f3e830..d9ce6017": "PASS",
+      "MT-153-BUILD-LIB": "PASS (union build)"
+    },
+    "proof_reuse": "MT-153-PIN-CONFIRM 7/7 on 37ee7c5b (schema files unchanged 37ee7c5b..d9ce6017)",
+    "failures": [
+      {
+        "check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "failure_kind": "product",
+        "failure_class": "ARGUS_BINDING_ROOT_REDIRECTED_BY_PROOF_SUPPORT",
+        "assertion": "tests/test_block_collection_view.rs:2507: the canonical Argus server must publish a real native-MCP binding at <...>/mt027-session/handshake/swarm_mcp_binding.json",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-d9ce6017e91430c69d410b555bd79fd5f6916926-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:2088-2100",
+          "tests/test_block_collection_view.rs:2498-2510",
+          "tests/backend_proof_support/mod.rs:792-797",
+          "tests/backend_proof_support/mod.rs:4906-4925",
+          "tests/native_gui_support/canonical_argus_driver.rs:244-271"
+        ],
+        "evidence": "tests/test_block_collection_view.rs:2088-2100 points LOCALAPPDATA and HANDSHAKE_STAGE_BINDING_FILE at its own root (<target>/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-027/argus-binding/mt027-session); that root holds no binding, so backend_proof_support::start_product_backend (tests/backend_proof_support/mod.rs:792-797) publishes RealNativeMcpBinding (mod.rs:4906-4925), which sets LOCALAPPDATA to <HANDSHAKE_TEST_STAGE_BINDING_ROOT>/proc-<pid> for the LiveBackend lifetime (HANDSHAKE_TEST_STAGE_BINDING_ROOT is required by publish()). CanonicalArgusDriver::bind_in_current_app_data at :2501 then publishes into that redirected root (binding lock files under <lane>/stage-binding/proc-*/handshake/), while :2507 asserts the original root's file; that directory is empty with mtime 2026-09-24 (never written). First round to reach :2507: every earlier union failed at :1706 or :1743.",
+        "repair_direction": "Test-side: make the MT-027 product-pane Argus step assert on (and the owned backend verify against) the binding root actually in effect after require_reachable_backend (RealNativeMcpBinding redirect), or publish the test's own binding before the backend is started so no redirect occurs. Separately the workspace cleanup hits WORKSPACE_DELETE_ANCHOR_DELETE_DENIED (see MT-042).",
+        "prior_failure_class": "LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT",
+        "prior_failure_status": "resolved in this run: the card-move PATCH step (former failure at :1743) and every step up to :2501 passed",
+        "defect_location": "repo test code (proof test + shared tests/backend_proof_support), not shipped runtime behaviour; deterministic, not flaky; not validator environment"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-d9ce6017e91430c69d410b555bd79fd5f6916926-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:2088-2100",
+          "tests/test_block_collection_view.rs:2498-2510",
+          "tests/backend_proof_support/mod.rs:792-797",
+          "tests/backend_proof_support/mod.rs:4906-4925",
+          "tests/native_gui_support/canonical_argus_driver.rs:244-271"
+        ],
+        "repair_direction": "Test-side: make the MT-027 product-pane Argus step assert on (and the owned backend verify against) the binding root actually in effect after require_reachable_backend (RealNativeMcpBinding redirect), or publish the test's own binding before the backend is started so no redirect occurs. Separately the workspace cleanup hits WORKSPACE_DELETE_ANCHOR_DELETE_DENIED (see MT-042)."
+      }
+    ],
+    "findings_not_attributed": [
+      {
+        "test": "user_manual::seed::tests::mt152_manual_lock_migration_pins_code",
+        "status": "FAIL",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-d9ce6017e91430c69d410b555bd79fd5f6916926-core.xml",
+        "assertion": "src/user_manual/seed.rs:4893: keyed_lock.contains(\"keys.sort();\") && keyed_lock.contains(\"keys.dedup();\")",
+        "classification": "pre-existing stale code pin, not attributable to d9ce6017",
+        "evidence": "the test reads src/backend/handshake_core/src/storage/surreal/keyed_lock.rs; those lines moved to handshake_storage_support/src/keyed_lock.rs:365-366 in 22c64a06 (2026-09-26, storage adapter extraction); the old file lacks both strings at 37ee7c5b, e4566f11 and fea3ce0a; the d9ce6017 seed.rs change is one manual sentence (seed.rs:1290-1297) and does not touch the test",
+        "owner": "MT-152 (PASS_V6, not reopened) / storage extraction 22c64a06; routed to orchestrator",
+        "effect_on_mt153": "MT-153 user_manual_obligation evidence 'existing LIB user_manual tests green' is not met by this pre-existing red test"
+      }
+    ],
+    "note": "CHECK-TESTS/CLIPPY-CHANGED remain WP-end extra-build items. rebuild accounting compiled_crates=1 (handshake_core) relinked_test_binaries=27 backend_bin_relinked=1 refresh_mode=incremental; backend build profile dev (debug-backend override not applied, Operator decision pending); credentials 241/22 before and after; no leftover store dirs; session git repo recycled; observer 108 polls, peak C 87.49 GB",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "153-d9ce6017-round",
+        "at_utc": "2026-10-01T08:15:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-153.json#validation_round_d9ce6017"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "153-d9ce6017-round",
+        "at_utc": "2026-10-01T08:15:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V8"
+      }
+    ]
   }
 }

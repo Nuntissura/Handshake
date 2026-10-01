@@ -14,7 +14,7 @@
   "title": "E7-MT-042-KnowledgeGraphAccessKit",
   "group": "E7 Model-vision parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-10-01T05:35:00Z",
+  "updated_at_utc": "2026-10-01T08:15:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-042.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -33,7 +33,7 @@
       "reason": "Document create/backlink proof depends on changed API/storage and shared live helper",
       "round_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"
     },
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V10",
     "active": true,
     "depends_on": [
       "MT-021",
@@ -47,10 +47,10 @@
       "MT-043",
       "MT-044"
     ],
-    "validator_verdict": "FAIL_V9",
+    "validator_verdict": "FAIL_V10",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
-    "validated_at_utc": "2026-10-01T05:35:00Z",
+    "validated_at_utc": "2026-10-01T08:15:00Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: the NEEDS_MANAGED_RESOURCE_PROOF test ac10_live_pg_round_trip is an unconditional panic! stub - NO real live-test body exists behind the #[ignore] and the integration feature gates nothing here; AC-042-05/06/07/10 + PROOF-042-D DB halves are un-runnable until the test is authored (MT-044/045/046 show the correct pattern). Same live-host orphan as MT-041: install_knowledge_action_registry never called by any host - knowledge.* actions exist only in kittests. Positive: real AccessKit click dispatch with JSON payloads, verified route corrections, malformed-payload no-panic. Fix: author the real live-PG round-trip body (placements row, tag-edge move, edge row SELECTs); shared registry install via the E11 wiring bundle.",
@@ -135,9 +135,9 @@
       "adversarial_review": "PASS: independent reviewer verified 24/24 raw, 1/1 canonical, all nine PNGs, 35/35 hashes, exact persisted state, zero unresolved actions, and complete owned-resource teardown.",
       "validator_boundary": "Builder remediation only. lifecycle.validator_verdict and validation_v4 remain historical FAIL_V4 until independent validator review."
     },
-    "validated_commit": "fea3ce0a509ae54f669fb122bf1bf64e68cb1421",
+    "validated_commit": "d9ce6017e91430c69d410b555bd79fd5f6916926",
     "completed_at_utc": "2026-09-16T23:19:49.801Z",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_fea3ce0a.remediation_required",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_d9ce6017.remediation_required",
     "status_alignment_2026_09_17": {
       "by": "ORCHESTRATOR (Claude, session 2026-09-16)",
       "at_utc": "2026-09-16T23:21:33.923Z",
@@ -151,8 +151,8 @@
     ],
     "status_before_20260930": "FAIL_V6",
     "blocked_on": null,
-    "prior_validator_verdict": "FAIL_V8",
-    "status_reason": "FAIL_V9 on fea3ce0a union round (validation_round_fea3ce0a)",
+    "prior_validator_verdict": "FAIL_V9",
+    "status_reason": "FAIL_V10 on d9ce6017 union round (validation_round_d9ce6017)",
     "status_before_fea3ce0a_resubmission": "FAIL_V8",
     "status_before_d9ce6017_resubmission": "FAIL_V9"
   },
@@ -1342,5 +1342,82 @@
     },
     "admission_basis": "CX-VAL-008 new diagnosis (probe result) + code change in the failing kanban-move PATCH path (MT-153-owned files)",
     "product_change_in_this_mt": "none"
+  },
+  "validation_round_d9ce6017": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T08:15:00Z",
+    "candidate_commit": "d9ce6017e91430c69d410b555bd79fd5f6916926",
+    "started_at": "2026-10-01T06:52:00.3682810Z",
+    "completed_at": "2026-10-01T07:45:54.3147345Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-d9ce6017e91430c69d410b555bd79fd5f6916926-core.xml",
+      "core_junit_sha256": "10a8a52480bb174e3c5a65ffd5db170b14d47ffdcbc768eacf581c9d9d478e81",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-d9ce6017e91430c69d410b555bd79fd5f6916926-native.xml",
+      "native_junit_sha256": "f64472363e4caab469ada977871699baaf1432b34fd12444427608020818b929",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-d9ce6017e91430c69d410b555bd79fd5f6916926.stdout.log",
+      "log_sha256": "98a497bd385b80e433ff49b4421aacc7b449a80efa45716ebd202d46b116ccff",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-d9ce6017e91430c69d410b555bd79fd5f6916926.stderr.log",
+      "stderr_log_sha256": "6b1cbc84247b2abe51d3baddbd803c819a0595bb541c34d748b1cff76e1f30cb",
+      "export_identity_sha256": "ef36b6fb8d41dbd2c76456512fa8984340a62515c9f0036d860e82d0793aaa52",
+      "selection": "WPV-round-selection.json (gov 474d0777; CX-VAL-002 intersection under key 'intersection')"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-d9ce6017"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 34/34, before_verdict PASS 5/5 at d9ce6017",
+    "decision": "failed",
+    "verdict": "FAIL_V10",
+    "checks_run": {
+      "test_e7_knowledge_accesskit (whole, PROOF-042-A)": "39 PASS, 1 FAIL"
+    },
+    "failures": [
+      {
+        "check": "PROOF-042-A",
+        "test": "ac10_live_surrealdb_populated_graph_accesskit_round_trip",
+        "failure_kind": "product",
+        "failure_class": "WORKSPACE_DELETE_ANCHOR_DELETE_DENIED",
+        "assertion": "tests/test_e7_knowledge_accesskit.rs:2615: assertion failed: matches!(cleanup_status, 200 | 202 | 204)",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-d9ce6017e91430c69d410b555bd79fd5f6916926-native.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/storage/surreal/workspaces.rs:522-555",
+          "tests/test_e7_knowledge_accesskit.rs:2614-2615"
+        ],
+        "evidence": "owned backend stdout (<lane>/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-4027868fac6f2e75/de91ba57-3313-4c4a-9b5f-536767ec4926/backend.stdout.log): 'workspace delete transaction failed statement_index=10 error=HSK-403-PROTECTED-RESOURCE' at 07:45:19Z and 07:45:21Z; statement 10 of the account-scoped delete transaction is the checked fems_workspace_write_anchors DELETE (src/storage/surreal/workspaces.rs:522-555, comment :588). Pre-existing, not in the d9ce6017 diff: the same statement-10 denial is logged by the same test backend slots in the fea3ce0a round (s-368a110cf51f6ec4 and s-4027868fac6f2e75, 2026-10-01 05:19Z/05:22Z) and in earlier runs back to 2026-09-26 (s-7164fdd7166f279b), where it was masked because the tests failed before their asserted cleanup. This round the BCV test's drop-guard cleanup hit it too (s-368a110cf51f6ec4/e740a244..., 07:41:44Z).",
+        "repair_direction": "Backend: account-scoped workspace delete denies the checked FEMS write-anchor DELETE (statement 10) for a workspace that went through the populated-graph/Kanban flow; pre-existing defect newly reached by this test (not introduced by d9ce6017).",
+        "prior_failure_class": "MOUNTED_KANBAN_MOVE_PERSIST_REFETCH_TIMEOUT",
+        "prior_failure_status": "resolved in this run: the host-routed collection.kanban-move persist/refetch step (former failure at :2480) passed",
+        "defect_location": "shipped backend (account-scoped workspace delete); pre-existing, newly reached"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "PROOF-042-A",
+        "test": "ac10_live_surrealdb_populated_graph_accesskit_round_trip",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-d9ce6017e91430c69d410b555bd79fd5f6916926-native.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/storage/surreal/workspaces.rs:522-555",
+          "tests/test_e7_knowledge_accesskit.rs:2614-2615"
+        ],
+        "repair_direction": "Backend: account-scoped workspace delete denies the checked FEMS write-anchor DELETE (statement 10) for a workspace that went through the populated-graph/Kanban flow; pre-existing defect newly reached by this test (not introduced by d9ce6017)."
+      }
+    ],
+    "note": "rebuild accounting compiled_crates=1 (handshake_core) relinked_test_binaries=27 backend_bin_relinked=1 refresh_mode=incremental; backend build profile dev (debug-backend override not applied, Operator decision pending); credentials 241/22 before and after; no leftover store dirs; session git repo recycled; observer 108 polls, peak C 87.49 GB",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "042-d9ce6017-round",
+        "at_utc": "2026-10-01T08:15:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-042.json#validation_round_d9ce6017"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "042-d9ce6017-round",
+        "at_utc": "2026-10-01T08:15:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V10"
+      }
+    ]
   }
 }
