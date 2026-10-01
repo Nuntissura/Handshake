@@ -4876,5 +4876,75 @@
         "state_effect": "lifecycle.status FAIL_V8"
       }
     ]
+  },
+  "diagnosis_20261001_argus_binding_root": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-153-20261001-ARGUS-BINDING-ROOT-STALE-ASSERT",
+    "kind": "blocker_diagnosis",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T07:58:53Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "failure_class": "ARGUS_BINDING_ROOT_REDIRECTED_BY_PROOF_SUPPORT",
+    "failing_assertion": "tests/test_block_collection_view.rs:2507 (round d9ce6017)",
+    "cause": "test asserts its pre-backend binding path; proof support redirects LOCALAPPDATA to proc-<pid>; Argus binds there",
+    "evidence": [
+      "test_block_collection_view.rs:2088-2100 sets LOCALAPPDATA + HANDSHAKE_STAGE_BINDING_FILE to <argus-binding>/mt027-session BEFORE require_reachable_backend",
+      "backend_proof_support/mod.rs:792-797 publishes RealNativeMcpBinding when no flight-recorder session token exists; mod.rs:4906-4925 sets LOCALAPPDATA to <HANDSHAKE_TEST_STAGE_BINDING_ROOT>/proc-<pid> for the LiveBackend lifetime and asserts binding_path() is that root",
+      "mod.rs:804-812 captures that binding file once and spawn_backend passes it explicitly (mod.rs:1314 .env(HANDSHAKE_STAGE_BINDING_FILE, binding_file)), so the test's own HANDSHAKE_STAGE_BINDING_FILE never reaches the child",
+      "canonical_argus_driver.rs:244-271 bind_in_current_app_data writes handshake_native::mcp::binding_path() of the current (redirected) app-data root, i.e. the exact file the owned backend verifies - binding semantics are intact; only the assertion names the stale pre-backend path"
+    ],
+    "distinct_from": [
+      "LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT (fixed by d9ce6017 F2)",
+      "DX-MT-027-20260930-UPSERT-GATED-BY-UPDATE-NONE"
+    ],
+    "intended_fix": "tests/test_block_collection_view.rs only (MT-153 path): resolve the binding file in effect AFTER require_reachable_backend (handshake_native::mcp::binding_path(), which is the redirected proc-<pid> file when proof support published, or the test's own root otherwise) and assert the Argus-published binding there; comment updated. backend_proof_support/mod.rs (MT-045) untouched",
+    "residual_risk": "the BCV test's drop-guard workspace cleanup also hits WORKSPACE_DELETE_ANCHOR_DELETE_DENIED (DX-MT-153-20261001-WORKSPACE-DELETE-VIEWDEF-NO-RESOURCE); if that panics the test, MT-153/MT-027 still fail after this fix"
+  },
+  "diagnosis_20261001_workspace_delete_viewdef": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-153-20261001-WORKSPACE-DELETE-VIEWDEF-NO-RESOURCE",
+    "kind": "blocker_diagnosis",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T07:58:53Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "method": "code reading (no run)",
+    "failure_class": "WORKSPACE_DELETE_ANCHOR_DELETE_DENIED",
+    "failing_assertion": "MT-042 tests/test_e7_knowledge_accesskit.rs:2615 (round d9ce6017); BCV drop-guard cleanup in the same round",
+    "which_file": "src/backend/handshake_core/src/storage/surreal/workspaces.rs (the account-scoped delete transaction, :470-555; the only workspaces.rs under storage; api/workspaces.rs is the route) - in MT-153 allowed paths",
+    "statement_10": "BEGIN(0), 6 authorization-touch UPDATEs (1-6), LET $children (7), FOR $child (8), checked anchor UPSERT (9), checked anchor DELETE (10) = `IF array::len(DELETE type::record('fems_workspace_write_anchors', $anchor.key) RETURN BEFORE) != 1 THROW` (workspaces.rs:506-516 rewrite of WORKSPACE_DELETE_BODY)",
+    "predicate": "schema.surql:5426 fems_workspace_write_anchors FOR delete WHERE fn::mt120_workspace_delete(workspace_key) - the denial means W returned false (UPSERT at 9 passed via its 'delete','fs.write' create/update branch)",
+    "same_class_as": "C1-FDELETE (MT-036/MT-066/MT-045 remediation_v6 known_shared_blocker; MT-036 diagnosis_20260930_b4faed35 statement-10 HSK-403; MT-157 'exact false predicate remains unproven'; MT-154 residual (a): W false while calendar/stage/canvas/documents rows exist - Loom tables are MT-153)",
+    "new_candidate_clause": "W standalone-block loop (schema.surql ~6814-6825): for every loom_blocks row with source_rich_document_id = NONE it requires exactly one protected_resources row resource_kind='loom_block', external_resource_id=block_id, id IN $resources.id; view_def blocks created by POST .../loom/views/definitions (api/loom.rs:6473 create_block_view_authenticated -> block_view_store CREATE_TRANSACTION) are authorized by the workspace create grant only and get NO protected_resources row (grep: no resource creation in block_view_store.rs / the handler) -> W returns false for any workspace holding a saved view",
+    "fit_with_evidence": "both failing cleanups are in workspaces with a saved view: ac10 creates a Kanban view (test_e7_knowledge_accesskit.rs ~2420 create_live_block_view), the BCV test creates table/kanban/calendar views; view creation only succeeds since df5d1804 (2026-10-01), so the earlier statement-10 denials (back to 2026-09-26) must come from other W clauses (C1-FDELETE) - W can be false for more than one reason",
+    "unverified": "the exact false clause in round d9ce6017 is not observed (the C1-FDELETE route probe is test-build only); a workspace without a saved view could still fail on another clause",
+    "fix_options": [
+      "schema.surql fn::mt120_workspace_delete ELSE branch: accept `content_type = 'view_def'` standalone blocks (their write authority is the workspace grant W has already checked) - schema change -> re-pin (MT-153 schema_repin_procedure, PIN-MEASURE/CONFIRM) + orchestrator approval first; shifts MT-154/157/158/159 pins",
+      "block_view_store/api: provision a per-view protected resource + creator grant at view creation (resource-model change, MT-153 paths, also touches view read/update/delete authority) - larger; orchestrator decision"
+    ],
+    "status": "REPORTED, not edited: needs a schema change or a resource-model decision (orchestrator rule 2026-10-01 item 2)"
+  },
+  "diagnosis_20261001_mt152_keyed_lock_pin": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-153-20261001-MT152-KEYED-LOCK-PIN-STALE-PATH",
+    "kind": "regression_diagnosis",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T07:58:53Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "failing_test": "user_manual::seed::tests::mt152_manual_lock_migration_pins_code (MT-152 PASS_V6 test), round d9ce6017",
+    "assertion": "src/user_manual/seed.rs:4893 keyed_lock.contains(\"keys.sort();\") && keyed_lock.contains(\"keys.dedup();\")",
+    "cause": "22c64a06 (2026-09-26) moved the keyed lock to handshake_storage_support; the test still reads the 2-line re-export",
+    "evidence": [
+      "src/storage/surreal/keyed_lock.rs is now `pub use handshake_storage_support::keyed_lock::*;` (2 lines)",
+      "src/backend/handshake_storage_support/src/keyed_lock.rs:365-366 hold keys.sort(); keys.dedup(); (:39 the deadlock-freedom doc the manual cites)",
+      "last PASS in core junit 1097ef1c / fe0949d8 (2026-09-24, before 22c64a06); not selected in the fea3ce0a core list",
+      "the remaining assertions after :4893 hold at d9ce6017 (title_anchor_reclaim_statement in knowledge.rs; SurrealDatabase::new(state.surreal.clone()) in api/knowledge_documents.rs and api/knowledge_code_nav.rs)",
+      "manual text seed.rs:2051/2058 cites storage/surreal/keyed_lock.rs, keyed_lock.rs:39 and :365-366 - stale for the same reason"
+    ],
+    "correction": "the orchestrator's earlier UNVERIFIED hypothesis (the d9ce6017 Kanban manual sentence changed manual content without a pin update) is refuted: the failing assertion reads keyed_lock.rs source, not manual text; cause = 22c64a06",
+    "routing": "MT-153 remediation routed to MT-152; MT-152 stays PASS_V6 (not reopened) per orchestrator 2026-10-01",
+    "intended_fix": "user_manual/seed.rs (MT-153 path): the test reads ../handshake_storage_support/src/keyed_lock.rs (canonical) and checks the handshake_core re-export; the two manual citations point at handshake_storage_support/src/keyed_lock.rs"
   }
 }

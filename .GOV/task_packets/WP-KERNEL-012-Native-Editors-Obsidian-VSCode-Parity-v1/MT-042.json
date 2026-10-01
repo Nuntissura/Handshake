@@ -1419,5 +1419,30 @@
         "state_effect": "lifecycle.status FAIL_V10"
       }
     ]
+  },
+  "diagnosis_20261001_workspace_delete_viewdef": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-153-20261001-WORKSPACE-DELETE-VIEWDEF-NO-RESOURCE",
+    "kind": "blocker_diagnosis",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T07:58:53Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "method": "code reading (no run)",
+    "failure_class": "WORKSPACE_DELETE_ANCHOR_DELETE_DENIED",
+    "failing_assertion": "MT-042 tests/test_e7_knowledge_accesskit.rs:2615 (round d9ce6017); BCV drop-guard cleanup in the same round",
+    "which_file": "src/backend/handshake_core/src/storage/surreal/workspaces.rs (the account-scoped delete transaction, :470-555; the only workspaces.rs under storage; api/workspaces.rs is the route) - in MT-153 allowed paths",
+    "statement_10": "BEGIN(0), 6 authorization-touch UPDATEs (1-6), LET $children (7), FOR $child (8), checked anchor UPSERT (9), checked anchor DELETE (10) = `IF array::len(DELETE type::record('fems_workspace_write_anchors', $anchor.key) RETURN BEFORE) != 1 THROW` (workspaces.rs:506-516 rewrite of WORKSPACE_DELETE_BODY)",
+    "predicate": "schema.surql:5426 fems_workspace_write_anchors FOR delete WHERE fn::mt120_workspace_delete(workspace_key) - the denial means W returned false (UPSERT at 9 passed via its 'delete','fs.write' create/update branch)",
+    "same_class_as": "C1-FDELETE (MT-036/MT-066/MT-045 remediation_v6 known_shared_blocker; MT-036 diagnosis_20260930_b4faed35 statement-10 HSK-403; MT-157 'exact false predicate remains unproven'; MT-154 residual (a): W false while calendar/stage/canvas/documents rows exist - Loom tables are MT-153)",
+    "new_candidate_clause": "W standalone-block loop (schema.surql ~6814-6825): for every loom_blocks row with source_rich_document_id = NONE it requires exactly one protected_resources row resource_kind='loom_block', external_resource_id=block_id, id IN $resources.id; view_def blocks created by POST .../loom/views/definitions (api/loom.rs:6473 create_block_view_authenticated -> block_view_store CREATE_TRANSACTION) are authorized by the workspace create grant only and get NO protected_resources row (grep: no resource creation in block_view_store.rs / the handler) -> W returns false for any workspace holding a saved view",
+    "fit_with_evidence": "both failing cleanups are in workspaces with a saved view: ac10 creates a Kanban view (test_e7_knowledge_accesskit.rs ~2420 create_live_block_view), the BCV test creates table/kanban/calendar views; view creation only succeeds since df5d1804 (2026-10-01), so the earlier statement-10 denials (back to 2026-09-26) must come from other W clauses (C1-FDELETE) - W can be false for more than one reason",
+    "unverified": "the exact false clause in round d9ce6017 is not observed (the C1-FDELETE route probe is test-build only); a workspace without a saved view could still fail on another clause",
+    "fix_options": [
+      "schema.surql fn::mt120_workspace_delete ELSE branch: accept `content_type = 'view_def'` standalone blocks (their write authority is the workspace grant W has already checked) - schema change -> re-pin (MT-153 schema_repin_procedure, PIN-MEASURE/CONFIRM) + orchestrator approval first; shifts MT-154/157/158/159 pins",
+      "block_view_store/api: provision a per-view protected resource + creator grant at view creation (resource-model change, MT-153 paths, also touches view read/update/delete authority) - larger; orchestrator decision"
+    ],
+    "status": "REPORTED, not edited: needs a schema change or a resource-model decision (orchestrator rule 2026-10-01 item 2)",
+    "ref": "MT-153.json#diagnosis_20261001_workspace_delete_viewdef"
   }
 }
