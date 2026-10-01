@@ -3892,5 +3892,12 @@
         "state_effect": "lifecycle.status FAIL_V16"
       }
     ]
+  },
+  "diagnosis_20261001_cpu_spin_reconciler_tick_p2": {
+    "ref": "MT-153.json#diagnosis_20261001_cpu_spin_reconciler_tick_p2",
+    "diagnosis_id": "DX-MT-153-20261001-BV-RECONCILER-TICK-COLLISION-P2",
+    "recorded_at_utc": "2026-10-01T14:49:11Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "summary": "BCV view-load stall at a 15 s reconciler tick (3/3 VERIFIED); attempt 2 = P2 (background reconciler skips rows < 30 s) + DIAGNOSTIC publish logs; product change is MT-153's"
   }
 }

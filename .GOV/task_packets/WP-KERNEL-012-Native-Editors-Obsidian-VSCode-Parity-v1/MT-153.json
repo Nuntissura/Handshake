@@ -8141,5 +8141,46 @@
         "state_effect": "lifecycle.status FAIL_V14"
       }
     ]
+  },
+  "diagnosis_20261001_cpu_spin_reconciler_tick_p2": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-153-20261001-BV-RECONCILER-TICK-COLLISION-P2",
+    "kind": "blocker_diagnosis_and_intent",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T14:49:11Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "failure_class": "BACKEND_CPU_SPIN_STALLS_MOUNTED_VIEW_LOAD (round 1d1f583a; MT-153 FAIL_V14 / MT-027 FAIL_V16; the FR-header fix 1d1f583a was not reached and stays UNPROVEN)",
+    "research_key_findings": {
+      "source": "scratchpad cpu_spin_research.md (orchestrator research, 2026-10-01; read-only)",
+      "C1_VERIFIED": "backend ~1 core is NOT a discriminator: healthy BCV runs show the same rate (5da8b75a 11.2->101.7 cpu_s over 3 polls; 9e4bee34; 11f1b034). Discriminators that hold: test-process CPU flat and backend WriteTransferCount flat (observations.jsonl)",
+      "C3_C4_VERIFIED": "the cleanup workspace delete COMMITS ~35-45 s after the stall (one 108 KB WAL window between node heartbeats #57/#58 in BE/713f9124/data/handshake-surreal/000004.log), then only heartbeats; the handler never logs 'workspace deleted' and no FR write follows (FR WAL mtime stays 14:23:37.658)",
+      "section2_VERIFIED": "in 3/3 failing runs the last FR WAL write lands within 0.1 s of a 15 s reconciler tick (spawn_block_view_reconciler, api/loom.rs:2654-2670): 1d1f583a start 14:22:07.630 / last FR write 14:23:37.6586 = 6x15 +0.03 s; 791a81dd 11:00:32.986 / 11:01:33.0238 = 4x15 +0.04 s; 7548bc72 09:35:33.075 / 09:36:47.989 = 5x15 -0.09 s (its 'Transaction conflict: Resource busy' at 09:36:48.133, backend.stdout.log:78); chance ~3e-7",
+      "section2_VERIFIED_b": "the last FR event is the loom_block_updated of the view that then fails to load; no outbox UPDATE (mark_published) commits after the PATCH (WAL windows nd#41..#57 outbox=0) while SurrealDB keeps committing the 2 s native-editor reconciler's session/audit writes and the delete tx => the wedge is on the FR/publication step, not SurrealDB query evaluation (inference HYPOTHESIS-strong)",
+      "R1_HYPOTHESIS": "tick-vs-request double publication of the same outbox event: update_block_view -> reconcile_block_view_events(Some(ws),Some(E)) while the reconciler runs reconcile_block_view_events(None,None); both call record_block_view_event_idempotent (api/loom.rs:2673-2711) -> FR list_events/record_event (flight_recorder/duckdb.rs record_event :1091, insert_event ~540-600, sync under std::sync::Mutex; events.event_id PRIMARY KEY, duckdb 1.4.3 bundled). R1a: wedge inside DuckDB holding the FR mutex; R1b: SurrealDB commit/cancel conflict on the double mark_published",
+      "R2_HYPOTHESIS_weaker": "surrealdb 3.2.0 rocksdb drain_cursors yield_now busy-wait (surrealdb/surrealdb#7359; surrealdb-core-3.2.0/src/kvs/rocksdb/mod.rs:1379-1415) - contradicted by 0 'drain_cursors|unusually long' warn lines in all 3 failing backends",
+      "R3_R4_R5_R6": "R3 (fn::mt120_workspace_delete CPU) explains only the post-stall burst; R4 bounded retries, R5 compaction/runtime saturation, R6 FR lock across .await: rejected"
+    },
+    "attempt": "attempt 2 on this line (attempt 1 = P1 mark_published retry, 1ff1821f, marked NOT CONFIRMED); if it fails: record the blocker and escalate, no attempt 3",
+    "intended_fix_P2": {
+      "change": "the BACKGROUND reconciler only (spawn_block_view_reconciler, the unscoped list_pending caller) skips pending outbox rows younger than 30 s, so request-path publication owns fresh events; the scoped request path (reconcile_block_view_events(Some(ws),Some(E))) and direct unscoped calls (e.g. the core test at api/loom.rs:9845, which drains 201 fresh rows) keep today's semantics",
+      "mechanics": "a min-age argument on the internal unscoped drain; age = now - event.timestamp (== row created_at, block_view_outbox_surreal.rs:138; list ordered by created_at ASC, event_id ASC, :245). Because the page is oldest-first, the first too-young row ends the pass (everything after it is younger), which also keeps the 200-row page loop from re-listing the same young rows forever",
+      "files": [
+        "src/backend/handshake_core/src/api/loom.rs"
+      ],
+      "block_view_outbox_rs": "not needed (event.timestamp already carries created_at); unchanged"
+    },
+    "spec_ac_latency_check": {
+      "searched": "MT-027 scope (AC1-AC10, PROOF1-PROOF6, implementation_notes), MT-153 scope/closure_unit/proof/red_team/handoff, master-spec-v02.206 spec-modules 02/05/10 for outbox/reconciler/latency/within",
+      "found": "no FR or block-view outbox delivery-latency limit. Spec outbox rules are idempotency/ordering (05-security-and-observability.md:1511 'Outbox is idempotent ... retries must not duplicate events'; 10-product-surfaces.md:1874 stable (created_at, id) order, calendar outbox). MT-153 closure_unit only constrains the reconciler's authority (no protected writes as root). The reconciler comment (api/loom.rs:2666-2667) states its purpose: 'closes transient recorder outages'",
+      "cost": "P2 delays BACKGROUND coverage of a failed request-path publication by up to ~30 s (+ up to one 15 s tick); request-path publication latency is unchanged; idempotency and order are unchanged"
+    },
+    "limits": "P2 only AVOIDS the trigger (two publishers on one fresh event). If the wedge is DuckDB-internal (R1a) the underlying defect remains and any other concurrent FR insert/lookup could still reach it; it is not a root-cause fix. If the stall recurs with P2 in place, R1 (tick collision) is refuted for that run",
+    "diagnostic_logging": {
+      "status": "DIAGNOSTIC, to be reverted after the cause is attributed; not an acceptance candidate",
+      "lines": "tracing::info!(target: 'handshake_core::loom_api', 'mt153_diag_bv_publish') at entry and exit of each publication in reconcile_block_view_events: path=request|reconciler|unscoped, event_id, stage=enter|recorded|marked|failed, elapsed_ms",
+      "why": "the next failing round names which publisher entered for which event and never left (handshake_core INFO lines reach backend.stdout.log, e.g. 'workspace deleted' api/workspaces.rs:795)"
+    },
+    "fr_header_fix": "1d1f583a stays (MT-153.json#diagnosis_20261001_fr_read_wrong_credential_headers), untested"
   }
 }
