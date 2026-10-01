@@ -9998,6 +9998,121 @@ mod tests {
         }
     }
 
+    /// MT-153 AC-153-8 / MT-154 AC-154-6: an owner's DELETE /workspaces/:id succeeds for a workspace
+    /// holding a saved view created through the record-user view route, and removes the view block,
+    /// its search row, knowledge entity, bridge and outbox rows. A saved view follows the workspace
+    /// grant (no per-block protected resource), so `fn::mt120_workspace_delete` must accept it in its
+    /// standalone-block and knowledge-entity loops. The MT-157 C1-FDELETE diagnostic copy of the
+    /// guard is installed so a denial names the false clause (`C1_FDELETE_CLAUSE n schema.surql:L`).
+    #[cfg(feature = "os-keychain")]
+    #[tokio::test]
+    async fn mt153_owner_workspace_delete_removes_saved_view() {
+        let binding = LoomCreateBinding::new();
+        let (state, _store) = setup_state().await.unwrap();
+        let (router, headers, ws) = owned_loom_session(&state, &binding).await;
+        let note = c3_block(&router, &headers, &ws, "note", "MT-153 delete note").await;
+        let view_id = Uuid::now_v7().to_string();
+        let (status, view) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{ws}/loom/views/definitions"),
+            &headers,
+            serde_json::json!({"block_id": view_id, "title": "MT-153 delete view", "definition": serde_json::to_value(mt027_view_definition()).unwrap()}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "saved view create: {view}");
+
+        let residue = |state: AppState, ws: String| async move {
+            let mut rows = state
+                .surreal
+                .test_admin_query_bound(
+                    "LET $w = type::record('workspaces', $ws); RETURN {workspace: array::len(SELECT id FROM $w), blocks: array::len(SELECT id FROM loom_blocks WHERE workspace_id = $w), views: array::len(SELECT id FROM loom_blocks WHERE workspace_id = $w AND content_type = 'view_def'), search: array::len(SELECT id FROM loom_block_search_index WHERE workspace_id = $w), entities: array::len(SELECT id FROM knowledge_entities WHERE workspace_id = $w), bridges: array::len(SELECT id FROM loom_block_knowledge_bridge WHERE workspace_id = $w), outbox: array::len(SELECT id FROM loom_block_view_fr_outbox WHERE workspace_id = $w)};".to_owned(),
+                    serde_json::json!({"ws": ws}),
+                )
+                .await
+                .unwrap();
+            rows.take::<Option<Value>>(1).unwrap().unwrap()
+        };
+        let before = residue(state.clone(), ws.clone()).await;
+        assert_eq!(before["views"], 1, "the saved view exists: {before}");
+        assert!(
+            before["blocks"].as_u64().unwrap() >= 2,
+            "note + view: {before} ({note})"
+        );
+
+        // MT-157 C1-FDELETE diagnostic copy (test store only): each `RETURN false;` of the guard
+        // becomes a numbered THROW that the record-user delete path reports after rollback.
+        {
+            let schema = include_str!("../storage/surreal/schema.surql");
+            let start = schema
+                .find("DEFINE FUNCTION OVERWRITE fn::mt120_workspace_delete($external: string) {")
+                .expect("workspace-delete guard start");
+            let rest = &schema[start..];
+            let end = rest[1..]
+                .find("\nDEFINE ")
+                .expect("workspace-delete guard end")
+                + 1;
+            let source_line = schema[..start].lines().count() + 1;
+            let mut clauses = 0usize;
+            let mut probe = String::new();
+            for (offset, line) in rest[..end].lines().enumerate() {
+                let mut line = line.replace(
+                    "fn::mt120_workspace_delete($external",
+                    "fn::c1_probe_workspace_delete($external",
+                );
+                while let Some(at) = line.find("RETURN false;") {
+                    clauses += 1;
+                    eprintln!(
+                        "C1_FDELETE_CLAUSE {clauses} schema.surql:{}: {}",
+                        source_line + offset,
+                        line.trim()
+                    );
+                    line.replace_range(
+                        at..at + "RETURN false;".len(),
+                        &format!("THROW 'C1_FDELETE_CLAUSE_{clauses}';"),
+                    );
+                }
+                probe.push_str(&line.replace("RETURN true;", "THROW 'C1_FDELETE_ALLOWED';"));
+                probe.push('\n');
+            }
+            probe.push_str(
+                "DEFINE TABLE c1_workspace_delete_probe SCHEMAFULL
+                    PERMISSIONS FOR select WHERE fn::c1_probe_workspace_delete(workspace_key)
+                    FOR create, update, delete NONE;
+                 DEFINE FIELD workspace_key ON c1_workspace_delete_probe TYPE string;
+                 CREATE type::record('c1_workspace_delete_probe', $workspace)
+                    SET workspace_key = $workspace;",
+            );
+            state
+                .surreal
+                .test_admin_query_bound(probe, serde_json::json!({"workspace": ws.clone()}))
+                .await
+                .unwrap()
+                .check()
+                .unwrap();
+        }
+
+        let (status, body) = loom_create_request(
+            &router,
+            "DELETE",
+            &format!("/workspaces/{ws}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::NO_CONTENT,
+            "owner workspace delete with a saved view: {body}"
+        );
+        let after = residue(state.clone(), ws.clone()).await;
+        assert_eq!(
+            after,
+            serde_json::json!({"workspace": 0, "blocks": 0, "views": 0, "search": 0, "entities": 0, "bridges": 0, "outbox": 0}),
+            "workspace delete must leave zero view residue"
+        );
+    }
+
     #[cfg(feature = "os-keychain")]
     async fn c3_block(
         router: &Router,

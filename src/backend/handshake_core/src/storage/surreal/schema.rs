@@ -2738,10 +2738,38 @@ IF array::len(SELECT id FROM media_asset_tiers WHERE workspace_id = $workspace) 
 IF array::len(SELECT id FROM stage_capture_artifacts WHERE workspace_id = $workspace) > 0 { RETURN false; };
 "#;
 
+/// MT-153 (AC-153-6/AC-153-8, AC-154-6; Operator decision 2026-09-22): a saved view (`view_def`)
+/// follows the workspace grant (schema.surql loom_blocks / knowledge_entities view_def clauses), so
+/// `fn::mt120_workspace_delete` no longer demands a per-block protected resource for a view block
+/// (standalone-block loop) or for its knowledge entity (entity loop). (current, previous) pairs
+/// against schema.surql at f98e1e20; reverted FIRST in the revision-161 reconstruction
+/// ([`restore_pre_indexed_grant_schema`], which every older reconstruction chains through), and the
+/// revision-162 upgrade re-emits the whole function ([`indexed_grant_upgrade_statements`]).
+#[cfg(test)]
+const MT153_WORKSPACE_DELETE_VIEW_DEF_DELTAS: [(&str, &str); 2] = [
+    (
+        "    } ELSE IF $block.content_type != 'view_def' {\n        IF array::len(SELECT id FROM protected_resources WHERE resource_kind = 'loom_block' AND external_resource_id = $block.block_id\n",
+        "    } ELSE {\n        IF array::len(SELECT id FROM protected_resources WHERE resource_kind = 'loom_block' AND external_resource_id = $block.block_id\n",
+    ),
+    (
+        "        IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {\n            LET $entity_block = type::record('loom_blocks', $entity.entity_key);\n            IF ($entity_block.content_type != 'view_def' OR $entity_block.workspace_id != $workspace) AND array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };\n",
+        "        IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {\n            IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };\n",
+    ),
+];
 /// Exact revision-161 source: the current schema with each MT-164 grant/access function restored to
 /// its revision-161 link-traversal text.
 #[cfg(test)]
 fn restore_pre_indexed_grant_schema(mut source: String) -> String {
+    // MT-153: the view_def workspace-delete widening is newer than every predecessor; revert it
+    // first so the predecessor texts below (and the older chains built on them) match exactly.
+    for (current, previous) in MT153_WORKSPACE_DELETE_VIEW_DEF_DELTAS {
+        assert_eq!(
+            source.matches(current).count(),
+            1,
+            "MT-153 view_def workspace-delete delta must occur exactly once"
+        );
+        source = source.replacen(current, previous, 1);
+    }
     for (name, previous) in PRE_INDEXED_GRANT_FUNCTION_TEXTS {
         let current = schema_function_definition(name);
         assert_eq!(
@@ -2816,6 +2844,9 @@ fn indexed_grant_upgrade_statements() -> String {
     // MT-166: the protected_resources select permission now calls the select-grant helper.
     let (start, end) = schema_table_definition_bounds(SCHEMA, "protected_resources");
     statements.push_str(&SCHEMA[start..end]);
+    statements.push('\n');
+    // MT-153: the workspace-delete guard accepts saved views under the workspace grant.
+    statements.push_str(schema_function_definition("mt120_workspace_delete"));
     statements.push('\n');
     statements
 }
