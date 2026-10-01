@@ -8839,5 +8839,100 @@
     "to_record": "dev vs override: edge-create median/max (loom_edge_create_storage end elapsed_ms), per-statement us #6-#9, each test's wall time, backend_build_profile; numbers reported to the Operator via the orchestrator; no revert threshold defined by the Operator",
     "confounder": "dev samples were taken under full-round load, override samples under a 2-test run; per-statement us are CPU-bound database work and less load-sensitive than the request total, but the comparison is labelled load-confounded",
     "result_key": "MT-153.json#diagnostic_result_20261001_backend_opt_diag (written after the run)"
+  },
+  "diagnostic_result_20261001_backend_opt_diag": {
+    "schema_id": "hsk.diagnostic_result@1",
+    "kind": "DIAGNOSTIC: no verdict; load-confounded (dev side under a full union round, override side 2 tests only); no MT lifecycle change",
+    "remediation_ref": "MT-153.json#remediation_20261001_backend_opt_diag (CX-EXEC-014)",
+    "decision": "WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001",
+    "recorded_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "recorded_at_utc": "2026-10-01T21:25:00Z",
+    "candidate_commit": "bd8c753223c2714707d6c78d7550448340c85c35",
+    "run": {
+      "started_utc": "2026-10-01T20:28:21.7641181Z",
+      "completed_utc": "2026-10-01T21:11:38.6268218Z",
+      "wrapper_exit": 0,
+      "native_nextest_exit": 100,
+      "entrypoint": "WPV-union-round.sh <sha> backend-opt-diag (gov 2e0c49e8)",
+      "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-bd8c753223c2714707d6c78d7550448340c85c35-native-backend-opt-diag.xml",
+      "junit_sha256": "743a50fc1dd9162c4c5ecbed0284533f75147dddd498825aa3bd3af7064bb957",
+      "stdout_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/backend-opt-diag-bd8c753223c2714707d6c78d7550448340c85c35.stdout.log",
+      "stdout_sha256": "923062c01da999e9bdf8d6bda4a37c9d7f250e1943f27ace7dede771db3674c5",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/backend-opt-diag-bd8c753223c2714707d6c78d7550448340c85c35.stderr.log",
+      "stderr_sha256": "ff554e1100e029639d1c8e8833d730cae5a15c4cb7e23c10aa0925faa3d50a6a",
+      "timings_file": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/loom-write-timings-bd8c753223c2714707d6c78d7550448340c85c35-backend-opt-diag.json",
+      "timings_sha256": "e69e5c4b3118612342e4f56ba38e97fd6ee387e92870675181cd578a7e19128b",
+      "export_identity_sha256": "5f8d346e391e4255c6b2e689884285db36d5734f52e438c688d53d3e43d70fd8",
+      "backend_build": "Finished dev profile in 38m 29s at -j 2; surrealdb-core / surrealdb-librocksdb-sys etc. recompiled into new artifact hashes next to the 09-24 O0 ones in backend-bin (old artifacts kept)",
+      "gp131_vault_probe": "43e45662 success",
+      "credentials": "254/35 before and after (no new leftover)",
+      "observer": "80 polls, 0 errors, spin capture did not fire",
+      "rebuild_accounting": "compiled_crates=1 (handshake_native) relinked_test_binaries=3 backend_bin_relinked=1"
+    },
+    "backend_build_profile": {
+      "dev": "dev (unoptimized), union round bd8c7532",
+      "override": "dev + allow-listed dependency opt-level 2 (WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001; WPV-backend-profile.toml sha256 304141037aa802c8...)"
+    },
+    "edge_create_storage_ms": {
+      "dev": {
+        "samples": [
+          3166,
+          3079,
+          3376,
+          3477
+        ],
+        "median": 3271,
+        "max": 3477
+      },
+      "override": {
+        "samples": [
+          857,
+          844,
+          713,
+          809
+        ],
+        "median": 826.5,
+        "max": 857
+      },
+      "median_ratio_override_over_dev": 0.253,
+      "median_reduction_pct": 74.7
+    },
+    "per_statement_us_median": {
+      "dev": {
+        "#6 edge CREATE": 594558.5,
+        "#7 receipt link": 893469,
+        "#8 source recount": 786596,
+        "#9 target recount": 637030.5
+      },
+      "override": {
+        "#6 edge CREATE": 155710,
+        "#7 receipt link": 215305.5,
+        "#8 source recount": 193514.5,
+        "#9 target recount": 146845.5
+      },
+      "ratio_override_over_dev": {
+        "#6": 0.262,
+        "#7": 0.241,
+        "#8": 0.246,
+        "#9": 0.231
+      },
+      "other_statements_override_us_median": {
+        "#1": 26053.5,
+        "#3": 58277.5,
+        "#10": 7883
+      }
+    },
+    "test_wall_time_s": {
+      "block_collection_views_live_surrealdb_self_seed_full_round_trip": {
+        "dev": 112.286,
+        "override": 48.295
+      },
+      "tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip": {
+        "dev": 89.04,
+        "override": 45.552
+      }
+    },
+    "test_outcomes": "both tests FAIL in BOTH runs at the identical pre-existing assertion of candidate bd8c7532 (BCV test_block_collection_view.rs:1706 'POST block view 403 HSK-403-PROTECTED-RESOURCE'; tags test_tags_panel.rs:745 'PATCH loom/blocks 403'), i.e. both runs executed the same path up to the same stop and contain the same 4 edge creates; wall times are therefore comparable only as time-to-the-same-failure; not a verdict on any MT (bd8c7532 is superseded)",
+    "reading": "the SurrealDB/RocksDB engine work dominates the edge create under the unoptimized dev backend: per-statement times fall ~4x (ratios 0.23-0.26) and the request median 3271 -> 826.5 ms; the residual is consistent with handshake_core logic staying at O0. Load confound: dev samples ran during a full union round; the per-statement ratios are uniform across statements, so the speedup is not explained by contention alone, but the magnitude carries that caveat. No revert threshold was defined by the Operator; numbers go to the Operator via the orchestrator."
   }
 }
