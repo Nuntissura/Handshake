@@ -2208,6 +2208,21 @@
         "attached-backend logins tracked or forbidden",
         "post-round leftover count of handshake-local-accounts entries as a validator gate",
         "core-side writers (authority.rs tests) use the same ledger/teardown"
+      ],
+      "occurrences": [
+        {
+          "recorded_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+          "recorded_at_utc": "2026-10-01T11:35:00Z",
+          "round": "union 791a81dd23cee301006995a2b7bb550cfeba4471 (MT-153.json#validation_round_791a81dd)",
+          "target": "01a0f71f-885e-7b03-b595-1a42b809009f.handshake-local-accounts-d8d19f564accb82a52317e94738bb7830d6557e0b28ee7604c0487e585e80cda",
+          "counts": {
+            "before_round": "241 total / 22 handshake-local-accounts",
+            "after_round": "242 total / 23 handshake-local-accounts"
+          },
+          "source": "BCV fixture of test_block_collection_view block_collection_views_live_surrealdb_self_seed_full_round_trip: target UUIDv7 time 2026-10-01T11:00:41Z; owned backend workspace create 11:00:42Z (backend-runtime s-368a110cf51f6ec4/81df6774-ae7f-40e2-b7e5-86a1ccfe4891)",
+          "test_output": "WARN: pre-reap owned fixture logout unverified; exact vault cleanup follows: owned fixture session/vault cleanup remains unverified; retain diagnostics for recovery",
+          "action": "not deleted: credential_cleanup_20260930 approved only its 78 listed targets; clearing another test's leftover needs Operator approval (CX-GIT-003); vault probe (GP-131) re-run at next round start"
+        }
       ]
     },
     "result": {
