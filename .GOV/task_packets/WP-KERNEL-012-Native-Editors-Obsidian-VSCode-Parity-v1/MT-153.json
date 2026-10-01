@@ -3722,5 +3722,14 @@
     ],
     "gameplan": "before_submit kernel_builder PASS 2/2 at fea3ce0a; GP-139 confirmed after MT-153.json#gp139_check_20261001_f1 (all checks true)",
     "next_actor": "WP_VALIDATOR single union run"
+  },
+  "note_20261001_vpx011_deviation": {
+    "schema_id": "hsk.mt_note@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T04:00:40Z",
+    "source": "orchestrator (buddy CLEAR) 2026-10-01",
+    "subject": "VPX-011 implementation deviation",
+    "note": "export verification compares exported file bytes against the candidate's git archive instead of recomputing git blob ids (core.autocrlf makes working-tree blob recomputation unreliable); technically at least as strict as the VPX-011 text",
+    "decision_owner": "Operator: whether to correct the VPX-011 text to match the implementation"
   }
 }
