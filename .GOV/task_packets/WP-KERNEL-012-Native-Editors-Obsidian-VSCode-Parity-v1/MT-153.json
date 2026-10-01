@@ -8465,5 +8465,48 @@
       "to_verify_before_edit": "the exact JSON key names the GET /api/flight_recorder rows use for actor/actor_id/wsids, and that principal_id equals the session's principal actor_id string (local_accounts.rs:397)",
       "product_change": "none proposed; the client still sends x-hsk-actor-id (harmless, ignored by the account routes) - removing it would be a product change and is not needed"
     }
+  },
+  "diagnosis_20261001_fr_native_actor_attribution_go_addendum": {
+    "schema_id": "hsk.mt_diagnosis_addendum@1",
+    "extends": "MT-153.json#diagnosis_20261001_fr_native_actor_attribution",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T16:20:07Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "orchestrator_go": "outcome (a), test file only; include the negative assertion; attempt 1 on FR_NATIVE_ACTOR_ATTRIBUTION_ABSENT",
+    "verified_before_edit": {
+      "get_row_keys": "GET /api/flight_recorder returns Vec<FlightEvent> (api/flight_recorder.rs:186-203, mapped at :1793-1800): actor: String (FlightRecorderActor Display -> 'human'|'agent'|'system', flight_recorder/mod.rs:34-41), actor_id: String, wsids: Vec<String>, payload",
+      "principal_equals_actor_id": "principal row is created with actor_id = $actor = identity.principal_id (storage/surreal/local_accounts.rs:397, :417); the session context reads principal_id.actor_id AS actor_id (:337) and a test asserts context.actor_id == owner.principal_id (:636); principal_id is the bare key (api/authority.rs:361 type::record('principals', principal_id); :1184 returns identity.principal_id), which is what the native AuthenticatedContext.principal_id carries (local_account.rs:8, :240)"
+    },
+    "val_console_001": "SATISFIED by the server-derived envelope: VAL-CONSOLE-001 (spec 11-shared-dev-platform-and-oss-foundations.md:4511-4512) requires actor=`human` and refs to navigate back to the initiating UI surface. The block-view events carry actor='human'; loom_block_created carries block_id + workspace_id (payload) and wsids=[workspace_id] (envelope); loom_block_updated carries block_id + wsids. block_id is the saved view block, whose surface is reached through the bound view routes (/workspaces/:ws/loom/views/definitions/:block_id). The rule names no client actor id",
+    "sweep_client_actor_header_dependencies": [
+      {
+        "where": "test_block_collection_view.rs:55",
+        "what": "use BLOCK_VIEW_ACTOR_ID",
+        "action": "kept; now used by the negative assertion"
+      },
+      {
+        "where": "test_block_collection_view.rs:3320-3325",
+        "what": "native_events filter actor_id == BLOCK_VIEW_ACTOR_ID",
+        "action": "FIX: actor == 'human' AND actor_id == live.account_context.principal_id AND wsids contains workspace_id"
+      },
+      {
+        "where": ":3335 / :3347 / :3356",
+        "what": "three payload assertions (view_def create, view_definition update, tags move with tags_added/tags_removed arrays) consume that filter; messages say 'native actor attribution'",
+        "action": "payload predicates unchanged; messages reworded to authenticated account attribution"
+      },
+      {
+        "where": ":3400",
+        "what": "receipt proof label 'flight-recorder-native-actor-attribution' (no consumer outside this test: grep over src, scripts, .GOV)",
+        "action": "renamed to 'flight-recorder-authenticated-account-attribution'"
+      },
+      {
+        "where": "rest of the test",
+        "what": "no other actor_id / actor_kind / x-hsk-actor reference (grep)",
+        "action": "none"
+      }
+    ],
+    "added_negative_assertion": "no recorder event in the workspace carries actor_id == BLOCK_VIEW_ACTOR_ID (the client x-hsk-actor-id header is not attribution authority, api/flight_recorder.rs:27-36)",
+    "p2_and_diag": "P2 and the DIAGNOSTIC mt153_diag_bv_publish logs (f4e66906) stay until the BCV line is closed"
   }
 }

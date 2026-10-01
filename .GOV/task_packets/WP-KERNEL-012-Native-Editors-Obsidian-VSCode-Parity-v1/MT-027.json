@@ -4036,5 +4036,11 @@
     "recorded_at_utc": "2026-10-01T16:18:37Z",
     "recorded_by": "KERNEL_BUILDER-20260930",
     "summary": "no MT-027 AC/PROOF/HBR row or spec rule requires a client native actor id in the FR; MT-109 made actor_id server-derived (authenticated principal); assertion passed once (v4, 8de72ebe) under the old header-trusting contract -> outcome (a): test should assert server-derived attribution; awaiting orchestrator go-ahead"
+  },
+  "diagnosis_20261001_fr_native_actor_attribution_go_addendum": {
+    "ref": "MT-153.json#diagnosis_20261001_fr_native_actor_attribution_go_addendum",
+    "recorded_at_utc": "2026-10-01T16:20:07Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "summary": "GO addendum: GET keys and principal_id==actor_id verified; VAL-CONSOLE-001 satisfied by actor=human + block_id/workspace_id refs; sweep lists :55, :3320-3325, :3335/:3347/:3356, :3400"
   }
 }
