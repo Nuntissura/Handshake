@@ -2856,13 +2856,24 @@ async fn patch_loom_block_inner(
         fields_changed.push("pin_order");
     }
 
-    let mut block = state
-        .storage
-        .update_loom_block(&ctx, &workspace_id, &block_id, update)
-        .await
-        .map_err(map_storage_error)?;
-
     let tags_mutated = !add_tags.is_empty() || !remove_tags.is_empty();
+    // MT-153: with no block field set, update_loom_block only reads the unchanged row (and
+    // checks expected_updated_at); a tag-only PATCH re-reads the block after its edge writes,
+    // so that record-user read is skipped there. A stale-check-only PATCH keeps it.
+    let block_update_skipped =
+        tags_mutated && fields_changed.is_empty() && update.expected_updated_at.is_none();
+    let mut block = if block_update_skipped {
+        None
+    } else {
+        Some(
+            state
+                .storage
+                .update_loom_block(&ctx, &workspace_id, &block_id, update)
+                .await
+                .map_err(map_storage_error)?,
+        )
+    };
+
     if tags_mutated {
         // The current tag edges from this block (so add is idempotent and remove
         // can locate the precise edge id to delete).
@@ -2941,12 +2952,15 @@ async fn patch_loom_block_inner(
                 .await
                 .map_err(map_storage_error)?;
         }
-        block = state
-            .storage
-            .get_loom_block(&workspace_id, &block_id)
-            .await
-            .map_err(map_storage_error)?;
+        block = Some(
+            state
+                .storage
+                .get_loom_block(&workspace_id, &block_id)
+                .await
+                .map_err(map_storage_error)?,
+        );
     }
+    let block = block.ok_or_else(|| map_storage_error(StorageError::NotFound("loom_block")))?;
 
     let (flight_actor, flight_actor_id) = block_view_flight_actor(&ctx);
     let event = FlightRecorderEvent::new(
