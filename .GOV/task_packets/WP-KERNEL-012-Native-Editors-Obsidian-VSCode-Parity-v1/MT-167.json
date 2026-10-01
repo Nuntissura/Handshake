@@ -475,5 +475,47 @@
     "mt167_position": "MT-167 removes the cost inside knowledge_code_index/engine.rs only. Per its stop condition ('The Ok(None) cause lies outside both candidate modules ... record ... operator_decision_request; do not edit'), if engine.rs costs are removed but the < 5 s median stays out of reach because of the ingestion share, that is recorded as the blocker and no time is chased in other modules",
     "spec": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:4470-4478 §2.3.14.17.3 Index update propagation <5 s target / 30 s maximum",
     "blocks": "MT-167 AC-167-3 median (not the engine.rs work); MT-008/064/065 stay BLOCKED until MT-167 has a verdict"
+  },
+  "hypothesis_20261001_engine_cost_and_intended_fix": {
+    "schema_id": "hsk.mt_hypothesis@1",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T17:35:54Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "method": "code reading at product 9191e8b5 (no run)",
+    "H_A_per_file_writer_24s": {
+      "label": "HYPOTHESIS (strong: op count x uniform per-operation cost)",
+      "mechanism": "every storage call in the per-file writer is its own with_data_operation, and under a record-user scope each one does use_ns/use_db + RecordSignin before its query (storage/surreal.rs:1243-1290, 'storage_signin'), then its own transaction and record-user PERMISSIONS evaluation",
+      "op_count_mt008_fixture": "index_code_file (knowledge_code_index/engine.rs:1540-1890) for lib.rs = 18 with_data_operation calls: append_receipt_event 1 (:1627); file entity upsert 1 (:1655); 2 symbols x (write_symbol :1891-1990 = create_knowledge_span + upsert_knowledge_entity + 1 more db call = 3, + contains edge upsert :1700 = 1) = 8; 1 doc passage x (create_knowledge_span + concept upsert_knowledge_entity + documents edge) = 3 (:1736-1790); 1 Calls relationship in write_relationships (:1991-2116) = evidence span + edge upsert = 2; record_knowledge_source_index_receipt 1 (:1826); persist_code_file_state 1 (:1842, :517)",
+      "arithmetic": "23.95 s / 18 ops = ~1.3 s per operation under union load, the same order as the ingestion projection (1.8 s for 1 file) and consistent with MT-153.json#research_20261001_debug_backend_profile (dev-profile backend; uniform per-statement cost)",
+      "in_owning_module": "the NUMBER of operations is decided in knowledge_code_index/engine.rs; the per-operation signin/permission cost is in storage/surreal.rs and the schema (not MT-167 paths)"
+    },
+    "H_B_batch_projection_over_3s": {
+      "label": "HYPOTHESIS",
+      "mechanism": "the FEMS batch already uses ONE with_data_operation (one signin) for PERSIST_CLEAN_CODE_BATCH (engine.rs:410-436, executed at :1343-1356): ~15 statements incl. owned_index_authority_sql!, INSERTs with ON DUPLICATE KEY, the receipt UPDATE loop, sources UPDATE, and the post-write verification SELECTs/FOR loops that detect permission-filtered silent drops, all evaluated under record-user PERMISSIONS",
+      "in_owning_module": "NO material reduction available in engine.rs without removing the verification/authority guards (forbidden: AC-167-5 and the THROW guards are the fail-closed proof); the remaining cost is per-statement engine/permission cost (schema owners MT-153/154; debug-backend profile decision) -> part of the recorded blocker (operator_decision_request_20261001_ingestion_share_vs_ac_167_3)"
+    },
+    "intended_fix_F_A": {
+      "file": "src/backend/handshake_core/src/knowledge_code_index/engine.rs only",
+      "change": "extend try_index_prepared_batch so files with doc/TODO/operator-string passages and Calls/Implements/Imports relationships are written in the SAME single PERSIST_CLEAN_CODE_BATCH-style transaction instead of returning Ok(None) at :940-942; test-mapping files keep Ok(None) -> per-file writer (out of scope for the evidenced fixtures)",
+      "semantics_to_mirror_exactly": [
+        "passages: text span (span_kind text, range/lines, section_path = marker, content_sha256 of passage text, display_snippet truncate_snippet) + concept entity (entity_key = passage.entity_key(relative_path), display_name, provenance incl. passage_kind/marker) linked to its span + documents edge (DocComment only, confidence 0.8, target = symbol whose start_line == passage.end_line + 1 else the file entity, evidence span)",
+        "relationships: resolution only against the in-file symbol_index exactly as write_relationships (calls/implements resolve by name, unresolved skipped; imports -> concept module entity created on demand), evidence span per relationship, edge upsert with the same edge type/confidence/relationship_id",
+        "receipt payload counts (doc_passages, operator_strings, relationships) and code_file edges_indexed identical to index_code_file",
+        "existing-entity reuse identical to upsert_knowledge_entity (the batch's lookup_existing stage extended to concept entities) so re-indexing keeps entity ids"
+      ],
+      "unchanged": "guards for empty/len/path/language/utf8/parse error/root_has_error; record-user scope, receipts, verification THROWs (AC-167-5); api/code_nav_index.rs not edited",
+      "expected_effect": "MT-008 fixture: 18 operations -> 1 batch transaction (removes ~24 s); FEMS: no change in engine.rs (already batch)"
+    },
+    "equal_counts_proof_item": {
+      "id": "MT-167-EQUAL-COUNTS",
+      "claim_refs": [
+        "AC-167-2"
+      ],
+      "written_control": "for BOTH fixture shapes (MT-008 lib.rs with doc comment + call; FEMS target.rs + anchor.rs) the batch path and the per-file writer (index_code_source) produce equal counts of knowledge_entities by entity_kind, knowledge_spans by span_kind, knowledge_edges by edge_type, knowledge_entity_spans, knowledge_edge_spans, and equal symbols_indexed / edges_indexed / doc passage counts in the receipts",
+      "executable_consumer": "assertions in the new MT-167 core test file under src/backend/handshake_core/tests/ (same file as the AC-167-3 timing test): index each shape once via the per-file writer in workspace A and once via try_index_prepared_batch in workspace B on the embedded harness as the record user, then assert the counts above equal (and non-zero where the shape has them)",
+      "executor": "WP_VALIDATOR (builder runs compile/static checks only, CX-EXEC-014)"
+    },
+    "stop_clause_application": "if F-A removes the engine.rs cost but the < 5 s median stays out of reach because of the ingestion share / per-statement cost, that is recorded as the blocker (operator_decision_request_20261001_ingestion_share_vs_ac_167_3); no time is chased in other modules"
   }
 }
