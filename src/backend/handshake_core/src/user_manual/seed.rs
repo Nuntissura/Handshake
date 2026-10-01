@@ -1290,7 +1290,11 @@ fn page_notes_loom_surface() -> NewUserManualPage {
                  `bcv.table.row.*` and are never client-side re-sorted. Kanban lanes/cards are \
                  `bcv.kanban.lane.*` / `bcv.kanban.card.*`; a move writes real tag add/remove \
                  mutations, then performs the same authoritative results re-query instead of \
-                 locally moving a card. Calendar inputs `bcv.calendar.date-from` and \
+                 locally moving a card. A one-tag move (one tag added, one removed) is one \
+                 embedded SurrealDB transaction with an EventLedger receipt per tag edge and one \
+                 count recompute per affected block; a tag-only change does not rewrite the \
+                 card's search projection, because tag search reads the live tag edges. \
+                 Calendar inputs `bcv.calendar.date-from` and \
                  `bcv.calendar.date-to` accept `YYYY-MM-DD`; `bcv.calendar.apply-range` persists \
                  the definition and re-queries. Switch persisted kinds with \
                  `bcv.kind.table`, `bcv.kind.kanban`, and `bcv.kind.calendar`.\n\

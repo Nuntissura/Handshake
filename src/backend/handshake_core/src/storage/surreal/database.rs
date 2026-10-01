@@ -502,6 +502,52 @@ impl SurrealDatabase {
         .await
     }
 
+    /// MT-153 F2: a Kanban card move -- create the `add` tag edge and delete the `remove` tag
+    /// edge of the same card -- as ONE guarded transaction
+    /// ([`super::loom_store::move_loom_tag_edge`]). Each edge gets its own write-guard metadata,
+    /// exactly as [`Database::create_loom_edge`] / [`Database::delete_loom_edge`] mint it, so
+    /// both receipts keep their payloads and idempotency keys; both edge records are lock keys.
+    pub(crate) async fn move_loom_tag_edge(
+        &self,
+        ctx: &WriteContext,
+        add: NewLoomEdge,
+        remove: &LoomEdge,
+    ) -> StorageResult<LoomEdge> {
+        let mut add = add;
+        let add_id = add
+            .edge_id
+            .clone()
+            .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
+        add.edge_id = Some(add_id.clone());
+        let add_metadata = self.mutation_metadata(ctx, &add_id).await?;
+        let remove_metadata = self.mutation_metadata(ctx, &remove.edge_id).await?;
+        let remove = remove.clone();
+        self.guarded_storage_mutation(
+            vec![
+                LockKey::record(LOOM_EDGES_TABLE, add_id.clone()),
+                LockKey::record(LOOM_EDGES_TABLE, remove.edge_id.clone()),
+            ],
+            Replay::idempotent(format!(
+                "loom-edge-move:{add_id}:{}:{}:{}",
+                remove.edge_id, add_metadata.edit_event_id, remove_metadata.edit_event_id
+            )),
+            (add, add_metadata, remove, remove_metadata),
+            |database, (add, add_metadata, remove, remove_metadata)| {
+                Box::pin(async move {
+                    super::loom_store::move_loom_tag_edge(
+                        &database,
+                        add,
+                        add_metadata,
+                        remove,
+                        remove_metadata,
+                    )
+                    .await
+                })
+            },
+        )
+        .await
+    }
+
     /// Test-support replay seam (MT-150): runs the REAL guarded block update with an explicit,
     /// caller-held request identity, so a proof can submit one exact request twice (the
     /// production retry shape) and prove the receipt is reused, or resubmit the same identity

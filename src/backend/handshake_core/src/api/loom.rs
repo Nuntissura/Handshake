@@ -2887,7 +2887,61 @@ async fn patch_loom_block_inner(
         // the source (storage/surreal/loom_store.rs create and delete transactions).
         let mut edges_changed = false;
 
-        for tag_block_id in &add_tags {
+        // MT-153 F2: a Kanban card move -- exactly one new tag and exactly one existing tag
+        // edge of this card removed, on different hubs -- runs as ONE transaction (both
+        // receipts, both edge writes, one recount per affected block). Every other shape keeps
+        // the per-edge path below.
+        let removable: Vec<_> = remove_tags
+            .iter()
+            .flat_map(|tag_block_id| {
+                edges.iter().filter(|edge| {
+                    edge.edge_type == LoomEdgeType::Tag
+                        && edge.source_block_id == block_id
+                        && edge.target_block_id == *tag_block_id
+                })
+            })
+            .collect();
+        let mut moved = false;
+        if let ([add_tag], [removed]) = (add_tags.as_slice(), removable.as_slice()) {
+            let already_tagged = edges.iter().any(|edge| {
+                edge.edge_type == LoomEdgeType::Tag
+                    && edge.source_block_id == block_id
+                    && edge.target_block_id == *add_tag
+            });
+            if remove_tags.len() == 1 && removed.target_block_id != *add_tag && !already_tagged {
+                // The target must be a real TagHub block (parity with create_loom_edge).
+                let target = state
+                    .storage
+                    .get_loom_block(&workspace_id, add_tag)
+                    .await
+                    .map_err(map_storage_error)?;
+                if !matches!(target.content_type, LoomBlockContentType::TagHub) {
+                    return Err(bad_request("HSK-400-LOOM-TAG-TARGET-MUST-BE-TAG_HUB"));
+                }
+                crate::storage::surreal::SurrealDatabase::new(state.surreal.clone())
+                    .move_loom_tag_edge(
+                        &ctx,
+                        NewLoomEdge {
+                            edge_id: None,
+                            workspace_id: workspace_id.clone(),
+                            source_block_id: block_id.clone(),
+                            target_block_id: add_tag.clone(),
+                            edge_type: LoomEdgeType::Tag,
+                            created_by: LoomEdgeCreatedBy::User,
+                            crdt_site_id: None,
+                            source_anchor: None,
+                        },
+                        removed,
+                    )
+                    .await
+                    .map_err(map_storage_error)?;
+                edges_changed = true;
+                moved = true;
+            }
+        }
+        let moved = moved;
+
+        for tag_block_id in add_tags.iter().filter(|_| !moved) {
             // The target must be a real TagHub block (parity with create_loom_edge).
             let target = state
                 .storage
@@ -2925,7 +2979,7 @@ async fn patch_loom_block_inner(
             edges_changed = true;
         }
 
-        for tag_block_id in &remove_tags {
+        for tag_block_id in remove_tags.iter().filter(|_| !moved) {
             for edge in edges.iter().filter(|edge| {
                 edge.edge_type == LoomEdgeType::Tag
                     && edge.source_block_id == block_id
@@ -2983,8 +3037,13 @@ async fn patch_loom_block_inner(
     // WP-KERNEL-009 MT-264: an edited title/text changes the block's flattened
     // search text, so refresh the semantic embedding projection too (the
     // keyword/trigram row is refreshed in storage update_loom_block). No-op
-    // decline when no embedding model is configured.
-    refresh_loom_block_embedding(&state, &ctx, &block).await;
+    // decline when no embedding model is configured. MT-153: a tag-only PATCH (no block field,
+    // update_loom_block not run) leaves title, filename and full text -- the only inputs of the
+    // search text and embedding -- unchanged, and tag search reads loom_edges live
+    // (search_store.rs loom_search_v2), so the projection rewrite and its receipt are skipped.
+    if !block_update_skipped {
+        refresh_loom_block_embedding(&state, &ctx, &block).await;
+    }
 
     Ok(Json(block))
 }
@@ -9937,107 +9996,6 @@ mod tests {
                 "{who} {method} {uri}"
             );
         }
-    }
-
-    /// MT-153 DIAGNOSTIC (not an acceptance proof; reverted after its result is recorded,
-    /// MT-153.json#hypothesis_20261001_cardmove_delete_cost): wall time of add-only,
-    /// remove-only and full-move tag PATCHes as the record user. Each PATCH runs inside the
-    /// MT032 diagnostic scope, so per-query phases and per-statement engine timings are
-    /// written to stderr as `MT032_DOCUMENT_*` JSON events; the summary line is
-    /// `MT153_CARDMOVE_TIMING`. Only response statuses are asserted.
-    #[cfg(feature = "os-keychain")]
-    #[tokio::test]
-    async fn mt153_cardmove_patch_timing_probe() {
-        use handshake_storage_support::diagnostics::{observe, DOCUMENT_REQUEST_ID};
-
-        let binding = LoomCreateBinding::new();
-        let (state, _store) = setup_state().await.unwrap();
-        let (router, headers, ws) = owned_loom_session(&state, &binding).await;
-        let note = c3_block(&router, &headers, &ws, "note", "MT-153 probe card").await;
-        let hub_a = c3_block(&router, &headers, &ws, "tag_hub", "mt153-probe-a").await;
-        let hub_b = c3_block(&router, &headers, &ws, "tag_hub", "mt153-probe-b").await;
-        let uri = format!("/workspaces/{ws}/loom/blocks/{note}");
-        let (status, body) = loom_create_request(
-            &router,
-            "PATCH",
-            &uri,
-            &headers,
-            serde_json::json!({"add_tags": [hub_a]}),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK, "probe setup tag A: {body}");
-
-        let subscriber = tracing_subscriber::fmt()
-            .json()
-            .with_writer(std::io::stderr)
-            .with_env_filter(tracing_subscriber::EnvFilter::new(
-                "handshake_core::knowledge_documents_api=info",
-            ))
-            .finish();
-        let _subscriber = tracing::subscriber::set_default(subscriber);
-
-        let mut samples: Vec<Value> = Vec::new();
-        let timed = |label: &'static str, round: usize, body: Value| {
-            let router = router.clone();
-            let headers = headers.clone();
-            let uri = uri.clone();
-            async move {
-                let request_id = format!("mt153-probe-{label}-{round}");
-                let started = std::time::Instant::now();
-                let (status, response) = DOCUMENT_REQUEST_ID
-                    .scope(
-                        request_id.clone(),
-                        observe(
-                            "mt153_cardmove_patch",
-                            0,
-                            loom_create_request(&router, "PATCH", &uri, &headers, body),
-                            |(status, _): &(StatusCode, Value)| !status.is_success(),
-                        ),
-                    )
-                    .await;
-                let elapsed_ms = started.elapsed().as_millis() as u64;
-                assert_eq!(status, StatusCode::OK, "{label} round {round}: {response}");
-                serde_json::json!({"label": label, "round": round, "request_id": request_id, "elapsed_ms": elapsed_ms})
-            }
-        };
-        // Every round starts and ends with the card tagged A only.
-        for round in 1..=3 {
-            samples.push(timed("add_only", round, serde_json::json!({"add_tags": [hub_b]})).await);
-            samples.push(
-                timed(
-                    "remove_only",
-                    round,
-                    serde_json::json!({"remove_tags": [hub_a]}),
-                )
-                .await,
-            );
-            samples.push(
-                timed(
-                    "full_move",
-                    round,
-                    serde_json::json!({"add_tags": [hub_a], "remove_tags": [hub_b]}),
-                )
-                .await,
-            );
-        }
-        let median = |label: &str| {
-            let mut values: Vec<u64> = samples
-                .iter()
-                .filter(|sample| sample["label"] == label)
-                .map(|sample| sample["elapsed_ms"].as_u64().unwrap())
-                .collect();
-            values.sort_unstable();
-            values[values.len() / 2]
-        };
-        let summary = serde_json::json!({
-            "median_ms": {
-                "add_only": median("add_only"),
-                "remove_only": median("remove_only"),
-                "full_move": median("full_move"),
-            },
-            "samples": samples,
-        });
-        eprintln!("MT153_CARDMOVE_TIMING {summary}");
     }
 
     #[cfg(feature = "os-keychain")]

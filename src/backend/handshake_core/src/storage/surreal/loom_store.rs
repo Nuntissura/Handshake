@@ -63,6 +63,82 @@ macro_rules! loom_ledger_append_sql {
     };
 }
 
+// MT-153 F2: the same three statements as `loom_ledger_append_sql!` with caller-chosen bare
+// parameter names, so one transaction can append more than one receipt (the card-move
+// transaction binds `$add_*` and `$del_*`). With the default names it expands to exactly
+// the `loom_ledger_append_sql!` text.
+macro_rules! loom_ledger_append_named_sql {
+    ($ledger:literal, $key:literal, $existing:literal, $receipt:literal) => {
+        concat!(
+            "LET ",
+            $existing,
+            " = (SELECT id, payload_hash FROM kernel_event_ledger WHERE idempotency_key = ",
+            $key,
+            " LIMIT 1)[0]; ",
+            "IF ",
+            $existing,
+            " = NONE { ",
+            "IF array::len((CREATE ",
+            $ledger,
+            ".record CONTENT { event_id: ",
+            $ledger,
+            ".event_id, event_version: ",
+            $ledger,
+            ".event_version, kernel_task_run_id: ",
+            $ledger,
+            ".kernel_task_run_id, session_run_id: ",
+            $ledger,
+            ".session_run_id, aggregate_type: ",
+            $ledger,
+            ".aggregate_type, aggregate_id: ",
+            $ledger,
+            ".aggregate_id, idempotency_key: ",
+            $ledger,
+            ".idempotency_key, event_type: ",
+            $ledger,
+            ".event_type, actor_kind: ",
+            $ledger,
+            ".actor_kind, actor_id: ",
+            $ledger,
+            ".actor_id, causation_id: ",
+            $ledger,
+            ".causation_id, correlation_id: ",
+            $ledger,
+            ".correlation_id, payload_hash: ",
+            $ledger,
+            ".payload_hash, source_component: ",
+            $ledger,
+            ".source_component, payload: ",
+            $ledger,
+            ".payload, wsids: ",
+            $ledger,
+            ".wsids, authority_resource_id: ",
+            $ledger,
+            ".authority_resource_id, authority_session_id: ",
+            $ledger,
+            ".authority_session_id, authority_capability_id: ",
+            $ledger,
+            ".authority_capability_id, authority_action: ",
+            $ledger,
+            ".authority_action, created_at: ",
+            $ledger,
+            ".created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+            "} ELSE IF ",
+            $existing,
+            ".payload_hash != ",
+            $ledger,
+            ".payload_hash { THROW 'HSK-LOOM-RECEIPT-DIVERGENT'; }; ",
+            "LET ",
+            $receipt,
+            " = ",
+            $existing,
+            ".id ?? ",
+            $ledger,
+            ".record; ",
+        )
+    };
+}
+
 // Concurrency (MT-152 I-152-2, replacing the process-global Loom mutation mutex):
 // every invariant a Loom mutation depends on is owned database-side - record identity
 // by `pk_loom_blocks` / `pk_loom_edges`, the journal get-or-create natural key by
@@ -1526,12 +1602,76 @@ pub(crate) async fn create_loom_edge(
     edge: NewLoomEdge,
     metadata: MutationMetadata,
 ) -> StorageResult<LoomEdge> {
+    let PreparedEdgeCreate {
+        edge,
+        content,
+        workspace,
+        source,
+        target,
+        ledger,
+    } = prepare_edge_create(edge, &metadata)?;
+    // Result-set index 6: BEGIN(0), endpoint guard(1), receipt read(2), receipt append(3),
+    // receipt bind(4), create-once block(5), read(6), COMMIT(7).
+    // MT-153: `$receipt` is bound (4) before the create-once block, so the CREATE binds the
+    // edge to its receipt itself; a second record-user write of the new edge only to set
+    // `event_ledger_event_id` would re-evaluate both endpoints' update permission.
+    let rows = db
+        .query_values_at::<EdgeRow, _>(
+            concat!(
+                "BEGIN TRANSACTION; ",
+                "IF (SELECT VALUE workspace_id FROM $source LIMIT 1)[0] != $workspace OR (SELECT VALUE workspace_id FROM $target LIMIT 1)[0] != $workspace { THROW 'HSK-LOOM-NOT-FOUND'; }; ",
+                loom_ledger_append_sql!(),
+                "IF $existing_receipt = NONE { ",
+                "IF record::exists($edge) { THROW 'HSK-LOOM-EDGE-EXISTS'; }; ",
+                "IF array::len((CREATE $edge SET edge_id = $content.edge_id, workspace_id = $content.workspace_id, source_block_id = $content.source_block_id, target_block_id = $content.target_block_id, edge_type = $content.edge_type, created_by = $content.created_by, last_job_id = $content.last_job_id, last_workflow_id = $content.last_workflow_id, last_actor_id = $content.last_actor_id, edit_event_id = $content.edit_event_id, last_actor_kind = $content.last_actor_kind, created_at = $content.created_at, crdt_site_id = $content.crdt_site_id, source_document_id = $content.source_document_id, source_text_block_id = $content.source_text_block_id, offset_start = $content.offset_start, offset_end = $content.offset_end, event_ledger_event_id = $receipt RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "IF array::len((UPDATE $source SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $source AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "IF array::len((UPDATE $target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $target AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "}; ",
+                "SELECT * FROM $edge; ",
+                "COMMIT TRANSACTION;"
+            ),
+            EdgeCreateBinding {
+                edge,
+                content,
+                workspace,
+                source,
+                target,
+                ledger_key: ledger.idempotency_key.clone(),
+                ledger,
+            },
+            6,
+        )
+        .await
+        .map_err(guarded_err)?;
+    edge_to_domain(
+        rows.into_iter()
+            .next()
+            .ok_or_else(|| StorageError::Database("loom edge create returned no row".to_owned()))?,
+    )
+}
+
+/// The bindings an edge CREATE needs: record ids, row content and the
+/// KNOWLEDGE_LOOM_TAG_MUTATED `create` receipt (shared by [`create_loom_edge`] and
+/// [`move_loom_tag_edge`], so both produce the same receipt payload and idempotency key).
+struct PreparedEdgeCreate {
+    edge: RecordId,
+    content: EdgeContent,
+    workspace: RecordId,
+    source: RecordId,
+    target: RecordId,
+    ledger: event_ledger::LedgerWrite,
+}
+
+fn prepare_edge_create(
+    edge: NewLoomEdge,
+    metadata: &MutationMetadata,
+) -> StorageResult<PreparedEdgeCreate> {
     let id = edge
         .edge_id
         .clone()
         .unwrap_or_else(|| Uuid::now_v7().to_string());
-    require_guarded_resource(&metadata, &id)?;
-    let identity = LoomMutationIdentity::from_metadata(&metadata);
+    require_guarded_resource(metadata, &id)?;
+    let identity = LoomMutationIdentity::from_metadata(metadata);
     let event = build_loom_mutation_event(
         &edge.workspace_id,
         "loom_edge",
@@ -1565,62 +1705,32 @@ pub(crate) async fn create_loom_edge(
         };
     let source = thing(BLOCKS_TABLE, edge.source_block_id);
     let target = thing(BLOCKS_TABLE, edge.target_block_id);
-    // Result-set index 6: BEGIN(0), endpoint guard(1), receipt read(2), receipt append(3),
-    // receipt bind(4), create-once block(5), read(6), COMMIT(7).
-    // MT-153: `$receipt` is bound (4) before the create-once block, so the CREATE binds the
-    // edge to its receipt itself; a second record-user write of the new edge only to set
-    // `event_ledger_event_id` would re-evaluate both endpoints' update permission.
-    let rows = db
-        .query_values_at::<EdgeRow, _>(
-            concat!(
-                "BEGIN TRANSACTION; ",
-                "IF (SELECT VALUE workspace_id FROM $source LIMIT 1)[0] != $workspace OR (SELECT VALUE workspace_id FROM $target LIMIT 1)[0] != $workspace { THROW 'HSK-LOOM-NOT-FOUND'; }; ",
-                loom_ledger_append_sql!(),
-                "IF $existing_receipt = NONE { ",
-                "IF record::exists($edge) { THROW 'HSK-LOOM-EDGE-EXISTS'; }; ",
-                "IF array::len((CREATE $edge SET edge_id = $content.edge_id, workspace_id = $content.workspace_id, source_block_id = $content.source_block_id, target_block_id = $content.target_block_id, edge_type = $content.edge_type, created_by = $content.created_by, last_job_id = $content.last_job_id, last_workflow_id = $content.last_workflow_id, last_actor_id = $content.last_actor_id, edit_event_id = $content.edit_event_id, last_actor_kind = $content.last_actor_kind, created_at = $content.created_at, crdt_site_id = $content.crdt_site_id, source_document_id = $content.source_document_id, source_text_block_id = $content.source_text_block_id, offset_start = $content.offset_start, offset_end = $content.offset_end, event_ledger_event_id = $receipt RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
-                "IF array::len((UPDATE $source SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $source AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
-                "IF array::len((UPDATE $target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $target AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
-                "}; ",
-                "SELECT * FROM $edge; ",
-                "COMMIT TRANSACTION;"
-            ),
-            EdgeCreateBinding {
-                edge: thing(EDGES_TABLE, id.clone()),
-                content: EdgeContent {
-                    edge_id: id,
-                    workspace_id: thing("workspaces", edge.workspace_id.clone()),
-                    source_block_id: source.clone(),
-                    target_block_id: target.clone(),
-                    edge_type: edge.edge_type.as_str().to_owned(),
-                    created_by: edge.created_by.as_str().to_owned(),
-                    last_job_id: metadata.job_id.map(|id| id.to_string()),
-                    last_workflow_id: metadata.workflow_id.map(|id| id.to_string()),
-                    last_actor_id: metadata.actor_id,
-                    edit_event_id: metadata.edit_event_id.to_string(),
-                    last_actor_kind: metadata.actor_kind.as_str().to_owned(),
-                    created_at: Datetime::from(metadata.timestamp),
-                    crdt_site_id: edge.crdt_site_id,
-                    source_document_id,
-                    source_text_block_id,
-                    offset_start,
-                    offset_end,
-                },
-                workspace: thing("workspaces", edge.workspace_id),
-                source,
-                target,
-                ledger_key: ledger.idempotency_key.clone(),
-                ledger,
-            },
-            6,
-        )
-        .await
-        .map_err(guarded_err)?;
-    edge_to_domain(
-        rows.into_iter()
-            .next()
-            .ok_or_else(|| StorageError::Database("loom edge create returned no row".to_owned()))?,
-    )
+    Ok(PreparedEdgeCreate {
+        edge: thing(EDGES_TABLE, id.clone()),
+        content: EdgeContent {
+            edge_id: id,
+            workspace_id: thing("workspaces", edge.workspace_id.clone()),
+            source_block_id: source.clone(),
+            target_block_id: target.clone(),
+            edge_type: edge.edge_type.as_str().to_owned(),
+            created_by: edge.created_by.as_str().to_owned(),
+            last_job_id: metadata.job_id.map(|id| id.to_string()),
+            last_workflow_id: metadata.workflow_id.map(|id| id.to_string()),
+            last_actor_id: metadata.actor_id.clone(),
+            edit_event_id: metadata.edit_event_id.to_string(),
+            last_actor_kind: metadata.actor_kind.as_str().to_owned(),
+            created_at: Datetime::from(metadata.timestamp),
+            crdt_site_id: edge.crdt_site_id,
+            source_document_id,
+            source_text_block_id,
+            offset_start,
+            offset_end,
+        },
+        workspace: thing("workspaces", edge.workspace_id),
+        source,
+        target,
+        ledger,
+    })
 }
 
 /// Edge deletion. MT-150: the KNOWLEDGE_LOOM_TAG_MUTATED receipt (operation `delete`) is
@@ -1647,20 +1757,7 @@ pub(crate) async fn delete_loom_edge(
         .map_err(map_err)?
         .ok_or(StorageError::NotFound("loom_edge"))?;
     let mapped = edge_to_domain(existing)?;
-    let identity = LoomMutationIdentity::from_metadata(&metadata);
-    let event = build_loom_mutation_event(
-        workspace_id,
-        "loom_edge",
-        edge_id,
-        "delete",
-        json!({
-            "source_block_id": mapped.source_block_id,
-            "target_block_id": mapped.target_block_id,
-            "edge_type": mapped.edge_type.as_str(),
-        }),
-        &identity,
-    )?;
-    let (_, ledger) = event_ledger::prepare_event(event)?;
+    let ledger = prepare_edge_delete_receipt(workspace_id, &mapped, &metadata)?;
     db.execute_returning(
         concat!(
             "BEGIN TRANSACTION; ",
@@ -1683,6 +1780,131 @@ pub(crate) async fn delete_loom_edge(
     .await
     .map_err(guarded_err)?;
     Ok(mapped)
+}
+
+/// The KNOWLEDGE_LOOM_TAG_MUTATED `delete` receipt for `edge` (shared by [`delete_loom_edge`]
+/// and [`move_loom_tag_edge`]: same payload, same idempotency key).
+fn prepare_edge_delete_receipt(
+    workspace_id: &str,
+    edge: &LoomEdge,
+    metadata: &MutationMetadata,
+) -> StorageResult<event_ledger::LedgerWrite> {
+    let identity = LoomMutationIdentity::from_metadata(metadata);
+    let event = build_loom_mutation_event(
+        workspace_id,
+        "loom_edge",
+        &edge.edge_id,
+        "delete",
+        json!({
+            "source_block_id": edge.source_block_id,
+            "target_block_id": edge.target_block_id,
+            "edge_type": edge.edge_type.as_str(),
+        }),
+        &identity,
+    )?;
+    let (_, ledger) = event_ledger::prepare_event(event)?;
+    Ok(ledger)
+}
+
+/// MT-153 F2: a Kanban card move (one tag edge created, one tag edge of the same card deleted)
+/// as ONE transaction instead of a create transaction plus a pre-read and a delete
+/// transaction. Per edge it keeps exactly what [`create_loom_edge`] / [`delete_loom_edge`]
+/// write: the endpoint guards, a KNOWLEDGE_LOOM_TAG_MUTATED receipt with the same payload and
+/// idempotency key (appended by `loom_ledger_append_named_sql!`, bare `$add_*` / `$del_*`
+/// params so the receipt pre-reads stay index lookups), the EDGE-EXISTS conflict guard, the
+/// CREATE with its receipt and the DELETE with its `!= 1` denial. The mention/tag/backlink
+/// recounts use the unchanged `array::len` formulas, once per affected block (card, new hub,
+/// old hub) after both edge writes. Every read runs inside the transaction, so a commit-conflict
+/// retry of the guarded closure re-reads everything.
+///
+/// Result-set index 14: BEGIN(0), add endpoint guard(1), removed-edge guard(2), add receipt
+/// read/append/bind(3-5), delete receipt read/append/bind(6-8), create-once block(9),
+/// DELETE(10), card recount(11), new-hub recount(12), old-hub recount(13), read(14), COMMIT(15).
+pub(crate) async fn move_loom_tag_edge(
+    db: &SurrealDataContext<'_>,
+    add: NewLoomEdge,
+    add_metadata: MutationMetadata,
+    remove: LoomEdge,
+    remove_metadata: MutationMetadata,
+) -> StorageResult<LoomEdge> {
+    require_guarded_resource(&remove_metadata, &remove.edge_id)?;
+    if remove.workspace_id != add.workspace_id
+        || remove.source_block_id != add.source_block_id
+        || remove.target_block_id == add.target_block_id
+    {
+        return Err(StorageError::Validation(
+            "loom tag move needs one card, one new and one different removed tag edge",
+        ));
+    }
+    let workspace_id = add.workspace_id.clone();
+    let PreparedEdgeCreate {
+        edge,
+        content,
+        workspace,
+        source,
+        target,
+        ledger,
+    } = prepare_edge_create(add, &add_metadata)?;
+    let del_ledger = prepare_edge_delete_receipt(&workspace_id, &remove, &remove_metadata)?;
+    let rows = db
+        .query_values_at::<EdgeRow, _>(
+            concat!(
+                "BEGIN TRANSACTION; ",
+                "IF (SELECT VALUE workspace_id FROM $source LIMIT 1)[0] != $workspace OR (SELECT VALUE workspace_id FROM $add_target LIMIT 1)[0] != $workspace { THROW 'HSK-LOOM-NOT-FOUND'; }; ",
+                "IF (SELECT VALUE workspace_id FROM $del_record LIMIT 1)[0] != $workspace { THROW 'HSK-LOOM-EDGE-NOT-FOUND'; }; ",
+                loom_ledger_append_named_sql!("$add_ledger", "$add_ledger_key", "$add_existing_receipt", "$add_receipt"),
+                loom_ledger_append_named_sql!("$del_ledger", "$del_ledger_key", "$del_existing_receipt", "$del_receipt"),
+                "IF $add_existing_receipt = NONE { ",
+                "IF record::exists($add_edge) { THROW 'HSK-LOOM-EDGE-EXISTS'; }; ",
+                "IF array::len((CREATE $add_edge SET edge_id = $add_content.edge_id, workspace_id = $add_content.workspace_id, source_block_id = $add_content.source_block_id, target_block_id = $add_content.target_block_id, edge_type = $add_content.edge_type, created_by = $add_content.created_by, last_job_id = $add_content.last_job_id, last_workflow_id = $add_content.last_workflow_id, last_actor_id = $add_content.last_actor_id, edit_event_id = $add_content.edit_event_id, last_actor_kind = $add_content.last_actor_kind, created_at = $add_content.created_at, crdt_site_id = $add_content.crdt_site_id, source_document_id = $add_content.source_document_id, source_text_block_id = $add_content.source_text_block_id, offset_start = $add_content.offset_start, offset_end = $add_content.offset_end, event_ledger_event_id = $add_receipt RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "}; ",
+                "IF array::len((DELETE $del_record RETURN BEFORE)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "IF array::len((UPDATE $source SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $source AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "IF array::len((UPDATE $add_target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $add_target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $add_target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $add_target AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "IF array::len((UPDATE $del_target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $del_target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $del_target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $del_target AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "SELECT * FROM $add_edge; ",
+                "COMMIT TRANSACTION;"
+            ),
+            EdgeMoveBinding {
+                workspace,
+                source,
+                add_edge: edge,
+                add_content: content,
+                add_target: target,
+                add_ledger_key: ledger.idempotency_key.clone(),
+                add_ledger: ledger,
+                del_record: thing(EDGES_TABLE, remove.edge_id.clone()),
+                del_target: thing(BLOCKS_TABLE, remove.target_block_id.clone()),
+                del_ledger_key: del_ledger.idempotency_key.clone(),
+                del_ledger,
+            },
+            14,
+        )
+        .await
+        .map_err(guarded_err)?;
+    edge_to_domain(
+        rows.into_iter()
+            .next()
+            .ok_or_else(|| StorageError::Database("loom tag move returned no edge".to_owned()))?,
+    )
+}
+
+#[derive(SurrealValue)]
+struct EdgeMoveBinding {
+    workspace: RecordId,
+    /// The card: source of both the created and the removed tag edge.
+    source: RecordId,
+    add_edge: RecordId,
+    add_content: EdgeContent,
+    add_target: RecordId,
+    add_ledger: event_ledger::LedgerWrite,
+    /// Bare copy of `add_ledger.idempotency_key` for the index-backed receipt pre-read.
+    add_ledger_key: String,
+    del_record: RecordId,
+    del_target: RecordId,
+    del_ledger: event_ledger::LedgerWrite,
+    /// Bare copy of `del_ledger.idempotency_key` for the index-backed receipt pre-read.
+    del_ledger_key: String,
 }
 
 #[derive(SurrealValue)]
