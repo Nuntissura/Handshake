@@ -3007,11 +3007,14 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
     );
     let host_created = live_fetch_view(&fresh_client, &workspace_id, &host_created_id);
     assert_eq!(host_created.definition.kind, BlockViewKind::Calendar);
-    let host_created_block = live.get_json(&format!(
-        "/workspaces/{workspace_id}/loom/blocks/{host_created_id}"
+    // MT-153: a saved view follows the workspace grant and has no per-block protected resource, so
+    // it is read through its bound view route (getBlockView -> BlockViewRecord{block, definition}),
+    // not the generic GET /loom/blocks/:id that authorizes a per-block LoomBlock resource.
+    let host_created_record = live.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/views/definitions/{host_created_id}"
     ));
     assert_eq!(
-        host_created_block["title"].as_str(),
+        host_created_record["block"]["title"].as_str(),
         Some(host_create_title.as_str()),
         "canonical SetValue title must persist exactly"
     );
@@ -3162,11 +3165,12 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
     assert_ne!(retry_created_id, host_created_id);
     let retry_created = live_fetch_view(&fresh_client, &workspace_id, &retry_created_id);
     assert_eq!(retry_created.definition.kind, BlockViewKind::Kanban);
-    let retry_created_block = live.get_json(&format!(
-        "/workspaces/{workspace_id}/loom/blocks/{retry_created_id}"
+    // MT-153: read through the bound view route (see the host-created view read above).
+    let retry_created_record = live.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/views/definitions/{retry_created_id}"
     ));
     assert_eq!(
-        retry_created_block["title"].as_str(),
+        retry_created_record["block"]["title"].as_str(),
         Some(retry_create_title.as_str()),
         "failed create Retry must retain the exact canonical title"
     );
