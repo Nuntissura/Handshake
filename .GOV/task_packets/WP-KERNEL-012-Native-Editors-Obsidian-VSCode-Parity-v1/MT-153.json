@@ -5431,5 +5431,93 @@
     },
     "P2_considered_not_chosen": "background sweeper skips pending rows younger than ~30 s: changes background delivery timing (recorder publication latency for rows whose request path failed) and is not needed to remove the defect, which P1 removes on the request side",
     "file": "src/backend/handshake_core/src/storage/block_view_outbox.rs (MT-153 allowed path); block_view_outbox_surreal.rs untouched"
+  },
+  "review_20261001_w_b_provenance": {
+    "schema_id": "hsk.adversarial_review@1",
+    "rule": "KERNEL_BUILDER_PROTOCOL KB-PROOF-005 (changed trust boundary)",
+    "reviewer": "independent read-only sub-agent (general-purpose), no edits/runs; reviewed at product 7548bc72 against surrealdb-core 3.2.0 source",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T09:53:26Z",
+    "subject": "MT-153.json#diagnosis_20261001_workspace_delete_recheck chosen_provenance_fallback predicate",
+    "verdict": "ACCEPT-WITH-CHANGES (no blocker)",
+    "findings": [
+      {
+        "id": "R1",
+        "severity": "note",
+        "finding": "IF-as-expression in LET parses/evaluates (syn/parser/prime.rs:204; same form already used in schema.surql:7420 fn::mt154_job_workspace and in a FOR body at workspaces.rs ~536)",
+        "disposition": "accepted, no change"
+      },
+      {
+        "id": "R2",
+        "severity": "note",
+        "finding": "record::exists in the permissions-off predicate reads through the same transaction and sees rows deleted earlier in it as absent (doc/check.rs:459-462, fnc/record.rs:12-29, kvs/tx.rs:3999-4015); W already relies on it at :6781",
+        "disposition": "accepted, no change"
+      },
+      {
+        "id": "R3",
+        "severity": "note",
+        "finding": "detection_provenance (object FLEXIBLE, .* any, no field permissions, :3605-3606) returns the stored string; missing key -> NONE -> false (fail closed); precedence `(!$view_entity) AND (len != 1)`; NONE view flag still demands the resource",
+        "disposition": "accepted, no change"
+      },
+      {
+        "id": "R4",
+        "severity": "note",
+        "finding": "no cross-account reach: every entity write needs a grant on a caller-owned resource; W's owner/resource-tree checks (:6772-6801) unchanged, so a non-owner cannot make W true",
+        "disposition": "accepted"
+      },
+      {
+        "id": "R5",
+        "severity": "note",
+        "finding": "detection_provenance is effectively create-time only for primary-source-NONE entities: update requires fn::mt120_entity_write, false without a primary source (:7163-7164) and re-checked by the update guard event (:6528-6535); product writers hard-code it (block_view_store.rs:618-623 'view_def'; loom_canvas_store.rs:2309, wiki_store.rs:1256 'note'; loom_canvas_store.rs:1452, bridge_store.rs:192 real type); only a raw same-account record-user create could forge it",
+        "disposition": "accepted; residual narrowed further by R6"
+      },
+      {
+        "id": "R6",
+        "severity": "should-fix (optional hardening)",
+        "finding": "waiver applies only when the block row is absent (orphan or inside the delete txn after statement 19); a same-account forged-'view_def' orphan could skip the resource check for an entity whose note resource is retired or outside this workspace's tree. Harden: waive an orphan only when its key has NO protected_resources row of kind loom_block/rich_document anywhere (a legitimate view never has one)",
+        "disposition": "ADOPTED: ELSE branch now `provenance = 'view_def' AND array::len(SELECT id FROM protected_resources WHERE resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key) = 0`"
+      },
+      {
+        "id": "R7",
+        "severity": "note",
+        "finding": "change only adds W-true cases for callers that already passed :6772-6801; no new class of caller for any table delete predicate using W (:150, 470, 612, 5079, 5145, 5190, 5426, 5525, ...); also fixes a mid-transaction rich-document note case at statement 19",
+        "disposition": "accepted"
+      },
+      {
+        "id": "R8",
+        "severity": "note",
+        "finding": "every SurrealDB-era view writer stores content_type 'view_def' (block_view_store.rs first commit :414-419, current :618-623); owned-bundle views carry a resource and pass the normal check",
+        "disposition": "accepted"
+      },
+      {
+        "id": "R9",
+        "severity": "note",
+        "finding": "no other W clause false at statement 20 in the test scenario; cascades run permissions-off (doc/purge.rs:376); no ON DELETE REJECT references to the view block/entity (REJECT refs at :5083/:5278 deleted at statements 14/12)",
+        "disposition": "accepted"
+      },
+      {
+        "id": "R10",
+        "severity": "suggested test",
+        "finding": "test: create view, DELETE /loom/blocks/:viewId, then DELETE /workspaces/:id must succeed",
+        "disposition": "NOT ADDED: DELETE /loom/blocks/:id authorizes ResourceKind::LoomBlock on the block (api/loom.rs delete_loom_block_authenticated ~3051-3065 -> loom_account -> authorize_request) and a view has no protected resource, so the route denies a view delete (code reading; no view delete route exists, api/loom.rs:445-455) - the orphan-view state is not reachable through product routes"
+      },
+      {
+        "id": "R11",
+        "severity": "suggested test",
+        "finding": "negative test: raw record-user entity with forged 'view_def' provenance on a note key whose resource is retired; W must stay false",
+        "disposition": "DEFERRED (reported to orchestrator): needs raw record-user entity forging + resource retirement fixtures; with R6 adopted the forged orphan is waived only when no loom_block/rich_document resource exists for the key at all"
+      },
+      {
+        "id": "R12",
+        "severity": "note",
+        "finding": "keep rejecting the waive-any-orphan alternative (strictly wider)",
+        "disposition": "accepted"
+      }
+    ],
+    "final_predicate": [
+      "            LET $entity_block = type::record('loom_blocks', $entity.entity_key);",
+      "            LET $view_entity = IF record::exists($entity_block) { $entity_block.content_type = 'view_def' AND $entity_block.workspace_id = $workspace } ELSE { $entity.detection_provenance.content_type = 'view_def' AND array::len(SELECT id FROM protected_resources WHERE resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key) = 0 };",
+      "            IF !$view_entity AND array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };"
+    ]
   }
 }
