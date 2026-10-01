@@ -3306,34 +3306,14 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
         "canonical empty calendar projection exposes the exact empty-state text"
     );
 
-    // Flight Recorder shares the busy managed-SurrealDB backend with parallel WP proofs. Use an explicit
-    // bounded read here rather than the fixture helper's general 5s CRUD timeout; the endpoint remains
-    // real and identity-stamped, while transient backend contention cannot erase completed actor proof.
-    let recorder_url = format!("{}/api/flight_recorder?wsid={workspace_id}", live.base);
-    let attributed_events = rt.block_on(async {
-        let response = handshake_native::backend_client::build_backend_client()
-            .get(&recorder_url)
-            // MT-109 fail-closed recorder capability gate: present the GENUINE published session
-            // token. The backend re-reads the binding file and re-verifies the publishing process's
-            // birth identity, so this is a real authenticated read, not a bypass.
-            .header("x-hsk-session-token", stage_session_hex.as_str())
-            .header("x-hsk-actor-id", "mt046-live-surrealdb")
-            .header("x-hsk-kernel-task-run-id", "mt046-live-surrealdb-run")
-            .header("x-hsk-session-run-id", "mt046-live-surrealdb-sess")
-            .header("x-hsk-actor-kind", "operator")
-            .timeout(std::time::Duration::from_secs(30))
-            .send()
-            .await
-            .unwrap_or_else(|error| panic!("GET {recorder_url} failed: {error}"));
-        let status = response.status();
-        let text = response.text().await.unwrap_or_default();
-        assert!(
-            status.is_success(),
-            "GET Flight Recorder -> {status}: {text}"
-        );
-        serde_json::from_str::<serde_json::Value>(&text)
-            .unwrap_or_else(|error| panic!("Flight Recorder response not JSON ({error}): {text}"))
-    });
+    // MT-109 fail-closed recorder gate (api/flight_recorder.rs): the caller must be a persisted
+    // ACCOUNT session (`x-hsk-session-token`, the fixture's account authorization) bound to the live
+    // native-MCP channel (`x-hsk-channel-binding-token`, the binding token in effect). The fixture
+    // helper presents both, exactly like the passing calendar-interop recorder reads (MT-153).
+    let attributed_events = live.get_json_with_session_token(
+        &format!("/api/flight_recorder?wsid={workspace_id}"),
+        &stage_session_hex,
+    );
     let attributed_events = attributed_events
         .as_array()
         .expect("Flight Recorder returns an event array");
