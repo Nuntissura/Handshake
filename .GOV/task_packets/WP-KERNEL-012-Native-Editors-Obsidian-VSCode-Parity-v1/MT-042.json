@@ -33,7 +33,7 @@
       "reason": "Document create/backlink proof depends on changed API/storage and shared live helper",
       "round_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"
     },
-    "status": "FAIL_V11",
+    "status": "READY_FOR_VALIDATION",
     "active": true,
     "depends_on": [
       "MT-021",
@@ -92,7 +92,7 @@
     "claimed_by": "KERNEL_BUILDER-20260707-224033",
     "claimed_at_utc": "2026-07-08T04:38:40.574Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-10-01T08:43:22Z",
+    "ready_for_validation_at_utc": "2026-10-01T10:10:08Z",
     "ready_for_validation_v2_at_utc": "2026-07-18T10:33:14.0007281Z",
     "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
     "rfv_evidence_2026_07_08": {
@@ -145,9 +145,10 @@
       "new_status": "PASS_V5",
       "reason": "Align lifecycle.status with validator_verdict per the WP convention (status == validator_verdict for PASS); verdict, completed_by and validation_vN untouched."
     },
-    "candidate_commit": "7548bc72c8c819c139d6257674a84bd95a215b0d",
+    "candidate_commit": "791a81dd23cee301006995a2b7bb550cfeba4471",
     "diagnosis_refs": [
-      "MT-153.json#diagnosis_20261001_workspace_delete_viewdef (DX-MT-153-20261001-WORKSPACE-DELETE-VIEWDEF-NO-RESOURCE) + research_20261001_workspace_delete_w (W-A + W-B), route (a)"
+      "MT-153.json#diagnosis_20261001_workspace_delete_recheck (WORKSPACE_DELETE_RECORD_DENIED, route (a) attempt 2) + review_20261001_w_b_provenance (ACCEPT-WITH-CHANGES; R6 adopted)",
+      "MT-153.json#diagnosis_20261001_workspace_delete_viewdef + research_20261001_workspace_delete_w (route (a) attempt 1, 8ff1565d)"
     ],
     "status_before_20260930": "FAIL_V6",
     "blocked_on": null,
@@ -155,7 +156,8 @@
     "status_reason": "FAIL_V11 on 7548bc72 union round (validation_round_7548bc72)",
     "status_before_fea3ce0a_resubmission": "FAIL_V8",
     "status_before_d9ce6017_resubmission": "FAIL_V9",
-    "status_before_7548bc72_resubmission": "FAIL_V10"
+    "status_before_7548bc72_resubmission": "FAIL_V10",
+    "status_before_791a81dd_resubmission": "FAIL_V11"
   },
   "scope": {
     "summary": "GOAL: Expose every interactive action on the native knowledge graph, canvas board, and block-collection views (table/Kanban/calendar) through the WP-011 AccessKit surface with stable author_ids. An out-of-process swarm agent must be able to: navigate the graph to a node by block_id, open a node, add/remove an edge, pan/zoom the canvas, place a block on canvas by id, move a Kanban card between lanes, sort a table column, navigate calendar views — all purely via the AccessKit action channel with no screen-scraping.\n\nEXPECTED DIFF SHAPE:\n  CREATE  src/frontend/handshake_native/src/accessibility/knowledge_action_registry.rs\n    — defines KnowledgeActionId enum covering graph, canvas, and collection actions\n    — defines KnowledgeActionNode struct (same shape as EditorActionNode from MT-041)\n    — defines KnowledgeActionRegistry (same Arc<Mutex<>> pattern)\n    — graph node AccessKit nodes are keyed by block_id so a swarm agent can target a specific note by its Loom block id\n  EDIT    src/frontend/handshake_native/src/graph/graph_pane.rs\n    — register graph-level actions: graph.pan-left, graph.pan-right, graph.zoom-in, graph.zoom-out, graph.zoom-reset, graph.open-node (with block_id parameter), graph.add-edge (source_id, target_id), graph.remove-edge (edge_id), graph.select-node, graph.deselect-all\n    — register per-node AccessKit nodes keyed 'graph.node.<block_id>': role=TreeItem, actions=['activate' (open), 'expand', 'collapse']; nodes are populated from the in-memory graph projection and updated on graph refresh\n  EDIT    src/frontend/handshake_native/src/graph/canvas_pane.rs\n    — register canvas-level actions: canvas.pan-left, canvas.pan-right, canvas.zoom-in, canvas.zoom-out, canvas.zoom-reset, canvas.add-card (title parameter), canvas.place-block (block_id, x, y), canvas.remove-placement (placement_id), canvas.add-edge (source_id, target_id, edge_mode), canvas.remove-edge (edge_id), canvas.select-card (placement_id), canvas.deselect-all\n    — register per-placement AccessKit nodes keyed 'canvas.card.<placement_id>': role=Group, actions=['activate' (open block), 'move' (x, y), 'delete']\n  EDIT    src/frontend/handshake_native/src/graph/collection_pane.rs\n    — register collection-level actions: collection.sort (field, direction), collection.filter (field, value), collection.kanban-move (block_id, from_lane, to_lane), collection.calendar-next, collection.calendar-prev, collection.calendar-today, collection.open-block (block_id)\n    — register per-row AccessKit nodes keyed 'collection.row.<block_id>': role=Row, actions=['activate']\n  EDIT    src/frontend/handshake_native/src/accessibility/mod.rs\n    — add pub mod knowledge_action_registry\n  CREATE  src/frontend/handshake_native/tests/test_e7_knowledge_accesskit.rs\n    — kittest: open graph pane with synthetic blocks, assert per-node AccessKit entries; dispatch graph.open-node, assert navigation; dispatch canvas.place-block, assert new card node; dispatch collection.kanban-move, assert lane change reflected in AccessKit tree\n\nFILES TO CREATE/EDIT (all under allowed paths):\n  src/frontend/handshake_native/src/accessibility/knowledge_action_registry.rs  (NEW)\n  src/frontend/handshake_native/src/graph/graph_pane.rs                          (EDIT)\n  src/frontend/handshake_native/src/graph/canvas_pane.rs                         (EDIT)\n  src/frontend/handshake_native/src/graph/collection_pane.rs                     (EDIT)\n  src/frontend/handshake_native/src/accessibility/mod.rs                         (EDIT)\n  src/frontend/handshake_native/tests/test_e7_knowledge_accesskit.rs            (NEW)\n\nREUSE (existing WP-011 modules — do NOT recreate):\n  src/frontend/handshake_native/src/accessibility/*.rs (mod.rs, live.rs, registry.rs, snapshot.rs) — the existing AccessKit adapter + node registry surface; KnowledgeActionRegistry pushes diffs into this same adapter.\n  src/frontend/handshake_native/src/loom_graph.rs — existing graph rendering surface; knowledge graph_pane.rs builds on its in-memory graph projection.\n  src/frontend/handshake_native/src/canvas_board.rs — existing canvas board surface; knowledge canvas_pane.rs builds on its placement/viewport state.\n  src/frontend/handshake_native/src/command_registry.rs + src/frontend/handshake_native/src/event_bus.rs — the shared command/selection/event bus used to dispatch parameterized actions and broadcast selection/refresh events.\n  src/frontend/handshake_native/src/mcp/*.rs (tools.rs, action.rs, attribution.rs, session.rs, ...) — the MCP action/tool channel that surfaces AccessKit actions to out-of-process swarm agents.\n\nDEPENDENCIES / UNBLOCK CONDITIONS:\n  - WP-KERNEL-011 spike: egui + AccessKit adapter exists and is operational (same dependency as MT-041); the adapter lives in src/frontend/handshake_native/src/accessibility/.\n  - MT-021 (local graph view) and MT-022 (global graph view) complete: src/frontend/handshake_native/src/graph/graph_pane.rs exists with a rendered node set and pan/zoom actions.\n  - MT-023 (folder tree + tags) complete: tags and tag-hub interaction points exist.\n  - MT-025 (wiki-page projection) and MT-026 (canvas board) complete: src/frontend/handshake_native/src/graph/canvas_pane.rs exists with placement management.\n  - MT-027 (block-collection views) complete: src/frontend/handshake_native/src/graph/collection_pane.rs exists with table/Kanban/calendar views.\n\nRISK IF MISSED: MT-043 SwarmEditProof requires a swarm agent to 'navigate graph', 'add backlink', and 'drive canvas' purely via AccessKit. If MT-042 is absent those actions have no AccessKit surface and the proof test cannot be written. MT-044 parity gate cannot include knowledge-surface model-accessibility criteria.",
@@ -1564,5 +1566,54 @@
         "state_effect": "lifecycle.status FAIL_V11"
       }
     ]
+  },
+  "remediation_20261001_791a81dd": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T10:10:08Z",
+    "commits": {
+      "f98e1e20": "BCV Argus binding assert + MT-152 keyed_lock pin path (partial)",
+      "8ff1565d": "route (a) attempt 1: W-A/W-B view_def widening + delta pairs + 161->162 re-emission + proof test",
+      "7548bc72": "re-pin from PIN-MEASURE 8ff1565d",
+      "1ff1821f": "route (a) attempt 2 (W-B block-or-provenance, R6 no-resource condition) + in-test HSK_C1_FDELETE_PROBE + block_view_outbox::mark_published P1",
+      "791a81dd": "re-pin GENERATED_SURREALQL_SHA256 -> ac8d7465... (= sha256 schema.surql@1ff1821f, cross-checked) and EXPECTED_SCHEMA_INFO_SHA256 -> 0fa659b5... from PIN-MEASURE 1ff1821f (MT-153.json#pin_measure_20261001_1ff1821f); nothing else"
+    },
+    "candidate_commit": "791a81dd23cee301006995a2b7bb550cfeba4471",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 791a81dd23cee301006995a2b7bb550cfeba4471",
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "exit_code": 0,
+        "inputs": "791a81dd backend files; 0 cargo/rustc before launch",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-attempt2-pins.log"
+      },
+      {
+        "command": "cargo check --locked -j 4 --features integration,integration_tests,wgpu_screenshots --test test_block_collection_view",
+        "cwd": "src/frontend/handshake_native",
+        "exit_code": 0,
+        "inputs": "test_block_collection_view.rs unchanged since f98e1e20",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-d9ce-remediation-native.log"
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 791a81dd; GP-158 confirmed (loom_store.rs/database.rs unchanged since d9ce6017; 1ff1821f..791a81dd is schema.rs pins only)",
+    "selection_note": "validator selection: MT-153-PIN-CONFIRM; api::loom::tests::mt153_owner_workspace_delete_removes_saved_view (HSK_C1_FDELETE_PROBE in-test); pin-affected READY MTs MT-154, MT-157, MT-158, MT-159 pin proofs; MT-027/MT-153 BCV live test; MT-042 ac10",
+    "attempt_rule": "route (a) attempt 2 is the last attempt on WORKSPACE_DELETE_RECORD_DENIED: if it fails, record the blocker and change approach or escalate",
+    "open_items": [
+      "d5f5d8e3 (single file block, no view) unexplained",
+      "review R11 negative forged-provenance test deferred",
+      "no SCHEMA_REVISION bump (dev stores at 162 with the old guard mismatch the new pin)"
+    ],
+    "next_actor": "WP_VALIDATOR single union round",
+    "remediates": {
+      "verdict_ref": "MT-042.json FAIL_V11 (round 7548bc72)",
+      "failure_class": "WORKSPACE_DELETE_RECORD_DENIED (tests/test_e7_knowledge_accesskit.rs:2615)"
+    },
+    "diagnosis_refs": [
+      "MT-153.json#diagnosis_20261001_workspace_delete_recheck (WORKSPACE_DELETE_RECORD_DENIED, route (a) attempt 2) + review_20261001_w_b_provenance (ACCEPT-WITH-CHANGES; R6 adopted)",
+      "MT-153.json#diagnosis_20261001_workspace_delete_viewdef + research_20261001_workspace_delete_w (route (a) attempt 1, 8ff1565d)"
+    ],
+    "admission_basis": "CX-VAL-008 new diagnosis + schema change in the failing path (MT-153-owned schema.surql/schema.rs)",
+    "product_change_in_this_mt": "none"
   }
 }

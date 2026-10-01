@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "FAIL_V9",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -88,14 +88,16 @@
     },
     "status_reason": "FAIL_V9 on 7548bc72 union round (validation_round_7548bc72)",
     "status_before_20260930": "FAIL_V2",
-    "candidate_commit": "7548bc72c8c819c139d6257674a84bd95a215b0d",
+    "candidate_commit": "791a81dd23cee301006995a2b7bb550cfeba4471",
     "blocked_on": null,
     "diagnosis_refs": [
-      "MT-153.json#diagnosis_20261001_argus_binding_root (DX-MT-153-20261001-ARGUS-BINDING-ROOT-STALE-ASSERT)",
-      "MT-153.json#diagnosis_20261001_workspace_delete_viewdef (DX-MT-153-20261001-WORKSPACE-DELETE-VIEWDEF-NO-RESOURCE) + research_20261001_workspace_delete_w (W-A + W-B), route (a)",
-      "MT-153.json#diagnosis_20261001_mt152_keyed_lock_pin (DX-MT-153-20261001-MT152-KEYED-LOCK-PIN-STALE-PATH, routed to MT-152)"
+      "MT-153.json#diagnosis_20261001_workspace_delete_recheck (WORKSPACE_DELETE_RECORD_DENIED, route (a) attempt 2) + review_20261001_w_b_provenance (ACCEPT-WITH-CHANGES; R6 adopted)",
+      "MT-153.json#diagnosis_20261001_view_outbox_publish_race (VIEW-OUTBOX-PUBLISH-RACE, P1; cause HYPOTHESIS until a run confirms it) + hypothesis_20261001_view_outbox_p1",
+      "MT-153.json#diagnosis_20261001_workspace_delete_viewdef + research_20261001_workspace_delete_w (route (a) attempt 1, 8ff1565d)",
+      "MT-153.json#diagnosis_20261001_argus_binding_root (f98e1e20; Argus :2507 passed in round 7548bc72)",
+      "MT-153.json#diagnosis_20261001_mt152_keyed_lock_pin (f98e1e20; user_manual 27/27 in round 7548bc72)"
     ],
-    "ready_for_validation_at_utc": "2026-10-01T08:43:22Z",
+    "ready_for_validation_at_utc": "2026-10-01T10:10:08Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "status_before_bb9548e1_resubmission": "FAIL_V3",
     "candidate_updated_at_utc": "2026-10-01T00:46:31Z",
@@ -104,7 +106,8 @@
     "status_before_bd8c7532_resubmission": "FAIL_V5",
     "status_before_e4566f11_resubmission": "FAIL_V6",
     "status_before_d9ce6017_resubmission": "FAIL_V7",
-    "status_before_7548bc72_resubmission": "FAIL_V8"
+    "status_before_7548bc72_resubmission": "FAIL_V8",
+    "status_before_791a81dd_resubmission": "FAIL_V9"
   },
   "closure_unit": {
     "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
@@ -5620,5 +5623,58 @@
       "observer": "polls ok, 0 errors"
     },
     "next": "builder: one commit updating ONLY GENERATED_SURREALQL_SHA256 and EXPECTED_SCHEMA_INFO_SHA256 to the measured values; then one union round with MT-153-PIN-CONFIRM"
+  },
+  "remediation_20261001_791a81dd": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T10:10:08Z",
+    "commits": {
+      "f98e1e20": "BCV Argus binding assert + MT-152 keyed_lock pin path (partial)",
+      "8ff1565d": "route (a) attempt 1: W-A/W-B view_def widening + delta pairs + 161->162 re-emission + proof test",
+      "7548bc72": "re-pin from PIN-MEASURE 8ff1565d",
+      "1ff1821f": "route (a) attempt 2 (W-B block-or-provenance, R6 no-resource condition) + in-test HSK_C1_FDELETE_PROBE + block_view_outbox::mark_published P1",
+      "791a81dd": "re-pin GENERATED_SURREALQL_SHA256 -> ac8d7465... (= sha256 schema.surql@1ff1821f, cross-checked) and EXPECTED_SCHEMA_INFO_SHA256 -> 0fa659b5... from PIN-MEASURE 1ff1821f (MT-153.json#pin_measure_20261001_1ff1821f); nothing else"
+    },
+    "candidate_commit": "791a81dd23cee301006995a2b7bb550cfeba4471",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 791a81dd23cee301006995a2b7bb550cfeba4471",
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "exit_code": 0,
+        "inputs": "791a81dd backend files; 0 cargo/rustc before launch",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-attempt2-pins.log"
+      },
+      {
+        "command": "cargo check --locked -j 4 --features integration,integration_tests,wgpu_screenshots --test test_block_collection_view",
+        "cwd": "src/frontend/handshake_native",
+        "exit_code": 0,
+        "inputs": "test_block_collection_view.rs unchanged since f98e1e20",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-d9ce-remediation-native.log"
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 791a81dd; GP-158 confirmed (loom_store.rs/database.rs unchanged since d9ce6017; 1ff1821f..791a81dd is schema.rs pins only)",
+    "selection_note": "validator selection: MT-153-PIN-CONFIRM; api::loom::tests::mt153_owner_workspace_delete_removes_saved_view (HSK_C1_FDELETE_PROBE in-test); pin-affected READY MTs MT-154, MT-157, MT-158, MT-159 pin proofs; MT-027/MT-153 BCV live test; MT-042 ac10",
+    "attempt_rule": "route (a) attempt 2 is the last attempt on WORKSPACE_DELETE_RECORD_DENIED: if it fails, record the blocker and change approach or escalate",
+    "open_items": [
+      "d5f5d8e3 (single file block, no view) unexplained",
+      "review R11 negative forged-provenance test deferred",
+      "no SCHEMA_REVISION bump (dev stores at 162 with the old guard mismatch the new pin)"
+    ],
+    "next_actor": "WP_VALIDATOR single union round",
+    "remediates": {
+      "verdict_ref": "MT-153.json#validation_round_7548bc72 (FAIL_V9)",
+      "failure_classes": [
+        "WORKSPACE_DELETE_RECORD_DENIED",
+        "MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT"
+      ]
+    },
+    "diagnosis_refs": [
+      "MT-153.json#diagnosis_20261001_workspace_delete_recheck (WORKSPACE_DELETE_RECORD_DENIED, route (a) attempt 2) + review_20261001_w_b_provenance (ACCEPT-WITH-CHANGES; R6 adopted)",
+      "MT-153.json#diagnosis_20261001_view_outbox_publish_race (VIEW-OUTBOX-PUBLISH-RACE, P1; cause HYPOTHESIS until a run confirms it) + hypothesis_20261001_view_outbox_p1",
+      "MT-153.json#diagnosis_20261001_workspace_delete_viewdef + research_20261001_workspace_delete_w (route (a) attempt 1, 8ff1565d)",
+      "MT-153.json#diagnosis_20261001_argus_binding_root (f98e1e20; Argus :2507 passed in round 7548bc72)",
+      "MT-153.json#diagnosis_20261001_mt152_keyed_lock_pin (f98e1e20; user_manual 27/27 in round 7548bc72)"
+    ]
   }
 }
