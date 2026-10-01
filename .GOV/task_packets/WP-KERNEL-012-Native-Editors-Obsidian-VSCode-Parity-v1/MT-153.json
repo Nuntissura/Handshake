@@ -6038,9 +6038,9 @@
     },
     "dependent_failures": "mt138_full_schema_atelier_noop_matches_bounded_projection (:8493) and mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current (:10139) failed with HANDSHAKE_SURREAL_SCHEMA_COMPILED_MANIFEST_DRIFT generated=3e9333cc... (the stale GENERATED pin); they print no pin of their own; PIN-CONFIRM after the pin update decides them",
     "after_checks": {
-      "credentials_after": "241/22",
+      "credentials_after": "242/23 (unchanged during the run; includes the 1 recorded CX-GIT-003 leftover)",
       "leftover_store_dirs": 0,
-      "observer": "polls ok, 0 errors"
+      "observer": "17 polls, 0 errors"
     },
     "next": "builder: one commit updating ONLY GENERATED_SURREALQL_SHA256 and EXPECTED_SCHEMA_INFO_SHA256 to the measured values; then one union round with MT-153-PIN-CONFIRM"
   }
