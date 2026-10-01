@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 185
+generation: 187
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -174,3 +174,5 @@ steps:
 - {id: GP-153, role: wp_validator, at: before_round, do: confirm round wrapper launched detached from agent tool calls; no tool-timeout owns its process tree, check: {type: confirm}, source: 'infra: bb9548e1 round wrapper killed at 2h harness background limit; native 170/210', state: active}
 - {id: GP-154, role: wp_validator, at: before_round, do: verify commit free >= 45 GB before launch; core union build -j 1, check: {type: confirm}, source: Operator 2026-10-01 'change it so you can proceed'; measured 50.6–56.9 GB; replaces GP-146 60 GB floor (r1 OOM at -j 2), state: active}
 - {id: GP-155, role: wp_validator, at: before_round, do: verify export-current.identity matches the candidate (VPX-011), check: {type: confirm}, source: per-candidate export capacity incident (78.8 GB stale) + Operator 2026-10-01 stable export path, state: active}
+- {id: GP-156, role: wp_validator, at: before_round, do: confirm Git Bash PATH additions use POSIX form (cygpath -u) and the cargo subcommand resolves before launch, check: {type: confirm}, source: 'infra 39f3e830 probe r1: D: colon split bash PATH; cargo found no test-runner subcommand (exit 101, no build)', state: active}
+- {id: GP-157, role: wp_validator, at: before_round, do: confirm the owned observer is alive and its observations file grows past one line after launch, check: {type: confirm}, source: 'infra: fea3ce0a observer stopped after 1 line; 39f3e830 probe observers wrote 0 lines; cause unproved', state: active}

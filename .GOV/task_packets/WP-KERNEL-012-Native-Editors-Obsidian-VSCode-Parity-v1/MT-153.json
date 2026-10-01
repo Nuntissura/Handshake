@@ -4039,5 +4039,493 @@
       "repin_required": "yes: MT-153.json schema_repin_procedure (delta pair per changed statement in schema.rs next to MT109_C2_SCHEMA_DELTAS, one PIN-MEASURE run, update GENERATED_SURREALQL_SHA256 / DECLARATIVE_SCHEMA_CATALOG_SHA256 / EXPECTED_SCHEMA_INFO_SHA256 / atelier pins, never re-pin PREDECESSOR constants) + proof checks MT-153-PIN-MEASURE and MT-153-PIN-CONFIRM; KB-CARGO-SHARED-001 batch schema/pin changes; schema.rs is also in MT-153 allowed paths",
       "approval": "orchestrator standing rule: any schema.surql change reported first (pin re-measure); pins measured for READY MT-154/157/158/159 would be shifted by a later MT-153 schema change, so their PIN-CONFIRM proofs need a re-run on the new pins (orchestrator sequencing decision). Codex CX-GOV-PIN-001 concerns governance pins, not schema pins"
     }
+  },
+  "diagnosis_20261001_cardmove_probe_result": {
+    "schema_id": "hsk.mt_diagnostic_result@1",
+    "by": "WP_VALIDATOR",
+    "at_utc": "2026-10-01T06:20:00Z",
+    "kind": "diagnostic result, not a round and not a verdict; MT-153/MT-027/MT-042 stay FAIL",
+    "remediation_ref": "MT-153.json#remediation_20261001_cardmove_probe",
+    "hypothesis_ref": "MT-153.json#hypothesis_20261001_cardmove_delete_cost",
+    "candidate": "39f3e8308d11523c49f9da1d6b216b111f09cdf0",
+    "export_identity": {
+      "path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-current.identity",
+      "sha256": "15c5de1eb124b41fd110aeb1f9e1383f960965bc278f420d3e0a74e93c6ef890",
+      "refresh": "incremental fea3ce0a->39f3e830, 1 file extracted, VERIFY_OK files=7166 manifest d45839d7"
+    },
+    "command": {
+      "cwd": "export-current/src/backend/handshake_core",
+      "argv": "cargo nextest run -p handshake_core --lib --features app-runtime,surreal-test-support,test-utils --no-capture -E 'test(=api::loom::tests::mt153_cardmove_patch_timing_probe)'",
+      "env": "union round env (HANDSHAKE_ARTIFACTS_ROOT, HANDSHAKE_SURREAL_TEST_STORE_ROOT=<lane>/runtime, CARGO_TARGET_DIR=target-r52, CARGO_INCREMENTAL=0, line-tables-only), CARGO_BUILD_JOBS=1 (GP-154)",
+      "launcher": "<lane>/probe-cardmove-39f3e830.ps1 -> <lane>/probe-cardmove.sh, detached (GP-153)"
+    },
+    "preconditions": {
+      "head_eq_tip": true,
+      "worktree_clean": true,
+      "other_cargo_processes": 0,
+      "gameplan": "PASS 32/32 (wp_validator, before_round, HEAD 39f3e830)",
+      "vault_probe": "success=True (gp043 receipt 45e6306e)",
+      "commit_free_gb": 66.1
+    },
+    "attempts": [
+      {
+        "run": "r1",
+        "exit_code": 101,
+        "build": "none",
+        "cause": "launcher defect: D: drive colon in the PATH entry split Git Bash PATH; cargo found no nextest subcommand. Fixed (cygpath -u + resolve guard); gameplan GP-156",
+        "logs": "<lane>/logs/probe-cardmove-39f3e8308d11523c49f9da1d6b216b111f09cdf0-r1.*"
+      },
+      {
+        "run": "r2",
+        "exit_code": 0,
+        "build": "Finished test profile in 7m 59s (warm target-r52; +11.2 MB)",
+        "matched": "Starting 1 test across 1 binary (2195 tests skipped)",
+        "result": "PASS [62.339s] (status assertions only)",
+        "logs": "<lane>/logs/probe-cardmove-39f3e8308d11523c49f9da1d6b216b111f09cdf0.stdout.log / .stderr.log"
+      }
+    ],
+    "MT153_CARDMOVE_TIMING": {
+      "median_ms": {
+        "add_only": 3622,
+        "full_move": 5597,
+        "remove_only": 3160
+      },
+      "samples": [
+        {
+          "elapsed_ms": 3622,
+          "label": "add_only",
+          "request_id": "mt153-probe-add_only-1",
+          "round": 1
+        },
+        {
+          "elapsed_ms": 3281,
+          "label": "remove_only",
+          "request_id": "mt153-probe-remove_only-1",
+          "round": 1
+        },
+        {
+          "elapsed_ms": 5597,
+          "label": "full_move",
+          "request_id": "mt153-probe-full_move-1",
+          "round": 1
+        },
+        {
+          "elapsed_ms": 3695,
+          "label": "add_only",
+          "request_id": "mt153-probe-add_only-2",
+          "round": 2
+        },
+        {
+          "elapsed_ms": 3039,
+          "label": "remove_only",
+          "request_id": "mt153-probe-remove_only-2",
+          "round": 2
+        },
+        {
+          "elapsed_ms": 5510,
+          "label": "full_move",
+          "request_id": "mt153-probe-full_move-2",
+          "round": 2
+        },
+        {
+          "elapsed_ms": 3548,
+          "label": "add_only",
+          "request_id": "mt153-probe-add_only-3",
+          "round": 3
+        },
+        {
+          "elapsed_ms": 3160,
+          "label": "remove_only",
+          "request_id": "mt153-probe-remove_only-3",
+          "round": 3
+        },
+        {
+          "elapsed_ms": 5791,
+          "label": "full_move",
+          "request_id": "mt153-probe-full_move-3",
+          "round": 3
+        }
+      ]
+    },
+    "statement_mapping": {
+      "delete_loom_edge txn (9 statements, loom_store.rs:1664-1673)": "0 BEGIN, 1 endpoint guard, 2 receipt read (LET $existing_receipt), 3 receipt append (IF/CREATE kernel_event_ledger), 4 receipt bind (LET $receipt), 5 DELETE $record (loom_edges), 6 recount UPDATE $source (card), 7 recount UPDATE $target (old hub), 8 COMMIT",
+      "create_loom_edge txn (8 statements, loom_store.rs:1573-1587)": "0 BEGIN, 1 endpoint guard, 2-4 receipt read/append/bind, 5 create-once IF block (CREATE loom_edges + recount UPDATE source + recount UPDATE target; one engine timing for all three), 6 SELECT edge, 7 COMMIT",
+      "reindex_loom_block_search txn (7 statements, search_store.rs:197-209)": "0 BEGIN, 1 block guard, 2 LET content_type, 3 ledger receipt IF/CREATE, 4 LET UPSERT loom_search_index, 5 IF RETURN, 6 COMMIT; called by refresh_loom_block_embedding (loom.rs:2987) on every PATCH incl. tag-only",
+      "source": "MT032_DOCUMENT_STATEMENT execution_time_us by statement_index; all statements timing_available=true; every probe PATCH had exactly one retry_attempt per edge transaction (no retries)"
+    },
+    "remove_path_statements_ms_over_6_deletes (3 remove_only + 3 full_move)": {
+      "endpoint_guard": {
+        "min": 27.7,
+        "median": 28.8,
+        "max": 33.5,
+        "n": 6
+      },
+      "receipt_read": {
+        "min": 2.8,
+        "median": 3.0,
+        "max": 3.4,
+        "n": 6
+      },
+      "receipt_append": {
+        "min": 273.0,
+        "median": 282.4,
+        "max": 293.7,
+        "n": 6
+      },
+      "receipt_bind": {
+        "min": 0.1,
+        "median": 0.1,
+        "max": 0.2,
+        "n": 6
+      },
+      "DELETE_loom_edges": {
+        "min": 605.0,
+        "median": 657.3,
+        "max": 707.8,
+        "n": 6
+      },
+      "recount_UPDATE_source_card": {
+        "min": 594.1,
+        "median": 621.0,
+        "max": 694.6,
+        "n": 6
+      },
+      "recount_UPDATE_target_hub": {
+        "min": 362.3,
+        "median": 366.8,
+        "max": 385.9,
+        "n": 6
+      }
+    },
+    "add_path_statements_ms_over_6_creates (3 add_only + 3 full_move)": {
+      "endpoint_guard": {
+        "min": 40.7,
+        "median": 50.1,
+        "max": 61.9,
+        "n": 6
+      },
+      "receipt_append": {
+        "min": 269.0,
+        "median": 279.9,
+        "max": 298.2,
+        "n": 6
+      },
+      "create_once_block_CREATE_plus_2_recounts": {
+        "min": 1967.0,
+        "median": 1986.4,
+        "max": 2192.1,
+        "n": 6
+      },
+      "select_edge": {
+        "min": 20.0,
+        "median": 20.8,
+        "max": 25.6,
+        "n": 6
+      }
+    },
+    "reindex_statements_ms_over_9_patches": {
+      "block_guard": {
+        "min": 25.5,
+        "median": 27.8,
+        "max": 70.1,
+        "n": 9
+      },
+      "content_type_read": {
+        "min": 17.3,
+        "median": 18.1,
+        "max": 20.0,
+        "n": 9
+      },
+      "ledger_receipt": {
+        "min": 275.8,
+        "median": 294.0,
+        "max": 325.0,
+        "n": 9
+      },
+      "UPSERT_search_index": {
+        "min": 502.2,
+        "median": 515.3,
+        "max": 575.1,
+        "n": 9
+      }
+    },
+    "per_request": {
+      "mt153-probe-add_only-1": {
+        "wall_ms": 3621,
+        "create_edge_txn": {
+          "query_wall_ms": 2331,
+          "guard_ms": 46.1,
+          "receipt_read_ms": 3.8,
+          "receipt_append_ms": 281.2,
+          "receipt_bind_ms": 0.1,
+          "create_once_block_ms (CREATE edge + source recount UPDATE + target recount UPDATE)": 1975.2,
+          "select_edge_ms": 21.0
+        },
+        "reindex_loom_block_search_txn": {
+          "query_wall_ms": 927,
+          "block_guard_ms": 70.1,
+          "content_type_read_ms": 17.7,
+          "ledger_receipt_ms": 321.7,
+          "UPSERT_search_index_ms": 515.3
+        },
+        "single_statement_queries_ms": [
+          46,
+          28,
+          23
+        ]
+      },
+      "mt153-probe-remove_only-1": {
+        "wall_ms": 3280,
+        "delete_edge_txn": {
+          "query_wall_ms": 2021,
+          "guard_ms": 28.5,
+          "receipt_read_ms": 3.0,
+          "receipt_append_ms": 293.7,
+          "receipt_bind_ms": 0.2,
+          "DELETE_loom_edges_ms": 605.0,
+          "recount_UPDATE_source_card_ms": 694.6,
+          "recount_UPDATE_target_hub_ms": 385.9
+        },
+        "reindex_loom_block_search_txn": {
+          "query_wall_ms": 905,
+          "block_guard_ms": 27.8,
+          "content_type_read_ms": 18.1,
+          "ledger_receipt_ms": 304.1,
+          "UPSERT_search_index_ms": 552.6
+        },
+        "single_statement_queries_ms": [
+          43,
+          26,
+          27
+        ]
+      },
+      "mt153-probe-full_move-1": {
+        "wall_ms": 5597,
+        "create_edge_txn": {
+          "query_wall_ms": 2340,
+          "guard_ms": 61.9,
+          "receipt_read_ms": 3.0,
+          "receipt_append_ms": 277.6,
+          "receipt_bind_ms": 0.1,
+          "create_once_block_ms (CREATE edge + source recount UPDATE + target recount UPDATE)": 1968.3,
+          "select_edge_ms": 25.6
+        },
+        "delete_edge_txn": {
+          "query_wall_ms": 1999,
+          "guard_ms": 27.7,
+          "receipt_read_ms": 2.8,
+          "receipt_append_ms": 275.4,
+          "receipt_bind_ms": 0.1,
+          "DELETE_loom_edges_ms": 707.8,
+          "recount_UPDATE_source_card_ms": 614.4,
+          "recount_UPDATE_target_hub_ms": 362.3
+        },
+        "reindex_loom_block_search_txn": {
+          "query_wall_ms": 851,
+          "block_guard_ms": 26.5,
+          "content_type_read_ms": 17.8,
+          "ledger_receipt_ms": 280.1,
+          "UPSERT_search_index_ms": 523.0
+        },
+        "single_statement_queries_ms": [
+          28,
+          27,
+          25,
+          24
+        ]
+      },
+      "mt153-probe-add_only-2": {
+        "wall_ms": 3694,
+        "create_edge_txn": {
+          "query_wall_ms": 2552,
+          "guard_ms": 51.8,
+          "receipt_read_ms": 3.2,
+          "receipt_append_ms": 281.1,
+          "receipt_bind_ms": 0.1,
+          "create_once_block_ms (CREATE edge + source recount UPDATE + target recount UPDATE)": 2192.1,
+          "select_edge_ms": 20.6
+        },
+        "reindex_loom_block_search_txn": {
+          "query_wall_ms": 826,
+          "block_guard_ms": 27.2,
+          "content_type_read_ms": 18.0,
+          "ledger_receipt_ms": 275.8,
+          "UPSERT_search_index_ms": 502.2
+        },
+        "single_statement_queries_ms": [
+          27,
+          23,
+          23
+        ]
+      },
+      "mt153-probe-remove_only-2": {
+        "wall_ms": 3038,
+        "delete_edge_txn": {
+          "query_wall_ms": 1923,
+          "guard_ms": 29.6,
+          "receipt_read_ms": 2.9,
+          "receipt_append_ms": 273.0,
+          "receipt_bind_ms": 0.1,
+          "DELETE_loom_edges_ms": 649.5,
+          "recount_UPDATE_source_card_ms": 594.1,
+          "recount_UPDATE_target_hub_ms": 365.6
+        },
+        "reindex_loom_block_search_txn": {
+          "query_wall_ms": 842,
+          "block_guard_ms": 28.2,
+          "content_type_read_ms": 19.5,
+          "ledger_receipt_ms": 279.7,
+          "UPSERT_search_index_ms": 512.1
+        },
+        "single_statement_queries_ms": [
+          41,
+          24,
+          23
+        ]
+      },
+      "mt153-probe-full_move-2": {
+        "wall_ms": 5509,
+        "create_edge_txn": {
+          "query_wall_ms": 2394,
+          "guard_ms": 48.4,
+          "receipt_read_ms": 3.1,
+          "receipt_append_ms": 269.0,
+          "receipt_bind_ms": 0.1,
+          "create_once_block_ms (CREATE edge + source recount UPDATE + target recount UPDATE)": 2050.3,
+          "select_edge_ms": 20.0
+        },
+        "delete_edge_txn": {
+          "query_wall_ms": 1929,
+          "guard_ms": 28.6,
+          "receipt_read_ms": 3.0,
+          "receipt_append_ms": 286.4,
+          "receipt_bind_ms": 0.2,
+          "DELETE_loom_edges_ms": 616.3,
+          "recount_UPDATE_source_card_ms": 622.1,
+          "recount_UPDATE_target_hub_ms": 362.4
+        },
+        "reindex_loom_block_search_txn": {
+          "query_wall_ms": 852,
+          "block_guard_ms": 26.5,
+          "content_type_read_ms": 17.3,
+          "ledger_receipt_ms": 298.5,
+          "UPSERT_search_index_ms": 507.5
+        },
+        "single_statement_queries_ms": [
+          27,
+          23,
+          25,
+          24
+        ]
+      },
+      "mt153-probe-add_only-3": {
+        "wall_ms": 3537,
+        "create_edge_txn": {
+          "query_wall_ms": 2333,
+          "guard_ms": 40.7,
+          "receipt_read_ms": 3.0,
+          "receipt_append_ms": 298.2,
+          "receipt_bind_ms": 0.1,
+          "create_once_block_ms (CREATE edge + source recount UPDATE + target recount UPDATE)": 1967.0,
+          "select_edge_ms": 20.7
+        },
+        "reindex_loom_block_search_txn": {
+          "query_wall_ms": 915,
+          "block_guard_ms": 25.5,
+          "content_type_read_ms": 18.3,
+          "ledger_receipt_ms": 294.0,
+          "UPSERT_search_index_ms": 575.1
+        },
+        "single_statement_queries_ms": [
+          26,
+          24,
+          23
+        ]
+      },
+      "mt153-probe-remove_only-3": {
+        "wall_ms": 3159,
+        "delete_edge_txn": {
+          "query_wall_ms": 1999,
+          "guard_ms": 29.0,
+          "receipt_read_ms": 2.9,
+          "receipt_append_ms": 286.6,
+          "receipt_bind_ms": 0.1,
+          "DELETE_loom_edges_ms": 684.9,
+          "recount_UPDATE_source_card_ms": 619.9,
+          "recount_UPDATE_target_hub_ms": 367.9
+        },
+        "reindex_loom_block_search_txn": {
+          "query_wall_ms": 838,
+          "block_guard_ms": 29.4,
+          "content_type_read_ms": 20.0,
+          "ledger_receipt_ms": 278.3,
+          "UPSERT_search_index_ms": 507.8
+        },
+        "single_statement_queries_ms": [
+          41,
+          24,
+          23
+        ]
+      },
+      "mt153-probe-full_move-3": {
+        "wall_ms": 5790,
+        "create_edge_txn": {
+          "query_wall_ms": 2368,
+          "guard_ms": 60.3,
+          "receipt_read_ms": 3.4,
+          "receipt_append_ms": 278.7,
+          "receipt_bind_ms": 0.1,
+          "create_once_block_ms (CREATE edge + source recount UPDATE + target recount UPDATE)": 1997.6,
+          "select_edge_ms": 23.9
+        },
+        "delete_edge_txn": {
+          "query_wall_ms": 2031,
+          "guard_ms": 33.5,
+          "receipt_read_ms": 3.4,
+          "receipt_append_ms": 278.5,
+          "receipt_bind_ms": 0.1,
+          "DELETE_loom_edges_ms": 665.1,
+          "recount_UPDATE_source_card_ms": 660.2,
+          "recount_UPDATE_target_hub_ms": 381.4
+        },
+        "reindex_loom_block_search_txn": {
+          "query_wall_ms": 963,
+          "block_guard_ms": 64.9,
+          "content_type_read_ms": 19.9,
+          "ledger_receipt_ms": 325.0,
+          "UPSERT_search_index_ms": 550.2
+        },
+        "single_statement_queries_ms": [
+          26,
+          25,
+          29,
+          24
+        ]
+      }
+    },
+    "observations": [
+      "The loom_edges DELETE (605-708 ms) is not an outlier against the other permission-guarded writes in the same transaction: card recount UPDATE 594-695 ms, hub recount UPDATE 362-385 ms, ledger receipt CREATE 273-294 ms; the per-test workspace holds 3 blocks and at most 2 edges.",
+      "remove_only wall (median 3160 ms) = delete txn ~1.9-2.0 s + reindex txn ~0.84-0.92 s + authority/sign-in/reads ~0.3 s.",
+      "full_move wall (median 5597 ms) = create txn ~2.3-2.4 s + delete txn ~1.9-2.0 s + reindex ~0.85-0.97 s + ~0.3 s.",
+      "Arithmetic on the hypothesis F2 rule with medians (full_move 5597 - card recount 622 - delete pre-read 25 - second guard 28) = ~4.92 s: under 5 s without margin. Not a validator judgment."
+    ],
+    "after_checks": {
+      "leftover_store_or_binding_dirs": 0,
+      "store_root": "<lane>/runtime: 144 entries before and after, 0 new, 0 removed (134 pre-existing store-* from earlier runs)",
+      "credentials": {
+        "before": {
+          "total": 241,
+          "handshake_local_accounts": 22
+        },
+        "after": {
+          "total": 241,
+          "handshake_local_accounts": 22
+        }
+      },
+      "target_r52_bytes_after": 85616834710
+    },
+    "infra_notes": [
+      "owned capacity observer (observe-probe-cardmove-cap-39f3e830.ps1, pids 186484 / 7296) wrote no observation line in either attempt; the fea3ce0a union observer also stopped after 1 line; cause not established; C: stayed at 85.6 GB vs 147 GB stop; gameplan GP-157"
+    ]
   }
 }
