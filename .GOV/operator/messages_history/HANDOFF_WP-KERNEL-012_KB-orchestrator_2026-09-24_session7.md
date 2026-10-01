@@ -1,12 +1,117 @@
 ---
 file_id: HANDOFF-WP-KERNEL-012-KB-ORCHESTRATOR-2026-09-24-SESSION7
 file_kind: operator_handoff
-updated_at: 2026-09-30
+updated_at: 2026-10-01
 authority: reference_only
 wp_id: WP-KERNEL-012
 ---
 
 <topic id="session-2026-09-30-orchestrator" wp="WP-KERNEL-012" status="active" updated_at="2026-10-01">
+
+## State at 2026-10-01 ~15:10Z (17:10 +0200; evidence-only; supersedes every older section below wherever they differ)
+
+Evidence: gov `git log --since=2026-10-01T03:00:00Z` (tip `0b56f8a8` = `origin/gov_kernel` via `git ls-remote`, 17:03:33 +0200 = 15:03:33Z); product `git log origin/feat/WP-KERNEL-012` (tip `1d1f583a`, `git rev-parse` HEAD == origin); all `MT-NNN.json` `lifecycle.status` and `validation_round_*` records; `packet.json#tracker.mt_status`, `#operator_decisions_20261001`, `#credential_cleanup_20260930.defect_cx_git_003.occurrences`, `#round_tooling_20261001_spin_capture`. The label `~16:45Z` in the request does not match the clock (15:09Z at write); times below are Z unless marked `+0200`. Typed MT JSON wins on conflict.
+
+### A. What the previous top section (`~04:00Z`, gov `094db03b`) got wrong or lacks now
+
+- Status: it says MT-027/MT-153 READY on `fea3ce0a` and "MT-042 stays FAIL_V8". Now MT-027 FAIL_V16, MT-153 FAIL_V14, MT-042 PASS_V13 (`218fd2fa`). Counts there (129 PASS / 7 FAIL / 10 READY / 21 BLOCKED) are stale.
+- Tips: product `fea3ce0a` is now `1d1f583a` (pushed; product worktree has an uncommitted `M src/backend/handshake_core/src/api/loom.rs`, content not inspected); gov `ec693a70` is now `0b56f8a8`.
+- "No round has run on export-current yet", "F1+F3 sufficiency UNVERIFIED", "F2 HELD", "debug-backend research pending", next-action steps 1-5: all superseded. Round on `export-current` ran (`fea3ce0a`); F1+F3 was insufficient (FAIL_V7); F2 was implemented (`d9ce6017`); the cheap research was done (`2b2990ef`, `0c9d08f9`).
+- Missing there: 12 rounds/probes since 03:00Z (table D), 2 new CX-GIT-003 credential occurrences (count 243/24), open `operator_decision_request_20261001_w_scan_ownership`, VPX-011 text-correction decision (`MT-153.json#note_20261001_vpx011_deviation`), d5f5d8e3 / R11 / no-SCHEMA_REVISION-bump open items, the current failure line, GP-158/159/160.
+- Tracker drift there ("7 MTs") is 8 now (fixed in this commit, see section G).
+- Frontmatter `updated_at` was 2026-09-30 (set to 2026-10-01 in this commit).
+
+### B. MT status now (167 MTs; `lifecycle.status` re-read at write time)
+
+- 130 PASS_*, 8 FAIL_*, 8 READY_FOR_VALIDATION, 21 BLOCKED. Previous top section: 129 / 7 / 10 / 21.
+- FAIL (8): MT-008 V9, MT-027 V16, MT-043 V6, MT-046 V9, MT-064 V9, MT-065 V9, MT-128 V3, MT-153 V14.
+- READY_FOR_VALIDATION (8): MT-079, MT-122, MT-136, MT-154, MT-155, MT-157, MT-158, MT-159 (rounds 7548bc72..9e4bee34 inconclusive for 079/122/136/154/157/158/159 with pins PASS; MT-155 never in a round; 11f1b034 and 1d1f583a ran MT-027/MT-153 only).
+- BLOCKED (21, unchanged): MT-033 034 045 068 070 074 098 111 116 117 120 121 124 125 127 129 130 140 142 143 167.
+- `.GOV/task_packets/WP-KERNEL-012-.../MT-136-candidate-boundary.json` is an extra file with no `lifecycle` (not an MT; left unchanged).
+
+### C. MT status changes today since 03:00Z (commit; time Z; only MT-027, MT-042, MT-153 changed)
+
+- `094db03b` 03:59: MT-027 FAIL_V8 -> READY, MT-153 FAIL_V6 -> READY (candidate `fea3ce0a`). `72cc01fe` 04:00: MT-042 FAIL_V8 -> READY (`fea3ce0a`).
+- `59947d4d` 05:24 (round `fea3ce0a`): MT-027 FAIL_V9, MT-042 FAIL_V9, MT-153 FAIL_V7. `0b966805` 06:25: all three READY (`d9ce6017`).
+- `3b5b1b8d` 07:54 (`d9ce6017`): MT-027 FAIL_V10, MT-042 FAIL_V10, MT-153 FAIL_V8. `3d3da931` 08:43: all three READY (`7548bc72`).
+- `a8c4e889` 09:44 (`7548bc72`): MT-027 FAIL_V11, MT-042 FAIL_V11, MT-153 FAIL_V9. `144d67fa` 10:10: all three READY (`791a81dd`).
+- `1c183822` 11:11 (`791a81dd`): MT-027 FAIL_V12, MT-042 FAIL_V12, MT-153 FAIL_V10. `96b7758c` 11:49: all three READY (`5da8b75a`).
+- `218fd2fa` 12:49 (`5da8b75a`): MT-042 PASS_V13; MT-027 FAIL_V13, MT-153 FAIL_V11. `9dcdda83` 12:54: MT-027, MT-153 READY (`9e4bee34`).
+- `665fbf74` 13:48 (`9e4bee34`): MT-027 FAIL_V14, MT-153 FAIL_V12. `6247625b` 13:57: both READY (`11f1b034`).
+- `f014a878` 14:12 (`11f1b034`): MT-027 FAIL_V15, MT-153 FAIL_V13. `09649f5c` 14:15: both READY (`1d1f583a`).
+- `73d57640` 14:31 (`1d1f583a`): MT-027 FAIL_V16, MT-153 FAIL_V14.
+- No other MT `lifecycle.status` changed since 03:00Z (diff of every `MT-NNN.json` per commit). No reopened PASS MT.
+
+### D. Rounds, probes and pin-measures since 03:00Z (candidate -> outcome -> verdict gov SHA; windows from `MT-153.json#validation_round_*`)
+
+- `fea3ce0a` (04:21-05:23, first round on `export-current`, 5 crates compiled / 28 test binaries relinked): MT-153 V7, MT-027 V9, MT-042 V9; `LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT` `tests/test_block_collection_view.rs:1743`; MT-079/122/136 inconclusive. Gov `59947d4d`.
+- Probe `39f3e830` (diagnostic, not a candidate; card-move PATCH timing; result 06:20; MT-153/027/042 stay FAIL): gov `c6f29f6d` (records `6dcace9f`, `d6c39ab6`).
+- `d9ce6017` (F2 one-transaction card move + tag-only reindex skip; 06:52-07:45): MT-153 V8, MT-027 V10, MT-042 V10; failure moved to `ARGUS_BINDING_ROOT_REDIRECTED_BY_PROOF_SUPPORT` (`test_block_collection_view.rs:2507`) plus `WORKSPACE_DELETE_ANCHOR_DELETE_DENIED` at cleanup; stale pin test `mt152_manual_lock_migration_pins_code` FAIL (routed to MT-152, which stays PASS_V6). Gov `3b5b1b8d`.
+- Pin-measure `8ff1565d` (route (a) view_def widening; measurement, no verdict; GENERATED_SURREALQL_SHA256 and EXPECTED_SCHEMA_INFO_SHA256 change): gov `c29eb43d`, `eb96b356`.
+- `7548bc72` (08:48-09:41): MT-153 V9, MT-027 V11, MT-042 V11; `mt153_owner_workspace_delete_removes_saved_view` FAIL (`src/api/loom.rs:10103` left 403 right 204) + BCV `MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT` (view e8709b23); PIN-CONFIRM 7/7; user_manual 27/27 PASS. Gov `a8c4e889`.
+- Pin-measure `1ff1821f` (attempt 2 + P1; same two pins change): gov `af344899`.
+- `791a81dd` (10:14-11:08): MT-153 V10, MT-027 V12, MT-042 V12; saved-view delete proof test PASS; BCV `MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT` (`:2001`, 10 s, view c11d6b64); CX-GIT-003 occurrence 1. Gov `1c183822`, `ae369f1c`.
+- Pin-measure `94ba0ed1` (loom_edges delete reorder + DIAGNOSTIC probe; same two pins change): gov `d312adef`, `5ea61f55`.
+- `5da8b75a` (11:53-12:44): MT-042 PASS_V13; MT-153 V11, MT-027 V13; BCV view-load timeout did not recur; failure `LOOM_BLOCK_GET_DENIED_FOR_HOST_CREATED_VIEW` (`backend_proof_support/mod.rs:2366`, 403); MT153_DIAG 195 lines, max 777 ms. Gov `218fd2fa`.
+- `9e4bee34` (12:58-13:46): MT-153 V12, MT-027 V14; MT-079/122/136/154/157/158/159 inconclusive (pins reused from `5da8b75a`, CX-VAL-002); failure `FR_SESSION_TOKEN_STALE_AFTER_BINDING_REDIRECT` (`:3324`, 401). Gov `665fbf74`.
+- `11f1b034` (14:04-14:10; first launch died at PowerShell parse of the generated launcher, GP-160, `1331be86`): MT-153 V13, MT-027 V15; `FR_READ_WRONG_CREDENTIAL_HEADERS` (`:3330`, 401). Gov `f014a878`.
+- `1d1f583a` (14:19-14:27): MT-153 V14, MT-027 V16; `BACKEND_CPU_SPIN_STALLS_MOUNTED_VIEW_LOAD` (`:2001`, view 1c478634); CX-GIT-003 occurrence 2 (243/24). Gov `73d57640`.
+- Round selections: `474d0777`, `423ed9a5`, `1c491952`, `89e3796a`, `4591c689`, `16bf3c27`, `212dd373` (the last: only `test_block_collection_view.rs` changed, MT-027 BCV named tests + minimal core, rest reused).
+
+### E. Current failure line (MT-153 FAIL_V14 / MT-027 FAIL_V16)
+
+- Class `BACKEND_CPU_SPIN_STALLS_MOUNTED_VIEW_LOAD` (`MT-153.json#validation_round_1d1f583a`): mounted app does not load the view within 10 s at `test_block_collection_view.rs:2001`; owned backend ~1 core, no I/O growth, no logs (same view-load class at `7548bc72` and `791a81dd`; did not recur in `5da8b75a`, `9e4bee34`, `11f1b034`).
+- Research (`MT-153.json#diagnosis_20261001_cpu_spin_reconciler_tick_p2`, gov `0c9d08f9`, 14:49Z): in 3/3 failing runs the last Flight Recorder write lands within 0.1 s of a 15 s reconciler tick (`spawn_block_view_reconciler`, `api/loom.rs:2654-2670`); HYPOTHESIS R1 = tick-vs-request double publication of the same outbox event; ~1 core is NOT a discriminator (healthy runs show it too); R2 rocksdb drain_cursors contradicted.
+- Lane A (KERNEL_BUILDER) is implementing P2 as attempt 2 (background reconciler skips outbox rows younger than ~30 s; `api/loom.rs` only; DIAGNOSTIC `mt153_diag_bv_publish` logging to revert later); recorded before edit. Rule in the record: if it fails, record the blocker and escalate, no attempt 3. P2 only avoids the trigger; if the wedge is DuckDB-internal the defect remains.
+- Validator spin-capture tooling is committed (gov `2dd08b56`; `WPV-round-observer.ps1` BACKEND_CPU_SPIN trigger = 2 polls of backend dCPU >= 0.8*dt AND test dCPU < 1 s AND backend dWrite < 20 KB -> once: thread CPU twice + procdump PSS dumps, sample only; `WPV-spin-stack.sh` offline stack); replay dry-run fires on `1d1f583a` and `791a81dd`, silent on the other rounds.
+- Fix `1d1f583a` (FR read through `get_json_with_session_token`, account session + channel binding; product 16:14 +0200, gov `baa21d53`) is pushed but NOT yet reached by any round: UNPROVEN.
+
+### F. Fixes confirmed today (from round records)
+
+- MT-042 PASS_V13 on `5da8b75a` (`test_e7_knowledge_accesskit` 40/40 incl. `ac10_live_surrealdb_populated_graph_accesskit_round_trip`; `94ba0ed1` loom_edges delete reorder + re-pin `5da8b75a`).
+- Card-move PATCH timeout (`LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT`): present in `fea3ce0a` (F1+F3 insufficient); not the failure class in any round from `d9ce6017` (F2) to `1d1f583a`.
+- Owner workspace delete with a saved view (route (a) attempt 2): proof test FAIL at `7548bc72`, PASS from `791a81dd` (ac10 backend logs `workspace deleted` 11:08:21Z).
+- MT-152 keyed_lock pin (`f98e1e20`): user_manual 27/27 PASS in `7548bc72`, `791a81dd`, `5da8b75a`, `9e4bee34`; Argus binding-root assertion no longer the failure from `7548bc72`.
+- Host-created view GET 403 (`5da8b75a` failure): not the failure after `9e4bee34` (view read through the bound view route).
+- Schema pins: PIN-CONFIRM 7/7 on `7548bc72`, `791a81dd`, `5da8b75a`; reused (schema unchanged) on `9e4bee34`.
+- Round stable checks (d9ce6017..9e4bee34): route matrix 2/2, workspace-delete 2/2, loom targets 16/16, canvas_board live PASS, FMT and DIFF-CHECK PASS.
+- Refuted/not confirmed: Flight Recorder lock hypothesis REFUTED (`2b2990ef`, `research_20261001_fr_stall_refuted`); P1 outbox mark retry NOT CONFIRMED (`791a81dd`); FR token-in-effect `11f1b034` insufficient.
+- Export-current (VPX-011) rebuild accounting: `fea3ce0a` 5 crates, `d9ce6017`..`9e4bee34` 1 crate, `11f1b034`/`1d1f583a` 0 crates.
+
+### G. Tracker resync (this commit)
+
+- `packet.json#tracker.mt_status` re-read from `lifecycle.status` at commit time; changed entries (old -> new) are listed in the commit report: MT-023 READY -> PASS_V9; MT-027 FAIL_V7 -> FAIL_V16; MT-036 READY -> PASS_V10; MT-042 FAIL_V8 -> PASS_V13; MT-046 READY -> FAIL_V9; MT-066 READY -> PASS_V9; MT-113 READY -> PASS_V4; MT-153 READY -> FAIL_V14. `status_sync_note_*` keys untouched.
+
+### H. Open Operator decisions (none made today unless quoted in section I)
+
+1. Debug-backend dependency opt-level override (`[profile.dev.package]`; live native proofs launch `target/debug/handshake_core.exe`, surrealdb-core at opt-level 0): `MT-153.json#diagnosis_20261001_cardmove_split_edge_txns.systemic_multiplier_out_of_scope` (magnitude UNVERIFIED, forces surrealdb-core rebuild); rounds `fea3ce0a`..`9e4bee34` note "debug-backend override not applied, Operator decision pending". A "canary" element: no record located (UNVERIFIED).
+2. W-scan ownership: `MT-153.json#operator_decision_request_20261001_w_scan_ownership` status open (recorded 11:30:17Z): who makes `fn::mt120_workspace_delete` grant/resource scans index-bound (extend/reopen MT-166, assign MT-153 with scope amendment, assign MT-154, or accept cost).
+3. Two leaked OS-vault credentials (CX-GIT-003), both NOT deleted, Operator approval required: `01a0f71f-885e-7b03-b595-1a42b809009f.handshake-local-accounts-d8d19f56...` (`791a81dd`, 11:00:41Z, gov `ae369f1c`, 241/22 -> 242/23) and `01a0f7d8-14de-7f10-9428-865acd834185.handshake-local-accounts-33359bac...` (`1d1f583a`, 14:22:08Z, gov `73d57640`, 242/23 -> 243/24); `packet.json#credential_cleanup_20260930.defect_cx_git_003.occurrences`. The earlier 22 unproven entries remain untouched and not approved.
+4. MT-046 backlink-projection owner (`src/backend/handshake_document/src/surreal.rs`, no owning MT): `MT-046.json#remediation_20261001_0c416dc4` `next_actor` ORCHESTRATOR; MT-046 FAIL_V9 (ic04/ic10/ic12; ic06 blocked on MT-167).
+5. MT-043/MT-128 5 s swarm-resave bound (`test_e7_swarm_edit_proof.rs:3240-3252`): NOT_DECIDED (`operator_decision_request_20260930_bb9548e1`).
+6. VPX-011 text correction (verifier compares bytes to the candidate's `git archive`, not recomputed blob ids): `MT-153.json#note_20261001_vpx011_deviation`, `decision_owner` Operator.
+7. MT-045 / CX-GIT-003 leak-defect routing: `defect_cx_git_003.routing` "MT-032 vs MT-154 vs a new shared-helper defect is an Operator decision (not made)"; MT-045 BLOCKED, no routing record in any MT JSON.
+8. Open item d5f5d8e3 (2026-09-29 single `file` block, no view; not explained by route (a)): `remediation_20261001_7548bc72.open_items` (MT-027/MT-042/MT-153).
+9. Review R11 (negative forged-`view_def`-provenance test) DEFERRED: `MT-153.json#review_20261001_w_b_provenance`.
+10. No SCHEMA_REVISION bump risk: a dev store at revision 162 with the old guard would not match the new current pin (`remediation_20261001_7548bc72.open_items`).
+11. Carried: code-nav index cost (MT-008/064/065 `operator_decision_request_20260930_index_cost`, MT-167 BLOCKED).
+
+### I. Operator instructions today (`packet.json#operator_decisions_20261001`, verbatim `operator_quote`)
+
+- `WP012-OPERATOR-GP146-FLOOR-20261001`: "change it so you can proceed".
+- `WP012-STABLE-EXPORT-PATH-RULES-20261001`: "VPX-011 in WPV protocol, KB-CAD-VPX-002 pointer, Global 023-025, WP-012 scripts now".
+- `WP012-OPERATOR-STABLE-EXPORT-20261001`: "WP-012 scripts now".
+- `WP012-OPERATOR-CHEAP-RESEARCH-BEFORE-TESTS-20261001`: "if your stuck use a cheap sub agent to reseach online before running expensive time consuming tests".
+- `WP012-OPERATOR-ORCHESTRATOR-NEVER-SELF-STOPS-20261001` (gov `0b56f8a8`): "you do not decide when to stop"; the orchestrator's 10-minute tick runs continuously and is re-armed at every expiry; stopping is the Operator's decision only. Its `recorded_at_utc` is `2026-10-01T00:00:00Z` (a placeholder, not the recording time).
+- Standing earlier instructions (AFK autonomy, buddy, no globals/Codex, cargo reuse, single union round, bedtime orders) stay as in section 5 of the next section.
+
+### J. Next actions (in order)
+
+1. Lane A: finish P2 (`api/loom.rs`; product worktree has the uncommitted edit), record, commit and push product `feat/WP-KERNEL-012`, resubmit MT-027 and MT-153 READY on the new candidate (HEAD == pushed tip == candidate).
+2. Validator: GP-155 and before_round gates (GP-154 commit free >= 45 GB, `-j 1`, detached per GP-153, GP-160 launcher parse check); one union round on the P2 candidate with `WPV-round-observer.ps1` (spin capture); it also proves `1d1f583a`. On a BACKEND_CPU_SPIN stall run `WPV-spin-stack.sh` and read `logs/union-<sha>.spin-stack.txt`.
+3. If P2 fails: record the blocker and escalate (no attempt 3 per the diagnosis record); do not resubmit the same fix.
+4. Orchestrator: continuous 10-minute tick (never self-stops); decide or leave open the section H items without the Operator where the AFK instruction covers them; credential deletion needs Operator approval.
+5. Then the remaining FAIL MTs (MT-008/064/065 blocked_on MT-167; MT-043/128; MT-046), the READY MTs (079, 122, 136, 154, 155, 157, 158, 159), WP-end extra-build proofs; report WP-KERNEL-012 finished only when all MTs are validator PASS.
 
 ## State at 2026-10-01 ~04:00Z (AFK autonomy; Operator asleep, do not expect a reply)
 
