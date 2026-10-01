@@ -7970,5 +7970,57 @@
         "state_effect": "lifecycle.status FAIL_V13"
       }
     ]
+  },
+  "diagnosis_20261001_fr_read_wrong_credential_headers": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-153-20261001-FR-READ-WRONG-CREDENTIAL-HEADERS",
+    "kind": "blocker_diagnosis",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T14:14:03Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "method": "code + contract reading (no run)",
+    "failure_class": "FR_READ_WRONG_CREDENTIAL_HEADERS",
+    "failing_assertion": "tests/test_block_collection_view.rs:3330 'GET Flight Recorder -> 401 HSK-401-FR-SESSION' (round 11f1b034; MT-153 FAIL_V13 / MT-027 FAIL_V15)",
+    "attempt_1": {
+      "ref": "MT-153.json#diagnosis_20261001_fr_read_token_in_effect (commit 11f1b034)",
+      "hypothesis": "the 401 came from sending the generated stage token instead of the binding token in effect",
+      "status": "REFUTED by round 11f1b034 (same 401 with the in-effect token). Still valid: the binding redirect and the Argus driver keeping the existing token (validator correction 'still_valid')"
+    },
+    "authorization_model": {
+      "product": "api/flight_recorder.rs:8-12 module doc: 'The caller is authenticated as a persisted account session (`x-hsk-session-token`) bound to the live native-MCP channel. No session, a forged, revoked, expired, or disabled session, or a missing channel binding is `401 HSK-401-FR-SESSION` (audited deny)'",
+      "cause": "the BCV read (:3312-3335) hand-builds its request with build_backend_client(), without the fixture account authorization, and puts the native-MCP CHANNEL token in x-hsk-session-token (the ACCOUNT-session header) -> no account session -> 401 whatever the token value",
+      "passing_readers": "test_calendar_interop.rs:449, :477, :691 read /api/flight_recorder?wsid= via backend.get_json_with_session_token(path, <native binding token>); backend_proof_support/mod.rs:2146-2158 sends ident() (authenticated(): fixture account session) plus the binding token as x-hsk-channel-binding-token"
+    },
+    "not_a_weakening": {
+      "ac_quote": "MT-027 scope.acceptance_criteria AC1-AC10 and proof_targets PROOF1-PROOF6 do not mention the Flight Recorder; the read is the test's own actor-attribution check. MT-153 closure_unit.materialized_acceptance has no FR credential entry (DX-MT-153-20261001-FR-READ-SENDS-GENERATED-NOT-IN-EFFECT-TOKEN ac_check)",
+      "argument": "the helper presents BOTH credentials the product requires (account session + live channel binding); helper doc :2140-2144 'It does not weaken, bypass, or stub the authorization: an absent, forged, or stale binding still fails closed'. The hand-built read presented neither correctly. The actor-attribution assertions on the returned events (actor_id == BLOCK_VIEW_ACTOR_ID) stay unchanged"
+    },
+    "sweep_all_instances": [
+      {
+        "where": "test_block_collection_view.rs:3312-3335",
+        "kind": "hand-built FR request: no account auth; channel token in x-hsk-session-token",
+        "action": "FIX: live.get_json_with_session_token(\"/api/flight_recorder?wsid=<workspace_id>\", &stage_session_hex)"
+      },
+      {
+        "where": "test_block_collection_view.rs:2135, :2346 BlockViewClient::new(live.base...)",
+        "kind": "product client (not hand-built; product auth via the account origin, :3127 rebind_account_origin_for_test)",
+        "action": "not the same cause: no FR route, no hand-set credential header; these calls pass in every round"
+      },
+      {
+        "where": "rest of the test",
+        "kind": "other hand-built requests / credential headers",
+        "action": "none: grep for build_backend_client|reqwest::|.header(|x-hsk-|/flight_recorder|/api/events|.send() finds only :3312-3335; all other backend calls use live.get_json/post_json (fixture ident())"
+      }
+    ],
+    "attempt_2_intent": {
+      "change": "replace the hand-built read with live.get_json_with_session_token(recorder_path, &stage_session_hex) (token in effect, kept from 11f1b034); delete the hand-built headers/client; update the comment",
+      "timeout": "the helper uses the fixture REQUEST_TIMEOUT (15 s, backend_proof_support/mod.rs:65) under the command-wide proof deadline instead of the hand-built 30 s; no helper exposes a custom timeout and backend_proof_support is not changed. Recorded as a known difference: a contention timeout would surface as a labelled 'GET ... ' failure",
+      "files": [
+        "src/frontend/handshake_native/tests/test_block_collection_view.rs"
+      ],
+      "not_touched": "backend_proof_support/mod.rs, canonical_argus_driver.rs",
+      "attempt_rule": "attempt 2 of 2 on this assertion; if it fails there is no third attempt: record the blocker and escalate"
+    }
   }
 }

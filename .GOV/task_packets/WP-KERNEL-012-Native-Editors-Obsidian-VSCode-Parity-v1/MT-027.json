@@ -3764,5 +3764,12 @@
         "state_effect": "lifecycle.status FAIL_V15"
       }
     ]
+  },
+  "diagnosis_20261001_fr_read_wrong_credential_headers": {
+    "ref": "MT-153.json#diagnosis_20261001_fr_read_wrong_credential_headers",
+    "diagnosis_id": "DX-MT-153-20261001-FR-READ-WRONG-CREDENTIAL-HEADERS",
+    "recorded_at_utc": "2026-10-01T14:14:03Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "summary": "attempt-1 hypothesis (stale generated token) REFUTED; the FR read lacked account auth and sent the channel token in the account-session header; attempt 2 uses get_json_with_session_token"
   }
 }
