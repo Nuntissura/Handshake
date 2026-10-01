@@ -20,7 +20,12 @@ MODE="${2:-}"
 # MODE mt164-capture: Operator-authorized single capture run (packet.json operator_decisions_20260929
 # mt164_close) of the MT-164 timing test on an already-built export; lib only, no extracted crates,
 # JUnit written to junit-<SHA>-core-mt164-capture.xml, one-shot marker per SHA.
-[[ -z "$MODE" || "$MODE" = core-only || "$MODE" = mt164-capture ]] || { echo "[run-round] FATAL: unknown mode $MODE"; exit 2; }
+# MODE backend-opt-diag: Operator decision WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001 condition C1
+# (one diagnostic run; CX-EXEC-014 remediation MT-153.json#remediation_20261001_backend_opt_diag). Candidate may be
+# an ancestor of the pushed tip; requires the completed union round for <SHA> (the dev-profile reference); no core
+# build/run, no extracted crates, no native preflight; builds the backend with WPV-backend-profile.toml and runs
+# exactly the two edge-create tests; JUnit junit-<SHA>-native-backend-opt-diag.xml; one-shot marker per SHA.
+[[ -z "$MODE" || "$MODE" = core-only || "$MODE" = mt164-capture || "$MODE" = backend-opt-diag ]] || { echo "[run-round] FATAL: unknown mode $MODE"; exit 2; }
 NATIVE_SKIP=0; [[ "$MODE" = core-only || "$MODE" = mt164-capture ]] && NATIVE_SKIP=1
 echo "[run-round] mode=${MODE:-full}"
 LANE="D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x"
@@ -45,9 +50,22 @@ check_target_cap() {
 
 [ -d "$LANE" ] && [ -d "$TARGET" ] || { echo "[run-round] FATAL: assigned lane or warm target missing"; exit 2; }
 [ -z "$(git -C "$WORKTREE" status --porcelain)" ] || { echo "[run-round] FATAL: builder worktree is dirty"; exit 2; }
-[ "$(git -C "$WORKTREE" rev-parse HEAD)" = "$SHA" ] || { echo "[run-round] FATAL: candidate is not builder HEAD"; exit 2; }
 REMOTE_SHA="$(git -C "$WORKTREE" ls-remote origin refs/heads/feat/WP-KERNEL-012 | cut -f1)"
-[ "$REMOTE_SHA" = "$SHA" ] || { echo "[run-round] FATAL: candidate is not pushed branch tip ($REMOTE_SHA)"; exit 2; }
+if [[ "$MODE" = backend-opt-diag ]]; then
+  git -C "$WORKTREE" merge-base --is-ancestor "$SHA" "$REMOTE_SHA" || { echo "[run-round] FATAL: diagnostic candidate is not an ancestor of the pushed branch tip ($REMOTE_SHA)"; exit 2; }
+  [[ -f "$LANE/junit-$SHA-native.xml" ]] || { echo "[run-round] FATAL: backend-opt-diag requires the completed union round (dev reference) for $SHA"; exit 2; }
+  [[ ! -e "$LANE/BACKEND-OPT-DIAG-${SHA:0:8}.started" ]] || { echo "[run-round] FATAL: backend-opt-diag already consumed for $SHA"; exit 2; }
+else
+  [ "$(git -C "$WORKTREE" rev-parse HEAD)" = "$SHA" ] || { echo "[run-round] FATAL: candidate is not builder HEAD"; exit 2; }
+  [ "$REMOTE_SHA" = "$SHA" ] || { echo "[run-round] FATAL: candidate is not pushed branch tip ($REMOTE_SHA)"; exit 2; }
+fi
+# Owned-backend build profile (Operator decision WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001, C2/C3):
+# checked-in allow-list config next to this script, resolved at runtime, passed only to the backend build line.
+BACKEND_PROFILE_TOML="$(dirname "$(readlink -f "$0")")/WPV-backend-profile.toml"
+[ -f "$BACKEND_PROFILE_TOML" ] || { echo "[run-round] FATAL: backend profile config missing: $BACKEND_PROFILE_TOML"; exit 2; }
+BACKEND_PROFILE_CONFIG="$(cygpath -m "$BACKEND_PROFILE_TOML")"
+BACKEND_PROFILE_SHA256="$(sha256sum "$BACKEND_PROFILE_TOML" | cut -c1-64)"
+echo "[run-round] backend_build_profile=dev+dep-opt2 config=$BACKEND_PROFILE_CONFIG sha256=$BACKEND_PROFILE_SHA256 decision=WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001 jobs=2"
 check_target_cap
 
 mkdir -p "$LANE/logs" "$LANE/tmp" "$LANE/runtime" "$LANE/workspace"
@@ -220,6 +238,17 @@ if [[ -z "$MODE" ]]; then
   [ "${ROUND_SELECTION_SHA:-}" = "$SHA" ] || { echo "[run-round] FATAL: round selection is for ${ROUND_SELECTION_SHA:-none}, not $SHA"; exit 2; }
   echo "[run-round] round selection: core ${#CORE_TESTS[@]} targets + lib, native ${#NATIVE_TESTS[@]} targets lib=$NATIVE_LIB"
 fi
+CORE_SKIP=0
+NATIVE_JUNIT_NAME="junit-$SHA-native.xml"
+if [[ "$MODE" = backend-opt-diag ]]; then
+  CORE_SKIP=1
+  EXTRACTED_CRATES=()
+  NATIVE_TESTS=(test_block_collection_view test_tags_panel)
+  NATIVE_LIB=0
+  NATIVE_FILTER='(binary(=test_block_collection_view) & test(=block_collection_views_live_surrealdb_self_seed_full_round_trip)) | (binary(=test_tags_panel) & test(=tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip))'
+  NATIVE_JUNIT_NAME="junit-$SHA-native-backend-opt-diag.xml"
+  echo "[run-round] backend-opt-diag selection: native ${NATIVE_TESTS[*]} filter $NATIVE_FILTER"
+fi
 NATIVE_TARGET_ARGS=(); [[ "$NATIVE_LIB" = 1 ]] && NATIVE_TARGET_ARGS=(--lib)
 for t in "${NATIVE_TESTS[@]}"; do NATIVE_TARGET_ARGS+=(--test "$t"); done
 
@@ -235,16 +264,18 @@ if [[ "$MODE" = mt164-capture ]]; then
 fi
 [[ -n "$MODE" || -n "${ROUND_SELECTION_SHA:-}" ]] || EXTRACTED_CRATES=(handshake_document handshake_storage_support)
 [[ "$MODE" = core-only ]] && EXTRACTED_CRATES=(handshake_document handshake_storage_support)
-[[ "$MODE" = mt164-capture ]] && EXTRACTED_CRATES=()
+[[ "$MODE" = mt164-capture || "$MODE" = backend-opt-diag ]] && EXTRACTED_CRATES=()
 
 BUILD_START_MARKER="$LANE/tmp/build-start-$SHA"
 touch "$BUILD_START_MARKER"
+if [[ "$CORE_SKIP" != 1 ]]; then
 echo "[run-round] building core union"
 # -j 1: handshake_core lib and lib-test compiled in parallel hit rustc-LLVM out of memory on 1f4e0f69
 # (2026-09-30, host shared with foreign builds); build them one at a time.
 ( cd "$EXPORT/src/backend/handshake_core" && \
   cargo test --locked -j 1 --no-run --lib --features app-runtime,surreal-test-support,test-utils "${core_test_args[@]}" )
 check_target_cap
+fi
 
 if [[ "$NATIVE_SKIP" != 1 ]]; then
 echo "[run-round] building native union"
@@ -263,10 +294,13 @@ done
 if [[ "$NATIVE_SKIP" != 1 ]]; then
 echo "[run-round] building backend binary for HSK_TEST_BACKEND_BIN"
 ( cd "$EXPORT/src/backend/handshake_core" && \
-  cargo build --locked --target-dir "$HSK_TEST_BACKEND_TARGET_ROOT" --bin handshake_core --features app-runtime,surreal-test-support )
+  cargo build --locked -j 2 --config "$BACKEND_PROFILE_CONFIG" --target-dir "$HSK_TEST_BACKEND_TARGET_ROOT" --bin handshake_core --features app-runtime,surreal-test-support )
 check_target_cap
 [ -f "$HSK_TEST_BACKEND_BIN" ] || { echo "[run-round] FATAL: backend bin not found at $HSK_TEST_BACKEND_BIN"; exit 3; }
 
+if [[ "$MODE" = backend-opt-diag ]]; then
+  echo "[run-round] backend-opt-diag: native nextest MT-008 preflight skipped (would build unselected binaries)"
+else
 # Validate the changed native config against the just-built union binaries
 # before any test executes. This is the same candidate/build, not a separate
 # per-MT build or proof run.
@@ -287,6 +321,7 @@ grep -q 'test_code_nav_client' "$LANE/logs/native-nextest-groups-$SHA.log" \
 grep -q 'test_completion_hover_accesskit' "$LANE/logs/native-nextest-groups-$SHA.log" \
   || { echo "[run-round] FATAL: MT-008 completion/hover absent from owned-backend group"; exit 3; }
 echo "[run-round] native nextest MT-008 owned-backend group verified"
+fi
 fi
 
 # HBR-COMPART-002 / [VPX-011]: per-round rebuild accounting. Only the changed crates and their dependents
@@ -322,6 +357,10 @@ fi
 # Threads with an explicit Builder::stack_size (e.g. storage/tests.rs test store runtime) keep it.
 export RUST_MIN_STACK=10485760
 echo "[run-round] test-process RUST_MIN_STACK=$RUST_MIN_STACK"
+if [[ "$CORE_SKIP" = 1 ]]; then
+  echo "[run-round] $MODE mode: core build and run skipped"
+  CORE_NEXTEST_EXIT=skipped
+else
 echo "[run-round] nextest CORE run"
 CORE_JUNIT="$EXPORT/src/backend/handshake_core/target/nextest/default/junit.xml"
 CORE_JUNIT_MARKER="$LANE/tmp/core-junit-start-$SHA"
@@ -357,6 +396,7 @@ else
   echo "[run-round] CORE_JUNIT_MISSING_OR_STALE: $CORE_JUNIT"
   CORE_INVALID=1
 fi
+fi
 
 if [[ "$NATIVE_SKIP" = 1 ]]; then
   echo "[run-round] $MODE mode: native build and run skipped"
@@ -366,6 +406,9 @@ echo "[run-round] nextest NATIVE run (excluding duplicated failure_diagnostic_te
 NATIVE_JUNIT="$EXPORT/src/frontend/handshake_native/target/nextest/default/junit.xml"
 NATIVE_JUNIT_MARKER="$LANE/tmp/native-junit-start-$SHA"
 touch "$NATIVE_JUNIT_MARKER"
+if [[ "$MODE" = backend-opt-diag ]]; then
+  (set -o noclobber; date -u +%Y-%m-%dT%H:%M:%SZ > "$LANE/BACKEND-OPT-DIAG-${SHA:0:8}.started") || exit 2
+fi
 set +e
 ( cd "$EXPORT/src/frontend/handshake_native" && \
   "$NEXTEST" nextest run --locked --no-fail-fast \
@@ -380,7 +423,7 @@ fi
 if [[ "${NATIVE_INVALID:-0}" != 1 && -f "$NATIVE_JUNIT" && "$NATIVE_JUNIT" -nt "$NATIVE_JUNIT_MARKER" ]]; then
   NATIVE_TEST_COUNT="$(sed -n 's/^<testsuites[^>]* tests="\([0-9][0-9]*\)".*/\1/p' "$NATIVE_JUNIT" | head -n 1)"
   if [[ -n "$NATIVE_TEST_COUNT" && "$NATIVE_TEST_COUNT" -gt 0 ]]; then
-    cp "$NATIVE_JUNIT" "$LANE/junit-$SHA-native.xml"
+    cp "$NATIVE_JUNIT" "$LANE/$NATIVE_JUNIT_NAME"
     echo "[run-round] native nextest exit=$NATIVE_NEXTEST_EXIT tests=$NATIVE_TEST_COUNT"
   else
     echo "[run-round] NATIVE_ZERO_OR_UNPARSEABLE_TEST_COUNT: $NATIVE_JUNIT"
@@ -428,4 +471,4 @@ if [[ "${CORE_INVALID:-0}" == 1 || "${NATIVE_INVALID:-0}" == 1 || "$EXTRACTED_IN
   echo "[run-round] INVALID_ROUND_RESULT core_exit=$CORE_NEXTEST_EXIT native_exit=$NATIVE_NEXTEST_EXIT extracted_invalid=$EXTRACTED_INVALID extracted=${EXTRACTED_RESULTS[*]}"
   exit 4
 fi
-echo "[run-round] done. junit: $LANE/junit-$SHA-core.xml , $LANE/junit-$SHA-native.xml , $LANE/junit-$SHA-handshake_document.xml , $LANE/junit-$SHA-handshake_storage_support.xml (core_exit=$CORE_NEXTEST_EXIT native_exit=$NATIVE_NEXTEST_EXIT extracted=${EXTRACTED_RESULTS[*]})"
+echo "[run-round] done. junit: $LANE/$CORE_JUNIT_NAME , $LANE/$NATIVE_JUNIT_NAME , $LANE/junit-$SHA-handshake_document.xml , $LANE/junit-$SHA-handshake_storage_support.xml (core_exit=$CORE_NEXTEST_EXIT native_exit=$NATIVE_NEXTEST_EXIT extracted=${EXTRACTED_RESULTS[*]})"

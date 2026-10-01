@@ -1,6 +1,6 @@
 # WP-KERNEL-012 validator round observer (CX-VAL-007 round tooling; committed; launched detached by the validator).
 #
-#   Live:    pwsh -NoProfile -File WPV-round-observer.ps1 -Sha <40-hex> [-Kind union|pin-measure]
+#   Live:    pwsh -NoProfile -File WPV-round-observer.ps1 -Sha <40-hex> [-Kind union|pin-measure|backend-opt-diag]
 #   Replay:  pwsh -NoProfile -File WPV-round-observer.ps1 -ReplayFile <observations.jsonl>   (dry run of the spin trigger; no dump)
 #
 # Every ~30 s it records: C: target bytes (protective stop of the owned wrapper tree above 147 GB, GP-102), the owned process
@@ -18,7 +18,7 @@
 # the stack analysis is recorded (Codex :199, they may contain session tokens).
 param(
     [string]$Sha = '',
-    [ValidateSet('union', 'pin-measure')][string]$Kind = 'union',
+    [ValidateSet('union', 'pin-measure', 'backend-opt-diag')][string]$Kind = 'union',
     [string]$ReplayFile = ''
 )
 $ErrorActionPreference = 'Stop'

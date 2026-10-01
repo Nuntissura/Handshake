@@ -1,0 +1,29 @@
+# WP-KERNEL-012 validator owned-backend build profile (CX-VAL-007 entrypoint config).
+# Operator decision WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001
+# (packet.json operator_decisions_20261001; subject MT-153.json#research_20261001_debug_backend_profile).
+# Passed only to the owned-backend `cargo build --bin handshake_core` line of WPV-union-round.sh via
+# `cargo --config <this file>`; core/native test builds do not read it. Exactly the approved allow-list:
+# no "*" table, no handshake_core / path crates, revision and storekey excluded. Profile stays dev.
+[profile.dev.package."surrealdb"]
+opt-level = 2
+
+[profile.dev.package."surrealdb-core"]
+opt-level = 2
+
+[profile.dev.package."surrealdb-librocksdb-sys"]
+opt-level = 2
+
+[profile.dev.package."surrealdb-rocksdb"]
+opt-level = 2
+
+[profile.dev.package."surrealdb-collections"]
+opt-level = 2
+
+[profile.dev.package."surrealdb-types"]
+opt-level = 2
+
+[profile.dev.package."surrealdb-strand"]
+opt-level = 2
+
+[profile.dev.package."surrealdb-protocol"]
+opt-level = 2

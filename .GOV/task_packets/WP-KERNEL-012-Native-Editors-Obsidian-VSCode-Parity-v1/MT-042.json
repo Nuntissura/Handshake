@@ -1825,5 +1825,11 @@
     "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
     "verdict_labelling": "every verdict records the backend build profile",
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
+  },
+  "ref_20261001_backend_opt_diag": {
+    "at_utc": "2026-10-01T21:00:00Z",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "ref": "MT-153.json#remediation_20261001_backend_opt_diag",
+    "note": "DIAGNOSTIC override-only rerun of this MT's edge-create measurement (dev side = edge_timer_run_result_bd8c7532); no verdict, MT-042 lifecycle unchanged"
   }
 }

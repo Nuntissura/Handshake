@@ -8798,5 +8798,46 @@
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
       }
     ]
+  },
+  "remediation_20261001_backend_opt_diag": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "kind": "DIAGNOSTIC (CX-EXEC-014 named remediation run; not a verdict; load-confounded)",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "at_utc": "2026-10-01T21:00:00Z",
+    "authority": "packet.json operator_decisions_20261001 WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001 condition C1 (one diagnostic measurement run); orchestrator dispatch 2026-10-01 (option A, no dev-side rerun, -j 2, no revert threshold)",
+    "mts": [
+      "MT-153",
+      "MT-042"
+    ],
+    "candidate_commit": "bd8c753223c2714707d6c78d7550448340c85c35",
+    "candidate_reason": "the edge-create timers (loom_edge_create_storage phase + per-statement timings) exist only between 45b8fb6d and e02dfc08 (reverted); bd8c7532 is the candidate of the existing dev-profile measurement, so the same candidate keeps the comparison same-code",
+    "tests": [
+      "test_block_collection_view::block_collection_views_live_surrealdb_self_seed_full_round_trip",
+      "test_tags_panel::tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip"
+    ],
+    "dev_side_reused": {
+      "source": "MT-042.json#edge_timer_run_result_bd8c7532 / MT-042.json#decision_20260930_edge_counter_rule",
+      "timings_file": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/loom-write-timings-bd8c753223c2714707d6c78d7550448340c85c35.json",
+      "edge_create_requests": 4,
+      "edge_create_elapsed_ms": {
+        "median": 3271,
+        "max": 3477
+      },
+      "backend_build_profile": "dev (unoptimized)",
+      "load": "full union round bd8c7532 (concurrent native tests)"
+    },
+    "override_side": {
+      "backend_build_profile": "dev + allow-listed dependency opt-level 2 (WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001)",
+      "config": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-backend-profile.toml (8 packages: surrealdb, surrealdb-core, surrealdb-librocksdb-sys, surrealdb-rocksdb, surrealdb-collections, surrealdb-types, surrealdb-strand, surrealdb-protocol)",
+      "entrypoint": "WPV-union-round.sh <sha> backend-opt-diag (backend build line: cargo build -j 2 --config <toml>)",
+      "outputs": [
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-bd8c753223c2714707d6c78d7550448340c85c35-native-backend-opt-diag.xml",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/backend-opt-diag-bd8c753223c2714707d6c78d7550448340c85c35.*"
+      ],
+      "load": "2 tests only"
+    },
+    "to_record": "dev vs override: edge-create median/max (loom_edge_create_storage end elapsed_ms), per-statement us #6-#9, each test's wall time, backend_build_profile; numbers reported to the Operator via the orchestrator; no revert threshold defined by the Operator",
+    "confounder": "dev samples were taken under full-round load, override samples under a 2-test run; per-statement us are CPU-bound database work and less load-sensitive than the request total, but the comparison is labelled load-confounded",
+    "result_key": "MT-153.json#diagnostic_result_20261001_backend_opt_diag (written after the run)"
   }
 }
