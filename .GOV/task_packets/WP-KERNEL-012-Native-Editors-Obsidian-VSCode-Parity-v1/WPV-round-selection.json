@@ -1,18 +1,23 @@
 {
-  "candidate": "c19203484a0cc975fd8917a32c827babeab0548c",
-  "prior_native_proof": "f4e6690633b6c5e19c2b76b614b328212743771d,1d1f583a60feccc975d6a8dca62564765b858122,11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2,9e4bee3426d23abab9c42decc7c11fd71d63d018,5da8b75a0211aa607ea430a6764770709915f80e,d9ce6017e91430c69d410b555bd79fd5f6916926",
-  "changed_native_test_bins": [
-    "test_block_collection_view"
-  ],
+  "candidate": "9191e8b5cf459f0056f64153634046b5c52ab646",
+  "prior_native_proof": "c19203484a0cc975fd8917a32c827babeab0548c,f4e6690633b6c5e19c2b76b614b328212743771d,1d1f583a60feccc975d6a8dca62564765b858122,9e4bee3426d23abab9c42decc7c11fd71d63d018,5da8b75a0211aa607ea430a6764770709915f80e,d9ce6017e91430c69d410b555bd79fd5f6916926",
+  "changed_native_test_bins": [],
   "native_src_changed": false,
-  "planned_native_tests_estimate": 12,
+  "planned_native_tests_estimate": 44,
   "core_lib": [
     "api::loom::tests::mt153_loom_route_family_authority_matrix",
     "api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows",
     "api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit",
-    "api::workspaces::tests::mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default"
+    "api::workspaces::tests::mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default",
+    "api::loom::tests::mt153_owner_workspace_delete_removes_saved_view",
+    "api::loom::tests::mt027_block_view_publication_survives_outage_restart_races_and_retention"
   ],
-  "core_whole": [],
+  "core_whole": [
+    "loom_daily_journal_tests",
+    "loom_transclusion_tests",
+    "loom_media_tiers_tests",
+    "project_wiki_drift_tests"
+  ],
   "core_partial": {
     "lib": [
       "mt136_database_surface_proof_(a|b|c)::* (MT-136)",
@@ -21,57 +26,67 @@
     "loom_block_collection_views_tests": "MT027_CORE exact 6"
   },
   "intersection": {
-    "candidate": "c19203484a0cc975fd8917a32c827babeab0548c",
+    "candidate": "9191e8b5cf459f0056f64153634046b5c52ab646",
     "rule": "CX-VAL-002",
-    "diff_f4e66906": [
-      "src/frontend/handshake_native/tests/test_block_collection_view.rs"
+    "diff_c1920348": [
+      "src/backend/handshake_core/src/api/loom.rs"
     ],
     "per_mt": {
-      "MT-027": {
-        "intersection": [
-          "src/frontend/handshake_native/tests/test_block_collection_view.rs"
-        ],
-        "decision": "run PC-027-02 non-live 11 + PC-027-03 live (test file changed); reuse PC-027-01 lib (d9ce6017); PC-027-04 core 6 re-run although reusable (entrypoint needs >= 1 core test)"
+      "pins": {
+        "intersection": [],
+        "decision": "reuse 5da8b75a (schema unchanged)"
       },
-      "MT-153": {
+      "MT-153 runtime floor": {
         "intersection": [
-          "src/frontend/handshake_native/tests/test_block_collection_view.rs"
+          "src/backend/handshake_core/src/api/loom.rs"
         ],
-        "decision": "NATIVE-LOOM BCV live runs (= PC-027-03); reuse core + canvas live (f4e66906), PIN-CONFIRM + pins (5da8b75a); FMT/DIFF on the changed file"
+        "decision": "run core (route matrix, mounted creates, workspace delete 2, saved-view delete, mt027 outbox test, loom targets, user_manual) + BCV live + canvas live (handshake_core src / backend binary changed)"
+      },
+      "MT-122": {
+        "decision": "run PC-122-05 + test_manual_content (live backend changed); reuse non-live"
+      },
+      "MT-136": {
+        "decision": "run surface proofs a/b/c (handshake_core lib changed)"
+      },
+      "MT-079": {
+        "decision": "reuse d9ce6017 (native unchanged)"
+      },
+      "MT-154/157/158/159": {
+        "decision": "pin proofs reused 5da8b75a (schema unchanged)"
+      },
+      "MT-027": {
+        "decision": "PASS_V18; not re-proven (its BCV live test runs as MT-153 NATIVE-LOOM)"
       },
       "MT-042": {
         "decision": "PASS_V13; not re-proven"
-      },
-      "MT-079/122/136/154/157/158/159": {
-        "intersection": [],
-        "decision": "reuse (inputs unchanged)"
       }
     }
   },
-  "native_whole_binaries": [],
+  "native_whole_binaries": [
+    "test_manual_content"
+  ],
   "per_mt": {
-    "MT-027": {
+    "MT-122": {
       "run": [
-        "test_block_collection_view::table_renders_three_rows_with_titles",
-        "test_block_collection_view::table_sort_click_emits_backend_sort_then_toggles",
-        "test_block_collection_view::kanban_card_drag_emits_card_move_then_requery_lands_card",
-        "test_block_collection_view::calendar_renders_two_day_buckets",
-        "test_block_collection_view::calendar_date_range_validates_then_emits",
-        "test_block_collection_view::kind_switch_emits_kind_change",
-        "test_block_collection_view::new_view_creates_and_switches",
-        "test_block_collection_view::empty_states_render_without_panic",
-        "test_block_collection_view::client_update_view_wraps_definition",
-        "test_block_collection_view::client_card_move_top_level_tags",
-        "test_block_collection_view::client_create_view_body",
-        "test_block_collection_view::block_collection_views_live_surrealdb_self_seed_full_round_trip"
+        "test_author_id_budget::mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+        "test_manual_content::*"
       ],
       "reuse": [
-        "lib::graph::block_collection_view::tests::flip_direction_same_field_toggles_asc_desc (d9ce6017)",
-        "lib::graph::block_collection_view::tests::bucket_key_journal_date_uses_value_or_undated (d9ce6017)",
-        "lib::graph::block_collection_view::tests::card_move_tags_handle_untagged_lane (d9ce6017)",
-        "lib::graph::block_collection_view::tests::calendar_buckets_empty_result_is_empty (d9ce6017)"
+        "lib::find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane (d9ce6017)",
+        "lib::find_in_files::tests::mt119_saved_search_controls_stay_inside_the_find_pane (d9ce6017)",
+        "test_find_in_files::find_in_files_screenshot (d9ce6017)",
+        "test_find_in_files::find_in_files_screenshot_long_title_narrow_pane_mt122 (d9ce6017)",
+        "lib::find_in_files::tests::mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize (d9ce6017)",
+        "lib::find_in_files::tests::mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity (d9ce6017)",
+        "lib::find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token (d9ce6017)"
+      ]
+    },
+    "MT-153": {
+      "run": [
+        "test_block_collection_view::block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "test_canvas_board::canvas_board_live_surrealdb_self_seeds_mounted_round_trip"
       ],
-      "core": "loom_block_collection_views_tests exact list (6) (see CORE list)"
+      "reuse": []
     }
   },
   "notes": []
