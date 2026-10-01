@@ -1192,6 +1192,8 @@
     "result": "rule does NOT call for the targeted recompute; not implemented (option (b) increments not approved, not implemented)",
     "dominant_statement": "stmt 7 receipt link UPDATE $edge SET event_ledger_event_id = $receipt (0.89 s): a second write of the just-created edge row (loom_edges update + select permission predicates) - reported, not changed",
     "next": "timers 45b8fb6d reverted (recount UPDATE text and statement shape restored byte-identical to 45b8fb6d^)",
-    "ref": "MT-153.json#decision_20260930_edge_counter_rule"
+    "ref": "MT-153.json#decision_20260930_edge_counter_rule",
+    "timers_reverted_by": "e02dfc08",
+    "reverted_at_candidate": "e4566f11265a59d769dc8e3701576081bfdbd166"
   }
 }

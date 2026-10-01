@@ -88,7 +88,7 @@
     },
     "status_reason": "FAIL_V5 on bd8c7532 union round (validation_round_bd8c7532)",
     "status_before_20260930": "FAIL_V2",
-    "candidate_commit": "6205332bfd9b3f801dd8281f57cbc676c34fe92b",
+    "candidate_commit": "e4566f11265a59d769dc8e3701576081bfdbd166",
     "blocked_on": null,
     "diagnosis_refs": [
       "MT-027.json#diagnosis_20260930_upsert_gated",
@@ -97,8 +97,8 @@
     "ready_for_validation_at_utc": "2026-10-01T00:23:55Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "status_before_bb9548e1_resubmission": "FAIL_V3",
-    "candidate_updated_at_utc": "2026-09-30T21:04:34Z",
-    "candidate_update_note": "13288bf0 -> bd8c7532 (round tip: + 45b8fb6d edge timers, b504f70e KB-DIAG3, lane B 8b5da801/bd8c7532); before_submit kernel_builder PASS 2/2 at bd8c7532; 45b8fb6d (edge timers, loom_store.rs/database.rs) and b504f70e (KB-DIAG3, api/loom.rs tests) are diagnostic code in MT-153 files; their later revert changes MT-153 inputs, so a PASS from the bd8c7532 run needs re-proof after the revert (CX-VAL-002)",
+    "candidate_updated_at_utc": "2026-10-01T00:46:31Z",
+    "candidate_update_note": "6205332b -> e4566f11 (e02dfc08 timer revert; MT-023 e4566f11; lane B c56c5360/0c416dc4)",
     "status_before_b4faed35_resubmission": "FAIL_V4",
     "status_before_bd8c7532_resubmission": "FAIL_V5"
   },
@@ -3379,9 +3379,9 @@
       "commit": "6205332b",
       "reverted": "b504f70e KB-DIAG3 harness (api/loom.rs tests)"
     },
-    "still_in_candidate": "45b8fb6d edge timers (diagnostic; revert follows the edge-counter decision, MT-153 re-proof after revert, CX-VAL-002)",
-    "candidate_commit": "6205332bfd9b3f801dd8281f57cbc676c34fe92b",
-    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 6205332bfd9b3f801dd8281f57cbc676c34fe92b",
+    "still_in_candidate": "none: 45b8fb6d reverted by e02dfc08; b504f70e reverted by 6205332b",
+    "candidate_commit": "e4566f11265a59d769dc8e3701576081bfdbd166",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = e4566f11265a59d769dc8e3701576081bfdbd166",
     "implementer_checks": [
       {
         "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
@@ -3391,10 +3391,18 @@
         "inputs": "tree == 6205332b (backend files)",
         "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-bridge-create.log",
         "note": "this check overlapped a foreign 'facial' build on D: (KB-OUT-008 breach, orchestrator-acknowledged); later checks wait for D: idle"
+      },
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "exit_code": 0,
+        "inputs": "tree == e02dfc08 backend files (D: idle before launch)",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-timer-revert.log"
       }
     ],
-    "gameplan": "before_submit kernel_builder PASS 2/2 at 6205332b (GP-139 confirmed: bd8c7532..6205332b changes only the bridge UPSERT->CREATE statement and removes the test harness; no counter statement changed)",
-    "next_actor": "WP_VALIDATOR single union run (orchestrator names the round tip)"
+    "gameplan": "before_submit kernel_builder PASS 2/2 at e4566f11 (GP-139 confirmed after the recorded revert check)",
+    "next_actor": "WP_VALIDATOR single union run (orchestrator names the round tip)",
+    "reproof_note": "diagnostic reverts changed MT-153 inputs: PASS evidence from rounds with 45b8fb6d/b504f70e is not reused (CX-VAL-002)"
   },
   "decision_20260930_edge_counter_rule": {
     "schema_id": "hsk.mt_decision_rule_application@1",
@@ -3421,5 +3429,14 @@
     "result": "rule does NOT call for the targeted recompute; not implemented (option (b) increments not approved, not implemented)",
     "dominant_statement": "stmt 7 receipt link UPDATE $edge SET event_ledger_event_id = $receipt (0.89 s): a second write of the just-created edge row (loom_edges update + select permission predicates) - reported, not changed",
     "next": "timers 45b8fb6d reverted (recount UPDATE text and statement shape restored byte-identical to 45b8fb6d^)"
+  },
+  "gp139_check_20261001_timer_revert": {
+    "schema_id": "hsk.gp139_diff_check@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T00:46:31Z",
+    "subject": "e02dfc08 revert of 45b8fb6d (edge timers)",
+    "method": "git diff 45b8fb6d^ e4566f11 -- loom_store.rs database.rs",
+    "result": "empty diff: both files byte-identical to the pre-split text (original single apply-once block, result index 6, no timing wrapper); 6205332b..e4566f11 otherwise changes only test_tags_panel.rs (MT-023) and lane B files (manual_content_editors.rs, test_interconnect_ckc_to_note.rs, test_stage_interop.rs) - no counter statement",
+    "gp139": "holds -> confirmed at e4566f11"
   }
 }
