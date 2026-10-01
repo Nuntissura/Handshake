@@ -1428,5 +1428,6 @@
         "state_effect": "lifecycle.status FAIL_V3"
       }
     ]
-  }
+  },
+  "diagnosis_20261001_bd8c7532": {"schema_id": "hsk.mt_diagnosis@1", "diagnosis_id": "DX-MT-122-20261001-BD8C-MANUAL-NEEDLES-DROPPED", "kind": "blocker_diagnosis", "failure_kind": "product", "round": "union bd8c7532", "cause": "d99be6cf rewrite dropped 'hex-encoded' and '... instead of guessing' from the Search topic (wave5 needles)", "evidence_refs": ["src/frontend/handshake_native/tests/test_manual_content.rs:2525 (wave5 needle assert); :1839 'hex-encoded'; :1840 'argus.inspect (legacy list_widgets is secondary) instead of guessing'", "src/frontend/handshake_native/src/manual_content_editors.rs Find in Files paragraph (d99be6cf)", "static needle scan of all 17 wave5 arms: only these 2 Search needles missing"], "distinct_from": ["MT-122 validation_v3 manual elision gap (closed in d99be6cf)"], "intended_fix": "restore both phrases accurately: verbatim routes within 256 B are hex-encoded and exactly reversible; over-budget routes use zsha256- digests; argus.inspect instead of guessing", "recorded_before_fix": true, "recorded_at_utc": "2026-10-01T00:40:00Z", "recorded_by": "KERNEL_BUILDER-LANE-B-20260930", "file_owner_note": "manual_content_editors.rs edited under MT-113 ownership (waiver granted, Operator decision WP012-OPERATOR-DECISIONS-20260930-C item 7)"}
 }
