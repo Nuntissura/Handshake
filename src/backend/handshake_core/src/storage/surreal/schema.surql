@@ -7012,7 +7012,8 @@ FOR $source IN $workspace_delete_rows_8 { IF array::len(SELECT id FROM protected
     FOR $entity IN $workspace_delete_rows_12 {
         IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {
             LET $entity_block = type::record('loom_blocks', $entity.entity_key);
-            IF ($entity_block.content_type != 'view_def' OR $entity_block.workspace_id != $workspace) AND array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };
+            LET $view_entity = IF record::exists($entity_block) { $entity_block.content_type = 'view_def' AND $entity_block.workspace_id = $workspace } ELSE { $entity.detection_provenance.content_type = 'view_def' AND array::len(SELECT id FROM protected_resources WHERE resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key) = 0 };
+            IF !$view_entity AND array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };
         } ELSE IF $entity.primary_source_id = NONE OR $entity.primary_source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($entity.primary_source_id), 'delete', 'fs.write') { RETURN false; };
         LET $workspace_delete_rows_13 = SELECT span_id FROM knowledge_entity_spans WHERE entity_id = $entity.id;
         FOR $link IN $workspace_delete_rows_13 {

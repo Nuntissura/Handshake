@@ -245,7 +245,22 @@ pub(crate) async fn mark_published(
     workspace_id: &str,
     event_id: Uuid,
 ) -> StorageResult<()> {
-    surreal_outbox::mark_published(storage, workspace_id, event_id).await
+    use super::surreal::retry::{classify_storage_error, RetryClass};
+    match surreal_outbox::mark_published(storage, workspace_id, event_id).await {
+        // MT-153: the request-path publication and the background reconciler can mark the same
+        // row at once; the loser's transaction wrote nothing and reports a retryable commit
+        // conflict. Publication is idempotent and `published_at` keeps its first value, so a row
+        // the other publisher already marked is success (nothing is published twice); otherwise
+        // the mark is retried exactly once. Every other error is returned unchanged.
+        Err(error) if classify_storage_error(&error) == RetryClass::RetryableTransient => {
+            let row = surreal_outbox::load_row(storage, workspace_id, event_id).await?;
+            if row.published_at.is_some() {
+                return Ok(());
+            }
+            surreal_outbox::mark_published(storage, workspace_id, event_id).await
+        }
+        other => other,
+    }
 }
 
 /// Record a publication failure, tolerating the benign already-published race.

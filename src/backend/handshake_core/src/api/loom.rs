@@ -10091,6 +10091,20 @@ mod tests {
                 .check()
                 .unwrap();
         }
+        // The record-user delete path evaluates the probe copy after a rollback at ANY failing
+        // statement only while HSK_C1_FDELETE_PROBE is set (storage/surreal/workspaces.rs); scope
+        // it to this test and restore the previous value on drop (also on panic).
+        struct ProbeEnv(Option<std::ffi::OsString>);
+        impl Drop for ProbeEnv {
+            fn drop(&mut self) {
+                match self.0.take() {
+                    Some(previous) => std::env::set_var("HSK_C1_FDELETE_PROBE", previous),
+                    None => std::env::remove_var("HSK_C1_FDELETE_PROBE"),
+                }
+            }
+        }
+        let _probe_env = ProbeEnv(std::env::var_os("HSK_C1_FDELETE_PROBE"));
+        std::env::set_var("HSK_C1_FDELETE_PROBE", "1");
 
         let (status, body) = loom_create_request(
             &router,
