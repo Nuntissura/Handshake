@@ -3395,5 +3395,31 @@
     ],
     "gameplan": "before_submit kernel_builder PASS 2/2 at 6205332b (GP-139 confirmed: bd8c7532..6205332b changes only the bridge UPSERT->CREATE statement and removes the test harness; no counter statement changed)",
     "next_actor": "WP_VALIDATOR single union run (orchestrator names the round tip)"
+  },
+  "decision_20260930_edge_counter_rule": {
+    "schema_id": "hsk.mt_decision_rule_application@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T00:25:40Z",
+    "rule_ref": "MT-153.json#hypothesis_20260930_edge_counter_cost.decision_rule (recorded 2026-09-30T20:58:21Z): targeted recompute only if statements 8+9 are the large share of the edge create; otherwise report the dominant statement",
+    "measured": {
+      "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/loom-write-timings-bd8c753223c2714707d6c78d7550448340c85c35.json (validator-extracted; MT-042.json/MT-153 round bd8c7532 records)",
+      "edge_create_median_s": 3.27,
+      "stmt6_edge_create_s": 0.59,
+      "stmt7_receipt_link_s": 0.89,
+      "stmt8_source_recount_s": 0.79,
+      "stmt9_target_recount_s": 0.64,
+      "delete_runs": 0
+    },
+    "application": {
+      "stmts_8_plus_9_s": 1.43,
+      "share_of_create": "1.43 / 3.27 = 44%",
+      "stmts_6_plus_7_s": 1.48,
+      "remainder_s": "~0.36 (guards, receipt pre-read/append/bind, read)",
+      "large_share": false,
+      "reason": "8+9 are 44% (not a majority, and below 6+7 at 45%); 8/9 time the whole UPDATE (update permission + 3 recounts), so the recount share is at most 1.43 s; removing 4 of 6 recounts saves at most ~0.95 s even if recounts were all of it"
+    },
+    "result": "rule does NOT call for the targeted recompute; not implemented (option (b) increments not approved, not implemented)",
+    "dominant_statement": "stmt 7 receipt link UPDATE $edge SET event_ledger_event_id = $receipt (0.89 s): a second write of the just-created edge row (loom_edges update + select permission predicates) - reported, not changed",
+    "next": "timers 45b8fb6d reverted (recount UPDATE text and statement shape restored byte-identical to 45b8fb6d^)"
   }
 }
