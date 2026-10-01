@@ -2598,5 +2598,150 @@
       "target_r52_bytes_after": 62067332951,
       "projection": "after 62.07 GB + ~13.9 GB per round -> peak ~76.0 GB < 147 GB stop"
     }
+  },
+  "worktree_cleanup_20261001": {
+    "recorded_utc": "2026-10-01T00:00:00Z",
+    "operator_order": "be sure no existing unused subling wp worktree exist for wp kernel 012, merge or move to bin",
+    "authority": [
+      "CX-112",
+      "CX-122",
+      "CX-GIT-001",
+      "CX-SAFE-001",
+      "CX-984-006",
+      "handoff session7 Cleanup 2026-09-29 precedent"
+    ],
+    "result": "no unused sibling WP-012 worktree exists; no registrations pruned; no unmerged work found; 5 empty leftover session-worktree shell folders moved to Recycle Bin",
+    "git_worktree_list": [
+      {
+        "path": "wt-gov-kernel",
+        "branch": "gov_kernel",
+        "action": "skipped: permanent"
+      },
+      {
+        "path": "wtc-native-editors-v1",
+        "branch": "feat/WP-KERNEL-012",
+        "action": "skipped: the only WP-012 worktree/branch (keep)"
+      },
+      {
+        "path": "wtc-ac5-baseline",
+        "branch": "detached 3bbc72b3",
+        "action": "skipped: WP-1, never touch"
+      },
+      {
+        "path": "wtc-ckc-posekit-overhaul",
+        "branch": "feat/WP-CKC-posekit-overhaul",
+        "action": "skipped: other WP (CKC), not WP-012"
+      },
+      {
+        "path": "wtc-ckc-surreal",
+        "branch": "feat/WP-CKC-posekit-overhaul-surreal",
+        "action": "skipped: other WP (CKC), not WP-012"
+      },
+      {
+        "path": "wtc-multi-model-orchestration-v1",
+        "branch": "feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+        "action": "skipped: WP-1, not WP-012"
+      }
+    ],
+    "other_repos_checked": {
+      "handshake_main": "worktree list = main only; no .git/worktrees dir",
+      "wt-ilja": "worktree list = user_ilja only"
+    },
+    "stale_registrations": "git worktree prune --dry-run -v printed nothing; .git/worktrees holds exactly the 5 non-main entries above, all with existing folders; nothing pruned",
+    "gov_junction": "none of the moved items held .GOV (fsutil: not a reparse point); CX-122 junction steps not needed",
+    "folders_moved_to_recycle_bin": [
+      {
+        "path": "Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v2/tmp/hsk-session-worktrees-model-session-scheduler-17768",
+        "size_bytes": 0,
+        "mtime": "2026-09-29T20:20",
+        "registered": false,
+        "gov": "none",
+        "reparse_points": 0,
+        "creator_pid": "17768",
+        "creator_running": false,
+        "cited_by_record": false,
+        "action": "moved_to_recycle_bin"
+      },
+      {
+        "path": "Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v2/tmp/hsk-session-worktrees-model-session-scheduler-23336",
+        "size_bytes": 0,
+        "mtime": "2026-09-29T20:21",
+        "registered": false,
+        "gov": "none",
+        "reparse_points": 0,
+        "creator_pid": "23336",
+        "creator_running": false,
+        "cited_by_record": false,
+        "action": "moved_to_recycle_bin"
+      },
+      {
+        "path": "Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v2/tmp/hsk-session-worktrees-model-session-scheduler-23464",
+        "size_bytes": 0,
+        "mtime": "2026-09-29T20:22",
+        "registered": false,
+        "gov": "none",
+        "reparse_points": 0,
+        "creator_pid": "23464",
+        "creator_running": false,
+        "cited_by_record": false,
+        "action": "moved_to_recycle_bin"
+      },
+      {
+        "path": "Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/tmp/hsk-session-worktrees-model-session-scheduler-31132",
+        "size_bytes": 0,
+        "mtime": "2026-09-29T20:22",
+        "registered": false,
+        "gov": "none",
+        "reparse_points": 0,
+        "creator_pid": "31132",
+        "creator_running": false,
+        "cited_by_record": false,
+        "action": "moved_to_recycle_bin"
+      },
+      {
+        "path": "Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/tmp/hsk-session-worktrees-model-session-scheduler-34112",
+        "size_bytes": 0,
+        "mtime": "2026-09-29T20:23",
+        "registered": false,
+        "gov": "none",
+        "reparse_points": 0,
+        "creator_pid": "34112",
+        "creator_running": false,
+        "cited_by_record": false,
+        "action": "moved_to_recycle_bin"
+      }
+    ],
+    "scan_evidence": [
+      "handshake-tool/session_worktrees: empty",
+      "TEMP: no hsk-session-worktrees-* or *worktree* folders",
+      "MT-*/*/tmp children (depth 1-2) scanned for .git: none",
+      "full find (prune target,node_modules,.cargo-home,registry) under WP-KERNEL-012, WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1, handshake-tool, handshake-test, handshake-tmp, tmp, h123, handshake-product, WP-TEST-*: zero .git entries, zero *-wt folders; two .GOV hits (below)",
+      "MT-165 sg/*-wt: no such folders exist (MT-165/kb has logs, tmp(empty)); MT-109/wpv-c3x/sg is the validator's path, not touched"
+    ],
+    "observed_not_worktrees_not_touched": [
+      {
+        "path": "Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/workspace/src-ba03f563",
+        "kind": "source export snapshot with real .GOV dir, no .git, not registered",
+        "action": "skipped: not a git worktree; validator-owned export"
+      },
+      {
+        "path": "Handshake_Artifacts/WP-KERNEL-012/MT-158/wpv-d1/export",
+        "kind": "source export snapshot with real .GOV dir, no .git, not registered",
+        "action": "skipped: not a git worktree; validator-owned export"
+      }
+    ],
+    "never_touched": [
+      "wtc-ac5-baseline",
+      "handshake_main",
+      "wt-ilja",
+      "wt-gov-kernel",
+      "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52 (incl. export-current, export-bd8c7532, export-e4566f11, sg/)"
+    ],
+    "unmerged_work": "none: no candidate worktree existed",
+    "processes_stopped": "none (creator PIDs 17768,23336,23464,31132,34112 confirmed not running by tasklist)",
+    "records_citing_candidates": "0 matches in .GOV/task_packets/WP-KERNEL-012-*/**/*.json",
+    "kernel_codex_verified_after_each_move": true,
+    "total_moved_bytes": 0,
+    "open_defect": "MT-141 scheduler test still creates hsk-session-worktrees-model-session-scheduler-<pid> under TMP and never removes them (handoff session7 item 11); needs repair MT, not part of this cleanup"
   }
 }
