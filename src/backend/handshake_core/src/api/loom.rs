@@ -9939,6 +9939,107 @@ mod tests {
         }
     }
 
+    /// MT-153 DIAGNOSTIC (not an acceptance proof; reverted after its result is recorded,
+    /// MT-153.json#hypothesis_20261001_cardmove_delete_cost): wall time of add-only,
+    /// remove-only and full-move tag PATCHes as the record user. Each PATCH runs inside the
+    /// MT032 diagnostic scope, so per-query phases and per-statement engine timings are
+    /// written to stderr as `MT032_DOCUMENT_*` JSON events; the summary line is
+    /// `MT153_CARDMOVE_TIMING`. Only response statuses are asserted.
+    #[cfg(feature = "os-keychain")]
+    #[tokio::test]
+    async fn mt153_cardmove_patch_timing_probe() {
+        use handshake_storage_support::diagnostics::{observe, DOCUMENT_REQUEST_ID};
+
+        let binding = LoomCreateBinding::new();
+        let (state, _store) = setup_state().await.unwrap();
+        let (router, headers, ws) = owned_loom_session(&state, &binding).await;
+        let note = c3_block(&router, &headers, &ws, "note", "MT-153 probe card").await;
+        let hub_a = c3_block(&router, &headers, &ws, "tag_hub", "mt153-probe-a").await;
+        let hub_b = c3_block(&router, &headers, &ws, "tag_hub", "mt153-probe-b").await;
+        let uri = format!("/workspaces/{ws}/loom/blocks/{note}");
+        let (status, body) = loom_create_request(
+            &router,
+            "PATCH",
+            &uri,
+            &headers,
+            serde_json::json!({"add_tags": [hub_a]}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "probe setup tag A: {body}");
+
+        let subscriber = tracing_subscriber::fmt()
+            .json()
+            .with_writer(std::io::stderr)
+            .with_env_filter(tracing_subscriber::EnvFilter::new(
+                "handshake_core::knowledge_documents_api=info",
+            ))
+            .finish();
+        let _subscriber = tracing::subscriber::set_default(subscriber);
+
+        let mut samples: Vec<Value> = Vec::new();
+        let timed = |label: &'static str, round: usize, body: Value| {
+            let router = router.clone();
+            let headers = headers.clone();
+            let uri = uri.clone();
+            async move {
+                let request_id = format!("mt153-probe-{label}-{round}");
+                let started = std::time::Instant::now();
+                let (status, response) = DOCUMENT_REQUEST_ID
+                    .scope(
+                        request_id.clone(),
+                        observe(
+                            "mt153_cardmove_patch",
+                            0,
+                            loom_create_request(&router, "PATCH", &uri, &headers, body),
+                            |(status, _): &(StatusCode, Value)| !status.is_success(),
+                        ),
+                    )
+                    .await;
+                let elapsed_ms = started.elapsed().as_millis() as u64;
+                assert_eq!(status, StatusCode::OK, "{label} round {round}: {response}");
+                serde_json::json!({"label": label, "round": round, "request_id": request_id, "elapsed_ms": elapsed_ms})
+            }
+        };
+        // Every round starts and ends with the card tagged A only.
+        for round in 1..=3 {
+            samples.push(timed("add_only", round, serde_json::json!({"add_tags": [hub_b]})).await);
+            samples.push(
+                timed(
+                    "remove_only",
+                    round,
+                    serde_json::json!({"remove_tags": [hub_a]}),
+                )
+                .await,
+            );
+            samples.push(
+                timed(
+                    "full_move",
+                    round,
+                    serde_json::json!({"add_tags": [hub_a], "remove_tags": [hub_b]}),
+                )
+                .await,
+            );
+        }
+        let median = |label: &str| {
+            let mut values: Vec<u64> = samples
+                .iter()
+                .filter(|sample| sample["label"] == label)
+                .map(|sample| sample["elapsed_ms"].as_u64().unwrap())
+                .collect();
+            values.sort_unstable();
+            values[values.len() / 2]
+        };
+        let summary = serde_json::json!({
+            "median_ms": {
+                "add_only": median("add_only"),
+                "remove_only": median("remove_only"),
+                "full_move": median("full_move"),
+            },
+            "samples": samples,
+        });
+        eprintln!("MT153_CARDMOVE_TIMING {summary}");
+    }
+
     #[cfg(feature = "os-keychain")]
     async fn c3_block(
         router: &Router,
