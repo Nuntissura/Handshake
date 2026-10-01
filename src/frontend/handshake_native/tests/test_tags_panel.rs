@@ -719,34 +719,6 @@ fn dispatch_mounted_action(
     harness.run_steps(2);
 }
 
-#[cfg(feature = "integration")]
-fn live_patch_json(
-    runtime: &tokio::runtime::Runtime,
-    base: &str,
-    path: &str,
-    body: &serde_json::Value,
-) -> serde_json::Value {
-    let client = handshake_native::backend_client::shared_http_client();
-    let url = format!("{base}{path}");
-    let (status, text) = runtime.block_on(async {
-        let response = client
-            .patch(&url)
-            .header("x-hsk-actor-id", "mt023-live-surrealdb")
-            .header("x-hsk-kernel-task-run-id", "mt023-live-surrealdb-run")
-            .header("x-hsk-session-run-id", "mt023-live-surrealdb-session")
-            .header("x-hsk-actor-kind", "operator")
-            .json(body)
-            .timeout(std::time::Duration::from_secs(5))
-            .send()
-            .await
-            .unwrap_or_else(|error| panic!("PATCH {url} failed: {error}"));
-        (response.status(), response.text().await.unwrap_or_default())
-    });
-    assert!(status.is_success(), "PATCH {path} -> {status}: {text}");
-    serde_json::from_str(&text)
-        .unwrap_or_else(|error| panic!("PATCH {path} response is not JSON ({error}): {text}"))
-}
-
 /// AC1-AC8 / PROOF2-5 against real managed SurrealDB and the real mounted `HandshakeApp` Tags pane.
 /// The proof is feature-gated but deliberately NOT ignored. It owns fixture creation and teardown and
 /// verifies persistence again with a newly constructed `LoomTagClient`, excluding panel-local cache.
@@ -1100,15 +1072,11 @@ fn tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip() {
         .any(|member| member.block_id == second_note));
 
     let renamed = "rust-renamed-mt023";
-    live_patch_json(
-        &runtime,
-        &live.base,
+    live.patch_json(
         &format!("/workspaces/{workspace_id}/loom/blocks/{rust_hub}"),
         &serde_json::json!({ "title": renamed }),
     );
-    live_patch_json(
-        &runtime,
-        &live.base,
+    live.patch_json(
         &format!("/workspaces/{workspace_id}/loom/blocks/{second_note}"),
         &serde_json::json!({ "remove_tags": [rust_hub] }),
     );
