@@ -1102,5 +1102,43 @@
       "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/core-build-v-222b33cc97421388d7be78b8d0a3b0eb577f9928-targeted.log"
     ],
     "result_key": "MT-167.json#targeted_result_20261002_222b33cc_a2"
+  },
+  "diagnosis_20261002_targeted_222b33cc_downstream": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-167-20261002-TARGETED-222B-DOWNSTREAM",
+    "kind": "downstream_diagnosis",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T23:10:19Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "method": "read-only: retained per-test backend logs (failure-diagnostics), targeted run logs, code reading (no run, no edit)",
+    "source_run": "MT-167.json#targeted_result_20261001_222b33cc (native part, O2 backend: dev + allow-listed dependency opt-level 2)",
+    "o2_improvement_evidence": {
+      "mt008_fixture_projection": "1 file (F-A batch): 8,081 ms on the O2 backend (../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/mt-045/failure-diagnostics/standalone-run/ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc/live-backend-drop-257192-.../backend-00/backend.stdout.log); full index 10.0 s; ac005 PASS. Earlier: 27,346 ms projection in the dev core-test process (round 4d0da145; different process, not directly comparable)",
+      "fems_seed_projection": "2 symbol-only files: 4,988 ms, full index 7,856 ms (< 8 s client timeout) (../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/mt-045/failure-diagnostics/standalone-run/proof_fems_01_memorypack_render/live-backend-drop-263164-.../backend-00/backend.stdout.log); 9 of 11 FEMS failures now pass the seed POST (all 11 failed there on 4d0da145)"
+    },
+    "a_quick_switcher_wait": {
+      "indexing_completes": "YES: fems_01 index finished at total 7,856 ms (22:53:42.4Z); the seed then resolved the symbol through GET /knowledge/code/symbols and the point-get route (test_fems_interop_proofs.rs:546-560 asserts both), so the symbol entity exists and is readable through the code-nav routes",
+      "failure": "test :1541-1567: after the native app mounts (backend 'list canvases' at 22:53:47.9Z) the Quick Switcher must return a source_kind 'symbol' hit with ref_id == symbol_entity_id within 15 s; it did not; workspace deleted 22:54:04.6Z",
+      "path": "native LoomGraphSearchClient GET /workspaces/{id}/loom/graph-search?q=..&source_kinds=..&limit=25 with a 5 s per-request timeout (quick_switcher.rs:747, :796-811); backend search_loom_graph (storage/surreal/loom_store.rs:2839-2950) runs several record-user SELECTs (blocks, knowledge_entities kinds symbol/work_packet/micro_task with lifecycle 'active', rich documents, ...); the entity rows are subject to the knowledge_entities SELECT predicate fn::mt120_entity_read (schema.surql:3599, :7069) per row",
+      "attribution": "UNATTRIBUTED between (i) graph-search exceeding the 5 s client timeout (a transient error yields no hits) and (ii) the symbol row filtered/not matched: the backend logs no line for graph-search requests (no request tracing; no TraceLayer) and the native test prints nothing about the request outcome",
+      "hypothesis": "HYPOTHESIS (i), same class as DX-MT-167-20261001-PROJECTION-PERMISSION-FANOUT: the record-user read predicates (mt120_entity_read -> mt120_index_source_read -> mt109_source_read, plus the block/document predicates) evaluated per row at O2 cost exceed the 5 s client timeout; the code-nav lookup route that succeeded reads fewer rows",
+      "not_mt167": "graph-search and its permissions are not MT-167 paths (api/loom.rs MT-153; schema.surql MT-153/154); F-A does not touch the read path (FEMS target.rs/anchor.rs take the same batch shape as before F-A)"
+    },
+    "b_seed_post_error_sending_request": {
+      "kind": "client-side timeout, backend alive: reqwest 'error sending request' after the 8 s client timeout (test_fems_interop_proofs.rs:493-497); the backend kept running and later served DELETE /workspaces (editor_switch: workspace deleted 22:59:55.3Z; focus_change: 23:00:30.2Z)",
+      "evidence": [
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/mt-045/failure-diagnostics/standalone-run/proof_fems_editor_switch_invalidates_identical_text_range_selection/live-backend-drop-264484-.../backend-00/backend.stdout.log: 3 files; ingestion 1,892 ms; persist_code_index_batch started at ~2.7 s; lookup_existing 4 ms, event_ledger 0 ms; NO projection completion before the client gave up",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/mt-045/failure-diagnostics/standalone-run/proof_fems_focus_change_after_request_drain_invalidates_open_dialog/live-backend-drop-208340-.../backend-00/backend.stdout.log: same shape (3 files, batch started ~2.6 s, no projection completion)"
+      ],
+      "cause": "these two tests seed THREE files; the batch projection for 3 files exceeds the remaining ~5.3 s (2 files took 5.0 s in fems_01) -> same permission-fan-out projection cost class, now at O2"
+    },
+    "c_ac006_hover": {
+      "class": "different symptom, likely the same cost class; not caused by F-A",
+      "evidence": "indexing completes (MT-008 fixture: projection 8,081 ms, full index 10.0 s; the empty-dir reindex 1.2 s); ac005 PASS; ac006 fails at test_completion_hover_accesskit.rs:331 (hover tooltip not opened within the test's ~150-iteration wait). Identical failure on b4faed35 (before F-A, per-file path) and 4d0da145 -> independent of F-A",
+      "path": "panel.rs:7378 trigger_hover: LSP first, then code-nav fallback (record-user symbol/hover reads); no backend log line for hover/symbol reads",
+      "attribution": "UNATTRIBUTED (no request timing logged); HYPOTHESIS: the code-nav hover read under record-user predicates exceeds the hover wait"
+    },
+    "out_of_scope_note": "3 failures at tests/backend_proof_support/mod.rs:4504 (managed fixture cleanup) belong to MT-045 (KB:55 note to its owner by the orchestrator)"
   }
 }
