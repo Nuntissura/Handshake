@@ -659,15 +659,35 @@ impl LiveWorkspaceGuard<'_> {
             (200..300).contains(&status) || status == 404,
             "MT-066 managed workspace cleanup returned {status}"
         );
+        // The DELETE succeeded: record it BEFORE the readback assertion. Otherwise a readback panic
+        // unwinds into Drop, which deletes the already-deleted workspace again and is denied with the
+        // constant-shape 403, masking the real failure.
+        self.workspace_deleted = true;
         match try_live_binding_session_token() {
             Ok(session_token) => {
                 let rows = self.backend.get_json_with_session_token(
                     &format!("/api/flight_recorder?wsid={}", self.workspace_id),
                     &session_token,
                 );
+                // The delete route records its own `fs.write` authorization audit AFTER purging the
+                // workspace's rows, and this readback records its `fr.read` audit before listing.
+                // Those two authorization-audit families must outlive the delete; every other row
+                // (including any Stage projection) is residue.
+                let residue = rows.as_array().map(|rows| {
+                    rows.iter()
+                        .filter(|row| {
+                            let audit = row["event_type"].as_str() == Some("capability_action")
+                                && row["policy_decision_id"].as_str().is_some_and(|id| {
+                                    id.starts_with("workspace-delete:")
+                                        || id.starts_with("native-fr-capability:")
+                                });
+                            !audit
+                        })
+                        .collect::<Vec<_>>()
+                });
                 assert!(
-                    rows.as_array().is_some_and(Vec::is_empty),
-                    "workspace DELETE must remove persistent Stage FlightRecorder projections: {rows}"
+                    residue.as_ref().is_some_and(Vec::is_empty),
+                    "workspace DELETE must remove persistent Stage FlightRecorder projections: {residue:?} (all rows: {rows})"
                 );
             }
             // Same rule as `cleanup_native_fr_ledger`: only during unwinding, when the mounted app
@@ -681,7 +701,6 @@ impl LiveWorkspaceGuard<'_> {
                 "MT-109 capability-gated Flight Recorder read requires the live native-MCP binding: {reason}"
             ),
         }
-        self.workspace_deleted = true;
     }
 
     /// MT-066 V4 remediation item 4: canonical entity cleanup FIRST, then Stage/FR residue, then
@@ -1671,6 +1690,14 @@ fn live_route_round_trip_real_surrealdb() {
         "HTTP/1.1 404 Not Found",
         serde_json::json!({"error":"mt066_stage_endpoint_absent"}),
     );
+    // The bound account session is origin-pinned (local_account.rs authorize_inner): follow the
+    // swap to the isolated endpoint-absent server, or the request fails before it is sent with
+    // "Authenticated backend origin mismatch" instead of reaching the typed 404 path.
+    #[cfg(feature = "integration")]
+    harness
+        .state_mut()
+        .rebind_account_origin_for_test(&absent_base)
+        .expect("re-bind the mounted account session to the endpoint-absent server");
     harness
         .state_mut()
         .set_stage_embed_back_base_url_for_test(&absent_base);
@@ -1718,6 +1745,12 @@ fn live_route_round_trip_real_surrealdb() {
     );
 
     let (old_backend_base, new_backend_base) = cleanup.backend.restart_owned();
+    // Follow the restarted managed backend's origin with the same account session (see above).
+    #[cfg(feature = "integration")]
+    harness
+        .state_mut()
+        .rebind_account_origin_for_test(&new_backend_base)
+        .expect("re-bind the mounted account session to the restarted managed backend");
     harness
         .state_mut()
         .set_backend_base_url_for_test(&new_backend_base, runtime.handle().clone());
