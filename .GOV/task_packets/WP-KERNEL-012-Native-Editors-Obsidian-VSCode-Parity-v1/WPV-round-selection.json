@@ -1,6 +1,6 @@
 {
-  "candidate": "11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2",
-  "prior_native_proof": "9e4bee3426d23abab9c42decc7c11fd71d63d018,5da8b75a0211aa607ea430a6764770709915f80e,791a81dd23cee301006995a2b7bb550cfeba4471,7548bc72c8c819c139d6257674a84bd95a215b0d,d9ce6017e91430c69d410b555bd79fd5f6916926",
+  "candidate": "1d1f583a60feccc975d6a8dca62564765b858122",
+  "prior_native_proof": "11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2,9e4bee3426d23abab9c42decc7c11fd71d63d018,5da8b75a0211aa607ea430a6764770709915f80e,791a81dd23cee301006995a2b7bb550cfeba4471,7548bc72c8c819c139d6257674a84bd95a215b0d,d9ce6017e91430c69d410b555bd79fd5f6916926",
   "changed_native_test_bins": [
     "test_block_collection_view"
   ],
@@ -21,9 +21,9 @@
     "loom_block_collection_views_tests": "MT027_CORE exact 6"
   },
   "intersection": {
-    "candidate": "11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2",
+    "candidate": "1d1f583a60feccc975d6a8dca62564765b858122",
     "rule": "CX-VAL-002",
-    "diff_9e4bee34": [
+    "diff_11f1b034": [
       "src/frontend/handshake_native/tests/test_block_collection_view.rs"
     ],
     "per_mt": {
@@ -31,20 +31,20 @@
         "intersection": [
           "src/frontend/handshake_native/tests/test_block_collection_view.rs"
         ],
-        "decision": "run PC-027-02 non-live 11 + PC-027-03 live (test_block_collection_view.rs changed); reuse PC-027-01 lib (d9ce6017); PC-027-04 core 6 re-run although reusable (9e4bee34, backend unchanged) because the union entrypoint needs >= 1 core test"
+        "decision": "run PC-027-02 non-live 11 + PC-027-03 live (test file changed); reuse PC-027-01 lib (d9ce6017); PC-027-04 core 6 re-run although reusable (entrypoint needs >= 1 core test)"
       },
       "MT-153": {
         "intersection": [
           "src/frontend/handshake_native/tests/test_block_collection_view.rs"
         ],
-        "decision": "NATIVE-LOOM block_collection_views live runs (same test as PC-027-03); reuse 9e4bee34 core (route matrix, workspace delete, saved-view delete, loom targets, user_manual), canvas_board live (9e4bee34), FMT/DIFF re-run on the changed file; PIN-CONFIRM from 5da8b75a"
+        "decision": "NATIVE-LOOM BCV live runs (= PC-027-03); reuse core + canvas live (9e4bee34), PIN-CONFIRM + pins (5da8b75a); FMT/DIFF on the changed file"
       },
       "MT-042": {
-        "decision": "PASS_V13 (5da8b75a); not re-proven"
+        "decision": "PASS_V13; not re-proven"
       },
-      "MT-079/MT-122/MT-136/MT-154/MT-157/MT-158/MT-159": {
+      "MT-079/122/136/154/157/158/159": {
         "intersection": [],
-        "decision": "reuse (inputs unchanged 9e4bee34..11f1b034: only a native test file of another binary changed)"
+        "decision": "reuse (inputs unchanged)"
       }
     }
   },
