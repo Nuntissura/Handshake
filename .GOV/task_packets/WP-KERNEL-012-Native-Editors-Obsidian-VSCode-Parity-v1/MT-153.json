@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "FAIL_V14",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -88,13 +88,13 @@
     },
     "status_reason": "FAIL_V14 on 1d1f583a union round (validation_round_1d1f583a)",
     "status_before_20260930": "FAIL_V2",
-    "candidate_commit": "1d1f583a60feccc975d6a8dca62564765b858122",
+    "candidate_commit": "f4e6690633b6c5e19c2b76b614b328212743771d",
     "blocked_on": null,
     "diagnosis_refs": [
-      "MT-153.json#diagnosis_20261001_fr_read_wrong_credential_headers (DX-MT-153-20261001-FR-READ-WRONG-CREDENTIAL-HEADERS; attempt 1 refuted; attempt 2 of 2)",
-      "MT-153.json#status_20261001_bcv_view_load_unattributed (unchanged; still UNATTRIBUTED)"
+      "MT-153.json#diagnosis_20261001_cpu_spin_reconciler_tick_p2 (DX-MT-153-20261001-BV-RECONCILER-TICK-COLLISION-P2; attempt 2 on this line after P1; P2 + DIAGNOSTIC logs)",
+      "MT-153.json#diagnosis_20261001_fr_read_wrong_credential_headers (FR-header fix 1d1f583a stays, UNPROVEN: not reached in round 1d1f583a)"
     ],
-    "ready_for_validation_at_utc": "2026-10-01T14:15:00Z",
+    "ready_for_validation_at_utc": "2026-10-01T15:11:55Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "status_before_bb9548e1_resubmission": "FAIL_V3",
     "candidate_updated_at_utc": "2026-10-01T00:46:31Z",
@@ -108,7 +108,8 @@
     "status_before_5da8b75a_resubmission": "FAIL_V10",
     "status_before_9e4bee34_resubmission": "FAIL_V11",
     "status_before_11f1b034_resubmission": "FAIL_V12",
-    "status_before_1d1f583a_resubmission": "FAIL_V13"
+    "status_before_1d1f583a_resubmission": "FAIL_V13",
+    "status_before_f4e66906_resubmission": "FAIL_V14"
   },
   "closure_unit": {
     "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
@@ -8182,5 +8183,43 @@
       "why": "the next failing round names which publisher entered for which event and never left (handshake_core INFO lines reach backend.stdout.log, e.g. 'workspace deleted' api/workspaces.rs:795)"
     },
     "fr_header_fix": "1d1f583a stays (MT-153.json#diagnosis_20261001_fr_read_wrong_credential_headers), untested"
+  },
+  "remediation_20261001_f4e66906": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T15:11:55Z",
+    "remediates": {
+      "verdict_ref": "MT-153.json#validation_round_1d1f583a (FAIL_V14)",
+      "failure_class": "BACKEND_CPU_SPIN_STALLS_MOUNTED_VIEW_LOAD (BCV view-load stall at a 15 s reconciler tick)"
+    },
+    "diagnosis_refs": [
+      "MT-153.json#diagnosis_20261001_cpu_spin_reconciler_tick_p2 (DX-MT-153-20261001-BV-RECONCILER-TICK-COLLISION-P2; attempt 2 on this line after P1; P2 + DIAGNOSTIC logs)",
+      "MT-153.json#diagnosis_20261001_fr_read_wrong_credential_headers (FR-header fix 1d1f583a stays, UNPROVEN: not reached in round 1d1f583a)"
+    ],
+    "fix": {
+      "commit": "f4e66906",
+      "change": "P2: spawn_block_view_reconciler drains via reconcile_pending_block_view_events with min_age 30 s (oldest-first; first too-young row ends the pass); scoped request path and direct unscoped calls unchanged; DIAGNOSTIC mt153_diag_bv_publish info logs at enter/recorded/marked/failed with path=request|reconciler|unscoped (to be reverted); FR-header fix 1d1f583a retained, untested"
+    },
+    "candidate_commit": "f4e6690633b6c5e19c2b76b614b328212743771d",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = f4e6690633b6c5e19c2b76b614b328212743771d",
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "exit_code": 0,
+        "inputs": "api/loom.rs at f4e66906; 0 cargo/rustc before launch; no new warning names reconcile_pending_block_view_events/mt153_diag_bv_publish/BLOCK_VIEW_RECONCILER_SETTLE_SECS",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-p2-diag-core.log"
+      },
+      {
+        "command": "cargo check --locked -j 4 --features integration,integration_tests,wgpu_screenshots --test test_block_collection_view",
+        "cwd": "src/frontend/handshake_native",
+        "exit_code": 0,
+        "inputs": "reused from 1d1f583a: no native file changed 1d1f583a..f4e66906",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-fr-headers-native.log"
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at f4e66906; GP-158 confirmed (api/loom.rs hunks only in the block-view reconciler/publication code 2654-2833; edge/counter txn paths untouched)",
+    "selection_note": "validator selection: BCV live (block_collection_views_live_surrealdb_self_seed_full_round_trip) + core api::loom block-view outbox tests (incl. the unscoped 201-row drain at api/loom.rs ~9845, unchanged semantics); no schema change since 5da8b75a; backend.stdout.log now carries mt153_diag_bv_publish lines (path/event_id/stage/elapsed_ms)",
+    "next_actor": "WP_VALIDATOR single union round"
   }
 }
