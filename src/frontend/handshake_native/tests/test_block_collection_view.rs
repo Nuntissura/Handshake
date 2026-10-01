@@ -2083,8 +2083,9 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
     // presents a real binding rather than weakening the gate.
     //
     // Both processes must resolve the SAME binding file. `LOCALAPPDATA` is pointed at a contained root
-    // BEFORE the backend is spawned (so the child inherits it) and the backend's explicit
-    // `HANDSHAKE_STAGE_BINDING_FILE` override is pinned to the exact same path.
+    // BEFORE the backend is spawned; when proof support publishes its own binding it redirects the
+    // root and hands the owned backend that file, so the file and the session token actually in
+    // effect are re-resolved after `require_reachable_backend` and after the Argus bind (MT-153).
     let stage_binding_root = std::env::var_os("HANDSHAKE_ARGUS_BINDING_ROOT")
         .map(PathBuf::from)
         .unwrap_or_else(|| external_artifact_dir("wp-kernel-012-mt-027").join("argus-binding"))
@@ -2505,7 +2506,6 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
     // Bind in the CURRENT app-data root (no scoped LOCALAPPDATA override) so the genuine binding this
     // server publishes is the exact file the owned backend authenticates the recorder read against.
     let stage_session_token = handshake_native::mcp::SessionToken::generate();
-    let stage_session_hex = stage_session_token.as_hex().to_owned();
     let mut argus = CanonicalArgusDriver::bind_in_current_app_data(
         app_harness.state(),
         "wp-kernel-012-mt-027-block-collections",
@@ -2516,6 +2516,12 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
         "the canonical Argus server must publish a real native-MCP binding at {}",
         stage_binding_file.display()
     );
+    // MT-153: when a live binding already exists in this root (proof support published one), the
+    // driver republishes that binding's channel credential instead of the generated token
+    // (canonical_argus_driver.rs bind_in_current_app_data); the recorder read below therefore
+    // presents the token the binding file in effect actually carries.
+    let stage_session_hex = handshake_native::event_emitter::flight_recorder_session_token()
+        .expect("the published native-MCP binding in effect carries a session token");
     let error_tree = argus.inspect(&mut app_harness);
     assert!(
         json_has_author_id(&error_tree, RETRY_AUTHOR_ID),
