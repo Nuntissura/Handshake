@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "FAIL_V15",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -88,13 +88,13 @@
     },
     "status_reason": "FAIL_V15 on f4e66906 union round (validation_round_f4e66906)",
     "status_before_20260930": "FAIL_V2",
-    "candidate_commit": "f4e6690633b6c5e19c2b76b614b328212743771d",
+    "candidate_commit": "c19203484a0cc975fd8917a32c827babeab0548c",
     "blocked_on": null,
     "diagnosis_refs": [
-      "MT-153.json#diagnosis_20261001_cpu_spin_reconciler_tick_p2 (DX-MT-153-20261001-BV-RECONCILER-TICK-COLLISION-P2; attempt 2 on this line after P1; P2 + DIAGNOSTIC logs)",
-      "MT-153.json#diagnosis_20261001_fr_read_wrong_credential_headers (FR-header fix 1d1f583a stays, UNPROVEN: not reached in round 1d1f583a)"
+      "MT-153.json#diagnosis_20261001_fr_native_actor_attribution (DX-MT-153-20261001-FR-NATIVE-ACTOR-ATTRIBUTION-ABSENT; outcome (a); attempt 1) + #diagnosis_20261001_fr_native_actor_attribution_go_addendum",
+      "MT-153.json#diagnosis_20261001_cpu_spin_reconciler_tick_p2 (P2 + DIAGNOSTIC logs from f4e66906 retained until the BCV line closes)"
     ],
-    "ready_for_validation_at_utc": "2026-10-01T15:11:55Z",
+    "ready_for_validation_at_utc": "2026-10-01T16:21:10Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "status_before_bb9548e1_resubmission": "FAIL_V3",
     "candidate_updated_at_utc": "2026-10-01T00:46:31Z",
@@ -109,7 +109,8 @@
     "status_before_9e4bee34_resubmission": "FAIL_V11",
     "status_before_11f1b034_resubmission": "FAIL_V12",
     "status_before_1d1f583a_resubmission": "FAIL_V13",
-    "status_before_f4e66906_resubmission": "FAIL_V14"
+    "status_before_f4e66906_resubmission": "FAIL_V14",
+    "status_before_c1920348_resubmission": "FAIL_V15"
   },
   "closure_unit": {
     "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
@@ -8508,5 +8509,43 @@
     ],
     "added_negative_assertion": "no recorder event in the workspace carries actor_id == BLOCK_VIEW_ACTOR_ID (the client x-hsk-actor-id header is not attribution authority, api/flight_recorder.rs:27-36)",
     "p2_and_diag": "P2 and the DIAGNOSTIC mt153_diag_bv_publish logs (f4e66906) stay until the BCV line is closed"
+  },
+  "remediation_20261001_c1920348": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T16:21:10Z",
+    "remediates": {
+      "verdict_ref": "MT-153.json#validation_round_f4e66906 (FAIL_V15)",
+      "failure_class": "FR_NATIVE_ACTOR_ATTRIBUTION_ABSENT (tests/test_block_collection_view.rs:3326)"
+    },
+    "diagnosis_refs": [
+      "MT-153.json#diagnosis_20261001_fr_native_actor_attribution (DX-MT-153-20261001-FR-NATIVE-ACTOR-ATTRIBUTION-ABSENT; outcome (a); attempt 1) + #diagnosis_20261001_fr_native_actor_attribution_go_addendum",
+      "MT-153.json#diagnosis_20261001_cpu_spin_reconciler_tick_p2 (P2 + DIAGNOSTIC logs from f4e66906 retained until the BCV line closes)"
+    ],
+    "fix": {
+      "commit": "c1920348",
+      "change": "recorder events filtered by actor == human AND actor_id == live.account_context.principal_id AND wsids contains the workspace (server-derived MT-109 attribution); new negative assertion: no event carries actor_id == BLOCK_VIEW_ACTOR_ID; the three payload predicates unchanged; messages and receipt proof label reworded to authenticated account attribution"
+    },
+    "candidate_commit": "c19203484a0cc975fd8917a32c827babeab0548c",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = c19203484a0cc975fd8917a32c827babeab0548c",
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --features integration,integration_tests,wgpu_screenshots --test test_block_collection_view",
+        "cwd": "src/frontend/handshake_native",
+        "exit_code": 0,
+        "inputs": "test_block_collection_view.rs at c1920348; 0 cargo/rustc before launch",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-fr-attribution-native.log"
+      },
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "exit_code": 0,
+        "inputs": "reused from f4e66906: no backend file changed f4e66906..c1920348",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-p2-diag-core.log"
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at c1920348; GP-158 confirmed (only tests/test_block_collection_view.rs changed vs f4e66906; edge/counter txn files untouched)",
+    "selection_note": "validator selection: BCV live (block_collection_views_live_surrealdb_self_seed_full_round_trip) only; f4e66906..c1920348 changes only the native test file; no backend/schema change",
+    "next_actor": "WP_VALIDATOR single union round"
   }
 }
