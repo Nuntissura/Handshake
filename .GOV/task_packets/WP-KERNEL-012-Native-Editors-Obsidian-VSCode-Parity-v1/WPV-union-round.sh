@@ -25,7 +25,12 @@ MODE="${2:-}"
 # an ancestor of the pushed tip; requires the completed union round for <SHA> (the dev-profile reference); no core
 # build/run, no extracted crates, no native preflight; builds the backend with WPV-backend-profile.toml and runs
 # exactly the two edge-create tests; JUnit junit-<SHA>-native-backend-opt-diag.xml; one-shot marker per SHA.
-[[ -z "$MODE" || "$MODE" = core-only || "$MODE" = mt164-capture || "$MODE" = backend-opt-diag ]] || { echo "[run-round] FATAL: unknown mode $MODE"; exit 2; }
+# MODE targeted: Operator targeted-first cadence (packet.json WP012 targeted-first decision; CX-EXEC-014 remediation
+# names the run): same build/run path as full, but reads WPV-round-selection-targeted.sh (ROUND_SELECTION_MODE=targeted)
+# and writes every JUnit/build log with a -targeted suffix so the following union round on the same SHA keeps its own
+# files. Evidence only; verdicts come from the union round.
+[[ -z "$MODE" || "$MODE" = core-only || "$MODE" = mt164-capture || "$MODE" = backend-opt-diag || "$MODE" = targeted ]] || { echo "[run-round] FATAL: unknown mode $MODE"; exit 2; }
+OUT_SUFFIX=""; [[ "$MODE" = targeted ]] && OUT_SUFFIX="-targeted"
 NATIVE_SKIP=0; [[ "$MODE" = core-only || "$MODE" = mt164-capture ]] && NATIVE_SKIP=1
 echo "[run-round] mode=${MODE:-full}"
 LANE="D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x"
@@ -254,15 +259,17 @@ NATIVE_LIB=1
 # candidate and committed with its WPV-round-selection.json manifest; it overrides CORE_TESTS,
 # NATIVE_TESTS, NATIVE_LIB, CORE_FILTER, NATIVE_FILTER and EXTRACTED_CRATES. Mode full requires it.
 SELECTION_FILE="$(dirname "$(readlink -f "$0")")/WPV-round-selection.sh"
-if [[ -z "$MODE" ]]; then
+[[ "$MODE" = targeted ]] && SELECTION_FILE="$(dirname "$(readlink -f "$0")")/WPV-round-selection-targeted.sh"
+if [[ -z "$MODE" || "$MODE" = targeted ]]; then
   [ -f "$SELECTION_FILE" ] || { echo "[run-round] FATAL: round selection missing: $SELECTION_FILE"; exit 2; }
   # shellcheck source=/dev/null
   source "$SELECTION_FILE"
   [ "${ROUND_SELECTION_SHA:-}" = "$SHA" ] || { echo "[run-round] FATAL: round selection is for ${ROUND_SELECTION_SHA:-none}, not $SHA"; exit 2; }
+  [ "${ROUND_SELECTION_MODE:-full}" = "${MODE:-full}" ] || { echo "[run-round] FATAL: selection mode ${ROUND_SELECTION_MODE:-full} != run mode ${MODE:-full}"; exit 2; }
   echo "[run-round] round selection: core ${#CORE_TESTS[@]} targets + lib, native ${#NATIVE_TESTS[@]} targets lib=$NATIVE_LIB"
 fi
 CORE_SKIP=0
-NATIVE_JUNIT_NAME="junit-$SHA-native.xml"
+NATIVE_JUNIT_NAME="junit-$SHA-native$OUT_SUFFIX.xml"
 if [[ "$MODE" = backend-opt-diag ]]; then
   CORE_SKIP=1
   EXTRACTED_CRATES=()
@@ -276,7 +283,7 @@ NATIVE_TARGET_ARGS=(); [[ "$NATIVE_LIB" = 1 ]] && NATIVE_TARGET_ARGS=(--lib)
 for t in "${NATIVE_TESTS[@]}"; do NATIVE_TARGET_ARGS+=(--test "$t"); done
 
 core_test_args=(); for t in "${CORE_TESTS[@]}"; do core_test_args+=(--test "$t"); done
-CORE_JUNIT_NAME="junit-$SHA-core.xml"
+CORE_JUNIT_NAME="junit-$SHA-core$OUT_SUFFIX.xml"
 if [[ "$MODE" = mt164-capture ]]; then
   CAPTURE_MARKER="$LANE/MT164-CAPTURE-${SHA:0:8}.started"
   [[ ! -e "$CAPTURE_MARKER" ]] || { echo "[run-round] FATAL: mt164 capture already consumed for $SHA"; exit 2; }
@@ -295,7 +302,7 @@ if [[ "$CORE_SKIP" != 1 ]]; then
 echo "[run-round] building core union"
 # -j 1: handshake_core lib and lib-test compiled in parallel hit rustc-LLVM out of memory on 1f4e0f69
 # (2026-09-30, host shared with foreign builds); build them one at a time.
-CORE_BUILD_LOG="$LANE/logs/core-build-v-$SHA.log"
+CORE_BUILD_LOG="$LANE/logs/core-build-v-$SHA$OUT_SUFFIX.log"
 echo "[run-round] build_profile line=core-test config_sha256=$BACKEND_PROFILE_SHA256 (dev/test + 8-crate opt-level 2) log=$CORE_BUILD_LOG"
 ( cd "$EXPORT/src/backend/handshake_core" && \
   cargo test --locked -j 1 --no-run -v --config "$BACKEND_PROFILE_CONFIG" --lib --features app-runtime,surreal-test-support,test-utils "${core_test_args[@]}" ) 2>&1 | tee "$CORE_BUILD_LOG"
@@ -305,7 +312,7 @@ fi
 
 if [[ "$NATIVE_SKIP" != 1 ]]; then
 echo "[run-round] building native union"
-NATIVE_BUILD_LOG="$LANE/logs/native-build-$SHA.log"
+NATIVE_BUILD_LOG="$LANE/logs/native-build-$SHA$OUT_SUFFIX.log"
 echo "[run-round] build_profile line=native-test config_sha256=$BACKEND_PROFILE_SHA256 (inert: handshake_native graph has no surrealdb crate) log=$NATIVE_BUILD_LOG"
 ( cd "$EXPORT/src/frontend/handshake_native" && \
   cargo test --locked -j 2 --no-run --config "$BACKEND_PROFILE_CONFIG" --features integration,integration_tests,wgpu_screenshots "${NATIVE_TARGET_ARGS[@]}" ) 2>&1 | tee "$NATIVE_BUILD_LOG"
@@ -318,7 +325,7 @@ fi
 
 for crate in "${EXTRACTED_CRATES[@]}"; do
   echo "[run-round] building extracted $crate unit target"
-  EXTRACTED_BUILD_LOG="$LANE/logs/extracted-build-v-$crate-$SHA.log"
+  EXTRACTED_BUILD_LOG="$LANE/logs/extracted-build-v-$crate-$SHA$OUT_SUFFIX.log"
   echo "[run-round] build_profile line=extracted-test:$crate config_sha256=$BACKEND_PROFILE_SHA256 log=$EXTRACTED_BUILD_LOG"
   ( cd "$EXPORT/src/backend/$crate" && \
     cargo test --locked -j 2 --no-run -v --config "$BACKEND_PROFILE_CONFIG" --lib --features surreal-test-support ) 2>&1 | tee "$EXTRACTED_BUILD_LOG"
@@ -345,16 +352,16 @@ echo "[run-round] native nextest selection/config preflight"
   "$NEXTEST" nextest list --locked --config-file "$LANE/nextest.toml" \
     --features integration,integration_tests,wgpu_screenshots \
     --test test_code_nav_client --test test_completion_hover_accesskit \
-    > "$LANE/logs/native-nextest-list-$SHA.log" )
+    > "$LANE/logs/native-nextest-list-$SHA$OUT_SUFFIX.log" )
 ( cd "$EXPORT/src/frontend/handshake_native" && \
   "$NEXTEST" nextest show-config --config-file "$LANE/nextest.toml" \
     test-groups --no-pager --groups owned-backend \
     --features integration,integration_tests,wgpu_screenshots \
     --test test_code_nav_client --test test_completion_hover_accesskit \
-    > "$LANE/logs/native-nextest-groups-$SHA.log" )
-grep -q 'test_code_nav_client' "$LANE/logs/native-nextest-groups-$SHA.log" \
+    > "$LANE/logs/native-nextest-groups-$SHA$OUT_SUFFIX.log" )
+grep -q 'test_code_nav_client' "$LANE/logs/native-nextest-groups-$SHA$OUT_SUFFIX.log" \
   || { echo "[run-round] FATAL: MT-008 code-nav absent from owned-backend group"; exit 3; }
-grep -q 'test_completion_hover_accesskit' "$LANE/logs/native-nextest-groups-$SHA.log" \
+grep -q 'test_completion_hover_accesskit' "$LANE/logs/native-nextest-groups-$SHA$OUT_SUFFIX.log" \
   || { echo "[run-round] FATAL: MT-008 completion/hover absent from owned-backend group"; exit 3; }
 echo "[run-round] native nextest MT-008 owned-backend group verified"
 fi
@@ -491,7 +498,7 @@ for crate in "${EXTRACTED_CRATES[@]}"; do
   elif [[ -f "$CRATE_JUNIT" && "$CRATE_JUNIT" -nt "$CRATE_JUNIT_MARKER" ]]; then
     CRATE_TEST_COUNT="$(sed -n 's/^<testsuites[^>]* tests="\([0-9][0-9]*\)".*/\1/p' "$CRATE_JUNIT" | head -n 1)"
     if [[ -n "$CRATE_TEST_COUNT" && "$CRATE_TEST_COUNT" -gt 0 ]]; then
-      cp "$CRATE_JUNIT" "$LANE/junit-$SHA-$crate.xml"
+      cp "$CRATE_JUNIT" "$LANE/junit-$SHA-$crate$OUT_SUFFIX.xml"
       echo "[run-round] extracted crate=$crate exit=$CRATE_NEXTEST_EXIT tests=$CRATE_TEST_COUNT"
     else
       echo "[run-round] EXTRACTED_ZERO_OR_UNPARSEABLE_TEST_COUNT crate=$crate"

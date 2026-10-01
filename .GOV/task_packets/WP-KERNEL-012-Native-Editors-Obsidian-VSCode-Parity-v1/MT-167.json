@@ -958,5 +958,34 @@
     "gameplan": "before_submit kernel_builder PASS 2/2 at 222b33cc; GP-158 confirmed (loom edge/counter files untouched)",
     "selection_note": "re-run MT-167-VALIDATOR-TIMING, MT-167-EQUAL-COUNTS (both passes), knowledge_code_index_tests, code_nav_index_account_tests, and downstream MT-008 PC-008-05 / MT-064 PC-064-04 / MT-065 PC-065-01, on the c1940f44 test-build configuration",
     "next_actor": "WP_VALIDATOR"
+  },
+  "remediation_20261001_targeted_222b33cc": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "kind": "TARGETED validator run (CX-EXEC-014 named run; evidence only, no verdict; verdicts from the following union round)",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "at_utc": "2026-10-01T22:05:00Z",
+    "authority": "Operator targeted-first cadence (packet.json operator decisions 2026-10-01); orchestrator dispatch 2026-10-01 after MT-167 READY (gov 90d0d2c1, remediation_20261001_222b33cc)",
+    "candidate_commit": "222b33cc97421388d7be78b8d0a3b0eb577f9928",
+    "entrypoint": "WPV-union-round.sh <sha> targeted (selection WPV-round-selection-targeted.sh, ROUND_SELECTION_MODE=targeted; outputs suffixed -targeted)",
+    "items": {
+      "MT-167-VALIDATOR-TIMING": "core mt167_code_nav_index_cost_tests::mt167_code_nav_index_median_within_spec_baseline (AC-167-3: median < 5 s, every sample < 30 s)",
+      "MT-167-EQUAL-COUNTS": "core mt167_code_nav_index_cost_tests::mt167_batch_and_per_file_writer_produce_equal_rows (both passes)",
+      "existing code-index / code-nav tests": "core knowledge_code_index_tests (whole), knowledge_code_nav_api_tests (whole; 3 failures pre-existing since 2026-09-24)",
+      "account test (GP-161 real module path)": "core lib api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete",
+      "MT-167-DOWNSTREAM (MT-167 evidence only; MT-008/064/065 stay BLOCKED)": "native test_completion_hover_accesskit ac005 + ac006 (MT-008 PC-008-05); test_fems_interop_proofs whole (MT-064 PC-064-04 exact pair inside it; MT-065 PC-065-01)"
+    },
+    "test_profile_proof": "first build on c1940f44 config: check_test_profile on the -v core build log (8 crates -C opt-level=2, handshake_core not) else INVALID_CONFIG; native inert check",
+    "build_profiles": {
+      "backend": "dev + allow-listed dependency opt-level 2 (WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001)",
+      "core/native/extracted test builds": "dev/test + same 8-crate opt-level 2 (WP012-OPERATOR-MT167-OPTIMIZE-TEST-DB-20261001); native inert"
+    },
+    "outputs": [
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-222b33cc97421388d7be78b8d0a3b0eb577f9928-core-targeted.xml",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-222b33cc97421388d7be78b8d0a3b0eb577f9928-native-targeted.xml",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-222b33cc97421388d7be78b8d0a3b0eb577f9928.*",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/core-build-v-222b33cc97421388d7be78b8d0a3b0eb577f9928-targeted.log"
+    ],
+    "next": "all targeted MT-167 items pass -> one union round on 222b33cc (all READY MTs, CX-VAL-002 intersection); otherwise report failure output to the orchestrator, no union round",
+    "result_key": "MT-167.json#targeted_result_20261001_222b33cc (written after the run)"
   }
 }
