@@ -4029,5 +4029,12 @@
         "state_effect": "lifecycle.status FAIL_V17"
       }
     ]
+  },
+  "diagnosis_20261001_fr_native_actor_attribution": {
+    "ref": "MT-153.json#diagnosis_20261001_fr_native_actor_attribution",
+    "diagnosis_id": "DX-MT-153-20261001-FR-NATIVE-ACTOR-ATTRIBUTION-ABSENT",
+    "recorded_at_utc": "2026-10-01T16:18:37Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "summary": "no MT-027 AC/PROOF/HBR row or spec rule requires a client native actor id in the FR; MT-109 made actor_id server-derived (authenticated principal); assertion passed once (v4, 8de72ebe) under the old header-trusting contract -> outcome (a): test should assert server-derived attribution; awaiting orchestrator go-ahead"
   }
 }

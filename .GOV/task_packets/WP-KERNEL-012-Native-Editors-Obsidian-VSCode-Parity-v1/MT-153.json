@@ -8420,5 +8420,50 @@
         "state_effect": "lifecycle.status FAIL_V15"
       }
     ]
+  },
+  "diagnosis_20261001_fr_native_actor_attribution": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-153-20261001-FR-NATIVE-ACTOR-ATTRIBUTION-ABSENT",
+    "kind": "blocker_diagnosis",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T16:18:37Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "method": "read-only code, contract, spec and git-history reading (no run, no edit)",
+    "failure_class": "FR_NATIVE_ACTOR_ATTRIBUTION_ABSENT (new class, attempt 1)",
+    "failing_assertion": "tests/test_block_collection_view.rs:3326 'a canonical create event must carry top-level native actor attribution' (round f4e66906; MT-153 FAIL_V15 / MT-027 FAIL_V17). The filter at :3319-3325 keeps only events with actor_id == BLOCK_VIEW_ACTOR_ID ('handshake-native-block-collection-view', backend_client.rs:7659, sent as x-hsk-actor-id at :9560); :3337 and :3349 (definition update, card move) use the same filter and would fail the same way",
+    "q1_mt027_requirement": {
+      "acs": "AC1-AC10 (table/sort/kanban/calendar/range/kind switch/new view/AccessKit ids/empty states): none mentions the Flight Recorder, actor, surface or source attribution",
+      "proofs": "PROOF1-PROOF6: none mentions the Flight Recorder or attribution",
+      "hbr_rows": "MT-027 hbr_obligations ['HBR-INT','HBR-SWARM','HBR-VIS'] - no attribution row. The only build rule on FR attribution is HBR-PRIV-005 (HANDSHAKE_BUILD_RULES.json:248-270, not listed for MT-027): 'Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context' - i.e. AUTHENTICATED attribution, not a client-chosen surface string",
+      "notes": "scope.implementation_notes / red_team / handoff / research_provenance: no FR attribution text (scripted search for attribut|actor|flight recorder|surface|provenance)",
+      "answer": "NO requirement that a native-surface create be distinguishable in the Flight Recorder by a native actor/surface/source tag"
+    },
+    "q2_envelope_contract": {
+      "mt109": "api/flight_recorder.rs:27-36 'actor_id, actor_kind and workspace_id are NO LONGER client authority ... actor_id is optional. When present it MUST equal the authenticated CaptureContext::actor_id exactly; otherwise ... 403 HSK-403-FR-ACTOR-SPOOF ... When absent the server fills it. actor_kind ... derived from the authenticated context (... the lane is always human)'. MT-109.json validation_v4: trusting caller-supplied actor_id was 'a REAL security hole'; MT-109 acceptance: 'clean envelope -> accepted with server-derived FR and EventLedger attribution'",
+      "loom_block_views": "Loom routes run as the authenticated account (MT-109 C3, 19922490 'run every Loom route as the authenticated account record user'): create_block_view_authenticated / update_block_view use account.ctx = loom_create_write_context(authority) (api/loom.rs:525-539) -> WriteContext::human(Some(authority.actor_id)); authority.actor_id = session principal (storage/surreal/local_accounts.rs:397 actor_id = identity.principal_id). block_view_outbox::build_event (storage/block_view_outbox.rs:62-91) writes actor (Human) + actor_id from that ctx. The x-hsk-actor-id header is only read by the #[cfg(test)] create_block_view (block_view_write_context, api/loom.rs:2623-2638)",
+      "fields": "FlightRecorderEvent (flight_recorder/mod.rs:471-487): event_id, trace_id, timestamp, actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload. No source/surface/channel field. Loom payloads are closed schemas (api/loom.rs:2642-2643 'Loom event payload schemas are deliberately closed and reject ad-hoc identity keys'); loom_block_created payload = {type, workspace_id, block_id, content_type, asset_id, content_hash}",
+      "mounted_app_identity": "the mounted native client carries the fixture's real account session (test :2491-2492 'MT-153 C3: the mounted block-view client carries the fixture's real account session. live.bind_app_account(&mut app)'), so the server-derived actor_id is the fixture account principal (live.account_context.principal_id, backend_proof_support/mod.rs:100, :252)"
+    },
+    "q3_master_spec": {
+      "entry": ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.206",
+      "loom_events": "11-shared-dev-platform-and-oss-foundations.md:5406-5420 FR-EVT-LOOM-001 LoomBlockCreatedEvent extends FlightRecorderEventBase {type, block_id, workspace_id, content_type, asset_id?, content_hash?} - no surface/source field",
+      "event_base": "11-...:4576-4593 FlightRecorderEventBase {type, event_id, timestamp, actor, job_id?, model_id?, model_session_id?, wsids?, activity_span_id?, session_span_id?, capability_id?, policy_decision_id?}; 11-...:9576-9597 (correlation base) - no surface/source field",
+      "closest_rule": "11-...:4511-4512 VAL-CONSOLE-001 (Operator Console validators): 'Any operator action that changes state MUST emit a Flight Recorder event with actor=`human` and sufficient refs to navigate back to the initiating UI surface.' The block-view events carry actor=human plus block_id + workspace_id (the saved-view block = the surface's record); no client actor string is named. Flagged for the orchestrator as the only spec text near 'native surface' attribution",
+      "data_boundary": "02-system-architecture.md:2770-2774: authenticated record-user context bound to account/principal/session; Flight Recorder tables are protected resources",
+      "answer": "no spec requirement for a client-chosen native actor id in FR attribution; attribution is the authenticated principal"
+    },
+    "git_history": {
+      "assertion_added": "892662e0 (2026-07-23, 'wip(WP-KERNEL-012): state-recovery checkpoint ... at KERNEL_BUILDER takeover', MT-027 era)",
+      "ever_passed": "YES: MT-027.json validation_v4 (validated_at_utc 2026-07-31T20:58:04Z, head_sha 8de72ebe) 'Executed block_collection_views_live_pg_self_seed_full_round_trip ... the exact test passed'; 892662e0 is an ancestor of 8de72ebe and that tree contains the assertion (test :2932). Then create_block_view used block_view_write_context(&headers) (8de72ebe api/loom.rs:4358), i.e. actor_id = the client x-hsk-actor-id header",
+      "since": "456dc63a (2026-09-20 'close native editor authority gaps') introduced loom_create_write_context; 19922490 (2026-09-23, MT-109 'run every Loom route as the authenticated account record user') made view create/update use the account ctx. The live test has not reached :3326 since (v5..v7 and rounds e4566f11..1d1f583a failed earlier), so the drift was latent"
+    },
+    "outcome": "(a) no requirement -> the test should assert the SERVER-DERIVED attribution. Not a weakening: the old filter proved only that the backend echoed a client-chosen header, which MT-109 classified as a security hole and removed as authority; asserting actor == 'human' AND actor_id == the authenticated fixture principal proves authenticated attribution (HBR-PRIV-005 shape) for the same three events. Not unmet acceptance: no AC requires native-surface attribution, and the assertion did pass (v4) under the old header-trusting contract",
+    "proposed_test_fix_not_applied": {
+      "file": "src/frontend/handshake_native/tests/test_block_collection_view.rs (MT-153 path) only",
+      "change": "filter recorder events by actor == 'human' AND actor_id == live.account_context.principal_id (and wsids contains workspace_id); keep the three payload assertions (view_def create, view_definition update, tags card move with tags_added/tags_removed arrays) unchanged; reword the messages to 'authenticated account attribution'; optionally ADD a negative assertion that no event carries actor_id == BLOCK_VIEW_ACTOR_ID (proves the client header is not authority)",
+      "to_verify_before_edit": "the exact JSON key names the GET /api/flight_recorder rows use for actor/actor_id/wsids, and that principal_id equals the session's principal actor_id string (local_accounts.rs:397)",
+      "product_change": "none proposed; the client still sends x-hsk-actor-id (harmless, ignored by the account routes) - removing it would be a product change and is not needed"
+    }
   }
 }
