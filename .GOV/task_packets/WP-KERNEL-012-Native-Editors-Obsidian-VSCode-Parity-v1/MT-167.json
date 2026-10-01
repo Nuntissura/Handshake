@@ -658,5 +658,20 @@
     "going_forward": "CARGO_TARGET_DIR is set explicitly to D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target (owner slug 'kb' per execution.artifact_owner_dir), overriding .cargo/config.toml; seeded from MT-154/kb-c5 only after the orchestrator confirms kb-c5 is idle; the first build there will rebuild some workspace crates",
     "not_done": "AGENTS.md not edited (root control file authored from handshake_main; drift goes to the Operator report); no cleanup of handshake-cargo-target",
     "hold": "no cargo until the orchestrator releases the lane"
+  },
+  "build_target_seed_20261001": {
+    "schema_id": "hsk.artifact_record@1",
+    "recorded_at_utc": "2026-10-01T18:58:25Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "purpose": "owner-scoped Cargo target for MT-167 (CX-984-002); listed for WP-end cleanup",
+    "target": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target",
+    "seeded_from": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target (orchestrator confirmed kb-c5 idle after lane B's copy)",
+    "method": "robocopy /E /XD incremental /R:1 /W:1 /MT:8 (copy only; no /MIR, /PURGE or /MOV; no build), started 2026-10-01T18:37:56Z after the validator's union compile (round 4d0da145) was running (2 cargo/rustc processes), ended 18:57:56Z",
+    "result": "robocopy exit 1 (files copied, no failures): dirs 7752 copied / 1 skipped (incremental), files 45407 copied, 41.133 GB, 0 FAILED, 0 mismatch",
+    "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/seed-from-kb-c5.log",
+    "disk": "D: free 3461.5 GB before the copy",
+    "future_checks": "CARGO_TARGET_DIR=<target above>, CARGO_INCREMENTAL=0, CARGO_PROFILE_DEV_DEBUG=line-tables-only, CARGO_PROFILE_TEST_DEBUG=line-tables-only (same as kb-c5); first build there rebuilds some workspace crates",
+    "cleanup": "WP-end cleanup item (no deletion by the builder)",
+    "hold": "no cargo until the orchestrator releases the lane"
   }
 }
