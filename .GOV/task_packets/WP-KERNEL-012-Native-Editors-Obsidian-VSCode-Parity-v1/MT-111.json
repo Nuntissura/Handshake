@@ -22,7 +22,7 @@
   "title": "B3-MT-111-Frontend-FlightRecorder-Callers-To-Workspace-Scoped-Authorized-Routes",
   "group": "B-Backend-Contract",
   "created_at_utc": "2026-08-05T12:42:00.438Z",
-  "updated_at_utc": "2026-09-24T04:08:15.141Z",
+  "updated_at_utc": "2026-10-01T19:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -73,11 +73,22 @@
       "At 49eac54e PC-111-04 failed only at the workspace DELETE cleanup (test_event_emitter.rs:2768) after its functional assertions (validation_v2.basis); MT-036 PASS_V10 (validation_round_bd8c7532) ran event_emitter_native_editor_round_trip green (test_event_emitter 11/11)."
     ],
     "conclusion": "No product edit is needed for AC-111-4: the runtime proof exists in PC-111-04 and the gap is an evidence-mapping gap. Proposed: set READY_FOR_VALIDATION citing MT-036 PASS_V10 and this mapping; the validator credits AC-111-4 from PC-111-04 in the next union round. If the validator requires the literal '?wsid=' string asserted, the option is one additive assertion inside the same live test (no mock), as a new go/no-go.",
-    "status": "REPORTED to orchestrator; awaiting go (no product edit, no cargo, no push during the 4d0da145 round per GP-145/GP-147)"
+    "status": "ACCEPTED by orchestrator as Option A (2026-10-01); MT-111 set READY_FOR_VALIDATION"
   },
   "lifecycle": {
-    "status": "BLOCKED",
-    "blocked_on": "MT-036",
+    "status": "READY_FOR_VALIDATION",
+    "blocked_on": null,
+    "ready_for_validation_transition_20261001": {
+      "at_utc": "2026-10-01T19:00:00Z",
+      "by": "KERNEL_BUILDER lane B (orchestrator Option A)",
+      "from_status": "BLOCKED",
+      "prior_blocked_on": "MT-036",
+      "reason": "blocker MT-036 is PASS_V10 (MT-036.json#validation_round_bd8c7532: test_event_emitter 11/11 incl event_emitter_native_editor_round_trip, the test that failed here at test_event_emitter.rs:2768)",
+      "diagnosis_ref": "MT-111.json#ac_111_4_proof_analysis_20261001 (AC-111-4 runtime proof = PC-111-04 mounted pane open against the real backend; mapping for the validator to decide; Option B additive live assertion recorded as fallback)",
+      "product_change": "none; candidate is the next round's frozen head (current product tip 4d0da145)",
+      "gameplan": "kernel_builder before_submit PASS 2/2 at product 4d0da145",
+      "round_note": "enters the NEXT union round; round 4d0da145 is frozen"
+    },
     "active": false,
     "depends_on": [
       "MT-109"
