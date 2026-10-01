@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "FAIL_V11",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -88,17 +88,13 @@
     },
     "status_reason": "FAIL_V11 on 5da8b75a union round (validation_round_5da8b75a)",
     "status_before_20260930": "FAIL_V2",
-    "candidate_commit": "5da8b75a0211aa607ea430a6764770709915f80e",
+    "candidate_commit": "9e4bee3426d23abab9c42decc7c11fd71d63d018",
     "blocked_on": null,
     "diagnosis_refs": [
-      "MT-153.json#research_20261001_fr_stall_refuted + hypothesis_20261001_batch_reorder_and_probe.c_instrumentation (BCV line attempt 2 = evidence gathering: DIAGNOSTIC mt153_diag probe, to be reverted after the result)",
-      "MT-153.json#diagnosis_20261001_ac10_move_deadline + hypothesis_20261001_batch_reorder_and_probe.a_reorder (MT-042 ac10 attempt 1: loom_edges delete predicate reorder, 94ba0ed1)",
-      "MT-153.json#diagnosis_20261001_workspace_delete_recheck + review_20261001_w_b_provenance (WORKSPACE_DELETE_RECORD_DENIED resolved in round 791a81dd)",
-      "MT-153.json#hypothesis_20261001_view_outbox_p1 (P1, NOT CONFIRMED; code stays)",
-      "MT-153.json#diagnosis_20261001_argus_binding_root (f98e1e20)",
-      "MT-153.json#diagnosis_20261001_mt152_keyed_lock_pin (f98e1e20)"
+      "MT-153.json#diagnosis_20261001_view_block_generic_get (DX-MT-153-20261001-VIEW-BLOCK-READ-VIA-GENERIC-ROUTE, option (i))",
+      "MT-153.json#status_20261001_bcv_view_load_unattributed (view-load timeout did not recur; cause UNATTRIBUTED; probe reverted)"
     ],
-    "ready_for_validation_at_utc": "2026-10-01T11:49:23Z",
+    "ready_for_validation_at_utc": "2026-10-01T12:54:09Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "status_before_bb9548e1_resubmission": "FAIL_V3",
     "candidate_updated_at_utc": "2026-10-01T00:46:31Z",
@@ -109,7 +105,8 @@
     "status_before_d9ce6017_resubmission": "FAIL_V7",
     "status_before_7548bc72_resubmission": "FAIL_V8",
     "status_before_791a81dd_resubmission": "FAIL_V9",
-    "status_before_5da8b75a_resubmission": "FAIL_V10"
+    "status_before_5da8b75a_resubmission": "FAIL_V10",
+    "status_before_9e4bee34_resubmission": "FAIL_V11"
   },
   "closure_unit": {
     "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
@@ -7682,5 +7679,43 @@
       "CPU-bound W: the round's loom_edges delete reorder removed W from card-move deletes; not shown to be the view-load cause"
     ],
     "probe": "reverted in the next fix commit"
+  },
+  "remediation_20261001_9e4bee34": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T12:54:09Z",
+    "remediates": {
+      "verdict_ref": "MT-153.json#validation_round_5da8b75a (FAIL_V11)",
+      "failure_class": "LOOM_BLOCK_GET_DENIED_FOR_HOST_CREATED_VIEW (tests/test_block_collection_view.rs:3010; :3165 same shape)"
+    },
+    "diagnosis_refs": [
+      "MT-153.json#diagnosis_20261001_view_block_generic_get (DX-MT-153-20261001-VIEW-BLOCK-READ-VIA-GENERIC-ROUTE, option (i))",
+      "MT-153.json#status_20261001_bcv_view_load_unattributed (view-load timeout did not recur; cause UNATTRIBUTED; probe reverted)"
+    ],
+    "fix": {
+      "commit": "9e4bee34",
+      "change": "the two view-title reads use GET /loom/views/definitions/:id ['block']['title'] (bound getBlockView); DIAGNOSTIC mt153_diag probe reverted (api/loom.rs identical to 791a81dd)"
+    },
+    "candidate_commit": "9e4bee3426d23abab9c42decc7c11fd71d63d018",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 9e4bee3426d23abab9c42decc7c11fd71d63d018",
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "exit_code": 0,
+        "inputs": "9e4bee34 backend files (api/loom.rs identical to 791a81dd); 0 cargo/rustc before launch",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-view-read-core.log"
+      },
+      {
+        "command": "cargo check --locked -j 4 --features integration,integration_tests,wgpu_screenshots --test test_block_collection_view",
+        "cwd": "src/frontend/handshake_native",
+        "exit_code": 0,
+        "inputs": "test_block_collection_view.rs at 9e4bee34; 0 cargo/rustc before launch",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-view-read-native.log"
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 9e4bee34; GP-158 confirmed (loom_store.rs/database.rs unchanged since d9ce6017; api/loom.rs change is the probe revert only, identical to 791a81dd)",
+    "selection_note": "validator selection: BCV live (block_collection_views_live_surrealdb_self_seed_full_round_trip); core api::loom tests incl. mt153_owner_workspace_delete_removes_saved_view and the route matrix (api/loom.rs probe revert); schema files unchanged since 5da8b75a (pins/PIN-CONFIRM proof from round 5da8b75a reusable if the validator's rules allow)",
+    "next_actor": "WP_VALIDATOR single union round"
   }
 }
