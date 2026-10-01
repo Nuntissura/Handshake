@@ -2409,7 +2409,37 @@
       "unproven_count": 22,
       "method": "GP-131 probe -> before count + presence re-check (abort if any approved target missing or set changed) -> cmdkey /delete:<name> for exactly approved_targets -> after count (expected 241/22) -> GP-131 probe",
       "timing": "between rounds only",
-      "result": null
+      "result": {
+        "executed_utc": "2026-10-01T21:45:00Z",
+        "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+        "between_rounds": true,
+        "probe_before": {
+          "receipt": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/gp043-vault-probe-8aa61bcb-ef4a-43fb-b538-ea19ff216da6.json",
+          "success": true
+        },
+        "precheck": {
+          "total_targets": 254,
+          "handshake_local_accounts": 35,
+          "approved_present": 13,
+          "approved_missing": 0,
+          "set_changed": false
+        },
+        "deleted": 13,
+        "per_target_failures": [],
+        "after": {
+          "total_targets": 241,
+          "handshake_local_accounts": 22,
+          "approved_still_present": 0,
+          "non_approved_removed": 0
+        },
+        "probe_after": {
+          "receipt": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/gp043-vault-probe-bb1de435-5a95-4964-b7db-12aa9e20dc0c.json",
+          "success": true
+        },
+        "log_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/cmdkey-delete-20261001-proven-leaks.log",
+        "log_sha256": "1b3f80841ce7cef5fcc1f16e744bc0b3662ebcb3fe9bbab32ec0e0cb717676d8",
+        "remaining": "22 unproven handshake-local-accounts targets untouched; leak defect routing stays with the Operator"
+      }
     }
   },
   "export_cleanup_20260930": {
