@@ -3060,8 +3060,12 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // (view_def) under the workspace delete grant (previous value
 // ad8af766863b079f8eb2f37d5f8bb7f973319a981e7e25f950a5c00095bc5667); measured by WP validator
 // PIN-MEASURE on 8ff1565d (MT-153.json pin_measure_20261001_8ff1565d).
+// MT-153 attempt-2 re-pin: the knowledge-entity loop recognises a view entity by its block while
+// it exists, else by create-time provenance with no protected resource (previous value
+// 763ef641f8b7ac64878e0fc733e8079a9ba5009858121001af6f9ae05091e048); measured by WP validator
+// PIN-MEASURE on 1ff1821f (MT-153.json pin_measure_20261001_1ff1821f).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "763ef641f8b7ac64878e0fc733e8079a9ba5009858121001af6f9ae05091e048";
+    "ac8d7465ad9ceb66aed0cef0107971db4a3c13a95c4ebd0312a127bb9bf8a70f";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -3161,8 +3165,10 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // 81a9de3dfbaaf65fdbd2e57ad31e9bec7dd01865e871819d4bf4664cb13a718d); measured by WP validator
 // PIN-MEASURE on 8ff1565d (MT-153.json pin_measure_20261001_8ff1565d;
 // MT139_CURRENT_SCHEMA_INFO_SHA256 / MT109_CURRENT_AUTHORITY_INFO_SHA256).
+// MT-153 attempt-2 re-pin (previous f2e350dd28ef2cd87e75ea4aaf38f79244f5fda3fdc4f6bed42bde3d4682892d);
+// measured by WP validator PIN-MEASURE on 1ff1821f (MT-153.json pin_measure_20261001_1ff1821f).
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "f2e350dd28ef2cd87e75ea4aaf38f79244f5fda3fdc4f6bed42bde3d4682892d";
+    "0fa659b50938c531101082bfa5a3d626f4ec3646cd4722b39d97e103fb6f3148";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
