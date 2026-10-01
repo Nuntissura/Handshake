@@ -3128,5 +3128,11 @@
     "bound_route_check": "Bound routes (knowledge documents create/load/save/backlinks, GET loom/blocks, transclusion, canvas-boards GET) have no changed handler; changed handlers (daily journal PUT, visual-edge POST/DELETE anonymous branch) are not bound or exercised by test_loom_address",
     "decision": "evidence remains valid on 65a7b6fb; status unchanged at round freeze",
     "observation": "test_loom_address is in the 65a7b6fb union native selection; its result is recorded as an observation and a red would be routed as a regression"
+  },
+  "operator_decision_20261001_backend_build_profile": {
+    "decision_id": "WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001",
+    "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
+    "verdict_labelling": "every verdict records the backend build profile",
+    "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
   }
 }

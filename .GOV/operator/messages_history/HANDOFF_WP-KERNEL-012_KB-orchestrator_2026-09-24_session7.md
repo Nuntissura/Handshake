@@ -84,7 +84,7 @@ Evidence: gov `git log --since=2026-10-01T03:00:00Z` (tip `0b56f8a8` = `origin/g
 
 ### H. Open Operator decisions (none made today unless quoted in section I)
 
-1. Debug-backend dependency opt-level override (`[profile.dev.package]`; live native proofs launch `target/debug/handshake_core.exe`, surrealdb-core at opt-level 0): `MT-153.json#diagnosis_20261001_cardmove_split_edge_txns.systemic_multiplier_out_of_scope` (magnitude UNVERIFIED, forces surrealdb-core rebuild); rounds `fea3ce0a`..`9e4bee34` note "debug-backend override not applied, Operator decision pending". Research record incl. the one same-SHA canary comparison (backend dev vs dev+override) and the Operator decisions needed: `MT-153.json#research_20261001_debug_backend_profile` (status OPERATOR_DECISION_PENDING; not applied during AFK autonomy).
+1. **DECIDED (approved by the Operator 2026-10-01 ~19:40Z, `WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001`; see subsection L; supersedes the pending wording below)** Debug-backend dependency opt-level override (`[profile.dev.package]`; live native proofs launch `target/debug/handshake_core.exe`, surrealdb-core at opt-level 0): `MT-153.json#diagnosis_20261001_cardmove_split_edge_txns.systemic_multiplier_out_of_scope` (magnitude UNVERIFIED, forces surrealdb-core rebuild); rounds `fea3ce0a`..`9e4bee34` note "debug-backend override not applied, Operator decision pending". Research record incl. the one same-SHA canary comparison (backend dev vs dev+override) and the Operator decisions needed: `MT-153.json#research_20261001_debug_backend_profile` (status now OPERATOR_APPROVED; the text in this item before the DECIDED marker described the pending state).
 2. W-scan ownership: `MT-153.json#operator_decision_request_20261001_w_scan_ownership` status open (recorded 11:30:17Z): who makes `fn::mt120_workspace_delete` grant/resource scans index-bound (extend/reopen MT-166, assign MT-153 with scope amendment, assign MT-154, or accept cost).
 3. Two leaked OS-vault credentials (CX-GIT-003), both NOT deleted, Operator approval required: `01a0f71f-885e-7b03-b595-1a42b809009f.handshake-local-accounts-d8d19f56...` (`791a81dd`, 11:00:41Z, gov `ae369f1c`, 241/22 -> 242/23) and `01a0f7d8-14de-7f10-9428-865acd834185.handshake-local-accounts-33359bac...` (`1d1f583a`, 14:22:08Z, gov `73d57640`, 242/23 -> 243/24); `packet.json#credential_cleanup_20260930.defect_cx_git_003.occurrences`. The earlier 22 unproven entries remain untouched and not approved.
 4. MT-046 backlink-projection owner (`src/backend/handshake_document/src/surreal.rs`, no owning MT): `MT-046.json#remediation_20261001_0c416dc4` `next_actor` ORCHESTRATOR; MT-046 FAIL_V9 (ic04/ic10/ic12; ic06 blocked on MT-167).
@@ -103,6 +103,7 @@ Evidence: gov `git log --since=2026-10-01T03:00:00Z` (tip `0b56f8a8` = `origin/g
 - `WP012-OPERATOR-STABLE-EXPORT-20261001`: "WP-012 scripts now".
 - `WP012-OPERATOR-CHEAP-RESEARCH-BEFORE-TESTS-20261001`: "if your stuck use a cheap sub agent to reseach online before running expensive time consuming tests".
 - `WP012-OPERATOR-ORCHESTRATOR-NEVER-SELF-STOPS-20261001` (gov `0b56f8a8`): "you do not decide when to stop"; the orchestrator's 10-minute tick runs continuously and is re-armed at every expiry; stopping is the Operator's decision only. Its `recorded_at_utc` is `2026-10-01T00:00:00Z` (a placeholder, not the recording time).
+- `WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001` (2026-10-01 ~19:40Z): "approved, update the mt contracts and also record it in the handoff file" (see subsection L).
 - Standing earlier instructions (AFK autonomy, buddy, no globals/Codex, cargo reuse, single union round, bedtime orders) stay as in section 5 of the next section.
 
 ### J. Next actions (in order)
@@ -181,7 +182,7 @@ Lane plan (file-overlap evidence: frontend hot files `src/app.rs` (MT-033 070 07
 
 Operator decision list (none made; each with the MTs it gates):
 
-1. Debug-backend dependency opt-level override: `MT-153#research_20261001_debug_backend_profile` (OPERATOR_DECISION_PENDING; same-SHA canary first). Gates timing-driven MT-043/128, MT-008/064/065, MT-167 AC-167-3.
+1. **DECIDED (approved 2026-10-01 ~19:40Z, `WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001`; subsection L)** Debug-backend dependency opt-level override: `MT-153#research_20261001_debug_backend_profile` (status OPERATOR_APPROVED; one diagnostic measurement run first). Gates timing-driven MT-043/128, MT-008/064/065, MT-167 AC-167-3.
 2. Owner for ownerless `storage/surreal/knowledge.rs` (MT-043/128 doc create; MT-008 hover lookup) and the ingestion share (`knowledge_ingestion/engine.rs`, MT-154 module) vs AC-167-3 median < 5 s: `MT-167#operator_decision_request_20261001_ingestion_share_vs_ac_167_3` (options: reduce ingestion cost via MT-154/new MT; apply item 1; re-scope AC-167-3; other).
 3. MT-043/128 5 s merged-resave bound (`test_e7_swarm_edit_proof.rs:3240-3252`): `MT-043#operator_decision_request_20260930_bb9548e1`, NOT_DECIDED; raising the bound inside the builder's paths is proof weakening.
 4. MT-046 backlink-projection owner (`src/backend/handshake_document/src/surreal.rs`): `MT-046#remediation_20261001_0c416dc4`.
@@ -190,6 +191,16 @@ Operator decision list (none made; each with the MTs it gates):
 7. VPX-011 text correction: `MT-153#note_20261001_vpx011_deviation` (decision_owner Operator).
 8. AC reconciliations: MT-033 (literal `atelier_embed` / Canvas node / Region+StartDrag, `MT-033#validation_v8.remaining_proof_gaps`) and MT-120 (AC-120-4 "12 tests", AC-120-6 "no edit to the test", `MT-120#validation_v3.remaining_proof_gaps`).
 9. MT-127 supervised interactive foreground step (AC-127-3 controlled interactive desktop): must be surfaced to the Operator first and must not run unsupervised (GLOBAL-BUILD-QUIET).
+
+
+### L. Operator decision 2026-10-01 ~19:40Z: debug-backend dependency opt-level override APPROVED
+
+Operator decision (verbatim): "approved, update the mt contracts and also record it in the handoff file". Answer to the orchestrator's exact question: "do you approve the allow-listed database-only optimization for the test backend, with one diagnostic measurement run first, and verdicts labelled with the build profile?" Decision record: `packet.json#operator_decisions_20261001` entry `WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001`. Subject: `MT-153.json#research_20261001_debug_backend_profile` (status now OPERATOR_APPROVED, `approved_by_decision` set; research lines unchanged).
+
+- Approved allow-list (opt-level 2, as written in the research record): `surrealdb`, `surrealdb-core`, `surrealdb-librocksdb-sys`, `surrealdb-rocksdb`, `surrealdb-collections`, `surrealdb-types`, `surrealdb-strand`, `surrealdb-protocol`. `revision` and `storekey` appear in the record only as "optionally" (hot path labelled H) and are excluded. Not approved: `"*"`, global `CARGO_PROFILE_DEV_OPT_LEVEL`, product `Cargo.toml`/`.cargo/config.toml` edits, `--release` backend.
+- Plan: (1) the validator makes the CX-VAL-007 entrypoint commit after round `4d0da145` ends: a checked-in `.GOV` toml (research name `WPV-backend-profile.toml`) passed as `cargo --config <toml>` on the owned-backend `cargo build` line of `WPV-union-round.sh` only; (2) one diagnostic measurement run (same candidate SHA, same named live test, client-observed loom edge-create median, dev reference 3.27 s on `bd8c7532` per `MT-042.json#decision_20260930_edge_counter_rule`; the dev side reuses an existing same-candidate dev measurement if one exists, the override side is the one run; a named remediation under CX-EXEC-014); if the speedup is small the override is reverted/not pursued (research record); (3) then normal rounds with the override; (4) every verdict labels the backend build profile (dev, or dev + allow-listed dependency opt-level override); earlier timing verdicts remain as measured on the unoptimized dev engine and are not rewritten; no deadline or acceptance criterion changes.
+- MT contracts: 78 MTs selected mechanically (63 launch the owned backend in their proof surface or proof-run records; 20 contain timing bounds in acceptance criteria; list and per-MT reasons: `packet.json#debug_backend_override_mt_selection_20261001`). Each carries `operator_decision_20261001_backend_build_profile` (decision id, backend build profile, verdict labelling, earlier-verdicts note); value fields only, no template-shape change.
+- Section H item 1 and section K item 1 are DECIDED (approved).
 
 
 ## State at 2026-10-01 ~04:00Z (AFK autonomy; Operator asleep, do not expect a reply)

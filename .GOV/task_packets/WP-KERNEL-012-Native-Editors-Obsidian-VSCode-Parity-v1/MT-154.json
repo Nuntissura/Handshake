@@ -3840,5 +3840,11 @@
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
       }
     ]
+  },
+  "operator_decision_20261001_backend_build_profile": {
+    "decision_id": "WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001",
+    "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
+    "verdict_labelling": "every verdict records the backend build profile",
+    "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
   }
 }

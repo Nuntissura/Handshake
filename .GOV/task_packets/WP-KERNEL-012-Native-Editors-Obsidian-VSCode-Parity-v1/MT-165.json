@@ -714,5 +714,11 @@
     "answers": "MT-165.json#operator_decision_request (KB-IMPL-006; commit bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3)",
     "scope": "timing-only constant in an allowed_write_paths file; assertions unchanged; no product change",
     "status_effect": "none (MT-165 lifecycle unchanged)"
+  },
+  "operator_decision_20261001_backend_build_profile": {
+    "decision_id": "WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001",
+    "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
+    "verdict_labelling": "every verdict records the backend build profile",
+    "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
   }
 }

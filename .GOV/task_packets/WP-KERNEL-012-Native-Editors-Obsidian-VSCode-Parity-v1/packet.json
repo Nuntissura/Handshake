@@ -2555,6 +2555,52 @@
       "operator_quote": "you do not decide when to stop",
       "context": "orchestrator stopped its 10-minute tick monitor between validator rounds; the Operator's session instruction is a 10-minute tick on agent progress and CPU",
       "effect": "the orchestrator's 10-minute tick runs continuously and is re-armed at every expiry; the orchestrator never stops ticks, agents or work on its own judgment; stopping is the Operator's decision only. Only an explicit Operator stop ends the tick (KERNEL_BUILDER_PROTOCOL:105 KB-STEER-007: an explicit Operator stop still takes precedence; KB-STEER-002 recurring tick while work runs)."
+    },
+    {
+      "recorded_at_utc": "2026-10-01T19:41:42Z",
+      "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+      "relayed_by": "ORCHESTRATOR root session",
+      "decision_id": "WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001",
+      "authorized_by": "OPERATOR",
+      "operator_decided_at_utc_approx": "2026-10-01T19:40:00Z",
+      "operator_quote": "approved, update the mt contracts and also record it in the handoff file",
+      "question": "do you approve the allow-listed database-only optimization for the test backend, with one diagnostic measurement run first, and verdicts labelled with the build profile?",
+      "subject_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-153.json#research_20261001_debug_backend_profile",
+      "approved_allow_list": {
+        "source": "research record cargo_mechanism.lines \"Caution\" entry and recommendation (explicit allow-list instead of \"*\"); copied as written",
+        "as_written": "Prefer an explicit allow-list: `surrealdb`, `surrealdb-core`, `surrealdb-librocksdb-sys`, `surrealdb-rocksdb`, `surrealdb-collections`, `surrealdb-types`, `surrealdb-strand`, `surrealdb-protocol`; optionally `revision`, `storekey` (names exist in Cargo.lock:5404,6174; serialization hot path is H).",
+        "approved_packages": [
+          "surrealdb",
+          "surrealdb-core",
+          "surrealdb-librocksdb-sys",
+          "surrealdb-rocksdb",
+          "surrealdb-collections",
+          "surrealdb-types",
+          "surrealdb-strand",
+          "surrealdb-protocol"
+        ],
+        "opt_level": 2,
+        "excluded_optional_packages": [
+          "revision",
+          "storekey"
+        ],
+        "excluded_optional_reason": "the research record lists them only as \"optionally\" with the serialization hot path labelled H (hypothesis); it does not mark them recommended, so they are not in the approved allow-list",
+        "not_approved": [
+          "\"*\" wildcard (would also optimize bundled libduckdb-sys and the path dependencies handshake_document/handshake_storage_support)",
+          "global CARGO_PROFILE_DEV_OPT_LEVEL (would optimize handshake_core)",
+          "product Cargo.toml or .cargo/config.toml edits",
+          "--release backend"
+        ],
+        "toml_shape_from_record": "[profile.dev.package.<name>] opt-level = 2, one table per approved package, in a checked-in .GOV toml (research name: WPV-backend-profile.toml)"
+      },
+      "conditions": {
+        "C1_diagnostic_measurement_first": "exactly one diagnostic measurement run before the override is relied on: same candidate SHA, same named live test (the MT-042/MT-153 loom edge-create), client-observed edge-create median compared dev vs dev+override. The dev-profile side reuses an existing dev-profile measurement on the same candidate when one exists (existing dev-profile reference: edge_create_median_s 3.27 on candidate bd8c7532, MT-042.json#decision_20260930_edge_counter_rule); the override side is the one run. Any dev-side run needed because no same-candidate measurement exists, and the override run itself, is a named remediation under CX-EXEC-014 (this entry is that record; the run must name the MT, the test and this decision id). Per the research record: if the speedup is small the bottleneck is handshake_core logic and the override is reverted/not pursued.",
+        "C2_override_application": "applied only on the owned-backend build line (the `cargo build ... --bin handshake_core ...` line) of the validator entrypoint WPV-union-round.sh via `cargo --config <checked-in .GOV toml>`; no env var, no wrapper, no product-file change; the entrypoint change is a CX-VAL-007 entrypoint-config commit made by the validator (planned after round 4d0da145 ends); the C: core/native test builds are untouched",
+        "C3_verdict_labelling": "every verdict records the backend build profile (dev, or dev + allow-listed dependency opt-level override) and, under the override, this decision id",
+        "C4_earlier_verdicts": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement",
+        "C5_deadlines_unchanged": "no acceptance criterion, proof command or client deadline is changed (MT-042 \"not approved: raising the 5 s client deadline\" stands); the override changes the system-under-test speed only"
+      },
+      "effect": "MT contracts of the selected MTs carry operator_decision_20261001_backend_build_profile; selection and per-MT reasons: packet.json#debug_backend_override_mt_selection_20261001; handoff updated (topic session-2026-09-30-orchestrator)"
     }
   ],
   "stale_crate_builds_cleanup_20261001": {
@@ -2804,5 +2850,817 @@
       "parse": "GP-160 ParseFile 0 errors; bash -n ok"
     },
     "launch": "launch_obs.ps1 -File WPV-round-observer.ps1 -ArgLine '-Sha <sha> -Kind union|pin-measure'"
+  },
+  "debug_backend_override_mt_selection_20261001": {
+    "recorded_at_utc": "2026-10-01T19:41:42Z",
+    "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+    "decision_id": "WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001",
+    "method": "mechanical scan of every MT-*.json in this packet directory (read-only scripts, no judgment filter); an MT is selected when (A) its proof surface launches the owned backend OR (B) its acceptance criteria contain a timing bound",
+    "proof_surface_scanned_for_A": [
+      "scope.proof_targets",
+      "proof_commands",
+      "proof",
+      "proof_targets (top-level)",
+      "execution",
+      "validation_v*/remediation_v*/validation_round_*/validation_shared_union_*/implementation_result records (HSK_TEST_BACKEND_BIN, requires_live_backend=true, require_reachable_backend only; recorded proof runs that launched the owned backend)"
+    ],
+    "backend_launch_tokens": [
+      "HSK_TEST_BACKEND_BIN",
+      "backend_proof_support",
+      "requires_live_backend=true",
+      "live backend",
+      "require_reachable_backend",
+      "live SurrealDB",
+      "--features integration (native live tests)"
+    ],
+    "acceptance_surface_scanned_for_B": [
+      "scope.acceptance_criteria",
+      "acceptance_criteria (top-level)",
+      "closure_unit"
+    ],
+    "timing_bound_tokens": [
+      "\"< N s|ms|sec|seconds\"",
+      "median",
+      "deadline",
+      "within N",
+      "N ms",
+      "N s with budget|bound|deadline|timeout|limit|cap",
+      "p95|p99"
+    ],
+    "caveat": "rule applied literally: a timing token can be a UI debounce/cadence or a frontend deadline rather than a backend latency bound; such MTs are selected under (B) with backend_launch=false. The new key is a label only and changes no acceptance criterion, proof command, deadline, or verdict.",
+    "selected_count": 78,
+    "selected_backend_launch_count": 63,
+    "selected_timing_bound_count": 20,
+    "applied_key_in_each_selected_mt": "operator_decision_20261001_backend_build_profile",
+    "existing_operator_decision_fields_note": "existing operator_decision* fields in the selected MTs are heterogeneous single-decision dicts (and dated lists) with MT-specific shapes; appending to them would alter their shape, so every selected MT received the dedicated dated key instead (value fields only, no template-shape change)",
+    "selected": [
+      {
+        "mt_id": "MT-002",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token \"<N s/ms\" bound in scope.acceptance_criteria",
+          "timing-bound token N ms in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-008",
+        "status_at_selection": "FAIL_V9",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-014",
+        "status_at_selection": "PASS_V5",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v4, validation_v5"
+        ]
+      },
+      {
+        "mt_id": "MT-019",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"--features integration\" in scope.proof_targets"
+        ]
+      },
+      {
+        "mt_id": "MT-021",
+        "status_at_selection": "PASS_V5",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v5"
+        ]
+      },
+      {
+        "mt_id": "MT-022",
+        "status_at_selection": "PASS_V5",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v5"
+        ]
+      },
+      {
+        "mt_id": "MT-023",
+        "status_at_selection": "PASS_V9",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-024",
+        "status_at_selection": "PASS_V5",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v5"
+        ]
+      },
+      {
+        "mt_id": "MT-025",
+        "status_at_selection": "PASS_V7",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v7"
+        ]
+      },
+      {
+        "mt_id": "MT-026",
+        "status_at_selection": "PASS_V8",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-027",
+        "status_at_selection": "PASS_V18",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-028",
+        "status_at_selection": "PASS_V5",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v5"
+        ]
+      },
+      {
+        "mt_id": "MT-029",
+        "status_at_selection": "PASS_V5",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v5"
+        ]
+      },
+      {
+        "mt_id": "MT-030",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token N ms in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-032",
+        "status_at_selection": "PASS_V15",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v10"
+        ]
+      },
+      {
+        "mt_id": "MT-033",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"live backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-034",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-035",
+        "status_at_selection": "PASS_V5",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v5"
+        ]
+      },
+      {
+        "mt_id": "MT-036",
+        "status_at_selection": "PASS_V10",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"live backend\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-041",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token within N in scope.acceptance_criteria",
+          "timing-bound token N ms in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-042",
+        "status_at_selection": "PASS_V13",
+        "backend_launch": true,
+        "timing_bound": true,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v5",
+          "timing-bound token within N in scope.acceptance_criteria",
+          "timing-bound token N ms in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-043",
+        "status_at_selection": "FAIL_V6",
+        "backend_launch": true,
+        "timing_bound": true,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) remediation_v3",
+          "timing-bound token within N in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-044",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token N ms in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-045",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": true,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v5",
+          "timing-bound token N ms in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-046",
+        "status_at_selection": "FAIL_V9",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-064",
+        "status_at_selection": "FAIL_V9",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"live SurrealDB\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-065",
+        "status_at_selection": "FAIL_V9",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-066",
+        "status_at_selection": "PASS_V9",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-067",
+        "status_at_selection": "PASS_V8",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-068",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-070",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-072",
+        "status_at_selection": "PASS_V5",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v5"
+        ]
+      },
+      {
+        "mt_id": "MT-074",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-079",
+        "status_at_selection": "READY_FOR_VALIDATION",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-084",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token N ms in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-085",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token N ms in scope.acceptance_criteria",
+          "timing-bound token p95/p99 in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-088",
+        "status_at_selection": "PASS_V8",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v5, validation_v6"
+        ]
+      },
+      {
+        "mt_id": "MT-090",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token deadline in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-091",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token N ms in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-098",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"live backend\" in scope.proof_targets",
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-100",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"live backend\" in scope.proof_targets"
+        ]
+      },
+      {
+        "mt_id": "MT-105",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token deadline in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-106",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token deadline in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-108",
+        "status_at_selection": "PASS_V7",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v5"
+        ]
+      },
+      {
+        "mt_id": "MT-111",
+        "status_at_selection": "READY_FOR_VALIDATION",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-113",
+        "status_at_selection": "PASS_V4",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-114",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v1"
+        ]
+      },
+      {
+        "mt_id": "MT-116",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-117",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-119",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v1"
+        ]
+      },
+      {
+        "mt_id": "MT-120",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-121",
+        "status_at_selection": "READY_FOR_VALIDATION",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-122",
+        "status_at_selection": "READY_FOR_VALIDATION",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-124",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v1"
+        ]
+      },
+      {
+        "mt_id": "MT-125",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v1"
+        ]
+      },
+      {
+        "mt_id": "MT-126",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v1"
+        ]
+      },
+      {
+        "mt_id": "MT-127",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-128",
+        "status_at_selection": "FAIL_V3",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v1"
+        ]
+      },
+      {
+        "mt_id": "MT-129",
+        "status_at_selection": "READY_FOR_VALIDATION",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v6, validation_v7"
+        ]
+      },
+      {
+        "mt_id": "MT-130",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-131",
+        "status_at_selection": "PASS_V3",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v1"
+        ]
+      },
+      {
+        "mt_id": "MT-132",
+        "status_at_selection": "PASS_V2",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v1"
+        ]
+      },
+      {
+        "mt_id": "MT-133",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v1"
+        ]
+      },
+      {
+        "mt_id": "MT-134",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": true,
+        "timing_bound": true,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v1",
+          "timing-bound token deadline in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-140",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "backend-launch token \"--features integration\" in proof_commands"
+        ]
+      },
+      {
+        "mt_id": "MT-142",
+        "status_at_selection": "BLOCKED",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token p95/p99 in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-143",
+        "status_at_selection": "READY_FOR_VALIDATION",
+        "backend_launch": true,
+        "timing_bound": true,
+        "reasons": [
+          "backend-launch token \"--features integration\" in scope.proof_targets, proof_commands",
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof_commands",
+          "backend-launch token \"requires_live_backend\" in proof_commands",
+          "timing-bound token deadline in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-153",
+        "status_at_selection": "READY_FOR_VALIDATION",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof",
+          "backend-launch token \"--features integration\" in proof"
+        ]
+      },
+      {
+        "mt_id": "MT-154",
+        "status_at_selection": "READY_FOR_VALIDATION",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"--features integration\" in proof"
+        ]
+      },
+      {
+        "mt_id": "MT-155",
+        "status_at_selection": "READY_FOR_VALIDATION",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) execution"
+        ]
+      },
+      {
+        "mt_id": "MT-156",
+        "status_at_selection": "PASS_V2",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) execution"
+        ]
+      },
+      {
+        "mt_id": "MT-157",
+        "status_at_selection": "READY_FOR_VALIDATION",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) execution"
+        ]
+      },
+      {
+        "mt_id": "MT-158",
+        "status_at_selection": "READY_FOR_VALIDATION",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) execution"
+        ]
+      },
+      {
+        "mt_id": "MT-159",
+        "status_at_selection": "READY_FOR_VALIDATION",
+        "backend_launch": true,
+        "timing_bound": false,
+        "reasons": [
+          "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) execution"
+        ]
+      },
+      {
+        "mt_id": "MT-164",
+        "status_at_selection": "PASS_V3",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token \"<N s/ms\" bound in scope.acceptance_criteria, closure_unit",
+          "timing-bound token median in scope.acceptance_criteria, closure_unit",
+          "timing-bound token N ms in scope.acceptance_criteria, closure_unit"
+        ]
+      },
+      {
+        "mt_id": "MT-165",
+        "status_at_selection": "PASS_V4",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token \"<N s/ms\" bound in scope.acceptance_criteria",
+          "timing-bound token median in scope.acceptance_criteria",
+          "timing-bound token N ms in scope.acceptance_criteria"
+        ]
+      },
+      {
+        "mt_id": "MT-166",
+        "status_at_selection": "PASS_V1",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token \"<N s/ms\" bound in scope.acceptance_criteria, closure_unit",
+          "timing-bound token median in scope.acceptance_criteria",
+          "timing-bound token N ms in scope.acceptance_criteria, closure_unit"
+        ]
+      },
+      {
+        "mt_id": "MT-167",
+        "status_at_selection": "READY_FOR_VALIDATION",
+        "backend_launch": false,
+        "timing_bound": true,
+        "reasons": [
+          "timing-bound token \"<N s/ms\" bound in scope.acceptance_criteria, closure_unit",
+          "timing-bound token median in scope.acceptance_criteria, closure_unit",
+          "timing-bound token N ms in scope.acceptance_criteria, closure_unit"
+        ]
+      }
+    ]
   }
 }

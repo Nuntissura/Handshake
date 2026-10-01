@@ -1581,5 +1581,11 @@
     "forbidden_meanwhile": "no timeout increases and no weakened authority checks (per authority_check_20260930_seed_timeout decision_applied)",
     "recommendation_ref": "decision_R2_ownership.md section 5(a)",
     "status_effect": "none (lifecycle.blocked_on is set when the new MT exists; no status change by this record)"
+  },
+  "operator_decision_20261001_backend_build_profile": {
+    "decision_id": "WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001",
+    "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
+    "verdict_labelling": "every verdict records the backend build profile",
+    "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
   }
 }

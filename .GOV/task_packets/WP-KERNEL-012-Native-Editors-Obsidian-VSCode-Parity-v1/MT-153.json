@@ -8228,7 +8228,7 @@
     "schema_id": "hsk.mt_research@1",
     "recorded_by": "governance paperwork agent for ORCHESTRATOR",
     "recorded_at_utc": "2026-10-01T15:15:00Z",
-    "status": "OPERATOR_DECISION_PENDING",
+    "status": "OPERATOR_APPROVED",
     "orchestrator_buddy_decision_note": "not applied during AFK autonomy: needs an extra canary run and a rebuild and changes timing-verdict conditions; buddy ruled it an Operator decision (2026-10-01)",
     "source": "read-only research sub-agent report (orchestrator, 2026-10-01; scratch debug_backend_research.md, copied here verbatim because scratch is not durable); labels as written in the source: V = verified (file:line / URL / command output), H = hypothesis; no claim added or changed",
     "title": "WP-KERNEL-012: debug-built owned backend, dependency-only optimization override",
@@ -8304,7 +8304,8 @@
         "Operator decisions needed: (1) approve the entrypoint change (CX-VAL-007 commit) and that backend-timed live-proof verdicts are recorded as \"dev + optimized SurrealDB/RocksDB deps\"; (2) approve first-build cost (longer cold rebuild, optional -j cap) and that old backend-bin deps stay in place (or later cleanup under the existing delete-stale-builds precedent); (3) confirm whether prior FAIL verdicts that were timeout-driven (MT-042, 153, 027, 008/064/065, 043/128) are re-opened as new rounds under the new profile (counters CX-EXEC-015: this would be the \"same infra failure_class twice -> commit to entrypoint config\" fix per CX-EXEC-015(4), V Codex:137, which the Operator can invoke); (4) whether a release-profile backend (`--release`, path `release/`, HSK_TEST_BACKEND_BIN edit) is wanted instead: larger rebuild, handshake_core optimized too, differs from the \"dev\" assumption in earlier evidence.",
         "Not verified: actual Windows behavior of `--config` with an absolute D: path under git-bash (docs say supported since the option accepts paths); that the override is honored for a package listed in lock by name only (documented in Cargo book as package spec); no build was run."
       ]
-    }
+    },
+    "approved_by_decision": "WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001"
   },
   "validation_round_f4e66906": {
     "schema_id": "hsk.mt_validation_verdict@1",
@@ -8734,5 +8735,11 @@
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
       }
     ]
+  },
+  "operator_decision_20261001_backend_build_profile": {
+    "decision_id": "WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001",
+    "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
+    "verdict_labelling": "every verdict records the backend build profile",
+    "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
   }
 }
