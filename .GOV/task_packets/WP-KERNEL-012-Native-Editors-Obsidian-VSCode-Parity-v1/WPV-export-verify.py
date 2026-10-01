@@ -31,6 +31,11 @@ with tarfile.open(fileobj=archive.stdout, mode="r|") as tar:
     for member in tar:
         if member.isfile():
             want[member.name] = hashlib.sha256(tar.extractfile(member).read()).hexdigest()
+# Drain what follows the end-of-archive marker (git pads the stream to a 10240-byte record) before wait():
+# tarfile stops reading at the marker, and an undrained tail larger than the pipe buffer blocks git's
+# write while we wait for it (deadlock observed on d9ce6017, 10240 bytes pending; size-dependent).
+archive.stdout.read()
+archive.stdout.close()
 archive.wait()
 if archive.returncode != 0:
     print("VERIFY_FAIL git archive failed"); sys.exit(1)

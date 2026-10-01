@@ -1,5 +1,5 @@
 {
-  "candidate": "fea3ce0a509ae54f669fb122bf1bf64e68cb1421",
+  "candidate": "d9ce6017e91430c69d410b555bd79fd5f6916926",
   "prior_native_proof": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
   "changed_native_test_bins": [
     "test_calendar_interop",
@@ -10,8 +10,8 @@
     "test_stage_interop",
     "test_tags_panel"
   ],
-  "native_src_changed": false,
-  "planned_native_tests_estimate": 32,
+  "native_src_changed": true,
+  "planned_native_tests_estimate": 118,
   "core_lib": [
     "api::loom::tests::mt153_loom_route_family_authority_matrix",
     "api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows",
@@ -25,19 +25,198 @@
     "project_wiki_drift_tests"
   ],
   "core_partial": {
-    "loom_atomic_receipt_tests": "mt023_*",
-    "wp_kernel_012_native_editor_routes_tests": "route2_stage_artifact_create_and_resolve",
-    "lib": "mt136_database_surface_proof_(a|b|c)::*"
+    "lib": [
+      "mt136_database_surface_proof_(a|b|c)::* (MT-136)",
+      "user_manual::* (MT-153 user_manual_obligation: seed.rs changed)"
+    ],
+    "loom_block_collection_views_tests": "MT027_CORE exact 6"
+  },
+  "intersection": {
+    "candidate": "d9ce6017e91430c69d410b555bd79fd5f6916926",
+    "rule": "CX-VAL-002: reuse only if recorded input paths do not intersect the diff from the reuse basis",
+    "diffs": {
+      "39f3e830": [
+        "src/backend/handshake_core/src/api/loom.rs",
+        "src/backend/handshake_core/src/storage/surreal/database.rs",
+        "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+        "src/backend/handshake_core/src/user_manual/seed.rs"
+      ],
+      "fea3ce0a": [
+        "src/backend/handshake_core/src/api/loom.rs",
+        "src/backend/handshake_core/src/storage/surreal/database.rs",
+        "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+        "src/backend/handshake_core/src/user_manual/seed.rs"
+      ],
+      "e4566f11": [
+        "src/backend/handshake_core/src/api/loom.rs",
+        "src/backend/handshake_core/src/storage/surreal/database.rs",
+        "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+        "src/backend/handshake_core/src/user_manual/seed.rs"
+      ],
+      "8ea13a9b": [
+        "src/backend/handshake_core/src/api/jobs.rs",
+        "src/backend/handshake_core/src/api/loom.rs",
+        "src/backend/handshake_core/src/api/workspaces.rs",
+        "src/backend/handshake_core/src/main.rs",
+        "src/backend/handshake_core/src/storage/surreal/block_view_store.rs",
+        "src/backend/handshake_core/src/storage/surreal/database.rs",
+        "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+        "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+        "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema.surql",
+        "src/backend/handshake_core/src/storage/surreal/search_store.rs",
+        "src/backend/handshake_core/src/storage/tests.rs",
+        "src/backend/handshake_core/src/user_manual/seed.rs",
+        "src/backend/handshake_core/tests/model_session_scheduler_tests.rs",
+        "src/backend/handshake_document/src/surreal.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_calendar_interop.rs",
+        "src/frontend/handshake_native/tests/test_event_emitter.rs",
+        "src/frontend/handshake_native/tests/test_interconnect_ckc_to_note.rs",
+        "src/frontend/handshake_native/tests/test_interconnect_manifest.json",
+        "src/frontend/handshake_native/tests/test_loom_address.rs",
+        "src/frontend/handshake_native/tests/test_memory_proposal_argus.rs",
+        "src/frontend/handshake_native/tests/test_stage_interop.rs",
+        "src/frontend/handshake_native/tests/test_tags_panel.rs"
+      ],
+      "37ee7c5b": [
+        "src/backend/handshake_core/src/api/loom.rs",
+        "src/backend/handshake_core/src/api/workspaces.rs",
+        "src/backend/handshake_core/src/storage/surreal/block_view_store.rs",
+        "src/backend/handshake_core/src/storage/surreal/database.rs",
+        "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+        "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+        "src/backend/handshake_core/src/storage/surreal/search_store.rs",
+        "src/backend/handshake_core/src/user_manual/seed.rs",
+        "src/backend/handshake_core/tests/model_session_scheduler_tests.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_calendar_interop.rs",
+        "src/frontend/handshake_native/tests/test_event_emitter.rs",
+        "src/frontend/handshake_native/tests/test_interconnect_ckc_to_note.rs",
+        "src/frontend/handshake_native/tests/test_interconnect_manifest.json",
+        "src/frontend/handshake_native/tests/test_memory_proposal_argus.rs",
+        "src/frontend/handshake_native/tests/test_stage_interop.rs",
+        "src/frontend/handshake_native/tests/test_tags_panel.rs"
+      ]
+    },
+    "per_mt": {
+      "MT-154": {
+        "reuse_basis": "37ee7c5b",
+        "recorded_inputs": "owned_files",
+        "inputs": [
+          "src/backend/handshake_core/src/api/atelier.rs",
+          "src/backend/handshake_core/src/api/calendar.rs",
+          "src/backend/handshake_core/src/api/canvases.rs",
+          "src/backend/handshake_core/src/api/locus.rs",
+          "src/backend/handshake_core/src/api/preferences.rs",
+          "src/backend/handshake_core/src/api/stage.rs",
+          "src/backend/handshake_core/src/storage/surreal/preferences.rs",
+          "src/frontend/handshake_native/src/code_editor/panel.rs",
+          "src/frontend/handshake_native/src/context_menu.rs"
+        ],
+        "intersection": [],
+        "decision": "reuse (no intersection); not in this round's scope"
+      },
+      "MT-155": {
+        "reuse_basis": "37ee7c5b",
+        "recorded_inputs": "owned_files",
+        "inputs": [
+          "src/backend/handshake_core/src/api/kernel.rs",
+          "src/backend/handshake_core/src/kernel/product_screenshot_capture.rs",
+          "src/backend/handshake_core/tests/mt155_product_screenshot_capture_route_auth_tests.rs"
+        ],
+        "intersection": [],
+        "decision": "reuse (no intersection); not in this round's scope"
+      },
+      "MT-157": {
+        "reuse_basis": "37ee7c5b",
+        "recorded_inputs": "owned_files",
+        "inputs": [
+          "src/backend/handshake_core/src/api/debug_adapter.rs",
+          "src/backend/handshake_core/src/storage/surreal/state_store.rs",
+          "src/backend/handshake_core/tests/mt157_debug_breakpoints_authority_tests.rs"
+        ],
+        "intersection": [],
+        "decision": "reuse (no intersection); not in this round's scope"
+      },
+      "MT-158": {
+        "reuse_basis": "37ee7c5b",
+        "recorded_inputs": "owned_files",
+        "inputs": [
+          "src/backend/handshake_core/src/api/jobs.rs",
+          "src/backend/handshake_core/src/storage/surreal/locus_store.rs"
+        ],
+        "intersection": [],
+        "decision": "reuse (no intersection); not in this round's scope"
+      },
+      "MT-159": {
+        "reuse_basis": "37ee7c5b",
+        "recorded_inputs": "owned_files",
+        "inputs": [
+          "src/backend/handshake_core/src/api/jobs.rs",
+          "src/backend/handshake_core/src/storage/surreal/locus_store.rs",
+          "src/backend/handshake_core/src/storage/surreal/structured_collab_store.rs"
+        ],
+        "intersection": [],
+        "decision": "reuse (no intersection); not in this round's scope"
+      },
+      "MT-079": {
+        "reuse_basis": "8ea13a9b (PC-079-01..05 native non-live)",
+        "recorded_inputs": "native test files + native lib src (every native test binary links handshake_native)",
+        "intersection": [
+          "src/frontend/handshake_native/src/manual_content_editors.rs"
+        ],
+        "decision": "run named tests (native lib src changed: manual_content_editors.rs, registered into the app tree at src/app.rs:7519)"
+      },
+      "MT-122": {
+        "reuse_basis": "8ea13a9b (PC-122-01..04 native non-live) and e4566f11 (manual binaries)",
+        "recorded_inputs": "native lib src + test files; test_manual_content also the live backend binary (HSK_TEST_BACKEND_BIN)",
+        "intersection": {
+          "8ea13a9b_native_src": [
+            "src/frontend/handshake_native/src/manual_content_editors.rs"
+          ],
+          "e4566f11_native": [],
+          "e4566f11_backend": [
+            "src/backend/handshake_core/src/api/loom.rs",
+            "src/backend/handshake_core/src/storage/surreal/database.rs",
+            "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+            "src/backend/handshake_core/src/user_manual/seed.rs"
+          ]
+        },
+        "decision": "run PC-122-01..05 and test_manual_content (backend changed incl. user_manual/seed.rs); reuse test_manual_pane_editors (native-only, native unchanged since e4566f11)"
+      },
+      "MT-027": {
+        "reuse_basis": "8ea13a9b (PC-027-01 lib, PC-027-02 non-live)",
+        "intersection": [
+          "src/frontend/handshake_native/src/manual_content_editors.rs"
+        ],
+        "decision": "run reused native tests too (native lib src changed)"
+      },
+      "MT-136": {
+        "reuse_basis": "none for named tests (surface proofs a/b/c run in core each round)",
+        "intersection": [
+          "src/backend/handshake_core/src/api/loom.rs",
+          "src/backend/handshake_core/src/storage/surreal/database.rs",
+          "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+          "src/backend/handshake_core/src/user_manual/seed.rs"
+        ],
+        "decision": "run mt136_database_surface_proof_(a|b|c); PT-136 static items unchanged"
+      },
+      "MT-153": {
+        "reuse_basis": "37ee7c5b (MT-153-PIN-CONFIRM 7/7)",
+        "intersection_schema": [],
+        "decision": "reuse PIN-CONFIRM (schema files unchanged 37ee7c5b..d9ce6017); run ROUTE-MATRIX, WORKSPACE-DELETE, LOOM-TARGETS, NATIVE-LOOM, user_manual lib tests, FMT, DIFF-CHECK"
+      }
+    }
   },
   "native_whole_binaries": [
-    "test_e7_knowledge_accesskit"
+    "test_e7_knowledge_accesskit",
+    "test_manual_content"
   ],
   "per_mt": {
     "MT-027": {
       "run": [
-        "test_block_collection_view::block_collection_views_live_surrealdb_self_seed_full_round_trip"
-      ],
-      "reuse": [
         "lib::graph::block_collection_view::tests::flip_direction_same_field_toggles_asc_desc",
         "lib::graph::block_collection_view::tests::bucket_key_journal_date_uses_value_or_undated",
         "lib::graph::block_collection_view::tests::card_move_tags_handle_untagged_lane",
@@ -52,8 +231,10 @@
         "test_block_collection_view::empty_states_render_without_panic",
         "test_block_collection_view::client_update_view_wraps_definition",
         "test_block_collection_view::client_card_move_top_level_tags",
-        "test_block_collection_view::client_create_view_body"
+        "test_block_collection_view::client_create_view_body",
+        "test_block_collection_view::block_collection_views_live_surrealdb_self_seed_full_round_trip"
       ],
+      "reuse": [],
       "core": "loom_block_collection_views_tests exact list (6) (see CORE list)"
     },
     "MT-042": {
@@ -63,8 +244,7 @@
       "reuse": []
     },
     "MT-079": {
-      "run": [],
-      "reuse": [
+      "run": [
         "test_app_host_mount::editors_render_live_in_app_tree_and_screenshot",
         "test_app_host_mount::editor_mounts_thread_session_context",
         "test_app_host_mount::code_pane_undo_dispatches_through_bus",
@@ -88,21 +268,22 @@
         "test_app_host_mount_secondary::code_text_node_exposes_swarm_edit_actions",
         "test_app_host_mount_secondary::code_text_setvalue_dispatch_mutates_buffer",
         "test_theme::no_hardcoded_color32_outside_theme_module"
-      ]
+      ],
+      "reuse": []
     },
     "MT-122": {
       "run": [
-        "test_author_id_budget::mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query"
-      ],
-      "reuse": [
         "lib::find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane",
         "lib::find_in_files::tests::mt119_saved_search_controls_stay_inside_the_find_pane",
         "test_find_in_files::find_in_files_screenshot",
         "test_find_in_files::find_in_files_screenshot_long_title_narrow_pane_mt122",
         "lib::find_in_files::tests::mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize",
         "lib::find_in_files::tests::mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity",
-        "lib::find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token"
-      ]
+        "lib::find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token",
+        "test_author_id_budget::mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+        "test_manual_content::*"
+      ],
+      "reuse": []
     },
     "MT-153": {
       "run": [

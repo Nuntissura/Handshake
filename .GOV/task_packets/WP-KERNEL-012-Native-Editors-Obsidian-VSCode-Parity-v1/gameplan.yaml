@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 189
+generation: 190
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -177,3 +177,4 @@ steps:
 - {id: GP-156, role: wp_validator, at: before_round, do: confirm Git Bash PATH additions use POSIX form (cygpath -u) and the cargo subcommand resolves before launch, check: {type: confirm}, source: 'infra 39f3e830 probe r1: D: colon split bash PATH; cargo found no test-runner subcommand (exit 101, no build)', state: active}
 - {id: GP-157, role: wp_validator, at: before_round, do: confirm the owned observer is alive and its observations file grows past one line after launch, check: {type: confirm}, source: 'infra: fea3ce0a observer stopped after 1 line; 39f3e830 probe observers wrote 0 lines; cause unproved', state: active}
 - {id: GP-158, role: builder, at: before_submit, do: 'verify edge/counter txn keeps guards, per-edge receipts, THROWs, recount formulas, auth; merged txn re-reads on retry', check: {type: confirm}, source: replaces GP-139 (retain transaction) for MT-153 F2 card-move transaction merge; orchestrator 2026-10-01, state: active}
+- {id: GP-159, role: wp_validator, at: before_round, do: confirm export verify completed with VERIFY_OK and a written identity (no stalled verify process) before launch, check: {type: confirm}, source: 'infra d9ce6017 prelaunch: verify deadlocked on undrained git archive tail (10240 B); fixed by draining stdout', state: active}
