@@ -2261,7 +2261,15 @@
           "test_output": "WARN: pre-reap owned fixture logout unverified; exact vault cleanup follows: owned fixture session/vault cleanup remains unverified; retain diagnostics for recovery",
           "action": "not deleted (credential_cleanup_20260930 covers only the 78 listed targets; CX-GIT-003 needs Operator approval)"
         }
-      ]
+      ],
+      "operator_approval_20261001": {
+        "recorded_at_utc": "2026-10-01T20:55:00Z",
+        "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+        "decision_id": "WP012-OPERATOR-DELETE-PROVEN-CREDENTIAL-LEAKS-20261001",
+        "authorized_by": "OPERATOR",
+        "operator_answer": "Delete proven leaks (Recommended)",
+        "effect": "Operator approved deletion of proven fixture leaks only (conditions: packet.json#operator_decisions_20261001[WP012-OPERATOR-DELETE-PROVEN-CREDENTIAL-LEAKS-20261001]); nothing deleted by this record; occurrences above stay 'not deleted' until the validator records the exact target list, per-entry proof, before/after counts and the GP-131 probe"
+      }
     },
     "result": {
       "executed_utc": "2026-09-30T21:05:00Z",
@@ -2674,6 +2682,67 @@
       ],
       "answer": "Keep at WP end (Recommended)",
       "effect": "The extra-build proofs (cargo check --tests, clippy) for MT-153/079/122/136 stay scheduled for the single build at WP end (CX-VAL-005); no earlier run. No change to workflow, gates or MT status (CX-EXEC-011)."
+    },
+    {
+      "recorded_at_utc": "2026-10-01T20:55:00Z",
+      "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+      "relayed_by": "ORCHESTRATOR root session",
+      "decision_id": "WP012-OPERATOR-MT167-OPTIMIZE-TEST-DB-20261001",
+      "authorized_by": "OPERATOR",
+      "operator_decided_at_utc_approx": "2026-10-01T20:30:00Z",
+      "question": "MT-167 is BLOCKED: its full-route <5 s median (AC-167-3) is out of reach. Indexing ONE file takes ~27 s because every written/verified row runs the record-user permission predicates (~90 ms per evaluation in the unoptimized test build), plus ~2.6 s ingestion in MT-154's module. The batching fix (ee2345e9) is correct but saves no time. How do you want MT-167 resolved?",
+      "options": [
+        {
+          "label": "Optimize test DB too (Recommended)",
+          "description": "Extend the approved database-only opt-level override to the test-binary build as well, then re-measure; keep AC-167-3 as is. Costs a rebuild of those crates in the test target."
+        },
+        {
+          "label": "Re-scope AC-167-3"
+        },
+        {
+          "label": "Schema MT to cut fan-out"
+        }
+      ],
+      "answer": "Optimize test DB too (Recommended)",
+      "extends_decision_id": "WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001",
+      "subject_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-167.json#operator_decision_request_20261001_ingestion_share_vs_ac_167_3",
+      "effect": {
+        "extension": "extends WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001 (database-only dependency opt-level override on the owned-backend build line) to the core and native TEST build lines of the validator entrypoint; same 8-crate allow-list (surrealdb, surrealdb-core, surrealdb-librocksdb-sys, surrealdb-rocksdb, surrealdb-collections, surrealdb-types, surrealdb-strand, surrealdb-protocol; opt-level 2)",
+        "ac_167_3": "unchanged: AC-167-3 is kept as is; not re-scoped (option 'Re-scope AC-167-3' not chosen); no schema MT (option 'Schema MT to cut fan-out' not chosen)",
+        "validator_check": "the validator verifies that the test profile inherits the [profile.dev.package] entries before relying on the override",
+        "config_commit": "one CX-VAL-007 config commit by the validator, made after the backend-opt diagnostic numbers are recorded",
+        "re_measure": "after the rebuild of those crates in the test target, MT-167 AC-167-3 is re-measured",
+        "f_a_kept": "F-A (ee2345e9) is kept: a technical choice, equal counts matched",
+        "mt167_status": "MT-167 lifecycle.status is not changed by this entry; lane A sets READY after the config commit is pushed"
+      }
+    },
+    {
+      "recorded_at_utc": "2026-10-01T20:55:00Z",
+      "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+      "relayed_by": "ORCHESTRATOR root session",
+      "decision_id": "WP012-OPERATOR-DELETE-PROVEN-CREDENTIAL-LEAKS-20261001",
+      "authorized_by": "OPERATOR",
+      "operator_decided_at_utc_approx": "2026-10-01T20:30:00Z",
+      "question": "Rounds keep leaking test login credentials into the Windows vault (now 254 total, 35 handshake test accounts; 13 new since this morning). At high counts Windows refused credential writes before (error 8). May the validator delete the leaked handshake-local-accounts test credentials (only targets proven to come from WP-012 test fixtures)?",
+      "options": [
+        {
+          "label": "Delete proven leaks (Recommended)",
+          "description": "Validator deletes only the recorded, hash-proven test-fixture targets (the 13 new ones + the 22 earlier unproven only if proven), with a before/after count and probe."
+        },
+        {
+          "label": "Keep for now"
+        }
+      ],
+      "answer": "Delete proven leaks (Recommended)",
+      "subject_ref": "packet.json#credential_cleanup_20260930.defect_cx_git_003",
+      "conditions": {
+        "C1_target_list_first": "the exact target list is recorded before any deletion",
+        "C2_proven_only": "only targets proven per entry from WP-012 fixture evidence (the recorded, hash-proven test-fixture targets; the 13 new ones recorded in packet.json#credential_cleanup_20260930.defect_cx_git_003.occurrences)",
+        "C3_earlier_22": "the 22 earlier unproven entries only per entry where proven; an entry that stays unproven is not deleted",
+        "C4_proof": "before and after counts plus the GP-131 vault probe",
+        "C5_other_targets": "any other target needs fresh Operator approval (Codex ~75, as cited in the relay)"
+      },
+      "effect": "approval reference for the CX-GIT-003 cleanup under the stated conditions; no deletion is performed by this record; the leak defect routing (MT-032 vs MT-154 vs new shared-helper defect) is not decided here"
     }
   ],
   "stale_crate_builds_cleanup_20261001": {

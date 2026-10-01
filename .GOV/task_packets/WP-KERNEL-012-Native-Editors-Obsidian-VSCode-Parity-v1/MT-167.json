@@ -514,7 +514,7 @@
     "rule": "KERNEL_BUILDER_PROTOCOL.md:55 (KB-IMPL-006)",
     "requested_by": "KERNEL_BUILDER-20260930",
     "requested_at_utc": "2026-10-01T17:34:03Z",
-    "status": "OPEN",
+    "status": "RESOLVED",
     "question": "The ingestion share of the code-nav index route (persist_ingestion_batch, src/backend/handshake_core/src/knowledge_ingestion/engine.rs, owned by MT-154 and forbidden to MT-167) alone is ~4.8-5.0 s for the 2-file FEMS seed under union load; together with register_root/start_index_run/bind_run_sources the route spends 6.4-7.2 s before code indexing starts. AC-167-3 requires a full-route median < 5 s. Which owner/decision covers that share: (a) MT-154 (or a new MT) reduces ingestion persist cost, (b) the pending debug-backend dependency-optimization decision (MT-153.json#research_20261001_debug_backend_profile) is applied, (c) AC-167-3 is re-scoped (e.g. the < 5 s target measured on the code-index stages MT-167 owns, the 30 s maximum on the full route), or (d) other",
     "files_without_owning_mt_for_this_cost": [
       "src/backend/handshake_core/src/knowledge_ingestion/engine.rs (owned by MT-154; forbidden_write_paths of MT-167)"
@@ -535,6 +535,18 @@
       "new_evidence": "round 4d0da145: the code-index projection alone took 27.3 s for one 2-symbol file in the in-process core test (dev/test profile); cause = record-user permission predicate fan-out in schema.surql at dev per-evaluation cost (DX-MT-167-20261001-PROJECTION-PERMISSION-FANOUT); the approved backend dependency-opt override does not reach the core test process",
       "scope_widened": "the < 5 s median is blocked by (1) the ingestion share (MT-154 module) and (2) the schema permission fan-out (MT-153/154 schema owners), not only by (1)",
       "builder_recommendation": "option (c) re-scope AC-167-3; alternatives for the Operator: measure the median against the optimized (dependency-opt) build, or open a schema-owned MT to reduce the mt120/mt109 permission fan-out"
+    },
+    "resolution_20261001": {
+      "resolved_at_utc": "2026-10-01T20:55:00Z",
+      "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+      "decision_id": "WP012-OPERATOR-MT167-OPTIMIZE-TEST-DB-20261001",
+      "decision_ref": "packet.json#operator_decisions_20261001[WP012-OPERATOR-MT167-OPTIMIZE-TEST-DB-20261001]",
+      "authorized_by": "OPERATOR",
+      "operator_decided_at_utc_approx": "2026-10-01T20:30:00Z",
+      "answer": "Optimize test DB too (Recommended)",
+      "resolution": "Extend the approved database-only opt-level override (WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001) to the core and native test build lines (same 8-crate allow-list), then re-measure; AC-167-3 is kept as is (not re-scoped); no schema MT; F-A ee2345e9 kept (technical choice, equal counts matched)",
+      "validator_actions": "validator verifies the test profile inherits the [profile.dev.package] entries; one CX-VAL-007 config commit after the backend-opt diagnostic numbers are recorded",
+      "lifecycle_note": "lifecycle.status not changed here (BLOCKED); lane A sets READY after the config commit is pushed"
     }
   },
   "hypothesis_20261001_engine_cost_and_intended_fix": {
