@@ -8605,5 +8605,31 @@
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
       }
     ]
+  },
+  "intent_20261001_revert_bv_publish_diagnostic": {
+    "schema_id": "hsk.mt_intent@1",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T16:34:20Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "orchestrator_instruction": "round c1920348 (gov e66ff959): MT-027 PASS_V18; MT-153 inconclusive; revert ONLY the DIAGNOSTIC mt153_diag_bv_publish lines from f4e66906, keep P2",
+    "revert": "api/loom.rs: remove fn mt153_diag_bv_publish, its 8 call sites (request path enter/failed/recorded/marked; drain enter/failed/recorded/marked), the per-publication `started` Instant, and the diagnostic-only `path` argument of reconcile_pending_block_view_events",
+    "reason": "the diagnostic served its purpose: in rounds f4e66906 and c1920348 the collision was avoided (round f4e66906 diag: 18 publications, all request-path, all completed; the reconciler published nothing) and the CPU spin was absent both rounds",
+    "kept": "P2: reconcile_pending_block_view_events with min_age = BLOCK_VIEW_RECONCILER_SETTLE_SECS (30 s) for spawn_block_view_reconciler; scoped request path and direct unscoped calls unchanged (MT-153.json#diagnosis_20261001_cpu_spin_reconciler_tick_p2)",
+    "status_note": "the stall root cause stays UNATTRIBUTED (P2 avoids the trigger; R1a DuckDB-internal not excluded)",
+    "runtime_reproof": "api/loom.rs changes -> MT-153 runtime floor must be re-proven on the revert SHA"
+  },
+  "status_20261001_check_tests_clippy_changed_wp_end": {
+    "schema_id": "hsk.mt_status_note@1",
+    "recorded_at_utc": "2026-10-01T16:34:20Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "proofs": [
+      "MT-153-CHECK-TESTS",
+      "MT-153-CLIPPY-CHANGED"
+    ],
+    "status": "NOT RUN in the union rounds: they need a non-union build and MT-153 declares no extra_build_proofs",
+    "assignment": "they belong to the WP-end extra build (CX-VAL-005)",
+    "cause": "missing extra_build_proofs declaration in MT-153",
+    "consequence": "MT-153 stays INCONCLUSIVE until the WP-end extra build runs them (same as MT-079/122/136); the runtime floor is complete as of round c1920348"
   }
 }
