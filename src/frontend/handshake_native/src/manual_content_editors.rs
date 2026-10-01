@@ -1763,14 +1763,15 @@ route (result, preview, preview-before, preview-after, bookmark-restore, bookmar
 every route (context allows 512 bytes) so a synchronous control and its asynchronous sibling stay equally \
 provable. Two regimes apply. VERBATIM, the normal case: whenever the full route, including any \
 .pane-{hex(pane_id)} scope, fits in 256 bytes, the row author_id is \
-find-in-files.result.{hex(source_kind UTF-8 bytes)}.{hex(ref_id UTF-8 bytes)}: each byte is lowercase \
-two-digit hex and decoding is exact. DIGESTED: when the verbatim route would exceed 256 bytes (for example a \
+find-in-files.result.{hex(source_kind UTF-8 bytes)}.{hex(ref_id UTF-8 bytes)}: it is hex-encoded, each \
+byte is lowercase two-digit hex, and decoding is exact. DIGESTED: when the verbatim route would exceed 256 bytes (for example a \
 very long ref_id path), each content component is written as zsha256-{64 lowercase hex SHA-256 of its exact \
 UTF-8 bytes}, and the pane scope is digested the same way only if the route is still over budget. The z \
 sentinel is outside the hex alphabet, so a digested component never collides with a verbatim one and distinct \
 content keeps distinct routes, but a digested route cannot be decoded back to its text: resolve it against \
 the live result rows (the panel recomputes each row's route) and never guess or truncate it. A no-context \
-model should always discover dynamic row ids with argus.inspect (legacy list_widgets is secondary). Exact fixtures: source_kind=document with \
+model should always discover dynamic row ids with argus.inspect (legacy list_widgets is secondary) instead of \
+guessing them. Exact fixtures: source_kind=document with \
 ref_id=KRD-1:/foo?x=1 becomes \
 find-in-files.result.646f63756d656e74.4b52442d313a2f666f6f3f783d31; source_kind=文档 with \
 ref_id=résumé/東京 becomes \
