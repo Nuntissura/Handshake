@@ -2544,6 +2544,16 @@
       "authorized_by": "OPERATOR",
       "operator_quote": "if your stuck use a cheap sub agent to reseach online before running expensive time consuming tests",
       "effect": "State-recovery record of a standing Operator instruction; when stuck, research with a cheap sub-agent (online) before running expensive, time-consuming tests. Compatible with WP012-OPERATOR-AFK-AUTONOMY-20260930; no obligation beyond the Operator's words and no change to workflow, gates or MT status (CX-EXEC-011)."
+    },
+    {
+      "recorded_at_utc": "2026-10-01T00:00:00Z",
+      "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+      "relayed_by": "ORCHESTRATOR root session",
+      "decision_id": "WP012-OPERATOR-ORCHESTRATOR-NEVER-SELF-STOPS-20261001",
+      "authorized_by": "OPERATOR",
+      "operator_quote": "you do not decide when to stop",
+      "context": "orchestrator stopped its 10-minute tick monitor between validator rounds; the Operator's session instruction is a 10-minute tick on agent progress and CPU",
+      "effect": "the orchestrator's 10-minute tick runs continuously and is re-armed at every expiry; the orchestrator never stops ticks, agents or work on its own judgment; stopping is the Operator's decision only. Only an explicit Operator stop ends the tick (KERNEL_BUILDER_PROTOCOL:105 KB-STEER-007: an explicit Operator stop still takes precedence; KB-STEER-002 recurring tick while work runs)."
     }
   ],
   "stale_crate_builds_cleanup_20261001": {
