@@ -2048,14 +2048,16 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
          MT-142 had already removed `RICH_DOCUMENT_MUTATION_LOCK` and `KNOWLEDGE_UPSERT_LOCK`. Nothing in the \
          process serializes writes to unrelated records any more.\n\n\
          What shapes contention now: the per-`SurrealDatabase` `KeyedLockRegistry` \
-         (`storage/surreal/keyed_lock.rs`; one registry per wrapper, `SurrealDatabase::new` uses \
+         (`handshake_storage_support/src/keyed_lock.rs`, re-exported by `storage/surreal/keyed_lock.rs`; \
+         one registry per wrapper, `SurrealDatabase::new` uses \
          `KeyedLockRegistry::keyed()`, `database.rs:53-54`) on the NARROWEST stable key: `LockKey::Record` for a \
          single-record mutation, `LockKey::NaturalKey` for a uniqueness or upsert race decided before the record id \
          exists, and `LockKey::Workspace` only for an invariant that genuinely spans a workspace - in the migrated \
          stores that is the Loom metrics recompute sweep alone (`database.rs:985-992`). Every migrated store \
          goes through `SurrealDatabase::guarded_mutation` (`database.rs:118`) or its lease-bound twin \
          `guarded_storage_mutation`: keys are sorted and deduplicated before acquisition so opposite-order \
-         callers cannot deadlock (`keyed_lock.rs:39`, `:365-366`), one wall-clock budget covers the lock wait, \
+         callers cannot deadlock (`handshake_storage_support/src/keyed_lock.rs:39`, `:365-366`), one \
+         wall-clock budget covers the lock wait, \
          every retry attempt and the sleeps between them (`RetryPolicy::CONTRACT`; the deadline is the store's \
          `statement_timeout`), the lock wait observes the store's shutdown cancellation, and the closure runs \
          its pre-reads INSIDE the retried attempt so a re-run observes what the winning writer committed. A \
@@ -2412,9 +2414,11 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  the UPDATE branch, while a violation on any other index is terminal \
                  (`classify_knowledge_error`, `knowledge.rs:111-128`).\n\n\
                  Keyed locks are optional contention shaping, never correctness. `KeyedLockRegistry` \
-                 (`storage/surreal/keyed_lock.rs`) serializes only callers that hold the same `LockKey` \
+                 (`handshake_storage_support/src/keyed_lock.rs`, re-exported by \
+                 `storage/surreal/keyed_lock.rs`) serializes only callers that hold the same `LockKey` \
                  (`Record { table, id }`, `NaturalKey { workspace_id, kind, key }`, `Workspace { workspace_id }`, \
-                 `keyed_lock.rs:55-67`); `LockMode::Disabled` hands out no-op guards (`:97-102`, `:196-205`). One \
+                 `handshake_storage_support/src/keyed_lock.rs:77-90`); `LockMode::Disabled` hands out no-op \
+                 guards (`:120-125`, `:351-355`). One \
                  registry lives per `SurrealDatabase` value (`storage/surreal/database.rs:21-57`): \
                  `SurrealDatabase::new` creates a fresh `KeyedLockRegistry::keyed()`, \
                  `SurrealDatabase::with_lock_registry(storage, registry)` attaches an explicit one (pass \
@@ -2862,13 +2866,13 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                 json!({
                     "retired_process_global_mutexes": MT152_RETIRED_STORAGE_MUTEXES,
                     "remaining_static_storage_mutexes": 0,
-                    "contention_shaper": "per-SurrealDatabase KeyedLockRegistry (storage/surreal/keyed_lock.rs) via SurrealDatabase::guarded_mutation / guarded_storage_mutation (storage/surreal/database.rs)",
+                    "contention_shaper": "per-SurrealDatabase KeyedLockRegistry (handshake_storage_support/src/keyed_lock.rs, re-exported by storage/surreal/keyed_lock.rs) via SurrealDatabase::guarded_mutation / guarded_storage_mutation (storage/surreal/database.rs)",
                     "key_choice": {
                         "record": "LockKey::Record - single-record mutations",
                         "natural_key": "LockKey::NaturalKey - uniqueness / upsert races before the record id exists",
                         "workspace": "LockKey::Workspace - only the Loom metrics recompute sweep (database.rs recompute path)"
                     },
-                    "acquisition": "keys sorted and deduplicated, acquired under one deadline shared with the bounded retry (keyed_lock.rs acquire_many)",
+                    "acquisition": "keys sorted and deduplicated, acquired under one deadline shared with the bounded retry (handshake_storage_support/src/keyed_lock.rs acquire_many :329, ordered_unique :364-367)",
                     "retry": "RetryPolicy::CONTRACT; pre-reads inside the closure; Replay::NotIdempotent gets the lock and the wait but never a second attempt",
                     "correctness_owner": "database guards, never the registry (KeyedLockRegistry::disabled() proofs)",
                     "database_guards": MT152_DATABASE_GUARDS.iter().map(|(mt, guard)| json!({"added_by": mt, "guard": guard})).collect::<Vec<_>>(),
@@ -4889,7 +4893,15 @@ mod tests {
             database.contains("KeyedLockRegistry::keyed()"),
             "SurrealDatabase::new no longer uses the keyed registry"
         );
-        let keyed_lock = mt142_read(&crate_root.join("src/storage/surreal/keyed_lock.rs"));
+        // MT-153 (routed to MT-152): 22c64a06 moved the keyed lock into handshake_storage_support;
+        // handshake_core keeps a re-export, and the sort/dedup the manual documents lives there.
+        let keyed_lock_reexport = mt142_read(&crate_root.join("src/storage/surreal/keyed_lock.rs"));
+        assert!(
+            keyed_lock_reexport.contains("pub use handshake_storage_support::keyed_lock::*;"),
+            "storage/surreal/keyed_lock.rs no longer re-exports the canonical keyed lock"
+        );
+        let keyed_lock =
+            mt142_read(&crate_root.join("../handshake_storage_support/src/keyed_lock.rs"));
         assert!(keyed_lock.contains("keys.sort();") && keyed_lock.contains("keys.dedup();"));
         let knowledge = mt142_read(&crate_root.join("src/storage/surreal/knowledge.rs"));
         assert!(

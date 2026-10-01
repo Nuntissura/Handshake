@@ -2099,6 +2099,13 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
     std::env::set_var("LOCALAPPDATA", &stage_binding_root);
     std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &stage_binding_file);
     let live = interconnect_support::require_reachable_backend();
+    // MT-153: when no flight-recorder session token exists, proof support publishes its own
+    // RealNativeMcpBinding, which redirects LOCALAPPDATA to
+    // `<HANDSHAKE_TEST_STAGE_BINDING_ROOT>/proc-<pid>` for the backend's lifetime and hands the
+    // owned backend exactly that binding file (backend_proof_support start_product_backend). The
+    // binding file in effect is therefore re-resolved here; it is the file the Argus server below
+    // publishes into and the owned backend verifies.
+    let stage_binding_file = handshake_native::mcp::binding_path();
     let backend_binding = live.owned_backend_binding_receipt();
     let unique = format!(
         "mt027-{}-{}",
