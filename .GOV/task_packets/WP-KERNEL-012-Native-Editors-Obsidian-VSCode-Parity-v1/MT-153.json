@@ -5412,5 +5412,24 @@
       ]
     },
     "status": "reported to orchestrator before edit"
+  },
+  "hypothesis_20261001_view_outbox_p1": {
+    "schema_id": "hsk.mt_attempt_hypothesis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T09:52:14Z",
+    "rule": "CX-EXEC-003A",
+    "approved": "orchestrator (buddy CLEAR) 2026-10-01: P1 alone in storage/block_view_outbox.rs",
+    "diagnosis_ref": "MT-153.json#diagnosis_20261001_view_outbox_publish_race (DX-MT-153-20261001-VIEW-OUTBOX-PUBLISH-RACE)",
+    "cause_status": "HYPOTHESIS (most likely) until a run confirms it: the exact request that returned 500 is not logged",
+    "fix_P1": "block_view_outbox::mark_published: if surreal_outbox::mark_published returns an error classified RetryClass::RetryableTransient (retry.rs classify_storage_error: 'Transaction conflict ... This transaction can be retried' / 'Resource busy'), re-read the row (surreal_outbox::load_row); published_at already set -> Ok (the concurrent publisher completed the same idempotent publication); else retry the mark exactly ONCE (no loop); every other error unchanged",
+    "no_double_publication": "P1 never calls the Flight Recorder; it only re-marks. The recorder write happens before mark_published in reconcile_block_view_events and is itself idempotent (record_block_view_event_idempotent compares the stored event, api/loom.rs ~2690-2711); mark_published keeps the first published_at (block_view_outbox_surreal.rs:273-277 `IF published_at = NONE {...} ELSE { published_at }`)",
+    "spec_ac_check": {
+      "MT-027 contract (closure/validation texts)": "transactional durable authority + 'recoverable Flight Recorder outbox retention'; 'outbox replay recovers recorder publication'; 'restart-safe outbox retention' - delivery is at-least-once with an idempotent recorder write and a mark that records the first publication; P1 keeps both (the mark either observes the other publisher's mark or writes it once)",
+      "block_view_outbox.rs module doc": "'Publication into the recorder is an idempotent projection that can resume after a process restart' - P1 does not change resume/replay (pending rows stay pending until marked)",
+      "MT-153": "scope lists loom_block_view_fr_outbox C/U for the view routes and per-operation predicates; no clause requires a single publisher; P1 changes no permission and no query text",
+      "UserManual (seed.rs Block Collection Views)": "'Tier 1 Flight Recorder is WIRED for create/update through the transactional embedded SurrealDB outbox and restart reconciler' - unchanged"
+    },
+    "P2_considered_not_chosen": "background sweeper skips pending rows younger than ~30 s: changes background delivery timing (recorder publication latency for rows whose request path failed) and is not needed to remove the defect, which P1 removes on the request side",
+    "file": "src/backend/handshake_core/src/storage/block_view_outbox.rs (MT-153 allowed path); block_view_outbox_surreal.rs untouched"
   }
 }
