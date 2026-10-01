@@ -3317,10 +3317,27 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
     let attributed_events = attributed_events
         .as_array()
         .expect("Flight Recorder returns an event array");
+    // MT-109 envelope contract (api/flight_recorder.rs): actor_id is not client authority. The
+    // mounted client runs as the fixture account, so its block-view events are attributed to that
+    // authenticated principal (actor `human`), never to the client's x-hsk-actor-id header.
+    let account_principal = live.account_context.principal_id.as_str();
+    assert!(
+        attributed_events.iter().all(|event| {
+            event.get("actor_id").and_then(serde_json::Value::as_str) != Some(BLOCK_VIEW_ACTOR_ID)
+        }),
+        "the client actor header must never become Flight Recorder attribution"
+    );
     let native_events: Vec<_> = attributed_events
         .iter()
         .filter(|event| {
-            event.get("actor_id").and_then(serde_json::Value::as_str) == Some(BLOCK_VIEW_ACTOR_ID)
+            event.get("actor").and_then(serde_json::Value::as_str) == Some("human")
+                && event.get("actor_id").and_then(serde_json::Value::as_str)
+                    == Some(account_principal)
+                && event["wsids"].as_array().is_some_and(|wsids| {
+                    wsids
+                        .iter()
+                        .any(|wsid| wsid.as_str() == Some(workspace_id.as_str()))
+                })
         })
         .collect();
     assert!(
@@ -3332,7 +3349,7 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
                     .and_then(serde_json::Value::as_str)
                     == Some("view_def")
         }),
-        "a canonical create event must carry top-level native actor attribution"
+        "a canonical create event must carry the authenticated account attribution"
     );
     assert!(
         native_events.iter().any(|event| {
@@ -3344,7 +3361,7 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
                         .any(|field| field.as_str() == Some("view_definition"))
                 })
         }),
-        "definition updates must carry top-level native actor attribution"
+        "definition updates must carry the authenticated account attribution"
     );
     assert!(native_events.iter().any(|event| {
         let payload = &event["payload"];
@@ -3353,7 +3370,7 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
             .is_some_and(|fields| fields.iter().any(|field| field.as_str() == Some("tags")))
             && payload["tags_added"].is_array()
             && payload["tags_removed"].is_array()
-    }), "card moves must retain canonical tag payload arrays and top-level native actor attribution");
+    }), "card moves must retain canonical tag payload arrays and the authenticated account attribution");
 
     // MT-027 V5: STRICT close-out — an indeterminate canonical action is a hard failure now that
     // every collection control publishes a causal completion token.
@@ -3397,7 +3414,7 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
             "kind-switch-persistence",
             "mounted-handshake-app-host-dispatch",
             "canonical-localhost-argus-create-mutate-switch-empty-error-retry",
-            "flight-recorder-native-actor-attribution",
+            "flight-recorder-authenticated-account-attribution",
             "workspace-cleanup-fresh-list-absence"
         ]
     });
