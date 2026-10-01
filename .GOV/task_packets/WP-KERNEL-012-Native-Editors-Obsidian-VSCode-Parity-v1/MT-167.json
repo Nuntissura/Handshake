@@ -1001,10 +1001,10 @@
       "wrapper_exit": 4,
       "result_line": "INVALID_ROUND_RESULT core_exit=101 native_exit=100",
       "refs": {
-        "stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-222b33cc97421388d7be78b8d0a3b0eb577f9928.stdout.log",
-        "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-222b33cc97421388d7be78b8d0a3b0eb577f9928.stderr.log",
-        "core_build_v": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/core-build-v-222b33cc97421388d7be78b8d0a3b0eb577f9928-targeted.log",
-        "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-222b33cc97421388d7be78b8d0a3b0eb577f9928-native-targeted.xml",
+        "stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-a1-222b33cc97421388d7be78b8d0a3b0eb577f9928.stdout.log",
+        "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-a1-222b33cc97421388d7be78b8d0a3b0eb577f9928.stderr.log",
+        "core_build_v": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/core-build-v-222b33cc97421388d7be78b8d0a3b0eb577f9928-targeted-a1.log",
+        "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-222b33cc97421388d7be78b8d0a3b0eb577f9928-native-targeted-a1.xml",
         "nextest_config_path_probe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/nextest-config-path-probe-222b33cc.log"
       },
       "sha256": {
@@ -1024,7 +1024,7 @@
       "result": "PASS",
       "core": "compiled_o2=8 fresh=0 absent=0 bad=0: surrealdb, surrealdb_core, librocksdb_sys, rocksdb, surrealdb_collections, surrealdb_types, surrealdb_strand, surrealdb_protocol each compiled with -C opt-level=2; handshake_core without",
       "native": "inert (no allow-listed crate compiled)",
-      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/core-build-v-222b33cc97421388d7be78b8d0a3b0eb577f9928-targeted.log"
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/core-build-v-222b33cc97421388d7be78b8d0a3b0eb577f9928-targeted-a1.log"
     },
     "core_failure": {
       "failure_kind": "infrastructure",
@@ -1065,7 +1065,8 @@
           ]
         },
         "change_vs_4d0da145": "4d0da145 (dev backend): all 11 failed at the seed POST :498; now 9 of 11 get past the seed index request and fail later (indexed-symbol wait / fixture cleanup); AC-167-4 'no failure at the seed code-nav index request' still not met for 2"
-      }
+      },
+      "standing": "orchestrator 2026-10-02: attempt-1 native results used their own valid build (native nextest exit 100, JUnit written) and stand as the AC-167-4 (MT-167-DOWNSTREAM) evidence; not rerun in attempt 2"
     },
     "credentials": {
       "before": "241/22",
@@ -1073,6 +1074,33 @@
       "new_leftovers": 11,
       "recorded": "packet.json credential_cleanup_20260930.defect_cx_git_003.occurrences[3]"
     },
-    "other": "observer spin capture did not fire; runtime count 145 unchanged"
+    "other": "observer spin capture did not fire; runtime count 145 unchanged",
+    "attempt": 1,
+    "renamed_utc": "2026-10-02T00:40:00Z"
+  },
+  "remediation_20261002_targeted_222b33cc_a2": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "kind": "TARGETED validator run ATTEMPT 2 (CX-EXEC-014 named run; evidence only, no verdict; no union round follows: MT-167-DOWNSTREAM already fails)",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "at_utc": "2026-10-02T00:45:00Z",
+    "authority": "orchestrator 2026-10-02 (rerun narrowed to the core items attempt 1 did not run)",
+    "previous_attempt": "MT-167.json#targeted_result_20261001_222b33cc (attempt 1, INVALID core: NEXTEST_BUILD_WITHOUT_CARGO_CONFIG; outputs renamed -a1)",
+    "infra_fix": "gov eeb804d2: same --config on every runner run/list/show-config call (GP-162)",
+    "candidate_commit": "222b33cc97421388d7be78b8d0a3b0eb577f9928",
+    "items": {
+      "MT-167-VALIDATOR-TIMING": "mt167_code_nav_index_median_within_spec_baseline (AC-167-3 median < 5 s, every sample < 30 s)",
+      "MT-167-EQUAL-COUNTS": "mt167_batch_and_per_file_writer_produce_equal_rows (both passes)",
+      "existing code-nav / knowledge-code-index tests (MT-167-VALIDATOR-TIMING)": "knowledge_code_index_tests, knowledge_code_nav_api_tests (whole)",
+      "account test (GP-161)": "api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete"
+    },
+    "not_rerun": "native downstream (MT-008 PC-008-05, MT-064 PC-064-04, MT-065 PC-065-01): attempt-1 results ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-222b33cc97421388d7be78b8d0a3b0eb577f9928-native-targeted-a1.xml stand as AC-167-4 evidence",
+    "selection": "WPV-round-selection-targeted.sh attempt 2 (NATIVE_SKIP=1: no native build/run, no backend build)",
+    "build_profile": "core test build: dev/test + 8-crate opt-level 2 (expected Fresh from attempt 1's O2 compile)",
+    "outputs": [
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-222b33cc97421388d7be78b8d0a3b0eb577f9928-core-targeted.xml",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-222b33cc97421388d7be78b8d0a3b0eb577f9928.*",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/core-build-v-222b33cc97421388d7be78b8d0a3b0eb577f9928-targeted.log"
+    ],
+    "result_key": "MT-167.json#targeted_result_20261002_222b33cc_a2"
   }
 }
