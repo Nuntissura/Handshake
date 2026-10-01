@@ -2307,6 +2307,109 @@
       },
       "untouched": "22 unproven handshake-local-accounts names, Adobe, Xbox and all other targets",
       "conclusion": "Leftover fixture credentials exhausted the Credential Manager (CredWriteW error 8); removing the 78 proven targets restored writes (GP-131)"
+    },
+    "cleanup_20261001_proven_leaks": {
+      "decision_ref": "WP012-OPERATOR-DELETE-PROVEN-CREDENTIAL-LEAKS-20261001",
+      "recorded_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+      "list_recorded_utc": "2026-10-01T21:40:00Z",
+      "proof_rule": "same as credential_cleanup_20260930.proof_rule: namespace = 64-hex suffix; proven iff sha256 of compact JSON [\"<abs data dir>\\\\handshake-surreal\",\"handshake\",\"primary\"] equals it for a preserved backend-runtime/**/data dir; scan root Handshake_Artifacts (757 data dirs)",
+      "approved_targets": [
+        {
+          "target": "01a0f904-ef59-7703-916e-578f8e60d20d.handshake-local-accounts-1da05dcd086e7d4654efd8113e38e28adc46f7f212893b4d19583467dfb9a7c6",
+          "uuidv7_utc": "2026-10-01T19:50:45Z",
+          "proving_data_dir": "WP-KERNEL-012\\MT-109\\wpv-c3x\\e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-475eb83ce7601a8a\\565af23d-7a8d-4165-a387-67641cccd3b6\\data"
+        },
+        {
+          "target": "01a0f901-07df-74b2-b395-dd6bb902cbc2.handshake-local-accounts-528d63b95def5b788b1e433d6d1fa83119ebc17fe67e30b03ce8d31ffb3cd07d",
+          "uuidv7_utc": "2026-10-01T19:46:29Z",
+          "proving_data_dir": "WP-KERNEL-012\\MT-109\\wpv-c3x\\e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-9f041b9048425d9f\\2411b29f-391c-4a00-9f75-313d37dc2a01\\data"
+        },
+        {
+          "target": "01a0f909-a30e-7f22-8397-5eaf533e8333.handshake-local-accounts-c0cef36beb0b1e0ec98a9904739ce7bc5f5ee7dc43186a3c9293825e74c237c7",
+          "uuidv7_utc": "2026-10-01T19:55:53Z",
+          "proving_data_dir": "WP-KERNEL-012\\MT-109\\wpv-c3x\\e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-add2040667542d79\\46af9cfc-2174-47b1-a6a2-2ea3265689b1\\data"
+        },
+        {
+          "target": "01a0f901-fe41-7c70-af69-00c9defd9dd0.handshake-local-accounts-85d6f7452521bed1f7fde53cc30de4a66c6aa70f47290fc59807965dbe53a371",
+          "uuidv7_utc": "2026-10-01T19:47:32Z",
+          "proving_data_dir": "WP-KERNEL-012\\MT-109\\wpv-c3x\\e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-567f346e053a4ed3\\ff1bfa0e-b14a-4176-8a4c-a7204af4b17f\\data"
+        },
+        {
+          "target": "01a0f902-e9ce-7e00-beea-593152d408dc.handshake-local-accounts-e2088054f60ba57a1cb9d9580590143837b5f711785c970a76767245ad62158c",
+          "uuidv7_utc": "2026-10-01T19:48:32Z",
+          "proving_data_dir": "WP-KERNEL-012\\MT-109\\wpv-c3x\\e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-f750d70f750b17ba\\fcb0b9eb-7006-4508-a391-a68593c88e3f\\data"
+        },
+        {
+          "target": "01a0f900-1673-7dd0-b8e7-a2e4432f95de.handshake-local-accounts-f06ade8b4a47962809cc083bd07c6797c515af9e3616d687371db2a1443d2eca",
+          "uuidv7_utc": "2026-10-01T19:45:27Z",
+          "proving_data_dir": "WP-KERNEL-012\\MT-109\\wpv-c3x\\e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-65bcbd5131bf5c0b\\ba855303-43dd-4e20-8228-d2fe648d5285\\data"
+        },
+        {
+          "target": "01a0f907-eb79-7c21-9481-6e44daa0f2ad.handshake-local-accounts-c02e58db6f0b8ce94abe63394ee3363ba9f97295fd055b4766fb387fa09db43b",
+          "uuidv7_utc": "2026-10-01T19:54:00Z",
+          "proving_data_dir": "WP-KERNEL-012\\MT-109\\wpv-c3x\\e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-953a378f0b0bfad5\\b24cacdc-e2e9-478d-a27a-9e3172abfcd7\\data"
+        },
+        {
+          "target": "01a0f905-fb72-7e32-a66d-44c1cd04e9a7.handshake-local-accounts-192d833c36cb694a8f6238f486ce55f7d7399638b8f7245409fbdfa60e1f4a25",
+          "uuidv7_utc": "2026-10-01T19:51:53Z",
+          "proving_data_dir": "WP-KERNEL-012\\MT-109\\wpv-c3x\\e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-136303a26174ff12\\8375aaf7-b9bd-4f99-a927-92632f6f0343\\data"
+        },
+        {
+          "target": "01a0f7d8-14de-7f10-9428-865acd834185.handshake-local-accounts-33359bac1d618a0087f42a696a0f5e8c6b7ca822ba22b2359bc41f0d7affb10d",
+          "uuidv7_utc": "2026-10-01T14:22:08Z",
+          "proving_data_dir": "WP-KERNEL-012\\MT-109\\wpv-c3x\\e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-368a110cf51f6ec4\\713f9124-071f-4845-9d99-d9174218c70e\\data"
+        },
+        {
+          "target": "01a0f908-c4c3-7122-ad5b-f904a7499036.handshake-local-accounts-ce5dddf597ccddda0deba042303125c3380958b18951b0b2b3c0d9959fb01990",
+          "uuidv7_utc": "2026-10-01T19:54:56Z",
+          "proving_data_dir": "WP-KERNEL-012\\MT-109\\wpv-c3x\\e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-d65736b11c9e0564\\b8938429-aef5-4a13-9d94-f34d701a033c\\data"
+        },
+        {
+          "target": "01a0f903-e7d8-72f1-bbd2-1a3c3caee8b8.handshake-local-accounts-90645c896a82718cab7053c6dd7c15ab184d77a476ca2b3a370142456d31e1b7",
+          "uuidv7_utc": "2026-10-01T19:49:37Z",
+          "proving_data_dir": "WP-KERNEL-012\\MT-109\\wpv-c3x\\e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-73fcbb5348eac893\\65b687ac-70bf-430a-a736-079547bdafd9\\data"
+        },
+        {
+          "target": "01a0f71f-885e-7b03-b595-1a42b809009f.handshake-local-accounts-d8d19f564accb82a52317e94738bb7830d6557e0b28ee7604c0487e585e80cda",
+          "uuidv7_utc": "2026-10-01T11:00:34Z",
+          "proving_data_dir": "WP-KERNEL-012\\MT-109\\wpv-c3x\\e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-368a110cf51f6ec4\\81df6774-ae7f-40e2-b7e5-86a1ccfe4891\\data"
+        },
+        {
+          "target": "01a0f907-05f3-7f42-bdbd-5676e545cce6.handshake-local-accounts-3a3e5ab2b5051b2ddf0a03dec291e8ab1ffe68c42b5b8fb5f4a15f60612066f4",
+          "uuidv7_utc": "2026-10-01T19:53:02Z",
+          "proving_data_dir": "WP-KERNEL-012\\MT-109\\wpv-c3x\\e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-a649919b276c082b\\2c0c54cb-0c7d-4bd6-9887-0dcef1debf80\\data"
+        }
+      ],
+      "approved_count": 13,
+      "approved_equals_recorded_occurrences": true,
+      "unproven_not_touched": [
+        "01a0d135-3f0a-7d92-9885-0c62c3fb78b4.handshake-local-accounts-62e3b74622fa5f11047cd5ffbc3719ac2023812605e8ef25bf6e6d31effc6790",
+        "01a0d135-5a0d-72d0-a241-ddbced8a4749.handshake-local-accounts-3c9c5cbdaa5235b00c7912a4b9cc474aab97e23b7e0c176f7ba7c478960fc040",
+        "01a0e491-31ac-77d2-b5c5-44922654017e.handshake-local-accounts-806f02eaf3dc79a0fc1ff06fe8cb1d213ed58fc63bdad663a037361941f48b86",
+        "01a0ed64-666b-7773-afa5-8f5affb06f2f.handshake-local-accounts-bdbe5319bc66690bf879f6648f33c533e40256f688b73e4d60a9cf39f2ba13eb",
+        "01a0d135-3f30-7052-8416-59405f1ca5e6.handshake-local-accounts-62e3b74622fa5f11047cd5ffbc3719ac2023812605e8ef25bf6e6d31effc6790",
+        "01a0edd1-f2b5-72e0-ba46-e7a1362a8e44.handshake-local-accounts-00e0b8b0702e90318ea2dd3eb6a2e6391b62ee7c26379066cd7f2730541abd7c",
+        "01a0d135-69e2-7ee2-a888-c1db8deefc87.handshake-local-accounts-3c9c5cbdaa5235b00c7912a4b9cc474aab97e23b7e0c176f7ba7c478960fc040",
+        "01a0d135-51f2-77f2-b33e-7431fb216a24.handshake-local-accounts-3c9c5cbdaa5235b00c7912a4b9cc474aab97e23b7e0c176f7ba7c478960fc040",
+        "01a0ed64-9e40-7ba1-87f0-3dd243b285b0.handshake-local-accounts-cc0327756ff01ccad67c0394af184e03fb01929b20b1918795deff724fbef69e",
+        "01a0d135-52c6-7f12-a9c9-670b4a82cfa6.handshake-local-accounts-3c9c5cbdaa5235b00c7912a4b9cc474aab97e23b7e0c176f7ba7c478960fc040",
+        "01a0ddc3-78f6-7370-9a04-78de77e20b73.handshake-local-accounts-1ea184afa23ae48c4b9d7366b23b57e3ad69c491eae480d0c32d5cad605d8178",
+        "01a0d135-4d8e-74e1-96cd-9e6e1945ad25.handshake-local-accounts-3c9c5cbdaa5235b00c7912a4b9cc474aab97e23b7e0c176f7ba7c478960fc040",
+        "01a0d135-3045-7933-b15a-38aff58260bd.handshake-local-accounts-3c9c5cbdaa5235b00c7912a4b9cc474aab97e23b7e0c176f7ba7c478960fc040",
+        "01a0d135-5895-71b3-a617-2b276ff97ce5.handshake-local-accounts-3c9c5cbdaa5235b00c7912a4b9cc474aab97e23b7e0c176f7ba7c478960fc040",
+        "01a0d135-5742-76d0-b524-7317ac38bef3.handshake-local-accounts-3c9c5cbdaa5235b00c7912a4b9cc474aab97e23b7e0c176f7ba7c478960fc040",
+        "01a0d135-3c41-7910-afa7-14c0a95d06ab.handshake-local-accounts-3c9c5cbdaa5235b00c7912a4b9cc474aab97e23b7e0c176f7ba7c478960fc040",
+        "01a0d135-5673-72d2-bc0b-3c06ce48dd4d.handshake-local-accounts-3c9c5cbdaa5235b00c7912a4b9cc474aab97e23b7e0c176f7ba7c478960fc040",
+        "01a0eab8-bf20-7cc1-9ad0-8951be249551.handshake-local-accounts-d599617d3950a0497e07157f7d010f78e9c523eb1e103b1d3a2949f2ad5e53d0",
+        "01a0d9f0-32e7-78c2-b7b2-cafae20f0d43.handshake-local-accounts-c9e00773c8596e906e0c658a10bafc44a88a23810a729a42b1f2ef484aec8896",
+        "01a0d135-596e-7af3-96a1-93bdae2a39a8.handshake-local-accounts-3c9c5cbdaa5235b00c7912a4b9cc474aab97e23b7e0c176f7ba7c478960fc040",
+        "01a0df74-4e15-71c3-b364-081d9253c1cf.handshake-local-accounts-3fc70ae9790ef30467ba2229aacdaaf710424bc4c50dd57211c7da47f4b8f05f",
+        "01a0d715-9df8-76f3-91ac-a57b274da90f.handshake-local-accounts-f9fc7b3172d04231270f686337d6595ec6a3a4293af2963adb4d5c22dc50f496"
+      ],
+      "unproven_count": 22,
+      "method": "GP-131 probe -> before count + presence re-check (abort if any approved target missing or set changed) -> cmdkey /delete:<name> for exactly approved_targets -> after count (expected 241/22) -> GP-131 probe",
+      "timing": "between rounds only",
+      "result": null
     }
   },
   "export_cleanup_20260930": {
