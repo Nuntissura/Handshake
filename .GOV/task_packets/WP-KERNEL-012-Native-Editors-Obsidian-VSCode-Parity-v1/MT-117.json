@@ -31,9 +31,45 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "validation_v3": {"schema_id":"hsk.mt_validation_verdict@1","decision":"blocked","verdict":"BLOCKED","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:51:00Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","blocker_kind":"dependency","blocked_on_mt_ref":"MT-066.json","blocking_mt_refs":["MT-066.json","MT-067.json","MT-032.json"],"basis":"Required Stage/Calendar/OP runtime matrix stopped at recorded open fixes; no applied13/13 or no-Argus proof inferred","required_test_observations":[{"test":"open_or_create_daily_note_is_idempotent_against_real_backend_live","target":"handshake-native::test_calendar_interop","message":"thread 'open_or_create_daily_note_is_idempotent_against_real_backend_live' (161160) panicked at tests\\test_calendar_interop.rs:481:9","elapsed_seconds":82.55,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#open_or_create_daily_note_is_idempotent_against_real_backend_live"},{"test":"other_pillar_op01_stage_route_embed_back_other_pillar_interop","target":"handshake-native::test_other_pillar_interop_proofs","message":"thread 'other_pillar_op01_stage_route_embed_back_other_pillar_interop' (209968) panicked at tests\\test_other_pillar_interop_proofs.rs:3069:9","elapsed_seconds":82.218,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#other_pillar_op01_stage_route_embed_back_other_pillar_interop"},{"test":"other_pillar_op03_locus_resolve_reverse_other_pillar_interop","target":"handshake-native::test_other_pillar_interop_proofs","message":"thread 'other_pillar_op03_locus_resolve_reverse_other_pillar_interop' (196532) panicked at tests\\backend_proof_support\\mod.rs:1708:14","elapsed_seconds":80.081,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#other_pillar_op03_locus_resolve_reverse_other_pillar_interop"},{"test":"other_pillar_op04_swarm_accesskit_other_pillar_interop","target":"handshake-native::test_other_pillar_interop_proofs","message":"thread 'other_pillar_op04_swarm_accesskit_other_pillar_interop' (214836) panicked at tests\\test_other_pillar_interop_proofs.rs:1592:9","elapsed_seconds":82.067,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#other_pillar_op04_swarm_accesskit_other_pillar_interop"},{"test":"mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent","target":"handshake-native::test_stage_interop","message":"thread 'mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent' (198976) panicked at tests\\test_stage_interop.rs:668:17","elapsed_seconds":81.035,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent"}],"remaining_proof_gaps":[{"ac":"AC-117-3","reason":"static git check: canonical_argus_driver.rs unmodified, finish() not weakened"},{"ac":"AC-117-5","reason":"no test proves identical product behaviour with no Argus binding open"},{"ac":"AC-117-4","reason":"partial: op01-op03 call finish(), not finish_require_no_indeterminate(); the 13/13 applied count only appears in the matrix artifact (HANDSHAKE_ARGUS_MATRIX_RUN_ID), no test asserts it"}],"runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"Same single union; no rerun while dependency open; no own remediation or PASS","verdict_events":[{"event":"accepted","idempotency_key":"MT-117-49eac54e-union-blocked-v3","at_utc":"2026-09-26T15:51:00Z","payload_ref":"MT-117.json#validation_v3","decision":"blocked"},{"event":"completed","idempotency_key":"MT-117-49eac54e-union-blocked-v3","at_utc":"2026-09-26T15:53:23Z","state_ref":"MT-117.json#lifecycle","decision":"blocked"}]},
+  "remediation_plan_20261001_laneb": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER lane B (WP-KERNEL-012, orchestrator-steered)",
+    "at_utc": "2026-10-01T19:40:00Z",
+    "remediates": "MT-117.json#validation_v3 (decision blocked, blocked_on_mt_ref MT-066.json, candidate 49eac54e) remaining_proof_gaps AC-117-3/4/5",
+    "stale_blocker_check": "MT-066 PASS_V9 (validation_round_e4566f11); co-blockers MT-067 PASS_V8, MT-032 PASS_V15. lifecycle.depends_on also lists MT-074, which is BLOCKED (formal chain MT-068 -> MT-034 -> MT-008 -> MT-167): per orchestrator 2026-10-01 MT-117 stays BLOCKED with blocked_on MT-074 (CX-STATUS-002); these edits are disjoint unblocked work (KB-IMPL-005)",
+    "mt130_cycle": "MT-117 does not depend on MT-130 in its own record (depends_on MT-066/067/074; blocks []). What MT-117 needed from MT-130 (calendar-chip value relocation) is in code at 79146c48 and Operator-ratified 2026-09-14 (MT-130.json#operator_decision_20260914). The open MT-130 question is only MT-130's own write scope. Overlap: the AC-117-4 edit below is the same assertion as MT-130 AC-130-2",
+    "gaps_and_intended_fix": [
+      {
+        "ac": "AC-117-4",
+        "verbatim": "AC-117-4: re-running MT-074 test_other_pillar_interop_proofs shows those receipts terminalizing APPLIED, with the suite still green. The strict gate finish_require_no_indeterminate() should then be reachable for those scenarios.",
+        "gap": "op01-op03 call finish(), not finish_require_no_indeterminate(); the 13/13 applied count only appears in the matrix artifact (HANDSHAKE_ARGUS_MATRIX_RUN_ID), no test asserts it",
+        "fix": "tests/test_other_pillar_interop_proofs.rs: argus.finish() -> argus.finish_require_no_indeterminate() in op01, op02, op03 and op04 (stage_argus, calendar_argus, locus_argus). canonical_argus_driver.rs unchanged; the source scan already accepts both spellings"
+      },
+      {
+        "ac": "AC-117-5",
+        "verbatim": "AC-117-5: the observers are proof-only in effect - the product must behave identically with no Argus binding open.",
+        "gap": "no test proves identical product behaviour with no Argus binding open",
+        "diagnosis": "the live app always spawns its MCP server (app.rs spawn_mcp_server); update() then runs refresh_mcp_snapshot -> project_mt117_interop_action_completion each frame on an isolated capture context. An MT-117 observation begins only from ActionChannel::unique_dispatched_activation (a client-dispatched Argus action), and the save readback is spawned only while that observation is Pending",
+        "fix": "app.rs mt117_bounded_completion_tests: one lib test calling the real HandshakeApp::project_mt117_interop_action_completion with NO dispatched action (observer stays settled, no save readback requested, declarations only in the projected snapshot), plus a counterfactual on the same app after a dispatched Stage click (observer becomes Pending), so the test fails if binding stops being the only trigger",
+        "runtime_mapping_for_validator": "tests/test_stage_interop.rs:2107 mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent clicks stage-capture-embed-back through the harness with no CanonicalArgusDriver and proves the durable embed-back (PC-117-04)"
+      },
+      {
+        "ac": "AC-117-3",
+        "gap": "static git check (validator-owned)",
+        "fix": "none; evidence: tests/native_gui_support/canonical_argus_driver.rs last changed bd2d0496 (MT-125 rustfmt); not edited by this plan"
+      }
+    ],
+    "files": [
+      "src/frontend/handshake_native/tests/test_other_pillar_interop_proofs.rs",
+      "src/frontend/handshake_native/src/app.rs (mt117_bounded_completion_tests module only)"
+    ],
+    "proof_plan": "one batch cargo check on the final lane-B HEAD (MT-117 + MT-074 edits) after the round's compile phase, on orchestrator go; batch_owner/covered_mts recorded (KB-IMPL-001)",
+    "status": "EDITING (orchestrator go 2026-10-01; local commit only, no push during round)"
+  },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "MT-066",
+    "blocked_on": "MT-074",
+    "blocked_on_note_20261001": "was MT-066 (now PASS_V9); depends_on MT-074 is BLOCKED (orchestrator 2026-10-01, CX-STATUS-002)",
     "active": false,
     "depends_on": [
       "MT-066",
