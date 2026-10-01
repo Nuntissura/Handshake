@@ -1,5 +1,5 @@
 {
-  "candidate": "bd8c753223c2714707d6c78d7550448340c85c35",
+  "candidate": "e4566f11265a59d769dc8e3701576081bfdbd166",
   "prior_native_proof": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
   "changed_native_test_bins": [
     "test_calendar_interop",
@@ -7,10 +7,11 @@
     "test_interconnect_ckc_to_note",
     "test_loom_address",
     "test_memory_proposal_argus",
-    "test_stage_interop"
+    "test_stage_interop",
+    "test_tags_panel"
   ],
   "native_src_changed": false,
-  "planned_native_tests_estimate": 101,
+  "planned_native_tests_estimate": 80,
   "core_lib": [
     "api::loom::tests::mt153_loom_route_family_authority_matrix",
     "api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows",
@@ -37,13 +38,6 @@
   "per_mt": {
     "MT-023": {
       "run": [
-        "test_tags_panel::tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip",
-        "test_tags_panel_argus::mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve",
-        "test_tags_panel_argus::mt023_mounted_tags_panel_empty_state_canonical_argus"
-      ],
-      "reuse": [
-        "lib::graph::tags_panel::tests::filtered_tags_prefix_match",
-        "lib::graph::tags_panel::tests::empty_tags_is_empty",
         "test_tags_panel::proof2_three_tag_rows_present",
         "test_tags_panel::proof3_search_filter_narrows_rows",
         "test_tags_panel::ac3_tag_click_fires_open_tag",
@@ -51,74 +45,39 @@
         "test_tags_panel::proof4_hub_page_title_and_members",
         "test_tags_panel::ac5_member_click_fires_open_member",
         "test_tags_panel::proof5_add_tag_selects_candidate_and_fires_edge",
-        "test_tags_panel::proof5_tag_edge_request_shape"
+        "test_tags_panel::proof5_tag_edge_request_shape",
+        "test_tags_panel::tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip",
+        "test_tags_panel_argus::mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve",
+        "test_tags_panel_argus::mt023_mounted_tags_panel_empty_state_canonical_argus"
+      ],
+      "reuse": [
+        "lib::graph::tags_panel::tests::filtered_tags_prefix_match",
+        "lib::graph::tags_panel::tests::empty_tags_is_empty"
       ],
       "core": "loom_atomic_receipt_tests mt023_ (see CORE list)"
     },
-    "MT-036": {
+    "MT-027": {
       "run": [
-        "test_event_emitter::event_emitter_native_editor_round_trip",
-        "test_event_emitter::post_body_matches_verified_native_editor_schema",
-        "test_event_emitter::failed_emit_lands_in_error_ring",
-        "test_event_emitter::failed_post_with_runtime_lands_in_error_ring",
-        "test_event_emitter::surface_extension_seam_is_object_safe",
-        "test_event_emitter::registry_dispatches_to_mock_surface",
-        "test_event_emitter::flight_recorder_pane_lists_event",
-        "test_event_emitter::undo_paths_emit_undo_fired_exactly_once_with_scope",
-        "test_event_emitter::event_emitter_native_editor_round_trip",
-        "test_event_emitter::event_emitter_workspace_generations_are_bounded_and_reclaimed",
-        "test_event_emitter::event_emitter_workspace_revisit_preserves_original_emitter_session_generation"
+        "test_block_collection_view::block_collection_views_live_surrealdb_self_seed_full_round_trip"
       ],
       "reuse": [
-        "lib::event_emitter::tests::failed_post_lands_in_error_ring_no_panic",
-        "lib::event_emitter::tests::emit_without_runtime_records_no_runtime_error_and_does_not_panic",
-        "lib::surface_extension_seam::tests::registered_mock_surface_receives_selection_and_event_callbacks",
-        "lib::flight_recorder_pane::tests::load_now_transitions_to_loaded_with_rows",
-        "lib::event_emitter::tests::action_payload_is_preserved_without_runtime_chat_lossy_folding",
-        "lib::event_emitter::tests::actor_id_format_is_descriptive_and_valid",
-        "lib::event_emitter::tests::all_actions_have_distinct_wire_strings",
-        "lib::event_emitter::tests::authenticated_document_save_preserves_receipt_actor_while_other_events_use_emitter_actor",
-        "lib::event_emitter::tests::backpressure_drops_to_error_ring_when_permits_exhausted",
-        "lib::event_emitter::tests::build_post_body_has_every_required_native_editor_field_snake_case",
-        "lib::event_emitter::tests::calendar_projection_replay_reuses_one_immutable_envelope_but_reconstruction_is_new",
-        "lib::event_emitter::tests::closed_worker_is_permanent_and_visible",
-        "lib::event_emitter::tests::document_saved_serializes_to_native_schema",
-        "lib::event_emitter::tests::emit_without_runtime_records_no_runtime_error_and_does_not_panic",
-        "lib::event_emitter::tests::error_ring_is_bounded_at_cap",
-        "lib::event_emitter::tests::failed_post_lands_in_error_ring_no_panic",
-        "lib::event_emitter::tests::ingest_url_is_workspace_scoped_from_the_event",
-        "lib::event_emitter::tests::nonempty_event_workspace_is_never_relabelled",
-        "lib::event_emitter::tests::pending_frame_queue_coalesces_duplicate_ids_and_discards_stale_generation",
-        "lib::event_emitter::tests::successful_emit_posts_correct_body_through_transport",
-        "lib::event_emitter::tests::transport_retries_reuse_producer_event_identity"
-      ]
-    },
-    "MT-046": {
-      "run": [
-        "test_interconnect_ckc_to_note::interconnect_ic01_ckc_image_into_note",
-        "test_interconnect_ckc_to_note::interconnect_ic02_ckc_video_into_note",
-        "test_interconnect_ckc_to_note::interconnect_ic03_ckc_moodboard_on_canvas",
-        "test_interconnect_ckc_to_note::interconnect_ic04_ckc_character_wikilink_backlink",
-        "test_interconnect_ckc_to_note::interconnect_ic05_route_selection_to_stage",
-        "test_interconnect_note_code_crossref::interconnect_ic06_open_code_block_from_note",
-        "test_interconnect_note_code_crossref::interconnect_ic07_reference_code_symbol_from_note",
-        "test_interconnect_note_code_crossref::interconnect_ic08_shared_find_replace",
-        "test_interconnect_note_code_crossref::interconnect_ic09_diagnostic_note_reference",
-        "test_interconnect_loom_backlink_search::interconnect_ic10_backlink_cross_surface",
-        "test_interconnect_loom_backlink_search::interconnect_ic11_search_v2_across_surfaces",
-        "test_interconnect_loom_backlink_search::interconnect_ic12_graph_cross_surface_edges",
-        "test_interconnect_loom_backlink_search::interconnect_ic13_ai_link_suggestion",
-        "test_interconnect_loom_backlink_search::interconnect_ic14_quick_switcher_both_editors",
-        "test_interconnect_shared_undo_ledger::interconnect_ic15_undo_rich_editor",
-        "test_interconnect_shared_undo_ledger::interconnect_ic16_undo_code_editor",
-        "test_interconnect_shared_undo_ledger::interconnect_ic17_event_ledger_records",
-        "test_interconnect_shared_undo_ledger::interconnect_ic18_undo_scope_policy",
-        "test_interconnect_ckc_to_note::ic01_ic02_ic04_ckc_embed_atom_shape_round_trips"
+        "lib::graph::block_collection_view::tests::flip_direction_same_field_toggles_asc_desc",
+        "lib::graph::block_collection_view::tests::bucket_key_journal_date_uses_value_or_undated",
+        "lib::graph::block_collection_view::tests::card_move_tags_handle_untagged_lane",
+        "lib::graph::block_collection_view::tests::calendar_buckets_empty_result_is_empty",
+        "test_block_collection_view::table_renders_three_rows_with_titles",
+        "test_block_collection_view::table_sort_click_emits_backend_sort_then_toggles",
+        "test_block_collection_view::kanban_card_drag_emits_card_move_then_requery_lands_card",
+        "test_block_collection_view::calendar_renders_two_day_buckets",
+        "test_block_collection_view::calendar_date_range_validates_then_emits",
+        "test_block_collection_view::kind_switch_emits_kind_change",
+        "test_block_collection_view::new_view_creates_and_switches",
+        "test_block_collection_view::empty_states_render_without_panic",
+        "test_block_collection_view::client_update_view_wraps_definition",
+        "test_block_collection_view::client_card_move_top_level_tags",
+        "test_block_collection_view::client_create_view_body"
       ],
-      "reuse": [
-        "test_interconnect_loom_backlink_search::ic12_graph_renders_two_nodes_without_panic",
-        "test_interconnect_loom_backlink_search::typed_no_model_skip_classifier_is_fail_closed"
-      ]
+      "core": "loom_block_collection_views_tests exact list (6) (see CORE list)"
     },
     "MT-066": {
       "run": [
@@ -209,8 +168,5 @@
       "reuse": []
     }
   },
-  "notes": [
-    "MT-036 PC-036-04: '(compile gate)' covered by the union native build/compile of selected targets; not a test selection",
-    "MT-036 PC-036-05: 'all targets event_emitter' resolved from 8ea13a9b junit names; lib unit tests reused, integration binaries run"
-  ]
+  "notes": []
 }
