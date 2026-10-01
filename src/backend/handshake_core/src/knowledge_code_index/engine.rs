@@ -319,16 +319,102 @@ struct CleanCodeBatchBindings {
     code_files: Vec<CleanCodeFileRow>,
     sources: Vec<RecordId>,
     receipt: RecordId,
-    symbol_span_links: Vec<CleanCodeSymbolSpanLinkRow>,
+    evidence_scopes: Vec<SourceEvidenceScope>,
 }
 
-/// MT-167: one symbol's new evidence span; older `ast` links of that symbol on the
-/// same source are removed first, like `replace_knowledge_entity_spans_for_source_kind`.
+/// MT-167 (DX-MT-167-20261002-EVIDENCE-LINK-ACCUMULATION): the entities and edges one
+/// source's index pass re-asserts, with that pass's spans. Their older evidence links
+/// on the SAME source are replaced, so re-indexing unchanged content does not add a
+/// link per pass; links from other sources and entities/edges the pass did not
+/// re-assert are untouched (MT-054 merge across sources; 2.3.13.11 evidence refs).
 #[derive(SurrealValue)]
-struct CleanCodeSymbolSpanLinkRow {
-    entity_id: RecordId,
+struct SourceEvidenceScope {
     source_id: RecordId,
-    span_id: RecordId,
+    entities: Vec<RecordId>,
+    edges: Vec<RecordId>,
+    spans: Vec<RecordId>,
+    /// Captured before this pass created its first span: only links whose span is
+    /// OLDER than this are replaced, so a concurrent pass on the same source never
+    /// deletes the other pass's fresh links (review F1; no evidence-less entity/edge).
+    pass_started: surrealdb::types::Datetime,
+}
+
+/// One FOR loop per scope, keyed by bare-param equality so the (entity_id, span_id)
+/// and (edge_id, span_id) unique indexes serve the lookups.
+macro_rules! replace_source_evidence_sql {
+    () => {
+        "FOR $scope IN $evidence_scopes { \
+           FOR $entity IN $scope.entities { DELETE knowledge_entity_spans WHERE entity_id = $entity AND span_id.source_id = $scope.source_id AND span_id.created_at < $scope.pass_started AND span_id NOT IN $scope.spans; }; \
+           FOR $edge IN $scope.edges { DELETE knowledge_edge_spans WHERE edge_id = $edge AND span_id.source_id = $scope.source_id AND span_id.created_at < $scope.pass_started AND span_id NOT IN $scope.spans; }; \
+         };"
+    };
+}
+
+const REPLACE_SOURCE_EVIDENCE: &str = concat!(
+    "BEGIN TRANSACTION; ",
+    replace_source_evidence_sql!(),
+    " COMMIT TRANSACTION;"
+);
+
+#[derive(SurrealValue)]
+struct ReplaceSourceEvidenceBindings {
+    evidence_scopes: Vec<SourceEvidenceScope>,
+}
+
+/// The evidence one per-file pass wrote (ids as strings, as the storage API returns them).
+struct PassEvidence {
+    entities: Vec<String>,
+    edges: Vec<String>,
+    spans: Vec<String>,
+    started: surrealdb::types::Datetime,
+}
+
+impl PassEvidence {
+    /// Start collecting BEFORE the pass creates its first span (see `pass_started`).
+    fn start() -> Self {
+        Self {
+            entities: Vec::new(),
+            edges: Vec::new(),
+            spans: Vec::new(),
+            started: surrealdb::types::Datetime::from(chrono::Utc::now()),
+        }
+    }
+
+    fn link_entity(&mut self, entity_id: &str, span_id: &str) {
+        self.entities.push(entity_id.to_owned());
+        self.spans.push(span_id.to_owned());
+    }
+
+    fn link_edge(&mut self, edge_id: &str, span_id: &str) {
+        self.edges.push(edge_id.to_owned());
+        self.spans.push(span_id.to_owned());
+    }
+
+    fn into_scope(mut self, source_id: &str) -> SourceEvidenceScope {
+        for ids in [&mut self.entities, &mut self.edges, &mut self.spans] {
+            ids.sort();
+            ids.dedup();
+        }
+        SourceEvidenceScope {
+            source_id: RecordId::new("knowledge_sources", source_id.to_owned()),
+            entities: self
+                .entities
+                .into_iter()
+                .map(|id| RecordId::new("knowledge_entities", id))
+                .collect(),
+            edges: self
+                .edges
+                .into_iter()
+                .map(|id| RecordId::new("knowledge_edges", id))
+                .collect(),
+            spans: self
+                .spans
+                .into_iter()
+                .map(|id| RecordId::new("knowledge_spans", id))
+                .collect(),
+            pass_started: self.started,
+        }
+    }
 }
 
 #[derive(SurrealValue)]
@@ -474,7 +560,7 @@ const PERSIST_CLEAN_CODE_BATCH: &str = concat!("BEGIN TRANSACTION; \
     INSERT INTO kernel_event_ledger $events RETURN NONE; \
     FOR $file IN $code_files { IF array::len((UPDATE $file.id SET last_index_receipt_event_id = $receipt RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; \
     INSERT INTO knowledge_spans $spans RETURN NONE; \
-    FOR $link IN $symbol_span_links { DELETE knowledge_entity_spans WHERE entity_id = $link.entity_id AND span_id.source_id = $link.source_id AND span_id.span_kind = 'ast' AND span_id != $link.span_id; }; \
+    ", replace_source_evidence_sql!(), " \
     INSERT INTO knowledge_entity_spans $entity_spans RETURN NONE; \
     IF array::len((INSERT INTO knowledge_edges $edges ON DUPLICATE KEY UPDATE \
       confidence = $input.confidence, extractor_version = $input.extractor_version, \
@@ -563,6 +649,31 @@ impl CodeIndexEngine {
 
     pub fn db(&self) -> &SurrealDatabase {
         &self.db
+    }
+
+    /// MT-167: per-file twin of the batch's in-transaction evidence replace.
+    async fn replace_source_evidence(&self, scope: SourceEvidenceScope) -> CodeIndexResult<()> {
+        if scope.entities.is_empty() && scope.edges.is_empty() {
+            return Ok(());
+        }
+        let bindings = ReplaceSourceEvidenceBindings {
+            evidence_scopes: vec![scope],
+        };
+        self.db
+            .storage()
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values::<surrealdb::types::Value, _>(
+                            REPLACE_SOURCE_EVIDENCE,
+                            bindings,
+                        )
+                        .await
+                })
+            })
+            .await
+            .map_err(StorageError::from)?;
+        Ok(())
     }
 
     async fn persist_code_file_state(
@@ -959,6 +1070,8 @@ impl CodeIndexEngine {
         if prepared.is_empty() || prepared.len() != persisted_sources.len() {
             return Ok(None);
         }
+        // MT-167: every span this batch inserts is newer than this instant.
+        let pass_started = surrealdb::types::Datetime::from(chrono::Utc::now());
 
         let mut receipt_payloads = Vec::with_capacity(prepared.len());
         let mut writes = Vec::with_capacity(prepared.len());
@@ -1316,13 +1429,15 @@ impl CodeIndexEngine {
         let mut entity_records: HashMap<(String, String), RecordId> = HashMap::new();
         let mut concept_rows: HashMap<(String, String), usize> = HashMap::new();
         let mut edge_rows: HashMap<String, RecordId> = HashMap::new();
-        let mut symbol_span_links = Vec::with_capacity(symbol_count);
+        let mut evidence_scopes = Vec::new();
         for (file, extras) in writes.into_iter().zip(file_extras) {
             let receipt = file.receipt.ok_or_else(|| {
                 CodeIndexError::from(StorageError::Database(
                     "clean code batch is missing its EventLedger receipt".to_owned(),
                 ))
             })?;
+            let (spans_mark, entity_spans_mark, edge_spans_mark) =
+                (spans.len(), entity_spans.len(), edge_spans.len());
             entity_records
                 .entry(("file".to_owned(), file.file_key.clone()))
                 .or_insert_with(|| file.file_entity.clone());
@@ -1379,11 +1494,6 @@ impl CodeIndexEngine {
                     entity_id: symbol.symbol_entity.clone(),
                     span_id: symbol.span.clone(),
                     detected_in_run: index_run.clone(),
-                });
-                symbol_span_links.push(CleanCodeSymbolSpanLinkRow {
-                    entity_id: symbol.symbol_entity.clone(),
-                    source_id: file.source.clone(),
-                    span_id: symbol.span.clone(),
                 });
                 edges.push(CleanCodeEdgeRow {
                     id: symbol.edge.clone(),
@@ -1507,6 +1617,29 @@ impl CodeIndexEngine {
                     recorded_in_run: index_run.clone(),
                 });
             }
+            // MT-167: everything this file's rows link in this pass forms its evidence
+            // scope; older links of those entities/edges on this source are replaced.
+            let mut evidence_scope = SourceEvidenceScope {
+                source_id: file.source.clone(),
+                entities: Vec::new(),
+                edges: Vec::new(),
+                spans: spans[spans_mark..]
+                    .iter()
+                    .map(|row| row.id.clone())
+                    .collect(),
+                pass_started: pass_started.clone(),
+            };
+            for link in &entity_spans[entity_spans_mark..] {
+                if !evidence_scope.entities.contains(&link.entity_id) {
+                    evidence_scope.entities.push(link.entity_id.clone());
+                }
+            }
+            for link in &edge_spans[edge_spans_mark..] {
+                if !evidence_scope.edges.contains(&link.edge_id) {
+                    evidence_scope.edges.push(link.edge_id.clone());
+                }
+            }
+            evidence_scopes.push(evidence_scope);
             code_files.push(CleanCodeFileRow {
                 created_in_session_id: scope.as_ref().map(|scope| RecordId::new("authenticated_sessions", scope.session_id.clone())),
                 id: file.code_file,
@@ -1537,7 +1670,7 @@ impl CodeIndexEngine {
             code_files,
             sources,
             receipt: stored_event,
-            symbol_span_links,
+            evidence_scopes,
         };
         let projection_started = Instant::now();
         let _ = self
@@ -1810,6 +1943,8 @@ impl CodeIndexEngine {
             KnowledgeCodeParseStatus::Parsed
         };
 
+        // MT-167: the pass starts before its first span is created.
+        let mut pass_evidence = PassEvidence::start();
         // Receipt first (FK target for spans).
         let receipt_event_id = self
             .append_receipt_event(
@@ -1898,7 +2033,8 @@ impl CodeIndexEngine {
                     )
                 })?;
             // contains edge: file -> symbol (evidence = the symbol span).
-            self.db
+            let contains_edge = self
+                .db
                 .upsert_knowledge_edge(NewKnowledgeEdge {
                     workspace_id: workspace_id.to_string(),
                     edge_type: KnowledgeEdgeType::Contains,
@@ -1918,6 +2054,8 @@ impl CodeIndexEngine {
                         error,
                     )
                 })?;
+            pass_evidence.link_entity(&resolved.entity_id, &resolved.span_id);
+            pass_evidence.link_edge(&contains_edge.edge_id, &resolved.span_id);
             if symbol.kind == SymbolKind::Test {
                 test_symbol_index.insert(symbol_identity_key(symbol), resolved.clone());
             }
@@ -1966,6 +2104,7 @@ impl CodeIndexEngine {
                     evidence_span_ids: vec![span.span_id.clone()],
                 })
                 .await?;
+            pass_evidence.link_entity(&entity.entity_id, &span.span_id);
             // documents edge: passage -> file (or enclosing symbol).
             let target = symbols
                 .iter()
@@ -1977,7 +2116,8 @@ impl CodeIndexEngine {
             // remain searchable concept entities (claims) without a documents
             // edge, matching their non-API nature.
             if passage.kind == DocPassageKind::DocComment {
-                self.db
+                let documents_edge = self
+                    .db
                     .upsert_knowledge_edge(NewKnowledgeEdge {
                         workspace_id: workspace_id.to_string(),
                         edge_type: KnowledgeEdgeType::Documents,
@@ -1989,6 +2129,7 @@ impl CodeIndexEngine {
                         evidence_span_ids: vec![span.span_id.clone()],
                     })
                     .await?;
+                pass_evidence.link_edge(&documents_edge.edge_id, &span.span_id);
             }
             doc_passages_indexed += 1;
         }
@@ -2007,6 +2148,7 @@ impl CodeIndexEngine {
                 &relationships,
                 &symbol_index,
                 &file_entity.entity_id,
+                &mut pass_evidence,
             )
             .await?;
 
@@ -2021,8 +2163,22 @@ impl CodeIndexEngine {
                 &test_mappings,
                 &symbol_index,
                 &test_symbol_index,
+                &mut pass_evidence,
             )
             .await?;
+
+        // MT-167: replace this source's older evidence links of everything this pass
+        // re-asserted, so re-indexing unchanged content does not add a link per pass.
+        self.replace_source_evidence(pass_evidence.into_scope(source_id))
+            .await
+            .map_err(|error| {
+                stage_error(
+                    "index_code_file.replace_source_evidence",
+                    workspace_id,
+                    Some(source_id),
+                    error,
+                )
+            })?;
 
         // Per-source rollup + per-code-file index state.
         self.db
@@ -2200,6 +2356,7 @@ impl CodeIndexEngine {
         relationships: &[super::relationships::RelationshipCandidate],
         symbol_index: &HashMap<String, ResolvedSymbol>,
         file_entity_id: &str,
+        pass_evidence: &mut PassEvidence,
     ) -> CodeIndexResult<usize> {
         let mut written = 0usize;
         for rel in relationships {
@@ -2296,7 +2453,8 @@ impl CodeIndexEngine {
                 })
                 .await?;
 
-            self.db
+            let edge = self
+                .db
                 .upsert_knowledge_edge(NewKnowledgeEdge {
                     workspace_id: workspace_id.to_string(),
                     edge_type,
@@ -2305,9 +2463,10 @@ impl CodeIndexEngine {
                     extractor_version: CODE_EXTRACTOR_VERSION.to_string(),
                     confidence,
                     detected_in_run: index_run_id.map(|s| s.to_string()),
-                    evidence_span_ids: vec![span.span_id],
+                    evidence_span_ids: vec![span.span_id.clone()],
                 })
                 .await?;
+            pass_evidence.link_edge(&edge.edge_id, &span.span_id);
             written += 1;
         }
         Ok(written)
@@ -2325,6 +2484,7 @@ impl CodeIndexEngine {
         mappings: &[TestMapping],
         symbol_index: &HashMap<String, ResolvedSymbol>,
         test_symbol_index: &HashMap<SymbolIdentityKey, ResolvedSymbol>,
+        pass_evidence: &mut PassEvidence,
     ) -> CodeIndexResult<usize> {
         let mut written = 0usize;
         for mapping in mappings {
@@ -2366,7 +2526,8 @@ impl CodeIndexEngine {
                         display_snippet: Some(format!("test {test_label} -> {name}")),
                     })
                     .await?;
-                self.db
+                let edge = self
+                    .db
                     .upsert_knowledge_edge(NewKnowledgeEdge {
                         workspace_id: workspace_id.to_string(),
                         edge_type: KnowledgeEdgeType::Validates,
@@ -2375,9 +2536,10 @@ impl CodeIndexEngine {
                         extractor_version: CODE_EXTRACTOR_VERSION.to_string(),
                         confidence: 0.7,
                         detected_in_run: index_run_id.map(|s| s.to_string()),
-                        evidence_span_ids: vec![span.span_id],
+                        evidence_span_ids: vec![span.span_id.clone()],
                     })
                     .await?;
+                pass_evidence.link_edge(&edge.edge_id, &span.span_id);
                 written += 1;
             }
         }
@@ -2569,6 +2731,8 @@ impl CodeIndexEngine {
             .await?;
 
         let mut count = 0usize;
+        // MT-167 (review F2): config facts replace this source's older evidence too.
+        let mut pass_evidence = PassEvidence::start();
         for fact in &facts {
             let span = self
                 .db
@@ -2615,7 +2779,8 @@ impl CodeIndexEngine {
                     evidence_span_ids: vec![span.span_id.clone()],
                 })
                 .await?;
-            self.db
+            let contains_edge = self
+                .db
                 .upsert_knowledge_edge(NewKnowledgeEdge {
                     workspace_id: workspace_id.to_string(),
                     edge_type: KnowledgeEdgeType::Contains,
@@ -2627,8 +2792,20 @@ impl CodeIndexEngine {
                     evidence_span_ids: vec![span.span_id.clone()],
                 })
                 .await?;
+            pass_evidence.link_entity(&entity.entity_id, &span.span_id);
+            pass_evidence.link_edge(&contains_edge.edge_id, &span.span_id);
             count += 1;
         }
+        self.replace_source_evidence(pass_evidence.into_scope(source_id))
+            .await
+            .map_err(|error| {
+                stage_error(
+                    "index_config_file.replace_source_evidence",
+                    workspace_id,
+                    Some(source_id),
+                    error,
+                )
+            })?;
 
         self.db
             .record_knowledge_source_index_receipt(

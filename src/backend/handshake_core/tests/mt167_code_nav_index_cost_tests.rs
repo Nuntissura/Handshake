@@ -10,7 +10,8 @@
 //!   indexes each shape (plus a richer parity-only shape) TWICE through the route
 //!   (clean-code batch) and TWICE through the per-file writer (`index_code_source`), and
 //!   asserts equal totals AND equal sets of natural keys for entities, spans,
-//!   entity_spans, edges, edge_spans and code-file rows after the first and second pass.
+//!   entity_spans, edges, edge_spans and code-file rows after the first and second pass,
+//!   and that the totals stay stable across passes (no evidence-link accumulation).
 //!
 //! Fixture trees are written only below `HANDSHAKE_TEST_STAGE_BINDING_ROOT` (an external
 //! Handshake_Artifacts directory supplied by the runner) and removed by the test.
@@ -504,10 +505,11 @@ async fn mt167_batch_and_per_file_writer_produce_equal_rows() {
             per_file_sources.push((source_id, *relative_path, *text));
         }
 
+        let mut first_pass_totals = None;
         for pass in 1..=2 {
             if pass == 2 {
-                // Re-index the same content: both writers must replace a symbol's stale
-                // evidence-span links and accumulate passage/edge evidence identically.
+                // Re-index the same content: both writers must replace this source's older
+                // evidence links (symbols, passages, edges) identically (no accumulation).
                 let (_, body) = index_route(
                     &http,
                     &base,
@@ -533,7 +535,7 @@ async fn mt167_batch_and_per_file_writer_produce_equal_rows() {
                     .await
                     .expect("MT-167 per-file writer");
             }
-            assert_equal_rows(
+            let totals = assert_equal_rows(
                 &backend.db,
                 shape,
                 pass,
@@ -541,6 +543,16 @@ async fn mt167_batch_and_per_file_writer_produce_equal_rows() {
                 (&per_file_workspace, &per_file_root),
             )
             .await;
+            // MT-167 (DX-MT-167-20261002-EVIDENCE-LINK-ACCUMULATION): re-indexing unchanged
+            // content must not accumulate evidence links in either writer.
+            match &first_pass_totals {
+                None => first_pass_totals = Some(totals),
+                Some(first) => assert_eq!(
+                    &totals, first,
+                    "{}: row totals must stay stable across re-index passes (pass 1 vs pass {pass})",
+                    shape.name
+                ),
+            }
         }
     }
     server.abort();
@@ -571,7 +583,7 @@ async fn assert_equal_rows(
     pass: usize,
     batch: (&str, &str),
     per_file: (&str, &str),
-) {
+) -> BTreeMap<&'static str, usize> {
     {
         let batch_rows = code_index_rows(db, batch.0, batch.1).await;
         let per_file_rows = code_index_rows(db, per_file.0, per_file.1).await;
@@ -609,5 +621,6 @@ async fn assert_equal_rows(
             "{}: code_files",
             shape
         );
+        batch_rows.totals
     }
 }
