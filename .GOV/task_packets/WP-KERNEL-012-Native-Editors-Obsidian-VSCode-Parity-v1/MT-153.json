@@ -3951,5 +3951,61 @@
         "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-cardmove-probe.log"
       }
     ]
+  },
+  "research_20261001_cardmove_permission_cost": {
+    "schema_id": "hsk.mt_research@1",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T05:46:10Z",
+    "source": "read-only research sub-agent report (orchestrator, 2026-10-01; scratch cardmove_perm_research.md, copied here because scratch is not durable); labels VERIFIED = file:line/URL/measured, HYPOTHESIS = inference not run",
+    "bottom_line": [
+      "VERIFIED: bd8c7532 per-statement edge-create table sums to the request time (74+3.9+247+0.15+3.8+595+893+787+637+26+0.5 = 3267 ms vs 3271 median); cheap non-permission statements 0.15-4 ms; one-row permissioned SELECT * FROM $edge 26 ms -> cost lives inside record-user write statements (predicates + field ASSERTs + events), not engine round trips",
+      "HYPOTHESIS: a loom_blocks recount UPDATE has a fixed cost ~0.55-0.65 s regardless of row count (hub 637 vs card 787 differ by ~6 edge-select evaluations); edge CREATE ~0.6 s, edge UPDATE ~0.9 s, ledger CREATE ~0.25 s",
+      "HYPOTHESIS: F2 saves ~0.7-0.9 s (one block UPDATE, one pre-read, one guard/commit); projected move after F2 ~3.4-4.2 s + W (untimed fn::mt120_workspace_delete) + unmeasured; < 5 s plausible but margin <= ~1 s and not robust",
+      "Ranking: (A) optimized dependencies for the live-proof backend (systemic; Operator decision); (B) schema predicate/ASSERT hygiene (re-pin); (C) F2; (D) recount in a system scope DISFAVOURED by spec 02-system-architecture.md:2273/2769/2773, 05-security:1936 and MT-153 AC-153-1..2"
+    ],
+    "engine_facts_verified": {
+      "select_order": "surrealdb-core-3.2.0/src/doc/select.rs:23-26 table SELECT permission evaluated per candidate row BEFORE WHERE",
+      "create_order": "surrealdb-core-3.2.0/src/doc/create.rs: field processing (TYPE/VALUE/ASSERT) -> create predicate -> store -> indexes -> references -> events -> select predicate (RETURN) ",
+      "update_order": "surrealdb-core-3.2.0/src/doc/update.rs:23,41,52 update predicate (before) + field ASSERTs + update predicate again (after) + select predicate (output) = 3 predicate evaluations per UPDATE",
+      "delete_order": "surrealdb-core-3.2.0/src/doc/delete.rs:23,40 delete predicate + select predicate on initial; field ASSERTs not run; events/reference cleanup run",
+      "output_select_unconditional": "update.rs:52 / create.rs:49 select predicate runs even for RETURN VALUE id",
+      "no_predicate_cache_lazy_or": "surrealdb-core-3.2.0/src/doc/check.rs:455-475 recomputes per call; surrealdb-core-3.2.0/src/expr/expression.rs:711-722 OR/AND are short-circuit",
+      "assert_every_write": "surrealdb-core-3.2.0/src/doc/field.rs:203-350 ASSERT runs on every create/update (skipped only for NONE optional, :623-628); https://surrealdb.com/docs/surrealql/statements/define/field",
+      "record_exists_is_permissioned_fetch": "fnc/record.rs:12-30 -> val/record_id.rs:430-455 select_document under caller options: target table select predicate runs (permissions ON in ASSERT); inside PERMISSIONS predicates/functions permissions are OFF (check.rs:455-470, exec/permission.rs)",
+      "count_no_shortcut": "exec/operators/scan/index_count.rs:22,198-230: with a Specific select permission count()/COUNT index falls back to per-row permission scan",
+      "patch_releases": "local diff surrealdb-core 3.2.0 vs 3.2.4: doc/create|update|delete|select|check.rs, fnc/, val/record_id.rs unchanged -> no 3.2.x permission speedup",
+      "release_3_3_context": "https://surrealdb.com/releases/3.3 DEFINE ACCESS ... CONTEXT session snapshot; repo pins =3.2.0 (Cargo.toml:178); stale-grant semantics conflict with live re-check -> poor fit",
+      "issues": [
+        "https://github.com/surrealdb/surrealdb/issues/5657",
+        "https://github.com/surrealdb/surrealdb/issues/7416 (n/a: 0 COMPUTED fields)",
+        "https://github.com/surrealdb/surrealdb/issues/7497 (exists() = full fetch)",
+        "https://github.com/surrealdb/surrealdb/issues/7465 (permission-context trap for predicate rewrites)"
+      ],
+      "dev_profile": "https://doc.rust-lang.org/cargo/reference/profiles.html dev = opt-level 0, [profile.dev.package.\"*\"] opt-level = 2 optimizes deps; https://surrealdb.com/docs/sdk/rust/setup recommends release; magnitude UNVERIFIED"
+    },
+    "schema_code_facts_verified": {
+      "loom_edges_predicates": "schema.surql:563-567: tag edges fail the projection alternative at its first term; second alternative = 2 derefs + 2x fn::mt120_loom_endpoint_access -> fn::mt120_loom_block_access -> mt109_has_grant + mt109_has_workspace_access + protected_resources/resource_grants lookups (6035-6070, 6081-6120, 6211-6244, 6245-6252)",
+      "loom_edges_delete_W_first": "schema.surql:567 `(A-chain) OR fn::mt120_workspace_delete(record::id(workspace_id)) OR (endpoint chain)`: W runs before the endpoint clause on every tag-edge delete",
+      "W_cost": "fn::mt120_workspace_delete schema.surql:6771+: has_workspace_access + SELECT protected_resources by id/parent/grandparent; per owned resource a resource_grants lookup and an unindexed parent_resource_id scan with NOT IN $resources.id; loops over every rich document and loom block of the workspace; ~40 emptiness checks; creator grant includes delete (6747-6764) so it runs fully for the owner (HYPOTHESIS: grows with workspace size)",
+      "loom_blocks_select_order": "schema.surql:466-470: first OR alternative fn::mt109_source_read (2 failing has_grant calls for standalone blocks) precedes the mt120_loom_block_access branch (4th); measured 2 block selects = 74 ms",
+      "asserts": "loom_edges workspace/source/target record::exists + event_ledger_event_id; loom_blocks (499-532) block_id identity fn (nested record-user SELECT), workspace_id record::exists, event_ledger_event_id record::exists -> nested permissioned selects on every write incl. recount UPDATEs; kernel_event_ledger select = 11-function OR chain, fn::mt120_loom_receipt 8th (913-914)",
+      "events": "474-490, 552-561, 590 run with permissions off on every loom_blocks UPDATE"
+    },
+    "delete_path_estimate_hypothesis": "pre-read ~0.03 + guard ~0.03 + ledger read ~0.004 + ledger CREATE ~0.25 + DELETE ~0.05-0.15 + W + card recount ~0.6-0.8 + old-hub recount ~0.55-0.65 = ~1.7-2.1 s + W",
+    "f2_arithmetic_hypothesis": "edge select evaluations now 5k+7+2ic+n1+n2 (k=1,n1=n2=3: 18) vs F2 3k+5+ic+n1+n2 (11-13); nested ASSERT selects 16 -> 13; heavy statements 8 -> 7",
+    "rejected": [
+      "count()/COUNT index (per-row path for conditional permissions, VERIFIED)",
+      "3.3 CONTEXT (version + stale grants)",
+      "increments (Operator: not approved)",
+      "raising the 5 s client deadline (Operator: not approved)",
+      "system-scope recount (spec + MT-153 AC)"
+    ],
+    "open_measurements": [
+      "delete txn split (W vs ledger vs recounts) -> probe 39f3e830",
+      "per-ASSERT share of the ~0.6 s fixed UPDATE cost",
+      "owner holds workspace delete (W runs fully) and R/P size of the self-seed workspace",
+      "optimized-dependency speedup on this workload"
+    ],
+    "decisive_experiment_suggested": "time POST /loom/edges and DELETE /loom/edges/{id} on an optimized backend vs the dev backend with identical data; HSK_TEST_BACKEND_BIN selects the binary (tests/backend_proof_support/mod.rs:1020-1110 requires only HSK_TEST_BACKEND_TARGET_ROOT placement + freshness)"
   }
 }
