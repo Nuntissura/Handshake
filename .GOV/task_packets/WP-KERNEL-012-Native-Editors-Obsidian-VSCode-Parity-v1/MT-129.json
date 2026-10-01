@@ -22,7 +22,7 @@
   "title": "E11-MT-129-Make-The-MCP-Discovery-Binding-Publish-Windows-Long-Path-Safe",
   "group": "E11-Argus",
   "created_at_utc": "2026-08-13T09:40:00Z",
-  "updated_at_utc": "2026-09-13T14:37:25.334Z",
+  "updated_at_utc": "2026-10-01T17:41:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-129.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -64,17 +64,41 @@
     "secondary_risk_found_in_passing": "test_block_collection_view.rs:2089 sets the process-global LOCALAPPDATA with no guard and no mutex, while pg_proof_support/mod.rs:3989-3991 documents that this variable requires NATIVE_BINDING_ENV_LOCK because two suites in one binary would otherwise authenticate against each other binding root. It is safe only under --test-threads=1. Under default parallelism it will race ScopedArgusAppData install/drop - which recursively removes its root - and produce a GENUINE missing-directory os error 3 with a message identical to this defect."
   },
   "validation_v8": {"schema_id":"hsk.mt_validation_verdict@1","decision":"blocked","verdict":"BLOCKED","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:51:00Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","blocker_kind":"dependency","blocked_on_mt_ref":"MT-027.json","blocking_mt_refs":["MT-027.json"],"basis":"Required ordinary block-view target is not green due saved-view403 recorded in MT027; no long-path defect or new RED proof inferred","required_test_observations":[{"test":"block_collection_views_live_surrealdb_self_seed_full_round_trip","target":"handshake-native::test_block_collection_view","message":"thread 'block_collection_views_live_surrealdb_self_seed_full_round_trip' (172116) panicked at tests\\test_block_collection_view.rs:1706:10","elapsed_seconds":147.728,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#block_collection_views_live_surrealdb_self_seed_full_round_trip"}],"remaining_proof_gaps":"Special/history proofs not credited from ordinary runtime","runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"Same single union; no rerun while dependency open; no own remediation or PASS","verdict_events":[{"event":"accepted","idempotency_key":"MT-129-49eac54e-union-blocked-v8","at_utc":"2026-09-26T15:51:00Z","payload_ref":"MT-129.json#validation_v8","decision":"blocked"},{"event":"completed","idempotency_key":"MT-129-49eac54e-union-blocked-v8","at_utc":"2026-09-26T15:53:23Z","state_ref":"MT-129.json#lifecycle","decision":"blocked"}]},
+  "dependency_resolution_20261001_mt027": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER lane B (WP-KERNEL-012, orchestrator-steered)",
+    "at_utc": "2026-10-01T17:41:00Z",
+    "resolves": "MT-129.json#validation_v8 (decision blocked, blocker_kind dependency, blocked_on_mt_ref MT-027.json, candidate 49eac54e)",
+    "recorded_failure": "block_collection_views_live_surrealdb_self_seed_full_round_trip panicked at tests/test_block_collection_view.rs:1706 (saved-view 403 recorded in MT-027); attribution 'Recorded in blocking owning MT, not new remediation here'",
+    "blocker_current_state": "MT-027 lifecycle.status PASS_V18 (MT-027.json#validation_round_c1920348, decision passed, candidate c19203484a0cc975fd8917a32c827babeab0548c): PC-027-03 block_collection_views_live_surrealdb_self_seed_full_round_trip PASS (156.7 s)",
+    "same_test_later_candidate": "MT-153.json#validation_round_9191e8b5: BCV live PASS at 9191e8b5 (current product tip; c1920348..9191e8b5 changes only src/backend/handshake_core/src/api/loom.rs)",
+    "mt129_inputs_unchanged": "src/frontend/handshake_native/src/mcp/binding.rs last changed in fd2af79c, an ancestor of 49eac54e (git merge-base --is-ancestor); no binding.rs change 49eac54e..9191e8b5. validation_v7 (PASS_V7 at 605c6cf4) binding proofs and AC-129-1..4 evidence remain the implementation; no MT-129 product change in this transition.",
+    "builder_gaps": "none: validation_v8 recorded no MT-129 finding or remediation; the only open item was the MT-027 dependency",
+    "implementer_compile_static": "no new check: no MT-129 input changed. Latest implementer check over the consuming target: MT-027.json#remediation_20261001_c1920348.implementer_checks (cargo check --features integration,integration_tests,wgpu_screenshots --test test_block_collection_view, exit 0 at c1920348)",
+    "remaining_for_validator": "validation_v8.remaining_proof_gaps 'Special/history proofs not credited from ordinary runtime' (PT-129-1 RED run = fix-reverted special proof, WP-end extra build per CX-VAL-005); PT-129-2 BCV live with HANDSHAKE_ARGUS_BINDING_ROOT unset in the next union round",
+    "gameplan": "kernel_builder before_submit PASS 2/2 (gov fd3bd439+, 2026-10-01T17:40Z)",
+    "precedent": "gov f5e324e9 (MT-157 BLOCKED -> READY_FOR_VALIDATION after its blocker MT-164 fix passed)",
+    "state_effect": "BLOCKED -> READY_FOR_VALIDATION; next_actor WP_VALIDATOR (next union round)"
+  },
   "lifecycle": {
-    "candidate_invalidation_49eac54e": {"candidate_sha":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","prior_status":"PASS_V7","authority":"CX-VAL-009/CX-VAL-010; Operator final union dispatch","reason":"Live block-collection prerequisite depends on changed backend_proof_support helper","round_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"},
+    "candidate_invalidation_49eac54e":{"candidate_sha":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","prior_status":"PASS_V7","authority":"CX-VAL-009/CX-VAL-010; Operator final union dispatch","reason":"Live block-collection prerequisite depends on changed backend_proof_support helper","round_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"},
     "active": true,
     "validator_verdict": "BLOCKED",
-    "blocked_on": "MT-027",
+    "blocked_on": null,
+    "next_actor": "WP_VALIDATOR",
+    "ready_for_validation_transition_20261001": {
+      "at_utc": "2026-10-01T17:41:00Z",
+      "by": "KERNEL_BUILDER lane B",
+      "from_status": "BLOCKED",
+      "prior_blocked_on": "MT-027",
+      "reason": "blocker MT-027 is PASS_V18 (validation_round_c1920348); see dependency_resolution_20261001_mt027"
+    },
     "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
     "validated_at_utc": "2026-09-26T15:51:00Z",
     "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "status": "BLOCKED",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-116",
