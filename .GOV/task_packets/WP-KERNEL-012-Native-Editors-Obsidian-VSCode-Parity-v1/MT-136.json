@@ -25,7 +25,7 @@
   "title": "B9-MT-136-Port-The-Storage-Layer-Off-sqlx-Onto-The-Embedded-SurrealDB-Store",
   "group": "B9",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-10-01T17:40:00Z",
+  "updated_at_utc": "2026-10-01T20:40:00Z",
  "validation_shared_union_ec596eec": {"schema_id": "hsk.mt_validation_verdict@1", "decision": "inconclusive", "validated_by": "WP_VALIDATOR-SOL-MEDIUM", "validated_at_utc": "2026-09-26T23:36:50.061743Z", "candidate_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f", "proof_records_ref": "MT-032.json#validation.proof_records[PR-WP012-MT032-ec596eec-UNION-012]", "shared_round_ref": "MT-032.json#validation_v12", "contract_floor_refs": ["scope.proof_targets", "scope.acceptance_criteria", "proof", "proof_commands", "hbr_obligations"], "selection_method": "A/B/C surface tests only; excludes unselected PT136-3 and close/reopen obligations", "observed_cases": [{"classname": "handshake_core", "test": "storage::surreal::mt136_database_surface_proof_a::mt136_database_surface_proof_a", "seconds": 42.202, "result": "passed"}, {"classname": "handshake_core", "test": "storage::surreal::mt136_database_surface_proof_b::mt136_database_surface_proof_b", "seconds": 37.712, "result": "passed"}, {"classname": "handshake_core", "test": "storage::surreal::mt136_database_surface_proof_c::tests::uncovered_database_methods_use_real_durable_surreal_state", "seconds": 50.558, "result": "passed"}], "mapped_case_count": 3, "mapped_failure_count": 0, "state_unchanged": true, "prior_verdict_preserved": null, "unmet_required_proof": ["PT-136-1 current cargo-check zero-sqlx storage output absent from independent union", "PT-136-2 / AC-136-4 exact owned-store close/reopen durability proof not established by surface A/B/C passing", "PT-136-3 not_implemented_surface_is_declared reduced-count test not selected", "AC-136-1 static sqlx scan and AC-136-3 retained-module real-consumer disposition not established by JUnit"], "acceptance_rule": "Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change", "verdict_events": [{"event": "accepted", "idempotency_key": "MT136-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive"}, {"event": "completed", "idempotency_key": "MT136-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive", "state_effect": "unchanged"}]},
   "validation_shared_union_7479972a": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-28T00:11:37Z","candidate_commit":"7479972ac681cd238e58d37e318beab6c8d3b423","proof_records_ref":"MT-032.json#validation.proof_records[PR-WP012-MT032-7479972a-UNION-CONTINUATION1]","shared_round_ref":"MT-032.json#validation_v13","contract_floor_refs":["scope.proof_targets","scope.acceptance_criteria","proof","proof_commands","hbr_obligations"],"selection_method":"A/B/C surface tests only; excludes unselected PT136-3 and close/reopen obligations; exact classname+name matched against completed current four JUnits","observed_cases":[{"classname":"handshake_core","test":"storage::surreal::mt136_database_surface_proof_a::mt136_database_surface_proof_a","seconds":49.996,"result":"passed","phase":"core"},{"classname":"handshake_core","test":"storage::surreal::mt136_database_surface_proof_b::mt136_database_surface_proof_b","seconds":43.292,"result":"passed","phase":"core"},{"classname":"handshake_core","test":"storage::surreal::mt136_database_surface_proof_c::tests::uncovered_database_methods_use_real_durable_surreal_state","seconds":60.368,"result":"passed","phase":"core"}],"mapped_case_count":3,"mapped_failure_count":0,"state_unchanged":true,"prior_verdict_preserved":true,"unmet_required_proof":["PT-136-1 current cargo-check zero-sqlx storage output absent from independent union","PT-136-2 / AC-136-4 exact owned-store close/reopen durability proof not established by surface A/B/C passing","PT-136-3 not_implemented_surface_is_declared reduced-count test not selected","AC-136-1 static sqlx scan and AC-136-3 retained-module real-consumer disposition not established by JUnit"],"acceptance_rule":"Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change","verdict_events":[{"event":"accepted","idempotency_key":"MT136-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT136-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive","state_effect":"unchanged"}],"input_provenance":{"candidate":"7479972ac681cd238e58d37e318beab6c8d3b423","source_diff_ref":"git diff --name-only ec596eecb70f2820cb357ef95d5820b890c8944f..7479972ac681cd238e58d37e318beab6c8d3b423","changed_areas":["core document/SurrealDB authority/schema","handshake_document diagnostics/operations/SurrealDB adapter","handshake_storage_support diagnostics/retry"],"native_source_changed":false,"source_effect":"Shared backend inputs can affect live native cases; exact current JUnits provide observed behavior, not static/unmapped proof."},"current_union":{"core":{"tests":239,"failures":6,"sha256":"9916BFB9B5F8797D461C58555D16A734D29EB4054E37713263B0C727E0DA4BF2"},"native":{"tests":2952,"failures":44,"sha256":"928E026731633A2C63F1ECC21E926DF5A56AFEE828B58C79EF77B990697A962F"},"handshake_document":{"tests":41,"failures":0,"sha256":"2A3F49A172AD702EE44722CA393304084FDA83DDD45DB0CD253147CE9518BD79"},"handshake_storage_support":{"tests":34,"failures":0,"sha256":"A499897A89EAA1497A2D16F31514CD319B53BDEE3160BDE51D09797A7EE82C76"},"all_junits_complete":true,"mt032_verdict_ref":"MT-032.json#validation_v13"}},
   "authority_files": {
@@ -1013,6 +1013,55 @@
         "event": "completed",
         "idempotency_key": "136-9191e8b5-round",
         "at_utc": "2026-10-01T17:40:00Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
+      }
+    ]
+  },
+  "validation_round_4d0da145": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T20:40:00Z",
+    "candidate_commit": "4d0da14584dc63e676a322527091caa933c4fc82",
+    "started_at": "2026-10-01T18:34:54.2104564Z",
+    "completed_at": "2026-10-01T20:06:31.4697956Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-core.xml",
+      "core_junit_sha256": "be60b45c04ba023417bbe9cae61299dc79110d0c4f64f3e83ceba20613e6c426",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-native.xml",
+      "native_junit_sha256": "cdffba2e8d40b8a654a91662c77ba258e4f26f85436d8aa7e34eebf4d10117a5",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-4d0da14584dc63e676a322527091caa933c4fc82.stdout.log",
+      "log_sha256": "bc15c23489475177a3301d438d64653dc44d7b00fb9b2600d512f7e9df16464c",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-4d0da14584dc63e676a322527091caa933c4fc82.stderr.log",
+      "stderr_log_sha256": "3334b9eb2fb133bef7fc0667bfb59eb5e283a0122766e84000b4690302f69390",
+      "observations": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-4d0da14584dc63e676a322527091caa933c4fc82.observations.jsonl",
+      "export_identity_sha256": "11f363620972b4f1b7b5606e834d21e9224d3a0f6660f891ad354e267c33815f",
+      "selection": "WPV-round-selection.json (gov c9cc7e9e; CX-VAL-002 intersection under key 'intersection'); core runner config gov 0323203a",
+      "observer": "WPV-round-observer.ps1 (gov 2dd08b56), spin capture armed, did not fire"
+    },
+    "backend_build_profile": "dev (unoptimized; no dependency opt-level override; Operator decision WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001 not yet applied)",
+    "proof_record_ids": [
+      "PR-WP012-UNION-4d0da145"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 35/35, before_verdict PASS 5/5 at 4d0da145",
+    "decision": "inconclusive",
+    "checks_run": {
+      "storage::surreal::mt136_database_surface_proof_a/b/c": "PASS 3/3"
+    },
+    "unclosed": "PT-136-1, PT-136-2/AC-136-4, PT-136-3, AC-136-1/3 static remain (validation_shared_union_37ee7c5b)",
+    "note": "rebuild accounting compiled_crates=1 (handshake_core) relinked_test_binaries=28 backend_bin_relinked=1 refresh_mode=incremental; GP-131 vault probe success (e3485f6e); credentials 243/24 before, 254/35 after: 11 new OS-vault leftovers, one per failing test_fems_interop_proofs test (UUIDv7 19:45-19:55Z), recorded under packet.json CX-GIT-003 occurrences, not deleted; one preserved store <lane>/runtime/store-01a0f8e5ef6877e298828bf258b2aeb1 (mt045_lc06 cleanup: 'embedded database shutdown is still draining operations after 30000 ms; store preserved because closure is unproven'); session git repo recycled; observer 174 polls, 0 errors, spin capture did not fire; peak C 91.71 GB",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "136-4d0da145-round",
+        "at_utc": "2026-10-01T20:40:00Z",
+        "decision": "inconclusive",
+        "payload_ref": "MT-136.json#validation_round_4d0da145"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "136-4d0da145-round",
+        "at_utc": "2026-10-01T20:40:00Z",
         "decision": "inconclusive",
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
       }

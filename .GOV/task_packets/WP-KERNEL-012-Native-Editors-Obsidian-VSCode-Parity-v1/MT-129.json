@@ -22,7 +22,7 @@
   "title": "E11-MT-129-Make-The-MCP-Discovery-Binding-Publish-Windows-Long-Path-Safe",
   "group": "E11-Argus",
   "created_at_utc": "2026-08-13T09:40:00Z",
-  "updated_at_utc": "2026-10-01T17:41:00Z",
+  "updated_at_utc": "2026-10-01T20:40:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-129.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -81,11 +81,17 @@
     "state_effect": "BLOCKED -> READY_FOR_VALIDATION; next_actor WP_VALIDATOR (next union round)"
   },
   "lifecycle": {
-    "candidate_invalidation_49eac54e":{"candidate_sha":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","prior_status":"PASS_V7","authority":"CX-VAL-009/CX-VAL-010; Operator final union dispatch","reason":"Live block-collection prerequisite depends on changed backend_proof_support helper","round_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"},
+    "candidate_invalidation_49eac54e": {
+      "candidate_sha": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
+      "prior_status": "PASS_V7",
+      "authority": "CX-VAL-009/CX-VAL-010; Operator final union dispatch",
+      "reason": "Live block-collection prerequisite depends on changed backend_proof_support helper",
+      "round_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"
+    },
     "active": true,
-    "validator_verdict": "BLOCKED",
+    "validator_verdict": "PASS_V9",
     "blocked_on": null,
-    "next_actor": "WP_VALIDATOR",
+    "next_actor": "ORCHESTRATOR",
     "ready_for_validation_transition_20261001": {
       "at_utc": "2026-10-01T17:41:00Z",
       "by": "KERNEL_BUILDER lane B",
@@ -93,12 +99,12 @@
       "prior_blocked_on": "MT-027",
       "reason": "blocker MT-027 is PASS_V18 (validation_round_c1920348); see dependency_resolution_20261001_mt027"
     },
-    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
-    "validated_at_utc": "2026-09-26T15:51:00Z",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T20:40:00Z",
     "claimed_by": "KERNEL_BUILDER-20260812-113007",
-    "completed_by": null,
+    "completed_by": "WP_VALIDATOR-20260930-ORCH-SUB",
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V9",
     "depends_on": [],
     "blocks": [
       "MT-116",
@@ -118,7 +124,10 @@
       "not_test_only": "binding_path() resolves under the local app-data root, so an operator with a deep enough profile hit this in the shipped app, and the published error blamed a path that was fine.",
       "secondary_risk_NOT_addressed": "The unguarded process-global LOCALAPPDATA set at test_block_collection_view.rs:2089 is untouched. It is safe only under --test-threads=1 and can still race ScopedArgusAppData under default parallelism, producing a GENUINE missing-directory os error 3 with a message identical to this defect. Stated rather than silently folded in; it is outside this MT scope.",
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only."
-    }
+    },
+    "validated_commit": "4d0da14584dc63e676a322527091caa933c4fc82",
+    "prior_validator_verdict": "BLOCKED",
+    "status_reason": "PASS_V9 on 4d0da145 union round (validation_round_4d0da145)"
   },
   "hbr_obligations": {
     "MAN": "UserManual must record that the discovery binding root should be absolute and short until this is fixed.",
@@ -555,5 +564,63 @@
     "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
     "verdict_labelling": "every verdict records the backend build profile",
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
+  },
+  "validation_round_4d0da145": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T20:40:00Z",
+    "candidate_commit": "4d0da14584dc63e676a322527091caa933c4fc82",
+    "started_at": "2026-10-01T18:34:54.2104564Z",
+    "completed_at": "2026-10-01T20:06:31.4697956Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-core.xml",
+      "core_junit_sha256": "be60b45c04ba023417bbe9cae61299dc79110d0c4f64f3e83ceba20613e6c426",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-native.xml",
+      "native_junit_sha256": "cdffba2e8d40b8a654a91662c77ba258e4f26f85436d8aa7e34eebf4d10117a5",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-4d0da14584dc63e676a322527091caa933c4fc82.stdout.log",
+      "log_sha256": "bc15c23489475177a3301d438d64653dc44d7b00fb9b2600d512f7e9df16464c",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-4d0da14584dc63e676a322527091caa933c4fc82.stderr.log",
+      "stderr_log_sha256": "3334b9eb2fb133bef7fc0667bfb59eb5e283a0122766e84000b4690302f69390",
+      "observations": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-4d0da14584dc63e676a322527091caa933c4fc82.observations.jsonl",
+      "export_identity_sha256": "11f363620972b4f1b7b5606e834d21e9224d3a0f6660f891ad354e267c33815f",
+      "selection": "WPV-round-selection.json (gov c9cc7e9e; CX-VAL-002 intersection under key 'intersection'); core runner config gov 0323203a",
+      "observer": "WPV-round-observer.ps1 (gov 2dd08b56), spin capture armed, did not fire"
+    },
+    "backend_build_profile": "dev (unoptimized; no dependency opt-level override; Operator decision WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001 not yet applied)",
+    "proof_record_ids": [
+      "PR-WP012-UNION-4d0da145"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 35/35, before_verdict PASS 5/5 at 4d0da145",
+    "decision": "passed",
+    "verdict": "PASS_V9",
+    "checks_run": {
+      "PT-129-2 / AC-129-4 test_block_collection_view whole, HANDSHAKE_ARGUS_BINDING_ROOT unset (the union env never sets it)": "PASS 48/48",
+      "AC-129-1 / AC-129-2 GREEN: lib mcp::binding::tests (11), incl. write_binding_survives_a_root_past_the_legacy_max_path_limit, verbatim_prefix_preserves_utf16_and_normalizes_drive_and_unc_forms, relative_dot_mixed_separator_long_publish_normalizes_and_cleans_up": "PASS 11/11 (full native lib suite 2110/2110)"
+    },
+    "proof_reuse": "CX-VAL-002, verdict names both commits: AC-129-1 and AC-129-3 code evidence and the PT-129-1 RED (AC-129-2) from MT-129.json#validation_v7 (PASS_V7 at 605c6cf4); src/frontend/handshake_native/src/mcp/binding.rs changed after 605c6cf4 only in fd2af79c, and every changed hunk (lines 1249-1299 at 4d0da145) lies inside the #[cfg(test)] module that starts at line 839, so the product code those proofs cover is unchanged",
+    "acceptance": {
+      "AC-129-1": "verbatim-prefix/GetFullPathNameW tests PASS this round; implementation unchanged since PASS_V7",
+      "AC-129-2": "RED retained (PT-129-1, validation_v7) + GREEN this round",
+      "AC-129-3": "validation_v7 evidence; product code unchanged",
+      "AC-129-4": "PT-129-2 PASS this round"
+    },
+    "resolved": "MT-129.json#validation_v8 BLOCKED on MT-027: MT-027 PASS_V18 (c1920348)",
+    "note": "rebuild accounting compiled_crates=1 (handshake_core) relinked_test_binaries=28 backend_bin_relinked=1 refresh_mode=incremental; GP-131 vault probe success (e3485f6e); credentials 243/24 before, 254/35 after: 11 new OS-vault leftovers, one per failing test_fems_interop_proofs test (UUIDv7 19:45-19:55Z), recorded under packet.json CX-GIT-003 occurrences, not deleted; one preserved store <lane>/runtime/store-01a0f8e5ef6877e298828bf258b2aeb1 (mt045_lc06 cleanup: 'embedded database shutdown is still draining operations after 30000 ms; store preserved because closure is unproven'); session git repo recycled; observer 174 polls, 0 errors, spin capture did not fire; peak C 91.71 GB",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "129-4d0da145-round",
+        "at_utc": "2026-10-01T20:40:00Z",
+        "decision": "passed",
+        "payload_ref": "MT-129.json#validation_round_4d0da145"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "129-4d0da145-round",
+        "at_utc": "2026-10-01T20:40:00Z",
+        "decision": "passed",
+        "state_effect": "lifecycle.status PASS_V9"
+      }
+    ]
   }
 }

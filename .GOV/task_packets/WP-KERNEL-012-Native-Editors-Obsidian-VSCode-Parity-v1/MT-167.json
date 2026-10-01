@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-167",
   "created_at_utc": "2026-09-30T21:30:00Z",
-  "updated_at_utc": "2026-09-30T21:30:00Z",
+  "updated_at_utc": "2026-10-01T20:40:00Z",
   "identity": {
     "mt_id": "MT-167",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -219,7 +219,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "blocked_on": null,
     "depends_on": [],
     "blocks": [
@@ -228,10 +228,10 @@
       "MT-065"
     ],
     "active": true,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V1",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "WP_VALIDATOR union round",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_4d0da145.remediation_required",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-167.json#implementation_record.owning_module_evidence",
@@ -246,7 +246,11 @@
     "ready_for_validation_at_utc": "2026-10-01T17:59:02Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "gameplan": "before_submit kernel_builder PASS 2/2 at ee2345e9; GP-158 confirmed (loom edge/counter txn files untouched; only code-index engine.rs, Cargo.toml, MT-167 test)",
-    "selection_note": "run tests/mt167_code_nav_index_cost_tests.rs (timing AC-167-3 + MT-167-EQUAL-COUNTS), knowledge_code_index_tests, knowledge_code_nav_api_tests, code_nav_index_account_tests (now batch path, review R8), and the downstream MT-008 PC-008-05 / MT-064 PC-064-04 / MT-065 PC-065-01. Expectation: MT-008 fixture loses the 24 s fallback; FEMS (MT-064/065) is NOT expected to pass from F-A alone (H-B; ingestion share under the open ODR); the full-route < 5 s median may be out of reach for the same reason (MT-167 stop clause)"
+    "selection_note": "run tests/mt167_code_nav_index_cost_tests.rs (timing AC-167-3 + MT-167-EQUAL-COUNTS), knowledge_code_index_tests, knowledge_code_nav_api_tests, code_nav_index_account_tests (now batch path, review R8), and the downstream MT-008 PC-008-05 / MT-064 PC-064-04 / MT-065 PC-065-01. Expectation: MT-008 fixture loses the 24 s fallback; FEMS (MT-064/065) is NOT expected to pass from F-A alone (H-B; ingestion share under the open ODR); the full-route < 5 s median may be out of reach for the same reason (MT-167 stop clause)",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T20:40:00Z",
+    "validated_commit": "4d0da14584dc63e676a322527091caa933c4fc82",
+    "status_reason": "FAIL_V1 on 4d0da145 union round (validation_round_4d0da145)"
   },
   "scope": {
     "summary": "Bring the code-nav index route within Master Spec §2.3.14.17.3 (index update propagation <5 s target, 30 s max) by fixing the evidenced cause of persist_code_index_batch returning Ok(None) in 0 ms and falling back to the ~24 s per-file writer; prove with a median-of-N timing test.",
@@ -673,5 +677,183 @@
     "future_checks": "CARGO_TARGET_DIR=<target above>, CARGO_INCREMENTAL=0, CARGO_PROFILE_DEV_DEBUG=line-tables-only, CARGO_PROFILE_TEST_DEBUG=line-tables-only (same as kb-c5); first build there rebuilds some workspace crates",
     "cleanup": "WP-end cleanup item (no deletion by the builder)",
     "hold": "no cargo until the orchestrator releases the lane"
+  },
+  "validation_round_4d0da145": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T20:40:00Z",
+    "candidate_commit": "4d0da14584dc63e676a322527091caa933c4fc82",
+    "started_at": "2026-10-01T18:34:54.2104564Z",
+    "completed_at": "2026-10-01T20:06:31.4697956Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-core.xml",
+      "core_junit_sha256": "be60b45c04ba023417bbe9cae61299dc79110d0c4f64f3e83ceba20613e6c426",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-native.xml",
+      "native_junit_sha256": "cdffba2e8d40b8a654a91662c77ba258e4f26f85436d8aa7e34eebf4d10117a5",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-4d0da14584dc63e676a322527091caa933c4fc82.stdout.log",
+      "log_sha256": "bc15c23489475177a3301d438d64653dc44d7b00fb9b2600d512f7e9df16464c",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-4d0da14584dc63e676a322527091caa933c4fc82.stderr.log",
+      "stderr_log_sha256": "3334b9eb2fb133bef7fc0667bfb59eb5e283a0122766e84000b4690302f69390",
+      "observations": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-4d0da14584dc63e676a322527091caa933c4fc82.observations.jsonl",
+      "export_identity_sha256": "11f363620972b4f1b7b5606e834d21e9224d3a0f6660f891ad354e267c33815f",
+      "selection": "WPV-round-selection.json (gov c9cc7e9e; CX-VAL-002 intersection under key 'intersection'); core runner config gov 0323203a",
+      "observer": "WPV-round-observer.ps1 (gov 2dd08b56), spin capture armed, did not fire"
+    },
+    "backend_build_profile": "dev (unoptimized; no dependency opt-level override; Operator decision WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001 not yet applied)",
+    "proof_record_ids": [
+      "PR-WP012-UNION-4d0da145"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 35/35, before_verdict PASS 5/5 at 4d0da145",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "checks_run": {
+      "MT-167-VALIDATOR-TIMING mt167_code_nav_index_median_within_spec_baseline (AC-167-3)": "FAIL (request timeout; warm-up 33.8 s)",
+      "MT-167-EQUAL-COUNTS mt167_batch_and_per_file_writer_produce_equal_rows": "FAIL (pass 1 mt008-fixture counts equal; the next index request timed out)",
+      "existing knowledge_code_index_tests (whole)": "PASS 22/22",
+      "existing knowledge_code_nav_api_tests (whole)": "FAIL 0/3 (identical failures since 2026-09-24, see findings)",
+      "MT-167-DOWNSTREAM MT-008 PC-008-05 test_completion_hover_accesskit": "ac005 PASS, ac006 FAIL",
+      "MT-167-DOWNSTREAM MT-064 PC-064-04 + MT-065 PC-065-01 test_fems_interop_proofs (whole)": "22 PASS, 11 FAIL (all 11 at the seed POST /code-nav/index, :498)",
+      "MT-167-BUILDER-COMPILE / MT-167-OWNING-MODULE-EVIDENCE": "implementer records (not validator-run)"
+    },
+    "failures": [
+      {
+        "check": "MT-167-VALIDATOR-TIMING",
+        "test": "mt167_code_nav_index_median_within_spec_baseline",
+        "failure_kind": "product",
+        "failure_class": "CODE_NAV_INDEX_BATCH_PROJECTION_SLOW",
+        "assertion": "tests/mt167_code_nav_index_cost_tests.rs:161: MT-167 code-nav index request: reqwest::Error { kind: Request, source: TimedOut }",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-core.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/knowledge_code_index/engine.rs (try_index_prepared_batch projection, F-A batch path)",
+          "tests/mt167_code_nav_index_cost_tests.rs:146-166, 196-270"
+        ],
+        "evidence": "warm-up 33,798 ms of which try_index_prepared_batch.projection 27,346 ms (stage log in the junit system-out); run=1 exceeded the 45 s request bound inside the same stage",
+        "repair_direction": "the F-A batch projection takes ~27 s for one file; AC-167-3 needs a median < 5 s and every sample < 30 s"
+      },
+      {
+        "check": "MT-167-EQUAL-COUNTS",
+        "test": "mt167_batch_and_per_file_writer_produce_equal_rows",
+        "failure_kind": "product",
+        "failure_class": "CODE_NAV_INDEX_BATCH_PROJECTION_SLOW",
+        "assertion": "tests/mt167_code_nav_index_cost_tests.rs:161: MT-167 code-nav index request: reqwest::Error { kind: Request, source: TimedOut }",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-core.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/knowledge_code_index/engine.rs (try_index_prepared_batch projection, F-A batch path)"
+        ],
+        "evidence": "MT167_EQUAL_COUNTS shape=mt008-fixture pass 1 batch == per_file {edge_spans 4, edges 4, entities 4, entity_spans 3, spans 4}; the following request timed out",
+        "repair_direction": "same root as the timing failure; the parity proof cannot complete pass 2 / the other shapes while index requests exceed 45 s"
+      },
+      {
+        "check": "MT-167-DOWNSTREAM",
+        "test": "test_fems_interop_proofs (11 tests: proof_fems_01..04, duplicate_submission, approved_proposal_recovers..., code_provenance..., cross_pane_focus..., editor_switch..., focus_change..., review_approval...)",
+        "failure_kind": "product",
+        "failure_class": "CODE_NAV_INDEX_BATCH_PROJECTION_SLOW",
+        "assertion": "tests/test_fems_interop_proofs.rs:498: POST .../code-nav/index failed: error sending request",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-native.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/knowledge_code_index/engine.rs (try_index_prepared_batch projection, F-A batch path)",
+          "tests/test_fems_interop_proofs.rs:498"
+        ],
+        "evidence": "each of the 11 failures is at the seed index POST (55-71 s per test); each left one OS-vault credential (CX-GIT-003)",
+        "repair_direction": "AC-167-4 not met: the seed code-nav index request still fails"
+      },
+      {
+        "check": "MT-167-DOWNSTREAM",
+        "test": "test_completion_hover_accesskit ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc",
+        "failure_kind": "product",
+        "failure_class": "CODE_NAV_HOVER_NOT_OPENED",
+        "assertion": "tests/test_completion_hover_accesskit.rs:331: AC-006 managed-backend response opens hover tooltip",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-native.xml",
+        "affected_code_refs": [
+          "tests/test_completion_hover_accesskit.rs:331"
+        ],
+        "evidence": "ac005 PASS in the same binary/run; ac006 104.2 s then the hover assertion",
+        "repair_direction": "AC-167-4: MT-008 PC-008-05 ac006 still fails (ac005 passes); cause not separated from the index cost by this output"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "MT-167-VALIDATOR-TIMING",
+        "test": "mt167_code_nav_index_median_within_spec_baseline",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-core.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/knowledge_code_index/engine.rs (try_index_prepared_batch projection, F-A batch path)",
+          "tests/mt167_code_nav_index_cost_tests.rs:146-166, 196-270"
+        ],
+        "repair_direction": "the F-A batch projection takes ~27 s for one file; AC-167-3 needs a median < 5 s and every sample < 30 s"
+      },
+      {
+        "failed_check": "MT-167-EQUAL-COUNTS",
+        "test": "mt167_batch_and_per_file_writer_produce_equal_rows",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-core.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/knowledge_code_index/engine.rs (try_index_prepared_batch projection, F-A batch path)"
+        ],
+        "repair_direction": "same root as the timing failure; the parity proof cannot complete pass 2 / the other shapes while index requests exceed 45 s"
+      },
+      {
+        "failed_check": "MT-167-DOWNSTREAM",
+        "test": "test_fems_interop_proofs (11 tests: proof_fems_01..04, duplicate_submission, approved_proposal_recovers..., code_provenance..., cross_pane_focus..., editor_switch..., focus_change..., review_approval...)",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-native.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/knowledge_code_index/engine.rs (try_index_prepared_batch projection, F-A batch path)",
+          "tests/test_fems_interop_proofs.rs:498"
+        ],
+        "repair_direction": "AC-167-4 not met: the seed code-nav index request still fails"
+      },
+      {
+        "failed_check": "MT-167-DOWNSTREAM",
+        "test": "test_completion_hover_accesskit ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4d0da14584dc63e676a322527091caa933c4fc82-native.xml",
+        "affected_code_refs": [
+          "tests/test_completion_hover_accesskit.rs:331"
+        ],
+        "repair_direction": "AC-167-4: MT-008 PC-008-05 ac006 still fails (ac005 passes); cause not separated from the index cost by this output"
+      }
+    ],
+    "ac_167_3_timing": {
+      "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-4d0da14584dc63e676a322527091caa933c4fc82.mt167_timing_stdout.txt (junit system-out of mt167_code_nav_index_median_within_spec_baseline)",
+      "MT167_TIMING": "shape=mt008-fixture run=0 warm_up=true elapsed_ms=33798 symbols=2 (the only MT167_TIMING line: run=1 timed out at the test's 45 s request bound; MT167_TIMING_SUMMARY never printed)",
+      "AC-167-3": "NOT MET: median not computable (0 of 5 timed samples completed); warm-up 33.8 s already above the 30 s maximum; second request > 45 s; target median < 5 s",
+      "stage_breakdown_warm_up_ms": {
+        "register_root": 741,
+        "prepare_files": 24,
+        "persist_ingestion_batch": 2649,
+        "of_which_persist_clean_ingestion_batch.projection": 1880,
+        "start_index_run": 439,
+        "persist_code_index_batch": 27455,
+        "of_which_try_index_prepared_batch.projection": 27346,
+        "of_which_lookup_existing": 13,
+        "finish_index_run": 1794,
+        "total": 33752
+      },
+      "second_request": "register_root 700, prepare_files 0, persist_ingestion_batch 2737, start_index_run 472, then try_index_prepared_batch.projection started 19:24:45.0Z and had not completed when the client timed out",
+      "reading": "the F-A single-transaction batch projection (try_index_prepared_batch.projection) costs ~27 s for one file with 2 symbols; it runs in the core lib-test process (test profile), so a backend-only dependency opt-level override would not change this measurement"
+    },
+    "findings_not_attributed": [
+      {
+        "tests": "knowledge_code_nav_api_tests: mt045_lc06_500_file_code_nav_index_is_embedded_surrealdb_bounded (LC-06 request TimedOut :167), mt106_nav_api_flags_stale_symbols_on_every_route ('add present' :571), mt106_nav_api_lookup_definition_references_tests_spans_with_receipts ('add in lookup' :316)",
+        "classification": "pre-existing: identical failures in junit-1097ef1c and junit-fe0949d8 (2026-09-24), before MT-167; still failing at 4d0da145, so MT-167-VALIDATOR-TIMING's 'existing tests green' is not met"
+      }
+    ],
+    "selection_defect_not_counted": "validator selection used the file name 'code_nav_index_account_tests' as the lib module prefix; the module is api::code_nav_index::account_tests (code_nav_index.rs:612-614), so api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete did not run; it runs in the next MT-167 round (gameplan GP-161)",
+    "blocked_mts_note": "MT-008/MT-064/MT-065 stay BLOCKED; their PCs ran only as MT-167-DOWNSTREAM evidence (Codex :161)",
+    "note": "rebuild accounting compiled_crates=1 (handshake_core) relinked_test_binaries=28 backend_bin_relinked=1 refresh_mode=incremental; GP-131 vault probe success (e3485f6e); credentials 243/24 before, 254/35 after: 11 new OS-vault leftovers, one per failing test_fems_interop_proofs test (UUIDv7 19:45-19:55Z), recorded under packet.json CX-GIT-003 occurrences, not deleted; one preserved store <lane>/runtime/store-01a0f8e5ef6877e298828bf258b2aeb1 (mt045_lc06 cleanup: 'embedded database shutdown is still draining operations after 30000 ms; store preserved because closure is unproven'); session git repo recycled; observer 174 polls, 0 errors, spin capture did not fire; peak C 91.71 GB",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "167-4d0da145-round",
+        "at_utc": "2026-10-01T20:40:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-167.json#validation_round_4d0da145"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "167-4d0da145-round",
+        "at_utc": "2026-10-01T20:40:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V1"
+      }
+    ]
   }
 }

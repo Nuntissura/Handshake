@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 191
+generation: 192
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -179,3 +179,4 @@ steps:
 - {id: GP-158, role: builder, at: before_submit, do: 'verify edge/counter txn keeps guards, per-edge receipts, THROWs, recount formulas, auth; merged txn re-reads on retry', check: {type: confirm}, source: replaces GP-139 (retain transaction) for MT-153 F2 card-move transaction merge; orchestrator 2026-10-01, state: active}
 - {id: GP-159, role: wp_validator, at: before_round, do: confirm export verify completed with VERIFY_OK and a written identity (no stalled verify process) before launch, check: {type: confirm}, source: 'infra d9ce6017 prelaunch: verify deadlocked on undrained git archive tail (10240 B); fixed by draining stdout', state: active}
 - {id: GP-160, role: wp_validator, at: before_round, do: 'confirm each generated PowerShell launcher/observer parses (Parser.ParseFile, 0 errors) before detached launch', check: {type: confirm}, source: 'infra 11f1b034: sed field regex stopped at a '')'' inside a quoted item; launcher died at parse, no run started', state: active}
+- {id: GP-161, role: wp_validator, at: before_round, do: 'confirm each lib filter is a real module path (check mod decl incl. #[path] renames), not a file name', check: {type: confirm}, source: '4d0da145: filter code_nav_index_account_tests ran 0 tests; module is account_tests', state: active}

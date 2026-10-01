@@ -2235,6 +2235,31 @@
           "source": "BCV fixture of block_collection_views_live_surrealdb_self_seed_full_round_trip: target UUIDv7 time 2026-10-01T14:22:08Z; owned backend pid 245828 (s-368a110cf51f6ec4/713f9124-071f-4845-9d99-d9174218c70e) workspace create 14:22:16Z; backend CPU-bound (~1 core, no I/O, no logs) from ~14:24Z until killed",
           "test_output": "WARN: pre-reap owned fixture logout unverified; exact vault cleanup follows: owned fixture session/vault cleanup remains unverified; retain diagnostics for recovery",
           "action": "not deleted (Operator approval required, CX-GIT-003); vault probe (GP-131) at next round start"
+        },
+        {
+          "recorded_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+          "recorded_at_utc": "2026-10-01T20:40:00Z",
+          "round": "union 4d0da14584dc63e676a322527091caa933c4fc82 (MT-167.json#validation_round_4d0da145)",
+          "targets": [
+            "01a0f900-1673-7dd0-b8e7-a2e4432f95de.handshake-local-accounts-f06ade8b4a47962809cc083bd07c6797c515af9e3616d687371db2a1443d2eca",
+            "01a0f901-07df-74b2-b395-dd6bb902cbc2.handshake-local-accounts-528d63b95def5b788b1e433d6d1fa83119ebc17fe67e30b03ce8d31ffb3cd07d",
+            "01a0f901-fe41-7c70-af69-00c9defd9dd0.handshake-local-accounts-85d6f7452521bed1f7fde53cc30de4a66c6aa70f47290fc59807965dbe53a371",
+            "01a0f902-e9ce-7e00-beea-593152d408dc.handshake-local-accounts-e2088054f60ba57a1cb9d9580590143837b5f711785c970a76767245ad62158c",
+            "01a0f903-e7d8-72f1-bbd2-1a3c3caee8b8.handshake-local-accounts-90645c896a82718cab7053c6dd7c15ab184d77a476ca2b3a370142456d31e1b7",
+            "01a0f904-ef59-7703-916e-578f8e60d20d.handshake-local-accounts-1da05dcd086e7d4654efd8113e38e28adc46f7f212893b4d19583467dfb9a7c6",
+            "01a0f905-fb72-7e32-a66d-44c1cd04e9a7.handshake-local-accounts-192d833c36cb694a8f6238f486ce55f7d7399638b8f7245409fbdfa60e1f4a25",
+            "01a0f907-05f3-7f42-bdbd-5676e545cce6.handshake-local-accounts-3a3e5ab2b5051b2ddf0a03dec291e8ab1ffe68c42b5b8fb5f4a15f60612066f4",
+            "01a0f907-eb79-7c21-9481-6e44daa0f2ad.handshake-local-accounts-c02e58db6f0b8ce94abe63394ee3363ba9f97295fd055b4766fb387fa09db43b",
+            "01a0f908-c4c3-7122-ad5b-f904a7499036.handshake-local-accounts-ce5dddf597ccddda0deba042303125c3380958b18951b0b2b3c0d9959fb01990",
+            "01a0f909-a30e-7f22-8397-5eaf533e8333.handshake-local-accounts-c0cef36beb0b1e0ec98a9904739ce7bc5f5ee7dc43186a3c9293825e74c237c7"
+          ],
+          "counts": {
+            "before_round": "243 total / 24 handshake-local-accounts",
+            "after_round": "254 total / 35 handshake-local-accounts"
+          },
+          "source": "one per failing test_fems_interop_proofs test (11 failures at the seed POST /code-nav/index, tests/test_fems_interop_proofs.rs:498); target UUIDv7 times 19:45:27Z..19:55:53Z match the 11 workspace ids in the failure messages (01a0f900..01a0f909)",
+          "test_output": "WARN: pre-reap owned fixture logout unverified; exact vault cleanup follows: owned fixture session/vault cleanup remains unverified; retain diagnostics for recovery",
+          "action": "not deleted (credential_cleanup_20260930 covers only the 78 listed targets; CX-GIT-003 needs Operator approval)"
         }
       ]
     },
