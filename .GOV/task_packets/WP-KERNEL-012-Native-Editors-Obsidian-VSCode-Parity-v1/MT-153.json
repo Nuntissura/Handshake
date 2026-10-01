@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "FAIL_V7",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -88,19 +88,20 @@
     },
     "status_reason": "FAIL_V7 on fea3ce0a union round (validation_round_fea3ce0a)",
     "status_before_20260930": "FAIL_V2",
-    "candidate_commit": "fea3ce0a509ae54f669fb122bf1bf64e68cb1421",
+    "candidate_commit": "d9ce6017e91430c69d410b555bd79fd5f6916926",
     "blocked_on": null,
     "diagnosis_refs": [
-      "MT-153.json#diagnosis_20261001_cardmove_split_edge_txns (DX-MT-153-20261001-CARDMOVE-SPLIT-EDGE-TRANSACTIONS)"
+      "MT-153.json#diagnosis_20261001_cardmove_probe_result (probe 39f3e830: full_move 5597 ms; delete txn ~2.0 s; create txn ~2.4 s; reindex ~0.85 s)"
     ],
-    "ready_for_validation_at_utc": "2026-10-01T03:59:16Z",
+    "ready_for_validation_at_utc": "2026-10-01T06:25:13Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "status_before_bb9548e1_resubmission": "FAIL_V3",
     "candidate_updated_at_utc": "2026-10-01T00:46:31Z",
     "candidate_update_note": "6205332b -> e4566f11 (e02dfc08 timer revert; MT-023 e4566f11; lane B c56c5360/0c416dc4)",
     "status_before_b4faed35_resubmission": "FAIL_V4",
     "status_before_bd8c7532_resubmission": "FAIL_V5",
-    "status_before_e4566f11_resubmission": "FAIL_V6"
+    "status_before_e4566f11_resubmission": "FAIL_V6",
+    "status_before_d9ce6017_resubmission": "FAIL_V7"
   },
   "closure_unit": {
     "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
@@ -4709,5 +4710,67 @@
     "no_increments": true,
     "gameplan": "GP-139 ('retain ... transaction') does not fit merging two transactions: replaced by a new builder before_submit step with the actual invariant and GP-139 retired via the gameplan controller (orchestrator instruction 2026-10-01)",
     "risk": "UNVERIFIED that native overhead stays < ~0.9 s; recount conflict with a concurrent writer on any of the 3 blocks retries the whole closure (bounded MT-142 budget)"
+  },
+  "gp158_check_20261001_cardmove_f2": {
+    "schema_id": "hsk.gameplan_diff_check@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T06:25:05Z",
+    "step": "GP-158 (replaces retired GP-139)",
+    "subject": "d9ce6017 (fea3ce0a..d9ce6017 minus the reverted probe): loom_store.rs move_loom_tag_edge + shared prepare helpers + loom_ledger_append_named_sql!, database.rs SurrealDatabase::move_loom_tag_edge, api/loom.rs 1-add/1-remove move path + tag-only reindex skip + probe revert, user_manual/seed.rs one sentence",
+    "method": "scripted comparison (scratch f2_check.py) of SQL texts at fea3ce0a vs d9ce6017",
+    "results": {
+      "old_macro_unchanged": true,
+      "named_macro_with_default_names_equals_old_macro": true,
+      "create_loom_edge_sql_unchanged": true,
+      "delete_loom_edge_sql_unchanged": true,
+      "create_result_index_6": true,
+      "move_endpoint_guards": "card + new hub workspace guard (HSK-LOOM-NOT-FOUND) and removed-edge workspace guard (HSK-LOOM-EDGE-NOT-FOUND), same texts as create/delete with renamed params",
+      "move_receipts": "two loom_ledger_append_named_sql! appends ($add_*, $del_*), each with a bare idempotency-key param; receipts built by the same prepare_edge_create / prepare_edge_delete_receipt helpers create_loom_edge / delete_loom_edge now use -> same payload and idempotency key",
+      "move_create_stmt": "identical to create_loom_edge's CREATE with $content/$edge/$receipt renamed to $add_*; EDGE-EXISTS guard kept; inside IF $add_existing_receipt = NONE",
+      "move_delete_stmt": "identical DELETE ... RETURN BEFORE != 1 THROW",
+      "move_recounts": "3 UPDATEs ($source card, $add_target, $del_target) with the unchanged array::len formulas and != 1 THROW",
+      "move_result_index": "14 of 16 top-level statements (SELECT * FROM $add_edge)",
+      "auth": "no PERMISSIONS/schema change; the move runs inside the same account.run record-user scope of patch_loom_block_authenticated",
+      "retry": "move_loom_tag_edge performs no read outside its transaction (prepare helpers are pure); guarded_storage_mutation re-runs the whole closure on a commit conflict, lock keys = both edge records",
+      "files": "api/loom.rs, storage/surreal/loom_store.rs, storage/surreal/database.rs, user_manual/seed.rs (all MT-153 allowed paths)"
+    },
+    "gp158": "holds -> confirmed at d9ce6017"
+  },
+  "remediation_20261001_cardmove_f2": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T06:25:13Z",
+    "diagnosis_ref": "MT-153.json#diagnosis_20261001_cardmove_probe_result (probe 39f3e830: full_move 5597 ms; delete txn ~2.0 s; create txn ~2.4 s; reindex ~0.85 s)",
+    "analysis_ref": "MT-153.json#analysis_20261001_cardmove_reindex_f2",
+    "hypothesis_ref": "MT-153.json#hypothesis_20261001_cardmove_f2_reindex_skip",
+    "fact_check_ref": "MT-153.json#fact_check_20261001_indexed_receipt (no INDEXED expectation after a tag-only PATCH)",
+    "fix": {
+      "commit": "d9ce6017",
+      "F2": "1-add/1-remove card move as one transaction (loom_store::move_loom_tag_edge)",
+      "reindex_skip": "tag-only PATCH skips refresh_loom_block_embedding",
+      "probe_revert": "39f3e830 test removed",
+      "manual": "UserManual Kanban sentence"
+    },
+    "predicted": "probe-host full_move ~4.08 s (F2 + skip), remove_only ~2.32 s; native overhead not included - the union round measures the native test",
+    "candidate_commit": "d9ce6017e91430c69d410b555bd79fd5f6916926",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = d9ce6017e91430c69d410b555bd79fd5f6916926",
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target",
+        "exit_code": 0,
+        "inputs": "tree == d9ce6017 backend files; 0 cargo/rustc processes on the host before launch",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-cardmove-f2-skip.log",
+        "new_warnings_on_changed_lines": 0
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS at d9ce6017; GP-158 confirmed after MT-153.json#gp158_check_20261001_cardmove_f2",
+    "next_actor": "WP_VALIDATOR single union run",
+    "reproof_note": "probe commit reverted in d9ce6017; diagnostic results are not acceptance evidence (CX-VAL-002)",
+    "remediates": {
+      "verdict_ref": "MT-153.json#validation_round_fea3ce0a (FAIL_V7)",
+      "failure_class": "LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT"
+    }
   }
 }
