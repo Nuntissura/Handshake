@@ -1710,5 +1710,11 @@
     "classification": "product-plausible, not proven: the round's W-B change lengthens every card-move DELETE that already sits inside the shared 5 s budget; infrastructure/host-load flakiness cannot be excluded from the output alone",
     "proposed_next": "remove W from the card-move path instead of tuning it: reorder loom_edges FOR delete to `(A) OR (endpoint clause) OR fn::mt120_workspace_delete(...)` - semantics-preserving per MT-153.json#analysis_20261001_schema_hygiene (OR of side-effect-free, non-throwing operands; allow/deny identical) and removes the full W evaluation from every tag-edge delete; schema change -> re-pin; orchestrator decision",
     "ref": "MT-153.json#diagnosis_20261001_ac10_move_deadline"
+  },
+  "analysis_ref_20261001_step1": {
+    "ref": "MT-153.json#analysis_20261001_step1_w_scans_ownership",
+    "note": "endpoint clause TRUE for the owner's card-move delete -> reorder removes W from the card-move path",
+    "recorded_at_utc": "2026-10-01T11:30:17Z",
+    "recorded_by": "KERNEL_BUILDER-20260930"
   }
 }

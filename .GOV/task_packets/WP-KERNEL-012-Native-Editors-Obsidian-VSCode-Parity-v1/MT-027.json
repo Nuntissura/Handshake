@@ -3302,5 +3302,11 @@
     "proposed_next": "NAMED diagnostic run (CX-EXEC-014) before any fix: in api/loom.rs (MT-153 path) time every FR call on the block-view publication path and in the background reconciler and log a warn with the operation, event id and elapsed when it exceeds 2 s (and when it completes), so the next round shows whether FR calls block and which caller; flight_recorder/duckdb.rs (not an MT-153 path) untouched unless the owner approves a lock-wait watchdog there",
     "attempt_rule": "a fix needs this new hypothesis confirmed; if the next fix fails -> escalate",
     "ref": "MT-153.json#diagnosis_20261001_bcv_fr_stall"
+  },
+  "research_ref_20261001_fr_stall_refuted": {
+    "ref": "MT-153.json#research_20261001_fr_stall_refuted",
+    "note": "DX-MT-153-20261001-BCV-FR-STALL-HYPOTHESIS refuted; new hypothesis CPU-bound W",
+    "recorded_at_utc": "2026-10-01T11:30:17Z",
+    "recorded_by": "KERNEL_BUILDER-20260930"
   }
 }

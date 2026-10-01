@@ -5824,5 +5824,80 @@
     },
     "classification": "product-plausible, not proven: the round's W-B change lengthens every card-move DELETE that already sits inside the shared 5 s budget; infrastructure/host-load flakiness cannot be excluded from the output alone",
     "proposed_next": "remove W from the card-move path instead of tuning it: reorder loom_edges FOR delete to `(A) OR (endpoint clause) OR fn::mt120_workspace_delete(...)` - semantics-preserving per MT-153.json#analysis_20261001_schema_hygiene (OR of side-effect-free, non-throwing operands; allow/deny identical) and removes the full W evaluation from every tag-edge delete; schema change -> re-pin; orchestrator decision"
+  },
+  "research_20261001_fr_stall_refuted": {
+    "schema_id": "hsk.mt_research@1",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T11:30:17Z",
+    "source": "read-only research sub-agent (orchestrator 2026-10-01; scratch fr_stall_research.md, copied because scratch is not durable)",
+    "refutes": "MT-153.json#diagnosis_20261001_bcv_fr_stall (DX-MT-153-20261001-BCV-FR-STALL-HYPOTHESIS): FR-lock / DuckDB-hang hypothesis REFUTED (not supported; contradicted by CPU data)",
+    "verified": [
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-791a81dd*.observations.jsonl (33 s polls): backend pid 203100 cpu_s 27.5 (11:00:42), 60.2, 91.8, 150.2 (11:02:21), 183.9, 217.4, 250.9, 284.5 (11:04:33) = one core busy continuously; working set flat 301 MB; test pid 251700 cpu flat at 21.3 from 11:02:21 (test waiting on the backend). A blocked std Mutex / hung DuckDB call would be idle",
+      "backend stdout silence is normal: healthy rounds are equally silent between workspace create and the delete line (0ba5db80, b1cee4c7 backend.stdout.log); routine PATCH/requery routes do not log",
+      "FR DuckDB tiny: flight_recorder.db 12 KB + WAL 374,972 B (11 loom_block_created, 2 loom_edge_created, 8 loom_block_updated, 1 loom_view_queried); default auto-checkpoint 16 MB never reached",
+      "every FR mutex site in flight_recorder/duckdb.rs (:236 :383 :437 :549 :602 :653 :783 :1103 :1176) takes the guard inside a sync body and drops it at return; no .await inside a guarded section; no re-entrancy; poisoning returns LockError (fails fast, would log); no CHECKPOINT/VACUUM in production code",
+      "reconciler / request path (api/loom.rs:2654-2712, :6570-6600): sequential FR awaits with no FR guard held across them; Surreal calls between FR calls never inside an FR guard -> FR-mutex vs Surreal inversion structurally impossible; spawn_native_editor_reconciler (api/flight_recorder.rs:1153-1162, every 2 s) same shape and its startup failure is present in healthy rounds",
+      "teardown: tests/backend_proof_support/mod.rs:69 WORKSPACE_CLEANUP_TIMEOUT = 180 s (REQUEST_TIMEOUT 15 s :65); test end ~11:05:05; panic ~11:01:45-55, cleanup DELETE start + 180 s ~ 11:04:50 matches the Surreal commit mtime 11:04:53.93 (000004.log) and the kill",
+      "Surreal statement bound 300 s by design (storage/surreal.rs:183-190), no engine query timeout by default (:192-199)",
+      "OR short-circuit: surrealdb-core 3.2.0 expr/expression.rs:645-722 (Or returns the truthy left without computing the right, :711-716); BindingPower Or < And (sql/operator.rs:535-548)",
+      "online: duckdb/duckdb#17006 (1.2.1 WAL checkpoint hang, 4 MiB autocheckpoint) and #14303 (1.1.x StorageLock deadlock, idle) not applicable (Cargo.lock duckdb/libduckdb-sys 1.4.3; 375 KB WAL; CPU-busy signature)"
+    ],
+    "new_hypothesis": "HYPOTHESIS (best fit): CPU-bound SurrealDB permission evaluation - fn::mt120_workspace_delete (W; unindexed O(R x P) protected_resources scans, heavier since 1ff1821f) - the cleanup DELETE ran ~3 min until the client's 180 s timeout dropped the handler future (commit landed 11:04:53.93; handler never reached FR purge/audit/log); W also runs on every card-move tag-edge DELETE (loom_edges FOR delete A OR W OR B, schema.surql:567) -> plausible common cause of BCV slowness and the MT-042 ac10 timeout; which statement burned the core is not directly observed",
+    "not_excluded": "a DuckDB call that never returns (no supporting evidence; contradicted by the 1-core signature unless a separate burner exists)",
+    "ownership_note": "flight_recorder/, api/flight_recorder.rs, api/workspaces.rs, main.rs are NOT MT-153 paths; api/loom.rs and storage/surreal/* are"
+  },
+  "analysis_20261001_step1_w_scans_ownership": {
+    "schema_id": "hsk.mt_analysis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T11:30:17Z",
+    "method": "code reading at 791a81dd (no edit, no run)",
+    "i_endpoint_clause_true_for_owner_card_move": {
+      "answer": "TRUE",
+      "grants": "owner-created loom blocks get a creator grant with actions ['read','create','update','delete'] and capability_ids ['fs.read','fs.write'] (loom_canvas_store.rs:61, record-user owned-block bundle; verified again at :69); fn::mt120_creator_grant (schema.surql:6747-6769) admits exactly that set for resource_kind 'loom_block'",
+      "clause": "B = last_actor_id != 'knowledge_rich_document_backlink_projection' AND source/target workspace match AND fn::mt120_loom_endpoint_access(source,'update','fs.write') AND fn::mt120_loom_endpoint_access(target,'read','fs.read') (schema.surql:567); endpoint_access (6245-6252) -> fn::mt120_loom_block_access (6211-6244): has_grant(loom_block, block, action, cap) + has_workspace_access(ws,'read','fs.read') + resource/parent checks + resource_grants -> satisfied by the creator grants on the card (update/fs.write) and the hub (read/fs.read)",
+      "runtime_corroboration": "the loom_edges FOR create predicate (schema.surql:565) is `A OR <the same endpoint chain>` with NO W alternative, and the owner's tag-edge CREATEs succeed (card moves persist in every round), so this endpoint chain evaluates true for these sessions/blocks; tag edges carry last_actor_id = the session principal, and at the F2 DELETE both endpoints exist",
+      "consequence": "reordering loom_edges FOR delete to `A OR B OR W` skips W on the owner's card-move delete (W only evaluated when B is false); allow/deny unchanged (MT-153.json#analysis_20261001_schema_hygiene.loom_edges_delete_reorder)"
+    },
+    "ii_W_scans_and_index_use": {
+      "W_extent": "schema.surql:6771-7036: 348 SELECTs, 64 cross-table consistency checks of the form `workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (...) != true`, 17 workspace zero checks `WHERE workspace_id = $workspace) > 0`, FOR loops over owned resources, rich documents, blocks, sources, entities",
+      "expensive_scans": [
+        ":6782 LET $resources = SELECT * FROM protected_resources WHERE id = $resource OR parent_resource_id = $resource OR parent_resource_id.parent_resource_id = $resource - OR with a two-hop deref: no index can serve it (full protected_resources scan)",
+        ":6789 per owned resource: resource_grants WHERE resource_id = $owned.id AND account_id = $account AND principal_id = $principal AND access_space_id = $space ... - resource_grants_exact_idx (account_id, principal_id, access_space_id, resource_id) exists but resource_id is compared to a PATH ($owned.id)",
+        ":6798 per owned resource: protected_resources WHERE parent_resource_id = $owned.id AND id NOT IN $resources.id - no index on parent_resource_id (only protected_resources_external_unique (resource_kind, external_resource_id) :5810 and protected_resources_owner_idx (owner_account_id, access_space_id) :5812) and a PATH param -> O(R x P)",
+        ":6804/:6816 rich-document resource lookups and :6822 per standalone block `resource_kind = 'loom_block' AND external_resource_id = $block.block_id` - index (resource_kind, external_resource_id) exists, compared to a PATH ($block.block_id)",
+        ":6989-6999 per source/memory row lookups with `id IN $resources.id` + kind/external (paths and array IN)",
+        ":7016 per entity `external_resource_id = $entity.entity_key` (PATH) and :7015 orphan branch `external_resource_id = $entity.entity_key` (PATH; only for entities whose block is gone and whose provenance is view_def)",
+        "64 consistency checks with IN-subqueries: each scans its whole table (not workspace-scoped through an index)"
+      ],
+      "would_an_index_be_used": "NOT SHOWN from code: the recorded planner facts (SurrealDB 3.2 streaming planner folds only literal comparisons and BARE params into index lookups - MT-153.json#hypothesis_20260930_event_ledger_key; GP-141/143/144; handoff:124) mean the PATH params above ($owned.id, $block.block_id, $entity.entity_key, $resources.id) would not match even with a new index; whether that planner (vs the legacy planner) is the one executing SELECTs inside a DEFINE FUNCTION body evaluated in a permission predicate was never traced in surrealdb-core -> an index alone is not demonstrated to help; W's text would need LET-bound bare params (MT-164 pattern) plus a new parent_resource_id index",
+      "dominant_cost_note": "beyond per-scan cost, the workspace delete evaluates W once per deleted row for every table whose delete predicate falls through to W (loom_block_view_fr_outbox :5525 W only; loom_block_search_index :5190; loom_edges :567 W before B; view_def blocks :470 where mt120_loom_block_access is false; fems anchor :5426; workspaces :65) - in the BCV workspace that is tens of full W evaluations per cleanup; the reorder only removes W from the per-edge delete",
+      "result": "(ii) does NOT pass"
+    },
+    "iii_ownership": {
+      "MT-164 (PASS_V3) / MT-166 (PASS_V1)": "allowed_paths limited to the five grant/access function bodies (MT-164) and the protected_resources select permission + fn::mt109_ledger_access (MT-166); both forbid 'any other schema.surql/schema.rs statement' -> fn::mt120_workspace_delete is outside both scopes",
+      "capability_overlap": "MT-166's capability label is 'index-bound remaining grant scans' and claims the TWO remaining resource_grants queries the planner cannot index; W's :6789 child-grant query (resource_id = $owned.id, a path) is another non-index-bound grant scan of the same family -> capability-family overlap with a closed MT (CX-CAP-001 one owner per capability)",
+      "W_co_owners": "MT-153 (AC-153-8, route (a)), MT-154 (AC-154-6 W extension, READY), MT-157 (W rowset binding)",
+      "result": "W index/bare-param work: record operator_decision_request (KB-IMPL-006) instead of editing"
+    },
+    "step2_eligibility": {
+      "a_reorder": "eligible ((i) TRUE)",
+      "b_index_or_W_params": "NOT eligible ((ii) not shown; (iii) overlap -> operator_decision_request)",
+      "c_instrumentation": "eligible (api/loom.rs / storage/surreal paths of MT-153, diagnostic, reverted later)"
+    }
+  },
+  "operator_decision_request_20261001_w_scan_ownership": {
+    "schema_id": "hsk.operator_decision_request@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T11:30:17Z",
+    "rule": "KERNEL_BUILDER_PROTOCOL KB-IMPL-006; Codex CX-CAP-001",
+    "question": "Who owns making fn::mt120_workspace_delete's resource/grant scans index-bound (LET-bound bare params per the MT-164 pattern, plus a new protected_resources parent_resource_id index), and/or reducing the per-row W evaluations in the account-scoped workspace delete (tables whose delete predicate falls through to W)?",
+    "why": "W (schema.surql:6771-7036) is evaluated per deleted row in the workspace delete and runs O(R x P) protected_resources scans with path params the planner does not index (MT-153.json#analysis_20261001_step1_w_scans_ownership.ii_W_scans_and_index_use); the BCV cleanup DELETE ran ~3 min CPU-bound (MT-153.json#research_20261001_fr_stall_refuted). The grant-scan part overlaps MT-166's closed capability ('index-bound remaining grant scans'); W itself is co-owned by MT-153/MT-154/MT-157",
+    "options": [
+      "extend MT-166 (reopen) or a new MT for W scan indexing + bare params",
+      "assign to MT-153 with an allowed-scope amendment",
+      "assign to MT-154 (W extension owner)",
+      "accept current cost (test cleanup budget)"
+    ],
+    "status": "open"
   }
 }
