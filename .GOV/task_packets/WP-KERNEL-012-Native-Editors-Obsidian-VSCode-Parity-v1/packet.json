@@ -2478,6 +2478,35 @@
       },
       "scope_note": "Operator authorization covers this rule change only; the standing rule 'no edits to global files or the Handshake Codex' remains for everything else",
       "pin_note": "Protocol rules apply from the next WP (governance_pin 896f4e15); WP-012 receives the behavior via a CX-VAL-007 entrypoint-config commit to WPV-union-round.sh and MT-032-phase-probe.sh"
+    },
+    {
+      "recorded_at_utc": "2026-10-01T04:20:00Z",
+      "recorded_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+      "relayed_by": "ORCHESTRATOR root session",
+      "decision_id": "WP012-OPERATOR-STABLE-EXPORT-20261001",
+      "authorized_by": "OPERATOR",
+      "operator_quote": "WP-012 scripts now",
+      "rule_text_ref": "approved [VPX-011] draft (WP_VALIDATOR_PROTOCOL.md, next WP onward); applied to WP-012 as a CX-VAL-007 entrypoint-config change",
+      "change": {
+        "files": [
+          "WPV-union-round.sh",
+          "MT-032-phase-probe.sh",
+          "WPV-export-refresh.sh (new, sourced)",
+          "WPV-export-verify.py (new)"
+        ],
+        "behavior": "one fixed per-owner <target-r52>/export-current refreshed in place: identity read then removed; incremental git diff --name-status -z --no-renames prev..candidate (D deleted; A/M/T extracted via git archive -- paths | tar -x -m); full replace when identity missing/partial/mismatched; the export's own round-output dirs cleared; verify file set == ls-tree -r and each file's bytes == candidate git archive bytes; export-current.identity written last; verdict-binding line prints identity sha256 + HANDSHAKE_PROOF_SOURCE_SHA; per-round rebuild accounting (compiled crates, relinked test binaries, backend relink)",
+        "kept": "HEAD == pushed tip == candidate guard; MT-165 disposable git repo + recycle trap; core -j 1; selection file",
+        "verification_note": "blob ids are not recomputed from files: with core.autocrlf=true, 16 blobs containing CRLF convert irreversibly, so git hash-object cannot reproduce their ids; the verifier compares each file to the candidate's own git archive bytes (same intent: export == candidate tree)",
+        "provenance": "GP-033 / W12-D08 'Compiling (...export-<sha>...)' check is replaced by the identity record printed in the hashed round log",
+        "gameplan_step": "GP-155 (wp_validator, before_round): verify export-current.identity matches the candidate (VPX-011)"
+      },
+      "behavioral_checks": {
+        "bash_n": "OK WPV-union-round.sh, MT-032-phase-probe.sh, WPV-export-refresh.sh; py_compile OK WPV-export-verify.py",
+        "scratch_functional": "full replace bd8c7532 (7166 files VERIFY_OK, 94 s); incremental bd8c7532->e4566f11 (8 extracted, 5 s; unchanged mtimes kept, changed files current mtime); reverse/forward incremental under set -euo pipefail OK; deletion path e4566f11->ce1e8769 (28 deleted / 170 extracted) -> e77c8365 (1 deleted) -> e4566f11 (197 extracted), each VERIFY_OK",
+        "identity_dry_run_current_tip": "e4566f11 at the scratch owner root: planned incremental (prev == candidate), VERIFY_OK files=7166 manifest_sha256=a98cf194d9a9e45293efce40694d6d9afb6a7945adfd893325be2b84a74a451c; real owner root target-r52: previous=none, planned_mode=full, nothing changed",
+        "no_build_no_round": true
+      },
+      "first_round_note": "first round on export-current is a cold build of the path crates (~+11-14 GB; target-r52 62.07 GB now -> projected ~76 GB, GP-102 OK); old export-bd8c7532 / export-e4566f11 dirs and their per-path fingerprints remain until an approved cleanup"
     }
   ],
   "stale_crate_builds_cleanup_20261001": {

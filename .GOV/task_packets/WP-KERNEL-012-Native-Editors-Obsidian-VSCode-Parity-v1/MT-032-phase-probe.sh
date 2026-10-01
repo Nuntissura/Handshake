@@ -106,17 +106,13 @@ check_cap() {
   (( bytes + reserve <= 150000000000 && free_kib >= 187500000 )) || exit 2
 }
 check_cap 4000000000
-EXPORT="$TARGET/export-${SHA:0:8}"
-MARKER="$TARGET/export-${SHA:0:8}.sha"
-if [[ ( "$MODE" = self-seeded-native-round || "$MODE" = mt032-native-selection ) && -d "$EXPORT" ]]; then
-  [[ -f "$MARKER" && "$(cat "$MARKER")" = "$SHA" ]] || { echo 'MT032_PROBE existing export not bound to candidate'; exit 2; }
-  echo "MT032_PROBE reusing immutable export $EXPORT"
-else
-[[ ! -e "$EXPORT" && ! -e "$MARKER" ]] || { echo 'MT032_PROBE fresh export required; existing contents preserved'; exit 2; }
-mkdir "$EXPORT"
-git -C "$WORKTREE" archive "$SHA" | tar -x -C "$EXPORT"
-printf '%s' "$SHA" > "$MARKER"
-fi
+# Stable round source path ([VPX-011]; same per-owner export-current as WPV-union-round.sh, refreshed in
+# place to the candidate and verified; the identity record carries candidate provenance; CX-VAL-007).
+# shellcheck source=/dev/null
+source "$(dirname "$(readlink -f "$0")")/WPV-export-refresh.sh"
+wpv_refresh_export_current "$SHA" "$WORKTREE" "$TARGET" "MT032_PROBE" || { echo 'MT032_PROBE export-current refresh failed'; exit 2; }
+EXPORT="$WPV_EXPORT"
+echo "MT032_PROBE verdict binding: export identity sha256=$WPV_EXPORT_IDENTITY_SHA256 refresh_mode=$WPV_EXPORT_MODE HANDSHAKE_PROOF_SOURCE_SHA=$SHA"
 
 export CARGO_TARGET_DIR="$TARGET"
 export CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only CARGO_INCREMENTAL=0

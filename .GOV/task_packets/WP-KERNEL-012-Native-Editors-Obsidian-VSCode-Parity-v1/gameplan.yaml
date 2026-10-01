@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 184
+generation: 185
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -173,3 +173,4 @@ steps:
 - {id: GP-152, role: orchestrator, at: before_dispatch, do: forbid stopping a validator agent while its round runs, check: {type: confirm}, source: r2 1f4e0f69 died at native 42/210 when validator agent was stopped, state: active}
 - {id: GP-153, role: wp_validator, at: before_round, do: confirm round wrapper launched detached from agent tool calls; no tool-timeout owns its process tree, check: {type: confirm}, source: 'infra: bb9548e1 round wrapper killed at 2h harness background limit; native 170/210', state: active}
 - {id: GP-154, role: wp_validator, at: before_round, do: verify commit free >= 45 GB before launch; core union build -j 1, check: {type: confirm}, source: Operator 2026-10-01 'change it so you can proceed'; measured 50.6–56.9 GB; replaces GP-146 60 GB floor (r1 OOM at -j 2), state: active}
+- {id: GP-155, role: wp_validator, at: before_round, do: verify export-current.identity matches the candidate (VPX-011), check: {type: confirm}, source: per-candidate export capacity incident (78.8 GB stale) + Operator 2026-10-01 stable export path, state: active}

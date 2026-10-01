@@ -52,19 +52,17 @@ check_target_cap
 
 mkdir -p "$LANE/logs" "$LANE/tmp" "$LANE/runtime" "$LANE/workspace"
 
-# 1. Select an immutable archive. Never delete or overlay an earlier export.
-EXPORT="$EXPORT_ROOT/export-${SHA:0:8}"
-MARKER="$EXPORT_ROOT/export-${SHA:0:8}.sha"
-if [ -d "$EXPORT" ]; then
-  [ -f "$MARKER" ] && [ "$(cat "$MARKER")" = "$SHA" ] \
-    || { echo "[run-round] FATAL: existing export is incomplete or belongs to another SHA: $EXPORT"; exit 2; }
-  echo "[run-round] reusing archived $SHA at $EXPORT"
-else
-  echo "[run-round] creating new export for $SHA at $EXPORT"
-  mkdir -p "$EXPORT"
-  git -C "$WORKTREE" archive "$SHA" | tar -x -C "$EXPORT"
-  printf '%s' "$SHA" > "$MARKER"
-fi
+# 1. Stable round source path ([VPX-011], Operator 2026-10-01 "WP-012 scripts now"; CX-VAL-007):
+#    one fixed per-owner export-current, refreshed in place to the frozen candidate (changed files only,
+#    current mtimes, removed files deleted, round outputs cleared, every file verified against the
+#    candidate archive, identity written last; full replace when the identity is missing/partial/mismatched).
+#    A per-candidate path (export-<sha>) changes Cargo's hash for the sibling path crates and cold-rebuilds
+#    every dependent; the identity record, not the path, now carries candidate provenance.
+# shellcheck source=/dev/null
+source "$(dirname "$(readlink -f "$0")")/WPV-export-refresh.sh"
+wpv_refresh_export_current "$SHA" "$WORKTREE" "$EXPORT_ROOT" "[run-round]" || { echo "[run-round] FATAL: export-current refresh failed"; exit 2; }
+EXPORT="$WPV_EXPORT"
+echo "[run-round] verdict binding: export identity sha256=$WPV_EXPORT_IDENTITY_SHA256 refresh_mode=$WPV_EXPORT_MODE HANDSHAKE_PROOF_SOURCE_SHA=$SHA"
 check_target_cap
 
 # 3. Complete env set (statically derived from tests/backend_proof_support/mod.rs
@@ -239,6 +237,8 @@ fi
 [[ "$MODE" = core-only ]] && EXTRACTED_CRATES=(handshake_document handshake_storage_support)
 [[ "$MODE" = mt164-capture ]] && EXTRACTED_CRATES=()
 
+BUILD_START_MARKER="$LANE/tmp/build-start-$SHA"
+touch "$BUILD_START_MARKER"
 echo "[run-round] building core union"
 # -j 1: handshake_core lib and lib-test compiled in parallel hit rustc-LLVM out of memory on 1f4e0f69
 # (2026-09-30, host shared with foreign builds); build them one at a time.
@@ -288,6 +288,14 @@ grep -q 'test_completion_hover_accesskit' "$LANE/logs/native-nextest-groups-$SHA
   || { echo "[run-round] FATAL: MT-008 completion/hover absent from owned-backend group"; exit 3; }
 echo "[run-round] native nextest MT-008 owned-backend group verified"
 fi
+
+# HBR-COMPART-002 / [VPX-011]: per-round rebuild accounting. Only the changed crates and their dependents
+# should compile; more is a rule defect to report.
+COMPILED_CRATES="$(find "$TARGET/debug/deps" -maxdepth 1 \( -name '*.rlib' -o -name '*.rmeta' \) -newer "$BUILD_START_MARKER" -printf '%f\n' 2>/dev/null | sed -E 's/^lib//; s/-[0-9a-f]{16}\..*$//' | sort -u || true)"
+RELINKED_BINS="$(find "$TARGET/debug/deps" -maxdepth 1 -name '*.exe' -newer "$BUILD_START_MARKER" 2>/dev/null | wc -l || true)"
+BACKEND_RELINKED=0; [ -f "$HSK_TEST_BACKEND_BIN" ] && [ "$HSK_TEST_BACKEND_BIN" -nt "$BUILD_START_MARKER" ] && BACKEND_RELINKED=1
+echo "[run-round] rebuild accounting: compiled_crates=$(printf '%s\n' "$COMPILED_CRATES" | grep -c .) relinked_test_binaries=$RELINKED_BINS backend_bin_relinked=$BACKEND_RELINKED refresh_mode=$WPV_EXPORT_MODE"
+echo "[run-round] compiled crate names: $(printf '%s ' $COMPILED_CRATES)"
 
 # 4. nextest run: core and native; the separately governed ignored proofs for
 #    BLOCKED MT-068/098/140 await their bounded supervisors, not this round.
