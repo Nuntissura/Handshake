@@ -517,5 +517,23 @@
       "executor": "WP_VALIDATOR (builder runs compile/static checks only, CX-EXEC-014)"
     },
     "stop_clause_application": "if F-A removes the engine.rs cost but the < 5 s median stays out of reach because of the ingestion share / per-statement cost, that is recorded as the blocker (operator_decision_request_20261001_ingestion_share_vs_ac_167_3); no time is chased in other modules"
+  },
+  "intent_20261001_f_a_go_conditions": {
+    "schema_id": "hsk.mt_intent@1",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T17:36:55Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "orchestrator_go": "GO for F-A inside knowledge_code_index/engine.rs (buddy CLEAR), with conditions below",
+    "equal_counts_extended": {
+      "id": "MT-167-EQUAL-COUNTS (extends hypothesis_20261001_engine_cost_and_intended_fix.equal_counts_proof_item)",
+      "control": "besides totals, the SET of (kind, key/name) per table must be equal between the per-file writer and the batch for both fixture shapes: knowledge_entities {(entity_kind, entity_key)}, knowledge_spans {(span_kind, range_start, range_end, section_path)}, knowledge_edges {(edge_type, source entity_key, target entity_key)}, knowledge_entity_spans {(entity_key, span_kind, range_start, range_end)}, knowledge_edge_spans {(edge_type, source key, target key, span range)} - ids differ per run, so sets are compared on natural keys",
+      "executable_consumer": "assertions in the new MT-167 core test file"
+    },
+    "failure_atomicity_change": "the MT-008 shape moves from the per-file writer's ~18 separate transactions (a mid-file failure leaves earlier rows committed and the file recorded through record_parse/read failure paths) to ONE all-or-nothing transaction: a failure now rolls back every row of the batch and the route takes its existing Err arm (api/code_nav_index.rs persist_code_index_batch Err -> finish_run Failed with error_capture code_index_batch_failure). This matches the existing clean-code batch behaviour for symbol-only files; it is a behaviour change for files with passages/relationships and is in scope of the adversarial review",
+    "h_b_fems_remainder": "H-B: the FEMS batch already runs as one transaction; its > 3 s projection plus the ingestion share are NOT addressed by F-A and fall under operator_decision_request_20261001_ingestion_share_vs_ac_167_3 / the MT-167 stop clause. MT-064 and MT-065 (FEMS seed) are therefore NOT expected to pass from F-A alone; MT-008 is the shape F-A targets",
+    "adversarial_review": "REQUIRED before before_submit (persistence boundary, KERNEL_BUILDER_PROTOCOL.md:67): independent read-only sub-agent; scope = atomicity change, extended lookup_existing (concept entities), relationship resolution parity, test-mapping fallback; findings + dispositions recorded in MT-167",
+    "cargo_toml": "a [[test]] entry for the MT-167 test file may be added now (orchestrator: no other builder lane active, validator idle); zero cargo/rustc verified before the edit",
+    "downstream": "MT-008/064/065 stay BLOCKED until MT-167's verdict"
   }
 }
