@@ -2740,6 +2740,12 @@
     "unmerged_work": "none: no candidate worktree existed",
     "processes_stopped": "none (creator PIDs 17768,23336,23464,31132,34112 confirmed not running by tasklist)",
     "records_citing_candidates": "0 matches in .GOV/task_packets/WP-KERNEL-012-*/**/*.json",
+    "late_finding_validator_lane_tmp": {
+      "path": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/tmp/hsk-session-worktrees-model-session-scheduler-<pid>",
+      "pids": "1128,139908,192344,194548,194892,195256,199336,203168,204772,206532,206828,207032,207844,207860",
+      "state": "14 folders, each empty (0 children, 0 bytes, no .git, no .GOV, no reparse points), mtime 2026-09-24, not registered worktrees; creator PID 139908 has a live process now (likely PID reuse, unverified), the other 13 PIDs not running",
+      "action": "skipped, not touched: inside the validator live lane wpv-c3x where a round starts after this cleanup; they hold no worktree and no data; Operator may order them binned after the round"
+    },
     "kernel_codex_verified_after_each_move": true,
     "total_moved_bytes": 0,
     "open_defect": "MT-141 scheduler test still creates hsk-session-worktrees-model-session-scheduler-<pid> under TMP and never removes them (handoff session7 item 11); needs repair MT, not part of this cleanup"
