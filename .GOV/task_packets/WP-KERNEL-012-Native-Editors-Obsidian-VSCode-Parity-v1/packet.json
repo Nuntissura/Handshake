@@ -2626,6 +2626,54 @@
         "C5_deadlines_unchanged": "no acceptance criterion, proof command or client deadline is changed (MT-042 \"not approved: raising the 5 s client deadline\" stands); the override changes the system-under-test speed only"
       },
       "effect": "MT contracts of the selected MTs carry operator_decision_20261001_backend_build_profile; selection and per-MT reasons: packet.json#debug_backend_override_mt_selection_20261001; handoff updated (topic session-2026-09-30-orchestrator)"
+    },
+    {
+      "recorded_at_utc": "2026-10-01T20:19:32Z",
+      "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+      "relayed_by": "ORCHESTRATOR root session",
+      "decision_id": "WP012-OPERATOR-TARGETED-FIRST-CADENCE-20261001",
+      "authorized_by": "OPERATOR",
+      "operator_decided_at_utc_approx": "2026-10-01T20:00:00Z",
+      "question": "May validators run a short targeted test (6–8 min, only the failing MT's named tests) before a full union round (47–122 min)? This changes your 'fix all failing MTs, then one cargo test' cadence.",
+      "options": [
+        {
+          "label": "Targeted first (Recommended)",
+          "description": "Run the failing MT's named tests first; full union round only once they pass. Fewer wasted full rounds; more runs in total."
+        },
+        {
+          "label": "Keep single run"
+        }
+      ],
+      "answer": "Targeted first (Recommended)",
+      "supersession_note": {
+        "amends_decision_id": "WP012-OPERATOR-INSTRUCTIONS-20260930-B",
+        "earlier_operator_quote": "fix all failing mt and do a single cargo test what the fuck are you doing, have you not read the handofffile",
+        "effect": "This answer amends that earlier cadence (fix all failing MTs, then one union round): validators may run a short targeted test of only the failing MT's named tests before the full union round; the full union round runs once the targeted tests pass."
+      },
+      "clarifications": [
+        "Rerun: a targeted run plus the later union round on the same candidate commit is a rerun of that MT's named proof commands; it needs a recorded remediation naming it (Codex CX-EXEC-014, .GOV/codex/Handshake_Codex_v1.4.md line ~135).",
+        "Evidence only: targeted results are evidence only; verdicts still come from the union round (Codex CX-EXEC-008 line ~123 and CX-VAL-001 line ~139). The Operator approved the cadence, not a new verdict source.",
+        "Entrypoint: any entrypoint change for targeted selection is a committed CX-VAL-007 config change (Codex line ~151); agents add no flags, wrappers or environment variables at run time."
+      ]
+    },
+    {
+      "recorded_at_utc": "2026-10-01T20:19:32Z",
+      "recorded_by": "governance paperwork agent for ORCHESTRATOR",
+      "relayed_by": "ORCHESTRATOR root session",
+      "decision_id": "WP012-OPERATOR-EXTRA-BUILD-AT-WP-END-20261001",
+      "authorized_by": "OPERATOR",
+      "operator_decided_at_utc_approx": "2026-10-01T20:00:00Z",
+      "question": "The extra-build proofs (cargo check --tests, clippy) for MT-153/079/122/136 are scheduled for one build at WP end (CX-VAL-005). Run them earlier?",
+      "options": [
+        {
+          "label": "Keep at WP end (Recommended)"
+        },
+        {
+          "label": "Run now"
+        }
+      ],
+      "answer": "Keep at WP end (Recommended)",
+      "effect": "The extra-build proofs (cargo check --tests, clippy) for MT-153/079/122/136 stay scheduled for the single build at WP end (CX-VAL-005); no earlier run. No change to workflow, gates or MT status (CX-EXEC-011)."
     }
   ],
   "stale_crate_builds_cleanup_20261001": {

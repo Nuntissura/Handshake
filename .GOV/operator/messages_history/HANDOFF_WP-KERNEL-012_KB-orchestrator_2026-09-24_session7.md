@@ -203,6 +203,18 @@ Operator decision (verbatim): "approved, update the mt contracts and also record
 - Section H item 1 and section K item 1 are DECIDED (approved).
 
 
+### M. Operator decisions 2026-10-01 ~20:00Z (multiple-choice): targeted-first cadence; extra build stays at WP end
+
+Both decisions are DECIDED. Records: `packet.json#operator_decisions_20261001` entries `WP012-OPERATOR-TARGETED-FIRST-CADENCE-20261001` and `WP012-OPERATOR-EXTRA-BUILD-AT-WP-END-20261001` (recorded 2026-10-01T20:19:32Z).
+
+- Q1 (verbatim): "May validators run a short targeted test (6–8 min, only the failing MT's named tests) before a full union round (47–122 min)? This changes your 'fix all failing MTs, then one cargo test' cadence." Options: "Targeted first (Recommended)" - "Run the failing MT's named tests first; full union round only once they pass. Fewer wasted full rounds; more runs in total." / "Keep single run". ANSWER: "Targeted first (Recommended)".
+  - Supersession: this amends the Operator's earlier cadence (`WP012-OPERATOR-INSTRUCTIONS-20260930-B`, section E / earlier audit): "fix all failing mt and do a single cargo test what the fuck are you doing, have you not read the handofffile" (fix all failing MTs first, then one union round). Validators may now run a short targeted test of only the failing MT's named tests first; the full union round runs once they pass.
+  - Rerun: a targeted run plus the later union round on the same candidate is a rerun; it needs a recorded remediation naming it (Codex CX-EXEC-014, line ~135).
+  - Evidence only: targeted results are evidence only; verdicts still come from the union round (Codex lines ~123 CX-EXEC-008, ~139 CX-VAL-001). The Operator approved the cadence, not a new verdict source.
+  - Entrypoint: any entrypoint change for targeted selection is a committed CX-VAL-007 config change (Codex line ~151).
+- Q2 (verbatim): "The extra-build proofs (cargo check --tests, clippy) for MT-153/079/122/136 are scheduled for one build at WP end (CX-VAL-005). Run them earlier?" Options: "Keep at WP end (Recommended)" / "Run now". ANSWER: "Keep at WP end (Recommended)". The WP-end extra-build proofs (section J item 5, section K item 6) stay at WP end; no earlier run.
+- These two items were not in the section H / K Operator decision lists; they are DECIDED here.
+
 ## State at 2026-10-01 ~04:00Z (AFK autonomy; Operator asleep, do not expect a reply)
 
 Evidence: gov `git log` (tip `ad5462e5`, 05:54:52 +0200 = 03:54:52Z; session start `cdfe6c73` 03:33:49Z on 2026-09-30), MT `lifecycle.status` re-read from all 167 `MT-NNN.json` and compared with `git show cdfe6c73:` (script, utf-8), `packet.json#operator_decisions_20260930` / `_20261001` / `credential_cleanup_20260930` / `stale_crate_builds_cleanup_20261001`, round records `MT-153.json#validation_round_*`, product `git ls-remote` and `git worktree list`. Typed MT JSON wins on conflict. This section wins over every section below wherever they differ (the 19:40Z state below is stale on: totals, READY list, product tip, rounds after `b4faed35`, blockers D, next action F). Commit times below are +0200 local unless marked Z.
