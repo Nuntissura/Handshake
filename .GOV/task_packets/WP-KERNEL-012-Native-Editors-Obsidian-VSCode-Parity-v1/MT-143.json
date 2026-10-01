@@ -63,11 +63,60 @@
       "src/frontend/handshake_native/tests/test_manual_content.rs"
     ],
     "compile_static_planned": "cargo check --locked --tests (test_manual_content target) in the lane-B owned target, only on orchestrator go",
-    "status": "PLANNED; product edit awaits orchestrator go"
+    "status": "IMPLEMENTED at product 4d0da145 (orchestrator go 2026-10-01)",
+    "fix_commit": {
+      "commit": "4d0da14584dc63e676a322527091caa933c4fc82",
+      "parent": "ee2345e94bf7f78ccb8e0920169d406e32baf14f",
+      "branch": "feat/WP-KERNEL-012",
+      "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 4d0da14584dc63e676a322527091caa933c4fc82",
+      "changed_files": [
+        "src/frontend/handshake_native/tests/test_manual_content.rs (+25: mt143_daily_journal_manual_answers_date_nav_ownership_and_pane_bounds)"
+      ],
+      "product_source_change": "none"
+    },
+    "validation": {
+      "proof_records": [
+        {
+          "proof_id": "PR-WP012-MT143-KB-LANEB-CHECK-01",
+          "executor_role": "KERNEL_BUILDER (implementer compile/static evidence, not a verdict)",
+          "covers": ["MT-143"],
+          "command": "cargo check --locked --tests --test test_manual_content -j 2",
+          "cwd": "src/frontend/handshake_native",
+          "env": "CARGO_TARGET_DIR=Handshake_Artifacts/WP-KERNEL-012/MT-143/kb-laneb/target; CARGO_INCREMENTAL=0; CARGO_PROFILE_DEV_DEBUG=line-tables-only; CARGO_PROFILE_TEST_DEBUG=line-tables-only",
+          "inputs": "ee2345e9 + tests/test_manual_content.rs as committed in 4d0da145 (only dirty file at check time)",
+          "exit_code": 0,
+          "result_line": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 23s; compiling=0 checking=1 (handshake-native) warnings=0",
+          "input_digest_before": "91380faf1cdc84ce42c825f6ab80a170a39c65976df7256f5b1fcf1577a21a40 (1760 files, git ls-files src .cargo rust-toolchain.toml)",
+          "input_digest_after": "91380faf1cdc84ce42c825f6ab80a170a39c65976df7256f5b1fcf1577a21a40 (equal)",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-143/kb-laneb/logs/01-check-manual-content.log",
+          "log_sha256": "def08b1803883ebc8f415b7749b38022ff59d975843314a927a32f6da1a371c0",
+          "lane_ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-143/kb-laneb/00-lane.txt",
+          "note": "CARGO_INCREMENTAL=0 recheck of the workspace crate is expected (seed excluded incremental); dependencies were reused (0 compiled)"
+        }
+      ]
+    },
+    "seeded_target": {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-143/kb-laneb/target",
+      "seeded_from": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c5/target (quiescent; lane A idle at ee2345e9, orchestrator-verified)",
+      "method": "robocopy /E /XD incremental /MT:8 (no /MIR, /PURGE or /MOV); exit 1; 45407 files, 41.133 GB, 0 failed; log ../Handshake_Artifacts/WP-KERNEL-012/MT-143/kb-laneb/logs/seed-copy.log",
+      "owner": "KERNEL_BUILDER lane B (shared by lane-B MTs MT-143, MT-111, MT-121, MT-117, MT-074)",
+      "cleanup": "WP-end disposable output (CX-984-006): remove ../Handshake_Artifacts/WP-KERNEL-012/MT-143/kb-laneb/target after WP validation PASS, before integration; retention reason until then: warm lane-B compile target"
+    }
   },
   "lifecycle": {
-    "status": "BLOCKED",
-    "blocked_on": "MT-067",
+    "status": "READY_FOR_VALIDATION",
+    "blocked_on": null,
+    "ready_for_validation_transition_20261001": {
+      "at_utc": "2026-10-01T18:35:00Z",
+      "by": "KERNEL_BUILDER lane B",
+      "from_status": "BLOCKED",
+      "prior_blocked_on": "MT-067",
+      "reason": "blocker MT-067 is PASS_V8 (MT-067.json#validation_round_bb9548e1; covers open_or_create_daily_note_is_idempotent_against_real_backend_live); co-blockers MT-066 PASS_V9, MT-032 PASS_V15; implementer commit 4d0da145 (AC-143-3 manual test) is newer than the last verdict",
+      "candidate_commit": "4d0da14584dc63e676a322527091caa933c4fc82",
+      "evidence_ref": "MT-143.json#remediation_plan_20261001_laneb",
+      "gameplan": "kernel_builder before_submit PASS 2/2 at 4d0da145 (GP-023 product commit has no .GOV path; GP-158 confirmed by builder: card-move edge/counter txn code unchanged 9191e8b5..4d0da145)",
+      "open_for_validator": "AC-143-1/PT-143-1 and PT-143-4 credited from linked artifacts or a WP-end fix-reverted RED run (validator call); AC-143-5 regression set incl. other_pillar_op01/op03 (not observed green since 49eac54e; MT-074 failure class)"
+    },
     "depends_on": [],
     "blocks": [
       "MT-117"
@@ -814,7 +863,7 @@
     "next_actor": "KERNEL_BUILDER",
     "no_context_instruction": "FAIL_V1 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V2."
   },
-  "updated_at_utc": "2026-09-24T04:08:15.141Z",
+  "updated_at_utc": "2026-10-01T18:35:00Z",
   "remediation_v2": {
     "session": "KERNEL_BUILDER-C1",
     "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
