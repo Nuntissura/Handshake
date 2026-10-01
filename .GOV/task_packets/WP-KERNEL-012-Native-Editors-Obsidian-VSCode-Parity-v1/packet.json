@@ -2777,5 +2777,21 @@
     "kernel_codex_verified_after_each_move": true,
     "total_moved_bytes": 0,
     "open_defect": "MT-141 scheduler test still creates hsk-session-worktrees-model-session-scheduler-<pid> under TMP and never removes them (handoff session7 item 11); needs repair MT, not part of this cleanup"
+  },
+  "round_tooling_20261001_spin_capture": {
+    "recorded_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "recorded_at_utc": "2026-10-01T15:00:00Z",
+    "basis": "orchestrator instruction 2026-10-01 (research cpu_spin_research.md Part B); CX-VAL-007 committed round tooling",
+    "files": {
+      "WPV-round-observer.ps1": "committed round observer (replaces lane-generated observe-*-cap-<sha>.ps1): capacity + owned process tree + BACKEND_CPU_SPIN trigger (2 consecutive polls of backend dCPU>=0.8*dt AND test dCPU<1 s AND backend dWrite<20 KB) -> once: per-thread CPU twice 5 s apart, procdump64 -accepteula -nobanner -r -ma -n 2 -s 10 <backend pid> into logs/<kind>-<sha>.spin-dumps/ (sample only, never kill; skipped if artifact drive free < 5 GB); -ReplayFile dry-run mode",
+      "WPV-spin-stack.sh": "offline: dump_syms --store <lane>/symstore backend-bin/debug/handshake_core.pdb; minidump-stackwalk per dump; hot-TID stack -> logs/<kind>-<sha>.spin-stack.txt; --delete-dumps permanently deletes the dumps after the stack is recorded (Codex :199)"
+    },
+    "validation": {
+      "replay_dry_run": "fires on 1d1f583a (14:25:55Z, backend 245828) and 791a81dd (11:03:27Z, backend 203100); silent on 7548bc72, 5da8b75a, 9e4bee34, 11f1b034, d9ce6017",
+      "capture_smoke": "detached Win32_Process.Create context: Get-Process .Threads read OK; procdump64 -r (PSS clone) -mm -n 2 -s 3 on a dummy PING.EXE wrote 2 dumps, exit 2, dummy left running; minidump-stackwalk resolved thread tids; smoke artifacts recycled",
+      "live_smoke": "observer one poll against a throwaway candidate id with a pre-made exit record: identity + observation written, clean exit",
+      "parse": "GP-160 ParseFile 0 errors; bash -n ok"
+    },
+    "launch": "launch_obs.ps1 -File WPV-round-observer.ps1 -ArgLine '-Sha <sha> -Kind union|pin-measure'"
   }
 }
