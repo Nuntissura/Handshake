@@ -2497,6 +2497,7 @@
       "confounder": "Foreign facial CPU benchmark (cargo PID 236376 created 21:58:57Z; test binary facial-04f2a95376a9c6dc PID 278420; facial-cli worker 274828) runs concurrently; not touched; failures classified from their own output evidence (CX-VAL-006), never from timing correlation alone"
     },
     {
+      "recorded_at_utc": "2026-10-01T03:49:55Z",
       "decision_id": "WP012-STABLE-EXPORT-PATH-RULES-20261001",
       "operator_quote": "VPX-011 in WPV protocol, KB-CAD-VPX-002 pointer, Global 023-025, WP-012 scripts now",
       "approved_texts": {
@@ -2546,7 +2547,7 @@
       "effect": "State-recovery record of a standing Operator instruction; when stuck, research with a cheap sub-agent (online) before running expensive, time-consuming tests. Compatible with WP012-OPERATOR-AFK-AUTONOMY-20260930; no obligation beyond the Operator's words and no change to workflow, gates or MT status (CX-EXEC-011)."
     },
     {
-      "recorded_at_utc": "2026-10-01T00:00:00Z",
+      "recorded_at_utc": "2026-10-01T15:03:33Z",
       "recorded_by": "governance paperwork agent for ORCHESTRATOR",
       "relayed_by": "ORCHESTRATOR root session",
       "decision_id": "WP012-OPERATOR-ORCHESTRATOR-NEVER-SELF-STOPS-20261001",
