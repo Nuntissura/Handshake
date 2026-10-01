@@ -14,7 +14,7 @@ Evidence: gov `git log --since=2026-10-01T03:00:00Z` (tip `0b56f8a8` = `origin/g
 
 ### A. What the previous top section (`~04:00Z`, gov `094db03b`) got wrong or lacks now
 
-- Status: it says MT-027/MT-153 READY on `fea3ce0a` and "MT-042 stays FAIL_V8". Now MT-027 FAIL_V16, MT-153 FAIL_V14, MT-042 PASS_V13 (`218fd2fa`). Counts there (129 PASS / 7 FAIL / 10 READY / 21 BLOCKED) are stale.
+- Status: it says MT-027/MT-153 READY on `fea3ce0a` and "MT-042 stays FAIL_V8". Then MT-027 FAIL_V16, MT-153 FAIL_V14, MT-042 PASS_V13 (`218fd2fa`). [CORRECTED 2026-10-01 ~17:45Z: current `lifecycle.status` is MT-027 PASS_V18 and MT-153 READY_FOR_VALIDATION (inconclusive pending the WP-end extra build); see subsection K.] Counts there (129 PASS / 7 FAIL / 10 READY / 21 BLOCKED) are stale.
 - Tips: product `fea3ce0a` is now `1d1f583a` (pushed; product worktree has an uncommitted `M src/backend/handshake_core/src/api/loom.rs`, content not inspected); gov `ec693a70` is now `0b56f8a8`.
 - "No round has run on export-current yet", "F1+F3 sufficiency UNVERIFIED", "F2 HELD", "debug-backend research pending", next-action steps 1-5: all superseded. Round on `export-current` ran (`fea3ce0a`); F1+F3 was insufficient (FAIL_V7); F2 was implemented (`d9ce6017`); the cheap research was done (`2b2990ef`, `0c9d08f9`).
 - Missing there: 12 rounds/probes since 03:00Z (table D), 2 new CX-GIT-003 credential occurrences (count 243/24), open `operator_decision_request_20261001_w_scan_ownership`, VPX-011 text-correction decision (`MT-153.json#note_20261001_vpx011_deviation`), d5f5d8e3 / R11 / no-SCHEMA_REVISION-bump open items, the current failure line, GP-158/159/160.
@@ -23,8 +23,8 @@ Evidence: gov `git log --since=2026-10-01T03:00:00Z` (tip `0b56f8a8` = `origin/g
 
 ### B. MT status now (167 MTs; `lifecycle.status` re-read at write time)
 
-- 130 PASS_*, 8 FAIL_*, 8 READY_FOR_VALIDATION, 21 BLOCKED. Previous top section: 129 / 7 / 10 / 21.
-- FAIL (8): MT-008 V9, MT-027 V16, MT-043 V6, MT-046 V9, MT-064 V9, MT-065 V9, MT-128 V3, MT-153 V14.
+- [CORRECTED 2026-10-01 ~17:45Z, subsection K: 131 PASS_*, 6 FAIL_* (MT-008 043 046 064 065 128), 9 READY_FOR_VALIDATION (MT-079 122 136 153 154 155 157 158 159), 21 BLOCKED; MT-027 is PASS_V18, MT-153 is READY_FOR_VALIDATION.] As of the ~15:10Z write: 130 PASS_*, 8 FAIL_*, 8 READY_FOR_VALIDATION, 21 BLOCKED. Previous top section: 129 / 7 / 10 / 21.
+- FAIL (8 at ~15:10Z; MT-027 and MT-153 are no longer FAIL, see correction above): MT-008 V9, MT-027 V16, MT-043 V6, MT-046 V9, MT-064 V9, MT-065 V9, MT-128 V3, MT-153 V14.
 - READY_FOR_VALIDATION (8): MT-079, MT-122, MT-136, MT-154, MT-155, MT-157, MT-158, MT-159 (rounds 7548bc72..9e4bee34 inconclusive for 079/122/136/154/157/158/159 with pins PASS; MT-155 never in a round; 11f1b034 and 1d1f583a ran MT-027/MT-153 only).
 - BLOCKED (21, unchanged): MT-033 034 045 068 070 074 098 111 116 117 120 121 124 125 127 129 130 140 142 143 167.
 - `.GOV/task_packets/WP-KERNEL-012-.../MT-136-candidate-boundary.json` is an extra file with no `lifecycle` (not an MT; left unchanged).
@@ -58,7 +58,7 @@ Evidence: gov `git log --since=2026-10-01T03:00:00Z` (tip `0b56f8a8` = `origin/g
 - `1d1f583a` (14:19-14:27): MT-153 V14, MT-027 V16; `BACKEND_CPU_SPIN_STALLS_MOUNTED_VIEW_LOAD` (`:2001`, view 1c478634); CX-GIT-003 occurrence 2 (243/24). Gov `73d57640`.
 - Round selections: `474d0777`, `423ed9a5`, `1c491952`, `89e3796a`, `4591c689`, `16bf3c27`, `212dd373` (the last: only `test_block_collection_view.rs` changed, MT-027 BCV named tests + minimal core, rest reused).
 
-### E. Current failure line (MT-153 FAIL_V14 / MT-027 FAIL_V16)
+### E. Failure line as of ~15:10Z (MT-153 FAIL_V14 / MT-027 FAIL_V16; superseded: MT-027 PASS_V18, MT-153 READY_FOR_VALIDATION, subsection K)
 
 - Class `BACKEND_CPU_SPIN_STALLS_MOUNTED_VIEW_LOAD` (`MT-153.json#validation_round_1d1f583a`): mounted app does not load the view within 10 s at `test_block_collection_view.rs:2001`; owned backend ~1 core, no I/O growth, no logs (same view-load class at `7548bc72` and `791a81dd`; did not recur in `5da8b75a`, `9e4bee34`, `11f1b034`).
 - Research (`MT-153.json#diagnosis_20261001_cpu_spin_reconciler_tick_p2`, gov `0c9d08f9`, 14:49Z): in 3/3 failing runs the last Flight Recorder write lands within 0.1 s of a 15 s reconciler tick (`spawn_block_view_reconciler`, `api/loom.rs:2654-2670`); HYPOTHESIS R1 = tick-vs-request double publication of the same outbox event; ~1 core is NOT a discriminator (healthy runs show it too); R2 rocksdb drain_cursors contradicted.
@@ -112,6 +112,85 @@ Evidence: gov `git log --since=2026-10-01T03:00:00Z` (tip `0b56f8a8` = `origin/g
 3. If P2 fails: record the blocker and escalate (no attempt 3 per the diagnosis record); do not resubmit the same fix.
 4. Orchestrator: continuous 10-minute tick (never self-stops); decide or leave open the section H items without the Operator where the AFK instruction covers them; credential deletion needs Operator approval.
 5. Then the remaining FAIL MTs (MT-008/064/065 blocked_on MT-167; MT-043/128; MT-046), the READY MTs (079, 122, 136, 154, 155, 157, 158, 159), WP-end extra-build proofs; report WP-KERNEL-012 finished only when all MTs are validator PASS.
+
+### K. Remaining MTs classification (2026-10-01 ~17:45Z)
+
+Evidence only. Source: `lifecycle.status` re-read over all 168 `MT-*.json` at gov tip `d5015c99`; product tip `9191e8b5` clean. Record cites are `MT-NNN#key` = `.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-NNN.json#key`. `MT-136-candidate-boundary.json` has no lifecycle (not an MT). Non-PASS set = 36: FAIL 6 (008 043 046 064 065 128), BLOCKED 21 (033 034 045 068 070 074 098 111 116 117 120 121 124 125 127 129 130 140 142 143 167), READY_FOR_VALIDATION 9 (079 122 136 153 154 155 157 158 159).
+
+Corrections to the sections above (gov `e66ff959` round `c1920348` and `423f100a` round `9191e8b5` came after the ~15:10Z text): MT-027 is PASS_V18 (not FAIL_V16); MT-153 is READY_FOR_VALIDATION (not FAIL_V14), inconclusive: all runtime proofs PASS at `9191e8b5`, `MT-153-CHECK-TESTS` and `MT-153-CLIPPY-CHANGED` open until the WP-end extra build (`MT-153#status_20261001_check_tests_clippy_changed_wp_end`; cause: missing `extra_build_proofs` declaration). Product tip is `9191e8b5` (DIAGNOSTIC logs reverted, P2 kept). MT-167 moved after the ~15:10Z text: gov `e3fe5c05` binds `knowledge_code_index/engine.rs` (`MT-167#implementation_record.owning_module`, status `evidence_recorded_owning_module_bound_no_edit_yet`), gov `fd3bd439` adds the open `MT-167#operator_decision_request_20261001_ingestion_share_vs_ac_167_3`, gov `dc20a480`/`d5015c99` record the cost hypothesis, intended fix F-A and GO conditions. `MT-167#lifecycle.blocked_on` still reads "evidence not yet recorded" = stale text; `lifecycle.active=true`, claimed_by null.
+
+Class key: (a) actionable now by the builder inside its own allowed paths; (b) waiting on another MT; (c) needs an Operator decision; (d) only WP-end extra-build / supervised-run items left; stale = the recorded blocker MT is already PASS.
+
+| MT | status | class | blocker / failing class | record cited |
+|---|---|---|---|---|
+| 167 | BLOCKED | (a) critical path | AC-167-1 evidence recorded, module bound, no edit yet; the open ingestion-share ask does not block the engine.rs edit | `MT-167#implementation_record.owning_module`, `#operator_decision_request_20261001_ingestion_share_vs_ac_167_3` |
+| 008 | FAIL_V9 | (b) MT-167 (+ (c) hover owner) | seed code-nav index 24 s `Ok(None)` fallback; ac006 `LIVE_HOVER_TOOLTIP_NOT_OPENED` (cause UNVERIFIED, fix owner undetermined) | `MT-008#validation_round_b4faed35`, `#diagnosis_20260930_b4faed35` |
+| 064 | FAIL_V9 | (b) MT-167 | FEMS seed index request timeout | `MT-064#operator_decision_request_20260930_index_cost`, `#authority_check_20260930_seed_timeout` |
+| 065 | FAIL_V9 | (b) MT-167 (+ MT-064) | same | `MT-065#operator_decision_request_20260930_index_cost` |
+| 034 | BLOCKED | (b) MT-008 -> MT-167 | live code-ref proof stops at code-nav index timeout (`test_code_note_cross_ref.rs:2816`) | `MT-034#validation_v7`, `#lifecycle.blocked_on` |
+| 070 | BLOCKED | (b) MT-008 -> MT-167 | needs MT-008 independently PASS + real Peek/Go-to-Definition proof | `MT-070#validation_v6.exact_proof_gaps` |
+| 068 | BLOCKED | (b) MT-034 + (d) | depends_on MT-034 BLOCKED; PC-068-02 needs `tests/run_mt068_locus_proof.ps1` supervised | `MT-068#lifecycle.blocked_on` |
+| 074 | BLOCKED | stale (MT-066 PASS_V9); formal dep MT-068 -> (b) | AC-074-8 diff proof, AC-074-10 idempotency (no dedicated test) | `MT-074#validation_v7` |
+| 116 | BLOCKED | stale (MT-027 PASS_V18); formal dep MT-068 -> (b) | AC-116-2 manual PNG inspection, AC-116-3 regression enumeration | `MT-116#lifecycle.blocked_on` |
+| 117 | BLOCKED | stale (MT-066 PASS_V9); formal dep MT-074 -> (b) | AC-117-3/4/5 | `MT-117#lifecycle.blocked_on` |
+| 130 | BLOCKED | stale (MT-066 PASS_V9); formal dep MT-117 -> (b) | AC-130-2 counts, UserManual test; Operator decision already ratified | `MT-130#operator_decision_20260914` |
+| 124 | BLOCKED | (d) + formal dep MT-116 (b) | PT-124-2 RED half (fix reverted) | `MT-124#lifecycle.blocked_on` |
+| 033 | BLOCKED | stale (MT-032 PASS_V15) + (c) AC reconciliation | AC-001/002/003/006: literal `atelier_embed` block / Canvas node `atelier_item_id` / Region+StartDrag roles not asserted | `MT-033#validation_v8.remaining_proof_gaps` |
+| 111 | BLOCKED | stale (MT-036 PASS_V10) -> (a) | AC-111-4 no test drives app.rs FR pane read with `?wsid=`; PT-111-2 grep proof | `MT-111#validation_v2` |
+| 121 | BLOCKED | stale (MT-032 PASS_V15) -> (a) | PC-121-04 `test_find_in_files` live round-trip (doc-create timeout at `49eac54e`); re-run only | `MT-121#validation_v3` |
+| 129 | BLOCKED | stale (MT-027 PASS_V18) -> (a) | ordinary BCV target red at `49eac54e`; special/history proofs not credited | `MT-129#validation_v8` |
+| 143 | BLOCKED | stale (MT-067 PASS_V8) -> (a) | AC-143-1 per-frame capture, AC-143-3 UserManual assertion, AC-143-4 RED capture | `MT-143#validation_v3` |
+| 120 | BLOCKED | (b) MT-043 + (c) | live swarm fails at mounted note create (MT-043); AC-120-4 ("12 tests" vs one test fn) and AC-120-6 contract conflicts | `MT-120#validation_v3.remaining_proof_gaps` |
+| 043 | FAIL_V6 | (c) | 5 s merged-resave bound NOT_DECIDED; doc create 3.5 s in ownerless `storage/surreal/knowledge.rs` | `MT-043#validation_round_bb9548e1`, `#diagnosis_20260930_bb9548e1`, `#operator_decision_request_20260930_bb9548e1` |
+| 128 | FAIL_V3 | (c) | same as MT-043 | `MT-128#operator_decision_request_20260930_bb9548e1` |
+| 046 | FAIL_V9 | (c) + (b) | ic04/ic10/ic12 backlink projection in `handshake_document/src/surreal.rs` (no owner); ic06 on MT-167; 403 fix `0c416dc4` unverdicted; formal deps 033/034/045 BLOCKED | `MT-046#validation_round_bd8c7532`, `#diagnosis_20261001_bd8c7532`, `#remediation_20261001_0c416dc4` |
+| 045 | BLOCKED | (d) + (c) leak routing | release-profile perf run (20 perf proofs) via `run_mt045_perf_proof.ps1`; leak-defect routing has no MT record | `MT-045#operator_decision_2026_09_24` |
+| 125 | BLOCKED | (d) | PT-125-1 RED half | `MT-125#lifecycle.blocked_on` |
+| 127 | BLOCKED | (d) | AC-127-3 ignored proofs incl. controlled interactive desktop, AC-127-4 fat-LTO release packaging, AC-127-6 final full native sweep | `MT-127#lifecycle.blocked_on` |
+| 098 | BLOCKED | (d) | PC-098-05 MT-108 Argus real-server loop (`run_mt108_argus_proof.ps1`) | `MT-098#lifecycle.blocked_on` |
+| 140 | BLOCKED | (d) | PC-140-06 ignored live Locus proof (same supervisor as MT-068) | `MT-140#lifecycle.blocked_on` |
+| 142 | BLOCKED | (d) (+ deps MT-136 READY, MT-140 BLOCKED) | PT-142-7 extended load rerun on idle host, run50 binary, no build | `MT-142#lifecycle.blocked_on` |
+| 079 | READY | (d) | AC-079-8 bare app build/clippy/full suite; AC-079-7 static | `MT-079#validation_round_9e4bee34` |
+| 122 | READY | (d) | PT-122-2 independent fix-reverted RED log | `MT-122#validation_round_9191e8b5` |
+| 136 | READY | (d) | PT-136-1, PT-136-2/AC-136-4, PT-136-3, AC-136-1/3 static (surface proofs a/b/c 3/3 PASS) | `MT-136#validation_round_9191e8b5` |
+| 153 | READY | (d) | `MT-153-CHECK-TESTS`, `MT-153-CLIPPY-CHANGED` (all runtime proofs PASS at `9191e8b5`) | `MT-153#validation_round_9191e8b5`, `#status_20261001_check_tests_clippy_changed_wp_end` |
+| 154 | READY | (d) | NATIVE-DRAIN, CHECK-TESTS, CLIPPY-CHANGED, FMT, DIFF-CHECK (pins PASS) | `MT-154#validation_round_9e4bee34.proof_reuse`, `#validation_shared_union_37ee7c5b.unclosed_required_proof` |
+| 155 | READY | (d) | `MT-155-CHECK-TESTS`, `MT-155-CLIPPY-CHANGED` (never in a round after `37ee7c5b`) | `MT-155#validation_shared_union_37ee7c5b.unclosed_required_proof` |
+| 157 | READY | (d) | `MT-157-CHECK-TESTS`, `MT-157-CLIPPY-CHANGED` | same key in `MT-157` |
+| 158 | READY | (d) | `MT-158-CHECK-SETS`, `MT-158-CLIPPY` | same key in `MT-158` |
+| 159 | READY | (d) | `MT-159-CHECK-SETS`, `MT-159-CLIPPY` | same key in `MT-159` |
+
+Stale-blocker finding: 9 BLOCKED MTs (033, 074, 111, 116, 117, 121, 129, 130, 143) name a blocker MT that is now PASS (MT-032 PASS_V15, MT-036 PASS_V10, MT-027 PASS_V18, MT-066 PASS_V9, MT-067 PASS_V8). Their last verdicts are 2026-09-26 on candidate `49eac54e` ("one final union consumed; no rerun while dependency open"); none has been re-READY'd or re-run since. UNVERIFIED: whether the failure recorded at `49eac54e` is gone on `9191e8b5`; document-create cost (MT-043 3.5 s) may still hit MT-033/121 live round-trips. MT-074/116/117/130 additionally carry a formal depends_on chain (MT-068 -> MT-074 -> MT-117 -> MT-130; MT-068 -> MT-116 -> MT-124) that is BLOCKED.
+
+Proposed order (critical path MT-167 -> MT-008 (+ hover diagnostic) -> MT-034 -> MT-068 -> MT-074 -> MT-117 -> MT-130; side branches MT-034/033/045 -> MT-046 and MT-068 -> MT-116 -> MT-124):
+
+1. Lane A: MT-167 F-A edit in `knowledge_code_index/engine.rs` + one focused timing test (AC-167-2/3), compile/static only; record-and-escalate per its stop condition if AC-167-3 is unreachable. One batched Operator decision list (below) in parallel.
+2. Lane B: re-READY stale-blocker MTs after verifying the cleared dependency covers the recorded failure, then close builder-owned gaps in `tests/**`.
+3. After the MT-167 verdict path: MT-008 hover diagnostic -> MT-008/064/065 re-READY; then MT-034, MT-070, MT-046 ic06, MT-068.
+4. After Operator decisions 3-4: MT-043/128/120 and MT-046 owner work.
+5. Single union round on the final candidate covering all re-READY MTs (also MT-155). Preconditions: GP-154 commit free >= 45 GB, `-j 1`, detached launch, GP-131 vault probe.
+6. WP-end extra build / supervised runs: CHECK-TESTS and CLIPPY-CHANGED (MT-153/154/155/157/158/159), MT-154 NATIVE-DRAIN/FMT/DIFF-CHECK, MT-079 AC-079-7/8, MT-122 PT-122-2, MT-136 PT-136-1/2/3, MT-045 perf, MT-124/125 RED halves, MT-068/098/140 supervised runs, MT-142 PT-142-7, MT-127 AC-127-3/4/6.
+
+Lane plan (file-overlap evidence: frontend hot files `src/app.rs` (MT-033 070 079 098 111 117 121 125 143), `src/backend_client.rs` (008 033 034 098 111 120), `src/manual_content_editors.rs` (033 111 143) serialize; backend `Cargo.toml` overlap only MT-140/MT-127, both WP-end):
+
+- Lane A: MT-167 F-A in `src/backend/handshake_core/src/knowledge_code_index/engine.rs` + new timing test under `src/backend/handshake_core/tests/` + `Cargo.toml` `[[test]]`. Forbidden to it: schema.surql, schema.rs, event_ledger.rs (MT-153), `knowledge_ingestion/engine.rs` (MT-154), `src/frontend/**`.
+- Lane B1 (no app.rs): MT-129, MT-143, MT-130.
+- Lane B2 (serialized on app.rs): MT-111, MT-121, MT-117, MT-074.
+- MT-033 only after its AC decision. MT-116 and MT-124 only after MT-068 is un-BLOCKED or the dependency is formally released.
+- Candidate-boundary rule: round entrypoints require HEAD == pushed tip == candidate, one product worktree (`wtc-native-editors-v1`); frontend `src/**` edits invalidate the CX-VAL-002 native reuse of MT-079/122; batch lane B edits before the single union round.
+
+Operator decision list (none made; each with the MTs it gates):
+
+1. Debug-backend dependency opt-level override: `MT-153#research_20261001_debug_backend_profile` (OPERATOR_DECISION_PENDING; same-SHA canary first). Gates timing-driven MT-043/128, MT-008/064/065, MT-167 AC-167-3.
+2. Owner for ownerless `storage/surreal/knowledge.rs` (MT-043/128 doc create; MT-008 hover lookup) and the ingestion share (`knowledge_ingestion/engine.rs`, MT-154 module) vs AC-167-3 median < 5 s: `MT-167#operator_decision_request_20261001_ingestion_share_vs_ac_167_3` (options: reduce ingestion cost via MT-154/new MT; apply item 1; re-scope AC-167-3; other).
+3. MT-043/128 5 s merged-resave bound (`test_e7_swarm_edit_proof.rs:3240-3252`): `MT-043#operator_decision_request_20260930_bb9548e1`, NOT_DECIDED; raising the bound inside the builder's paths is proof weakening.
+4. MT-046 backlink-projection owner (`src/backend/handshake_document/src/surreal.rs`): `MT-046#remediation_20261001_0c416dc4`.
+5. W-scan ownership (`fn::mt120_workspace_delete` grant/resource scans): `MT-153#operator_decision_request_20261001_w_scan_ownership`.
+6. Two leaked OS-vault credentials (not deleted, approval required) and CX-GIT-003 leak-defect routing (MT-032 vs MT-154 vs new helper defect; MT-045 has no record): `packet.json#credential_cleanup_20260930.defect_cx_git_003.occurrences` (243/24).
+7. VPX-011 text correction: `MT-153#note_20261001_vpx011_deviation` (decision_owner Operator).
+8. AC reconciliations: MT-033 (literal `atelier_embed` / Canvas node / Region+StartDrag, `MT-033#validation_v8.remaining_proof_gaps`) and MT-120 (AC-120-4 "12 tests", AC-120-6 "no edit to the test", `MT-120#validation_v3.remaining_proof_gaps`).
+9. MT-127 supervised interactive foreground step (AC-127-3 controlled interactive desktop): must be surfaced to the Operator first and must not run unsupervised (GLOBAL-BUILD-QUIET).
+
 
 ## State at 2026-10-01 ~04:00Z (AFK autonomy; Operator asleep, do not expect a reply)
 
