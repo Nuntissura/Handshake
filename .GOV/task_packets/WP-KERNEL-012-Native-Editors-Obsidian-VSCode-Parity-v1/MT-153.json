@@ -5899,5 +5899,31 @@
       "accept current cost (test cleanup budget)"
     ],
     "status": "open"
+  },
+  "hypothesis_20261001_batch_reorder_and_probe": {
+    "schema_id": "hsk.mt_attempt_hypothesis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_before_edit": true,
+    "recorded_at_utc": "2026-10-01T11:31:24Z",
+    "rule": "CX-EXEC-003A",
+    "approved": "orchestrator (buddy conditions met) 2026-10-01: batch (a)+(c)",
+    "a_reorder": {
+      "line": "MT-042 ac10 MOUNTED_KANBAN_ACCESSKIT_RECONCILE_TIMEOUT - attempt 1 (MT-153.json#diagnosis_20261001_ac10_move_deadline)",
+      "change": "schema.surql:567 loom_edges FOR delete: `(A) OR fn::mt120_workspace_delete(record::id(workspace_id)) OR (B)` -> `(A) OR (B) OR fn::mt120_workspace_delete(record::id(workspace_id))`; text of A, B and W unchanged",
+      "evidence": [
+        "short-circuit VERIFIED: surrealdb-core 3.2.0 expr/expression.rs:645-722 (Or returns a truthy left without computing the right, :711-716); BindingPower Or < And (sql/operator.rs:535-548); left-associative (syn/parser/expression.rs:77)",
+        "B TRUE for the owner's card-move delete: MT-153.json#analysis_20261001_step1_w_scans_ownership.i_endpoint_clause_true_for_owner_card_move (creator grants loom_canvas_store.rs:61; same chain is the whole loom_edges create predicate :565 and owner tag-edge creates succeed)",
+        "allow/deny unchanged: MT-153.json#analysis_20261001_schema_hygiene.loom_edges_delete_reorder (side-effect-free, non-throwing operands)"
+      ],
+      "expected_effect": "W (schema.surql:6771-7036) is no longer evaluated on the owner's card-move tag-edge DELETE (F2 move txn) nor on per-edge deletes in the workspace delete when B holds",
+      "lineage": "new (current, previous) pair in schema.rs reverted FIRST in restore_pre_indexed_grant_schema; the 161->162 upgrade (indexed_grant_upgrade_statements) re-emits the loom_edges DEFINE TABLE statement; byte-exact revert check; NO pin touched in this commit (validator PIN-MEASURE next)"
+    },
+    "c_instrumentation": {
+      "line": "BCV MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT - the one probe (MT-153.json#research_20261001_fr_stall_refuted hypothesis CPU-bound Surreal statement)",
+      "status": "DIAGNOSTIC - marked in code comments; reverted after the result is recorded",
+      "where": "api/loom.rs only: a helper times a future, logs WARN 'MT153_DIAG still running' at 2 s and on completion logs WARN when elapsed > 2 s else INFO, with operation, workspace/block/event ids and elapsed_ms (target handshake_core::mt153_diag); wrapped: update_block_view (Surreal update_block_view_definition, scoped publication), get_block_view and query_block_view_results Surreal calls, reconcile_block_view_events (load_scoped_publication, list_pending, record_failure, mark_published) and record_block_view_event_idempotent (FR list_events / record_event), the 15 s background reconciler pass",
+      "no_behavior_change": "only logging around existing awaits; return values and errors unchanged"
+    },
+    "run_plan": "cargo check when D: idle; push; before_submit (GP-158); validator PIN-MEASURE; re-pin; then one union round; no resubmit before the re-pin"
   }
 }
