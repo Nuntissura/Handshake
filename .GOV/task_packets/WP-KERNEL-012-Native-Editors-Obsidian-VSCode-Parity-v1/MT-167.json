@@ -184,6 +184,21 @@
         "evidence_required": [
           "junit"
         ]
+      },
+      {
+        "check_id": "MT-167-EQUAL-COUNTS",
+        "executor_role": "WP_VALIDATOR",
+        "claim_refs": [
+          "AC-167-2"
+        ],
+        "command_or_method": "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs::mt167_batch_and_per_file_writer_produce_equal_rows (union round)",
+        "expected": "for mt008-fixture, fems-seed and rich-parity, after pass 1 and pass 2: equal totals and equal natural-key sets for entities (kind|key|display|provenance|primary source path), spans, entity_spans, edges (type|source|target|confidence), edge_spans and code_files rows; every route run asserted on the batch path (code_files_indexed_batch receipt)",
+        "timeout_seconds": 1200,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "junit",
+          "printed MT167_EQUAL_COUNTS lines"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -204,8 +219,8 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "BLOCKED",
-    "blocked_on": "AC-167-1 owning-module evidence not yet recorded (contract authored; no implementation started)",
+    "status": "READY_FOR_VALIDATION",
+    "blocked_on": null,
     "depends_on": [],
     "blocks": [
       "MT-008",
@@ -216,9 +231,22 @@
     "validator_verdict": null,
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER (AC-167-1 evidence, then bind owning_module)",
+    "next_actor": "WP_VALIDATOR union round",
     "rounds_without_output": 0,
-    "diagnosis_refs": []
+    "diagnosis_refs": [
+      "MT-167.json#implementation_record.owning_module_evidence",
+      "MT-167.json#hypothesis_20261001_engine_cost_and_intended_fix",
+      "MT-167.json#intent_20261001_f_a_go_conditions",
+      "MT-167.json#adversarial_review_20261001_f_a",
+      "MT-167.json#operator_decision_request_20261001_ingestion_share_vs_ac_167_3"
+    ],
+    "status_before_ready": "BLOCKED",
+    "candidate_commit": "ee2345e94bf7f78ccb8e0920169d406e32baf14f",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = ee2345e94bf7f78ccb8e0920169d406e32baf14f",
+    "ready_for_validation_at_utc": "2026-10-01T17:59:02Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260930",
+    "gameplan": "before_submit kernel_builder PASS 2/2 at ee2345e9; GP-158 confirmed (loom edge/counter txn files untouched; only code-index engine.rs, Cargo.toml, MT-167 test)",
+    "selection_note": "run tests/mt167_code_nav_index_cost_tests.rs (timing AC-167-3 + MT-167-EQUAL-COUNTS), knowledge_code_index_tests, knowledge_code_nav_api_tests, code_nav_index_account_tests (now batch path, review R8), and the downstream MT-008 PC-008-05 / MT-064 PC-064-04 / MT-065 PC-065-01. Expectation: MT-008 fixture loses the 24 s fallback; FEMS (MT-064/065) is NOT expected to pass from F-A alone (H-B; ingestion share under the open ODR); the full-route < 5 s median may be out of reach for the same reason (MT-167 stop clause)"
   },
   "scope": {
     "summary": "Bring the code-nav index route within Master Spec §2.3.14.17.3 (index update propagation <5 s target, 30 s max) by fixing the evidenced cause of persist_code_index_batch returning Ok(None) in 0 ms and falling back to the ~24 s per-file writer; prove with a median-of-N timing test.",
@@ -409,7 +437,19 @@
     "effect": "Narrow MT for code-nav index cost approved; MT-008/064/065 blocked_on MT-167."
   },
   "validation": {
-    "proof_records": []
+    "proof_records": [
+      {
+        "check_id": "MT-167-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20260930",
+        "at_utc": "2026-10-01T17:59:02Z",
+        "commit": "ee2345e94bf7f78ccb8e0920169d406e32baf14f",
+        "command": "cd src/backend/handshake_core && cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "exit_code": 0,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/check-f-a-review-core.log (pre-review state: check-f-a-core.log, exit 0)",
+        "warnings": "no new warning; the engine.rs:49 unused import KnowledgeIndexRunCounts predates this change (also in MT-153 check-diag-revert-core.log)",
+        "deviation": "run on the canonical ../Handshake_Artifacts/handshake-cargo-target via the checked-in Cargo config (AGENTS.md:88: never set CARGO_TARGET_DIR to another path) instead of the MT text's per-MT CARGO_TARGET_DIR; same features; 0 cargo/rustc before launch"
+      }
+    ]
   },
   "implementation_record": {
     "owning_module_evidence": {
@@ -449,9 +489,17 @@
         "extending the batch path to docs/relationships must keep passages, Calls edges and test mappings identical (red_team risk 2); alternative is cutting per-file writer cost"
       ]
     },
-    "status": "evidence_recorded_owning_module_bound_no_edit_yet",
+    "status": "implemented_ready_for_validation",
     "owning_module": "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
-    "updated_at_utc": "2026-10-01T17:32:54Z"
+    "updated_at_utc": "2026-10-01T17:59:02Z",
+    "commit": "ee2345e94bf7f78ccb8e0920169d406e32baf14f",
+    "files": [
+      "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+      "src/backend/handshake_core/Cargo.toml ([[test]] mt167_code_nav_index_cost_tests, added at a lane-quiet boundary: orchestrator confirmed no other builder lane active and validator idle; 0 cargo/rustc before the edit)",
+      "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs"
+    ],
+    "change_summary": "F-A: try_index_prepared_batch writes doc/TODO/operator-string passages (text span + concept + documents edge) and in-file calls/implements edges (ast evidence span + references/implements edge) in its single transaction; natural-key dedup with last-write-wins concepts; lookup_existing extended to concept keys and the new relationship ids; receipt counts and edges_indexed mirror index_code_file; a re-indexed symbol's stale ast span links are replaced in the transaction (review R1); files with test mappings or imports keep the per-file writer (review R2)",
+    "not_edited": "api/code_nav_index.rs (CX-UNIT-001); schema/ledger/ingestion files"
   },
   "authored_by": "KERNEL_BUILDER-LANE-B-20260930",
   "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-164 precedent shape",
@@ -535,5 +583,70 @@
     "adversarial_review": "REQUIRED before before_submit (persistence boundary, KERNEL_BUILDER_PROTOCOL.md:67): independent read-only sub-agent; scope = atomicity change, extended lookup_existing (concept entities), relationship resolution parity, test-mapping fallback; findings + dispositions recorded in MT-167",
     "cargo_toml": "a [[test]] entry for the MT-167 test file may be added now (orchestrator: no other builder lane active, validator idle); zero cargo/rustc verified before the edit",
     "downstream": "MT-008/064/065 stay BLOCKED until MT-167's verdict"
+  },
+  "adversarial_review_20261001_f_a": {
+    "schema_id": "hsk.adversarial_review@1",
+    "rule": "KERNEL_BUILDER_PROTOCOL.md:67 (persistence boundary); orchestrator GO condition (2)",
+    "reviewer": "independent read-only sub-agent (no edits, no builds), 2026-10-01",
+    "reviewed_state": "uncommitted F-A diff (engine.rs, Cargo.toml, new test) before ee2345e9",
+    "scope": [
+      "failure-atomicity change",
+      "extended lookup_existing (concept entities)",
+      "relationship resolution parity",
+      "test-mapping fallback",
+      "authority/privacy, test vacuity"
+    ],
+    "verdict": "ACCEPTABLE WITH FIXES (fresh-index parity holds by inspection)",
+    "verified_by_inspection": "passage spans/concepts/documents-edge target rule; relationship source/target resolution (resolve_symbol_by_name reused with symbol keys), unresolved/self-edge skips, evidence span fields, confidence, relationship_id derivation; edges_indexed/receipt counts; natural-key dedup keeps the INSERT-count and post-write verification guards valid; test-mapping fallback only via engine.rs:986 guard before any side effect",
+    "findings": [
+      {
+        "id": "R1",
+        "severity": "MAJOR",
+        "finding": "re-index divergence: per-file write_symbol replaces a symbol's older ast span links (replace_knowledge_entity_spans_for_source_kind, storage/surreal/knowledge.rs:3208-3211); the batch only inserted links, so batch-indexed symbols accumulated stale links (pre-existing for symbol-only files, now far more exposed)",
+        "disposition": "FIXED in ee2345e9: PERSIST_CLEAN_CODE_BATCH deletes each symbol's other ast links on the same source before inserting the new link ($symbol_span_links, same predicate as the per-file replace); the parity test indexes every shape twice on both paths and compares after each pass"
+      },
+      {
+        "id": "R2",
+        "severity": "MAJOR (UNVERIFIED)",
+        "finding": "import module concepts have no primary_source_id; record-user create/read permissions (fn::mt120_entity_write -> mt120_index_source_write requires $source != NONE, schema.surql:3599, 7159-7170) likely deny them in BOTH paths; no fixture has an import",
+        "disposition": "SCOPED OUT: batch_file_extras returns None for any Imports relationship, so files with imports keep the per-file writer exactly as before (no behaviour change, no parity claim). The suspected pre-existing record-user import defect is outside MT-167 (schema owners) and is reported to the orchestrator as an open question"
+      },
+      {
+        "id": "R3",
+        "severity": "MINOR",
+        "finding": "no natural-key lock/retry: the batch lookup runs outside its transaction; a concurrent index of another root sharing concept/edge identities can fail the whole batch where per-file guarded_mutation would retry",
+        "disposition": "ACCEPTED as existing batch property (already true for symbol-only files); failure is visible (THROW / unique-index error -> run Failed), not silent; module concepts (the shared identity) are no longer batched (R2). Recorded as residual risk"
+      },
+      {
+        "id": "R4",
+        "severity": "MINOR",
+        "finding": "new test exercised few new forms (MT-008: doc comment + one call; FEMS: symbols only); no re-index, no code-file row comparison",
+        "disposition": "FIXED in ee2345e9: parity-only rich shape (inner doc -> file, outer doc -> symbol, TODO marker, two operator strings on one line = shared concept key, implements edge, resolved + unresolved call), two passes, code_files rows (path, parse_status, symbols_indexed, edges_indexed, stale) compared; batch path asserted per run via the code_files_indexed_batch receipt"
+      },
+      {
+        "id": "R5",
+        "severity": "NOTE",
+        "finding": "edge ON DUPLICATE sets lifecycle_state = 'active'; per-file UPDATE leaves lifecycle unchanged",
+        "disposition": "NOT CHANGED: pre-existing PERSIST behaviour for contains edges; only relates_to edges ever leave 'active' (bridge.rs:180), so no observable difference for code-index edge types. Residual note"
+      },
+      {
+        "id": "R6",
+        "severity": "NOTE",
+        "finding": "failure atomicity: run outcome unchanged (any per-file error already finishes the run Failed); batch rolls back all rows instead of leaving partial rows; error class may differ (HSK-403 THROW vs validation); parse failures/partial trees still take Ok(None) before the batch",
+        "disposition": "ACCEPTED and recorded (intent_20261001_f_a_go_conditions.failure_atomicity_change)"
+      },
+      {
+        "id": "R7",
+        "severity": "NOTE",
+        "finding": "one test-mapping file in a batch sends the whole batch to per-file; repos with inline #[cfg(test)] keep the per-file cost",
+        "disposition": "ACCEPTED: test mappings are out of MT-167 scope (evidenced fixtures have none); residual risk for large repos noted"
+      },
+      {
+        "id": "R8",
+        "severity": "NOTE",
+        "finding": "code_nav_index_account_tests.rs:82-105 (in-file call) now takes the batch path; the timing test is machine-dependent and panics without HANDSHAKE_TEST_STAGE_BINDING_ROOT",
+        "disposition": "validator selection should include code_nav_index_account_tests and knowledge_code_index/knowledge_code_nav tests; the env var is supplied by the union runner (same as MT-045 LC-06)"
+      }
+    ]
   }
 }
