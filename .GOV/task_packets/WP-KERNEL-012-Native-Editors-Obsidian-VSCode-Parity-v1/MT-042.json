@@ -1138,5 +1138,33 @@
     "candidate_commit": "bd8c753223c2714707d6c78d7550448340c85c35",
     "candidate_updated_at_utc": "2026-09-30T21:04:34Z",
     "reproof_note": "45b8fb6d (edge timers, loom_store.rs/database.rs) and b504f70e (KB-DIAG3, api/loom.rs tests) are diagnostic code in MT-153 files; their later revert changes MT-153 inputs, so a PASS from the bd8c7532 run needs re-proof after the revert (CX-VAL-002)"
+  },
+  "edge_timer_run_result_bd8c7532": {
+    "recorded_at_utc": "2026-10-01T00:25:00Z",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "kind": "diagnostic run result (not a verdict; MT-042 not in round scope)",
+    "diagnostic_ref": "diagnostic_20260930_edge_timers",
+    "candidate_commit": "bd8c753223c2714707d6c78d7550448340c85c35",
+    "source": "owned backend stdout logs of this round's native live tests (canvas/stage/interconnect)",
+    "timings_file": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/loom-write-timings-bd8c753223c2714707d6c78d7550448340c85c35.json",
+    "edge_create_requests": 4,
+    "edge_create_elapsed_ms": {
+      "median": 3271,
+      "max": 3477
+    },
+    "edge_create_statements_us_median": {
+      "#1": 73596,
+      "#2": 3882,
+      "#3": 247247,
+      "#4": 149,
+      "#5": 3784,
+      "#6 edge CREATE": 594558,
+      "#7 receipt link": 893469,
+      "#8 source counter": 786596,
+      "#9 target counter": 637030,
+      "#10": 26235,
+      "#11": 480
+    },
+    "edge_delete": "no loom_edge_delete_storage phase observed in this round's selected tests"
   }
 }

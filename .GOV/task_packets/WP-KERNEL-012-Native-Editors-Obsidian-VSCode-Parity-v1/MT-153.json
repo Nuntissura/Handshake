@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-30T19:05:00Z",
+  "updated_at_utc": "2026-10-01T00:20:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V5",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -49,9 +49,9 @@
       "MT-157"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V4",
-    "prior_validator_verdict": "FAIL_V3",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_b4faed35.remediation_required",
+    "validator_verdict": "FAIL_V5",
+    "prior_validator_verdict": "FAIL_V4",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_bd8c7532.remediation_required",
     "ready_status_repair": {
       "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
       "rule": "CX-STATUS-001",
@@ -65,8 +65,8 @@
       "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
     },
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
-    "validated_at_utc": "2026-09-30T19:05:00Z",
-    "validated_commit": "b4faed359c07fed260cf8f42633dcf9b1e60ff92",
+    "validated_at_utc": "2026-10-01T00:20:00Z",
+    "validated_commit": "bd8c753223c2714707d6c78d7550448340c85c35",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -86,7 +86,7 @@
       "at_utc": "2026-09-23T23:52:39.079Z",
       "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
     },
-    "status_reason": "FAIL_V4 on b4faed35 union round (validation_round_b4faed35)",
+    "status_reason": "FAIL_V5 on bd8c7532 union round (validation_round_bd8c7532)",
     "status_before_20260930": "FAIL_V2",
     "candidate_commit": "bd8c753223c2714707d6c78d7550448340c85c35",
     "blocked_on": null,
@@ -2063,6 +2063,76 @@
           "MT-027 (probe)"
         ],
         "owning_mt": "MT-153"
+      },
+      {
+        "proof_id": "PR-WP012-UNION-bd8c7532",
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-20260930-ORCH-SUB",
+        "candidate_commit": "bd8c753223c2714707d6c78d7550448340c85c35",
+        "command": [
+          "C:/Program Files/Git/bin/bash.exe",
+          ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+          "bd8c753223c2714707d6c78d7550448340c85c35"
+        ],
+        "launch": "detached via Win32_Process.Create (GP-153)",
+        "wrapper": {
+          "pid": 277952,
+          "start_utc": "2026-09-30T22:03:47.4596037Z"
+        },
+        "bash": {
+          "pid": 151772,
+          "start_utc": "2026-09-30T22:04:01.4829639Z"
+        },
+        "selection": "WPV-round-selection.sh gov 50c1fd2f",
+        "target_dir": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
+        "target_bytes_start": 126934782891,
+        "tree_clean": true,
+        "started_utc": "2026-09-30T22:04:01.3902613Z",
+        "completed_utc": "2026-10-01T00:05:57.8838421Z",
+        "exit_code": 0,
+        "core": {
+          "tests": 27,
+          "passed": 25,
+          "failed": 2,
+          "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-bd8c753223c2714707d6c78d7550448340c85c35-core.xml",
+          "junit_sha256": "252ab4a79b10c67f86b80efada165156f2659aab01200b9bc2577d2e08c8638b"
+        },
+        "native": {
+          "tests": 122,
+          "junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-bd8c753223c2714707d6c78d7550448340c85c35-native.xml",
+          "junit_sha256": "6ca5b304c9a4c5c23d7da13cf81031b4a34b167c73b10c86a547fe98a612d6c4"
+        },
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bd8c753223c2714707d6c78d7550448340c85c35.stderr.log",
+        "log_sha256": "39171565e3a8ec3a3bbda6c5d6342d9e3b520dbeb14bea23bfa0f8d293da7e48",
+        "confounder": "facial CPU benchmark (cargo 263856 / test binary 277572) concurrent, Operator 2026-10-01; no failure attributed to it (all failures carry product assertions)",
+        "memory_floor": "GP-154 45 GB; commit free 55.1 GB at launch",
+        "credentials": {
+          "before": {
+            "total": 241,
+            "handshake_local_accounts": 22
+          },
+          "after": {
+            "total": 241,
+            "handshake_local_accounts": 22
+          },
+          "new_leftovers": 0
+        },
+        "session_git": "exit trap ran; worktree list main-only; git dir + export .git pointer recycled",
+        "inventory": "before == after",
+        "covers": [
+          "MT-023",
+          "MT-036",
+          "MT-046",
+          "MT-066",
+          "MT-079",
+          "MT-113",
+          "MT-122",
+          "MT-136",
+          "MT-153",
+          "MT-027 (KB-DIAG3)",
+          "MT-042 (edge timers)"
+        ],
+        "owning_mt": "MT-153"
       }
     ]
   },
@@ -3189,5 +3259,105 @@
     },
     "counts": "counter formulas unchanged (identical UPDATE $source/$target text); only statement boundaries added",
     "gp139": "holds: guards, counts, single transaction and auth retained -> GP-139 confirmed at bd8c7532"
+  },
+  "validation_round_bd8c7532": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T00:20:00Z",
+    "candidate_commit": "bd8c753223c2714707d6c78d7550448340c85c35",
+    "started_at": "2026-09-30T22:04:01.3902613Z",
+    "completed_at": "2026-10-01T00:05:57.8838421Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-bd8c753223c2714707d6c78d7550448340c85c35-core.xml",
+      "core_junit_sha256": "252ab4a79b10c67f86b80efada165156f2659aab01200b9bc2577d2e08c8638b",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-bd8c753223c2714707d6c78d7550448340c85c35-native.xml",
+      "native_junit_sha256": "6ca5b304c9a4c5c23d7da13cf81031b4a34b167c73b10c86a547fe98a612d6c4",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-bd8c753223c2714707d6c78d7550448340c85c35.stderr.log",
+      "log_sha256": "39171565e3a8ec3a3bbda6c5d6342d9e3b520dbeb14bea23bfa0f8d293da7e48"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-bd8c7532"
+    ],
+    "gameplan_before_verdict": "wp_validator PASS 5/5",
+    "decision": "failed",
+    "verdict": "FAIL_V5",
+    "checks_run": {
+      "MT-153-ROUTE-MATRIX mt153_loom_route_family_authority_matrix": "FAIL",
+      "mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows": "PASS",
+      "MT-153-WORKSPACE-DELETE": "PASS 2/2",
+      "MT-153-LOOM-TARGETS": "PASS 16/16",
+      "MT-153-NATIVE-LOOM block_collection_views live": "FAIL",
+      "MT-153-NATIVE-LOOM canvas_board live": "PASS",
+      "MT-153-BUILD-LIB": "PASS (union build)",
+      "MT-153-FMT (file mode @bd8c7532)": "PASS",
+      "MT-153-DIFF-CHECK 37ee7c5b..bd8c7532": "PASS"
+    },
+    "proof_reuse": "MT-153-PIN-CONFIRM 7/7 on 37ee7c5b (schema files unchanged 37ee7c5b..bd8c7532)",
+    "failures": [
+      {
+        "check": "MT-153-ROUTE-MATRIX",
+        "test": "api::loom::tests::mt153_loom_route_family_authority_matrix",
+        "failure_kind": "product",
+        "failure_class": "LOOM_VIEW_CREATE_OWNER_BRIDGE_DENIED",
+        "assertion": "src/backend/handshake_core/src/api/loom.rs:11189: [block-view definitions] owner POST /workspaces/{ws}/loom/views/definitions -> 403 HSK-403-PROTECTED-RESOURCE",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-bd8c753223c2714707d6c78d7550448340c85c35-core.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/storage/surreal/block_view_store.rs:349",
+          "schema.surql loom_block_knowledge_bridge"
+        ],
+        "repair_direction": "Bridge UPSERT writes 0 rows although create predicate is true on a clone (KB-DIAG3 t_full=1); daily-journal family not reached"
+      },
+      {
+        "check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "failure_kind": "product",
+        "failure_class": "LOOM_VIEW_CREATE_OWNER_BRIDGE_DENIED",
+        "assertion": "tests/test_block_collection_view.rs:1706: POST block view 403 HSK-403-PROTECTED-RESOURCE",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-bd8c753223c2714707d6c78d7550448340c85c35-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:1706"
+        ],
+        "repair_direction": "same root as matrix"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "MT-153-ROUTE-MATRIX",
+        "test": "api::loom::tests::mt153_loom_route_family_authority_matrix",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-bd8c753223c2714707d6c78d7550448340c85c35-core.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/storage/surreal/block_view_store.rs:349",
+          "schema.surql loom_block_knowledge_bridge"
+        ],
+        "repair_direction": "Bridge UPSERT writes 0 rows although create predicate is true on a clone (KB-DIAG3 t_full=1); daily-journal family not reached"
+      },
+      {
+        "failed_check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-bd8c753223c2714707d6c78d7550448340c85c35-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:1706"
+        ],
+        "repair_direction": "same root as matrix"
+      }
+    ],
+    "note": "CHECK-TESTS/CLIPPY-CHANGED remain WP-end. Diagnostic code (45b8fb6d, b504f70e) in MT-153 files needs re-proof after revert. Concurrent foreign load: facial CPU benchmark (cargo 263856 / test binary 277572) ran during the round (Operator 2026-10-01); failures classified from their own output (CX-VAL-006); commit floor GP-154 45 GB",
+    "loom_write_timings_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/loom-write-timings-bd8c753223c2714707d6c78d7550448340c85c35.json",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "153-bd8c7532-round",
+        "at_utc": "2026-10-01T00:20:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-153.json#validation_round_bd8c7532"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "153-bd8c7532-round",
+        "at_utc": "2026-10-01T00:20:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V5"
+      }
+    ]
   }
 }

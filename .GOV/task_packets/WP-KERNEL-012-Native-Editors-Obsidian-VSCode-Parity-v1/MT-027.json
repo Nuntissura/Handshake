@@ -2539,5 +2539,37 @@
     },
     "owner_of_fix": "MT-153-owned files (block_view_store.rs / schema.surql)",
     "status_effect": "none; MT-027 stays FAIL_V7"
+  },
+  "kb_diag3_run_result_bd8c7532": {
+    "recorded_at_utc": "2026-10-01T00:25:00Z",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "kind": "diagnostic run result (not a verdict; status unchanged)",
+    "hypothesis_ref": "hypothesis_20260930_kb_diag3",
+    "candidate_commit": "bd8c753223c2714707d6c78d7550448340c85c35",
+    "proof_record_ref": "MT-153.json#validation.proof_records[PR-WP012-UNION-bd8c7532]",
+    "test": "api::loom::tests::mt109_c3_record_user_assets_collections_and_views: FAIL loom.rs:10791 saved view create 403",
+    "predicate_rows": {
+      "blk": 1,
+      "clone_full": 1,
+      "ent": 1,
+      "t_bws": 1,
+      "t_ct": 1,
+      "t_ekey": 1,
+      "t_ekind": 1,
+      "t_ews": 1,
+      "t_full": 1,
+      "t_hwa": 1,
+      "t_t1": 0,
+      "t_t2": 1,
+      "t_t2_no_entity": 1
+    },
+    "info_lines": [
+      "info_bridge_table",
+      "info_fn_has_workspace_access",
+      "info_fn_loom_block_access",
+      "info_scratch_full"
+    ],
+    "lines_file": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/kb-diag3-bd8c753223c2714707d6c78d7550448340c85c35.txt",
+    "observation": "Only t_t1 (loom_block_access branch) is false; the full create predicate on a scratch clone is true (t_full=1, clone_full=1, view_def branch t_t2=1) while the real bridge UPSERT writes 0 rows and the request returns 403"
   }
 }
