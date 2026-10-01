@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-10-01T16:30:00Z",
+  "updated_at_utc": "2026-10-01T16:45:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -8547,5 +8547,63 @@
     "gameplan": "before_submit kernel_builder PASS 2/2 at c1920348; GP-158 confirmed (only tests/test_block_collection_view.rs changed vs f4e66906; edge/counter txn files untouched)",
     "selection_note": "validator selection: BCV live (block_collection_views_live_surrealdb_self_seed_full_round_trip) only; f4e66906..c1920348 changes only the native test file; no backend/schema change",
     "next_actor": "WP_VALIDATOR single union round"
+  },
+  "validation_round_c1920348": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T16:45:00Z",
+    "candidate_commit": "c19203484a0cc975fd8917a32c827babeab0548c",
+    "started_at": "2026-10-01T16:25:20.7888868Z",
+    "completed_at": "2026-10-01T16:31:07.1077715Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-c19203484a0cc975fd8917a32c827babeab0548c-core.xml",
+      "core_junit_sha256": "01d6b1f22a6538a86b027d0ee702b8d0e7128bc5c3fd55e14e0d2040b3591bd5",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-c19203484a0cc975fd8917a32c827babeab0548c-native.xml",
+      "native_junit_sha256": "944636b32614c7b1bb87c4dd42e858adb66ef75f05c6124a3bd919d7baef3f7e",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-c19203484a0cc975fd8917a32c827babeab0548c.stdout.log",
+      "log_sha256": "00dbe42072b2738c39248ac980a917c3fec72ace7c51e89d4a7c4641d01b7c3e",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-c19203484a0cc975fd8917a32c827babeab0548c.stderr.log",
+      "stderr_log_sha256": "f4b4a778f2490ffdf38a9f103cd90e70131b81bd4576a9ff42b9183cddb8605b",
+      "observations": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-c19203484a0cc975fd8917a32c827babeab0548c.observations.jsonl",
+      "export_identity_sha256": "cb1a4afcc495b5d0a7e7633d134314fbda762e4f13dde16a085f3ec052135864",
+      "selection": "WPV-round-selection.json (gov a361a7e7; CX-VAL-002 intersection under key 'intersection')",
+      "observer": "WPV-round-observer.ps1 (gov 2dd08b56), spin capture armed"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-c1920348"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 35/35, before_verdict PASS 5/5 at c1920348",
+    "decision": "inconclusive",
+    "checks_run": {
+      "MT-153-NATIVE-LOOM block_collection_views live": "PASS (156.7 s)",
+      "MT-153-FMT rustfmt 1.97.1 --edition 2021 --check, test_block_collection_view.rs @c1920348": "PASS",
+      "MT-153-DIFF-CHECK f4e66906..c1920348, 37ee7c5b..c1920348": "PASS"
+    },
+    "proof_reuse": "CX-VAL-002, inputs unchanged f4e66906..c1920348 (test file only): MT-153-ROUTE-MATRIX 2/2, MT-153-WORKSPACE-DELETE 2/2, api::loom::tests::mt153_owner_workspace_delete_removes_saved_view, the mt027 block-view outbox test, MT-153-LOOM-TARGETS 16/16, user_manual 27/27, MT-153-NATIVE-LOOM canvas_board live: PASS on f4e66906; MT-153-PIN-CONFIRM 7/7 and the pin tests: PASS on 5da8b75a (schema unchanged)",
+    "backend_cpu_spin": {
+      "status": "did not recur in this round (second consecutive round without it; weak evidence)",
+      "bcv_backend_cpu": "pid 247864: cpu 9.1 @16:28:12Z, 34.0 @16:28:45, 66.9 @16:29:19, 99.6 @16:29:52, 131.8 @16:30:26 (~1 core while busy) with writes rising 4.49 -> 9.51 MB and the test process active (cpu 0.0 -> 35.0 s); test ran 156.7 s"
+    },
+    "mt153_diag_bv_publish": {
+      "status": "not available: the BCV live test passed, so the proof support removed its owned-backend runtime dir (no preserved backend.stdout.log newer than the round start)"
+    },
+    "unclosed": "own floor not complete: MT-153-CHECK-TESTS (cargo check --tests, all test targets) and MT-153-CLIPPY-CHANGED (clippy, zero findings on changed lines) have not been run; both need a build other than the union build (CX-VAL-005) and the contract declares no extra_build_proofs. All runtime proofs of the floor pass (this round or reused).",
+    "note": "rebuild accounting compiled_crates=0 relinked_test_binaries=1 backend_bin_relinked=0 refresh_mode=incremental; backend build profile dev; GP-131 vault probe success (945de402); credentials 243/24 before and after (the 2 recorded CX-GIT-003 leftovers; no new leftover); no leftover store dirs; session git repo recycled; observer 17 polls, 0 errors, spin capture did not fire",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "153-c1920348-round",
+        "at_utc": "2026-10-01T16:45:00Z",
+        "decision": "inconclusive",
+        "payload_ref": "MT-153.json#validation_round_c1920348"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "153-c1920348-round",
+        "at_utc": "2026-10-01T16:45:00Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
+      }
+    ]
   }
 }
