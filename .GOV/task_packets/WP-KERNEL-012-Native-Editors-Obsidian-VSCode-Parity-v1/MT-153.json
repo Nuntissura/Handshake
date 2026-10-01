@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "FAIL_V10",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -88,16 +88,17 @@
     },
     "status_reason": "FAIL_V10 on 791a81dd union round (validation_round_791a81dd)",
     "status_before_20260930": "FAIL_V2",
-    "candidate_commit": "791a81dd23cee301006995a2b7bb550cfeba4471",
+    "candidate_commit": "5da8b75a0211aa607ea430a6764770709915f80e",
     "blocked_on": null,
     "diagnosis_refs": [
-      "MT-153.json#diagnosis_20261001_workspace_delete_recheck (WORKSPACE_DELETE_RECORD_DENIED, route (a) attempt 2) + review_20261001_w_b_provenance (ACCEPT-WITH-CHANGES; R6 adopted)",
-      "MT-153.json#diagnosis_20261001_view_outbox_publish_race (VIEW-OUTBOX-PUBLISH-RACE, P1; cause HYPOTHESIS until a run confirms it) + hypothesis_20261001_view_outbox_p1",
-      "MT-153.json#diagnosis_20261001_workspace_delete_viewdef + research_20261001_workspace_delete_w (route (a) attempt 1, 8ff1565d)",
-      "MT-153.json#diagnosis_20261001_argus_binding_root (f98e1e20; Argus :2507 passed in round 7548bc72)",
-      "MT-153.json#diagnosis_20261001_mt152_keyed_lock_pin (f98e1e20; user_manual 27/27 in round 7548bc72)"
+      "MT-153.json#research_20261001_fr_stall_refuted + hypothesis_20261001_batch_reorder_and_probe.c_instrumentation (BCV line attempt 2 = evidence gathering: DIAGNOSTIC mt153_diag probe, to be reverted after the result)",
+      "MT-153.json#diagnosis_20261001_ac10_move_deadline + hypothesis_20261001_batch_reorder_and_probe.a_reorder (MT-042 ac10 attempt 1: loom_edges delete predicate reorder, 94ba0ed1)",
+      "MT-153.json#diagnosis_20261001_workspace_delete_recheck + review_20261001_w_b_provenance (WORKSPACE_DELETE_RECORD_DENIED resolved in round 791a81dd)",
+      "MT-153.json#hypothesis_20261001_view_outbox_p1 (P1, NOT CONFIRMED; code stays)",
+      "MT-153.json#diagnosis_20261001_argus_binding_root (f98e1e20)",
+      "MT-153.json#diagnosis_20261001_mt152_keyed_lock_pin (f98e1e20)"
     ],
-    "ready_for_validation_at_utc": "2026-10-01T10:10:08Z",
+    "ready_for_validation_at_utc": "2026-10-01T11:49:23Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "status_before_bb9548e1_resubmission": "FAIL_V3",
     "candidate_updated_at_utc": "2026-10-01T00:46:31Z",
@@ -107,7 +108,8 @@
     "status_before_e4566f11_resubmission": "FAIL_V6",
     "status_before_d9ce6017_resubmission": "FAIL_V7",
     "status_before_7548bc72_resubmission": "FAIL_V8",
-    "status_before_791a81dd_resubmission": "FAIL_V9"
+    "status_before_791a81dd_resubmission": "FAIL_V9",
+    "status_before_5da8b75a_resubmission": "FAIL_V10"
   },
   "closure_unit": {
     "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
@@ -6043,5 +6045,52 @@
       "observer": "17 polls, 0 errors"
     },
     "next": "builder: one commit updating ONLY GENERATED_SURREALQL_SHA256 and EXPECTED_SCHEMA_INFO_SHA256 to the measured values; then one union round with MT-153-PIN-CONFIRM"
+  },
+  "remediation_20261001_5da8b75a": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T11:49:23Z",
+    "commits": {
+      "f98e1e20": "Argus binding assert + MT-152 keyed_lock path",
+      "8ff1565d / 7548bc72": "route (a) attempt 1 + re-pin",
+      "1ff1821f / 791a81dd": "route (a) attempt 2 + outbox P1 + re-pin",
+      "94ba0ed1": "loom_edges FOR delete (A) OR (endpoint) OR W + delta pair + 161->162 re-emission; DIAGNOSTIC mt153_diag probe in api/loom.rs",
+      "5da8b75a": "re-pin GENERATED_SURREALQL_SHA256 -> 3e9333cc... (= sha256 schema.surql@94ba0ed1, cross-checked) and EXPECTED_SCHEMA_INFO_SHA256 -> 823b37d8... from PIN-MEASURE 94ba0ed1; nothing else"
+    },
+    "candidate_commit": "5da8b75a0211aa607ea430a6764770709915f80e",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 5da8b75a0211aa607ea430a6764770709915f80e",
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "exit_code": 0,
+        "inputs": "5da8b75a backend files; 0 cargo/rustc before launch",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-reorder-pins.log"
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 5da8b75a; GP-158 confirmed (94ba0ed1..5da8b75a pins only; loom_store.rs/database.rs unchanged since d9ce6017)",
+    "selection_note": "validator selection: MT-153-PIN-CONFIRM; api::loom::tests::mt153_owner_workspace_delete_removes_saved_view; MT-154/157/158/159 pin proofs; BCV live (block_collection_views_live_surrealdb_self_seed_full_round_trip); test_e7_knowledge_accesskit whole. REQUEST: extract every 'MT153_DIAG' line (operation, ids, elapsed_ms, still running/completed) from the preserved owned-backend stdout logs of this round and record them with the verdict",
+    "diagnostic_note": "the mt153_diag probe (94ba0ed1) is DIAGNOSTIC and reverted after its result is recorded; this round is the probe run for the BCV line",
+    "open_items": [
+      "operator_decision_request_20261001_w_scan_ownership (W scan indexing/ownership)",
+      "d5f5d8e3 unexplained",
+      "review R11 deferred",
+      "no SCHEMA_REVISION bump"
+    ],
+    "next_actor": "WP_VALIDATOR single union round",
+    "remediates": {
+      "verdict_ref": "MT-153.json#validation_round_791a81dd (FAIL_V10)",
+      "failure_classes": [
+        "MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT (BCV probe run)"
+      ]
+    },
+    "diagnosis_refs": [
+      "MT-153.json#research_20261001_fr_stall_refuted + hypothesis_20261001_batch_reorder_and_probe.c_instrumentation (BCV line attempt 2 = evidence gathering: DIAGNOSTIC mt153_diag probe, to be reverted after the result)",
+      "MT-153.json#diagnosis_20261001_ac10_move_deadline + hypothesis_20261001_batch_reorder_and_probe.a_reorder (MT-042 ac10 attempt 1: loom_edges delete predicate reorder, 94ba0ed1)",
+      "MT-153.json#diagnosis_20261001_workspace_delete_recheck + review_20261001_w_b_provenance (WORKSPACE_DELETE_RECORD_DENIED resolved in round 791a81dd)",
+      "MT-153.json#hypothesis_20261001_view_outbox_p1 (P1, NOT CONFIRMED; code stays)",
+      "MT-153.json#diagnosis_20261001_argus_binding_root (f98e1e20)",
+      "MT-153.json#diagnosis_20261001_mt152_keyed_lock_pin (f98e1e20)"
+    ]
   }
 }
