@@ -4527,5 +4527,148 @@
     "infra_notes": [
       "owned capacity observer (observe-probe-cardmove-cap-39f3e830.ps1, pids 186484 / 7296) wrote no observation line in either attempt; the fea3ce0a union observer also stopped after 1 line; cause not established; C: stayed at 85.6 GB vs 147 GB stop; gameplan GP-157"
     ]
+  },
+  "analysis_20261001_cardmove_reindex_f2": {
+    "schema_id": "hsk.mt_analysis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T06:12:09Z",
+    "method": "code reading at 39f3e830 + arithmetic on the validator's probe medians; no edit, no run",
+    "q1_tags_feed_search_index": {
+      "answer": "NO",
+      "indexer_fields": "loom_block_search_index row written by search_store.rs:207 UPSERT: block_id, workspace_id, content_type, search_text, embedding, embedding_model, indexed_at; search_text = loom_search::block_search_text (loom_search/mod.rs:35-47) = title + original_filename + derived.full_text_index; embedding = embed of that text (loom_search/mod.rs:87-92)",
+      "tag_facet_is_live": "loom_search_v2 reads tags from loom_edges at query time (search_store.rs:454-491: SELECT source_block_id, target_block_id, edge_type FROM loom_edges WHERE workspace_id = $workspace; tag_ids filter over that map) - no tag data in the index row",
+      "tag_only_patch_changes": "with F3 a tag-only PATCH writes no loom_blocks field except recount counters (mention/tag/backlink_count), none of which feed search_text; content_type unchanged; so the reindex rewrites identical search_text/embedding/embedding_model and only bumps indexed_at",
+      "indexed_at_consumers": "no reader found outside the writers (grep src: only search_store.rs binding/UPSERT, loom_canvas_store/wiki_store creates)",
+      "what_skipping_drops": [
+        "the KNOWLEDGE_LOOM_BLOCK_INDEXED receipt (aggregate loom_block_search_index, idempotency LOOM-SEARCH-INDEX:<block>:<edit_event_id>) for tag-only PATCHes - the edge receipts (KNOWLEDGE_LOOM_TAG_MUTATED per edge) remain",
+        "the indexed_at bump",
+        "incidental embedding backfill: if a model was configured after the block's last index, a tag move would no longer re-embed it (next title/text edit or create still does)"
+      ],
+      "fold_option": "possible (same transaction, same receipt and UPSERT) but saves only ~45 ms + one commit, because the receipt and UPSERT are the cost; folding also couples a search-projection failure to the edge write, whereas today a reindex failure is logged to Flight Recorder and does not fail the PATCH (api/loom.rs:742-768)"
+    },
+    "q2_arithmetic": {
+      "method": "per-request subtraction on the 3 paired probe samples (39f3e830, MT-153.json#diagnosis_20261001_cardmove_probe_result.per_request), then median; probe = in-process axum oneshot on an embedded RocksDB store, so native HTTP/TCP, reqwest, AuthenticatedRequest and a larger self-seeded workspace (each extra counted edge row ~26 ms per recount) are NOT included",
+      "baseline_fea3ce0a_probe": {
+        "full_move": {
+          "samples_ms": [
+            5597,
+            5509,
+            5790
+          ],
+          "median_ms": 5597,
+          "margin_vs_5000_ms": -597,
+          "worst_sample_margin_ms": -790
+        },
+        "remove_only": {
+          "samples_ms": [
+            3280,
+            3038,
+            3159
+          ],
+          "median_ms": 3159,
+          "margin_vs_5000_ms": 1841,
+          "worst_sample_margin_ms": 1720
+        },
+        "add_only": {
+          "samples_ms": [
+            3621,
+            3694,
+            3537
+          ],
+          "median_ms": 3621,
+          "margin_vs_5000_ms": 1379,
+          "worst_sample_margin_ms": 1306
+        }
+      },
+      "reindex_skip_alone": {
+        "full_move": {
+          "samples_ms": [
+            4746,
+            4657,
+            4827
+          ],
+          "median_ms": 4746,
+          "margin_vs_5000_ms": 254,
+          "worst_sample_margin_ms": 173
+        },
+        "remove_only": {
+          "samples_ms": [
+            2375,
+            2196,
+            2321
+          ],
+          "median_ms": 2321,
+          "margin_vs_5000_ms": 2679,
+          "worst_sample_margin_ms": 2625
+        },
+        "add_only": {
+          "samples_ms": [
+            2694,
+            2868,
+            2622
+          ],
+          "median_ms": 2694,
+          "margin_vs_5000_ms": 2306,
+          "worst_sample_margin_ms": 2132
+        },
+        "removed": "reindex txn query wall (guard + content-type read + KNOWLEDGE_LOOM_BLOCK_INDEXED receipt + loom_block_search_index UPSERT + commit)"
+      },
+      "F2_alone": {
+        "full_move": {
+          "samples_ms": [
+            4929.9,
+            4833.3,
+            5067.3
+          ],
+          "median_ms": 4929.9,
+          "margin_vs_5000_ms": 70.1,
+          "worst_sample_margin_ms": -67.3
+        },
+        "remove_only": "unchanged (one edge: nothing to merge) ~3160",
+        "removed": "delete-txn card recount + delete-txn guard + delete pre-read (validator's rule; second commit ~8 ms ignored); both per-edge receipts kept"
+      },
+      "F2_plus_reindex_skip": {
+        "full_move": {
+          "samples_ms": [
+            4078.9,
+            3981.3,
+            4104.3
+          ],
+          "median_ms": 4078.9,
+          "margin_vs_5000_ms": 921.1,
+          "worst_sample_margin_ms": 895.7
+        },
+        "remove_only": {
+          "samples_ms": [
+            2375,
+            2196,
+            2321
+          ],
+          "median_ms": 2321,
+          "margin_vs_5000_ms": 2679,
+          "worst_sample_margin_ms": 2625
+        }
+      },
+      "F2_plus_reindex_fold_with_receipt": {
+        "full_move": {
+          "samples_ms": [
+            4885.6,
+            4789.5,
+            4982.5
+          ],
+          "median_ms": 4885.6,
+          "margin_vs_5000_ms": 114.4,
+          "worst_sample_margin_ms": 17.5
+        },
+        "note": "folding the reindex into the edge transaction while keeping its receipt and UPSERT removes only its block guard + content-type read (+ one commit); the receipt (~294 ms) and UPSERT (~515 ms) remain, so fold ~= F2 alone"
+      }
+    },
+    "q3_constraints": {
+      "spec": "Master Spec v02.206 (SPEC_CURRENT.md -> master-spec-v02.206): 11-shared-dev-platform-and-oss-foundations.md:564 [LM-SEARCH-002] search results MUST be filterable by graph relationships (tags, mentions, backlink depth) within the query - satisfied by the live loom_edges read at query time, not by the index row; 02-system-architecture.md:17950 'MOD-SEARCH indexes document. Search must run AFTER document update' concerns document updates; no spec clause found requiring a search-index write or KNOWLEDGE_LOOM_BLOCK_INDEXED receipt per tag change (grep: LoomSearchV2 / loom_block_search_index / KNOWLEDGE_LOOM_BLOCK_INDEXED / search freshness over spec-modules)",
+      "MT-153": "scope.routes[1] (PATCH /loom/blocks/:id) lists 'search_index U' as a table the route touches (permission inventory) and already_fixed_by_c2 notes the standalone search_index update branch; resource_privacy_obligation: search rows visible only with the block's read grant. None is an acceptance rule that a tag-only PATCH must rewrite the index; the PATCH route still needs that branch for field changes",
+      "MT-027 / MT-042": "no reindex/search-index freshness acceptance text found (only MT-042 scope notes porting LoomSearchV2Panel)",
+      "tests": "KNOWLEDGE_LOOM_BLOCK_INDEXED assertions in tests/loom_block_collection_views_tests.rs:353, loom_pins_views_tests.rs:303, loom_knowledge_bridge_tests.rs:130/239 concern bridge receipts (aggregate knowledge_loom_block), not the per-PATCH search reindex; no test found asserting a search reindex on a tag-only PATCH (UNVERIFIED for tests outside handshake_core/tests and native tests grep for add_tags/remove_tags)"
+    },
+    "recommendation": "R-skip: in api/loom.rs patch_loom_block_inner call refresh_loom_block_embedding only when a block field was written (skip when block_update_skipped, i.e. the F3 tag-only condition); index content stays identical, tag search stays live. Alone it predicts full_move ~4.75 s (margin ~0.25 s, worst sample ~0.17 s) which is NOT robust once native HTTP/client overhead and a larger seeded workspace are added; R-skip + F2 predicts ~4.07 s (margin ~0.93 s). Recommend R-skip now (small, MT-153 path, no schema) and F2 as the margin step if the buddy approves; reindex fold is not worth it (~45 ms). Predicate/ASSERT schema hygiene and the debug-profile decision stay the systemic options"
   }
 }
