@@ -47,26 +47,6 @@ fn map_canvas_placement_identity_error(
     }
 }
 
-/// MT-042/MT-153 diagnostic (Operator decision WP012-OPERATOR-DECISIONS-20260930-C; temporary):
-/// runs one Loom edge create/delete under a server-generated correlation id so each
-/// `query_values_at` statement of its transaction emits the sanitized MT032_DOCUMENT_PHASE /
-/// MT032_DOCUMENT_STATEMENT timing lines (labels and durations only). Behavior unchanged.
-async fn observe_loom_edge_write<T>(
-    phase: &'static str,
-    operation: impl std::future::Future<Output = StorageResult<T>>,
-) -> StorageResult<T> {
-    handshake_document::diagnostics::DOCUMENT_PHASE_REQUEST_ID
-        .scope(
-            uuid::Uuid::now_v7(),
-            handshake_document::diagnostics::observe_document_phase(
-                phase,
-                operation,
-                Result::is_err,
-            ),
-        )
-        .await
-}
-
 /// Embedded-SurrealDB control-plane database.
 ///
 /// Every value owns a [`KeyedLockRegistry`] used only as optional contention
@@ -1184,11 +1164,7 @@ impl Database for SurrealDatabase {
             .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
         edge.edge_id = Some(edge_id.clone());
         let metadata = self.mutation_metadata(ctx, &edge_id).await?;
-        observe_loom_edge_write(
-            "loom_edge_create_storage",
-            self.create_loom_edge_with_metadata(edge, metadata),
-        )
-        .await
+        self.create_loom_edge_with_metadata(edge, metadata).await
     }
 
     async fn delete_loom_edge(
@@ -1198,11 +1174,8 @@ impl Database for SurrealDatabase {
         edge_id: &str,
     ) -> StorageResult<LoomEdge> {
         let metadata = self.mutation_metadata(ctx, edge_id).await?;
-        observe_loom_edge_write(
-            "loom_edge_delete_storage",
-            self.delete_loom_edge_with_metadata(workspace_id, edge_id, metadata),
-        )
-        .await
+        self.delete_loom_edge_with_metadata(workspace_id, edge_id, metadata)
+            .await
     }
 
     async fn list_loom_edges_for_block(

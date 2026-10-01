@@ -1565,23 +1565,21 @@ pub(crate) async fn create_loom_edge(
         };
     let source = thing(BLOCKS_TABLE, edge.source_block_id);
     let target = thing(BLOCKS_TABLE, edge.target_block_id);
-    // Result-set index 10: BEGIN(0), endpoint guard(1), receipt read(2), receipt append(3),
-    // receipt bind(4), then the create-once writes as five guarded top-level statements so
-    // per-statement timings attribute them (MT-042/MT-153 diagnostic, Operator decision
-    // WP012-OPERATOR-DECISIONS-20260930-C): exists guard(5), edge CREATE(6), receipt link(7),
-    // source recount(8), target recount(9); read(10), COMMIT(11). Same statements, order,
-    // guards and single transaction as the former one-block form.
+    // Result-set index 6: BEGIN(0), endpoint guard(1), receipt read(2), receipt append(3),
+    // receipt bind(4), create-once block(5), read(6), COMMIT(7).
     let rows = db
         .query_values_at::<EdgeRow, _>(
             concat!(
                 "BEGIN TRANSACTION; ",
                 "IF (SELECT VALUE workspace_id FROM $source LIMIT 1)[0] != $workspace OR (SELECT VALUE workspace_id FROM $target LIMIT 1)[0] != $workspace { THROW 'HSK-LOOM-NOT-FOUND'; }; ",
                 loom_ledger_append_sql!(),
-                "IF $existing_receipt = NONE { IF record::exists($edge) { THROW 'HSK-LOOM-EDGE-EXISTS'; }; }; ",
-                "IF $existing_receipt = NONE { IF array::len((CREATE $edge CONTENT $content RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; ",
-                "IF $existing_receipt = NONE { IF array::len((UPDATE $edge SET event_ledger_event_id = $receipt RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; ",
-                "IF $existing_receipt = NONE { IF array::len((UPDATE $source SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $source AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; ",
-                "IF $existing_receipt = NONE { IF array::len((UPDATE $target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $target AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; ",
+                "IF $existing_receipt = NONE { ",
+                "IF record::exists($edge) { THROW 'HSK-LOOM-EDGE-EXISTS'; }; ",
+                "IF array::len((CREATE $edge CONTENT $content RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "IF array::len((UPDATE $edge SET event_ledger_event_id = $receipt RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "IF array::len((UPDATE $source SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $source AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "IF array::len((UPDATE $target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $target AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "}; ",
                 "SELECT * FROM $edge; ",
                 "COMMIT TRANSACTION;"
             ),
@@ -1612,7 +1610,7 @@ pub(crate) async fn create_loom_edge(
                 ledger_key: ledger.idempotency_key.clone(),
                 ledger,
             },
-            10,
+            6,
         )
         .await
         .map_err(guarded_err)?;
