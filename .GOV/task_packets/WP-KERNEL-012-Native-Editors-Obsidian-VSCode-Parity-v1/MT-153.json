@@ -5336,5 +5336,46 @@
         "state_effect": "lifecycle.status FAIL_V9"
       }
     ]
+  },
+  "diagnosis_20261001_workspace_delete_recheck": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-153-20261001-WORKSPACE-DELETE-RECHECK-AFTER-BLOCK-DELETE",
+    "kind": "blocker_diagnosis",
+    "attempt": "route (a) attempt 1 (8ff1565d + pins 7548bc72) failed; this diagnosis precedes attempt 2 (the last attempt on this assertion)",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T09:46:22Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "method": "round log + code reading (no run)",
+    "failure_class": "WORKSPACE_DELETE_RECORD_DENIED",
+    "failing_assertion": "src/api/loom.rs:10103 (api::loom::tests::mt153_owner_workspace_delete_removes_saved_view) 403 != 204; HSK_WORKSPACE_DELETE_TRANSACTION_FAILED statement_index=20 (MT-153.json#validation_round_7548bc72)",
+    "observations": [
+      "statement 10 (anchor DELETE, first fn::mt120_workspace_delete evaluation) now passes: W-A/W-B fixed the first evaluation",
+      "statement 20 = `IF array::len(DELETE $workspace RETURN VALUE id) != 1 THROW` (workspaces.rs:12-23 + :506-516); workspaces FOR delete WHERE fn::mt120_workspace_delete(record::id(id)) (schema.surql:65) -> W is evaluated a SECOND time",
+      "the 180 C1_FDELETE_CLAUSE lines in the log are the test enumerating clauses while installing the probe copy, not a verdict; the test-build probe evaluates only at statement_index == 10 unless HSK_C1_FDELETE_PROBE is set"
+    ],
+    "cause": "at statement 20 the loom_blocks rows are already deleted (statement 19); knowledge_entities rows remain (workspace cascade only); attempt-1 W-B identified a view entity via type::record('loom_blocks', entity_key).content_type, which is NONE once the block is gone -> the view entity again needs a protected resource it never had -> W false -> DELETE $workspace returns 0 rows -> THROW",
+    "inference_level": "by elimination: W-B is the only W clause whose input changes between statement 10 and 20 (note entities keep their protected_resources rows inside this transaction; W-A's loop is empty at 20); not directly probed",
+    "refuted_research_line": "MT-153.json#research_20261001_workspace_delete_w (scratch section 2, labelled HYPOTHESIS): 'Final DELETE $workspace guard unchanged' - refuted: the final delete re-evaluates W after the blocks are deleted, so W-B must not depend on the block row. No VERIFIED research line is refuted (W-A/W-B false for view-bearing workspaces at statement 10 is consistent: statement 10 now passes)",
+    "options": {
+      "chosen_provenance_fallback": {
+        "predicate": [
+          "            LET $entity_block = type::record('loom_blocks', $entity.entity_key);",
+          "            LET $view_entity = IF record::exists($entity_block) { $entity_block.content_type = 'view_def' AND $entity_block.workspace_id = $workspace } ELSE { $entity.detection_provenance.content_type = 'view_def' };",
+          "            IF !$view_entity AND array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };"
+        ],
+        "semantics": "block exists -> unchanged block-based check (content_type view_def AND same workspace); block gone -> the entity counts as a view only if its own detection_provenance.content_type = 'view_def' (written on every view entity by block_view_store.rs:618-623; other writers write 'note' loom_store.rs:2309-2314 or the real content type loom_canvas_store.rs:1452-1457)",
+        "residual": "detection_provenance is TYPE object FLEXIBLE (schema.surql:3605-3606) and writable through knowledge_entities FOR update WHERE fn::mt120_entity_write(...): a forged 'view_def' tag on an entity whose block no longer exists would waive that entity's resource requirement in W; block-level checks (W-A) and every other W clause are unaffected"
+      },
+      "alternative_workspace_scoped_fallback": {
+        "predicate": "block gone AND $entity.workspace_id = $workspace -> waive the resource requirement (no provenance trust)",
+        "note": "the loop rows are already `SELECT * FROM knowledge_entities WHERE workspace_id = $workspace` (rows_12), so the workspace condition is always true: it reduces to 'block gone' and waives the requirement for EVERY orphan loom_block entity of the workspace"
+      },
+      "choice_reason": "both fix the observed case; the provenance fallback waives a strict SUBSET of what the workspace-scoped fallback waives (block gone AND tag view_def vs block gone): provenance trust can only narrow the waiver, never widen it beyond the alternative, so the provenance fallback is the stricter of two workable predicates (orchestrator rule: pick the stricter)"
+    },
+    "test_change": "mt153_owner_workspace_delete_removes_saved_view sets HSK_C1_FDELETE_PROBE=1 inside the test (scoped guard, previous value restored on drop) so a denial at ANY statement names the false clause; never set at run time",
+    "required_review": "KERNEL_BUILDER_PROTOCOL KB-PROOF-005 (changed trust boundary): independent read-only adversarial review of the chosen predicate by a sub-agent BEFORE submission; findings + disposition recorded in MT-153.json#review_20261001_w_b_provenance",
+    "attempt_rule": "second fix on this assertion: if it fails, no third attempt - record the blocker and change approach or escalate",
+    "lineage": "delta pair B current text updated (previous text unchanged); one more validator PIN-MEASURE, re-pin GENERATED_SURREALQL_SHA256 / EXPECTED_SCHEMA_INFO_SHA256 only"
   }
 }
