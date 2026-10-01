@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-10-01T14:00:00Z",
+  "updated_at_utc": "2026-10-01T14:25:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V13",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -49,9 +49,9 @@
       "MT-157"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V12",
-    "prior_validator_verdict": "FAIL_V11",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_9e4bee34.remediation_required",
+    "validator_verdict": "FAIL_V13",
+    "prior_validator_verdict": "FAIL_V12",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_11f1b034.remediation_required",
     "ready_status_repair": {
       "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
       "rule": "CX-STATUS-001",
@@ -65,8 +65,8 @@
       "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
     },
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
-    "validated_at_utc": "2026-10-01T14:00:00Z",
-    "validated_commit": "9e4bee3426d23abab9c42decc7c11fd71d63d018",
+    "validated_at_utc": "2026-10-01T14:25:00Z",
+    "validated_commit": "11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -86,7 +86,7 @@
       "at_utc": "2026-09-23T23:52:39.079Z",
       "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
     },
-    "status_reason": "FAIL_V12 on 9e4bee34 union round (validation_round_9e4bee34)",
+    "status_reason": "FAIL_V13 on 11f1b034 union round (validation_round_11f1b034)",
     "status_before_20260930": "FAIL_V2",
     "candidate_commit": "11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2",
     "blocked_on": null,
@@ -7882,5 +7882,93 @@
     "gameplan": "before_submit kernel_builder PASS 2/2 at 11f1b034; GP-158 confirmed (only tests/test_block_collection_view.rs changed vs 9e4bee34; edge/counter txn files untouched)",
     "selection_note": "validator selection: BCV live (block_collection_views_live_surrealdb_self_seed_full_round_trip) only; 9e4bee34..11f1b034 changes only the native test file; no backend/schema change (pins from 5da8b75a reusable if the validator rules allow)",
     "next_actor": "WP_VALIDATOR single union round"
+  },
+  "validation_round_11f1b034": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T14:25:00Z",
+    "candidate_commit": "11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2",
+    "started_at": "2026-10-01T14:04:26.8281545Z",
+    "completed_at": "2026-10-01T14:10:02.6513902Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2-core.xml",
+      "core_junit_sha256": "8556539e1c0e0d052108a262219b95373a0e9cc0bca3cd66a458d12c8cd0332b",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2-native.xml",
+      "native_junit_sha256": "f4717e1fd566188b7482e5fd902b24901a447b5eed0c6aefecde6c0ec1a87685",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2.stdout.log",
+      "log_sha256": "55910385589b71d959681663993c65ad9cbee3b253773c2d84a8371813d1bbfb",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2.stderr.log",
+      "stderr_log_sha256": "2279b792db77673ba92dfc8abd5055a634960dfdd6ab36479862e29220cdd1f9",
+      "export_identity_sha256": "9f623c8650fa6d8fe33f12b0915b089f1cfd4e009d03092c01896ee64d5896cf",
+      "selection": "WPV-round-selection.json (gov 16bf3c27; CX-VAL-002 intersection under key 'intersection')"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-11f1b034"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 35/35, before_verdict PASS 5/5 at 11f1b034",
+    "decision": "failed",
+    "verdict": "FAIL_V13",
+    "checks_run": {
+      "MT-153-NATIVE-LOOM block_collection_views live": "FAIL",
+      "MT-153-FMT rustfmt 1.97.1 --edition 2021 --check, test_block_collection_view.rs @11f1b034": "PASS",
+      "MT-153-DIFF-CHECK 9e4bee34..11f1b034, 37ee7c5b..11f1b034": "PASS"
+    },
+    "proof_reuse": "core (saved-view delete, route matrix, workspace delete, loom targets, user_manual 27/27), canvas_board live: 9e4bee34 (inputs unchanged); MT-153-PIN-CONFIRM + pin proofs: 5da8b75a (schema unchanged)",
+    "failures": [
+      {
+        "check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "failure_kind": "product",
+        "failure_class": "FR_READ_WRONG_CREDENTIAL_HEADERS",
+        "assertion": "tests/test_block_collection_view.rs:3330: GET Flight Recorder -> 401 Unauthorized: {\"error\":\"HSK-401-FR-SESSION\"}",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:3300-3330 (recorder read: build_backend_client().get(...).header(\"x-hsk-session-token\", <native-MCP token>) with no account authorization)",
+          "tests/backend_proof_support/mod.rs:1705-1709 (authenticated: account_context.authorize_builder)",
+          "tests/backend_proof_support/mod.rs:2146-2158 (get_json_with_session_token: account-authorized + x-hsk-channel-binding-token)",
+          "src/backend/handshake_core/src/api/flight_recorder.rs:8-12 (x-hsk-session-token = persisted account session bound to the live channel)"
+        ],
+        "evidence": "defect in repo test code, deterministic: same 401 at 9e4bee34 (generated token) and 11f1b034 (token in effect), so the token value is not the cause; every passing FR reader in the native suite (e.g. test_calendar_interop.rs:449-451, 477-479, 691-694) uses backend.get_json_with_session_token, which authorizes with the fixture account and sends the native-MCP token as x-hsk-channel-binding-token. All BCV steps before :3300 passed; cleanup deleted the workspace (14:09:34Z).",
+        "repair_direction": "read the recorder through live.get_json_with_session_token(&recorder_path, &<native-MCP token in effect>) (account-authorized, channel token in x-hsk-channel-binding-token), keeping the bounded timeout if needed",
+        "prior_failure_class": "FR_SESSION_TOKEN_STALE_AFTER_BINDING_REDIRECT",
+        "prior_failure_status": "superseded: corrected diagnosis (see correction)"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:3300-3330 (recorder read: build_backend_client().get(...).header(\"x-hsk-session-token\", <native-MCP token>) with no account authorization)",
+          "tests/backend_proof_support/mod.rs:1705-1709 (authenticated: account_context.authorize_builder)",
+          "tests/backend_proof_support/mod.rs:2146-2158 (get_json_with_session_token: account-authorized + x-hsk-channel-binding-token)",
+          "src/backend/handshake_core/src/api/flight_recorder.rs:8-12 (x-hsk-session-token = persisted account session bound to the live channel)"
+        ],
+        "repair_direction": "read the recorder through live.get_json_with_session_token(&recorder_path, &<native-MCP token in effect>) (account-authorized, channel token in x-hsk-channel-binding-token), keeping the bounded timeout if needed"
+      }
+    ],
+    "correction": {
+      "corrects": "MT-153.json#validation_round_9e4bee34 and MT-027.json#validation_round_9e4bee34 failure FR_SESSION_TOKEN_STALE_AFTER_BINDING_REDIRECT (validator diagnosis)",
+      "statement": "The 9e4bee34 diagnosis named the stale generated token as the cause. That was incomplete: x-hsk-session-token carries the persisted ACCOUNT session (api/flight_recorder.rs module doc :8-12), while the native-MCP binding token is a channel credential sent as x-hsk-channel-binding-token (backend_proof_support/mod.rs:2146-2158 get_json_with_session_token, :4958 doc). The BCV read builds its own request without the fixture account authorization and puts the native-MCP token in x-hsk-session-token, so it is denied whatever token value it carries; 11f1b034 (token value fix only) reproduces the same 401.",
+      "still_valid": "the binding redirect itself (RealNativeMcpBinding publishes first; the Argus driver keeps that token) is accurate; it is the channel token that must accompany the account-authorized read"
+    },
+    "note": "CHECK-TESTS/CLIPPY-CHANGED remain WP-end extra-build items. rebuild accounting compiled_crates=0 relinked_test_binaries=1 backend_bin_relinked=0 refresh_mode=incremental; backend build profile dev; GP-131 vault probe success (eb304db7); credentials 242/23 before and after (the 1 recorded CX-GIT-003 leftover; no new leftover); no leftover store dirs; session git repo recycled; observer 20 polls, 0 errors, peak C 87.49 GB; infra (not counted): first launch attempt died at PowerShell parse of the generated launcher (no run started), gameplan GP-160",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "153-11f1b034-round",
+        "at_utc": "2026-10-01T14:25:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-153.json#validation_round_11f1b034"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "153-11f1b034-round",
+        "at_utc": "2026-10-01T14:25:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V13"
+      }
+    ]
   }
 }

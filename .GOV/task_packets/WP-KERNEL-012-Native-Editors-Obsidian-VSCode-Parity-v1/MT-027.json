@@ -14,7 +14,7 @@
   "title": "E3-MT027-BlockCollectionViews",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-10-01T14:00:00Z",
+  "updated_at_utc": "2026-10-01T14:25:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-027.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -26,17 +26,17 @@
   },
   "validation_v7": {"schema_id":"hsk.mt_validation_verdict@1","decision":"failed","verdict":"FAIL_V7","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:48:02Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-027.scope.acceptance_criteria/proof_targets and own proof_commands","proof_records":[{"executor_role":"WP_VALIDATOR","command_ref":"MT-032.json#remediation_v12.union_entrypoint_binding","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","freshness":"Full49e archive marker; native JUnit15:40:56Z after13:57:25Z invocation marker; export/copy hashes equal","binaries":[{"path":"C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52\\debug\\deps\\test_block_collection_view-9027401ef60f3b2d.exe","target":"test_block_collection_view","sha256":"2A122F66490C9B381AA27AC03E768E999166C425664D1825A624B3054663198F"}],"runner_sha256":"6DCA6F19DF0C51F04677DA9E8E51F852394A466DC8EFC21455F15233B756E8AC","exit_code":100}],"failing_checks":[{"check_ids":["PC-027-03"],"test":"block_collection_views_live_surrealdb_self_seed_full_round_trip","target":"handshake-native::test_block_collection_view","elapsed_seconds":147.728,"failure_kind":"product","failure_class":"OWNED_SAVED_VIEW_CREATE_403","message":"thread 'block_collection_views_live_surrealdb_self_seed_full_round_trip' (172116) panicked at tests\\test_block_collection_view.rs:1706:10","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#block_collection_views_live_surrealdb_self_seed_full_round_trip"}],"classification_basis":"Owned managed workspace/seed setup reached saved-view POST;403 HSK-403-PROTECTED-RESOURCE instead of required creation; exact guard/session parity unresolved","proof_floor_disposition":{"required_checks":["PC-027-03"],"unmapped_acs":[],"remaining_proofs":"Not credited toward PASS; own required product failure establishes FAIL without claiming other floors complete"},"adversarial_review":{"DIFF_ATTACK_SURFACES":["Record-user/runtime persistence boundaries can fail while component tests pass"],"INDEPENDENT_CHECKS_RUN":["Opened own fresh JUnit and retained primary/secondary failure output","Verified actual union compile-selected EXE hashes"],"COUNTERFACTUAL_CHECKS":["Removing the assertion named by thread 'block_collection_views_live_surrealdb_self_seed_full_round_trip' (172116) panicked at tests\\test_block_collection_view.rs:1706:10 would conceal the required boundary failure"],"BOUNDARY_PROBES":["Owned managed workspace/seed setup reached saved-view POST;403 HSK-403-PROTECTED-RESOURCE instead of required creation; exact guard/session parity unresolved"],"NEGATIVE_PATH_CHECKS":["Failure capture/cleanup output inspected separately; secondary failure does not replace primary"],"INDEPENDENT_FINDINGS":["OWNED_SAVED_VIEW_CREATE_403"],"RESIDUAL_UNCERTAINTY":["Exact internal root cause unresolved; no hardware/load causal attribution","No whole-MT PASS or full-WP completion"]},"remediation_required":["Diagnose named primary boundary with preserved authorization, deadlines and own acceptance; no midcandidate fix or retry in this consumed cycle"],"attempt_disposition":"One final union consumed; historical verdicts preserved; no new run","verdict_events":[{"event":"accepted","idempotency_key":"MT-027-49eac54e-union-v7","at_utc":"2026-09-26T15:48:02Z","payload_ref":"MT-027.json#validation_v7","decision":"failed"},{"event":"completed","idempotency_key":"MT-027-49eac54e-union-v7","at_utc":"2026-09-26T15:49:30Z","state_ref":"MT-027.json#lifecycle","decision":"failed"}]},
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V15",
     "active": false,
     "depends_on": [
       "MT-021",
       "MT-023"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V14",
+    "validator_verdict": "FAIL_V15",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
-    "validated_at_utc": "2026-10-01T14:00:00Z",
+    "validated_at_utc": "2026-10-01T14:25:00Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: BlockCollectionView (table/kanban/calendar, 2006 lines) mounted by NO host; BlockViewEvent no consumer; BlockViewClient never constructed by a host. Not in MT-079/080 scope; no owner MT. Strongest widget of the orphan set (real DragAndDrop kanban proof, verified POST bodies) - mount-only work. Also MT-042 KnowledgeActionRegistry is never installed by app.rs, so collection swarm actions are doubly inert.",
@@ -233,8 +233,8 @@
       },
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
     },
-    "validated_commit": "9e4bee3426d23abab9c42decc7c11fd71d63d018",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_9e4bee34.remediation_required",
+    "validated_commit": "11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_11f1b034.remediation_required",
     "status_before_remediation_v6": "BLOCKED_ON_DEPENDENCY",
     "ready_for_validation_transition": {
       "at_utc": "2026-09-23T23:27:08.158Z",
@@ -253,8 +253,8 @@
     "candidate_updated_at_utc": "2026-10-01T00:46:31Z",
     "candidate_update_note": "6205332b -> e4566f11 (no MT-027 input change: timer revert, MT-023 test, lane B files)",
     "blocked_on": null,
-    "prior_validator_verdict": "FAIL_V13",
-    "status_reason": "FAIL_V14 on 9e4bee34 union round (validation_round_9e4bee34)",
+    "prior_validator_verdict": "FAIL_V14",
+    "status_reason": "FAIL_V15 on 11f1b034 union round (validation_round_11f1b034)",
     "status_before_e4566f11_resubmission": "FAIL_V8",
     "status_before_d9ce6017_resubmission": "FAIL_V9",
     "status_before_7548bc72_resubmission": "FAIL_V10",
@@ -3676,5 +3676,93 @@
     "next_actor": "WP_VALIDATOR single union round",
     "admission_basis": "CX-VAL-008: new diagnosis + change in the failing test path (MT-153-owned test file)",
     "product_change_in_this_mt": "none"
+  },
+  "validation_round_11f1b034": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T14:25:00Z",
+    "candidate_commit": "11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2",
+    "started_at": "2026-10-01T14:04:26.8281545Z",
+    "completed_at": "2026-10-01T14:10:02.6513902Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2-core.xml",
+      "core_junit_sha256": "8556539e1c0e0d052108a262219b95373a0e9cc0bca3cd66a458d12c8cd0332b",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2-native.xml",
+      "native_junit_sha256": "f4717e1fd566188b7482e5fd902b24901a447b5eed0c6aefecde6c0ec1a87685",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2.stdout.log",
+      "log_sha256": "55910385589b71d959681663993c65ad9cbee3b253773c2d84a8371813d1bbfb",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2.stderr.log",
+      "stderr_log_sha256": "2279b792db77673ba92dfc8abd5055a634960dfdd6ab36479862e29220cdd1f9",
+      "export_identity_sha256": "9f623c8650fa6d8fe33f12b0915b089f1cfd4e009d03092c01896ee64d5896cf",
+      "selection": "WPV-round-selection.json (gov 16bf3c27; CX-VAL-002 intersection under key 'intersection')"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-11f1b034"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 35/35, before_verdict PASS 5/5 at 11f1b034",
+    "decision": "failed",
+    "verdict": "FAIL_V15",
+    "checks_run": {
+      "loom_block_collection_views_tests exact 6 (PC-027-04; re-run although reusable: the union entrypoint needs >= 1 core test)": "PASS 6/6",
+      "PC-027-02 test_block_collection_view non-live (11; test file changed)": "PASS 11/11",
+      "test_block_collection_view block_collection_views_live_surrealdb_self_seed_full_round_trip (PC-027-03)": "FAIL"
+    },
+    "proof_reuse": "PC-027-01 lib 4/4 (d9ce6017): native lib src unchanged",
+    "failures": [
+      {
+        "check": "PC-027-03",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "failure_kind": "product",
+        "failure_class": "FR_READ_WRONG_CREDENTIAL_HEADERS",
+        "assertion": "tests/test_block_collection_view.rs:3330: GET Flight Recorder -> 401 Unauthorized: {\"error\":\"HSK-401-FR-SESSION\"}",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:3300-3330 (recorder read: build_backend_client().get(...).header(\"x-hsk-session-token\", <native-MCP token>) with no account authorization)",
+          "tests/backend_proof_support/mod.rs:1705-1709 (authenticated: account_context.authorize_builder)",
+          "tests/backend_proof_support/mod.rs:2146-2158 (get_json_with_session_token: account-authorized + x-hsk-channel-binding-token)",
+          "src/backend/handshake_core/src/api/flight_recorder.rs:8-12 (x-hsk-session-token = persisted account session bound to the live channel)"
+        ],
+        "evidence": "defect in repo test code, deterministic: same 401 at 9e4bee34 (generated token) and 11f1b034 (token in effect), so the token value is not the cause; every passing FR reader in the native suite (e.g. test_calendar_interop.rs:449-451, 477-479, 691-694) uses backend.get_json_with_session_token, which authorizes with the fixture account and sends the native-MCP token as x-hsk-channel-binding-token. All BCV steps before :3300 passed; cleanup deleted the workspace (14:09:34Z).",
+        "repair_direction": "read the recorder through live.get_json_with_session_token(&recorder_path, &<native-MCP token in effect>) (account-authorized, channel token in x-hsk-channel-binding-token), keeping the bounded timeout if needed",
+        "prior_failure_class": "FR_SESSION_TOKEN_STALE_AFTER_BINDING_REDIRECT",
+        "prior_failure_status": "superseded: corrected diagnosis (see correction)"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "PC-027-03",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:3300-3330 (recorder read: build_backend_client().get(...).header(\"x-hsk-session-token\", <native-MCP token>) with no account authorization)",
+          "tests/backend_proof_support/mod.rs:1705-1709 (authenticated: account_context.authorize_builder)",
+          "tests/backend_proof_support/mod.rs:2146-2158 (get_json_with_session_token: account-authorized + x-hsk-channel-binding-token)",
+          "src/backend/handshake_core/src/api/flight_recorder.rs:8-12 (x-hsk-session-token = persisted account session bound to the live channel)"
+        ],
+        "repair_direction": "read the recorder through live.get_json_with_session_token(&recorder_path, &<native-MCP token in effect>) (account-authorized, channel token in x-hsk-channel-binding-token), keeping the bounded timeout if needed"
+      }
+    ],
+    "correction": {
+      "corrects": "MT-153.json#validation_round_9e4bee34 and MT-027.json#validation_round_9e4bee34 failure FR_SESSION_TOKEN_STALE_AFTER_BINDING_REDIRECT (validator diagnosis)",
+      "statement": "The 9e4bee34 diagnosis named the stale generated token as the cause. That was incomplete: x-hsk-session-token carries the persisted ACCOUNT session (api/flight_recorder.rs module doc :8-12), while the native-MCP binding token is a channel credential sent as x-hsk-channel-binding-token (backend_proof_support/mod.rs:2146-2158 get_json_with_session_token, :4958 doc). The BCV read builds its own request without the fixture account authorization and puts the native-MCP token in x-hsk-session-token, so it is denied whatever token value it carries; 11f1b034 (token value fix only) reproduces the same 401.",
+      "still_valid": "the binding redirect itself (RealNativeMcpBinding publishes first; the Argus driver keeps that token) is accurate; it is the channel token that must accompany the account-authorized read"
+    },
+    "note": "rebuild accounting compiled_crates=0 relinked_test_binaries=1 backend_bin_relinked=0 refresh_mode=incremental; backend build profile dev; GP-131 vault probe success (eb304db7); credentials 242/23 before and after (the 1 recorded CX-GIT-003 leftover; no new leftover); no leftover store dirs; session git repo recycled; observer 20 polls, 0 errors, peak C 87.49 GB; infra (not counted): first launch attempt died at PowerShell parse of the generated launcher (no run started), gameplan GP-160",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "027-11f1b034-round",
+        "at_utc": "2026-10-01T14:25:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-027.json#validation_round_11f1b034"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "027-11f1b034-round",
+        "at_utc": "2026-10-01T14:25:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V15"
+      }
+    ]
   }
 }
