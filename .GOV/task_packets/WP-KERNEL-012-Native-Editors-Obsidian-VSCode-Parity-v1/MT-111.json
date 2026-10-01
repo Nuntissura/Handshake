@@ -53,7 +53,27 @@
       "src/frontend/handshake_native/tests/test_event_emitter.rs"
     ],
     "compile_static_planned": "cargo check --locked --tests --test test_event_emitter -j 2 in Handshake_Artifacts/WP-KERNEL-012/MT-143/kb-laneb/target (lane-B target), only on orchestrator go",
-    "status": "PLANNED; product edit awaits report to orchestrator"
+    "status": "SUPERSEDED for AC-111-4 by ac_111_4_proof_analysis_20261001 (mock test withdrawn: KB-PROOF-002)"
+  },
+  "ac_111_4_proof_analysis_20261001": {
+    "by": "KERNEL_BUILDER lane B",
+    "at_utc": "2026-10-01T18:50:00Z",
+    "trigger": "orchestrator NEEDS-FACT: KERNEL_BUILDER_PROTOCOL KB-PROOF-002 'Declarations, generated schemas, mocks and fixture-only tests do not satisfy runtime acceptance'",
+    "ac_verbatim": "AC-111-4: the flight-recorder read surface (app.rs unscoped GET /api/flight_recorder and the flight-recorder pane) sends an explicit ?wsid= scope, because unscoped reads now require fr.read.global which is granted to NO profile and therefore always 403.",
+    "proof_items_verbatim": {
+      "PT-111-3": "PT-111-3: live round trip - emit from the mounted frontend, read back through the scoped read path, assert server-derived actor/workspace on the persisted row.",
+      "AC-111-5": "AC-111-5: runtime proof against a real backend and real PostgreSQL that an editor event emitted from the mounted frontend is durably recorded with SERVER-derived attribution and is readable back through the scoped read path; plus the negative cases in AC-111-2 and AC-111-3.",
+      "proof_commands_mapping": "PC-111-01 (test_flight_recorder_authz mt111_flight_recorder_authorization_boundary_real_surrealdb, live) and PC-111-04 (test_event_emitter event_emitter_native_editor_round_trip, live) both list AC-111-4 in covers",
+      "validator_gap_verbatim": "validation_v2.remaining_proof_gaps AC-111-4: 'no test drives app.rs's own FR pane read with ?wsid='"
+    },
+    "reasoning": [
+      "AC-111-4 states a request-shape requirement (the pane sends ?wsid=) whose reason is a runtime consequence (unscoped -> 403); its mapped proof commands are both live, so a mock-server request-shape test is fixture-only evidence and would not satisfy runtime acceptance (KB-PROOF-002). The mock-test plan is withdrawn.",
+      "PC-111-04 already drives app.rs's own pane read against the real fixture-owned backend: tests/test_event_emitter.rs ~2466 clicks menu.operator.flight-recorder in the mounted HandshakeApp (bound to managed_backend.account_context, base set via set_backend_base_url_for_test at ~2053-2055), then ~2526-2541 waits until every fr_event_row_author_id(event_id) is mounted and asserts 'same resumed real-backend open request renders all exact rows'; ~2543 Refresh asserts the exact rows again. The request is issued by app.rs drive_flight_recorder_pane (src/app.rs ~30272: client.get(url).query(&[(\"wsid\", workspace)]) via account.authorize).",
+      "Rows can only render if that read is scoped: PC-111-01 asserts live that an unscoped GET with a valid credential is 403 HSK-403-FR-CAPABILITY, and app.rs returns a typed local error without any request when the workspace is blank. So PC-111-04 proves AC-111-4 at runtime through the pane itself.",
+      "At 49eac54e PC-111-04 failed only at the workspace DELETE cleanup (test_event_emitter.rs:2768) after its functional assertions (validation_v2.basis); MT-036 PASS_V10 (validation_round_bd8c7532) ran event_emitter_native_editor_round_trip green (test_event_emitter 11/11)."
+    ],
+    "conclusion": "No product edit is needed for AC-111-4: the runtime proof exists in PC-111-04 and the gap is an evidence-mapping gap. Proposed: set READY_FOR_VALIDATION citing MT-036 PASS_V10 and this mapping; the validator credits AC-111-4 from PC-111-04 in the next union round. If the validator requires the literal '?wsid=' string asserted, the option is one additive assertion inside the same live test (no mock), as a new go/no-go.",
+    "status": "REPORTED to orchestrator; awaiting go (no product edit, no cargo, no push during the 4d0da145 round per GP-145/GP-147)"
   },
   "lifecycle": {
     "status": "BLOCKED",
