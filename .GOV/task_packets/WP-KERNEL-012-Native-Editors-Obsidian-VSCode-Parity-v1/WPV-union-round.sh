@@ -349,12 +349,12 @@ else
 # per-MT build or proof run.
 echo "[run-round] native nextest selection/config preflight"
 ( cd "$EXPORT/src/frontend/handshake_native" && \
-  "$NEXTEST" nextest list --locked --config-file "$LANE/nextest.toml" \
+  "$NEXTEST" nextest list --locked --config "$BACKEND_PROFILE_CONFIG" --config-file "$LANE/nextest.toml" \
     --features integration,integration_tests,wgpu_screenshots \
     --test test_code_nav_client --test test_completion_hover_accesskit \
     > "$LANE/logs/native-nextest-list-$SHA$OUT_SUFFIX.log" )
 ( cd "$EXPORT/src/frontend/handshake_native" && \
-  "$NEXTEST" nextest show-config --config-file "$LANE/nextest.toml" \
+  "$NEXTEST" nextest show-config --config "$BACKEND_PROFILE_CONFIG" --config-file "$LANE/nextest.toml" \
     test-groups --no-pager --groups owned-backend \
     --features integration,integration_tests,wgpu_screenshots \
     --test test_code_nav_client --test test_completion_hover_accesskit \
@@ -417,7 +417,7 @@ touch "$CORE_JUNIT_MARKER"
 # (>1: crash / usage error), not on 100 (test run failed).
 set +e
 ( cd "$EXPORT/src/backend/handshake_core" && \
-  "$NEXTEST" nextest run --locked --no-fail-fast \
+  "$NEXTEST" nextest run --locked --no-fail-fast --config "$BACKEND_PROFILE_CONFIG" \
     --config-file "$LANE/nextest-core.toml" \
     --features app-runtime,surreal-test-support,test-utils -E "$CORE_FILTER" --lib "${core_test_args[@]}" )
 CORE_NEXTEST_EXIT=$?
@@ -454,7 +454,7 @@ if [[ "$MODE" = backend-opt-diag ]]; then
 fi
 set +e
 ( cd "$EXPORT/src/frontend/handshake_native" && \
-  "$NEXTEST" nextest run --locked --no-fail-fast \
+  "$NEXTEST" nextest run --locked --no-fail-fast --config "$BACKEND_PROFILE_CONFIG" \
     --config-file "$LANE/nextest.toml" \
     --features integration,integration_tests,wgpu_screenshots -E "${NATIVE_FILTER:-$EXCLUDE_FILTER}" "${NATIVE_TARGET_ARGS[@]}" )
 NATIVE_NEXTEST_EXIT=$?
@@ -487,7 +487,7 @@ for crate in "${EXTRACTED_CRATES[@]}"; do
   touch "$CRATE_JUNIT_MARKER"
   set +e
   ( cd "$EXPORT/src/backend/$crate" && \
-    "$NEXTEST" nextest run --locked --no-fail-fast \
+    "$NEXTEST" nextest run --locked --no-fail-fast --config "$BACKEND_PROFILE_CONFIG" \
       --config-file "$LANE/nextest-core.toml" --lib --features surreal-test-support )
   CRATE_NEXTEST_EXIT=$?
   set -e

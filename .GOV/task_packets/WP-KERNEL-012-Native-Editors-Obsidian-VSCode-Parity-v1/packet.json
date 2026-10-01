@@ -2260,6 +2260,30 @@
           "source": "one per failing test_fems_interop_proofs test (11 failures at the seed POST /code-nav/index, tests/test_fems_interop_proofs.rs:498); target UUIDv7 times 19:45:27Z..19:55:53Z match the 11 workspace ids in the failure messages (01a0f900..01a0f909)",
           "test_output": "WARN: pre-reap owned fixture logout unverified; exact vault cleanup follows: owned fixture session/vault cleanup remains unverified; retain diagnostics for recovery",
           "action": "not deleted (credential_cleanup_20260930 covers only the 78 listed targets; CX-GIT-003 needs Operator approval)"
+        },
+        {
+          "recorded_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+          "recorded_at_utc": "2026-10-02T00:20:00Z",
+          "round": "targeted 222b33cc97421388d7be78b8d0a3b0eb577f9928 (MT-167.json#targeted_result_20261001_222b33cc)",
+          "targets": [
+            "01a0f9ac-4ebb-7be1-b589-25801d35632a.handshake-local-accounts-712441a2bb69f47f0bf466df93ec213382932f036ff34b4444e8e90c87fa2488",
+            "01a0f9ad-2844-7520-a5cd-309675b6d3c2.handshake-local-accounts-1677790ed63b20d35651763405dae087fe6aa5b040d260e6d93e00ab76b5d093",
+            "01a0f9ad-f40f-74e3-9193-8de5b659306a.handshake-local-accounts-a953c94e295e753593f3e03cb82e748512aa9ecd89a9a670cd2172e217abeb77",
+            "01a0f9ae-c7f4-74f2-8112-dd075c2fd23c.handshake-local-accounts-1c4137bbbab4ca77ee7928029f3a9dd72bb1357404a3b8d6aa899a3f73d40ca4",
+            "01a0f9af-9783-78f1-9409-12deed8907f2.handshake-local-accounts-f9d3fa6e5747b593702e2a385dc0e7a25a3080bf6f6efb3459b5fe81c3310176",
+            "01a0f9b0-1ba8-78a0-82f6-9b29d50e9382.handshake-local-accounts-ed5e2824d9f6e900b4bce8bbf7a8a28cb8839975213f0654970c6161eab72576",
+            "01a0f9b0-af57-71a0-8e6b-e54942163546.handshake-local-accounts-10f8f8fec195c8743d132b353995ef0d32e0ad9836192d2addc37928271f5fe4",
+            "01a0f9b1-8381-7f40-853e-0301411ba46c.handshake-local-accounts-5c1f61a7d58823470445675d9ee7e6de69a98d6e5bae93da342c843758b24e9d",
+            "01a0f9b1-fa99-71d1-8acb-5436d17e70cf.handshake-local-accounts-4390336f942f2d580ad5883e1c70cc6edf3739f53630b80bca1317503de6d073",
+            "01a0f9b2-82a4-70c2-98d7-e109230f5f4e.handshake-local-accounts-9a13807b07988c048cb58fd8e9a2fd8ea227a35eb63a9b4eb38574a9f3da8660",
+            "01a0f9b3-0aef-7f52-8698-b78f3af9ddb9.handshake-local-accounts-5e49133fac27d6fb614b4734c4c5a7781ba2e8966c93d2216e203444d04d0504"
+          ],
+          "counts": {
+            "before_round": "241 total / 22 handshake-local-accounts",
+            "after_round": "252 total / 33 handshake-local-accounts"
+          },
+          "source": "one per failing test_fems_interop_proofs test (11 failures; UUIDv7 times 22:53:34Z..23:00:55Z)",
+          "action": "not deleted (WP012-OPERATOR-DELETE-PROVEN-CREDENTIAL-LEAKS-20261001 covered the 13 listed targets; these need a per-entry hash proof and the decision's list-first procedure)"
         }
       ],
       "operator_approval_20261001": {

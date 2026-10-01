@@ -987,5 +987,92 @@
     ],
     "next": "all targeted MT-167 items pass -> one union round on 222b33cc (all READY MTs, CX-VAL-002 intersection); otherwise report failure output to the orchestrator, no union round",
     "result_key": "MT-167.json#targeted_result_20261001_222b33cc (written after the run)"
+  },
+  "targeted_result_20261001_222b33cc": {
+    "schema_id": "hsk.targeted_run_result@1",
+    "kind": "TARGETED evidence run; INVALID (core phase infrastructure); no verdict",
+    "remediation_ref": "MT-167.json#remediation_20261001_targeted_222b33cc",
+    "recorded_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "recorded_at_utc": "2026-10-02T00:20:00Z",
+    "candidate_commit": "222b33cc97421388d7be78b8d0a3b0eb577f9928",
+    "run": {
+      "bash_start_utc": "2026-10-01T21:21:26.7500225Z",
+      "completed_utc": "2026-10-01T23:01:33.5600607Z",
+      "wrapper_exit": 4,
+      "result_line": "INVALID_ROUND_RESULT core_exit=101 native_exit=100",
+      "refs": {
+        "stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-222b33cc97421388d7be78b8d0a3b0eb577f9928.stdout.log",
+        "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-222b33cc97421388d7be78b8d0a3b0eb577f9928.stderr.log",
+        "core_build_v": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/core-build-v-222b33cc97421388d7be78b8d0a3b0eb577f9928-targeted.log",
+        "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-222b33cc97421388d7be78b8d0a3b0eb577f9928-native-targeted.xml",
+        "nextest_config_path_probe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/nextest-config-path-probe-222b33cc.log"
+      },
+      "sha256": {
+        "stdout": "2f3f490e2000b8173309ebd3e4cb74ddcdbc55e8e6e292423304ae9c19619835",
+        "stderr": "da999864818fa17c821e2e426d221d04c3407aac7ce69c068fa33b2937169fc2",
+        "core_build_v": "6e61af9033e6ce2b0fa35eb180b5a981e7fe36d74f3b8a7df6c7ee3eaafd897b",
+        "native_junit": "cad4b75a5183713848770d824961b0b16d87ab18b09ad14fac9f701b16692d20",
+        "nextest_config_path_probe": "3796289589902ce50837ff52e80241737e853c6483ceead21433e7b0da681e30"
+      }
+    },
+    "build_profiles": {
+      "backend": "dev + allow-listed dependency opt-level 2 (-j 2)",
+      "core_test": "dev/test + 8-crate opt-level 2",
+      "native_test": "inert (no surrealdb crate)"
+    },
+    "test_profile_proof": {
+      "result": "PASS",
+      "core": "compiled_o2=8 fresh=0 absent=0 bad=0: surrealdb, surrealdb_core, librocksdb_sys, rocksdb, surrealdb_collections, surrealdb_types, surrealdb_strand, surrealdb_protocol each compiled with -C opt-level=2; handshake_core without",
+      "native": "inert (no allow-listed crate compiled)",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/core-build-v-222b33cc97421388d7be78b8d0a3b0eb577f9928-targeted.log"
+    },
+    "core_failure": {
+      "failure_kind": "infrastructure",
+      "class": "NEXTEST_BUILD_WITHOUT_CARGO_CONFIG",
+      "evidence": "core build (cargo test --no-run -v --config <toml>) succeeded; the core run step `cargo-nextest run` performs its own `cargo test --no-run --message-format json-render-diagnostics` WITHOUT --config, resolving the O0 unit graph; that build failed (E0463 can't find crate handshake_core; 'crate aws_lc_sys/num_bigint/librocksdb_sys/... required to be available in rlib format') -> nextest exit 101, no core JUnit",
+      "defect_location": "validator entrypoint WPV-union-round.sh (c1940f44 passed the config to build lines only)",
+      "repair": "gov fix: --config <same toml> on every nextest run/list/show-config invocation (core, native, extracted); nextest accepts a config file path (probe: nextest list --config <toml path> on handshake_storage_support exit 0); GP-162",
+      "no_mt167_core_evidence": "MT-167 timing, EQUAL-COUNTS, knowledge_code_index_tests, knowledge_code_nav_api_tests and the account test did not run"
+    },
+    "native_downstream_evidence": {
+      "tests": 35,
+      "failed": 12,
+      "note": "MT-167-DOWNSTREAM evidence only (MT-008/064/065 stay BLOCKED); backend at the 8-crate O2 profile",
+      "test_completion_hover_accesskit": {
+        "ac005": "PASS",
+        "ac006": "FAIL tests/test_completion_hover_accesskit.rs:331 'AC-006 managed-backend response opens hover tooltip' (same as 4d0da145)"
+      },
+      "test_fems_interop_proofs": {
+        "passed": 22,
+        "failed": 11,
+        "by_failure_point": {
+          "tests/test_fems_interop_proofs.rs:1565 / :2274 'timed out waiting for indexed symbol in production Quick Switcher'": [
+            "proof_fems_01_memorypack_render",
+            "proof_fems_02_propose_creates_proposal_and_event",
+            "proof_fems_03_swarm_drives_fems_via_accesskit (:2274)",
+            "proof_fems_04_procedural_proposal_stays_review_gated",
+            "proof_fems_cross_pane_focus_invalidates_already_staged_selection",
+            "proof_fems_review_approval_and_rejection_persist_end_to_end"
+          ],
+          "tests/backend_proof_support/mod.rs:4504 'managed fixture cleanup failed; owned runtime evidence retained'": [
+            "proof_fems_approved_proposal_recovers_commit_only_after_native_restart",
+            "proof_fems_code_provenance_rejects_cross_workspace_and_stale_ksrc",
+            "proof_fems_duplicate_submission_replays_one_proposal_and_one_event"
+          ],
+          "tests/test_fems_interop_proofs.rs:498 seed POST /code-nav/index 'error sending request'": [
+            "proof_fems_editor_switch_invalidates_identical_text_range_selection",
+            "proof_fems_focus_change_after_request_drain_invalidates_open_dialog"
+          ]
+        },
+        "change_vs_4d0da145": "4d0da145 (dev backend): all 11 failed at the seed POST :498; now 9 of 11 get past the seed index request and fail later (indexed-symbol wait / fixture cleanup); AC-167-4 'no failure at the seed code-nav index request' still not met for 2"
+      }
+    },
+    "credentials": {
+      "before": "241/22",
+      "after": "252/33",
+      "new_leftovers": 11,
+      "recorded": "packet.json credential_cleanup_20260930.defect_cx_git_003.occurrences[3]"
+    },
+    "other": "observer spin capture did not fire; runtime count 145 unchanged"
   }
 }
