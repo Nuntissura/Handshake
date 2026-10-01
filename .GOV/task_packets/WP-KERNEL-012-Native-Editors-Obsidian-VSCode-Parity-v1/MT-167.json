@@ -454,5 +454,26 @@
     "updated_at_utc": "2026-10-01T17:32:54Z"
   },
   "authored_by": "KERNEL_BUILDER-LANE-B-20260930",
-  "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-164 precedent shape"
+  "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-164 precedent shape",
+  "operator_decision_request_20261001_ingestion_share_vs_ac_167_3": {
+    "schema_id": "hsk.operator_decision_request@1",
+    "rule": "KERNEL_BUILDER_PROTOCOL.md:55 (KB-IMPL-006)",
+    "requested_by": "KERNEL_BUILDER-20260930",
+    "requested_at_utc": "2026-10-01T17:34:03Z",
+    "status": "OPEN",
+    "question": "The ingestion share of the code-nav index route (persist_ingestion_batch, src/backend/handshake_core/src/knowledge_ingestion/engine.rs, owned by MT-154 and forbidden to MT-167) alone is ~4.8-5.0 s for the 2-file FEMS seed under union load; together with register_root/start_index_run/bind_run_sources the route spends 6.4-7.2 s before code indexing starts. AC-167-3 requires a full-route median < 5 s. Which owner/decision covers that share: (a) MT-154 (or a new MT) reduces ingestion persist cost, (b) the pending debug-backend dependency-optimization decision (MT-153.json#research_20261001_debug_backend_profile) is applied, (c) AC-167-3 is re-scoped (e.g. the < 5 s target measured on the code-index stages MT-167 owns, the 30 s maximum on the full route), or (d) other",
+    "files_without_owning_mt_for_this_cost": [
+      "src/backend/handshake_core/src/knowledge_ingestion/engine.rs (owned by MT-154; forbidden_write_paths of MT-167)"
+    ],
+    "evidence_refs": [
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-65bcbd5131bf5c0b/7568aacc-8f22-454f-8def-60d72bb1a949/backend.stdout.log:79-91 (register_root 671 ms; persist_ingestion_batch 4991 ms incl. projection 4069 ms; start_index_run 446 ms; bind_run_sources ~1.05 s; code batch starts at total 7.2 s)",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-f750d70f750b17ba/9b107ed2-70e6-4715-93e4-057309df4faf/backend.stdout.log:79-91 (persist_ingestion_batch 4781 ms incl. projection 3767 ms; code batch starts at total 6.4 s)",
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-56fbaa1154750223/3fbd4e2e-d9d0-4b40-b554-d8f423d98258/backend.stdout.log:78-91 (MT-008 fixture, 1 file: persist_ingestion_batch 2499 ms; 4.3 s before the code batch; finish_index_run 1862 ms)",
+      "MT-167.json#implementation_record.owning_module_evidence"
+    ],
+    "cross_reference": "MT-153.json#research_20261001_debug_backend_profile (status OPERATOR_DECISION_PENDING): the owned backend is a dev-profile (unoptimized) build incl. unoptimized RocksDB C++; the same uniform per-statement cost applies to the ingestion projection and to the code-index writes; a dependency-only opt-level override is the pending decision",
+    "mt167_position": "MT-167 removes the cost inside knowledge_code_index/engine.rs only. Per its stop condition ('The Ok(None) cause lies outside both candidate modules ... record ... operator_decision_request; do not edit'), if engine.rs costs are removed but the < 5 s median stays out of reach because of the ingestion share, that is recorded as the blocker and no time is chased in other modules",
+    "spec": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:4470-4478 §2.3.14.17.3 Index update propagation <5 s target / 30 s maximum",
+    "blocks": "MT-167 AC-167-3 median (not the engine.rs work); MT-008/064/065 stay BLOCKED until MT-167 has a verdict"
+  }
 }
