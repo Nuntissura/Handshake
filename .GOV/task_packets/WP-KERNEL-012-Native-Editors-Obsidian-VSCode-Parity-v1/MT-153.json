@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-10-01T08:15:00Z",
+  "updated_at_utc": "2026-10-01T09:55:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V9",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -49,9 +49,9 @@
       "MT-157"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V8",
-    "prior_validator_verdict": "FAIL_V7",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_d9ce6017.remediation_required",
+    "validator_verdict": "FAIL_V9",
+    "prior_validator_verdict": "FAIL_V8",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_7548bc72.remediation_required",
     "ready_status_repair": {
       "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
       "rule": "CX-STATUS-001",
@@ -65,8 +65,8 @@
       "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
     },
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
-    "validated_at_utc": "2026-10-01T08:15:00Z",
-    "validated_commit": "d9ce6017e91430c69d410b555bd79fd5f6916926",
+    "validated_at_utc": "2026-10-01T09:55:00Z",
+    "validated_commit": "7548bc72c8c819c139d6257674a84bd95a215b0d",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -86,7 +86,7 @@
       "at_utc": "2026-09-23T23:52:39.079Z",
       "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
     },
-    "status_reason": "FAIL_V8 on d9ce6017 union round (validation_round_d9ce6017)",
+    "status_reason": "FAIL_V9 on 7548bc72 union round (validation_round_7548bc72)",
     "status_before_20260930": "FAIL_V2",
     "candidate_commit": "7548bc72c8c819c139d6257674a84bd95a215b0d",
     "blocked_on": null,
@@ -5216,6 +5216,125 @@
       "MT-153.json#diagnosis_20261001_argus_binding_root (DX-MT-153-20261001-ARGUS-BINDING-ROOT-STALE-ASSERT)",
       "MT-153.json#diagnosis_20261001_workspace_delete_viewdef (DX-MT-153-20261001-WORKSPACE-DELETE-VIEWDEF-NO-RESOURCE) + research_20261001_workspace_delete_w (W-A + W-B), route (a)",
       "MT-153.json#diagnosis_20261001_mt152_keyed_lock_pin (DX-MT-153-20261001-MT152-KEYED-LOCK-PIN-STALE-PATH, routed to MT-152)"
+    ]
+  },
+  "validation_round_7548bc72": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T09:55:00Z",
+    "candidate_commit": "7548bc72c8c819c139d6257674a84bd95a215b0d",
+    "started_at": "2026-10-01T08:48:33.4243630Z",
+    "completed_at": "2026-10-01T09:41:45.9073567Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7548bc72c8c819c139d6257674a84bd95a215b0d-core.xml",
+      "core_junit_sha256": "f35065af0d2596839582c20a3a626d9e6550f22e597bedbeabb8a88301a1923b",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7548bc72c8c819c139d6257674a84bd95a215b0d-native.xml",
+      "native_junit_sha256": "0ceecdb230fbeeb27beb856f77cf257f97cc6482376e9c00bb73da1be78af285",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-7548bc72c8c819c139d6257674a84bd95a215b0d.stdout.log",
+      "log_sha256": "ebba5c2abe628e2b29cb1837a87c52e00330206571f371b997dd2116e128f0f2",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-7548bc72c8c819c139d6257674a84bd95a215b0d.stderr.log",
+      "stderr_log_sha256": "27a852936685ea4a582fda8e38a0cc08fe669db92adebb02eba815f3206eda41",
+      "export_identity_sha256": "f0f7f35d97d59775bcec9a26877adcea211779e7ee6ae63981eaf20bb63f94be",
+      "selection": "WPV-round-selection.json (gov 423ed9a5; CX-VAL-002 intersection under key 'intersection')"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-7548bc72"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 34/34, before_verdict PASS 5/5 at 7548bc72",
+    "decision": "failed",
+    "verdict": "FAIL_V9",
+    "checks_run": {
+      "MT-153-PIN-CONFIRM (7)": "PASS 7/7",
+      "api::loom::tests::mt153_owner_workspace_delete_removes_saved_view (new proof test)": "FAIL",
+      "MT-153-ROUTE-MATRIX (2)": "PASS 2/2",
+      "MT-153-WORKSPACE-DELETE (2)": "PASS 2/2",
+      "MT-153-LOOM-TARGETS (4 targets)": "PASS 16/16",
+      "user_manual lib tests (incl. routed MT-152 mt152_manual_lock_migration_pins_code)": "PASS 27/27",
+      "MT-153-NATIVE-LOOM canvas_board live": "PASS",
+      "MT-153-NATIVE-LOOM block_collection_views live": "FAIL",
+      "MT-153-FMT rustfmt 1.97.1 --edition 2021 --check, 4 changed .rs files @7548bc72": "PASS 4/4",
+      "MT-153-DIFF-CHECK d9ce6017..7548bc72, 37ee7c5b..7548bc72": "PASS",
+      "MT-153-BUILD-LIB": "PASS (union build)"
+    },
+    "failures": [
+      {
+        "check": "MT-153 route (a) proof test",
+        "test": "api::loom::tests::mt153_owner_workspace_delete_removes_saved_view",
+        "failure_kind": "product",
+        "failure_class": "WORKSPACE_DELETE_RECORD_DENIED",
+        "assertion": "src/api/loom.rs:10103: owner workspace delete with a saved view: {\"error\":\"HSK-403-PROTECTED-RESOURCE\"} left 403 right 204",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7548bc72c8c819c139d6257674a84bd95a215b0d-core.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/storage/surreal/schema.surql fn::mt120_workspace_delete",
+          "src/backend/handshake_core/src/storage/surreal/workspaces.rs:511-555"
+        ],
+        "evidence": "core junit system-err: 'HSK_WORKSPACE_DELETE_TRANSACTION_FAILED statement_index=20 error=An error occurred: HSK-403-PROTECTED-RESOURCE'; assertion src/api/loom.rs:10103 left 403 right 204 ('owner workspace delete with a saved view'); statement 20 of the account-scoped delete transaction (src/storage/surreal/workspaces.rs:511-555: 0 BEGIN, 1-6 authority touches, 7 LET children, 8 FOR, 9 checked anchor UPSERT, 10 checked anchor DELETE, 11-19 cascade DELETEs, 20 checked `DELETE $workspace`, 21 COMMIT) is the workspace record delete; statement 10 (the d9ce6017 failure point) now passes",
+        "repair_direction": "route (a) (fn::mt120_workspace_delete W-A/W-B view_def widening, 8ff1565d) moved the denial from the anchor DELETE (statement 10) to the workspace record DELETE (statement 20) but the owner delete of a workspace holding a saved view is still denied; the proof test mt153_owner_workspace_delete_removes_saved_view reproduces it in the embedded store",
+        "prior_failure_class": "WORKSPACE_DELETE_ANCHOR_DELETE_DENIED",
+        "prior_failure_status": "moved: statement 10 now passes, statement 20 denied"
+      },
+      {
+        "check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "failure_kind": "product",
+        "failure_class": "MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT",
+        "assertion": "tests/test_block_collection_view.rs:2001 (await_app_collection): mounted HandshakeApp did not load view e8709b23-c419-4d84-96ed-d2e10fedaca2 within 10s",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7548bc72c8c819c139d6257674a84bd95a215b0d-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:1975-2002",
+          "tests/test_block_collection_view.rs:2526-3272 (await_app_collection call sites; which call is not identified by the output)"
+        ],
+        "evidence": "every await_app_collection call is after the Argus step, so :2507 (d9ce6017 failure ARGUS_BINDING_ROOT_REDIRECTED_BY_PROOF_SUPPORT) passed; the await requires view_block_id match, !loading, !in_flight and error none within 200 x 50 ms; owned backend <lane>/e/.../s-368a110cf51f6ec4/b1cee4c7-5d78-473d-9407-c5a3d27fe55a/backend.stdout.log logs one 'loom_api_error ... Transaction conflict: Resource busy. This transaction can be retried' at 09:36:48Z (test ran 09:35:04Z-~09:37:30Z; its drop-guard workspace delete at 09:37:23Z is denied at statement 20); the conflict is not tied to the failing await by the output (no causal attribution)",
+        "repair_direction": "identify which mounted view load (table/kanban/calendar/empty; view e8709b23) stays loading/in_flight/error for 10 s; the panic carries no backtrace or view error text",
+        "prior_failure_class": "ARGUS_BINDING_ROOT_REDIRECTED_BY_PROOF_SUPPORT",
+        "prior_failure_status": "resolved in this run: the Argus step at :2507 passed (f98e1e20)"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "MT-153 route (a) proof test",
+        "test": "api::loom::tests::mt153_owner_workspace_delete_removes_saved_view",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7548bc72c8c819c139d6257674a84bd95a215b0d-core.xml",
+        "affected_code_refs": [
+          "src/backend/handshake_core/src/storage/surreal/schema.surql fn::mt120_workspace_delete",
+          "src/backend/handshake_core/src/storage/surreal/workspaces.rs:511-555"
+        ],
+        "repair_direction": "route (a) (fn::mt120_workspace_delete W-A/W-B view_def widening, 8ff1565d) moved the denial from the anchor DELETE (statement 10) to the workspace record DELETE (statement 20) but the owner delete of a workspace holding a saved view is still denied; the proof test mt153_owner_workspace_delete_removes_saved_view reproduces it in the embedded store"
+      },
+      {
+        "failed_check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-7548bc72c8c819c139d6257674a84bd95a215b0d-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:1975-2002",
+          "tests/test_block_collection_view.rs:2526-3272 (await_app_collection call sites; which call is not identified by the output)"
+        ],
+        "repair_direction": "identify which mounted view load (table/kanban/calendar/empty; view e8709b23) stays loading/in_flight/error for 10 s; the panic carries no backtrace or view error text"
+      }
+    ],
+    "findings": [
+      {
+        "test": "user_manual::seed::tests::mt152_manual_lock_migration_pins_code",
+        "status": "PASS",
+        "note": "routed MT-152 finding from d9ce6017 resolved by f98e1e20; MT-152 stays PASS_V6"
+      }
+    ],
+    "note": "CHECK-TESTS/CLIPPY-CHANGED remain WP-end extra-build items. rebuild accounting compiled_crates=1 (handshake_core) relinked_test_binaries=22 backend_bin_relinked=1 refresh_mode=incremental; backend build profile dev (debug-backend override not applied, Operator decision pending); credentials 241/22 before and after; no leftover store dirs; session git repo recycled; observer 103 polls, 0 errors, peak C 88.51 GB",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "153-7548bc72-round",
+        "at_utc": "2026-10-01T09:55:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-153.json#validation_round_7548bc72"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "153-7548bc72-round",
+        "at_utc": "2026-10-01T09:55:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V9"
+      }
     ]
   }
 }
