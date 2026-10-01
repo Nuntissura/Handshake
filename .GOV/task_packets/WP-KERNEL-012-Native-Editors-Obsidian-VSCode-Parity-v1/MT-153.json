@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-10-01T09:55:00Z",
+  "updated_at_utc": "2026-10-01T11:25:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V10",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -49,9 +49,9 @@
       "MT-157"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V9",
-    "prior_validator_verdict": "FAIL_V8",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_7548bc72.remediation_required",
+    "validator_verdict": "FAIL_V10",
+    "prior_validator_verdict": "FAIL_V9",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_791a81dd.remediation_required",
     "ready_status_repair": {
       "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
       "rule": "CX-STATUS-001",
@@ -65,8 +65,8 @@
       "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
     },
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
-    "validated_at_utc": "2026-10-01T09:55:00Z",
-    "validated_commit": "7548bc72c8c819c139d6257674a84bd95a215b0d",
+    "validated_at_utc": "2026-10-01T11:25:00Z",
+    "validated_commit": "791a81dd23cee301006995a2b7bb550cfeba4471",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -86,7 +86,7 @@
       "at_utc": "2026-09-23T23:52:39.079Z",
       "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
     },
-    "status_reason": "FAIL_V9 on 7548bc72 union round (validation_round_7548bc72)",
+    "status_reason": "FAIL_V10 on 791a81dd union round (validation_round_791a81dd)",
     "status_before_20260930": "FAIL_V2",
     "candidate_commit": "791a81dd23cee301006995a2b7bb550cfeba4471",
     "blocked_on": null,
@@ -5675,6 +5675,104 @@
       "MT-153.json#diagnosis_20261001_workspace_delete_viewdef + research_20261001_workspace_delete_w (route (a) attempt 1, 8ff1565d)",
       "MT-153.json#diagnosis_20261001_argus_binding_root (f98e1e20; Argus :2507 passed in round 7548bc72)",
       "MT-153.json#diagnosis_20261001_mt152_keyed_lock_pin (f98e1e20; user_manual 27/27 in round 7548bc72)"
+    ]
+  },
+  "validation_round_791a81dd": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T11:25:00Z",
+    "candidate_commit": "791a81dd23cee301006995a2b7bb550cfeba4471",
+    "started_at": "2026-10-01T10:14:26.3060940Z",
+    "completed_at": "2026-10-01T11:08:44.2978957Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-791a81dd23cee301006995a2b7bb550cfeba4471-core.xml",
+      "core_junit_sha256": "098f84c9d07444a21bb1b90dd0bc77dd4972bc85fc40750cbbf62d2a19864c19",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-791a81dd23cee301006995a2b7bb550cfeba4471-native.xml",
+      "native_junit_sha256": "f3b4d7c4fdddc970e98612acbe3f2fc7562d868e88527ada1fc7f9a0795407a0",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-791a81dd23cee301006995a2b7bb550cfeba4471.stdout.log",
+      "log_sha256": "28d769a4b45be8dd2e747edbc6de57250bd80f59e456c48f647293399d3040a0",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-791a81dd23cee301006995a2b7bb550cfeba4471.stderr.log",
+      "stderr_log_sha256": "4340a3d4dd6ff1f03b9a35555528a39c478a98af07e3f7b4a03be48e45694304",
+      "export_identity_sha256": "688e9340b4e72da597ee75b3e5f9a7e17229172e8e1abf22ec8451cd90a25a91",
+      "selection": "WPV-round-selection.json (gov 1c491952; CX-VAL-002 intersection under key 'intersection')"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-791a81dd"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 34/34, before_verdict PASS 5/5 at 791a81dd",
+    "decision": "failed",
+    "verdict": "FAIL_V10",
+    "checks_run": {
+      "MT-153-PIN-CONFIRM (7)": "PASS 7/7",
+      "api::loom::tests::mt153_owner_workspace_delete_removes_saved_view": "PASS",
+      "MT-153-ROUTE-MATRIX (2)": "PASS 2/2",
+      "MT-153-WORKSPACE-DELETE (2)": "PASS 2/2",
+      "MT-153-LOOM-TARGETS (4 targets)": "PASS 16/16",
+      "user_manual lib tests": "PASS 27/27",
+      "MT-153-NATIVE-LOOM canvas_board live": "PASS",
+      "MT-153-NATIVE-LOOM block_collection_views live": "FAIL",
+      "MT-153-FMT rustfmt 1.97.1 --edition 2021 --check, 3 changed .rs files 7548bc72..791a81dd": "PASS 3/3",
+      "MT-153-DIFF-CHECK 7548bc72.., d9ce6017.., 37ee7c5b..791a81dd": "PASS",
+      "MT-153-BUILD-LIB": "PASS (union build)"
+    },
+    "failures": [
+      {
+        "check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "failure_kind": "product",
+        "failure_class": "MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT",
+        "assertion": "tests/test_block_collection_view.rs:2001 (await_app_collection): mounted HandshakeApp did not load view c11d6b64-9241-4fc1-bf39-e9f842881ae2 within 10s",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-791a81dd23cee301006995a2b7bb550cfeba4471-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:1975-2002",
+          "tests/test_block_collection_view.rs:2526-3272 (await_app_collection call sites; the call is not identified by the output)"
+        ],
+        "evidence": "second consecutive round with this class (7548bc72 view e8709b23; now view c11d6b64); test ran 11:00:04Z for 298.6 s; owned backend <lane>/e/.../s-368a110cf51f6ec4/81df6774-ae7f-40e2-b7e5-86a1ccfe4891 stdout ends at 11:00:42Z (workspace create; later routes do not log at INFO), flight_recorder.db.wal written until 11:01Z, stderr empty, no Transaction conflict logged; the panic carries no view error or backtrace. VIEW-OUTBOX-PUBLISH-RACE P1 (first run): no 'Transaction conflict' line in either preserved owned-backend log of this round (BCV s-368a110cf51f6ec4/81df6774..., ac10 s-4027868fac6f2e75/e86f9032...); backends of passing tests are not preserved, so recurrence elsewhere is unobserved. The mounted view-load timeout recurred without any logged conflict.",
+        "repair_direction": "instrument or capture which mounted view load (and its loading/in_flight/error state) misses the 10 s await; P1 (outbox mark retry) did not remove the timeout",
+        "prior_failure_class": "MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT",
+        "prior_failure_status": "recurred (7548bc72 and 791a81dd)"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-791a81dd23cee301006995a2b7bb550cfeba4471-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:1975-2002",
+          "tests/test_block_collection_view.rs:2526-3272 (await_app_collection call sites; the call is not identified by the output)"
+        ],
+        "repair_direction": "instrument or capture which mounted view load (and its loading/in_flight/error state) misses the 10 s await; P1 (outbox mark retry) did not remove the timeout"
+      }
+    ],
+    "findings": [
+      {
+        "class": "WORKSPACE_DELETE_RECORD_DENIED",
+        "status": "resolved in this run",
+        "evidence": "mt153_owner_workspace_delete_removes_saved_view PASS (core junit); ac10 owned backend logs 'workspace deleted' for 01a0f725-e32b-79b3-ade4-1c4aad521be4 at 11:08:21Z (s-4027868fac6f2e75/e86f9032...)"
+      },
+      {
+        "class": "VIEW-OUTBOX-PUBLISH-RACE (P1 hypothesis)",
+        "status": "conflict not observed",
+        "evidence": "VIEW-OUTBOX-PUBLISH-RACE P1 (first run): no 'Transaction conflict' line in either preserved owned-backend log of this round (BCV s-368a110cf51f6ec4/81df6774..., ac10 s-4027868fac6f2e75/e86f9032...); backends of passing tests are not preserved, so recurrence elsewhere is unobserved. The mounted view-load timeout recurred without any logged conflict."
+      }
+    ],
+    "note": "CHECK-TESTS/CLIPPY-CHANGED remain WP-end extra-build items. rebuild accounting compiled_crates=1 (handshake_core) relinked_test_binaries=21 backend_bin_relinked=1 refresh_mode=incremental; backend build profile dev (debug-backend override not applied, Operator decision pending); credentials 241/22 before, 242/23 after: one leftover OS-vault target 01a0f71f-885e-7b03-b595-1a42b809009f.handshake-local-accounts-d8d19f564accb82a52317e94738bb7830d6557e0b28ee7604c0487e585e80cda (UUIDv7 time 2026-10-01T11:00:41Z = BCV fixture; test stderr 'pre-reap owned fixture logout unverified ... vault cleanup remains unverified'); not deleted (credential deletion requires Operator approval); no leftover store dirs; session git repo recycled; observer 104 polls, 0 errors, peak C 88.52 GB",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "153-791a81dd-round",
+        "at_utc": "2026-10-01T11:25:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-153.json#validation_round_791a81dd"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "153-791a81dd-round",
+        "at_utc": "2026-10-01T11:25:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V10"
+      }
     ]
   }
 }
