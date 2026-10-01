@@ -554,6 +554,11 @@ path = "tests/knowledge_code_nav_api_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
+name = "mt167_code_nav_index_cost_tests"
+path = "tests/mt167_code_nav_index_cost_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
 name = "knowledge_claims_tests"
 path = "tests/knowledge_claims_tests.rs"
 required-features = ["surreal-test-support", "test-utils"]

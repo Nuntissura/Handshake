@@ -264,6 +264,46 @@ struct CleanCodeBatchFileWrite {
     code_file: RecordId,
     code_file_id: String,
     symbols: Vec<CleanCodeBatchSymbolWrite>,
+    edges_indexed: i64,
+}
+
+/// MT-167: doc/TODO/operator-string passages and calls/implements
+/// relationships of one batched file, keyed by natural entity identity so the
+/// rows resolve to existing or new record ids exactly like the per-file
+/// writer's upserts (`index_code_file` / `write_relationships`).
+#[derive(Default)]
+struct BatchFileExtras {
+    concepts: Vec<BatchConceptWrite>,
+    spans: Vec<BatchSpanWrite>,
+    entity_spans: Vec<(String, String)>,
+    edges: Vec<BatchEdgeWrite>,
+}
+
+struct BatchConceptWrite {
+    entity_key: String,
+    display_name: String,
+    provenance: Value,
+}
+
+struct BatchSpanWrite {
+    span_id: String,
+    span_kind: KnowledgeSpanKind,
+    range_start: i64,
+    range_end: i64,
+    line_start: i64,
+    line_end: i64,
+    section_path: Option<String>,
+    content_sha256: String,
+    display_snippet: String,
+}
+
+struct BatchEdgeWrite {
+    edge_type: KnowledgeEdgeType,
+    source: (KnowledgeEntityKind, String),
+    target: (KnowledgeEntityKind, String),
+    confidence: f64,
+    relationship_id: String,
+    span_id: String,
 }
 
 #[derive(SurrealValue)]
@@ -279,6 +319,16 @@ struct CleanCodeBatchBindings {
     code_files: Vec<CleanCodeFileRow>,
     sources: Vec<RecordId>,
     receipt: RecordId,
+    symbol_span_links: Vec<CleanCodeSymbolSpanLinkRow>,
+}
+
+/// MT-167: one symbol's new evidence span; older `ast` links of that symbol on the
+/// same source are removed first, like `replace_knowledge_entity_spans_for_source_kind`.
+#[derive(SurrealValue)]
+struct CleanCodeSymbolSpanLinkRow {
+    entity_id: RecordId,
+    source_id: RecordId,
+    span_id: RecordId,
 }
 
 #[derive(SurrealValue)]
@@ -306,7 +356,7 @@ struct CleanCodeSpanRow {
     range_end: i64,
     line_start: i64,
     line_end: i64,
-    section_path: String,
+    section_path: Option<String>,
     content_sha256: String,
     parser_version: String,
     extraction_receipt_event_id: RecordId,
@@ -424,6 +474,7 @@ const PERSIST_CLEAN_CODE_BATCH: &str = concat!("BEGIN TRANSACTION; \
     INSERT INTO kernel_event_ledger $events RETURN NONE; \
     FOR $file IN $code_files { IF array::len((UPDATE $file.id SET last_index_receipt_event_id = $receipt RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; \
     INSERT INTO knowledge_spans $spans RETURN NONE; \
+    FOR $link IN $symbol_span_links { DELETE knowledge_entity_spans WHERE entity_id = $link.entity_id AND span_id.source_id = $link.source_id AND span_id.span_kind = 'ast' AND span_id != $link.span_id; }; \
     INSERT INTO knowledge_entity_spans $entity_spans RETURN NONE; \
     IF array::len((INSERT INTO knowledge_edges $edges ON DUPLICATE KEY UPDATE \
       confidence = $input.confidence, extractor_version = $input.extractor_version, \
@@ -911,6 +962,7 @@ impl CodeIndexEngine {
 
         let mut receipt_payloads = Vec::with_capacity(prepared.len());
         let mut writes = Vec::with_capacity(prepared.len());
+        let mut file_extras = Vec::with_capacity(prepared.len());
         let mut outcomes = Vec::with_capacity(prepared.len());
         for (file, (source_id, relative_path)) in prepared.iter().zip(persisted_sources) {
             if &file.relative_path != relative_path {
@@ -934,10 +986,14 @@ impl CodeIndexEngine {
             let symbols = extract_symbols(&tree, text);
             let mut docs = extract_doc_passages(text);
             let operators = extract_operator_strings(&tree, text);
+            let operator_string_count = operators.len();
             let relationships = extract_relationships(&tree, text, &symbols);
             let test_mappings = extract_test_mappings(&tree, text, &symbols);
             docs.extend(operators);
-            if !docs.is_empty() || !relationships.is_empty() || !test_mappings.is_empty() {
+            // MT-167: passages and calls/implements relationships are written in
+            // this same transaction below. Test mappings and imports keep the per-file
+            // writer (validates edges and import module concepts are not mirrored here).
+            if !test_mappings.is_empty() {
                 return Ok(None);
             }
 
@@ -963,15 +1019,26 @@ impl CodeIndexEngine {
                 "parser_version": &parser_version,
                 "parse_status": KnowledgeCodeParseStatus::Parsed.as_str(),
                 "symbols": symbols.len(),
-                "doc_passages": 0,
-                "operator_strings": 0,
-                "relationships": 0,
+                "doc_passages": docs.len(),
+                "operator_strings": operator_string_count,
+                "relationships": relationships.len(),
                 "content_hash": &file.content_hash,
                 "extractor_version": CODE_EXTRACTOR_VERSION,
                 "perf_budget": perf_sample_json(&perf, &budget),
             }));
 
             let file_key = format!("file:{relative_path}");
+            let Some((extras, relationships_written)) = batch_file_extras(
+                language,
+                relative_path,
+                &file_key,
+                &symbols,
+                &docs,
+                &relationships,
+            ) else {
+                return Ok(None);
+            };
+            let edges_indexed = symbols.len() + relationships_written;
             let file_entity_id = new_knowledge_id("KEN");
             let mut symbol_writes = Vec::with_capacity(symbols.len());
             for symbol in &symbols {
@@ -1039,15 +1106,17 @@ impl CodeIndexEngine {
                 code_file: RecordId::new("knowledge_code_files", code_file_id.clone()),
                 code_file_id,
                 symbols: symbol_writes,
+                edges_indexed: edges_indexed as i64,
             });
+            file_extras.push(extras);
             outcomes.push(CodeFileIndexOutcome {
                 source_id: source_id.clone(),
                 relative_path: relative_path.clone(),
                 language: Some(language),
                 parse_status: KnowledgeCodeParseStatus::Parsed,
                 symbols_indexed: symbols.len(),
-                edges_indexed: symbols.len(),
-                doc_passages_indexed: 0,
+                edges_indexed,
+                doc_passages_indexed: docs.len(),
                 config_facts_indexed: 0,
                 failed: false,
                 failure_reason: None,
@@ -1061,7 +1130,16 @@ impl CodeIndexEngine {
                 std::iter::once(file.file_key.clone())
                     .chain(file.symbols.iter().map(|symbol| symbol.symbol_key.clone()))
             })
+            .chain(file_extras.iter().flat_map(|extras| {
+                extras
+                    .concepts
+                    .iter()
+                    .map(|concept| concept.entity_key.clone())
+            }))
             .collect();
+        let extra_relationship_ids = file_extras
+            .iter()
+            .flat_map(|extras| extras.edges.iter().map(|edge| edge.relationship_id.clone()));
         let relationship_ids = writes
             .iter()
             .flat_map(|file| {
@@ -1069,6 +1147,7 @@ impl CodeIndexEngine {
                     .iter()
                     .map(|symbol| symbol.relationship_id.clone())
             })
+            .chain(extra_relationship_ids)
             .collect();
         let source_ids = writes.iter().map(|file| file.source.clone()).collect();
         let lookup_bindings = ExistingCleanCodeLookupBindings {
@@ -1232,12 +1311,26 @@ impl CodeIndexEngine {
         let mut edge_spans = Vec::with_capacity(symbol_count);
         let mut code_files = Vec::with_capacity(writes.len());
         let mut sources = Vec::with_capacity(writes.len());
-        for file in writes {
+        // MT-167: natural identity -> record id for every entity this batch writes, so
+        // passage and relationship edges resolve exactly like the per-file upserts.
+        let mut entity_records: HashMap<(String, String), RecordId> = HashMap::new();
+        let mut concept_rows: HashMap<(String, String), usize> = HashMap::new();
+        let mut edge_rows: HashMap<String, RecordId> = HashMap::new();
+        let mut symbol_span_links = Vec::with_capacity(symbol_count);
+        for (file, extras) in writes.into_iter().zip(file_extras) {
             let receipt = file.receipt.ok_or_else(|| {
                 CodeIndexError::from(StorageError::Database(
                     "clean code batch is missing its EventLedger receipt".to_owned(),
                 ))
             })?;
+            entity_records
+                .entry(("file".to_owned(), file.file_key.clone()))
+                .or_insert_with(|| file.file_entity.clone());
+            for symbol in &file.symbols {
+                entity_records
+                    .entry(("symbol".to_owned(), symbol.symbol_key.clone()))
+                    .or_insert_with(|| symbol.symbol_entity.clone());
+            }
             entities.push(CleanCodeEntityRow {
                 id: file.file_entity.clone(),
                 entity_id: file.file_entity_id,
@@ -1275,7 +1368,7 @@ impl CodeIndexEngine {
                     range_end: symbol.range_end,
                     line_start: symbol.line_start,
                     line_end: symbol.line_end,
-                    section_path: symbol.section_path,
+                    section_path: Some(symbol.section_path),
                     content_sha256: symbol.content_sha256,
                     parser_version: file.parser_version.clone(),
                     extraction_receipt_event_id: receipt.clone(),
@@ -1286,6 +1379,11 @@ impl CodeIndexEngine {
                     entity_id: symbol.symbol_entity.clone(),
                     span_id: symbol.span.clone(),
                     detected_in_run: index_run.clone(),
+                });
+                symbol_span_links.push(CleanCodeSymbolSpanLinkRow {
+                    entity_id: symbol.symbol_entity.clone(),
+                    source_id: file.source.clone(),
+                    span_id: symbol.span.clone(),
                 });
                 edges.push(CleanCodeEdgeRow {
                     id: symbol.edge.clone(),
@@ -1307,6 +1405,108 @@ impl CodeIndexEngine {
                     recorded_in_run: index_run.clone(),
                 });
             }
+            // MT-167: concept entities (last write wins for display name, provenance and
+            // primary source, like upsert_knowledge_entity's UPDATE branch).
+            for concept in extras.concepts {
+                let identity = ("concept".to_owned(), concept.entity_key.clone());
+                if let Some(&row) = concept_rows.get(&identity) {
+                    let existing_row = &mut entities[row];
+                    existing_row.display_name = concept.display_name;
+                    existing_row.detection_provenance = concept.provenance;
+                    existing_row.primary_source_id = file.source.clone();
+                    continue;
+                }
+                let entity_id = existing_entities
+                    .get(&identity)
+                    .cloned()
+                    .unwrap_or_else(|| new_knowledge_id("KEN"));
+                let record = RecordId::new("knowledge_entities", entity_id.clone());
+                entity_records.insert(identity.clone(), record.clone());
+                concept_rows.insert(identity, entities.len());
+                entities.push(CleanCodeEntityRow {
+                    id: record,
+                    entity_id,
+                    workspace_id: workspace.clone(),
+                    entity_kind: "concept".to_owned(),
+                    entity_key: concept.entity_key,
+                    display_name: concept.display_name,
+                    detection_provenance: concept.provenance,
+                    lifecycle_state: "active".to_owned(),
+                    primary_source_id: file.source.clone(),
+                    first_detected_in_run: index_run.clone(),
+                    last_detected_in_run: index_run.clone(),
+                });
+            }
+            for span in extras.spans {
+                spans.push(CleanCodeSpanRow {
+                    id: RecordId::new("knowledge_spans", span.span_id.clone()),
+                    span_id: span.span_id,
+                    source_id: file.source.clone(),
+                    span_kind: span.span_kind.as_str().to_owned(),
+                    range_start: span.range_start,
+                    range_end: span.range_end,
+                    line_start: span.line_start,
+                    line_end: span.line_end,
+                    section_path: span.section_path,
+                    content_sha256: span.content_sha256,
+                    parser_version: file.parser_version.clone(),
+                    extraction_receipt_event_id: receipt.clone(),
+                    index_run_id: index_run.clone(),
+                    display_snippet: span.display_snippet,
+                });
+            }
+            for (entity_key, span_id) in extras.entity_spans {
+                entity_spans.push(CleanCodeEntitySpanRow {
+                    entity_id: batch_entity_record(
+                        &entity_records,
+                        KnowledgeEntityKind::Concept,
+                        &entity_key,
+                    )?,
+                    span_id: RecordId::new("knowledge_spans", span_id),
+                    detected_in_run: index_run.clone(),
+                });
+            }
+            for edge in extras.edges {
+                let edge_record = match edge_rows.get(&edge.relationship_id) {
+                    Some(record) => record.clone(),
+                    None => {
+                        let edge_id = existing_edges
+                            .get(&edge.relationship_id)
+                            .cloned()
+                            .unwrap_or_else(|| new_knowledge_id("KED"));
+                        let record = RecordId::new("knowledge_edges", edge_id.clone());
+                        edges.push(CleanCodeEdgeRow {
+                            id: record.clone(),
+                            edge_id,
+                            workspace_id: workspace.clone(),
+                            relationship_id: edge.relationship_id.clone(),
+                            edge_type: edge.edge_type.as_str().to_owned(),
+                            source_entity_id: batch_entity_record(
+                                &entity_records,
+                                edge.source.0,
+                                &edge.source.1,
+                            )?,
+                            target_entity_id: batch_entity_record(
+                                &entity_records,
+                                edge.target.0,
+                                &edge.target.1,
+                            )?,
+                            extractor_version: CODE_EXTRACTOR_VERSION.to_owned(),
+                            lifecycle_state: "active".to_owned(),
+                            confidence: edge.confidence,
+                            created_in_run: index_run.clone(),
+                            last_seen_in_run: index_run.clone(),
+                        });
+                        edge_rows.insert(edge.relationship_id, record.clone());
+                        record
+                    }
+                };
+                edge_spans.push(CleanCodeEdgeSpanRow {
+                    edge_id: edge_record,
+                    span_id: RecordId::new("knowledge_spans", edge.span_id),
+                    recorded_in_run: index_run.clone(),
+                });
+            }
             code_files.push(CleanCodeFileRow {
                 created_in_session_id: scope.as_ref().map(|scope| RecordId::new("authenticated_sessions", scope.session_id.clone())),
                 id: file.code_file,
@@ -1320,7 +1520,7 @@ impl CodeIndexEngine {
                 parse_status: "parsed".to_owned(),
                 stale: false,
                 symbols_indexed,
-                edges_indexed: symbols_indexed,
+                edges_indexed: file.edges_indexed,
                 failure_detail: file.failure_detail,
                 last_indexed_in_run: index_run.clone(),
                 last_index_receipt_event_id: if scope.is_some() { None } else { Some(receipt) },
@@ -1337,6 +1537,7 @@ impl CodeIndexEngine {
             code_files,
             sources,
             receipt: stored_event,
+            symbol_span_links,
         };
         let projection_started = Instant::now();
         let _ = self
@@ -2604,6 +2805,184 @@ fn resolve_symbol_by_name(
         .collect();
     candidates.sort_by(|a, b| a.0.cmp(b.0));
     candidates.first().map(|(_, r)| r.entity_id.clone())
+}
+
+/// MT-167: the passage and relationship rows `index_code_file` would write for one
+/// file, expressed against natural entity identities `(kind, entity_key)`. The
+/// in-file symbol index carries symbol KEYS in `entity_id`, so resolution reuses
+/// `resolve_symbol_by_name` unchanged (exact path, then sorted last segment). `None`
+/// when the file has imports or a row would fail the per-file writer's validation,
+/// so that file keeps the per-file path and its exact semantics. Returns the extras
+/// and the number of relationship edges written (the per-file `write_relationships`
+/// count).
+fn batch_file_extras(
+    language: CodeLanguage,
+    relative_path: &str,
+    file_key: &str,
+    symbols: &[ExtractedSymbol],
+    docs: &[super::docs_todo::DocPassage],
+    relationships: &[super::relationships::RelationshipCandidate],
+) -> Option<(BatchFileExtras, usize)> {
+    fn valid_identity(entity_key: &str, display_name: &str) -> bool {
+        !entity_key.trim().is_empty()
+            && entity_key.trim() == entity_key
+            && !display_name.trim().is_empty()
+    }
+
+    let mut symbol_index: HashMap<String, ResolvedSymbol> = HashMap::new();
+    for symbol in symbols {
+        symbol_index
+            .entry(symbol.symbol_path.clone())
+            .or_insert_with(|| ResolvedSymbol {
+                entity_id: symbol.entity_key(language, relative_path),
+                span_id: String::new(),
+                symbol_kind: symbol.kind,
+            });
+    }
+    let file_identity = (KnowledgeEntityKind::File, file_key.to_owned());
+    let mut extras = BatchFileExtras::default();
+
+    for passage in docs {
+        let entity_key = passage.entity_key(relative_path);
+        let display_name = truncate_snippet(&passage.text);
+        if !valid_identity(&entity_key, &display_name) {
+            return None;
+        }
+        let span_id = new_knowledge_id("KSP");
+        extras.spans.push(BatchSpanWrite {
+            span_id: span_id.clone(),
+            span_kind: KnowledgeSpanKind::Text,
+            range_start: passage.byte_start as i64,
+            range_end: passage.byte_end as i64,
+            line_start: i64::from(passage.start_line),
+            line_end: i64::from(passage.end_line),
+            section_path: passage.marker.clone(),
+            content_sha256: sha256_hex(passage.text.as_bytes()),
+            display_snippet: display_name.clone(),
+        });
+        extras.concepts.push(BatchConceptWrite {
+            entity_key: entity_key.clone(),
+            display_name,
+            provenance: json!({
+                "extractor": "knowledge_code_index",
+                "extractor_version": CODE_EXTRACTOR_VERSION,
+                "passage_kind": passage.kind.as_str(),
+                "marker": passage.marker,
+            }),
+        });
+        extras
+            .entity_spans
+            .push((entity_key.clone(), span_id.clone()));
+        if passage.kind == DocPassageKind::DocComment {
+            let target = symbols
+                .iter()
+                .find(|symbol| symbol.start_line == passage.end_line + 1)
+                .and_then(|symbol| symbol_index.get(&symbol.symbol_path))
+                .map(|resolved| (KnowledgeEntityKind::Symbol, resolved.entity_id.clone()))
+                .unwrap_or_else(|| file_identity.clone());
+            let source = (KnowledgeEntityKind::Concept, entity_key);
+            extras.edges.push(BatchEdgeWrite {
+                relationship_id: derive_knowledge_relationship_id(
+                    KnowledgeEdgeType::Documents,
+                    source.0,
+                    &source.1,
+                    target.0,
+                    &target.1,
+                ),
+                edge_type: KnowledgeEdgeType::Documents,
+                source,
+                target,
+                confidence: 0.8,
+                span_id,
+            });
+        }
+    }
+
+    let mut relationships_written = 0usize;
+    for rel in relationships {
+        let source = rel
+            .source_symbol_path
+            .as_ref()
+            .and_then(|path| symbol_index.get(path))
+            .map(|resolved| (KnowledgeEntityKind::Symbol, resolved.entity_id.clone()))
+            .unwrap_or_else(|| file_identity.clone());
+        let (target, edge_type) = match rel.kind {
+            RelationshipKind::Calls => {
+                match resolve_symbol_by_name(&symbol_index, &rel.target_name) {
+                    Some(key) => (
+                        (KnowledgeEntityKind::Symbol, key),
+                        KnowledgeEdgeType::References,
+                    ),
+                    None => continue,
+                }
+            }
+            RelationshipKind::Implements => {
+                match resolve_symbol_by_name(&symbol_index, &rel.target_name) {
+                    Some(key) => (
+                        (KnowledgeEntityKind::Symbol, key),
+                        KnowledgeEdgeType::Implements,
+                    ),
+                    None => continue,
+                }
+            }
+            // Import module concepts carry no primary source; their record-user write
+            // path is not proven for the batch (MT-167 review finding 2), so a file with
+            // imports keeps the established per-file writer.
+            RelationshipKind::Imports => return None,
+        };
+        if source == target {
+            // A symbol referencing itself recursively is not a useful edge.
+            continue;
+        }
+        let span_id = new_knowledge_id("KSP");
+        extras.spans.push(BatchSpanWrite {
+            span_id: span_id.clone(),
+            span_kind: KnowledgeSpanKind::Ast,
+            range_start: rel.start_byte as i64,
+            range_end: rel.end_byte as i64,
+            line_start: i64::from(rel.start_line),
+            line_end: i64::from(rel.end_line),
+            section_path: Some(format!("rel:{}", rel.kind.as_str())),
+            content_sha256: sha256_hex(
+                format!(
+                    "{}|{}|{}",
+                    rel.kind.as_str(),
+                    rel.target_name,
+                    rel.start_byte
+                )
+                .as_bytes(),
+            ),
+            display_snippet: format!("{} {}", rel.kind.as_str(), rel.target_name),
+        });
+        extras.edges.push(BatchEdgeWrite {
+            relationship_id: derive_knowledge_relationship_id(
+                edge_type, source.0, &source.1, target.0, &target.1,
+            ),
+            edge_type,
+            source,
+            target,
+            confidence: rel.kind.default_confidence(),
+            span_id,
+        });
+        relationships_written += 1;
+    }
+    Some((extras, relationships_written))
+}
+
+/// MT-167: the record id this batch assigned to a natural entity identity.
+fn batch_entity_record(
+    entity_records: &HashMap<(String, String), RecordId>,
+    kind: KnowledgeEntityKind,
+    entity_key: &str,
+) -> CodeIndexResult<RecordId> {
+    entity_records
+        .get(&(kind.as_str().to_owned(), entity_key.to_owned()))
+        .cloned()
+        .ok_or_else(|| {
+            CodeIndexError::from(StorageError::Database(
+                "clean code batch edge endpoint has no batch entity".to_owned(),
+            ))
+        })
 }
 
 fn code_language_to_storage(language: CodeLanguage) -> KnowledgeCodeLanguage {
