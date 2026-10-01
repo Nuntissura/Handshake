@@ -3056,8 +3056,12 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-166 re-pin (revision 162, re-pinned in place): protected_resources select grant through
 // fn::mt166_resource_select_grant and flattened LET-bound fn::mt109_ledger_access (previous value
 // 1d6109d84aa9bbe146572040408f23c2e10d3a90261c961c973a824dc205438d); sha256 of schema.surql.
+// MT-153 re-pin (revision 162, re-pinned in place): fn::mt120_workspace_delete accepts saved views
+// (view_def) under the workspace delete grant (previous value
+// ad8af766863b079f8eb2f37d5f8bb7f973319a981e7e25f950a5c00095bc5667); measured by WP validator
+// PIN-MEASURE on 8ff1565d (MT-153.json pin_measure_20261001_8ff1565d).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "ad8af766863b079f8eb2f37d5f8bb7f973319a981e7e25f950a5c00095bc5667";
+    "763ef641f8b7ac64878e0fc733e8079a9ba5009858121001af6f9ae05091e048";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -3153,8 +3157,12 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT-166 re-pin: protected_resources select grant helper and flattened ledger access (previous
 // ca2d667c22b022170d1e1ec6419dcd809bdeca385fae9cd972205a89ff9af573); measured by WP validator
 // PIN-MEASURE on e012e80d (MT-166.json validation.pin_measurement_1).
+// MT-153 re-pin: fn::mt120_workspace_delete accepts saved views (view_def) (previous
+// 81a9de3dfbaaf65fdbd2e57ad31e9bec7dd01865e871819d4bf4664cb13a718d); measured by WP validator
+// PIN-MEASURE on 8ff1565d (MT-153.json pin_measure_20261001_8ff1565d;
+// MT139_CURRENT_SCHEMA_INFO_SHA256 / MT109_CURRENT_AUTHORITY_INFO_SHA256).
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "81a9de3dfbaaf65fdbd2e57ad31e9bec7dd01865e871819d4bf4664cb13a718d";
+    "f2e350dd28ef2cd87e75ea4aaf38f79244f5fda3fdc4f6bed42bde3d4682892d";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
