@@ -648,5 +648,15 @@
         "disposition": "validator selection should include code_nav_index_account_tests and knowledge_code_index/knowledge_code_nav tests; the env var is supplied by the union runner (same as MT-045 LC-06)"
       }
     ]
+  },
+  "build_target_note_20261001": {
+    "schema_id": "hsk.mt_status_note@1",
+    "recorded_at_utc": "2026-10-01T18:06:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "ruling": "orchestrator buddy ruling 2026-10-01: the Codex governs over product AGENTS.md:88 - Handshake_Codex_v1.4.md:195 (CX-984-002 Cargo targets below the owner at <WP_ID>/<MT_ID>/<OWNER_SLUG>/), :205 (CX-984-010 supersedes conflicting HBR/protocol/helper instructions), :201 (CX-984-008 correct a conflicting launcher before use)",
+    "earlier_compile_proofs": "validation.proof_records MT-167-BUILDER-COMPILE (check-f-a-core.log, check-f-a-review-core.log, exit 0) were built in D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target (resolved from the worktree .cargo/config.toml target-dir = \"../Handshake_Artifacts/handshake-cargo-target\"); that root is not WP-owned (shared mutable output). They remain compile evidence with this path noted; the recorded deviation stands",
+    "going_forward": "CARGO_TARGET_DIR is set explicitly to D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target (owner slug 'kb' per execution.artifact_owner_dir), overriding .cargo/config.toml; seeded from MT-154/kb-c5 only after the orchestrator confirms kb-c5 is idle; the first build there will rebuild some workspace crates",
+    "not_done": "AGENTS.md not edited (root control file authored from handshake_main; drift goes to the Operator report); no cleanup of handshake-cargo-target",
+    "hold": "no cargo until the orchestrator releases the lane"
   }
 }
