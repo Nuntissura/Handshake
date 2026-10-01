@@ -3516,7 +3516,7 @@
         ]
       }
     ],
-    "timing_only_exclusion_note": "timing-only MTs (15: MT-002, MT-030, MT-041, MT-044, MT-084, MT-085, MT-090, MT-091, MT-105, MT-106, MT-142, MT-164, MT-165, MT-166, MT-167) matched only on timing-bound text in acceptance criteria and launch no owned backend; they were excluded and carry no operator_decision_20261001_backend_build_profile because the override changes only the owned backend build and cannot affect them. Their timing-bound text matched the literal scan only (UI debounce, cadence or frontend deadline, or unit-level bound).",
+    "timing_only_exclusion_note": "timing-only MTs (15: MT-002, MT-030, MT-041, MT-044, MT-084, MT-085, MT-090, MT-091, MT-105, MT-106, MT-142, MT-164, MT-165, MT-166, MT-167) matched only on timing-bound text in acceptance criteria and launch no owned backend; they were excluded and carry no operator_decision_20261001_backend_build_profile because the override changes only the owned backend build and cannot affect them. Their timing-bound text matched the literal scan only (UI debounce, cadence or frontend deadline, or unit-level bound). MT-167 specifically: its AC-167-3 timing test (mt167_code_nav_index_cost_tests) runs in the core test process with embedded SurrealDB, not the owned backend binary, and the approved override applies only to the owned-backend build line (test binaries unchanged), so it cannot affect MT-167's measurement; its downstream live consumers MT-008/064/065 launch the owned backend and stay selected.",
     "excluded_timing_only_mt_ids": [
       "MT-002",
       "MT-030",
