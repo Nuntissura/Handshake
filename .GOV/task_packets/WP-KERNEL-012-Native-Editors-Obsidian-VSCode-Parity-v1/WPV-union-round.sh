@@ -66,6 +66,29 @@ BACKEND_PROFILE_TOML="$(dirname "$(readlink -f "$0")")/WPV-backend-profile.toml"
 BACKEND_PROFILE_CONFIG="$(cygpath -m "$BACKEND_PROFILE_TOML")"
 BACKEND_PROFILE_SHA256="$(sha256sum "$BACKEND_PROFILE_TOML" | cut -c1-64)"
 echo "[run-round] backend_build_profile=dev+dep-opt2 config=$BACKEND_PROFILE_CONFIG sha256=$BACKEND_PROFILE_SHA256 decision=WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001 jobs=2"
+# Test builds use the same config (Operator decision WP012-OPERATOR-MT167-OPTIMIZE-TEST-DB-20261001). Proof is read
+# from the verbose build log, not assumed: every allow-listed crate rustc compiled must carry -C opt-level=2 and
+# handshake_core must not; in the core build every allow-listed crate must be compiled at O2 or Fresh (fingerprint
+# unchanged since an O2 compile). Any violation is INVALID_CONFIG (exit 5, no verdicts from this round).
+OPT_CRATES=(surrealdb:surrealdb surrealdb_core:surrealdb-core librocksdb_sys:surrealdb-librocksdb-sys rocksdb:surrealdb-rocksdb
+  surrealdb_collections:surrealdb-collections surrealdb_types:surrealdb-types surrealdb_strand:surrealdb-strand surrealdb_protocol:surrealdb-protocol)
+check_test_profile() {
+  # $1 label  $2 verbose build log  $3 require-all (1 = every allow-listed crate must be present)
+  local label="$1" log="$2" require_all="$3" entry crate pkg lines bad=0 compiled=0 fresh=0 absent=0
+  for entry in "${OPT_CRATES[@]}"; do
+    crate="${entry%%:*}"; pkg="${entry##*:}"
+    lines="$(grep -E -- "--crate-name $crate .*--crate-type lib" "$log" || true)"
+    if [[ -n "$lines" ]]; then
+      if grep -q -- "-C opt-level=2" <<<"$lines"; then compiled=$((compiled+1)); echo "[run-round] test_profile_proof $label $crate compiled opt-level=2"
+      else bad=1; echo "[run-round] test_profile_proof $label $crate compiled WITHOUT opt-level=2"; fi
+    elif grep -Eq "^ *Fresh $pkg v" "$log"; then fresh=$((fresh+1)); echo "[run-round] test_profile_proof $label $crate fresh"
+    else absent=$((absent+1)); echo "[run-round] test_profile_proof $label $crate absent"; [[ "$require_all" = 1 ]] && bad=1
+    fi
+  done
+  if grep -E -- "--crate-name handshake_core " "$log" | grep -q -- "-C opt-level=2"; then bad=1; echo "[run-round] test_profile_proof $label handshake_core compiled WITH opt-level=2"; fi
+  echo "[run-round] test_profile_proof $label compiled_o2=$compiled fresh=$fresh absent=$absent bad=$bad log=$log"
+  [[ "$bad" = 0 ]] || { echo "[run-round] INVALID_CONFIG test profile proof failed ($label)"; exit 5; }
+}
 check_target_cap
 
 mkdir -p "$LANE/logs" "$LANE/tmp" "$LANE/runtime" "$LANE/workspace"
@@ -272,27 +295,40 @@ if [[ "$CORE_SKIP" != 1 ]]; then
 echo "[run-round] building core union"
 # -j 1: handshake_core lib and lib-test compiled in parallel hit rustc-LLVM out of memory on 1f4e0f69
 # (2026-09-30, host shared with foreign builds); build them one at a time.
+CORE_BUILD_LOG="$LANE/logs/core-build-v-$SHA.log"
+echo "[run-round] build_profile line=core-test config_sha256=$BACKEND_PROFILE_SHA256 (dev/test + 8-crate opt-level 2) log=$CORE_BUILD_LOG"
 ( cd "$EXPORT/src/backend/handshake_core" && \
-  cargo test --locked -j 1 --no-run --lib --features app-runtime,surreal-test-support,test-utils "${core_test_args[@]}" )
+  cargo test --locked -j 1 --no-run -v --config "$BACKEND_PROFILE_CONFIG" --lib --features app-runtime,surreal-test-support,test-utils "${core_test_args[@]}" ) 2>&1 | tee "$CORE_BUILD_LOG"
+check_test_profile core "$CORE_BUILD_LOG" 1
 check_target_cap
 fi
 
 if [[ "$NATIVE_SKIP" != 1 ]]; then
 echo "[run-round] building native union"
+NATIVE_BUILD_LOG="$LANE/logs/native-build-$SHA.log"
+echo "[run-round] build_profile line=native-test config_sha256=$BACKEND_PROFILE_SHA256 (inert: handshake_native graph has no surrealdb crate) log=$NATIVE_BUILD_LOG"
 ( cd "$EXPORT/src/frontend/handshake_native" && \
-  cargo test --locked -j 2 --no-run --features integration,integration_tests,wgpu_screenshots "${NATIVE_TARGET_ARGS[@]}" )
+  cargo test --locked -j 2 --no-run --config "$BACKEND_PROFILE_CONFIG" --features integration,integration_tests,wgpu_screenshots "${NATIVE_TARGET_ARGS[@]}" ) 2>&1 | tee "$NATIVE_BUILD_LOG"
+if grep -Eq '^ *Compiling (surrealdb|surrealdb-[a-z-]+) v' "$NATIVE_BUILD_LOG"; then
+  echo "[run-round] INVALID_CONFIG native build compiled an allow-listed surrealdb crate (expected inert)"; exit 5
+fi
+echo "[run-round] test_profile_proof native inert (no allow-listed crate compiled)"
 check_target_cap
 fi
 
 for crate in "${EXTRACTED_CRATES[@]}"; do
   echo "[run-round] building extracted $crate unit target"
+  EXTRACTED_BUILD_LOG="$LANE/logs/extracted-build-v-$crate-$SHA.log"
+  echo "[run-round] build_profile line=extracted-test:$crate config_sha256=$BACKEND_PROFILE_SHA256 log=$EXTRACTED_BUILD_LOG"
   ( cd "$EXPORT/src/backend/$crate" && \
-    cargo test --locked -j 2 --no-run --lib --features surreal-test-support )
+    cargo test --locked -j 2 --no-run -v --config "$BACKEND_PROFILE_CONFIG" --lib --features surreal-test-support ) 2>&1 | tee "$EXTRACTED_BUILD_LOG"
+  check_test_profile "extracted:$crate" "$EXTRACTED_BUILD_LOG" 0
   check_target_cap
 done
 
 if [[ "$NATIVE_SKIP" != 1 ]]; then
 echo "[run-round] building backend binary for HSK_TEST_BACKEND_BIN"
+echo "[run-round] build_profile line=backend config_sha256=$BACKEND_PROFILE_SHA256 (dev + 8-crate opt-level 2, -j 2)"
 ( cd "$EXPORT/src/backend/handshake_core" && \
   cargo build --locked -j 2 --config "$BACKEND_PROFILE_CONFIG" --target-dir "$HSK_TEST_BACKEND_TARGET_ROOT" --bin handshake_core --features app-runtime,surreal-test-support )
 check_target_cap
