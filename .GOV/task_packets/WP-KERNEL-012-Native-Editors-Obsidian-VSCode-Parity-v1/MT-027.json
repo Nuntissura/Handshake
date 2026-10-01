@@ -2571,5 +2571,34 @@
     ],
     "lines_file": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/kb-diag3-bd8c753223c2714707d6c78d7550448340c85c35.txt",
     "observation": "Only t_t1 (loom_block_access branch) is false; the full create predicate on a scratch clone is true (t_full=1, clone_full=1, view_def branch t_t2=1) while the real bridge UPSERT writes 0 rows and the request returns 403"
+  },
+  "diagnosis_20260930_upsert_gated": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-027-20260930-UPSERT-GATED-BY-UPDATE-NONE",
+    "kind": "blocker_diagnosis",
+    "failure_class": "OWNED_SAVED_VIEW_CREATE_403 / LOOM_VIEW_CREATE_OWNER_BRIDGE_DENIED",
+    "failure_kind": "product",
+    "cause": "record-user UPSERT on bridge admitted by FOR update (NONE), not FOR create; iterable dropped, 0 rows (SurrealDB 3.2)",
+    "code_location": "src/backend/handshake_core/src/storage/surreal/block_view_store.rs:349 CREATE_TRANSACTION stmt 6 (UPSERT $bridge); schema.surql:4494 loom_block_knowledge_bridge FOR update NONE",
+    "evidence_refs": [
+      "surrealdb-core 3.2.0 src/dbs/iterator.rs:364-419 prepare_record_id: :407-412 'We add the iterable only if we have a permission' -> returns Ok(()) without an iterable when check_table_permission is GrantedPermission::None",
+      "surrealdb-core 3.2.0 src/idx/planner/mod.rs:105-125 check_table_permission -> self.stm.permissions(&table, self.stm.is_create())",
+      "surrealdb-core 3.2.0 src/dbs/statement.rs:539-553 permissions(): create only when doc_is_new; :169-171 is_create() true only for Statement::Create -> UPSERT gated by FOR update",
+      "MT-027.json#kb_diag3_run_result_bd8c7532: scratch CREATEs with the bridge create predicate are TRUE (t_full=1, t_t2=1, clone_full=1 with bridge field ASSERT/REFERENCE defs)",
+      "MT-027.json#probe_run_result_b4faed35: KB-DIAG2 record-user UPSERT rows=0 and no row after commit (root read)",
+      "contrast: loom_canvas_store.rs OWNED_LOOM_BUNDLE_SQL writes the bridge with CREATE and succeeds for normal blocks; stmt 2/5 UPSERTs pass because their FOR update is Specific"
+    ],
+    "distinct_from": [
+      "DX-MT-027-20260930-BRIDGE-SELECT-HIDES-ROW (refuted b4faed35)",
+      "pre-existing bridge row / update fallthrough (b)",
+      "LET-leak in grant fns (refuted)",
+      "HYP-MT027-UPSERT-ORDER create predicate on pre-data doc (refuted)",
+      "create-predicate term false (refuted by KB-DIAG3: predicate true)"
+    ],
+    "intended_fix": "block_view_store.rs:349 UPSERT $bridge -> CREATE $bridge (same fields, statement count, index and THROW guard); lands as MT-153 remediation citing this diagnosis",
+    "fix_note": "CREATE now fails (error, not silent) if a bridge row already exists for the block id; by construction the id is fresh: create_block_view returns earlier for an existing view (existing_view) and the bridge cascades with its block (REFERENCE ON DELETE CASCADE)",
+    "latent_same_class": "bridge_store.rs:228 UPSERT $bridge_record on the same table would also no-op under a record-user scope (appears to be a root path, unverified); any record-user UPSERT on a FOR update NONE table behaves the same",
+    "recorded_at_utc": "2026-10-01T00:11:21Z",
+    "recorded_by": "KERNEL_BUILDER-20260930"
   }
 }
