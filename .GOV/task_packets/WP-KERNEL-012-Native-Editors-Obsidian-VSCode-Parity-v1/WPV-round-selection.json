@@ -1,6 +1,6 @@
 {
-  "candidate": "791a81dd23cee301006995a2b7bb550cfeba4471",
-  "prior_native_proof": "7548bc72c8c819c139d6257674a84bd95a215b0d,d9ce6017e91430c69d410b555bd79fd5f6916926",
+  "candidate": "5da8b75a0211aa607ea430a6764770709915f80e",
+  "prior_native_proof": "791a81dd23cee301006995a2b7bb550cfeba4471,7548bc72c8c819c139d6257674a84bd95a215b0d,d9ce6017e91430c69d410b555bd79fd5f6916926",
   "changed_native_test_bins": [],
   "native_src_changed": false,
   "planned_native_tests_estimate": 84,
@@ -35,9 +35,14 @@
     "loom_block_collection_views_tests": "MT027_CORE exact 6"
   },
   "intersection": {
-    "candidate": "791a81dd23cee301006995a2b7bb550cfeba4471",
+    "candidate": "5da8b75a0211aa607ea430a6764770709915f80e",
     "rule": "CX-VAL-002",
     "diffs": {
+      "791a81dd": [
+        "src/backend/handshake_core/src/api/loom.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema.surql"
+      ],
       "7548bc72": [
         "src/backend/handshake_core/src/api/loom.rs",
         "src/backend/handshake_core/src/storage/block_view_outbox.rs",
@@ -61,44 +66,20 @@
         "src/backend/handshake_core/src/storage/surreal/schema.surql",
         "src/backend/handshake_core/src/user_manual/seed.rs",
         "src/frontend/handshake_native/tests/test_block_collection_view.rs"
-      ],
-      "37ee7c5b": [
-        "src/backend/handshake_core/src/api/loom.rs",
-        "src/backend/handshake_core/src/api/workspaces.rs",
-        "src/backend/handshake_core/src/storage/block_view_outbox.rs",
-        "src/backend/handshake_core/src/storage/surreal/block_view_store.rs",
-        "src/backend/handshake_core/src/storage/surreal/database.rs",
-        "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
-        "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
-        "src/backend/handshake_core/src/storage/surreal/schema.rs",
-        "src/backend/handshake_core/src/storage/surreal/schema.surql",
-        "src/backend/handshake_core/src/storage/surreal/search_store.rs",
-        "src/backend/handshake_core/src/user_manual/seed.rs",
-        "src/backend/handshake_core/tests/model_session_scheduler_tests.rs",
-        "src/frontend/handshake_native/src/manual_content_editors.rs",
-        "src/frontend/handshake_native/tests/test_block_collection_view.rs",
-        "src/frontend/handshake_native/tests/test_calendar_interop.rs",
-        "src/frontend/handshake_native/tests/test_event_emitter.rs",
-        "src/frontend/handshake_native/tests/test_interconnect_ckc_to_note.rs",
-        "src/frontend/handshake_native/tests/test_interconnect_manifest.json",
-        "src/frontend/handshake_native/tests/test_memory_proposal_argus.rs",
-        "src/frontend/handshake_native/tests/test_stage_interop.rs",
-        "src/frontend/handshake_native/tests/test_tags_panel.rs"
       ]
     },
     "per_mt": {
       "MT-079": {
-        "reuse_basis": "d9ce6017 23/23 (shown non-intersecting through 7548bc72)",
+        "reuse_basis": "d9ce6017 23/23 (non-intersecting through 791a81dd)",
         "intersection": [],
-        "decision": "reuse (7548bc72..791a81dd native: none)"
+        "decision": "reuse (791a81dd..5da8b75a native: none)"
       },
       "MT-122": {
-        "reuse_basis": "PC-122-01..04 d9ce6017; test_manual_pane_editors e4566f11; PC-122-05 + test_manual_content 7548bc72",
+        "reuse_basis": "PC-122-01..04 d9ce6017; test_manual_pane_editors e4566f11; PC-122-05 + test_manual_content 791a81dd",
         "intersection": {
-          "native_since_7548bc72": [],
-          "backend_since_7548bc72": [
+          "native_since_791a81dd": [],
+          "backend_since_791a81dd": [
             "src/backend/handshake_core/src/api/loom.rs",
-            "src/backend/handshake_core/src/storage/block_view_outbox.rs",
             "src/backend/handshake_core/src/storage/surreal/schema.rs",
             "src/backend/handshake_core/src/storage/surreal/schema.surql"
           ]
@@ -106,27 +87,25 @@
         "decision": "reuse non-live; run PC-122-05 and test_manual_content (live backend changed)"
       },
       "MT-136": {
-        "reuse_basis": "7548bc72",
+        "reuse_basis": "791a81dd",
         "intersection": [
           "src/backend/handshake_core/src/api/loom.rs",
-          "src/backend/handshake_core/src/storage/block_view_outbox.rs",
           "src/backend/handshake_core/src/storage/surreal/schema.rs",
           "src/backend/handshake_core/src/storage/surreal/schema.surql"
         ],
         "decision": "run surface proofs a/b/c (backend lib changed)"
       },
       "MT-027": {
-        "reuse_basis": "7548bc72 (PC-027-02 non-live 11/11), d9ce6017 (PC-027-01 lib)",
+        "reuse_basis": "7548bc72 non-live 11/11, d9ce6017 lib 4/4",
         "intersection": [
           "src/backend/handshake_core/src/api/loom.rs",
-          "src/backend/handshake_core/src/storage/block_view_outbox.rs",
           "src/backend/handshake_core/src/storage/surreal/schema.rs",
           "src/backend/handshake_core/src/storage/surreal/schema.surql"
         ],
-        "decision": "reuse non-live native (no native change); run live BCV + core loom_block_collection_views_tests 6 (backend changed)"
+        "decision": "reuse non-live native; run live BCV + core 6"
       },
       "MT-154/157/158/159": {
-        "reuse_basis": "7548bc72 pin proofs",
+        "reuse_basis": "791a81dd pin proofs",
         "intersection": [
           "src/backend/handshake_core/src/storage/surreal/schema.rs",
           "src/backend/handshake_core/src/storage/surreal/schema.surql"
