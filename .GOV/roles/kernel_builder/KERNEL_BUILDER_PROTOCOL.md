@@ -78,6 +78,8 @@
 
 [KB-CAD-VPX-001] Build once per compatible commit/configuration and bundle tests for covered MTs. Reuse warm owned targets across MTs under Codex's shared-batch ownership rule. Do not repeat cargo build when check/test already produces the required compilation proof; build separately only for a required artifact/profile not otherwise produced. Independent validator runs remain separate acceptance evidence.
 
+[KB-CAD-VPX-002] Where a lane builds from an export or second checkout, keep one fixed per-owner source path refreshed in place per [VPX-011]; never create a new source folder per commit.
+
 ### Parallel build resources
 
 [KB-CARGO-SHARED-001] Identify shared compile-graph files before editing. Batch their edits at a lane-quiet boundary; an immediately blocking shared defect may be repaired sooner after notifying affected lanes. Batch schema/pin changes together. Seed only compatible caches from quiescent owned targets or safe content-addressed caches; live owners never share mutable targets.
