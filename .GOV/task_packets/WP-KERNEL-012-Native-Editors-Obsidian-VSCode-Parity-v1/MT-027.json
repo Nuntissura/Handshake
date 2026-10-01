@@ -3438,5 +3438,44 @@
         "state_effect": "lifecycle.status FAIL_V13"
       }
     ]
+  },
+  "diagnosis_20261001_view_block_generic_get": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-153-20261001-VIEW-BLOCK-READ-VIA-GENERIC-ROUTE",
+    "kind": "blocker_diagnosis",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T12:51:18Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "method": "code + contract reading (no run)",
+    "failure_class": "LOOM_BLOCK_GET_DENIED_FOR_HOST_CREATED_VIEW",
+    "failing_assertion": "tests/backend_proof_support/mod.rs:2366 request_text: GET /workspaces/:ws/loom/blocks/b9456da8 -> 403 (protected_resource_authorization_denied fs.read) (round 5da8b75a); call site tests/test_block_collection_view.rs:3010-3012 (host-created view title check); :3165-3167 (retry-created view) has the same shape and is next",
+    "cause": "the test reads a saved-view block through the generic GET /loom/blocks/:id, which authorizes ResourceKind::LoomBlock Read on that block (api/loom.rs get_loom_block ~930-941); a view_def block has no per-block protected resource (it follows the workspace grant: schema.surql:467-470 view_def clauses; a1e18d79) -> constant 403; the view routes for the same block succeed (workspace grant)",
+    "contract_check": {
+      "MT-027 scope.binds_backend_api": "[0] 'GET /workspaces/{workspace_id}/loom/views/definitions/{view_block_id} - getBlockView'; [1] POST .../results; [2] PATCH .../views/definitions/{id}; [3] 'PATCH /workspaces/{workspace_id}/loom/blocks/{block_id} - updateLoomBlock (body: {add_tags, remove_tags}) for Kanban lane move'; [4] POST .../views/definitions - the generic GET /loom/blocks/:id is NOT a bound API for views",
+      "MT-027 implementation_notes[10]": "'getBlockView -> BlockViewRecord{block,definition:BlockViewDefinition}' - the view route returns the view's block (incl. title)",
+      "MT-153 closure_unit.materialized_acceptance[5] (AC-153-6)": "'owner/admin/member may create every LoomBlockContentType (...) plus the existing canvas and view_def types through the scoped routes; the POST /loom/views/definitions and card/journal paths no longer need root to create their block rows' - no requirement that a view block be readable through GET /loom/blocks/:id",
+      "MT-153 scope.routes": "view routes [65] POST /loom/views/definitions, [66] GET+PATCH /loom/views/definitions/:block_id, [67] POST .../results; the generic GET /loom/blocks/:id has no view_def entry",
+      "Master Spec v02.206": "no view_def / saved-view-via-generic-block-route requirement (grep view_def|views/definitions|saved view over spec-modules: only 10-product-surfaces.md:1646 'DisplayTimelineView - saved view configuration', unrelated)"
+    },
+    "decision": "option (i): the test reads the view block through the bound view route GET /loom/views/definitions/:id and asserts record.block.title; options (ii) (widen the generic GET for view_def, an authorization-boundary change) and (iii) (per-view protected resource) are not needed because no AC/spec requires the generic route for views",
+    "fix": "tests/test_block_collection_view.rs:3010-3016 and :3165-3171 -> live.get_json('/workspaces/{ws}/loom/views/definitions/{id}')['block']['title'] (MT-153 path); no product/schema change",
+    "probe_revert": "same commit reverts the DIAGNOSTIC mt153_diag probe (api/loom.rs part of 94ba0ed1)",
+    "ref": "MT-153.json#diagnosis_20261001_view_block_generic_get"
+  },
+  "status_20261001_bcv_view_load_unattributed": {
+    "schema_id": "hsk.mt_diagnosis_status@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T12:51:18Z",
+    "line": "MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT (BCV)",
+    "status": "cause UNATTRIBUTED: did not recur in round 5da8b75a; one non-recurrence is not proof",
+    "probe_evidence": "MT153_DIAG (94ba0ed1, round 5da8b75a): 195 lines, every call completed, max 777 ms (MT-153.json#validation_round_5da8b75a) - kept as evidence",
+    "earlier_hypotheses": [
+      "VIEW-OUTBOX-PUBLISH-RACE (P1): NOT CONFIRMED, code stays",
+      "FR-lock: REFUTED (research_20261001_fr_stall_refuted)",
+      "CPU-bound W: the round's loom_edges delete reorder removed W from card-move deletes; not shown to be the view-load cause"
+    ],
+    "probe": "reverted in the next fix commit",
+    "ref": "MT-153.json#status_20261001_bcv_view_load_unattributed"
   }
 }
