@@ -3640,5 +3640,23 @@
     },
     "recorded_at_utc": "2026-10-01T03:52:28Z",
     "recorded_by": "KERNEL_BUILDER-20260930"
+  },
+  "hypothesis_20261001_cardmove_f1_f3": {
+    "schema_id": "hsk.mt_attempt_hypothesis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_before_edit": true,
+    "recorded_at_utc": "2026-10-01T03:54:52Z",
+    "rule": "CX-EXEC-003A",
+    "diagnosis_ref": "MT-153.json#diagnosis_20261001_cardmove_split_edge_txns (DX-MT-153-20261001-CARDMOVE-SPLIT-EDGE-TRANSACTIONS)",
+    "approved_scope": "orchestrator (buddy CLEAR) 2026-10-01: implement F1 + F3; F2 held",
+    "intended_fix": {
+      "F1": "loom_store.rs create_loom_edge: CREATE $edge sets event_ledger_event_id = $receipt itself; the separate UPDATE $edge SET event_ledger_event_id (old #7) is removed. Same transaction, same endpoint guard, receipt append/bind, record::exists conflict guard, != 1 THROW, both recount UPDATEs unchanged. The removed statement sits inside the IF $existing_receipt = NONE block, so the top-level result index (6 = SELECT * FROM $edge) does not shift",
+      "F3": "api/loom.rs patch_loom_block_inner: when no block field is set and tags change, skip update_loom_block (read-only early return in that case) and keep the end-of-branch get_loom_block; a request with neither fields nor tags keeps the existing update_loom_block call (its expected_updated_at check)"
+    },
+    "held": "F2 (single card-move transaction) held by orchestrator",
+    "predicted_effect": "card-move PATCH shorter by ~0.89 s (measured #7) plus one record-user block read",
+    "known_risk": "UNVERIFIED sufficiency: the delete transaction has never been timed, so F1+F3 may still leave the PATCH above the 5 s client deadline (backend_client.rs:9579); if the next round still times out, F2 or a delete timing is the next step, not a resubmission of the same fix",
+    "diagnostic_code_in_tree": "none: 45b8fb6d timers reverted by e02dfc08 (ancestor of origin/feat/WP-KERNEL-012 e4566f11); b504f70e reverted by 6205332b",
+    "proof_plan": "cargo check (core lib+tests) on D: kb-c5 when no cargo/rustc runs; GP-139 diff check recorded before confirm; validator single union run"
   }
 }
