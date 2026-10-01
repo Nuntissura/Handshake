@@ -4961,5 +4961,43 @@
       "verified_against": "src/backend/handshake_storage_support/src/keyed_lock.rs at d9ce6017 (awk line print): :39 deadlock-freedom doc, :77-90 LockKey, :120-125 LockMode, :329 acquire_many, :351-355 begin Disabled -> None, :364-367 ordered_unique sort/dedup",
       "note": "the :55-67/:97-102/:196-205 ranges did not match the pre-22c64a06 handshake_core file either (its :55-67 were module docs/imports at 979230d6) - corrected to the canonical file"
     }
+  },
+  "remediation_20261001_partial_f98e1e20": {
+    "schema_id": "hsk.mt_remediation_partial@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T08:06:25Z",
+    "kind": "PARTIAL remediation (restartable); no resubmission - MT-153 FAIL_V8, MT-027 FAIL_V10, MT-042 FAIL_V10 stay because the workspace-delete denial would fail them again (MT-046 precedent; orchestrator 2026-10-01)",
+    "commit": "f98e1e2099264b11d971b56eea6984b31df48d47",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = f98e1e2099264b11d971b56eea6984b31df48d47",
+    "addresses": [
+      {
+        "diagnosis": "MT-153.json#diagnosis_20261001_argus_binding_root (DX-MT-153-20261001-ARGUS-BINDING-ROOT-STALE-ASSERT)",
+        "file": "src/frontend/handshake_native/tests/test_block_collection_view.rs (+7: binding file re-resolved after require_reachable_backend)",
+        "mts": "MT-153, MT-027"
+      },
+      {
+        "diagnosis": "MT-153.json#diagnosis_20261001_mt152_keyed_lock_pin (DX-MT-153-20261001-MT152-KEYED-LOCK-PIN-STALE-PATH, incl. additional_stale_references)",
+        "file": "src/backend/handshake_core/src/user_manual/seed.rs (test reads handshake_storage_support/src/keyed_lock.rs + checks the re-export; manual citations :2051/:2059/:2417-2421/:2869/:2875 updated to verified lines)",
+        "routed_to": "MT-152 (stays PASS_V6, not reopened)"
+      }
+    ],
+    "not_addressed": "MT-153.json#diagnosis_20261001_workspace_delete_viewdef (DX-MT-153-20261001-WORKSPACE-DELETE-VIEWDEF-NO-RESOURCE) - awaiting orchestrator/buddy decision; no schema edit",
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "exit_code": 0,
+        "inputs": "seed.rs at f98e1e20",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-d9ce-remediation-core2.log"
+      },
+      {
+        "command": "cargo check --locked -j 4 --features integration,integration_tests,wgpu_screenshots --test test_block_collection_view",
+        "cwd": "src/frontend/handshake_native",
+        "exit_code": 0,
+        "inputs": "test_block_collection_view.rs at f98e1e20 (unchanged since this check)",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-d9ce-remediation-native.log"
+      }
+    ],
+    "restart": "after the (2) decision: implement it on top of f98e1e20, then before_submit and resubmit MT-153/027/042 citing all three diagnoses"
   }
 }
