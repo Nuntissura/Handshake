@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 187
+generation: 189
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -157,7 +157,7 @@ steps:
 - {id: GP-136, role: builder, at: before_round, do: confirm lint classification includes short and long diagnostics and dependency warnings before rerun, check: {type: confirm}, source: 7fd parser omitted long-form handshake_document unused import; short-only count was incomplete, state: active}
 - {id: GP-137, role: orchestrator, at: before_dispatch, do: verify edited JSON introduces no duplicate keys and intended proof fields survive parsing, check: {type: confirm}, source: New MT154 validation duplicated existing empty key; readback caught and corrected it before commit, state: active}
 - {id: GP-138, role: orchestrator, at: before_dispatch, do: verify pinned WP excludes post-pin lifetime cap before retry or escalation, check: {type: file, path: .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json, contains: Do not enforce its later global max-three lifetime gate on this pinned WP}, source: 'authority mistake: applied post-pin CX-EXEC-015 despite explicit WP exclusion', state: active}
-- {id: GP-139, role: builder, at: before_submit, do: 'verify counter repair changes only known-record target; retain guards, counts, transaction and auth', check: {type: confirm}, source: 'FAIL_V14: first linked save times out; affected-block counter loop takes 3363507us', state: active}
+- {id: GP-139, role: builder, at: before_submit, do: 'verify counter repair changes only known-record target; retain guards, counts, transaction and auth', check: {type: confirm}, source: 'FAIL_V14: first linked save times out; affected-block counter loop takes 3363507us', state: retired}
 - {id: GP-140, role: wp_validator, at: before_round, do: confirm JUnit owns verdict; incomplete phase capture cannot prove complete timings or zero skipped lookup, check: {type: confirm}, source: V15 union watcher incomplete_stream/log_read_or_containment_error; successful roots cleaned, state: active}
 - {id: GP-141, role: builder, at: before_round, do: verify grant fn WHERE compares bare LET params; no $auth.* index column idiom, check: {type: file, path: src/backend/handshake_core/src/storage/surreal/schema.surql, not_contains: WHERE account_id = $auth.account_id}, source: 'FAIL_V1 ee9efaba MT164-GRANT-AUTH-IDIOM-NOT-INDEXABLE: planner folds bare params only', state: retired}
 - {id: GP-142, role: builder, at: before_round, do: confirm grant fns use sequential early exits; no deep AND chain around nested fn calls, check: {type: confirm}, source: 'FAIL_V1 ee9efaba MT164-UDF-AND-CHAIN-STACK-OVERFLOW: 59 overflows on 2 MiB stacks', state: active}
@@ -176,3 +176,4 @@ steps:
 - {id: GP-155, role: wp_validator, at: before_round, do: verify export-current.identity matches the candidate (VPX-011), check: {type: confirm}, source: per-candidate export capacity incident (78.8 GB stale) + Operator 2026-10-01 stable export path, state: active}
 - {id: GP-156, role: wp_validator, at: before_round, do: confirm Git Bash PATH additions use POSIX form (cygpath -u) and the cargo subcommand resolves before launch, check: {type: confirm}, source: 'infra 39f3e830 probe r1: D: colon split bash PATH; cargo found no test-runner subcommand (exit 101, no build)', state: active}
 - {id: GP-157, role: wp_validator, at: before_round, do: confirm the owned observer is alive and its observations file grows past one line after launch, check: {type: confirm}, source: 'infra: fea3ce0a observer stopped after 1 line; 39f3e830 probe observers wrote 0 lines; cause unproved', state: active}
+- {id: GP-158, role: builder, at: before_submit, do: 'verify edge/counter txn keeps guards, per-edge receipts, THROWs, recount formulas, auth; merged txn re-reads on retry', check: {type: confirm}, source: replaces GP-139 (retain transaction) for MT-153 F2 card-move transaction merge; orchestrator 2026-10-01, state: active}
