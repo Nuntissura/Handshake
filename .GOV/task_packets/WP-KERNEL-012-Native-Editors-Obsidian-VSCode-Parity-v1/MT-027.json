@@ -3105,5 +3105,41 @@
         "state_effect": "lifecycle.status FAIL_V11"
       }
     ]
+  },
+  "diagnosis_20261001_view_outbox_publish_race": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-153-20261001-VIEW-OUTBOX-PUBLISH-RACE",
+    "kind": "blocker_diagnosis",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T09:50:18Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "method": "round logs + retained store/WAL byte scans + code reading (no run)",
+    "failure_class": "MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT",
+    "failing_assertion": "tests/test_block_collection_view.rs:2001 await_app_collection: view e8709b23-c419-4d84-96ed-d2e10fedaca2 not loaded within 10 s (round 7548bc72)",
+    "which_view": "e8709b23 = the CALENDAR view: retained RocksDB WAL ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-368a110cf51f6ec4/b1cee4c7-5d78-473d-9407-c5a3d27fe55a/data/handshake-surreal/000004.log places it next to title 'mt027-265168-1790847342273697000-calendar' (table d056a0dd, kanban a3c0ee80); calendar awaits are :2754 (Retry reload, reads only) and :2826 (after bcv.calendar.apply-range = PATCH .../views/definitions/:id)",
+    "which_request": "most likely the apply-range PATCH (:2824 -> :2826): the Flight Recorder WAL (../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-368a110cf51f6ec4/b1cee4c7-5d78-473d-9407-c5a3d27fe55a/data/flight_recorder.db.wal) holds two loom_block_updated {block_id e8709b23, fields_changed [view_definition]} events - the earlier live_dispatch range update (:2439) and the apply-range update - and nothing for the calendar after them, i.e. the test reached apply-range and its durable update + FR event happened",
+    "conflict": "backend.stdout.log:78 '09:36:48.132589Z ERROR handshake_core: loom_api_error error=database error: embedded database error: Transaction conflict: Resource busy. This transaction can be retried' (loom_api_error = api/loom.rs:53 request-path error mapping, i.e. an HTTP request failed with 500)",
+    "mechanism": [
+      "update_block_view (api/loom.rs ~6573-6600) commits the definition + outbox row, then reconcile_block_view_events(Some(ws), Some(event)) publishes to Flight Recorder and calls block_view_outbox::mark_published -> block_view_outbox_surreal.rs:257-279 `UPDATE loom_block_view_fr_outbox SET published_at = ... WHERE workspace_id = $workspace AND event_id = $event_id` (plain execute, no retry; error -> map_storage_error -> 500)",
+      "spawn_block_view_reconciler (api/loom.rs ~2654-2670) runs reconcile_block_view_events(None, None) every 15 s for the whole service: list_pending (published_at = NONE) -> publish -> mark_published on the SAME rows",
+      "both UPDATE the same outbox record concurrently -> RocksDB optimistic transaction conflict 'Resource busy' for one of them; the request side lost (loom_api_error, not the reconciler's 'block_view_outbox_reconciliation_failed' message)",
+      "timing: backend started 09:35:33 (stdout:69); 15 s ticks -> 09:36:48 = start + 75 s = the 5th tick, the exact second of the conflict",
+      "the client (BlockViewClient) surfaces the 500 as the view error; the mounted view only retries on a user Retry, so await_app_collection (requires error = none) times out"
+    ],
+    "not_f2": "the F2 merged card-move transaction writes edges/blocks/ledger only (no outbox rows) and runs under guarded_storage_mutation with Replay::idempotent (commit conflicts re-run the closure); the kanban move step (:2706-2737) passed before the calendar section",
+    "retry_path": "none on the request side: mark_published is a single execute; the publication itself is idempotent (record_block_view_event_idempotent + published_at keeps the first value)",
+    "inference_level": "high: view identity (WAL), last view writes (FR WAL), single request-path conflict at a reconciler tick; the exact request of the 500 is not logged (no per-request trace in backend.stdout.log)",
+    "proposed_fixes": {
+      "P1 (recommended)": "block_view_outbox.rs mark_published (MT-153 path): on a retryable transaction conflict, re-read the row (load_row); if published_at is set the concurrent publisher already completed the same idempotent publication -> Ok; otherwise retry the UPDATE once; non-conflict errors unchanged",
+      "P2 (complementary)": "background sweeper (reconcile_block_view_events(None, None) in api/loom.rs) skips pending rows younger than a grace period (e.g. 30 s) so request-path publication owns fresh events; restart/outage recovery unchanged (older rows); filter applied in block_view_outbox::list_pending (MT-153 path) for the unscoped call only",
+      "not_chosen": [
+        "client-side auto-retry on 500 (masks the backend race)",
+        "raising the 10 s await (masks it)",
+        "editing block_view_outbox_surreal.rs (not in MT-153 allowed_write_paths)"
+      ]
+    },
+    "status": "reported to orchestrator before edit",
+    "ref": "MT-153.json#diagnosis_20261001_view_outbox_publish_race"
   }
 }
