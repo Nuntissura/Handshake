@@ -3916,5 +3916,29 @@
       "operator_debug_profile": "if the per-statement costs are uniformly high in proportion to predicate evaluation count (no single structural hotspot) -> the opt-level 0 surrealdb-core in the debug backend is the multiplier -> Operator decision ([profile.dev.package] override, rebuild cost), outside MT-153 paths"
     },
     "not_decided_by_this_run": "no fix is chosen before the measurement is recorded; no schema change"
+  },
+  "remediation_20261001_cardmove_probe": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T05:32:50Z",
+    "kind": "diagnostic_run_request",
+    "status_note": "diagnostic, not an acceptance candidate (as 45019718): no READY; MT-153/MT-027/MT-042 stay FAIL",
+    "hypothesis_ref": "MT-153.json#hypothesis_20261001_cardmove_delete_cost",
+    "test": "api::loom::tests::mt153_cardmove_patch_timing_probe (src/backend/handshake_core/src/api/loom.rs, cfg os-keychain, default feature)",
+    "command": {
+      "cwd": "src/backend/handshake_core",
+      "env": {
+        "HANDSHAKE_ARTIFACTS_ROOT": "<absolute Handshake_Artifacts root, as for the other embedded-store core tests>"
+      },
+      "argv": "cargo nextest run -p handshake_core --lib --features app-runtime,surreal-test-support,test-utils --no-capture -E 'test(=api::loom::tests::mt153_cardmove_patch_timing_probe)'",
+      "expected_runtime": "~60-120 s test time (cap 300 s) plus the lib test-binary build"
+    },
+    "what_it_does": "owner record-user session on an embedded RocksDB store; card + 2 tag hubs; 3 rounds of add-only, remove-only, full-move PATCH, each wall-timed inside the MT032 diagnostic scope",
+    "outputs": "stderr line MT153_CARDMOVE_TIMING {median_ms, samples}; MT032_DOCUMENT_PHASE / MT032_DOCUMENT_STATEMENT JSON events per request_id mt153-probe-<label>-<round> (statement timings only if the query path stays in the request task; wall times always)",
+    "asserts": "response status OK only; no timing threshold",
+    "cleanup": "per-test store under HANDSHAKE_ARTIFACTS_ROOT released by the EmbeddedTestBackend guard (_store) and the LoomCreateBinding tempdir on drop; validator checks the artifact root after the run for a leftover store-* / binding dir",
+    "revert_plan": "probe commit reverted after the result is recorded: alone, or inside the fix commit that follows the decision; re-proof after the revert (CX-VAL-002)",
+    "dispatch": "orchestrator dispatches the run only after the online research reports; if research settles the cause, the run is skipped and the probe reverted",
+    "probe_commit": "pending (recorded after push)"
   }
 }
