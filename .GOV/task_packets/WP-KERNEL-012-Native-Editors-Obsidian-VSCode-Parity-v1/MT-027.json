@@ -3598,5 +3598,48 @@
         "state_effect": "lifecycle.status FAIL_V14"
       }
     ]
+  },
+  "diagnosis_20261001_fr_read_token_in_effect": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-153-20261001-FR-READ-SENDS-GENERATED-NOT-IN-EFFECT-TOKEN",
+    "kind": "blocker_diagnosis",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T13:50:16Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "method": "code + contract reading (no run)",
+    "failure_class": "FR_SESSION_TOKEN_STALE_AFTER_BINDING_REDIRECT",
+    "failing_assertion": "tests/test_block_collection_view.rs:3324 'GET Flight Recorder -> 401 HSK-401-FR-SESSION' (round 9e4bee34; MT-153 FAIL_V12 / MT-027 FAIL_V14)",
+    "what_3313_3324_proves": "the test's attribution step (:3303-3340): read the real Flight Recorder route with the GENUINE published native-MCP session token (test comment :3310-3312 'present the GENUINE published session token. The backend re-reads the binding file and re-verifies the publishing process's birth identity') and assert native block-view events carry actor_id BLOCK_VIEW_ACTOR_ID - i.e. a real authenticated FR read of attributed events, not that a stage-GENERATED token is honored",
+    "ac_check": {
+      "MT-027 scope.acceptance_criteria": "AC1-AC10 (table/sort/kanban/calendar/range/kind switch/new view/AccessKit ids/empty states) - none requires that a stage-generated FR session token be honored; proof_targets PROOF1-PROOF6 likewise; hbr_obligations ['HBR-INT','HBR-SWARM','HBR-VIS']",
+      "MT-153 closure_unit.materialized_acceptance": "no entry mentions the Flight Recorder session token, native-MCP binding or FR attribution (scripted search)",
+      "conclusion": "test-side defect; the keep-existing-token behaviour is the documented driver contract (canonical_argus_driver.rs:244-271: 'When a live binding already exists here, republish that exact channel credential; only a root without one uses the caller's token') and is not changed"
+    },
+    "cause": "require_reachable_backend publishes RealNativeMcpBinding (proc-<pid> root, its own token) when no FR session token exists; CanonicalArgusDriver::bind_in_current_app_data (:2509-2513) then republishes that existing token (flight_recorder_session_token()) and ignores the generated stage_session_token; :3313 still sends stage_session_hex (:2507-2508), which no binding carries -> 401",
+    "sweep_all_instances": [
+      {
+        "where": "test_block_collection_view.rs:2507-2508 + :3313",
+        "kind": "stale generated stage token sent to the FR route",
+        "action": "FIX: after the Argus bind, read the token actually in effect (handshake_native::event_emitter::flight_recorder_session_token(), the binding file in effect) and send it at :3313; the generated token remains the bind input"
+      },
+      {
+        "where": "test_block_collection_view.rs:2085-2100",
+        "kind": "pre-redirect setup (LOCALAPPDATA + HANDSHAKE_STAGE_BINDING_FILE pointed at the test's own root before the backend starts)",
+        "action": "kept: it is the root in effect when no redirect happens; the child gets its binding file explicitly from proof support (mod.rs:804-812, 1314); comment at :2085-2087 updated to say the in-effect file and token are re-resolved after require_reachable_backend / the Argus bind"
+      },
+      {
+        "where": "test_block_collection_view.rs:2108 + :2514-2518",
+        "kind": "binding file in effect",
+        "action": "already re-resolved after require_reachable_backend (f98e1e20); no change"
+      },
+      {
+        "where": "rest of the test",
+        "kind": "other token/path uses",
+        "action": "none: grep for stage_binding|stage_session|LOCALAPPDATA|HANDSHAKE_STAGE_BINDING|binding_path()|session_token|x-hsk-session-token|SessionToken finds only the lines above; every other backend call goes through the account-authenticated LiveBackend / BlockViewClient"
+      }
+    ],
+    "not_touched": "canonical_argus_driver.rs and backend_proof_support (owners: Argus driver / MT-045) - no change needed",
+    "ref": "MT-153.json#diagnosis_20261001_fr_read_token_in_effect"
   }
 }
