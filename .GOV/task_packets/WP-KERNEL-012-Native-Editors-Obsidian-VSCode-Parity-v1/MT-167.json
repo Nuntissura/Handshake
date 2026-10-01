@@ -1140,5 +1140,143 @@
       "attribution": "UNATTRIBUTED (no request timing logged); HYPOTHESIS: the code-nav hover read under record-user predicates exceeds the hover wait"
     },
     "out_of_scope_note": "3 failures at tests/backend_proof_support/mod.rs:4504 (managed fixture cleanup) belong to MT-045 (KB:55 note to its owner by the orchestrator)"
+  },
+  "targeted_result_20261002_222b33cc_a2": {
+    "schema_id": "hsk.targeted_run_result@1",
+    "kind": "TARGETED evidence run ATTEMPT 2 (core only); no verdict; no union round (MT-167-DOWNSTREAM already fails, attempt-1 native evidence)",
+    "remediation_ref": "MT-167.json#remediation_20261002_targeted_222b33cc_a2",
+    "recorded_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "recorded_at_utc": "2026-10-02T00:35:00Z",
+    "candidate_commit": "222b33cc97421388d7be78b8d0a3b0eb577f9928",
+    "run": {
+      "bash_start_utc": "2026-10-01T23:08:55.6923081Z",
+      "completed_utc": "2026-10-01T23:23:24.9321615Z",
+      "wrapper_exit": 0,
+      "core_nextest_exit": 100,
+      "core_tests": 28,
+      "core_failed": 5,
+      "refs": {
+        "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-222b33cc97421388d7be78b8d0a3b0eb577f9928-core-targeted.xml",
+        "stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-222b33cc97421388d7be78b8d0a3b0eb577f9928.stdout.log",
+        "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-222b33cc97421388d7be78b8d0a3b0eb577f9928.stderr.log",
+        "core_build_v": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/core-build-v-222b33cc97421388d7be78b8d0a3b0eb577f9928-targeted.log",
+        "timing_stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-222b33cc97421388d7be78b8d0a3b0eb577f9928.mt167_code_nav_index_median_within_spec_baseline.stdout.txt",
+        "equal_counts_stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-222b33cc97421388d7be78b8d0a3b0eb577f9928.mt167_batch_and_per_file_writer_produce_equal_rows.stdout.txt"
+      },
+      "sha256": {
+        "core_junit": "9f67f5efeb86dcd38ff866326cb11a4da2d12c4b7c808357d4c7ede7d398a551",
+        "stdout": "6a8c7c531334c263da9eefb211612d62297def57615c88ce2c96183470a8683e",
+        "stderr": "b114368e70b95af5f2a05fb0c04ef2e3945bd14f217aaba903a281a4a427043c",
+        "core_build_v": "c27e595d8d1cfc12a40f4ac3197dc20eee01febb8f5ebe58b22cc16df5e9ad49",
+        "timing_stdout": "e29a5abe6803d284c9913374e26917019ac09db78fe632e6a93365857433e60d",
+        "equal_counts_stdout": "5e22183d6f309642c578ed21ae7f0d2598db2f290d2fbb14d3008f3b99546bc0"
+      },
+      "rebuild_accounting": "compiled_crates=0 relinked_test_binaries=15 backend_bin_relinked=0; runner build all Fresh (GP-162 fix effective)"
+    },
+    "build_profile": {
+      "core_test": "dev/test + 8-crate opt-level 2",
+      "test_profile_proof": "compiled_o2=0 fresh=8 absent=0 bad=0 (all 8 Fresh since attempt 1's O2 compile; handshake_core not O2)"
+    },
+    "ac_167_3_timing": {
+      "MT167_TIMING": [
+        "shape=mt008-fixture run=0 warm_up=true elapsed_ms=9238",
+        "run=1 elapsed_ms=14461",
+        "run=2 elapsed_ms=20916",
+        "run=3 elapsed_ms=28181",
+        "run=4 elapsed_ms=36341",
+        "run=5: request exceeded the test's 45 s client bound (tests/mt167_code_nav_index_cost_tests.rs:161 reqwest TimedOut); MT167_TIMING_SUMMARY not printed"
+      ],
+      "verdict_input": "AC-167-3 NOT MET: median of the 5 timed samples not computable (4 of 5 completed: 14.5, 20.9, 28.2, 36.3 s; median of those already > 5 s); run 4 (36.3 s) exceeds the 30 s maximum",
+      "projection_ms_per_run": {
+        "run0": 7479,
+        "run1": 12672,
+        "run2": 18952,
+        "run3": 25675,
+        "run4": 33841,
+        "run5_partial_before_timeout": 42782
+      },
+      "observation": "try_index_prepared_batch.projection grows ~+6.3 s per repeated index of the SAME 1-file shape in the same workspace (7.5 -> 12.7 -> 19.0 -> 25.7 -> 33.8 -> 42.8 s); other stages flat (ingestion 0.7-1.0 s, finish 0.5-0.9 s); vs 4d0da145 dev-profile warm-up projection 27.3 s -> 7.5 s at O2 (~3.7x)"
+    },
+    "equal_counts": {
+      "result": "FAIL (request timeout on the third, parity-only rich shape; tests/mt167_code_nav_index_cost_tests.rs:161)",
+      "completed_sets": {
+        "mt008-fixture pass 1": {
+          "batch": {
+            "edge_spans": 4,
+            "edges": 4,
+            "entities": 4,
+            "entity_spans": 3,
+            "spans": 4
+          },
+          "per_file": {
+            "edge_spans": 4,
+            "edges": 4,
+            "entities": 4,
+            "entity_spans": 3,
+            "spans": 4
+          }
+        },
+        "mt008-fixture pass 2": {
+          "batch": {
+            "edge_spans": 8,
+            "edges": 4,
+            "entities": 4,
+            "entity_spans": 4,
+            "spans": 4
+          },
+          "per_file": {
+            "edge_spans": 8,
+            "edges": 4,
+            "entities": 4,
+            "entity_spans": 4,
+            "spans": 4
+          }
+        },
+        "fems-seed pass 1": {
+          "batch": {
+            "edge_spans": 2,
+            "edges": 2,
+            "entities": 4,
+            "entity_spans": 2,
+            "spans": 2
+          },
+          "per_file": {
+            "edge_spans": 2,
+            "edges": 2,
+            "entities": 4,
+            "entity_spans": 2,
+            "spans": 2
+          }
+        },
+        "fems-seed pass 2": {
+          "batch": {
+            "edge_spans": 4,
+            "edges": 2,
+            "entities": 4,
+            "entity_spans": 2,
+            "spans": 2
+          },
+          "per_file": {
+            "edge_spans": 4,
+            "edges": 2,
+            "entities": 4,
+            "entity_spans": 2,
+            "spans": 2
+          }
+        }
+      },
+      "parity": "batch == per_file in all 4 completed sets",
+      "observation_not_a_finding_yet": "on re-index (pass 2) edge_spans double in BOTH writers (mt008 4->8, fems 2->4) and mt008 entity_spans 3->4, while edges/entities/spans stay; both writers agree, so parity holds; whether re-index should keep edge_spans stable (cf. mt104 relationship_id idempotency) is for the builder to state"
+    },
+    "account_test": {
+      "api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete": "PASS (22.6 s)"
+    },
+    "existing_tests": {
+      "knowledge_code_index_tests": "PASS 22/22",
+      "knowledge_code_nav_api_tests": "FAIL 0/3, same three as since 2026-09-24: mt045_lc06 LC-06 request timeout :167 (79.7 s), mt106 'add present' :571, mt106 'add in lookup' :316"
+    },
+    "ac_167_4_downstream": "attempt-1 native evidence (MT-167.json#targeted_result_20261001_222b33cc.native_downstream_evidence): not met",
+    "credentials": "252/33 before and after (no new leftover)",
+    "other": "observer 28 polls, 0 errors, spin capture did not fire; 2 new preserved test stores runtime/store-01a0f9c189bc7e238a7cf4529aa0ea01 and store-01a0f9c2ed247941ba41e50c9b45f698 (HANDSHAKE_TEST_STORE_CLEANUP_FAILURE shutdown failed)"
   }
 }
