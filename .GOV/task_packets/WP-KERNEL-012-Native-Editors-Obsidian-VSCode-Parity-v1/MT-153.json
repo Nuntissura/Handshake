@@ -5925,5 +5925,50 @@
       "no_behavior_change": "only logging around existing awaits; return values and errors unchanged"
     },
     "run_plan": "cargo check when D: idle; push; before_submit (GP-158); validator PIN-MEASURE; re-pin; then one union round; no resubmit before the re-pin"
+  },
+  "remediation_20261001_batch_94ba0ed1": {
+    "schema_id": "hsk.mt_remediation_partial@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T11:35:29Z",
+    "kind": "batch pushed; NOT resubmitted - awaiting validator PIN-MEASURE on 94ba0ed1, then re-pin, then one union round",
+    "commit": "94ba0ed18d029608c235e95c351234a913069897",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 94ba0ed18d029608c235e95c351234a913069897",
+    "a_reorder": {
+      "line": "MT-042 ac10 attempt 1",
+      "schema.surql": "loom_edges FOR delete (A) OR (endpoint clause) OR W (+1/-1 line 567; operands byte-identical, only order changed)",
+      "schema.rs": "MT153_LOOM_EDGE_DELETE_ORDER_DELTAS (cfg(test), 1 pair) reverted FIRST in restore_pre_indexed_grant_schema with an exactly-once assert; indexed_grant_upgrade_statements re-emits the loom_edges DEFINE TABLE statement (schema_table_definition_bounds); no pin changed",
+      "delta_check": "scratch delta_check2.py: order pair current once; reverting it reproduces schema.surql@791a81dd byte-exactly; reverting both MT-153 pair sets reproduces schema.surql@f98e1e20 byte-exactly; W is the last operand; operand multiset unchanged"
+    },
+    "c_probe": {
+      "status": "DIAGNOSTIC - revert after the result is recorded",
+      "file": "api/loom.rs (+mt153_diag_timed helper and wrappers, tracing target handshake_core::mt153_diag)",
+      "wrapped": [
+        "reconciler_pass",
+        "fr_list_events",
+        "fr_record_event",
+        "fr_list_events_after_write_error",
+        "surreal_load_scoped_publication",
+        "surreal_record_failure",
+        "surreal_mark_published",
+        "surreal_list_pending",
+        "surreal_update_block_view_definition",
+        "publish_scoped_view_update",
+        "surreal_get_block_view",
+        "surreal_query_block_view_results"
+      ],
+      "output": "backend stdout lines 'MT153_DIAG still running' (WARN, at 2 s) and 'MT153_DIAG completed' (WARN > 2 s, INFO otherwise) with operation, ids, elapsed_ms"
+    },
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "exit_code": 0,
+        "inputs": "94ba0ed1 backend files; 0 cargo/rustc before launch",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-reorder-probe.log",
+        "new_warnings": 0
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 94ba0ed1; GP-158 confirmed: loom_store.rs/database.rs unchanged since d9ce6017 (empty diff); the only auth-relevant change is the loom_edges delete OR order with an unchanged allow set (analysis_20261001_schema_hygiene)",
+    "open": "operator_decision_request_20261001_w_scan_ownership stays open"
   }
 }
