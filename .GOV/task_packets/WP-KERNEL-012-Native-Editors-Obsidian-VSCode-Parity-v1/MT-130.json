@@ -22,7 +22,7 @@
   "title": "E10-MT-130-Resolve-The-Calendar-Chip-Value-Contract-Two-Readers-Cannot-Both-Be-Satisfied",
   "group": "E10-Interop",
   "created_at_utc": "2026-08-13T09:40:00Z",
-  "updated_at_utc": "2026-09-24T04:08:15.141Z",
+  "updated_at_utc": "2026-10-01T17:45:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-130.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -62,6 +62,26 @@
     "risk_if_missed": "PT-117-1 cannot close. MT-117 sits at 11/13 with a fully understood, fully evidenced blocker, and the temptation on each future pass is to relax deny_unknown_fields - which would silently weaken roughly 30 unrelated observers."
   },
   "validation_v3": {"schema_id":"hsk.mt_validation_verdict@1","decision":"blocked","verdict":"BLOCKED","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:51:00Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","blocker_kind":"dependency","blocked_on_mt_ref":"MT-066.json","blocking_mt_refs":["MT-066.json","MT-067.json","MT-032.json"],"basis":"Required value-contract runtime scenarios stop at open Stage/Calendar/document fixes; exact applied/indeterminate counts not credited","required_test_observations":[{"test":"open_or_create_daily_note_is_idempotent_against_real_backend_live","target":"handshake-native::test_calendar_interop","message":"thread 'open_or_create_daily_note_is_idempotent_against_real_backend_live' (161160) panicked at tests\\test_calendar_interop.rs:481:9","elapsed_seconds":82.55,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#open_or_create_daily_note_is_idempotent_against_real_backend_live"},{"test":"other_pillar_op01_stage_route_embed_back_other_pillar_interop","target":"handshake-native::test_other_pillar_interop_proofs","message":"thread 'other_pillar_op01_stage_route_embed_back_other_pillar_interop' (209968) panicked at tests\\test_other_pillar_interop_proofs.rs:3069:9","elapsed_seconds":82.218,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#other_pillar_op01_stage_route_embed_back_other_pillar_interop"},{"test":"other_pillar_op03_locus_resolve_reverse_other_pillar_interop","target":"handshake-native::test_other_pillar_interop_proofs","message":"thread 'other_pillar_op03_locus_resolve_reverse_other_pillar_interop' (196532) panicked at tests\\backend_proof_support\\mod.rs:1708:14","elapsed_seconds":80.081,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#other_pillar_op03_locus_resolve_reverse_other_pillar_interop"},{"test":"other_pillar_op04_swarm_accesskit_other_pillar_interop","target":"handshake-native::test_other_pillar_interop_proofs","message":"thread 'other_pillar_op04_swarm_accesskit_other_pillar_interop' (214836) panicked at tests\\test_other_pillar_interop_proofs.rs:1592:9","elapsed_seconds":82.067,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#other_pillar_op04_swarm_accesskit_other_pillar_interop"}],"remaining_proof_gaps":[{"ac":"AC-130-1","reason":"operator decision record (operator_decision_20260914); governance"},{"ac":"AC-130-2","reason":"partial: no test asserts the exact applied/indeterminate counts; ops call finish(), counts come from the receipt artifact"},{"ac":"remaining_obligation:UserManual","reason":"no manual test asserts the chip value contract"}],"runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"Same single union; no rerun while dependency open; no own remediation or PASS","verdict_events":[{"event":"accepted","idempotency_key":"MT-130-49eac54e-union-blocked-v3","at_utc":"2026-09-26T15:51:00Z","payload_ref":"MT-130.json#validation_v3","decision":"blocked"},{"event":"completed","idempotency_key":"MT-130-49eac54e-union-blocked-v3","at_utc":"2026-09-26T15:53:23Z","state_ref":"MT-130.json#lifecycle","decision":"blocked"}]},
+  "operator_decision_request_20261001_write_scope": {
+    "rule": "KB-IMPL-006",
+    "by": "KERNEL_BUILDER lane B (WP-KERNEL-012, orchestrator-steered)",
+    "at_utc": "2026-10-01T17:45:00Z",
+    "status": "OPEN",
+    "stale_blocker_check": "lifecycle.blocked_on MT-066 is PASS_V9 (MT-066.json#validation_round_e4566f11); validation_v3 co-blockers MT-067 PASS_V8, MT-032 PASS_V15. The dependency blocker is resolved; the remaining items below are not.",
+    "recorded_gaps": [
+      "validation_v3.remaining_proof_gaps AC-130-2: no test asserts the exact applied/indeterminate counts (ops call finish(); counts only in the receipt artifact)",
+      "validation_v3.remaining_proof_gaps remaining_obligation:UserManual: no manual test asserts the chip value contract; verified 2026-10-01 that src/manual_content_editors.rs does not state that the chip identity (calendar_event_id, daily_note_doc_id) travels inside the click-completion token semantic_value"
+    ],
+    "why_builder_cannot_proceed": "scope.allowed_paths is ['DECISION_ONLY_UNTIL_OPERATOR_SELECTS_AN_OPTION']; operator_decision_20260914 ratified the relocation but did not amend allowed_paths, so MT-130 has no product write scope",
+    "files_the_gaps_need": [
+      "src/frontend/handshake_native/tests/test_other_pillar_interop_proofs.rs (AC-130-2: OP scenarios assert zero indeterminate, e.g. finish_require_no_indeterminate(); file is MT-074-owned and also needed by MT-074 AC-074-10)",
+      "src/frontend/handshake_native/src/manual_content_editors.rs (state the chip value contract in the Daily Journal topic)",
+      "src/frontend/handshake_native/tests/test_manual_content.rs (assert that paragraph)"
+    ],
+    "also_open": "lifecycle.depends_on MT-117 (BLOCKED) while lifecycle.blocks lists MT-117: a dependency cycle between MT-117 and MT-130",
+    "question": "Amend MT-130 scope.allowed_paths to the three files above (option a), or fold the AC-130-2 count assertion into MT-074/MT-117 and the manual contract into MT-117 (option b), or other; and resolve the MT-117 <-> MT-130 cycle.",
+    "effect_until_answered": "MT-130 stays BLOCKED; no product edit"
+  },
   "lifecycle": {
     "active": false,
     "validator_verdict": "BLOCKED",
@@ -69,7 +89,7 @@
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "status": "BLOCKED",
-    "blocked_on": "MT-066",
+    "blocked_on": "operator_decision_request_20261001_write_scope (allowed_paths DECISION_ONLY; formal depends_on MT-117 BLOCKED); prior blocked_on MT-066 now PASS_V9",
     "depends_on": [
       "MT-117"
     ],

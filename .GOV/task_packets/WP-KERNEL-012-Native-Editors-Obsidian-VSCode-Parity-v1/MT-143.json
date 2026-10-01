@@ -31,6 +31,40 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "validation_v3": {"schema_id":"hsk.mt_validation_verdict@1","decision":"blocked","verdict":"BLOCKED","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:51:00Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","blocker_kind":"dependency","blocked_on_mt_ref":"MT-067.json","blocking_mt_refs":["MT-067.json","MT-066.json","MT-032.json"],"basis":"Required Calendar/Stage/OP regressions blocked at recorded fixes; per-frame/manual/right-reason RED floors remain uncredited","required_test_observations":[{"test":"open_or_create_daily_note_is_idempotent_against_real_backend_live","target":"handshake-native::test_calendar_interop","message":"thread 'open_or_create_daily_note_is_idempotent_against_real_backend_live' (161160) panicked at tests\\test_calendar_interop.rs:481:9","elapsed_seconds":82.55,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#open_or_create_daily_note_is_idempotent_against_real_backend_live"},{"test":"other_pillar_op01_stage_route_embed_back_other_pillar_interop","target":"handshake-native::test_other_pillar_interop_proofs","message":"thread 'other_pillar_op01_stage_route_embed_back_other_pillar_interop' (209968) panicked at tests\\test_other_pillar_interop_proofs.rs:3069:9","elapsed_seconds":82.218,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#other_pillar_op01_stage_route_embed_back_other_pillar_interop"},{"test":"other_pillar_op03_locus_resolve_reverse_other_pillar_interop","target":"handshake-native::test_other_pillar_interop_proofs","message":"thread 'other_pillar_op03_locus_resolve_reverse_other_pillar_interop' (196532) panicked at tests\\backend_proof_support\\mod.rs:1708:14","elapsed_seconds":80.081,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#other_pillar_op03_locus_resolve_reverse_other_pillar_interop"},{"test":"mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent","target":"handshake-native::test_stage_interop","message":"thread 'mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent' (198976) panicked at tests\\test_stage_interop.rs:668:17","elapsed_seconds":81.035,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent"}],"remaining_proof_gaps":[{"ac":"AC-143-1","reason":"per-frame measurement (node id, rect, state across the click) is an artifact capture (PT-143-1); no test records it"},{"ac":"AC-143-3","reason":"partial: no manual test asserts the new UserManual paragraph (manual_content_editors.rs ~1993-2000)"},{"ac":"AC-143-4","reason":"partial: 'green for the right reason' needs diff review plus the PT-143-4 RED capture"}],"runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"Same single union; no rerun while dependency open; no own remediation or PASS","verdict_events":[{"event":"accepted","idempotency_key":"MT-143-49eac54e-union-blocked-v3","at_utc":"2026-09-26T15:51:00Z","payload_ref":"MT-143.json#validation_v3","decision":"blocked"},{"event":"completed","idempotency_key":"MT-143-49eac54e-union-blocked-v3","at_utc":"2026-09-26T15:53:23Z","state_ref":"MT-143.json#lifecycle","decision":"blocked"}]},
+  "remediation_plan_20261001_laneb": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER lane B (WP-KERNEL-012, orchestrator-steered)",
+    "at_utc": "2026-10-01T17:47:00Z",
+    "remediates": "MT-143.json#validation_v3 (decision blocked, candidate 49eac54e)",
+    "stale_blocker_check": {
+      "MT-067": "PASS_V8 (MT-067.json#validation_round_bb9548e1; covers open_or_create_daily_note_is_idempotent_against_real_backend_live / test_calendar_interop)",
+      "MT-066": "PASS_V9 (MT-066.json#validation_round_e4566f11; covers mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent / test_stage_interop)",
+      "MT-032": "PASS_V15 (MT-032.json#validation_v15)",
+      "residual_UNVERIFIED": "other_pillar_op01/op03 (test_other_pillar_interop_proofs, AC-143-5 regression set) are not named in those PASS verdicts and are also MT-074's recorded failure class; they are not observed green since 49eac54e"
+    },
+    "gaps_and_intended_fix": [
+      {
+        "ac": "AC-143-1 / PT-143-1",
+        "diagnosis": "the per-frame capture exists verbatim in the artifact root but was never linked with hashes in this contract",
+        "fix": "link only (no code): BEFORE ../Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-diag-raw.log sha256 495ccad75b115a271e323b5d5483ab9392a37ee9dde7f4c0347ab565ae0ce8a5 (DIAG143 before-stable-frame/at-click-frame/post-click-1/post-click-2: journal-next-day id #11751707163392076598, bb x 433.72..455.09 unchanged across frames, STACK@444,285 hits pane-b, pane-a x 228..444; panic test_calendar_interop.rs:2753); AFTER mt143-fix-verify.log sha256 2edd34bd1173f2a00b5987323b1d482189f10bc4479ba54fc77df6d4aeb4d830 (journal-next-day x 342.09..363.47 inside pane-a; test result ok 1 passed)"
+      },
+      {
+        "ac": "AC-143-4 / PT-143-4",
+        "diagnosis": "RED of the previously failing assertion is retained in mt143-diag-raw.log (pre-fix tree, panic at test_calendar_interop.rs:2753, 0 passed 1 failed); guard RED/GREEN in mt143-red-green.log",
+        "fix": "link only: mt143-red-green.log sha256 140251ed8825a3eeeec5b8fe9128c9982762389785efc56d9e2d2e9b321ccfc6. A fresh fix-reverted RED run is a special proof for the WP-end extra build (CX-VAL-005), not a builder run"
+      },
+      {
+        "ac": "AC-143-3",
+        "diagnosis": "the Daily Journal UserManual paragraph (src/manual_content_editors.rs daily_journal_body, ~2016-2028) answering the cross-surface question has no asserting test; wave5_needles('Daily Journal') in tests/test_manual_content.rs carries none of its facts",
+        "fix": "add one test in src/frontend/handshake_native/tests/test_manual_content.rs (allowed tests/**) asserting the Daily Journal topic contains: the outer daily-journal-* vs embedded journal-* id split, 'Either date-nav row is a valid input to the SAME selected date', the mirror into the mounted Calendar state superseding the in-flight read, the right-edge button reservation with truncating date, and the out-of-pane bounds check. No product source change"
+      }
+    ],
+    "files": [
+      "src/frontend/handshake_native/tests/test_manual_content.rs"
+    ],
+    "compile_static_planned": "cargo check --locked --tests (test_manual_content target) in the lane-B owned target, only on orchestrator go",
+    "status": "PLANNED; product edit awaits orchestrator go"
+  },
   "lifecycle": {
     "status": "BLOCKED",
     "blocked_on": "MT-067",
