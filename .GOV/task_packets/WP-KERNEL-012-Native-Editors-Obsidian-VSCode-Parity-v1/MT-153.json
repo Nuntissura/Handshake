@@ -4007,5 +4007,37 @@
       "optimized-dependency speedup on this workload"
     ],
     "decisive_experiment_suggested": "time POST /loom/edges and DELETE /loom/edges/{id} on an optimized backend vs the dev backend with identical data; HSK_TEST_BACKEND_BIN selects the binary (tests/backend_proof_support/mod.rs:1020-1110 requires only HSK_TEST_BACKEND_TARGET_ROOT placement + freshness)"
+  },
+  "analysis_20261001_schema_hygiene": {
+    "schema_id": "hsk.mt_analysis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T05:47:14Z",
+    "method": "code reading only at 39f3e830 (no edit, no run)",
+    "loom_edges_delete_reorder": {
+      "current": "schema.surql:567 FOR delete WHERE (A: projection mention chain) OR fn::mt120_workspace_delete(record::id(workspace_id)) OR (B: last_actor_id != projection AND endpoint derefs AND fn::mt120_loom_endpoint_access(source,'update','fs.write') AND fn::mt120_loom_endpoint_access(target,'read','fs.read'))",
+      "precedence": "VERIFIED surrealdb-core-3.2.0/src/sql/operator.rs:535-548 BindingPower Or < And, so the predicate parses as A OR W OR B; surrealdb-core-3.2.0/src/expr/expression.rs:711-722 OR/AND short-circuit left to right -> for tag edges A fails at its first term, W runs fully, B runs only if W is false",
+      "semantics_of_reorder_A_OR_B_OR_W": "allow iff truthy(A) or truthy(W) or truthy(B) in either order, provided no operand errors and evaluation has no side effects. VERIFIED surrealdb-core-3.2.0/src/doc/check.rs:448-475: predicate computed with new_for_permission_predicate (permissions off, side effects blocked); a compute error propagates (`?`) and fails the statement, a falsy value denies",
+      "error_paths": "code reading: W (schema.surql:6771-6980) and B's functions (6211-6252, 6081-6120, 6044-6079, 6027-6039) contain no THROW and only read; parameters are record::id(workspace_id) (string for product-written string keys) and record<loom_blocks> fields; derefs of a missing block yield NONE (falsy), not an error -> no error path identified. UNVERIFIED for rows whose record keys are not strings (would fail the typed `string` params in either order)",
+      "residual_differences": [
+        "which operand authorizes changes (owner: B instead of W) - the allow/deny result does not",
+        "time::now() in grant expiry is read at slightly different instants (a grant expiring within the evaluation window could differ; same class of race exists today)",
+        "a principal allowed only by W now pays B first (cost only)"
+      ],
+      "cascades": "MT-153 engine fact F4 / implementation_steps[2]: workspace-delete cascades need no delete predicate, so the workspace-delete flow does not depend on this OR order",
+      "verdict": "reordering to A OR B OR W preserves allow/deny for every principal under the no-error condition above; it removes W (unindexed O(R*P) scans + per-block/document loops) from the owner's common tag-edge delete path. Saving is UNMEASURED until the probe reports the DELETE statement"
+    },
+    "record_exists_asserts": {
+      "reference_does_not_check_existence": "VERIFIED surrealdb-core-3.2.0/src/doc/field.rs:375-425,758-830 process_reference_clause only writes/deletes the ref key; REFERENCE never checks that the target exists -> ASSERT record::exists is the only schema-level existence check",
+      "permissioned": "record::exists under a record user fetches the target with permissions ON (research: fnc/record.rs:12-30, val/record_id.rs:430-455) -> the ASSERT also requires the writer to be able to SELECT the referenced workspace / block / ledger receipt",
+      "unguarded_writer_example": "src/backend/handshake_core/src/storage/surreal/wiki_store.rs:1272 creates loom_edges with target_block_id = type::record('loom_blocks', $row.target) without a target-existence guard; the field ASSERT is what rejects a dangling target there",
+      "loom_store_paths": "create_loom_edge guards source/target via SELECT VALUE workspace_id (missing -> NONE != $workspace -> THROW) and binds a receipt created or read in the same transaction, so for this writer the edge ASSERTs are redundant; loom_blocks recount UPDATEs rerun workspace_id / event_ledger_event_id / block_id ASSERTs although those fields do not change",
+      "verdict": "not redundant at schema level (other writers + implicit read-authorization); dropping them changes semantics. A narrower form (skip the check when the value is unchanged on UPDATE) would need verification of the variables available in a field ASSERT in 3.2.0 and of the permission implication - UNVERIFIED, not proposed"
+    },
+    "loom_blocks_select_reorder": "research item: moving `source_rich_document_id = NONE AND fn::mt120_loom_block_access(...)` ahead of the mt109_source_read alternative is the same OR-commutation argument (no THROW found in mt109_source_read 6117+ by the same reading); not analysed further here",
+    "ownership_and_approval": {
+      "allowed_write_paths": "schema.surql is in allowed_write_paths of MT-153 (FAIL_V7), MT-154, MT-157, MT-158, MT-159 (READY_FOR_VALIDATION), MT-156, MT-164, MT-166 (PASS); MT-153 owned_files[5] lists it; MT-153 dependencies.blocks = MT-154 (shares schema.surql/schema.rs pins and fn::mt120_workspace_delete), MT-156, MT-157; ordering_rule: one builder at a time, pins re-measured once per batch, a later MT re-measures on top of the previous MT's committed pins",
+      "repin_required": "yes: MT-153.json schema_repin_procedure (delta pair per changed statement in schema.rs next to MT109_C2_SCHEMA_DELTAS, one PIN-MEASURE run, update GENERATED_SURREALQL_SHA256 / DECLARATIVE_SCHEMA_CATALOG_SHA256 / EXPECTED_SCHEMA_INFO_SHA256 / atelier pins, never re-pin PREDECESSOR constants) + proof checks MT-153-PIN-MEASURE and MT-153-PIN-CONFIRM; KB-CARGO-SHARED-001 batch schema/pin changes; schema.rs is also in MT-153 allowed paths",
+      "approval": "orchestrator standing rule: any schema.surql change reported first (pin re-measure); pins measured for READY MT-154/157/158/159 would be shifted by a later MT-153 schema change, so their PIN-CONFIRM proofs need a re-run on the new pins (orchestrator sequencing decision). Codex CX-GOV-PIN-001 concerns governance pins, not schema pins"
+    }
   }
 }
