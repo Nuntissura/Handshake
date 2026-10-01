@@ -2651,10 +2651,50 @@ fn block_view_flight_actor(ctx: &WriteContext) -> (FlightRecorderActor, String) 
     (actor, actor_id)
 }
 
+/// MT-153 DIAGNOSTIC (BCV MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT probe; REVERT after the result is
+/// recorded, MT-153.json#hypothesis_20261001_batch_reorder_and_probe): times one Surreal or Flight
+/// Recorder call on the block-view publication path / background reconciler. Logs a WARN once the
+/// call has run 2 s and, on completion, a WARN when it took more than 2 s (INFO otherwise), with the
+/// operation, the ids and the elapsed time. Only observes; the call's result is returned unchanged.
+async fn mt153_diag_timed<T>(
+    operation: &'static str,
+    ids: &str,
+    call: impl std::future::Future<Output = T>,
+) -> T {
+    let started = Instant::now();
+    let threshold = tokio::time::sleep(Duration::from_secs(2));
+    tokio::pin!(call);
+    tokio::pin!(threshold);
+    let mut warned = false;
+    let output = loop {
+        tokio::select! {
+            output = &mut call => break output,
+            () = &mut threshold, if !warned => {
+                warned = true;
+                tracing::warn!(target: "handshake_core::mt153_diag", operation, ids, elapsed_ms = started.elapsed().as_millis() as u64, "MT153_DIAG still running");
+            }
+        }
+    };
+    let elapsed_ms = started.elapsed().as_millis() as u64;
+    if elapsed_ms > 2_000 {
+        tracing::warn!(target: "handshake_core::mt153_diag", operation, ids, elapsed_ms, "MT153_DIAG completed");
+    } else {
+        tracing::info!(target: "handshake_core::mt153_diag", operation, ids, elapsed_ms, "MT153_DIAG completed");
+    }
+    output
+}
+
 fn spawn_block_view_reconciler(state: AppState) {
     tokio::spawn(async move {
         loop {
-            if let Err(error) = reconcile_block_view_events(&state, None, None).await {
+            // MT-153 DIAGNOSTIC: one timed reconciler pass (revert with mt153_diag_timed).
+            if let Err(error) = mt153_diag_timed(
+                "reconciler_pass",
+                "",
+                reconcile_block_view_events(&state, None, None),
+            )
+            .await
+            {
                 let (status, body) = error;
                 tracing::error!(
                     target: "handshake_core::loom_api",
@@ -2674,14 +2714,19 @@ async fn record_block_view_event_idempotent(
     state: &AppState,
     event: FlightRecorderEvent,
 ) -> ApiResult<()> {
-    let existing = state
-        .flight_recorder
-        .list_events(EventFilter {
+    // MT-153 DIAGNOSTIC: the three Flight Recorder calls below are timed (revert with
+    // mt153_diag_timed).
+    let diag_ids = format!("event_id={}", event.event_id);
+    let existing = mt153_diag_timed(
+        "fr_list_events",
+        &diag_ids,
+        state.flight_recorder.list_events(EventFilter {
             event_id: Some(event.event_id),
             ..EventFilter::default()
-        })
-        .await
-        .map_err(internal_error)?;
+        }),
+    )
+    .await
+    .map_err(internal_error)?;
     if let Some(existing) = existing.first() {
         return if block_view_outbox::events_equal(existing, &event) {
             Ok(())
@@ -2691,15 +2736,23 @@ async fn record_block_view_event_idempotent(
             )))
         };
     }
-    if let Err(write_error) = state.flight_recorder.record_event(event.clone()).await {
-        let existing = state
-            .flight_recorder
-            .list_events(EventFilter {
+    if let Err(write_error) = mt153_diag_timed(
+        "fr_record_event",
+        &diag_ids,
+        state.flight_recorder.record_event(event.clone()),
+    )
+    .await
+    {
+        let existing = mt153_diag_timed(
+            "fr_list_events_after_write_error",
+            &diag_ids,
+            state.flight_recorder.list_events(EventFilter {
                 event_id: Some(event.event_id),
                 ..EventFilter::default()
-            })
-            .await
-            .map_err(internal_error)?;
+            }),
+        )
+        .await
+        .map_err(internal_error)?;
         if existing
             .first()
             .is_some_and(|existing| block_view_outbox::events_equal(existing, &event))
@@ -2722,10 +2775,12 @@ async fn reconcile_block_view_events(
                 "scoped block-view publication requires workspace_id",
             ))
         })?;
-        let event = match block_view_outbox::load_scoped_publication(
-            &state.surreal,
-            workspace_id,
-            event_id,
+        // MT-153 DIAGNOSTIC: Surreal outbox calls timed (revert with mt153_diag_timed).
+        let diag_ids = format!("workspace_id={workspace_id} event_id={event_id}");
+        let event = match mt153_diag_timed(
+            "surreal_load_scoped_publication",
+            &diag_ids,
+            block_view_outbox::load_scoped_publication(&state.surreal, workspace_id, event_id),
         )
         .await
         .map_err(map_storage_error)?
@@ -2735,45 +2790,74 @@ async fn reconcile_block_view_events(
         };
         if let Err(error) = record_block_view_event_idempotent(state, event.clone()).await {
             let error_summary = format!("{}:{}", error.0, error.1 .0.error);
-            block_view_outbox::record_failure(
-                &state.surreal,
-                workspace_id,
-                event.event_id,
-                &error_summary,
+            mt153_diag_timed(
+                "surreal_record_failure",
+                &diag_ids,
+                block_view_outbox::record_failure(
+                    &state.surreal,
+                    workspace_id,
+                    event.event_id,
+                    &error_summary,
+                ),
             )
             .await
             .map_err(map_storage_error)?;
             return Err(error);
         }
-        block_view_outbox::mark_published(&state.surreal, workspace_id, event.event_id)
-            .await
-            .map_err(map_storage_error)?;
+        mt153_diag_timed(
+            "surreal_mark_published",
+            &diag_ids,
+            block_view_outbox::mark_published(&state.surreal, workspace_id, event.event_id),
+        )
+        .await
+        .map_err(map_storage_error)?;
         return Ok(());
     }
 
     loop {
-        let pending = block_view_outbox::list_pending(&state.surreal, workspace_id, None, 200)
-            .await
-            .map_err(map_storage_error)?;
+        // MT-153 DIAGNOSTIC: Surreal outbox calls timed (revert with mt153_diag_timed).
+        let pending = mt153_diag_timed(
+            "surreal_list_pending",
+            workspace_id.unwrap_or(""),
+            block_view_outbox::list_pending(&state.surreal, workspace_id, None, 200),
+        )
+        .await
+        .map_err(map_storage_error)?;
         let pending_count = pending.len();
         let mut first_error = None;
         for (event_workspace_id, event) in pending {
+            let diag_ids = format!(
+                "workspace_id={event_workspace_id} event_id={}",
+                event.event_id
+            );
             if let Err(error) = record_block_view_event_idempotent(state, event.clone()).await {
                 let error_summary = format!("{}:{}", error.0, error.1 .0.error);
-                block_view_outbox::record_failure(
-                    &state.surreal,
-                    &event_workspace_id,
-                    event.event_id,
-                    &error_summary,
+                mt153_diag_timed(
+                    "surreal_record_failure",
+                    &diag_ids,
+                    block_view_outbox::record_failure(
+                        &state.surreal,
+                        &event_workspace_id,
+                        event.event_id,
+                        &error_summary,
+                    ),
                 )
                 .await
                 .map_err(map_storage_error)?;
                 first_error.get_or_insert(error);
                 continue;
             }
-            block_view_outbox::mark_published(&state.surreal, &event_workspace_id, event.event_id)
-                .await
-                .map_err(map_storage_error)?;
+            mt153_diag_timed(
+                "surreal_mark_published",
+                &diag_ids,
+                block_view_outbox::mark_published(
+                    &state.surreal,
+                    &event_workspace_id,
+                    event.event_id,
+                ),
+            )
+            .await
+            .map_err(map_storage_error)?;
         }
         if let Some(error) = first_error {
             return Err(error);
@@ -6550,11 +6634,14 @@ async fn get_block_view(
     account
         .run(&state, &loom_workspace, async {
             ensure_workspace_exists(&state, &workspace_id).await?;
-            let record = state
-                .storage
-                .get_block_view(&workspace_id, &block_id)
-                .await
-                .map_err(map_storage_error)?;
+            // MT-153 DIAGNOSTIC: definition read timed (revert with mt153_diag_timed).
+            let record = mt153_diag_timed(
+                "surreal_get_block_view",
+                &format!("workspace_id={workspace_id} block_id={block_id}"),
+                state.storage.get_block_view(&workspace_id, &block_id),
+            )
+            .await
+            .map_err(map_storage_error)?;
             Ok(Json(record))
         })
         .await
@@ -6586,16 +6673,34 @@ async fn update_block_view(
         .run(&state, &loom_workspace, async {
             ensure_workspace_exists(&state, &workspace_id).await?;
             let ctx = account.ctx.clone();
-            let record = state
-                .storage
-                .update_block_view_definition(&ctx, &workspace_id, &block_id, payload.definition)
-                .await
-                .map_err(map_storage_error)?;
+            // MT-153 DIAGNOSTIC: definition write and its publication timed (revert with
+            // mt153_diag_timed).
+            let diag_ids = format!("workspace_id={workspace_id} block_id={block_id}");
+            let record = mt153_diag_timed(
+                "surreal_update_block_view_definition",
+                &diag_ids,
+                state.storage.update_block_view_definition(
+                    &ctx,
+                    &workspace_id,
+                    &block_id,
+                    payload.definition,
+                ),
+            )
+            .await
+            .map_err(map_storage_error)?;
             let publication_event_id = record.publication_event_id.ok_or_else(|| {
                 internal_error("updated block view omitted its publication event identity")
             })?;
-            reconcile_block_view_events(&state, Some(&workspace_id), Some(publication_event_id))
-                .await?;
+            mt153_diag_timed(
+                "publish_scoped_view_update",
+                &diag_ids,
+                reconcile_block_view_events(
+                    &state,
+                    Some(&workspace_id),
+                    Some(publication_event_id),
+                ),
+            )
+            .await?;
 
             Ok(Json(record))
         })
@@ -6630,20 +6735,32 @@ async fn query_block_view_results(
     account
         .run(&state, &loom_workspace, async {
             ensure_workspace_exists(&state, &workspace_id).await?;
-            let record = state
-                .storage
-                .get_block_view(&workspace_id, &block_id)
-                .await
-                .map_err(map_storage_error)?;
+            // MT-153 DIAGNOSTIC: definition read and results query timed (revert with
+            // mt153_diag_timed).
+            let diag_ids = format!("workspace_id={workspace_id} block_id={block_id}");
+            let record = mt153_diag_timed(
+                "surreal_get_block_view",
+                &diag_ids,
+                state.storage.get_block_view(&workspace_id, &block_id),
+            )
+            .await
+            .map_err(map_storage_error)?;
 
             let limit = payload.limit.unwrap_or(100).min(500);
             let offset = payload.offset.unwrap_or(0);
 
-            let results = state
-                .storage
-                .query_block_view_results(&workspace_id, &record.definition, limit, offset)
-                .await
-                .map_err(map_storage_error)?;
+            let results = mt153_diag_timed(
+                "surreal_query_block_view_results",
+                &diag_ids,
+                state.storage.query_block_view_results(
+                    &workspace_id,
+                    &record.definition,
+                    limit,
+                    offset,
+                ),
+            )
+            .await
+            .map_err(map_storage_error)?;
 
             let event = FlightRecorderEvent::new(
                 FlightRecorderEventType::LoomViewQueried,

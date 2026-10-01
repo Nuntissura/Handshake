@@ -2756,12 +2756,32 @@ const MT153_WORKSPACE_DELETE_VIEW_DEF_DELTAS: [(&str, &str); 2] = [
         "        IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {\n            IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };\n",
     ),
 ];
+/// MT-153 (MT-042 ac10 attempt 1): loom_edges FOR delete evaluates the owner endpoint clause before
+/// `fn::mt120_workspace_delete` (OR short-circuits left to right, surrealdb-core 3.2.0
+/// expr/expression.rs:711-716; allow/deny unchanged), so a tag-edge delete the owner's endpoint
+/// grants already admit no longer runs the workspace-delete guard. (current, previous) pair against
+/// schema.surql at 791a81dd; reverted FIRST in [`restore_pre_indexed_grant_schema`]; the
+/// revision-162 upgrade re-emits the loom_edges table statement ([`indexed_grant_upgrade_statements`]).
+#[cfg(test)]
+const MT153_LOOM_EDGE_DELETE_ORDER_DELTAS: [(&str, &str); 1] = [(
+    "                FOR delete WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read') OR (last_actor_id != 'knowledge_rich_document_backlink_projection' AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND fn::mt120_loom_endpoint_access(source_block_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read')) OR fn::mt120_workspace_delete(record::id(workspace_id));\n",
+    "                FOR delete WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read') OR fn::mt120_workspace_delete(record::id(workspace_id)) OR (last_actor_id != 'knowledge_rich_document_backlink_projection' AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND fn::mt120_loom_endpoint_access(source_block_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read'));\n",
+)];
 /// Exact revision-161 source: the current schema with each MT-164 grant/access function restored to
 /// its revision-161 link-traversal text.
 #[cfg(test)]
 fn restore_pre_indexed_grant_schema(mut source: String) -> String {
-    // MT-153: the view_def workspace-delete widening is newer than every predecessor; revert it
-    // first so the predecessor texts below (and the older chains built on them) match exactly.
+    // MT-153: the loom_edges delete OR reorder and the view_def workspace-delete widening are newer
+    // than every predecessor; revert them first so the predecessor texts below (and the older
+    // chains built on them) match exactly.
+    for (current, previous) in MT153_LOOM_EDGE_DELETE_ORDER_DELTAS {
+        assert_eq!(
+            source.matches(current).count(),
+            1,
+            "MT-153 loom_edges delete order delta must occur exactly once"
+        );
+        source = source.replacen(current, previous, 1);
+    }
     for (current, previous) in MT153_WORKSPACE_DELETE_VIEW_DEF_DELTAS {
         assert_eq!(
             source.matches(current).count(),
@@ -2847,6 +2867,10 @@ fn indexed_grant_upgrade_statements() -> String {
     statements.push('\n');
     // MT-153: the workspace-delete guard accepts saved views under the workspace grant.
     statements.push_str(schema_function_definition("mt120_workspace_delete"));
+    statements.push('\n');
+    // MT-153: loom_edges delete evaluates the endpoint clause before the workspace-delete guard.
+    let (start, end) = schema_table_definition_bounds(SCHEMA, "loom_edges");
+    statements.push_str(&SCHEMA[start..end]);
     statements.push('\n');
     statements
 }
