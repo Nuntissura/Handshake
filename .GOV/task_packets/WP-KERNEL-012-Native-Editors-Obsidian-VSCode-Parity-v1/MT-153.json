@@ -3939,6 +3939,17 @@
     "cleanup": "per-test store under HANDSHAKE_ARTIFACTS_ROOT released by the EmbeddedTestBackend guard (_store) and the LoomCreateBinding tempdir on drop; validator checks the artifact root after the run for a leftover store-* / binding dir",
     "revert_plan": "probe commit reverted after the result is recorded: alone, or inside the fix commit that follows the decision; re-proof after the revert (CX-VAL-002)",
     "dispatch": "orchestrator dispatches the run only after the online research reports; if research settles the cause, the run is skipped and the probe reverted",
-    "probe_commit": "pending (recorded after push)"
+    "probe_commit": "39f3e8308d11523c49f9da1d6b216b111f09cdf0",
+    "probe_commit_recorded_at_utc": "2026-10-01T05:35:55Z",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 39f3e8308d11523c49f9da1d6b216b111f09cdf0",
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "exit_code": 0,
+        "inputs": "tree == 39f3e830 backend files; 0 cargo/rustc processes before launch",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-cardmove-probe.log"
+      }
+    ]
   }
 }
