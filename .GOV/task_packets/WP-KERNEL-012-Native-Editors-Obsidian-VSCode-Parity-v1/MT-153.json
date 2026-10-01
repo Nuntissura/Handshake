@@ -5095,5 +5095,78 @@
     ],
     "risk": "no SCHEMA_REVISION bump (precedent MT-166/MT-157 inside the in-flight revision): a dev store already at revision 162 with the old guard would not match the new current pin",
     "open_item": "d5f5d8e3 (2026-09-29, single 'file' block, no view) not explained by this fix"
+  },
+  "pin_measure_20261001_8ff1565d": {
+    "schema_id": "hsk.mt_pin_measure_result@1",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "at_utc": "2026-10-01T08:45:00Z",
+    "kind": "MT-153-PIN-MEASURE (schema_repin_procedure step 3): measurement, not an attempt; no verdict",
+    "candidate": "8ff1565d18ceb9082edacbaa14c38985e607f5d8",
+    "export_identity_sha256": "6aad3afeec3221c6d720b4280eebf3e3532e47183fbc5b218b9536691f273c65 (incremental d9ce6017->8ff1565d, 5 files, VERIFY_OK manifest 32e95c6b)",
+    "preconditions": {
+      "head_eq_tip": true,
+      "worktree_clean": true,
+      "other_cargo_processes": 0,
+      "gameplan": "wp_validator before_round PASS 34/34 at 8ff1565d",
+      "vault_probe": "success=True (bb4f73dd)",
+      "commit_free_gb": 65.6,
+      "credentials_before": "241/22"
+    },
+    "command": {
+      "cwd": "export-current/src/backend/handshake_core",
+      "argv": "timeout 1500 cargo test --locked -j 12 --lib --features app-runtime,surreal-test-support,test-utils -- --exact --test-threads=1 <the 7 MT-153-PIN-MEASURE schema tests> (verbatim proof.checks argv)",
+      "env": "union round env (HANDSHAKE_ARTIFACTS_ROOT, HANDSHAKE_SURREAL_TEST_STORE_ROOT=<lane>/runtime, CARGO_TARGET_DIR=target-r52, line-tables-only, CARGO_INCREMENTAL=0)",
+      "launcher": "<lane>/pin-measure-8ff1565d.ps1 -> <lane>/pin-measure.sh, detached (GP-153)"
+    },
+    "result": {
+      "exit_code": 101,
+      "build": "Compiling handshake_core only; Finished test profile in 5m 30s",
+      "tests": "running 7: 2 ok, 5 FAILED (expected for a measure run)",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/pin-measure-8ff1565d18ceb9082edacbaa14c38985e607f5d8.stdout.log",
+      "log_sha256": "953dc6f503838060ff0046c8331a4a8e377e8ae43e35848f3ffb03ec1e13911b"
+    },
+    "measured_current_pins": {
+      "GENERATED_SURREALQL_SHA256 (schema.rs:3060)": {
+        "current_constant": "ad8af766863b079f8eb2f37d5f8bb7f973319a981e7e25f950a5c00095bc5667",
+        "measured": "763ef641f8b7ac64878e0fc733e8079a9ba5009858121001af6f9ae05091e048",
+        "changed": true,
+        "source": "declarative_schema_catalog_is_complete_and_content_sensitive schema.rs:9209 left; same value as 'generated=' in the COMPILED_MANIFEST_DRIFT errors"
+      },
+      "EXPECTED_SCHEMA_INFO_SHA256 (schema.rs:3157)": {
+        "current_constant": "81a9de3dfbaaf65fdbd2e57ad31e9bec7dd01865e871819d4bf4664cb13a718d",
+        "measured": "f2e350dd28ef2cd87e75ea4aaf38f79244f5fda3fdc4f6bed42bde3d4682892d",
+        "changed": true,
+        "source": "MT109_CURRENT_AUTHORITY_INFO_SHA256= and MT139_CURRENT_SCHEMA_INFO_SHA256= lines; left of schema.rs:9046 and :9080 (both assert against EXPECTED_SCHEMA_INFO_SHA256)"
+      },
+      "DECLARATIVE_SCHEMA_CATALOG_SHA256 (schema.rs:3085)": {
+        "measured": "50d3244b292a63e7928a04ce9fc9f7c575580531f20167441b6e802cdfc27a8e",
+        "changed": false,
+        "source": "schema.rs:9205 assert passed (failure was the next assert :9209); drift message catalog= equals the constant"
+      },
+      "KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256 (schema.rs:3088)": {
+        "measured": "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75",
+        "changed": false,
+        "source": "drift message knowledge_registry_seed= equals the constant (its assert was not reached)"
+      },
+      "EXPECTED_ATELIER_CATALOG_SHA256": {
+        "changed": false,
+        "source": "mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin ok"
+      },
+      "MT109 Loom catalog pins": {
+        "changed": false,
+        "source": "mt109_loom_catalog_dependencies_are_complete_and_deterministic ok"
+      }
+    },
+    "predecessor_constants_observed_unchanged_do_not_repin": {
+      "PRE_MT109_AUTHORITY_INFO_SHA256 (schema.rs:3428)": "8803fbcc07ae64c671d6ecdc206f5a48efdf4d536444ff011d0db66d023672ca (MT109_PREDECESSOR_AUTHORITY_INFO_SHA256 line equals the constant)",
+      "PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256 (schema.rs:2998)": "1f8443486cd7101babb56dd6264ffcf08538a1eae24016d2155b19d5eb6370b4 (drift message predecessor_registry= equals the constant)"
+    },
+    "dependent_failures": "mt138_full_schema_atelier_noop_matches_bounded_projection (:8455) and mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current (:10101) failed with HANDSHAKE_SURREAL_SCHEMA_COMPILED_MANIFEST_DRIFT generated=763ef641... (the stale GENERATED pin); they print no pin of their own; PIN-CONFIRM after the pin update decides them",
+    "after_checks": {
+      "credentials_after": "241/22",
+      "leftover_store_dirs": 0,
+      "observer": "18 polls, 0 errors"
+    },
+    "next": "builder: one commit updating ONLY GENERATED_SURREALQL_SHA256 and EXPECTED_SCHEMA_INFO_SHA256 to the measured values; then one union round with MT-153-PIN-CONFIRM"
   }
 }
