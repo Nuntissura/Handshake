@@ -3583,5 +3583,62 @@
         "state_effect": "lifecycle.status FAIL_V6"
       }
     ]
+  },
+  "diagnosis_20261001_cardmove_split_edge_txns": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-153-20261001-CARDMOVE-SPLIT-EDGE-TRANSACTIONS",
+    "kind": "blocker_diagnosis",
+    "method": "code reading only (no run); per-statement costs from the bd8c7532 edge timers",
+    "failure_class": "LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT",
+    "failing_assertion": "MT-153.json#validation_round_e4566f11 / MT-027.json#validation_round_e4566f11: tests/test_block_collection_view.rs:1743 Kanban card_move PATCH /workspaces/{ws}/loom/blocks/{id} (add_tags=[tag_a], remove_tags=[tag_b]) reqwest TimedOut; MT-042 kanban-move same request",
+    "client_deadline": "src/frontend/handshake_native/src/backend_client.rs:9579 block_view_send .timeout(5 s) (whole request)",
+    "cause": "card-move PATCH runs create+delete as 2 record-user edge txns; card recounted twice, new edge written twice (#7)",
+    "request_path_e4566f11": [
+      "loom_block_account (auth) + account.run (record-user scope)",
+      "ensure_workspace_exists",
+      "update_loom_block with no field set: get_loom_block then early return (loom_store.rs:1239, 1272-1279) - one read, no write",
+      "list_loom_edges_for_block (select permission per edge row)",
+      "add: get_loom_block(tag) TagHub check, then create_loom_edge txn (loom_store.rs:1570-1616): guard, receipt read/append/bind, record::exists, #6 CREATE edge 0.59 s, #7 UPDATE $edge SET event_ledger_event_id 0.89 s, #8 UPDATE card recount 0.79 s, #9 UPDATE tag-hub recount 0.64 s, SELECT edge; median 3.27 s",
+      "remove: delete_loom_edge (loom_store.rs:1636-1682): pre-read SELECT edge (separate round trip), then txn: guard, receipt read/append/bind, DELETE edge, UPDATE card recount, UPDATE old-hub recount - not measured (no delete ran in bd8c7532)",
+      "get_loom_block (card), Flight Recorder event, refresh_loom_block_embedding"
+    ],
+    "dominant_cost": {
+      "what": "the two edge transactions: every loom_edges/loom_blocks statement in them evaluates record-user PERMISSIONS (loom_edges create/update/delete/select -> 2x fn::mt120_loom_endpoint_access -> fn::mt120_loom_block_access -> fn::mt109_has_grant + fn::mt109_has_workspace_access + protected_resources/resource_grants lookups; loom_blocks update -> fn::mt120_loom_block_access; recount subqueries -> loom_edges select predicate per counted row)",
+      "code_location": "src/backend/handshake_core/src/api/loom.rs:2879-2930 (per-tag create_loom_edge / delete_loom_edge, one transaction each); loom_store.rs:1579 (#7 second write of the just-created edge); loom_store.rs:1580/1668 (card recounted in both transactions)",
+      "measured": "create 3.27 s median (#6 0.59, #7 0.89, #8 0.79, #9 0.64; MT-153.json#decision_20260930_edge_counter_rule)",
+      "unmeasured": "delete transaction + pre-read; by statement shape >= its two recount UPDATEs (~1.43 s at create rates) plus guard/receipt/DELETE - UNVERIFIED",
+      "removable_by_design": "#7 (0.89 s): the receipt id is already bound at stmt 4 before the CREATE, so it can be set by the CREATE itself; the first transaction's card recount (0.79 s) is superseded by the second transaction's card recount in the same request"
+    },
+    "systemic_multiplier_out_of_scope": "live native proofs launch the debug backend (tests/backend_proof_support/mod.rs:1165,1181 target/debug/handshake_core.exe) and no [profile.dev.package] override exists, so surrealdb-core evaluates every permission chain at opt-level 0; magnitude UNVERIFIED; a profile override is outside MT-153 paths and forces a surrealdb-core rebuild -> orchestrator/Operator decision, not proposed here",
+    "distinct_from": [
+      "MT-153.json#hypothesis_20260930_event_ledger_key (ledger idempotency scan; fixed 79610d1a/b4faed35)",
+      "MT-153.json#hypothesis_20260930_cardmove_timeout (redundant post-edge recompute_block_metrics; fixed 13288bf0)",
+      "MT-153.json#hypothesis_20260930_edge_counter_cost / decision_20260930_edge_counter_rule (counter recompute share; rule did not call for targeted recompute)",
+      "DX-MT-027-20260930-UPSERT-GATED-BY-UPDATE-NONE (bridge create 403; fixed df5d1804)"
+    ],
+    "intended_fix": {
+      "F1": {
+        "change": "loom_store.rs create_loom_edge: write event_ledger_event_id = $receipt in the CREATE itself (explicit CREATE $edge SET <all EdgeContent fields>, event_ledger_event_id = $receipt, same != 1 THROW guard) and drop the #7 UPDATE",
+        "saves": "~0.89 s per edge create (measured #7); applies to every create_loom_edge caller",
+        "keeps": "same transaction, receipt appended and bound atomically (MT-150), record::exists conflict guard, both recounts unchanged (MT-152 design), result index 6, no schema change (field ASSERT is record::exists($value), satisfied by the receipt created at stmt 3)"
+      },
+      "F2": {
+        "change": "card move as ONE transaction: new loom_store.rs fn + SurrealDatabase inherent method in database.rs (no storage/mod.rs trait change; that file is outside MT-153 paths), called from patch_loom_block_inner when tags change: endpoint guards, per-edge receipt append with the same event payload and idempotency key as today, CREATE (with receipt) / DELETE per edge, then ONE recount of the card and ONE per distinct changed tag hub with the existing array::len formulas (no increments)",
+        "saves": "one card recount (~0.79 s measured), the delete pre-read round trip and the second transaction's guard/commit (unmeasured)",
+        "risk": "multi-receipt idempotency in one transaction (macro uses fixed $existing_receipt/$ledger/$receipt names -> needs per-edge parameter names); exact-retry semantics must re-read rather than re-apply; lock keys = every edge record touched + MT-142 retry budget; larger diff -> needs orchestrator approval"
+      },
+      "F3": {
+        "change": "api/loom.rs patch_loom_block_inner: skip update_loom_block when no block field is set (it only reads and returns the unchanged row; the tag branch re-reads the block at the end); keep the non-tag path's read",
+        "saves": "one record-user block read (unmeasured, small)"
+      },
+      "not_chosen": [
+        "raising the 5 s client deadline (backend_client.rs:9579): hides the cost, does not fix it",
+        "simplifying PERMISSIONS predicates or adding indexes: schema.surql change, pin re-measure",
+        "increments instead of recounts: MT-152 approved design forbids"
+      ],
+      "sufficiency": "UNVERIFIED: no delete timing exists; F1+F3 alone remove ~0.9 s+, F1+F2+F3 remove ~1.7 s plus the delete pre-read/second-transaction overhead. If F1+F3 is chosen first, the next validator round should time the PATCH (or the delete) to decide on F2"
+    },
+    "recorded_at_utc": "2026-10-01T03:52:28Z",
+    "recorded_by": "KERNEL_BUILDER-20260930"
   }
 }

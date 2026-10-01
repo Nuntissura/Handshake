@@ -2708,5 +2708,11 @@
         "state_effect": "lifecycle.status FAIL_V8"
       }
     ]
+  },
+  "diagnosis_ref_20261001_cardmove": {
+    "diagnosis_ref": "MT-153.json#diagnosis_20261001_cardmove_split_edge_txns (DX-MT-153-20261001-CARDMOVE-SPLIT-EDGE-TRANSACTIONS)",
+    "note": "same LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT class; fix lands in MT-153-owned paths",
+    "recorded_at_utc": "2026-10-01T03:52:28Z",
+    "recorded_by": "KERNEL_BUILDER-20260930"
   }
 }
