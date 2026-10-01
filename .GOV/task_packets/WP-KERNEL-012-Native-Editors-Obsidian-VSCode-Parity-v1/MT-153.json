@@ -88,13 +88,13 @@
     },
     "status_reason": "FAIL_V15 on f4e66906 union round (validation_round_f4e66906)",
     "status_before_20260930": "FAIL_V2",
-    "candidate_commit": "c19203484a0cc975fd8917a32c827babeab0548c",
+    "candidate_commit": "9191e8b5cf459f0056f64153634046b5c52ab646",
     "blocked_on": null,
     "diagnosis_refs": [
-      "MT-153.json#diagnosis_20261001_fr_native_actor_attribution (DX-MT-153-20261001-FR-NATIVE-ACTOR-ATTRIBUTION-ABSENT; outcome (a); attempt 1) + #diagnosis_20261001_fr_native_actor_attribution_go_addendum",
-      "MT-153.json#diagnosis_20261001_cpu_spin_reconciler_tick_p2 (P2 + DIAGNOSTIC logs from f4e66906 retained until the BCV line closes)"
+      "MT-153.json#intent_20261001_revert_bv_publish_diagnostic (DIAGNOSTIC mt153_diag_bv_publish logs reverted; P2 kept)",
+      "MT-153.json#status_20261001_check_tests_clippy_changed_wp_end (MT-153-CHECK-TESTS / MT-153-CLIPPY-CHANGED -> WP-end extra build, CX-VAL-005; MT-153 inconclusive until then)"
     ],
-    "ready_for_validation_at_utc": "2026-10-01T16:21:10Z",
+    "ready_for_validation_at_utc": "2026-10-01T16:37:15Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "status_before_bb9548e1_resubmission": "FAIL_V3",
     "candidate_updated_at_utc": "2026-10-01T00:46:31Z",
@@ -110,7 +110,8 @@
     "status_before_11f1b034_resubmission": "FAIL_V12",
     "status_before_1d1f583a_resubmission": "FAIL_V13",
     "status_before_f4e66906_resubmission": "FAIL_V14",
-    "status_before_c1920348_resubmission": "FAIL_V15"
+    "status_before_c1920348_resubmission": "FAIL_V15",
+    "status_before_9191e8b5_resubmission": "READY_FOR_VALIDATION"
   },
   "closure_unit": {
     "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
@@ -8631,5 +8632,43 @@
     "assignment": "they belong to the WP-end extra build (CX-VAL-005)",
     "cause": "missing extra_build_proofs declaration in MT-153",
     "consequence": "MT-153 stays INCONCLUSIVE until the WP-end extra build runs them (same as MT-079/122/136); the runtime floor is complete as of round c1920348"
+  },
+  "remediation_20261001_9191e8b5": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T16:37:15Z",
+    "remediates": {
+      "verdict_ref": "MT-153.json#validation_round_c1920348 (INCONCLUSIVE)",
+      "failure_class": "none (round c1920348 MT-153 INCONCLUSIVE: runtime floor complete; CHECK-TESTS/CLIPPY-CHANGED not run); resubmission because api/loom.rs changed (diagnostic revert)"
+    },
+    "diagnosis_refs": [
+      "MT-153.json#intent_20261001_revert_bv_publish_diagnostic (DIAGNOSTIC mt153_diag_bv_publish logs reverted; P2 kept)",
+      "MT-153.json#status_20261001_check_tests_clippy_changed_wp_end (MT-153-CHECK-TESTS / MT-153-CLIPPY-CHANGED -> WP-end extra build, CX-VAL-005; MT-153 inconclusive until then)"
+    ],
+    "fix": {
+      "commit": "9191e8b5",
+      "change": "removed fn mt153_diag_bv_publish, its 8 call sites, the per-publication Instant and the diagnostic-only path argument; P2 (30 s settle for the background reconciler) kept"
+    },
+    "candidate_commit": "9191e8b5cf459f0056f64153634046b5c52ab646",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 9191e8b5cf459f0056f64153634046b5c52ab646",
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "exit_code": 0,
+        "inputs": "api/loom.rs at 9191e8b5; 0 cargo/rustc before launch; no warning names reconcile_pending_block_view_events / BLOCK_VIEW_RECONCILER_SETTLE_SECS",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-diag-revert-core.log"
+      },
+      {
+        "command": "cargo check --locked -j 4 --features integration,integration_tests,wgpu_screenshots --test test_block_collection_view",
+        "cwd": "src/frontend/handshake_native",
+        "exit_code": 0,
+        "inputs": "reused from c1920348: no native file changed c1920348..9191e8b5",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-fr-attribution-native.log"
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 9191e8b5; GP-158 confirmed (api/loom.rs hunks only remove diagnostic lines in the block-view reconciler; edge/counter txn untouched)",
+    "selection_note": "runtime re-proof of the MT-153 floor on 9191e8b5 (api/loom.rs changed: diagnostic logs removed; net vs 1d1f583a = P2 only); MT-153-CHECK-TESTS / MT-153-CLIPPY-CHANGED remain for the WP-end extra build; MT-027 stays PASS_V18 (not resubmitted)",
+    "next_actor": "WP_VALIDATOR single union round"
   }
 }
