@@ -4999,5 +4999,67 @@
       }
     ],
     "restart": "after the (2) decision: implement it on top of f98e1e20, then before_submit and resubmit MT-153/027/042 citing all three diagnoses"
+  },
+  "research_20261001_workspace_delete_w": {
+    "schema_id": "hsk.mt_research@1",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T08:17:53Z",
+    "source": "read-only explore agent report (orchestrator 2026-10-01; scratch workspace_delete_w_research.md, copied because scratch is not durable); VERIFIED = file:line/commit/retained log, HYPOTHESIS = inferred",
+    "denial_classification": {
+      "re_delete_after_ok (test-side double delete, product correct)": "18cff989, cb4c9eec (MT-036), e12fac8b, a98733cd, 23793940, e45eeaa7, 4f5b01de/65e2ab6b - canvas-only or note+canvas workspaces; fixed test-side by be4d0c94 (MT-036 test_event_emitter.rs) and c56c5360 (MT-066 test_stage_interop.rs)",
+      "first_delete_denied": "5159282b, 14096b74, 0ba5db80, e740a244 (BCV drop guard), 227753de, 0b982292, de91ba57 (ac10 explicit :2614 + Drop retry) - EVERY one holds a view_def block (retained RocksDB WAL 000004.log byte scan, heuristic; retention keeps failing runs only)",
+      "unexplained": "d5f5d8e3 (2026-09-29 02:43, one 'file' block, no view) - not explained by the view_def clauses",
+      "logs": "retained owned-backend dirs ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/*/*/backend.stdout.log ('workspace deleted ... status=deleted' vs 'workspace delete transaction failed statement_index=10')"
+    },
+    "wal_evidence": "ac10 store de91ba57: 7 loom_blocks (3 note, 2 tag_hub, 1 canvas, 1 view_def b8117d47 'MT-042 Kanban'); each non-view block has exactly one protected_resources row keyed by its block id, the view_def has none; its knowledge_entities row exists (KEN-01a0f66c..., entity_kind loom_block, no primary source). Same pattern in BCV e740a244 and 5159282b/14096b74/0ba5db80/227753de/0b982292",
+    "false_W_clauses": {
+      "W-A": "schema.surql:6821-6826 standalone-block loop (ELSE of :6812): needs exactly one active loom_block protected resource in $resources per block with source_rich_document_id = NONE; fn::mt120_resource_create provisions loom_block resources only for ['note','file','annotated_file','tag_hub','journal','canvas'] (~6716-6722); block_view_store.rs CREATE_TRANSACTION (~348-359) creates block, search row, 2 ledger events, entity, bridge, outbox, no resource/grant -> view_def FALSE",
+      "W-B": "schema.surql:7011-7015 knowledge_entities loop: entity_kind='loom_block' AND primary_source_id=NONE needs a loom_block|rich_document resource with external_resource_id = entity_key in $resources; the view's entity (UPSERT ... entity_kind='loom_block', entity_key=record::id($block)) has none -> FALSE; patching W-A alone still fails at W-B",
+      "other_clauses": "W0 :6772 workspace delete grant TRUE; W1 :6778-6781 TRUE; W2 :6782-6801 resource tree TRUE (views add no resource); W3/W4a N/A; W5/W6a/W6b TRUE (only Loom tables populated, consistent workspace ids); W7-W13 N/A; reasoning by elimination + differential evidence (probe never run on a view-bearing workspace)"
+    },
+    "spec_and_contract": {
+      "spec": "master-spec v02.206: no view_def / saved-view protected-resource requirement (0 hits); 02-system-architecture.md:2735-2750 envelope may be carried 'directly' (view rows carry created_in_session_id + workspace_id); LM-RLS-001 (11-shared...:580) workspace-role model, LM-RLS-002 (:582)",
+      "schema_model": "schema.surql:467-470 loom_blocks view_def select/update/delete under fn::mt109_has_workspace_access; :3599 knowledge_entities view_def workspace-grant clauses; a1e18d79 (MT-109 C3) 'saved views (view_def) and their search/entity/bridge rows follow the workspace grant'; api/loom.rs:6468-6471",
+      "acceptance": "AC-153-6 (view_def created through scoped routes, no per-view resource), AC-153-8 (Loom rows no longer make an owner's workspace undeletable), scope.routes[65] 'schema widening'; MT-154 AC-154-6 / Operator decision 2026-09-22 (owner workspace delete cascades) and W's own comment :6832-6834",
+      "no_view_delete_route": "api/loom.rs:445-455 has no view delete route; DELETE /loom/blocks/:id needs a LoomBlock resource (api/loom.rs:3051-3065) a view lacks -> workspace delete is the only removal path (HYPOTHESIS-high)"
+    },
+    "mt036_mt066_comparison": "both were test-side double deletes (first delete OK); ac10/BCV are FIRST-delete denials of populated workspaces - no test-side fix applies (relaxing asserts conflicts with AC-153-8/AC-154-6)",
+    "discrepancy_with_prior_diagnosis": "DX-MT-153-20261001-WORKSPACE-DELETE-VIEWDEF-NO-RESOURCE said earlier denials predate view creation (df5d1804); the retained 09-30 stores already hold view_def blocks, so those denials are explained by W-A/W-B too; only d5f5d8e3 stays unexplained; the diagnosis named only W-A",
+    "option_comparison": "(a) widen W for view_def (two edits in one function, one delta pair batch, one re-pin) aligned with the schema model above; (b) per-view resource + creator grant: changes fn::mt120_resource_create/creator grant, block_view_store, view authority, retire-on-delete, no migration for existing views - larger, no authority asks for it"
+  },
+  "hypothesis_20261001_workspace_delete_route_a": {
+    "schema_id": "hsk.mt_attempt_hypothesis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_before_edit": true,
+    "recorded_at_utc": "2026-10-01T08:17:53Z",
+    "rule": "CX-EXEC-003A",
+    "approved": "orchestrator (buddy CLEAR) 2026-10-01: route (a) under MT-153",
+    "diagnosis_refs": [
+      "MT-153.json#diagnosis_20261001_workspace_delete_viewdef",
+      "MT-153.json#research_20261001_workspace_delete_w"
+    ],
+    "intended_fix": {
+      "W-A": "fn::mt120_workspace_delete standalone-block loop: a block with content_type = 'view_def' (already filtered to this workspace by the loop's SELECT) needs no loom_block protected resource",
+      "W-B": "fn::mt120_workspace_delete knowledge_entities loop: an entity_kind='loom_block' entity without primary source whose entity_key block is a view_def of this workspace needs no protected resource",
+      "authority": "both are accepted under the workspace delete grant W already checks at its first line (fn::mt109_has_workspace_access($external,'delete','fs.write')); every other block/entity keeps its exact resource requirement",
+      "basis": "AC-153-6, AC-153-8, AC-154-6, Operator decision 2026-09-22; schema already models saved views under the workspace grant (schema.surql:467-470, :3599; a1e18d79)",
+      "lineage": "MT-153 schema_repin_procedure: one (current, previous) delta pair per changed text in schema.rs, reverted FIRST in the revision-161 reconstruction (restore_pre_indexed_grant_schema, which every older reconstruction chains through) so PRE_* predecessor constants stay valid (never re-pinned); the revision-162 upgrade (indexed_grant_upgrade_statements) re-emits fn::mt120_workspace_delete so 161->162 upgrades reach the current catalog (schema_delta_upgrade_statements already re-emits it for <=160); current pins (GENERATED/DECLARATIVE/EXPECTED_SCHEMA_INFO/atelier/MT109 catalog) updated only from the validator's PIN-MEASURE output",
+      "no_revision_bump": "SCHEMA_REVISION stays 162 (precedent: MT-166 and the MT-157 rowset change landed inside revision 162/160 without a bump); a dev store already at revision 162 with the old W would mismatch the new current pin (fresh-store tests unaffected) - risk reported"
+    },
+    "lane_quiet": "schema.surql/schema.rs are shared by every lane compiling handshake_core; edit only with no other cargo process and no foreign uncommitted change in those files; other lanes notified via the orchestrator",
+    "not_explained": "d5f5d8e3 (2026-09-29, single 'file' block, no view) is NOT explained by this fix (open item)",
+    "run_count": "validator PIN-MEASURE (separate measurement run under schema_repin_procedure) + one union round (PIN-CONFIRM + MT-153/027/042 + MT-154/157/158/159 pin proofs via selection)"
+  },
+  "remediation_20261001_route_a_proof_plan": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T08:17:53Z",
+    "kind": "proof plan (recorded before edit)",
+    "test": "api::loom::tests::mt153_owner_workspace_delete_removes_saved_view (new, src/backend/handshake_core/src/api/loom.rs, cfg os-keychain)",
+    "why_not_extend_existing": "the existing owned-delete core test api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit lives in src/api/workspaces.rs, which is NOT in MT-153 allowed_write_paths; the new test reuses the same MT-157 C1_FDELETE probe technique in an MT-153 path",
+    "what_it_does": "owner record-user session (owned_loom_session) + note + saved Kanban view created through POST /workspaces/:id/loom/views/definitions (record-user route), install the C1_FDELETE diagnostic copy of fn::mt120_workspace_delete (each RETURN false -> THROW 'C1_FDELETE_CLAUSE_n', clause lines printed to stderr), then DELETE /workspaces/:id as the owner; asserts 200 and zero residue in loom_blocks, loom_block_search_index, knowledge_entities, loom_block_knowledge_bridge, loom_block_view_fr_outbox for the workspace; on denial the backend's test-build probe prints which clause fired",
+    "command": "cd src/backend/handshake_core && HANDSHAKE_ARTIFACTS_ROOT=<abs artifacts root> cargo nextest run -p handshake_core --lib --features app-runtime,surreal-test-support,test-utils --no-capture -E 'test(=api::loom::tests::mt153_owner_workspace_delete_removes_saved_view)'",
+    "cleanup": "per-test embedded store released by the EmbeddedTestBackend guard; LoomCreateBinding tempdir dropped",
+    "stays": "kept (acceptance proof for the W widening, not a diagnostic)"
   }
 }
