@@ -4670,5 +4670,44 @@
       "tests": "KNOWLEDGE_LOOM_BLOCK_INDEXED assertions in tests/loom_block_collection_views_tests.rs:353, loom_pins_views_tests.rs:303, loom_knowledge_bridge_tests.rs:130/239 concern bridge receipts (aggregate knowledge_loom_block), not the per-PATCH search reindex; no test found asserting a search reindex on a tag-only PATCH (UNVERIFIED for tests outside handshake_core/tests and native tests grep for add_tags/remove_tags)"
     },
     "recommendation": "R-skip: in api/loom.rs patch_loom_block_inner call refresh_loom_block_embedding only when a block field was written (skip when block_update_skipped, i.e. the F3 tag-only condition); index content stays identical, tag search stays live. Alone it predicts full_move ~4.75 s (margin ~0.25 s, worst sample ~0.17 s) which is NOT robust once native HTTP/client overhead and a larger seeded workspace are added; R-skip + F2 predicts ~4.07 s (margin ~0.93 s). Recommend R-skip now (small, MT-153 path, no schema) and F2 as the margin step if the buddy approves; reindex fold is not worth it (~45 ms). Predicate/ASSERT schema hygiene and the debug-profile decision stay the systemic options"
+  },
+  "fact_check_20261001_indexed_receipt": {
+    "schema_id": "hsk.mt_fact_check@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_at_utc": "2026-10-01T06:17:02Z",
+    "question": "does any test, AC (esp. PASS MTs) or HBR/Flight Recorder row expect a KNOWLEDGE_LOOM_BLOCK_INDEXED event/count after a tag-only Loom block PATCH?",
+    "result": "NO HIT",
+    "product_files_checked": {
+      "tests/kernel_event_ledger_tests.rs:163": "event-family name list (enum coverage), no PATCH",
+      "tests/knowledge_documents_tests.rs:714": "one representative event per family written directly to the ledger, no PATCH",
+      "tests/loom_block_collection_views_tests.rs:328,353,406,528": "view-definition create: bridge receipt (aggregate knowledge_loom_block) and search-index row count of a created view_def block; no add_tags/remove_tags in the file",
+      "tests/loom_pins_views_tests.rs:303": "bridge receipt of bridge_loom_block_to_knowledge, no tag PATCH",
+      "tests/loom_knowledge_bridge_tests.rs:130,239": "bridge receipts (>= 2 after explicit re-bridge), no tag PATCH",
+      "tests/wp009_integration_validator_evidence_pack_tests.rs:94,107": "evidence-pack claims HBR-VIS-005 (loom_visual_debug_views_tests.rs, hbr_vis_gap_tests.rs) and CX-503R (knowledge_parallel_write_conflict_fixture_tests.rs, loom_transclusion_tests.rs) list the receipt kind; none of those 4 proof files uses add_tags/remove_tags (grep) or a tag-only PATCH",
+      "src: api/loom.rs:685,876 (create/bridge comments), kernel/mod.rs:381 (enum name), storage/loom.rs, storage/mod.rs, block_view_store.rs, bridge_store.rs, loom_canvas_store.rs, wiki_store.rs, schema.rs/schema.surql (receipt predicates), search_store.rs:122-144 (the reindex receipt itself), handshake_native/src/backend/loom.rs:299 (doc comment on the bridge receipt id)": "producers/predicates/comments, no expectation tied to a tag-only PATCH",
+      "tag-only PATCH tests": "core: api/loom.rs mt109_c3_record_user_tags_and_edges (asserts edges, tag lists, counts; no ledger INDEXED read), tests/atelier_core_data_tests.rs:2707/2750 (atelier collections, not Loom PATCH); native: test_block_collection_view.rs, test_app_host_mount_secondary.rs:2946, test_tags_panel.rs - no INDEXED/search-index assertion (grep: native tests contain no KNOWLEDGE_LOOM_BLOCK_INDEXED)"
+    },
+    "gov_records_checked": "WP-009 MT-177 (bridge receipt on bridge/re-index, COMPLETED), MT-190 (FR projection-rebuild event); WP-012 MT-023/026/027/033/067/070/080/109/111/120/141 (remediation text on fn::mt120_loom_receipt widening for tag_hub content type - block create receipts), MT-068 (fixture residue disclosure); none ties INDEXED to a tag-only PATCH",
+    "hbr": "Codex CX-131 (line 39) -> .GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json: no row names KNOWLEDGE_LOOM_BLOCK_INDEXED or a search-index write per mutation; HBR-INT-009 (three-tier diagnostic wiring) stays satisfied - a tag-only PATCH still emits the LoomBlockUpdated Flight Recorder event (api/loom.rs patch_loom_block_inner) and one KNOWLEDGE_LOOM_TAG_MUTATED receipt per edge; HBR-MAN-004 (UserManual on storage/event contract change) -> one sentence added to the Block Collection Views Kanban manual section"
+  },
+  "hypothesis_20261001_cardmove_f2_reindex_skip": {
+    "schema_id": "hsk.mt_attempt_hypothesis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_before_edit": true,
+    "recorded_at_utc": "2026-10-01T06:17:02Z",
+    "rule": "CX-EXEC-003A",
+    "diagnosis_ref": "MT-153.json#diagnosis_20261001_cardmove_probe_result (probe 39f3e830) + analysis_20261001_cardmove_reindex_f2",
+    "approved": "orchestrator (buddy): F2 CLEAR; reindex skip conditional on the INDEXED fact check (no hit: fact_check_20261001_indexed_receipt); no probe re-run",
+    "intended_fix": {
+      "F2": "a Kanban card move that creates exactly one tag edge and deletes exactly one tag edge of the same card runs as ONE transaction: new loom_store.rs move_loom_tag_edge + SurrealDatabase inherent method (database.rs, api handlers construct SurrealDatabase::new(state.surreal) per request as elsewhere in api/loom.rs; no storage/mod.rs trait change). Statements: endpoint guards (card + new hub, removed edge in workspace), create receipt and delete receipt (same event builders, payloads and idempotency keys as create_loom_edge/delete_loom_edge, distinct bare params), CREATE edge with receipt (EDGE-EXISTS guard), DELETE edge (!= 1 THROW), ONE card recount + new-hub recount + old-hub recount with the unchanged array::len formulas, read edge. Removes the delete pre-read, the second guard/transaction and the second card recount. Lock keys: both edge records (sorted by the registry); Replay::idempotent; every read inside the closure so a commit-conflict retry re-reads. Other add/remove shapes keep the existing per-edge path unchanged",
+      "reindex_skip": "api/loom.rs patch_loom_block_inner: refresh_loom_block_embedding runs only when update_loom_block ran (not for the F3 tag-only condition); search text/embedding are unchanged by a tag-only PATCH and the tag facet reads loom_edges live",
+      "probe_revert": "the diagnostic test mt153_cardmove_patch_timing_probe (39f3e830) is reverted in the same fix commit",
+      "manual": "UserManual Kanban section: one sentence on the single-transaction move and the unchanged search projection (HBR-MAN-004)"
+    },
+    "predicted": "full_move ~4.08 s on the probe host (F2 + skip; margin ~0.92 s; F2 alone 4.93 s); remove_only ~2.32 s; native HTTP/client overhead and a larger self-seed workspace not included - the union round measures the native test directly",
+    "no_schema_change": true,
+    "no_increments": true,
+    "gameplan": "GP-139 ('retain ... transaction') does not fit merging two transactions: replaced by a new builder before_submit step with the actual invariant and GP-139 retired via the gameplan controller (orchestrator instruction 2026-10-01)",
+    "risk": "UNVERIFIED that native overhead stays < ~0.9 s; recount conflict with a concurrent writer on any of the 3 blocks retries the whole closure (bounded MT-142 budget)"
   }
 }
