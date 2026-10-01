@@ -1201,5 +1201,10 @@
     "note": "same LOOM_BLOCK_MUTATION_REQUEST_TIMEOUT class; fix lands in MT-153-owned paths",
     "recorded_at_utc": "2026-10-01T03:52:28Z",
     "recorded_by": "KERNEL_BUILDER-20260930"
+  },
+  "note_20261001_cardmove_fix": {
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T03:59:16Z",
+    "note": "kanban-move PATCH shares DX-MT-153-20261001-CARDMOVE-SPLIT-EDGE-TRANSACTIONS; F1+F3 at fea3ce0a509ae54f669fb122bf1bf64e68cb1421 (MT-153 remediation_20261001_e4566f11); MT-042 status not changed by builder"
   }
 }
