@@ -3895,5 +3895,26 @@
         "state_effect": "lifecycle.status FAIL_V7"
       }
     ]
+  },
+  "hypothesis_20261001_cardmove_delete_cost": {
+    "schema_id": "hsk.mt_attempt_hypothesis@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "recorded_before_run": true,
+    "recorded_at_utc": "2026-10-01T05:30:42Z",
+    "rule": "CX-EXEC-003A",
+    "failing_assertion": "MT-153.json#validation_round_fea3ce0a (FAIL_V7) / MT-027 FAIL_V9 / MT-042 FAIL_V9: card-move PATCH /workspaces/{ws}/loom/blocks/{id} still exceeds the 5 s client deadline after F1 (87973b49) + F3 (fea3ce0a)",
+    "hypothesis": "the untimed edge-delete path dominates what remains: delete_loom_edge = a separate record-user pre-read (SELECT edge, loom_edges select predicate = 2 endpoint-access chains) + a second transaction (endpoint guard, receipt read/append/bind, DELETE with loom_edges delete predicate, card recount UPDATE, old-hub recount UPDATE); with F1 the create is ~2.4 s (3.27 - 0.89), so a full move > 5 s implies delete + reads >= ~2.6 s",
+    "code_location": [
+      "src/backend/handshake_core/src/api/loom.rs:2928-2939 (remove_tags loop -> delete_loom_edge per edge, after the create transaction)",
+      "src/backend/handshake_core/src/storage/surreal/loom_store.rs:1636-1646 (delete pre-read query_first) and 1662-1682 (delete transaction: guard, ledger append, DELETE, 2 recount UPDATEs)",
+      "src/backend/handshake_core/src/storage/surreal/database.rs delete_loom_edge_with_metadata (guarded_storage_mutation, keyed lock + MT-142 retry budget)"
+    ],
+    "measurement": "request wall time of add-only, remove-only and full-move PATCHes as the record user (plus per-statement engine timings where the MT032 timing scope captures them), 3 iterations each, from one test on an embedded RocksDB store (same engine kind as the runtime backend)",
+    "decision_rule": {
+      "F2": "if remove-only >= ~1.5 s and its cost is mostly per-statement overhead that a single transaction removes (pre-read, second guard/receipt/commit, second card recount), and the predicted single-transaction move (add + remove - card recount - delete pre-read - second guard) is < 5 s with margin -> implement F2 (held design; orchestrator approval)",
+      "predicate_change": "if a single permission-guarded statement (DELETE / recount UPDATE / CREATE) itself costs >= ~0.5 s so that even F2 stays >= 5 s -> the cost is the PERMISSIONS predicate chains (fn::mt120_loom_endpoint_access -> mt120_loom_block_access -> mt109_has_grant + mt109_has_workspace_access) -> schema.surql change, report to orchestrator first (pin re-measure)",
+      "operator_debug_profile": "if the per-statement costs are uniformly high in proportion to predicate evaluation count (no single structural hotspot) -> the opt-level 0 surrealdb-core in the debug backend is the multiplier -> Operator decision ([profile.dev.package] override, rebuild cost), outside MT-153 paths"
+    },
+    "not_decided_by_this_run": "no fix is chosen before the measurement is recorded; no schema change"
   }
 }
