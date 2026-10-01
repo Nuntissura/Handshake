@@ -2222,6 +2222,19 @@
           "source": "BCV fixture of test_block_collection_view block_collection_views_live_surrealdb_self_seed_full_round_trip: target UUIDv7 time 2026-10-01T11:00:41Z; owned backend workspace create 11:00:42Z (backend-runtime s-368a110cf51f6ec4/81df6774-ae7f-40e2-b7e5-86a1ccfe4891)",
           "test_output": "WARN: pre-reap owned fixture logout unverified; exact vault cleanup follows: owned fixture session/vault cleanup remains unverified; retain diagnostics for recovery",
           "action": "not deleted: credential_cleanup_20260930 approved only its 78 listed targets; clearing another test's leftover needs Operator approval (CX-GIT-003); vault probe (GP-131) re-run at next round start"
+        },
+        {
+          "recorded_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+          "recorded_at_utc": "2026-10-01T14:45:00Z",
+          "round": "union 1d1f583a60feccc975d6a8dca62564765b858122 (MT-153.json#validation_round_1d1f583a)",
+          "target": "01a0f7d8-14de-7f10-9428-865acd834185.handshake-local-accounts-33359bac1d618a0087f42a696a0f5e8c6b7ca822ba22b2359bc41f0d7affb10d",
+          "counts": {
+            "before_round": "242 total / 23 handshake-local-accounts",
+            "after_round": "243 total / 24 handshake-local-accounts"
+          },
+          "source": "BCV fixture of block_collection_views_live_surrealdb_self_seed_full_round_trip: target UUIDv7 time 2026-10-01T14:22:08Z; owned backend pid 245828 (s-368a110cf51f6ec4/713f9124-071f-4845-9d99-d9174218c70e) workspace create 14:22:16Z; backend CPU-bound (~1 core, no I/O, no logs) from ~14:24Z until killed",
+          "test_output": "WARN: pre-reap owned fixture logout unverified; exact vault cleanup follows: owned fixture session/vault cleanup remains unverified; retain diagnostics for recovery",
+          "action": "not deleted (Operator approval required, CX-GIT-003); vault probe (GP-131) at next round start"
         }
       ]
     },

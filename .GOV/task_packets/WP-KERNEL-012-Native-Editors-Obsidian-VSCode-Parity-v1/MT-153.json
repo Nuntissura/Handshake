@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-10-01T14:25:00Z",
+  "updated_at_utc": "2026-10-01T14:45:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V14",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -49,9 +49,9 @@
       "MT-157"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V13",
-    "prior_validator_verdict": "FAIL_V12",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_11f1b034.remediation_required",
+    "validator_verdict": "FAIL_V14",
+    "prior_validator_verdict": "FAIL_V13",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_1d1f583a.remediation_required",
     "ready_status_repair": {
       "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
       "rule": "CX-STATUS-001",
@@ -65,8 +65,8 @@
       "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
     },
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
-    "validated_at_utc": "2026-10-01T14:25:00Z",
-    "validated_commit": "11f1b03404af6fe0d009e37abb04a0b9e6ee4fb2",
+    "validated_at_utc": "2026-10-01T14:45:00Z",
+    "validated_commit": "1d1f583a60feccc975d6a8dca62564765b858122",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -86,7 +86,7 @@
       "at_utc": "2026-09-23T23:52:39.079Z",
       "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
     },
-    "status_reason": "FAIL_V13 on 11f1b034 union round (validation_round_11f1b034)",
+    "status_reason": "FAIL_V14 on 1d1f583a union round (validation_round_1d1f583a)",
     "status_before_20260930": "FAIL_V2",
     "candidate_commit": "1d1f583a60feccc975d6a8dca62564765b858122",
     "blocked_on": null,
@@ -8055,5 +8055,91 @@
     "gameplan": "before_submit kernel_builder PASS 2/2 at 1d1f583a; GP-158 confirmed (only tests/test_block_collection_view.rs changed vs 9e4bee34; edge/counter txn files untouched)",
     "selection_note": "validator selection: BCV live (block_collection_views_live_surrealdb_self_seed_full_round_trip) only; 9e4bee34..1d1f583a changes only the native test file; no backend/schema change (pins from 5da8b75a reusable if the validator rules allow)",
     "next_actor": "WP_VALIDATOR single union round"
+  },
+  "validation_round_1d1f583a": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T14:45:00Z",
+    "candidate_commit": "1d1f583a60feccc975d6a8dca62564765b858122",
+    "started_at": "2026-10-01T14:19:02.0104668Z",
+    "completed_at": "2026-10-01T14:27:34.8478280Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-1d1f583a60feccc975d6a8dca62564765b858122-core.xml",
+      "core_junit_sha256": "d220b494ad0db1661d0cd2da8701790132d7f06105db64032401d05ef048d873",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-1d1f583a60feccc975d6a8dca62564765b858122-native.xml",
+      "native_junit_sha256": "a6e37ad5f18371efbf38403e3c1013facfb991e52f888252683d82a26ac92fe7",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-1d1f583a60feccc975d6a8dca62564765b858122.stdout.log",
+      "log_sha256": "c871994b6c5441f5ad459bd7d2073abce67d966f6764865024ec7480f9379306",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-1d1f583a60feccc975d6a8dca62564765b858122.stderr.log",
+      "stderr_log_sha256": "da8537d186f4e772811db1d43a26448dabc2d331197228ce8ea5a64f0bbdc20b",
+      "observations": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-1d1f583a60feccc975d6a8dca62564765b858122.observations.jsonl",
+      "export_identity_sha256": "8dd40f57b317dfed08c7fa3cc7eeefa737df55a3ec16ee50db160d2b1788353f",
+      "selection": "WPV-round-selection.json (gov 212dd373; CX-VAL-002 intersection under key 'intersection')"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-1d1f583a"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 35/35, before_verdict PASS 5/5 at 1d1f583a",
+    "decision": "failed",
+    "verdict": "FAIL_V14",
+    "checks_run": {
+      "MT-153-NATIVE-LOOM block_collection_views live": "FAIL",
+      "MT-153-FMT rustfmt 1.97.1 --edition 2021 --check, test_block_collection_view.rs @1d1f583a": "PASS",
+      "MT-153-DIFF-CHECK 11f1b034..1d1f583a, 37ee7c5b..1d1f583a": "PASS"
+    },
+    "proof_reuse": "core (saved-view delete, route matrix, workspace delete, loom targets, user_manual 27/27), canvas_board live: 9e4bee34 (inputs unchanged); MT-153-PIN-CONFIRM + pin proofs: 5da8b75a (schema unchanged)",
+    "failures": [
+      {
+        "check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "failure_kind": "product",
+        "failure_class": "BACKEND_CPU_SPIN_STALLS_MOUNTED_VIEW_LOAD",
+        "assertion": "tests/test_block_collection_view.rs:2001 (await_app_collection): mounted HandshakeApp did not load view 1c478634-e409-4851-bd3e-6c6edd2a8caf within 10s",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-1d1f583a60feccc975d6a8dca62564765b858122-native.xml",
+        "affected_code_refs": [
+          "owned backend (handshake_core) request path serving the mounted block-view load: not identified (no log line, no backtrace)",
+          "tests/test_block_collection_view.rs:1975-2002 (await_app_collection); call site in :2532-3282 not identified by the output"
+        ],
+        "evidence": "nondeterministic backend defect: the owned backend runs ~1 CPU core continuously with no I/O growth and no logging while the mounted view load is outstanding and stays unresponsive (cleanup logout unverified, no workspace delete, OS-vault credential leaked); same signature in 791a81dd. The test code executed before the failure and the backend binary are identical to 11f1b034, where every await_app_collection completed. Observer samples: see backend_cpu_spin.",
+        "repair_direction": "find the backend loop that spins (~1 core, no I/O, no logs) during the mounted block-view load; a stack sample or per-request tracing of the owned backend at the next occurrence would localize it",
+        "prior_failure_class": "FR_READ_WRONG_CREDENTIAL_HEADERS",
+        "prior_failure_status": "not reached (the run stopped at :2001 before the recorder read at :3309); attempt-2 fix unproven"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-1d1f583a60feccc975d6a8dca62564765b858122-native.xml",
+        "affected_code_refs": [
+          "owned backend (handshake_core) request path serving the mounted block-view load: not identified (no log line, no backtrace)",
+          "tests/test_block_collection_view.rs:1975-2002 (await_app_collection); call site in :2532-3282 not identified by the output"
+        ],
+        "repair_direction": "find the backend loop that spins (~1 core, no I/O, no logs) during the mounted block-view load; a stack sample or per-request tracing of the owned backend at the next occurrence would localize it"
+      }
+    ],
+    "backend_cpu_spin": {
+      "this_round": "BCV owned backend pid 245828 (listen-report) cpu_s 19.7 @14:22:03Z, 46.7 @14:22:37, 79.8 @14:23:10, 111.1 @14:23:43, 164.9 @14:24:16, 213.3 @14:24:49, 246.9 @14:25:22, 280.5 @14:25:55, 313.9 @14:26:28, 347.7 @14:27:01 (~1 core continuous) with write I/O ~flat (9.49 MB -> 9.62 MB) and no log line after 14:22:16Z; the test process (25064) is idle at cpu 40.2 s from 14:24:16Z; test ran 328.3 s (earlier runs ~140-160 s); no workspace delete and an unverified logout followed",
+      "791a81dd_same_signature": "BCV backend pid 203100 cpu 150.2 @11:02:21Z -> 284.5 @11:04:33Z (~1 core) with write I/O flat at ~9.33 MB while the test process stayed at cpu 21.3 s; that round's timeout at :2001 (view c11d6b64) is re-read accordingly (the earlier note that the backend was alive because the WAL was written until 11:01Z described the period before the spin)",
+      "7548bc72": "observer coverage of the BCV backend ended before the timeout window; not determinable",
+      "occurrence": "MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT at :2001 in 7548bc72, 791a81dd, 1d1f583a; not in 5da8b75a, 9e4bee34, 11f1b034 (same await code; 11f1b034 -> 1d1f583a has an identical backend binary and identical test code before :3309)"
+    },
+    "note": "CHECK-TESTS/CLIPPY-CHANGED remain WP-end extra-build items. rebuild accounting compiled_crates=0 relinked_test_binaries=1 backend_bin_relinked=0 refresh_mode=incremental; backend build profile dev; GP-131 vault probe success (4ff0bbcf); credentials 242/23 before, 243/24 after: one new leftover OS-vault target 01a0f7d8-14de-7f10-9428-865acd834185.handshake-local-accounts-33359bac1d618a0087f42a696a0f5e8c6b7ca822ba22b2359bc41f0d7affb10d (UUIDv7 14:22:08Z = BCV fixture; logout unverified), not deleted, recorded under packet.json CX-GIT-003 occurrences; no leftover store dirs; session git repo recycled; observer 22 polls, 0 errors",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "153-1d1f583a-round",
+        "at_utc": "2026-10-01T14:45:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-153.json#validation_round_1d1f583a"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "153-1d1f583a-round",
+        "at_utc": "2026-10-01T14:45:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V14"
+      }
+    ]
   }
 }
