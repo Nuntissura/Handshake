@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "FAIL_V8",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -88,12 +88,14 @@
     },
     "status_reason": "FAIL_V8 on d9ce6017 union round (validation_round_d9ce6017)",
     "status_before_20260930": "FAIL_V2",
-    "candidate_commit": "d9ce6017e91430c69d410b555bd79fd5f6916926",
+    "candidate_commit": "7548bc72c8c819c139d6257674a84bd95a215b0d",
     "blocked_on": null,
     "diagnosis_refs": [
-      "MT-153.json#diagnosis_20261001_cardmove_probe_result (probe 39f3e830: full_move 5597 ms; delete txn ~2.0 s; create txn ~2.4 s; reindex ~0.85 s)"
+      "MT-153.json#diagnosis_20261001_argus_binding_root (DX-MT-153-20261001-ARGUS-BINDING-ROOT-STALE-ASSERT)",
+      "MT-153.json#diagnosis_20261001_workspace_delete_viewdef (DX-MT-153-20261001-WORKSPACE-DELETE-VIEWDEF-NO-RESOURCE) + research_20261001_workspace_delete_w (W-A + W-B), route (a)",
+      "MT-153.json#diagnosis_20261001_mt152_keyed_lock_pin (DX-MT-153-20261001-MT152-KEYED-LOCK-PIN-STALE-PATH, routed to MT-152)"
     ],
-    "ready_for_validation_at_utc": "2026-10-01T06:25:13Z",
+    "ready_for_validation_at_utc": "2026-10-01T08:43:22Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "status_before_bb9548e1_resubmission": "FAIL_V3",
     "candidate_updated_at_utc": "2026-10-01T00:46:31Z",
@@ -101,7 +103,8 @@
     "status_before_b4faed35_resubmission": "FAIL_V4",
     "status_before_bd8c7532_resubmission": "FAIL_V5",
     "status_before_e4566f11_resubmission": "FAIL_V6",
-    "status_before_d9ce6017_resubmission": "FAIL_V7"
+    "status_before_d9ce6017_resubmission": "FAIL_V7",
+    "status_before_7548bc72_resubmission": "FAIL_V8"
   },
   "closure_unit": {
     "outcome": "Every Loom HTTP route listed in scope.routes runs its protected-table reads and writes inside the authenticated account (record-user) session with least-privilege PERMISSIONS, so an owner succeeds, an anonymous caller and another account are denied with no side effect, and no Loom route executes a protected flow as root.",
@@ -5168,5 +5171,51 @@
       "observer": "18 polls, 0 errors"
     },
     "next": "builder: one commit updating ONLY GENERATED_SURREALQL_SHA256 and EXPECTED_SCHEMA_INFO_SHA256 to the measured values; then one union round with MT-153-PIN-CONFIRM"
+  },
+  "remediation_20261001_7548bc72": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T08:43:22Z",
+    "commits": {
+      "f98e1e20": "BCV Argus binding assert re-resolved (test) + MT-152 keyed_lock pin path/citations (seed.rs)",
+      "8ff1565d": "fn::mt120_workspace_delete accepts view_def blocks/entities (W-A, W-B) + MT153 delta pairs + 161->162 re-emission + proof test api::loom::tests::mt153_owner_workspace_delete_removes_saved_view",
+      "7548bc72": "current pins GENERATED_SURREALQL_SHA256 -> 763ef641..., EXPECTED_SCHEMA_INFO_SHA256 -> f2e350dd... from PIN-MEASURE (MT-153.json#pin_measure_20261001_8ff1565d); MT109_CURRENT_AUTHORITY_INFO_SHA256 / MT139_CURRENT_SCHEMA_INFO_SHA256 are eprintln labels of tests asserting EXPECTED_SCHEMA_INFO_SHA256 (schema.rs mt109_authority_catalog_pins_are_deterministic / mt139_current_schema_info_pin_matches_fresh_mem_catalog), not separate constants; no other pin, no PREDECESSOR constant"
+    },
+    "candidate_commit": "7548bc72c8c819c139d6257674a84bd95a215b0d",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 7548bc72c8c819c139d6257674a84bd95a215b0d",
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "exit_code": 0,
+        "inputs": "7548bc72 backend files",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-route-a-pins.log"
+      },
+      {
+        "command": "cargo check --locked -j 4 --features integration,integration_tests,wgpu_screenshots --test test_block_collection_view",
+        "cwd": "src/frontend/handshake_native",
+        "exit_code": 0,
+        "inputs": "test_block_collection_view.rs unchanged since f98e1e20",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-d9ce-remediation-native.log"
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 7548bc72; GP-158 confirmed (8ff1565d..7548bc72 is schema.rs pins only; loom_store.rs/database.rs unchanged since d9ce6017)",
+    "selection_note": "pin-affected READY MTs for the validator's selection: MT-154, MT-157, MT-158, MT-159 (schema.surql/schema.rs pins); plus MT-153-PIN-CONFIRM and api::loom::tests::mt153_owner_workspace_delete_removes_saved_view; MT-152 user_manual::seed::tests::mt152_manual_lock_migration_pins_code (routed, MT-152 stays PASS_V6)",
+    "open_item": "d5f5d8e3 (2026-09-29, single file block, no view) not explained by route (a)",
+    "risk": "no SCHEMA_REVISION bump: a dev store already at revision 162 with the old guard would not match the new current pin",
+    "next_actor": "WP_VALIDATOR single union round",
+    "remediates": {
+      "verdict_ref": "MT-153.json#validation_round_d9ce6017 (FAIL_V8)",
+      "failure_classes": [
+        "ARGUS_BINDING_ROOT_REDIRECTED_BY_PROOF_SUPPORT",
+        "WORKSPACE_DELETE_ANCHOR_DELETE_DENIED (BCV drop-guard cleanup)",
+        "mt152_manual_lock_migration_pins_code (routed to MT-152)"
+      ]
+    },
+    "diagnosis_refs": [
+      "MT-153.json#diagnosis_20261001_argus_binding_root (DX-MT-153-20261001-ARGUS-BINDING-ROOT-STALE-ASSERT)",
+      "MT-153.json#diagnosis_20261001_workspace_delete_viewdef (DX-MT-153-20261001-WORKSPACE-DELETE-VIEWDEF-NO-RESOURCE) + research_20261001_workspace_delete_w (W-A + W-B), route (a)",
+      "MT-153.json#diagnosis_20261001_mt152_keyed_lock_pin (DX-MT-153-20261001-MT152-KEYED-LOCK-PIN-STALE-PATH, routed to MT-152)"
+    ]
   }
 }
