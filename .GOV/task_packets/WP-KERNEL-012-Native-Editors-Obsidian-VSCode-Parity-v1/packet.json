@@ -2468,5 +2468,73 @@
       },
       "confounder": "Foreign facial CPU benchmark (cargo PID 236376 created 21:58:57Z; test binary facial-04f2a95376a9c6dc PID 278420; facial-cli worker 274828) runs concurrently; not touched; failures classified from their own output evidence (CX-VAL-006), never from timing correlation alone"
     }
-  ]
+  ],
+  "stale_crate_builds_cleanup_20261001": {
+    "recorded_utc": "2026-10-01T01:10:00Z",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "relayed_by": "ORCHESTRATOR root session",
+    "operator_quote": "Delete stale crate builds (Recommended)",
+    "option_text": "Delete only those 78.8 GB of pre-bd8c7532 handshake_core / handshake_native / *_tests artifacts (2,450 files), using an exact file list recorded first. No crates.io dependencies, build scripts or fingerprints are touched, so nothing reusable is lost and no rebuild is needed. The target drops to about 62 GB, enough for several rounds. A failed delete moves to the Recycle Bin, per your earlier rule.",
+    "list_file": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/stale-crate-builds-20261001.tsv",
+    "list_sha256": "565fb163c186a36bd3f60afeeeba62d9281d2c80f9abf9cc0338f3731f9c302c",
+    "selection_rule": "target-r52/debug/deps files named (lib)?<crate>-<16hex>* for workspace crates handshake_core|handshake_native|handshake_document|handshake_storage_support|test_*|*_tests with mtime < 2026-09-30T22:04Z (bd8c7532 round start); excludes crates.io deps, debug/build, .fingerprint, incremental",
+    "count": 2450,
+    "bytes": 78764557549,
+    "crates": 98,
+    "newest_mtime": "2026-09-30T18:04:57.703613+00:00",
+    "top_crates": {
+      "handshake_core": {
+        "files": 24,
+        "bytes": 9351692087
+      },
+      "wp_kernel_012_native_editor_routes_tests": {
+        "files": 15,
+        "bytes": 3395681030
+      },
+      "loom_transclusion_tests": {
+        "files": 15,
+        "bytes": 3361642086
+      },
+      "project_wiki_drift_tests": {
+        "files": 15,
+        "bytes": 3287272045
+      },
+      "model_session_scheduler_tests": {
+        "files": 19,
+        "bytes": 3277024268
+      },
+      "loom_media_tiers_tests": {
+        "files": 15,
+        "bytes": 3259251882
+      },
+      "loom_daily_journal_tests": {
+        "files": 15,
+        "bytes": 3257490514
+      },
+      "loom_atomic_receipt_tests": {
+        "files": 15,
+        "bytes": 2388766238
+      },
+      "handshake_native": {
+        "files": 48,
+        "bytes": 1529438541
+      },
+      "test_fems_interop_proofs": {
+        "files": 55,
+        "bytes": 1481998935
+      },
+      "test_loom_address": {
+        "files": 64,
+        "bytes": 1477185188
+      },
+      "test_stage_interop": {
+        "files": 55,
+        "bytes": 1475187783
+      }
+    },
+    "matches_approval": "yes: 2,450 files / 78.76 GB; crate set = workspace crates (incl. handshake_document/handshake_storage_support, which the 78.8 GB estimate already contained)",
+    "retention_check": "no live retention: 21 record mentions are provenance (binary path + sha256) of completed runs; MT-164 retained handshake_core-4eee2bbf is not in the list",
+    "target_r52_bytes_before": 140831890500,
+    "state": "LIST_RECORDED_BEFORE_DELETE"
+  }
 }
