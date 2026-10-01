@@ -12,7 +12,13 @@ wp_id: WP-KERNEL-012
 
 Evidence: gov `git log` (tip `ad5462e5`, 05:54:52 +0200 = 03:54:52Z; session start `cdfe6c73` 03:33:49Z on 2026-09-30), MT `lifecycle.status` re-read from all 167 `MT-NNN.json` and compared with `git show cdfe6c73:` (script, utf-8), `packet.json#operator_decisions_20260930` / `_20261001` / `credential_cleanup_20260930` / `stale_crate_builds_cleanup_20261001`, round records `MT-153.json#validation_round_*`, product `git ls-remote` and `git worktree list`. Typed MT JSON wins on conflict. This section wins over every section below wherever they differ (the 19:40Z state below is stale on: totals, READY list, product tip, rounds after `b4faed35`, blockers D, next action F). Commit times below are +0200 local unless marked Z.
 
-### 1. MT status now (167 MTs, MT-001..MT-167)
+### 0. Update at gov `094db03b` (05:59:16 +0200 = 03:59Z; wins over sections 1-7 where they differ)
+
+- Builder committed and pushed the F1+F3 fix: product `feat/WP-KERNEL-012` = `fea3ce0a509ae54f669fb122bf1bf64e68cb1421` (`git ls-remote`; `87973b49` F1 edge CREATE binds the receipt, `fea3ce0a` F3 skip read-only `update_loom_block` on tag-only PATCH; both 05:58:23 +0200); product worktree clean. Sections 4 (uncommitted WIP) and 6 (F1+F3 IN PROGRESS), 7 step 2-3 are therefore done up to the READY resubmission; F2 stays HELD; sufficiency against the 5 s deadline remains UNVERIFIED until a validator round.
+- Status: MT-027 FAIL_V8 -> READY_FOR_VALIDATION and MT-153 FAIL_V6 -> READY_FOR_VALIDATION (candidate `fea3ce0a`, gov `094db03b`; MT-042 only references the shared diagnosis, stays FAIL_V8 on `b4faed35`). Counts now: 129 PASS_*, 7 FAIL_* (MT-008, 042, 043, 046, 064, 065, 128), 10 READY_FOR_VALIDATION (MT-027, 079, 122, 136, 153, 154, 155, 157, 158, 159), 21 BLOCKED. Tracker drift after this update: `packet.json#tracker.mt_status` vs `lifecycle.status` differs for MT-023, 027, 036, 046, 066, 113 (MT-153 now agrees: READY).
+- Next action therefore starts at step 5: validator GP-155, then one union round on `fea3ce0a` covering the 10 READY MTs.
+
+### 1. MT status now (167 MTs, MT-001..MT-167), as of ad5462e5 / e4566f11 evidence (see section 0 for later changes)
 
 - 129 PASS_*, 9 FAIL_*, 21 BLOCKED, 8 READY_FOR_VALIDATION. At `cdfe6c73`: 119 PASS_*, 13 FAIL_*, 21 BLOCKED, 13 READY_FOR_VALIDATION (166 MTs; MT-167 did not exist).
 - FAIL (9): MT-008 V9, MT-027 V8, MT-042 V8, MT-043 V6, MT-046 V9, MT-064 V9, MT-065 V9, MT-128 V3, MT-153 V6.
