@@ -2855,7 +2855,7 @@
     "recorded_at_utc": "2026-10-01T19:41:42Z",
     "recorded_by": "governance paperwork agent for ORCHESTRATOR",
     "decision_id": "WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001",
-    "method": "mechanical scan of every MT-*.json in this packet directory (read-only scripts, no judgment filter); an MT is selected when (A) its proof surface launches the owned backend OR (B) its acceptance criteria contain a timing bound",
+    "method": "mechanical scan of every MT-*.json in this packet directory (read-only scripts, no judgment filter); an MT is selected when (A) its proof surface launches the owned backend OR (B) its acceptance criteria contain a timing bound; narrowed per Orchestrator instruction (see timing_only_exclusion_note): only MTs that launch the owned backend are kept",
     "proof_surface_scanned_for_A": [
       "scope.proof_targets",
       "proof_commands",
@@ -2887,23 +2887,13 @@
       "N s with budget|bound|deadline|timeout|limit|cap",
       "p95|p99"
     ],
-    "caveat": "rule applied literally: a timing token can be a UI debounce/cadence or a frontend deadline rather than a backend latency bound; such MTs are selected under (B) with backend_launch=false. The new key is a label only and changes no acceptance criterion, proof command, deadline, or verdict.",
-    "selected_count": 78,
+    "caveat": "the key is a label only and changes no acceptance criterion, proof command, deadline, or verdict.",
+    "selected_count": 63,
     "selected_backend_launch_count": 63,
-    "selected_timing_bound_count": 20,
+    "selected_timing_bound_count": 5,
     "applied_key_in_each_selected_mt": "operator_decision_20261001_backend_build_profile",
     "existing_operator_decision_fields_note": "existing operator_decision* fields in the selected MTs are heterogeneous single-decision dicts (and dated lists) with MT-specific shapes; appending to them would alter their shape, so every selected MT received the dedicated dated key instead (value fields only, no template-shape change)",
     "selected": [
-      {
-        "mt_id": "MT-002",
-        "status_at_selection": "PASS_V1",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token \"<N s/ms\" bound in scope.acceptance_criteria",
-          "timing-bound token N ms in scope.acceptance_criteria"
-        ]
-      },
       {
         "mt_id": "MT-008",
         "status_at_selection": "FAIL_V9",
@@ -3021,15 +3011,6 @@
         ]
       },
       {
-        "mt_id": "MT-030",
-        "status_at_selection": "PASS_V1",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token N ms in scope.acceptance_criteria"
-        ]
-      },
-      {
         "mt_id": "MT-032",
         "status_at_selection": "PASS_V15",
         "backend_launch": true,
@@ -3081,16 +3062,6 @@
         ]
       },
       {
-        "mt_id": "MT-041",
-        "status_at_selection": "PASS_V1",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token within N in scope.acceptance_criteria",
-          "timing-bound token N ms in scope.acceptance_criteria"
-        ]
-      },
-      {
         "mt_id": "MT-042",
         "status_at_selection": "PASS_V13",
         "backend_launch": true,
@@ -3109,15 +3080,6 @@
         "reasons": [
           "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) remediation_v3",
           "timing-bound token within N in scope.acceptance_criteria"
-        ]
-      },
-      {
-        "mt_id": "MT-044",
-        "status_at_selection": "PASS_V1",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token N ms in scope.acceptance_criteria"
         ]
       },
       {
@@ -3231,49 +3193,12 @@
         ]
       },
       {
-        "mt_id": "MT-084",
-        "status_at_selection": "PASS_V1",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token N ms in scope.acceptance_criteria"
-        ]
-      },
-      {
-        "mt_id": "MT-085",
-        "status_at_selection": "PASS_V1",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token N ms in scope.acceptance_criteria",
-          "timing-bound token p95/p99 in scope.acceptance_criteria"
-        ]
-      },
-      {
         "mt_id": "MT-088",
         "status_at_selection": "PASS_V8",
         "backend_launch": true,
         "timing_bound": false,
         "reasons": [
           "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) validation_v5, validation_v6"
-        ]
-      },
-      {
-        "mt_id": "MT-090",
-        "status_at_selection": "PASS_V1",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token deadline in scope.acceptance_criteria"
-        ]
-      },
-      {
-        "mt_id": "MT-091",
-        "status_at_selection": "PASS_V1",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token N ms in scope.acceptance_criteria"
         ]
       },
       {
@@ -3294,24 +3219,6 @@
         "timing_bound": false,
         "reasons": [
           "backend-launch token \"live backend\" in scope.proof_targets"
-        ]
-      },
-      {
-        "mt_id": "MT-105",
-        "status_at_selection": "PASS_V1",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token deadline in scope.acceptance_criteria"
-        ]
-      },
-      {
-        "mt_id": "MT-106",
-        "status_at_selection": "PASS_V1",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token deadline in scope.acceptance_criteria"
         ]
       },
       {
@@ -3533,15 +3440,6 @@
         ]
       },
       {
-        "mt_id": "MT-142",
-        "status_at_selection": "BLOCKED",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token p95/p99 in scope.acceptance_criteria"
-        ]
-      },
-      {
         "mt_id": "MT-143",
         "status_at_selection": "READY_FOR_VALIDATION",
         "backend_launch": true,
@@ -3616,51 +3514,25 @@
         "reasons": [
           "backend-launch token \"HSK_TEST_BACKEND_BIN\" in proof-run record(s) execution"
         ]
-      },
-      {
-        "mt_id": "MT-164",
-        "status_at_selection": "PASS_V3",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token \"<N s/ms\" bound in scope.acceptance_criteria, closure_unit",
-          "timing-bound token median in scope.acceptance_criteria, closure_unit",
-          "timing-bound token N ms in scope.acceptance_criteria, closure_unit"
-        ]
-      },
-      {
-        "mt_id": "MT-165",
-        "status_at_selection": "PASS_V4",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token \"<N s/ms\" bound in scope.acceptance_criteria",
-          "timing-bound token median in scope.acceptance_criteria",
-          "timing-bound token N ms in scope.acceptance_criteria"
-        ]
-      },
-      {
-        "mt_id": "MT-166",
-        "status_at_selection": "PASS_V1",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token \"<N s/ms\" bound in scope.acceptance_criteria, closure_unit",
-          "timing-bound token median in scope.acceptance_criteria",
-          "timing-bound token N ms in scope.acceptance_criteria, closure_unit"
-        ]
-      },
-      {
-        "mt_id": "MT-167",
-        "status_at_selection": "READY_FOR_VALIDATION",
-        "backend_launch": false,
-        "timing_bound": true,
-        "reasons": [
-          "timing-bound token \"<N s/ms\" bound in scope.acceptance_criteria, closure_unit",
-          "timing-bound token median in scope.acceptance_criteria, closure_unit",
-          "timing-bound token N ms in scope.acceptance_criteria, closure_unit"
-        ]
       }
+    ],
+    "timing_only_exclusion_note": "timing-only MTs (15: MT-002, MT-030, MT-041, MT-044, MT-084, MT-085, MT-090, MT-091, MT-105, MT-106, MT-142, MT-164, MT-165, MT-166, MT-167) matched only on timing-bound text in acceptance criteria and launch no owned backend; they were excluded and carry no operator_decision_20261001_backend_build_profile because the override changes only the owned backend build and cannot affect them. Their timing-bound text matched the literal scan only (UI debounce, cadence or frontend deadline, or unit-level bound).",
+    "excluded_timing_only_mt_ids": [
+      "MT-002",
+      "MT-030",
+      "MT-041",
+      "MT-044",
+      "MT-084",
+      "MT-085",
+      "MT-090",
+      "MT-091",
+      "MT-105",
+      "MT-106",
+      "MT-142",
+      "MT-164",
+      "MT-165",
+      "MT-166",
+      "MT-167"
     ]
   }
 }

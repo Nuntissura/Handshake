@@ -1787,11 +1787,5 @@
     "ruling": "Operator: status BLOCKED (more accurate than READY_FOR_VALIDATION).",
     "from_status": "READY_FOR_VALIDATION",
     "blocked_on": "end-of-WP proof run per operator_decision_2026_09_24 (PT-142-7 extended load rerun on an idle host, reusing the run50 binary (no build))"
-  },
-  "operator_decision_20261001_backend_build_profile": {
-    "decision_id": "WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001",
-    "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
-    "verdict_labelling": "every verdict records the backend build profile",
-    "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
   }
 }
