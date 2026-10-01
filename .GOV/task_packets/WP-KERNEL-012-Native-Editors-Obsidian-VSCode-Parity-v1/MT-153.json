@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-10-01T11:25:00Z",
+  "updated_at_utc": "2026-10-01T13:05:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -41,7 +41,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V11",
     "depends_on": [],
     "blocks": [
       "MT-154",
@@ -49,9 +49,9 @@
       "MT-157"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V10",
-    "prior_validator_verdict": "FAIL_V9",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_791a81dd.remediation_required",
+    "validator_verdict": "FAIL_V11",
+    "prior_validator_verdict": "FAIL_V10",
+    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_5da8b75a.remediation_required",
     "ready_status_repair": {
       "by": "KERNEL_BUILDER on explicit Operator instruction 2026-09-24",
       "rule": "CX-STATUS-001",
@@ -65,8 +65,8 @@
       "note": "Queue repair only, no acceptance verdict; historical validation retained. Current frozen union is not modified."
     },
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
-    "validated_at_utc": "2026-10-01T11:25:00Z",
-    "validated_commit": "791a81dd23cee301006995a2b7bb550cfeba4471",
+    "validated_at_utc": "2026-10-01T13:05:00Z",
+    "validated_commit": "5da8b75a0211aa607ea430a6764770709915f80e",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -86,7 +86,7 @@
       "at_utc": "2026-09-23T23:52:39.079Z",
       "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
     },
-    "status_reason": "FAIL_V10 on 791a81dd union round (validation_round_791a81dd)",
+    "status_reason": "FAIL_V11 on 5da8b75a union round (validation_round_5da8b75a)",
     "status_before_20260930": "FAIL_V2",
     "candidate_commit": "5da8b75a0211aa607ea430a6764770709915f80e",
     "blocked_on": null,
@@ -6091,6 +6091,1559 @@
       "MT-153.json#hypothesis_20261001_view_outbox_p1 (P1, NOT CONFIRMED; code stays)",
       "MT-153.json#diagnosis_20261001_argus_binding_root (f98e1e20)",
       "MT-153.json#diagnosis_20261001_mt152_keyed_lock_pin (f98e1e20)"
+    ]
+  },
+  "validation_round_5da8b75a": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T13:05:00Z",
+    "candidate_commit": "5da8b75a0211aa607ea430a6764770709915f80e",
+    "started_at": "2026-10-01T11:53:22.7623303Z",
+    "completed_at": "2026-10-01T12:44:09.9299094Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-5da8b75a0211aa607ea430a6764770709915f80e-core.xml",
+      "core_junit_sha256": "779e08480280a1fc4a6afadcd433bf54f480ea699f4ee9c5566586cf406ff650",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-5da8b75a0211aa607ea430a6764770709915f80e-native.xml",
+      "native_junit_sha256": "e4dcd3e8e5a29e9d5b5a8bf81afa95109d29ff40b3023e95648d73b8839f7dcc",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-5da8b75a0211aa607ea430a6764770709915f80e.stdout.log",
+      "log_sha256": "ec3094a001494ea6614a2edf00f6d585acfa89882cf8b860a6c028255d9f4103",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-5da8b75a0211aa607ea430a6764770709915f80e.stderr.log",
+      "stderr_log_sha256": "6f1e16ddc114a5d13b672ffd9502b847875e08cf73a796a36e075c4b5e27f98c",
+      "export_identity_sha256": "8160ec04019d00f2b89f1925aea568ed8dca215311dd8747855f57b58a6c6606",
+      "selection": "WPV-round-selection.json (gov 89e3796a; CX-VAL-002 intersection under key 'intersection')"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-5da8b75a"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 34/34, before_verdict PASS 5/5 at 5da8b75a",
+    "decision": "failed",
+    "verdict": "FAIL_V11",
+    "checks_run": {
+      "MT-153-PIN-CONFIRM (7)": "PASS 7/7",
+      "api::loom::tests::mt153_owner_workspace_delete_removes_saved_view": "PASS",
+      "MT-153-ROUTE-MATRIX (2)": "PASS 2/2",
+      "MT-153-WORKSPACE-DELETE (2)": "PASS 2/2",
+      "MT-153-LOOM-TARGETS (4 targets)": "PASS 16/16",
+      "user_manual lib tests": "PASS 27/27",
+      "MT-153-NATIVE-LOOM canvas_board live": "PASS",
+      "MT-153-NATIVE-LOOM block_collection_views live": "FAIL",
+      "MT-153-FMT rustfmt 1.97.1 --edition 2021 --check, 2 changed .rs files 791a81dd..5da8b75a": "PASS 2/2",
+      "MT-153-DIFF-CHECK 791a81dd..5da8b75a, 37ee7c5b..5da8b75a": "PASS",
+      "MT-153-BUILD-LIB": "PASS (union build)"
+    },
+    "failures": [
+      {
+        "check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "failure_kind": "product",
+        "failure_class": "LOOM_BLOCK_GET_DENIED_FOR_HOST_CREATED_VIEW",
+        "assertion": "tests/backend_proof_support/mod.rs:2366 (request_text): GET /workspaces/01a0f779-7d40-7683-a31d-aca8c03fc235/loom/blocks/b9456da8-7207-48b9-8269-e94dff88e418 -> 403 {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-5da8b75a0211aa607ea430a6764770709915f80e-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:3009-3011 (live.get_json of host_created_id; most likely: b9456da8 is the 4th distinct view id in the MT153_DIAG trace after the 3 seeded views)",
+          "tests/test_block_collection_view.rs:3164-3166 (retry_created_id; not excluded by the output)",
+          "src/backend/handshake_core loom block GET authority (fs.read)"
+        ],
+        "evidence": "owned backend <lane>/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-368a110cf51f6ec4/eb1a8a4d-466f-4a67-ae1c-86c2bdb80504/backend.stdout.log: two 'protected_resource_authorization_denied error=authorization denied capability_id=\"fs.read\"' at 12:40:01.083Z and 12:40:01.105Z; the block-view routes for the same block succeeded just before (MT153_DIAG surreal_get_block_view / surreal_query_block_view_results for b9456da8 at 12:39:59.7Z-12:40:01.0Z, 39-478 ms); the mounted-view awaits that timed out in 7548bc72/791a81dd (await_app_collection, :2001) all completed this time (the failing GET is after the host-create await at :2971-2985); workspace delete at cleanup succeeded (12:40:27Z)",
+        "repair_direction": "the record-user GET /loom/blocks/{id} for a view_def block created through the mounted block-view create path is denied (fs.read) while block-view routes allow it; align the loom block read authority/grant for view blocks created via the block-view API",
+        "prior_failure_class": "MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT",
+        "prior_failure_status": "did not recur in this run (all mounted view loads up to the host-create await completed)"
+      }
+    ],
+    "remediation_required": [
+      {
+        "failed_check": "MT-153-NATIVE-LOOM",
+        "test": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-5da8b75a0211aa607ea430a6764770709915f80e-native.xml",
+        "affected_code_refs": [
+          "tests/test_block_collection_view.rs:3009-3011 (live.get_json of host_created_id; most likely: b9456da8 is the 4th distinct view id in the MT153_DIAG trace after the 3 seeded views)",
+          "tests/test_block_collection_view.rs:3164-3166 (retry_created_id; not excluded by the output)",
+          "src/backend/handshake_core loom block GET authority (fs.read)"
+        ],
+        "repair_direction": "the record-user GET /loom/blocks/{id} for a view_def block created through the mounted block-view create path is denied (fs.read) while block-view routes allow it; align the loom block read authority/grant for view blocks created via the block-view API"
+      }
+    ],
+    "mt153_diag": {
+      "source": "<lane>/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-368a110cf51f6ec4/eb1a8a4d-466f-4a67-ae1c-86c2bdb80504/backend.stdout.log (the only preserved owned-backend log of this round; backends of passing tests are not preserved, ac10 passed)",
+      "extract_file": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-5da8b75a0211aa607ea430a6764770709915f80e.mt153_diag.json",
+      "extract_sha256": "5d4fe7918ec78649873829e69e90ea32ea99f70c31e0db7690de09adf95296a5",
+      "line_count": 195,
+      "still_running_count": 0,
+      "first_utc": "2026-10-01T12:38:41.368330Z",
+      "last_utc": "2026-10-01T12:40:26.433178Z",
+      "max_elapsed_ms": 777,
+      "per_operation": {
+        "fr_list_events (completed)": {
+          "n": 14,
+          "min_ms": 7,
+          "max_ms": 10,
+          "sum_ms": 108
+        },
+        "fr_record_event (completed)": {
+          "n": 14,
+          "min_ms": 9,
+          "max_ms": 24,
+          "sum_ms": 245
+        },
+        "publish_scoped_view_update (completed)": {
+          "n": 10,
+          "min_ms": 159,
+          "max_ms": 192,
+          "sum_ms": 1724
+        },
+        "reconciler_pass (completed)": {
+          "n": 8,
+          "min_ms": 2,
+          "max_ms": 3,
+          "sum_ms": 21
+        },
+        "surreal_get_block_view (completed)": {
+          "n": 68,
+          "min_ms": 38,
+          "max_ms": 59,
+          "sum_ms": 2983
+        },
+        "surreal_list_pending (completed)": {
+          "n": 8,
+          "min_ms": 2,
+          "max_ms": 3,
+          "sum_ms": 19
+        },
+        "surreal_load_scoped_publication (completed)": {
+          "n": 14,
+          "min_ms": 16,
+          "max_ms": 24,
+          "sum_ms": 267
+        },
+        "surreal_mark_published (completed)": {
+          "n": 14,
+          "min_ms": 109,
+          "max_ms": 152,
+          "sum_ms": 1774
+        },
+        "surreal_query_block_view_results (completed)": {
+          "n": 35,
+          "min_ms": 190,
+          "max_ms": 535,
+          "sum_ms": 9501
+        },
+        "surreal_update_block_view_definition (completed)": {
+          "n": 10,
+          "min_ms": 620,
+          "max_ms": 777,
+          "sum_ms": 7160
+        }
+      },
+      "failing_view_block_b9456da8": [
+        "2026-10-01T12:39:59.707109Z surreal_get_block_view 48ms",
+        "2026-10-01T12:39:59.716104Z surreal_get_block_view 58ms",
+        "2026-10-01T12:40:00.194288Z surreal_query_block_view_results 478ms",
+        "2026-10-01T12:40:00.349063Z surreal_get_block_view 39ms",
+        "2026-10-01T12:40:00.449868Z surreal_get_block_view 39ms",
+        "2026-10-01T12:40:00.844580Z surreal_query_block_view_results 394ms",
+        "2026-10-01T12:40:01.014392Z surreal_get_block_view 43ms"
+      ],
+      "lines_compact": [
+        [
+          "2026-10-01T12:38:41.368330Z",
+          "completed",
+          "surreal_list_pending",
+          "",
+          2
+        ],
+        [
+          "2026-10-01T12:38:41.368402Z",
+          "completed",
+          "reconciler_pass",
+          "",
+          2
+        ],
+        [
+          "2026-10-01T12:38:56.372936Z",
+          "completed",
+          "surreal_list_pending",
+          "",
+          2
+        ],
+        [
+          "2026-10-01T12:38:56.373007Z",
+          "completed",
+          "reconciler_pass",
+          "",
+          2
+        ],
+        [
+          "2026-10-01T12:39:11.379689Z",
+          "completed",
+          "surreal_list_pending",
+          "",
+          2
+        ],
+        [
+          "2026-10-01T12:39:11.379764Z",
+          "completed",
+          "reconciler_pass",
+          "",
+          3
+        ],
+        [
+          "2026-10-01T12:39:18.063564Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f779-e73b-7f03-ab72-66241feaf91d",
+          19
+        ],
+        [
+          "2026-10-01T12:39:18.071039Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f779-e73b-7f03-ab72-66241feaf91d",
+          7
+        ],
+        [
+          "2026-10-01T12:39:18.093708Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f779-e73b-7f03-ab72-66241feaf91d",
+          22
+        ],
+        [
+          "2026-10-01T12:39:18.203730Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f779-e73b-7f03-ab72-66241feaf91d",
+          109
+        ],
+        [
+          "2026-10-01T12:39:19.803765Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f779-ee1a-7432-81a7-7c5c5239b559",
+          21
+        ],
+        [
+          "2026-10-01T12:39:19.814152Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f779-ee1a-7432-81a7-7c5c5239b559",
+          10
+        ],
+        [
+          "2026-10-01T12:39:19.835694Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f779-ee1a-7432-81a7-7c5c5239b559",
+          21
+        ],
+        [
+          "2026-10-01T12:39:19.988409Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f779-ee1a-7432-81a7-7c5c5239b559",
+          152
+        ],
+        [
+          "2026-10-01T12:39:21.573094Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f779-f501-79a2-853f-981efd9d827d",
+          19
+        ],
+        [
+          "2026-10-01T12:39:21.582490Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f779-f501-79a2-853f-981efd9d827d",
+          9
+        ],
+        [
+          "2026-10-01T12:39:21.602148Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f779-f501-79a2-853f-981efd9d827d",
+          19
+        ],
+        [
+          "2026-10-01T12:39:21.711807Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f779-f501-79a2-853f-981efd9d827d",
+          109
+        ],
+        [
+          "2026-10-01T12:39:24.035004Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          40
+        ],
+        [
+          "2026-10-01T12:39:24.139951Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          40
+        ],
+        [
+          "2026-10-01T12:39:24.348861Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          208
+        ],
+        [
+          "2026-10-01T12:39:24.439426Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          39
+        ],
+        [
+          "2026-10-01T12:39:24.538912Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          39
+        ],
+        [
+          "2026-10-01T12:39:24.753641Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          214
+        ],
+        [
+          "2026-10-01T12:39:25.511036Z",
+          "completed",
+          "surreal_update_block_view_definition",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          620
+        ],
+        [
+          "2026-10-01T12:39:25.527864Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-07da-7e12-9033-4b6ebe29cb92",
+          16
+        ],
+        [
+          "2026-10-01T12:39:25.535584Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f77a-07da-7e12-9033-4b6ebe29cb92",
+          7
+        ],
+        [
+          "2026-10-01T12:39:25.560485Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f77a-07da-7e12-9033-4b6ebe29cb92",
+          24
+        ],
+        [
+          "2026-10-01T12:39:25.672335Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-07da-7e12-9033-4b6ebe29cb92",
+          111
+        ],
+        [
+          "2026-10-01T12:39:25.672409Z",
+          "completed",
+          "publish_scoped_view_update",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          161
+        ],
+        [
+          "2026-10-01T12:39:25.782049Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          38
+        ],
+        [
+          "2026-10-01T12:39:26.293609Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          511
+        ],
+        [
+          "2026-10-01T12:39:26.382476Z",
+          "completed",
+          "surreal_list_pending",
+          "",
+          2
+        ],
+        [
+          "2026-10-01T12:39:26.382567Z",
+          "completed",
+          "reconciler_pass",
+          "",
+          2
+        ],
+        [
+          "2026-10-01T12:39:27.035407Z",
+          "completed",
+          "surreal_update_block_view_definition",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          681
+        ],
+        [
+          "2026-10-01T12:39:27.053410Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-0d92-7ac3-8d07-9e2eaf7afcd8",
+          17
+        ],
+        [
+          "2026-10-01T12:39:27.060526Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f77a-0d92-7ac3-8d07-9e2eaf7afcd8",
+          7
+        ],
+        [
+          "2026-10-01T12:39:27.077330Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f77a-0d92-7ac3-8d07-9e2eaf7afcd8",
+          16
+        ],
+        [
+          "2026-10-01T12:39:27.201288Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-0d92-7ac3-8d07-9e2eaf7afcd8",
+          123
+        ],
+        [
+          "2026-10-01T12:39:27.201380Z",
+          "completed",
+          "publish_scoped_view_update",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          165
+        ],
+        [
+          "2026-10-01T12:39:27.299898Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          40
+        ],
+        [
+          "2026-10-01T12:39:27.510813Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          210
+        ],
+        [
+          "2026-10-01T12:39:27.599328Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          38
+        ],
+        [
+          "2026-10-01T12:39:27.700557Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          39
+        ],
+        [
+          "2026-10-01T12:39:27.801239Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          38
+        ],
+        [
+          "2026-10-01T12:39:28.074361Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          272
+        ],
+        [
+          "2026-10-01T12:39:32.112405Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          47
+        ],
+        [
+          "2026-10-01T12:39:32.408144Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          295
+        ],
+        [
+          "2026-10-01T12:39:32.509442Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          43
+        ],
+        [
+          "2026-10-01T12:39:32.615071Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          44
+        ],
+        [
+          "2026-10-01T12:39:32.863868Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          248
+        ],
+        [
+          "2026-10-01T12:39:33.803826Z",
+          "completed",
+          "surreal_update_block_view_definition",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          756
+        ],
+        [
+          "2026-10-01T12:39:33.828709Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-27b7-70b0-9d12-fd31e0dc4475",
+          24
+        ],
+        [
+          "2026-10-01T12:39:33.836172Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f77a-27b7-70b0-9d12-fd31e0dc4475",
+          7
+        ],
+        [
+          "2026-10-01T12:39:33.845857Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f77a-27b7-70b0-9d12-fd31e0dc4475",
+          9
+        ],
+        [
+          "2026-10-01T12:39:33.971104Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-27b7-70b0-9d12-fd31e0dc4475",
+          125
+        ],
+        [
+          "2026-10-01T12:39:33.971171Z",
+          "completed",
+          "publish_scoped_view_update",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          167
+        ],
+        [
+          "2026-10-01T12:39:34.071461Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          39
+        ],
+        [
+          "2026-10-01T12:39:34.300391Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          228
+        ],
+        [
+          "2026-10-01T12:39:34.441492Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          52
+        ],
+        [
+          "2026-10-01T12:39:35.212736Z",
+          "completed",
+          "surreal_update_block_view_definition",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          675
+        ],
+        [
+          "2026-10-01T12:39:35.230373Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-2d88-75f3-94f9-1ddc767ba62d",
+          17
+        ],
+        [
+          "2026-10-01T12:39:35.237818Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f77a-2d88-75f3-94f9-1ddc767ba62d",
+          7
+        ],
+        [
+          "2026-10-01T12:39:35.260491Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f77a-2d88-75f3-94f9-1ddc767ba62d",
+          22
+        ],
+        [
+          "2026-10-01T12:39:35.372255Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-2d88-75f3-94f9-1ddc767ba62d",
+          111
+        ],
+        [
+          "2026-10-01T12:39:35.372328Z",
+          "completed",
+          "publish_scoped_view_update",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          159
+        ],
+        [
+          "2026-10-01T12:39:35.481781Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          39
+        ],
+        [
+          "2026-10-01T12:39:35.579986Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          38
+        ],
+        [
+          "2026-10-01T12:39:35.788326Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          208
+        ],
+        [
+          "2026-10-01T12:39:36.373402Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          56
+        ],
+        [
+          "2026-10-01T12:39:36.377650Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          58
+        ],
+        [
+          "2026-10-01T12:39:36.609173Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          235
+        ],
+        [
+          "2026-10-01T12:39:36.768910Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          43
+        ],
+        [
+          "2026-10-01T12:39:36.869504Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          42
+        ],
+        [
+          "2026-10-01T12:39:37.106896Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          237
+        ],
+        [
+          "2026-10-01T12:39:38.026525Z",
+          "completed",
+          "surreal_update_block_view_definition",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          768
+        ],
+        [
+          "2026-10-01T12:39:38.044111Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-382a-7142-9c09-92ad1ecc7dc6",
+          17
+        ],
+        [
+          "2026-10-01T12:39:38.052167Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f77a-382a-7142-9c09-92ad1ecc7dc6",
+          7
+        ],
+        [
+          "2026-10-01T12:39:38.061852Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f77a-382a-7142-9c09-92ad1ecc7dc6",
+          9
+        ],
+        [
+          "2026-10-01T12:39:38.200936Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-382a-7142-9c09-92ad1ecc7dc6",
+          138
+        ],
+        [
+          "2026-10-01T12:39:38.201034Z",
+          "completed",
+          "publish_scoped_view_update",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          174
+        ],
+        [
+          "2026-10-01T12:39:38.306999Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          41
+        ],
+        [
+          "2026-10-01T12:39:38.339242Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          59
+        ],
+        [
+          "2026-10-01T12:39:38.529081Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          221
+        ],
+        [
+          "2026-10-01T12:39:38.690463Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          39
+        ],
+        [
+          "2026-10-01T12:39:38.791015Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          41
+        ],
+        [
+          "2026-10-01T12:39:39.027141Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          236
+        ],
+        [
+          "2026-10-01T12:39:39.875418Z",
+          "completed",
+          "surreal_update_block_view_definition",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          690
+        ],
+        [
+          "2026-10-01T12:39:39.895479Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-3fb1-7eb0-99cd-0ff721c177d9",
+          19
+        ],
+        [
+          "2026-10-01T12:39:39.904664Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f77a-3fb1-7eb0-99cd-0ff721c177d9",
+          9
+        ],
+        [
+          "2026-10-01T12:39:39.917383Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f77a-3fb1-7eb0-99cd-0ff721c177d9",
+          12
+        ],
+        [
+          "2026-10-01T12:39:40.043163Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-3fb1-7eb0-99cd-0ff721c177d9",
+          125
+        ],
+        [
+          "2026-10-01T12:39:40.043261Z",
+          "completed",
+          "publish_scoped_view_update",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          167
+        ],
+        [
+          "2026-10-01T12:39:40.154139Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          44
+        ],
+        [
+          "2026-10-01T12:39:40.158709Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          52
+        ],
+        [
+          "2026-10-01T12:39:40.388845Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          230
+        ],
+        [
+          "2026-10-01T12:39:40.560578Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          40
+        ],
+        [
+          "2026-10-01T12:39:40.658608Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          39
+        ],
+        [
+          "2026-10-01T12:39:40.883523Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          224
+        ],
+        [
+          "2026-10-01T12:39:41.395317Z",
+          "completed",
+          "surreal_list_pending",
+          "",
+          3
+        ],
+        [
+          "2026-10-01T12:39:41.395395Z",
+          "completed",
+          "reconciler_pass",
+          "",
+          3
+        ],
+        [
+          "2026-10-01T12:39:41.766285Z",
+          "completed",
+          "surreal_update_block_view_definition",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          706
+        ],
+        [
+          "2026-10-01T12:39:41.787595Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-4703-7af3-b398-8e743eee6db5",
+          21
+        ],
+        [
+          "2026-10-01T12:39:41.796033Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f77a-4703-7af3-b398-8e743eee6db5",
+          8
+        ],
+        [
+          "2026-10-01T12:39:41.818946Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f77a-4703-7af3-b398-8e743eee6db5",
+          22
+        ],
+        [
+          "2026-10-01T12:39:41.943427Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-4703-7af3-b398-8e743eee6db5",
+          124
+        ],
+        [
+          "2026-10-01T12:39:41.943492Z",
+          "completed",
+          "publish_scoped_view_update",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          177
+        ],
+        [
+          "2026-10-01T12:39:42.065947Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          42
+        ],
+        [
+          "2026-10-01T12:39:42.065950Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          44
+        ],
+        [
+          "2026-10-01T12:39:42.330166Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          264
+        ],
+        [
+          "2026-10-01T12:39:42.511436Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          42
+        ],
+        [
+          "2026-10-01T12:39:42.608705Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          41
+        ],
+        [
+          "2026-10-01T12:39:42.824846Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          216
+        ],
+        [
+          "2026-10-01T12:39:43.742674Z",
+          "completed",
+          "surreal_update_block_view_definition",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          746
+        ],
+        [
+          "2026-10-01T12:39:43.761964Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-4e94-7103-b41e-3f8e5f465acc",
+          19
+        ],
+        [
+          "2026-10-01T12:39:43.770952Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f77a-4e94-7103-b41e-3f8e5f465acc",
+          8
+        ],
+        [
+          "2026-10-01T12:39:43.793964Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f77a-4e94-7103-b41e-3f8e5f465acc",
+          22
+        ],
+        [
+          "2026-10-01T12:39:43.929147Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-4e94-7103-b41e-3f8e5f465acc",
+          135
+        ],
+        [
+          "2026-10-01T12:39:43.929246Z",
+          "completed",
+          "publish_scoped_view_update",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          186
+        ],
+        [
+          "2026-10-01T12:39:44.063720Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          45
+        ],
+        [
+          "2026-10-01T12:39:44.075453Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          57
+        ],
+        [
+          "2026-10-01T12:39:44.324081Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          248
+        ],
+        [
+          "2026-10-01T12:39:44.493228Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          40
+        ],
+        [
+          "2026-10-01T12:39:44.590150Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          38
+        ],
+        [
+          "2026-10-01T12:39:44.799752Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          209
+        ],
+        [
+          "2026-10-01T12:39:45.725704Z",
+          "completed",
+          "surreal_update_block_view_definition",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          741
+        ],
+        [
+          "2026-10-01T12:39:45.743331Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-5658-7ba1-aee2-64c6ffc2eb11",
+          17
+        ],
+        [
+          "2026-10-01T12:39:45.750844Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f77a-5658-7ba1-aee2-64c6ffc2eb11",
+          7
+        ],
+        [
+          "2026-10-01T12:39:45.769038Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f77a-5658-7ba1-aee2-64c6ffc2eb11",
+          18
+        ],
+        [
+          "2026-10-01T12:39:45.901726Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-5658-7ba1-aee2-64c6ffc2eb11",
+          132
+        ],
+        [
+          "2026-10-01T12:39:45.901816Z",
+          "completed",
+          "publish_scoped_view_update",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          176
+        ],
+        [
+          "2026-10-01T12:39:46.012168Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          43
+        ],
+        [
+          "2026-10-01T12:39:46.015899Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          47
+        ],
+        [
+          "2026-10-01T12:39:46.523771Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          507
+        ],
+        [
+          "2026-10-01T12:39:46.689926Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          39
+        ],
+        [
+          "2026-10-01T12:39:46.790247Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          40
+        ],
+        [
+          "2026-10-01T12:39:47.326320Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=4a7557ea-5af4-41b2-be0c-1240ee320cca",
+          535
+        ],
+        [
+          "2026-10-01T12:39:47.555961Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          55
+        ],
+        [
+          "2026-10-01T12:39:47.564449Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          55
+        ],
+        [
+          "2026-10-01T12:39:47.824349Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          259
+        ],
+        [
+          "2026-10-01T12:39:48.033956Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          39
+        ],
+        [
+          "2026-10-01T12:39:48.130906Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          39
+        ],
+        [
+          "2026-10-01T12:39:48.391533Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          260
+        ],
+        [
+          "2026-10-01T12:39:51.396059Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          45
+        ],
+        [
+          "2026-10-01T12:39:51.398621Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          51
+        ],
+        [
+          "2026-10-01T12:39:51.682969Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          286
+        ],
+        [
+          "2026-10-01T12:39:51.886694Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          46
+        ],
+        [
+          "2026-10-01T12:39:52.039390Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          43
+        ],
+        [
+          "2026-10-01T12:39:52.364491Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          324
+        ],
+        [
+          "2026-10-01T12:39:52.522776Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          42
+        ],
+        [
+          "2026-10-01T12:39:52.811447Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=f646fd41-a862-47c8-b4bb-37a98d72872e",
+          288
+        ],
+        [
+          "2026-10-01T12:39:52.975792Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          46
+        ],
+        [
+          "2026-10-01T12:39:52.977493Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          48
+        ],
+        [
+          "2026-10-01T12:39:53.185567Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          207
+        ],
+        [
+          "2026-10-01T12:39:53.358302Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          45
+        ],
+        [
+          "2026-10-01T12:39:53.446619Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          41
+        ],
+        [
+          "2026-10-01T12:39:53.646488Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          199
+        ],
+        [
+          "2026-10-01T12:39:53.905063Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          40
+        ],
+        [
+          "2026-10-01T12:39:53.998175Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          41
+        ],
+        [
+          "2026-10-01T12:39:54.189029Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          190
+        ],
+        [
+          "2026-10-01T12:39:54.437454Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          38
+        ],
+        [
+          "2026-10-01T12:39:54.534839Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          40
+        ],
+        [
+          "2026-10-01T12:39:54.729042Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          194
+        ],
+        [
+          "2026-10-01T12:39:55.668246Z",
+          "completed",
+          "surreal_update_block_view_definition",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          777
+        ],
+        [
+          "2026-10-01T12:39:55.688994Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-7d0a-7ae3-a71d-758ec4949cde",
+          20
+        ],
+        [
+          "2026-10-01T12:39:55.698090Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f77a-7d0a-7ae3-a71d-758ec4949cde",
+          8
+        ],
+        [
+          "2026-10-01T12:39:55.718932Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f77a-7d0a-7ae3-a71d-758ec4949cde",
+          20
+        ],
+        [
+          "2026-10-01T12:39:55.861049Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-7d0a-7ae3-a71d-758ec4949cde",
+          141
+        ],
+        [
+          "2026-10-01T12:39:55.861144Z",
+          "completed",
+          "publish_scoped_view_update",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          192
+        ],
+        [
+          "2026-10-01T12:39:55.976481Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          54
+        ],
+        [
+          "2026-10-01T12:39:55.976490Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          54
+        ],
+        [
+          "2026-10-01T12:39:56.212728Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          236
+        ],
+        [
+          "2026-10-01T12:39:56.379520Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          39
+        ],
+        [
+          "2026-10-01T12:39:56.400320Z",
+          "completed",
+          "surreal_list_pending",
+          "",
+          2
+        ],
+        [
+          "2026-10-01T12:39:56.400390Z",
+          "completed",
+          "reconciler_pass",
+          "",
+          3
+        ],
+        [
+          "2026-10-01T12:39:56.473428Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          39
+        ],
+        [
+          "2026-10-01T12:39:56.679766Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          206
+        ],
+        [
+          "2026-10-01T12:39:56.816199Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          39
+        ],
+        [
+          "2026-10-01T12:39:56.940718Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          52
+        ],
+        [
+          "2026-10-01T12:39:57.165078Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=eeeb869f-503c-4708-b6d5-81943731a540",
+          224
+        ],
+        [
+          "2026-10-01T12:39:59.411367Z",
+          "completed",
+          "surreal_load_scoped_publication",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-87a7-7731-882f-48ff9e0ead96",
+          21
+        ],
+        [
+          "2026-10-01T12:39:59.418823Z",
+          "completed",
+          "fr_list_events",
+          "event_id=01a0f77a-87a7-7731-882f-48ff9e0ead96",
+          7
+        ],
+        [
+          "2026-10-01T12:39:59.428656Z",
+          "completed",
+          "fr_record_event",
+          "event_id=01a0f77a-87a7-7731-882f-48ff9e0ead96",
+          9
+        ],
+        [
+          "2026-10-01T12:39:59.568689Z",
+          "completed",
+          "surreal_mark_published",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 event_id=01a0f77a-87a7-7731-882f-48ff9e0ead96",
+          139
+        ],
+        [
+          "2026-10-01T12:39:59.707109Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=b9456da8-7207-48b9-8269-e94dff88e418",
+          48
+        ],
+        [
+          "2026-10-01T12:39:59.716104Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=b9456da8-7207-48b9-8269-e94dff88e418",
+          58
+        ],
+        [
+          "2026-10-01T12:40:00.194288Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=b9456da8-7207-48b9-8269-e94dff88e418",
+          478
+        ],
+        [
+          "2026-10-01T12:40:00.349063Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=b9456da8-7207-48b9-8269-e94dff88e418",
+          39
+        ],
+        [
+          "2026-10-01T12:40:00.449868Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=b9456da8-7207-48b9-8269-e94dff88e418",
+          39
+        ],
+        [
+          "2026-10-01T12:40:00.844580Z",
+          "completed",
+          "surreal_query_block_view_results",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=b9456da8-7207-48b9-8269-e94dff88e418",
+          394
+        ],
+        [
+          "2026-10-01T12:40:01.014392Z",
+          "completed",
+          "surreal_get_block_view",
+          "workspace_id=01a0f779-7d40-7683-a31d-aca8c03fc235 block_id=b9456da8-7207-48b9-8269-e94dff88e418",
+          43
+        ],
+        [
+          "2026-10-01T12:40:11.417566Z",
+          "completed",
+          "surreal_list_pending",
+          "",
+          3
+        ],
+        [
+          "2026-10-01T12:40:11.417647Z",
+          "completed",
+          "reconciler_pass",
+          "",
+          3
+        ],
+        [
+          "2026-10-01T12:40:26.433105Z",
+          "completed",
+          "surreal_list_pending",
+          "",
+          3
+        ],
+        [
+          "2026-10-01T12:40:26.433178Z",
+          "completed",
+          "reconciler_pass",
+          "",
+          3
+        ]
+      ]
+    },
+    "backend_cpu": {
+      "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-5da8b75a0211aa607ea430a6764770709915f80e.observations.jsonl (30 s poll; Get-Process TotalProcessorTime)",
+      "bcv_backend": {
+        "pid": 235628,
+        "pid_source": "<lane>/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-368a110cf51f6ec4/eb1a8a4d-466f-4a67-ae1c-86c2bdb80504/listen-report.json",
+        "parent": "test_block_collection_view (194508)",
+        "samples": "12:38:27Z cpu 11.2 s ws 182 MB -> 12:40:07Z cpu 101.7 s ws 290 MB (4 polls)",
+        "approx_cores": "~0.9 sustained over 100 s"
+      },
+      "ac10_backend": {
+        "pid": 221648,
+        "parent": "test_e7_knowledge_accesskit (246780)",
+        "identification": "handshake_core child of the test_e7 process running 12:42:52-12:43:26Z, inside ac10's window (start 12:42:34Z, 82.2 s)",
+        "samples": "12:42:52Z cpu 13.2 s ws 222 MB -> 12:43:26Z cpu 53.2 s ws 304 MB (2 polls)",
+        "approx_cores": "~1.2 over 34 s"
+      }
+    },
+    "note": "CHECK-TESTS/CLIPPY-CHANGED remain WP-end extra-build items. rebuild accounting compiled_crates=1 (handshake_core) relinked_test_binaries=21 backend_bin_relinked=1 refresh_mode=incremental; backend build profile dev (debug-backend override not applied, Operator decision pending); GP-131 vault probe success (4968cafb); credentials 242/23 before and after (the 1 recorded CX-GIT-003 leftover; no new leftover); no leftover store dirs; session git repo recycled; observer 98 polls, 0 errors, peak C 88.79 GB",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "153-5da8b75a-round",
+        "at_utc": "2026-10-01T13:05:00Z",
+        "decision": "failed",
+        "payload_ref": "MT-153.json#validation_round_5da8b75a"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "153-5da8b75a-round",
+        "at_utc": "2026-10-01T13:05:00Z",
+        "decision": "failed",
+        "state_effect": "lifecycle.status FAIL_V11"
+      }
     ]
   }
 }

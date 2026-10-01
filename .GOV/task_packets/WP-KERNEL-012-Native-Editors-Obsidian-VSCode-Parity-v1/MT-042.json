@@ -14,7 +14,7 @@
   "title": "E7-MT-042-KnowledgeGraphAccessKit",
   "group": "E7 Model-vision parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-10-01T11:25:00Z",
+  "updated_at_utc": "2026-10-01T13:05:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-042.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -33,7 +33,7 @@
       "reason": "Document create/backlink proof depends on changed API/storage and shared live helper",
       "round_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"
     },
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V13",
     "active": true,
     "depends_on": [
       "MT-021",
@@ -47,10 +47,10 @@
       "MT-043",
       "MT-044"
     ],
-    "validator_verdict": "FAIL_V12",
+    "validator_verdict": "PASS_V13",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
-    "validated_at_utc": "2026-10-01T11:25:00Z",
+    "validated_at_utc": "2026-10-01T13:05:00Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: the NEEDS_MANAGED_RESOURCE_PROOF test ac10_live_pg_round_trip is an unconditional panic! stub - NO real live-test body exists behind the #[ignore] and the integration feature gates nothing here; AC-042-05/06/07/10 + PROOF-042-D DB halves are un-runnable until the test is authored (MT-044/045/046 show the correct pattern). Same live-host orphan as MT-041: install_knowledge_action_registry never called by any host - knowledge.* actions exist only in kittests. Positive: real AccessKit click dispatch with JSON payloads, verified route corrections, malformed-payload no-panic. Fix: author the real live-PG round-trip body (placements row, tag-edge move, edge row SELECTs); shared registry install via the E11 wiring bundle.",
@@ -91,7 +91,7 @@
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
     "claimed_by": "KERNEL_BUILDER-20260707-224033",
     "claimed_at_utc": "2026-07-08T04:38:40.574Z",
-    "completed_by": null,
+    "completed_by": "WP_VALIDATOR-20260930-ORCH-SUB",
     "ready_for_validation_at_utc": "2026-10-01T11:49:23Z",
     "ready_for_validation_v2_at_utc": "2026-07-18T10:33:14.0007281Z",
     "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
@@ -135,9 +135,9 @@
       "adversarial_review": "PASS: independent reviewer verified 24/24 raw, 1/1 canonical, all nine PNGs, 35/35 hashes, exact persisted state, zero unresolved actions, and complete owned-resource teardown.",
       "validator_boundary": "Builder remediation only. lifecycle.validator_verdict and validation_v4 remain historical FAIL_V4 until independent validator review."
     },
-    "validated_commit": "791a81dd23cee301006995a2b7bb550cfeba4471",
+    "validated_commit": "5da8b75a0211aa607ea430a6764770709915f80e",
     "completed_at_utc": "2026-09-16T23:19:49.801Z",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_791a81dd.remediation_required",
+    "next_actor": "ORCHESTRATOR",
     "status_alignment_2026_09_17": {
       "by": "ORCHESTRATOR (Claude, session 2026-09-16)",
       "at_utc": "2026-09-16T23:21:33.923Z",
@@ -151,8 +151,8 @@
     ],
     "status_before_20260930": "FAIL_V6",
     "blocked_on": null,
-    "prior_validator_verdict": "FAIL_V11",
-    "status_reason": "FAIL_V12 on 791a81dd union round (validation_round_791a81dd)",
+    "prior_validator_verdict": "FAIL_V12",
+    "status_reason": "PASS_V13 on 5da8b75a union round (validation_round_5da8b75a)",
     "status_before_fea3ce0a_resubmission": "FAIL_V8",
     "status_before_d9ce6017_resubmission": "FAIL_V9",
     "status_before_7548bc72_resubmission": "FAIL_V10",
@@ -1758,5 +1758,66 @@
     ],
     "admission_basis": "CX-VAL-008: new diagnosis + schema change in the failing card-move path (MT-153-owned schema.surql/schema.rs)",
     "product_change_in_this_mt": "none"
+  },
+  "validation_round_5da8b75a": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T13:05:00Z",
+    "candidate_commit": "5da8b75a0211aa607ea430a6764770709915f80e",
+    "started_at": "2026-10-01T11:53:22.7623303Z",
+    "completed_at": "2026-10-01T12:44:09.9299094Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-5da8b75a0211aa607ea430a6764770709915f80e-core.xml",
+      "core_junit_sha256": "779e08480280a1fc4a6afadcd433bf54f480ea699f4ee9c5566586cf406ff650",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-5da8b75a0211aa607ea430a6764770709915f80e-native.xml",
+      "native_junit_sha256": "e4dcd3e8e5a29e9d5b5a8bf81afa95109d29ff40b3023e95648d73b8839f7dcc",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-5da8b75a0211aa607ea430a6764770709915f80e.stdout.log",
+      "log_sha256": "ec3094a001494ea6614a2edf00f6d585acfa89882cf8b860a6c028255d9f4103",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-5da8b75a0211aa607ea430a6764770709915f80e.stderr.log",
+      "stderr_log_sha256": "6f1e16ddc114a5d13b672ffd9502b847875e08cf73a796a36e075c4b5e27f98c",
+      "export_identity_sha256": "8160ec04019d00f2b89f1925aea568ed8dca215311dd8747855f57b58a6c6606",
+      "selection": "WPV-round-selection.json (gov 89e3796a; CX-VAL-002 intersection under key 'intersection')"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-5da8b75a"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 34/34, before_verdict PASS 5/5 at 5da8b75a",
+    "decision": "passed",
+    "verdict": "PASS_V13",
+    "checks_run": {
+      "test_e7_knowledge_accesskit (whole, PROOF-042-A)": "PASS 40/40"
+    },
+    "acceptance": {
+      "AC-042-01 / PROOF-042-A": "test_e7_knowledge_accesskit 40/40 PASS (this round's native JUnit)",
+      "AC-042-02/03/08": "ac01_02_03_08_all_knowledge_nodes_present_with_roles, ac03_dispatch_card_delete_emits_remove_placement, ac08_graph_controls_present_with_no_blocks PASS",
+      "AC-042-04": "ac04_dispatch_graph_node_identity_emits_open, ac04_dispatch_graph_open_node_emits_open, ac04_mounted_host_opens_exact_document_within_200ms PASS",
+      "AC-042-05 / PROOF-042-C": "ac05_dispatch_canvas_place_block_emits_place_and_new_card (asserts the new canvas.card node), ac05_place_block_event_builds_real_placements_request PASS",
+      "AC-042-06 / PROOF-042-D": "ac06_* (3) PASS; ac10_live_surrealdb_populated_graph_accesskit_round_trip PASS: the kanban move persists in the backend block-view results (lane query) and the mounted AccessKit row/lane reconciles",
+      "AC-042-07": "ac07_add_edge_event_builds_real_create_loom_edge_request, ac07_dispatch_graph_add_edge_emits_add_edge PASS (live edge round trip in ac10)",
+      "PROOF-042-B": "proof_b_full_knowledge_tree_dump PASS; it asserts >=2 graph.node.<uuid>, >=1 canvas.card.<uuid> and all graph controls in the dump (tests/test_e7_knowledge_accesskit.rs proof_b assertions); printed stdout of passing tests is not retained by the union JUnit",
+      "AC-042-09 / PROOF-042-E": "union build log: no handshake-native lib warnings (cargo replays cached diagnostics for fresh units); the only handshake-native warnings are 2 in test support tests/mt008_code_nav_support (test_code_nav_client), not MT-042 files",
+      "AC-042-10": "ac10 runs against the real owned backend (embedded SurrealDB), no mocked backend"
+    },
+    "resolved_failure_classes": [
+      "WORKSPACE_DELETE_RECORD_DENIED (791a81dd)",
+      "MOUNTED_KANBAN_ACCESSKIT_RECONCILE_TIMEOUT (791a81dd): :2509 passed"
+    ],
+    "note": "rebuild accounting compiled_crates=1 (handshake_core) relinked_test_binaries=21 backend_bin_relinked=1 refresh_mode=incremental; backend build profile dev (debug-backend override not applied, Operator decision pending); GP-131 vault probe success (4968cafb); credentials 242/23 before and after (the 1 recorded CX-GIT-003 leftover; no new leftover); no leftover store dirs; session git repo recycled; observer 98 polls, 0 errors, peak C 88.79 GB",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "042-5da8b75a-round",
+        "at_utc": "2026-10-01T13:05:00Z",
+        "decision": "passed",
+        "payload_ref": "MT-042.json#validation_round_5da8b75a"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "042-5da8b75a-round",
+        "at_utc": "2026-10-01T13:05:00Z",
+        "decision": "passed",
+        "state_effect": "lifecycle.status PASS_V13"
+      }
+    ]
   }
 }

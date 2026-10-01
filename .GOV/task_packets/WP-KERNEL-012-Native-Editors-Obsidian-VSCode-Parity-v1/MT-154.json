@@ -233,7 +233,7 @@
   "title": "B18-MT-154-Non-Loom-Routes-Account-Session-Authority-And-Residuals",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-10-01T11:25:00Z",
+  "updated_at_utc": "2026-10-01T13:05:00Z",
   "validation_shared_union_ec596eec": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "decision": "inconclusive",
@@ -3745,6 +3745,53 @@
         "event": "completed",
         "idempotency_key": "154-791a81dd-round",
         "at_utc": "2026-10-01T11:25:00Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
+      }
+    ]
+  },
+  "validation_round_5da8b75a": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T13:05:00Z",
+    "candidate_commit": "5da8b75a0211aa607ea430a6764770709915f80e",
+    "started_at": "2026-10-01T11:53:22.7623303Z",
+    "completed_at": "2026-10-01T12:44:09.9299094Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-5da8b75a0211aa607ea430a6764770709915f80e-core.xml",
+      "core_junit_sha256": "779e08480280a1fc4a6afadcd433bf54f480ea699f4ee9c5566586cf406ff650",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-5da8b75a0211aa607ea430a6764770709915f80e-native.xml",
+      "native_junit_sha256": "e4dcd3e8e5a29e9d5b5a8bf81afa95109d29ff40b3023e95648d73b8839f7dcc",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-5da8b75a0211aa607ea430a6764770709915f80e.stdout.log",
+      "log_sha256": "ec3094a001494ea6614a2edf00f6d585acfa89882cf8b860a6c028255d9f4103",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-5da8b75a0211aa607ea430a6764770709915f80e.stderr.log",
+      "stderr_log_sha256": "6f1e16ddc114a5d13b672ffd9502b847875e08cf73a796a36e075c4b5e27f98c",
+      "export_identity_sha256": "8160ec04019d00f2b89f1925aea568ed8dca215311dd8747855f57b58a6c6606",
+      "selection": "WPV-round-selection.json (gov 89e3796a; CX-VAL-002 intersection under key 'intersection')"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-5da8b75a"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 34/34, before_verdict PASS 5/5 at 5da8b75a",
+    "decision": "inconclusive",
+    "checks_run": {
+      "storage::surreal::schema::tests (10 named pin tests incl. MT-153-PIN-CONFIRM 7)": "PASS 10/10",
+      "MT-154-PIN-CONFIRM (named schema pin tests)": "PASS (all named tests in the 10/10 union)",
+      "MT-154-PREDECESSOR-PINS-UNCHANGED (git diff 791a81dd..5da8b75a and 37ee7c5b..5da8b75a -- schema.rs)": "PASS (grep exit 1)"
+    },
+    "unclosed": "pin-affected re-proof only (schema.surql/schema.rs changed by MT-153); other unclosed items of this MT unchanged",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "154-5da8b75a-round",
+        "at_utc": "2026-10-01T13:05:00Z",
+        "decision": "inconclusive",
+        "payload_ref": "MT-154.json#validation_round_5da8b75a"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "154-5da8b75a-round",
+        "at_utc": "2026-10-01T13:05:00Z",
         "decision": "inconclusive",
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
       }

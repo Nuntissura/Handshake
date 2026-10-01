@@ -25,7 +25,7 @@
   "title": "B18-MT-158-Locus-Job-Path-Runs-Under-The-Account-Session",
   "group": "B18",
   "created_at_utc": "2026-09-23T15:01:47.520Z",
-  "updated_at_utc": "2026-10-01T11:25:00Z",
+  "updated_at_utc": "2026-10-01T13:05:00Z",
  "validation_shared_union_ec596eec": {"schema_id": "hsk.mt_validation_verdict@1", "decision": "inconclusive", "validated_by": "WP_VALIDATOR-SOL-MEDIUM", "validated_at_utc": "2026-09-26T23:36:50.061743Z", "candidate_commit": "ec596eecb70f2820cb357ef95d5820b890c8944f", "proof_records_ref": "MT-032.json#validation.proof_records[PR-WP012-MT032-ec596eec-UNION-012]", "shared_round_ref": "MT-032.json#validation_v12", "contract_floor_refs": ["scope.proof_targets", "scope.acceptance_criteria", "proof", "proof_commands", "hbr_obligations"], "selection_method": "Named MT-prefixed cases only; not all parent/shared regression commands", "observed_cases": [{"classname": "handshake_core::knowledge_documents_api_tests", "test": "mt158_cloud_model_cannot_write_and_bogus_kind_is_rejected", "seconds": 19.811, "result": "passed"}, {"classname": "handshake_core::knowledge_documents_api_tests", "test": "mt158_missing_actor_kind_is_least_privileged_never_system", "seconds": 19.902, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt158_locus_job_rows_are_private_to_the_creating_account", "seconds": 16.165, "result": "passed"}, {"classname": "handshake_core::mt154_non_loom_route_authority_tests", "test": "mt158_locus_jobs_require_account_session", "seconds": 13.997, "result": "passed"}], "mapped_case_count": 4, "mapped_failure_count": 0, "state_unchanged": true, "prior_verdict_preserved": null, "unmet_required_proof": ["MT-158-CHECK-SETS A/B/C current independent compile proofs absent", "MT-158-CLIPPY current changed-line proof absent", "Parent pin/static applicability and complete named regression coverage require own contract reconciliation; prefix-selected cases below are observations only"], "acceptance_rule": "Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change", "verdict_events": [{"event": "accepted", "idempotency_key": "MT158-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive"}, {"event": "completed", "idempotency_key": "MT158-ec596eec-bounded-observation", "at_utc": "2026-09-26T23:36:50.061743Z", "decision": "inconclusive", "state_effect": "unchanged"}]},
   "validation_shared_union_7479972a": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-28T00:11:37Z","candidate_commit":"7479972ac681cd238e58d37e318beab6c8d3b423","proof_records_ref":"MT-032.json#validation.proof_records[PR-WP012-MT032-7479972a-UNION-CONTINUATION1]","shared_round_ref":"MT-032.json#validation_v13","contract_floor_refs":["scope.proof_targets","scope.acceptance_criteria","proof","proof_commands","hbr_obligations"],"selection_method":"Named MT-prefixed cases only; not all parent/shared regression commands; exact classname+name matched against completed current four JUnits","observed_cases":[{"classname":"handshake_core::knowledge_documents_api_tests","test":"mt158_cloud_model_cannot_write_and_bogus_kind_is_rejected","seconds":22.713,"result":"passed","phase":"core"},{"classname":"handshake_core::knowledge_documents_api_tests","test":"mt158_missing_actor_kind_is_least_privileged_never_system","seconds":23.814,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt158_locus_job_rows_are_private_to_the_creating_account","seconds":18.627,"result":"passed","phase":"core"},{"classname":"handshake_core::mt154_non_loom_route_authority_tests","test":"mt158_locus_jobs_require_account_session","seconds":17.154,"result":"passed","phase":"core"}],"mapped_case_count":4,"mapped_failure_count":0,"state_unchanged":true,"prior_verdict_preserved":true,"unmet_required_proof":["MT-158-CHECK-SETS A/B/C current independent compile proofs absent","MT-158-CLIPPY current changed-line proof absent","Parent pin/static applicability and complete named regression coverage require own contract reconciliation; prefix-selected cases below are observations only"],"acceptance_rule":"Observed green subset cannot replace own proof/proof_commands/unmapped_acs/extras; no new test or source change","verdict_events":[{"event":"accepted","idempotency_key":"MT158-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT158-7479972a-bounded-observation","at_utc":"2026-09-28T00:11:37Z","decision":"inconclusive","state_effect":"unchanged"}],"input_provenance":{"candidate":"7479972ac681cd238e58d37e318beab6c8d3b423","source_diff_ref":"git diff --name-only ec596eecb70f2820cb357ef95d5820b890c8944f..7479972ac681cd238e58d37e318beab6c8d3b423","changed_areas":["core document/SurrealDB authority/schema","handshake_document diagnostics/operations/SurrealDB adapter","handshake_storage_support diagnostics/retry"],"native_source_changed":false,"source_effect":"Shared backend inputs can affect live native cases; exact current JUnits provide observed behavior, not static/unmapped proof."},"current_union":{"core":{"tests":239,"failures":6,"sha256":"9916BFB9B5F8797D461C58555D16A734D29EB4054E37713263B0C727E0DA4BF2"},"native":{"tests":2952,"failures":44,"sha256":"928E026731633A2C63F1ECC21E926DF5A56AFEE828B58C79EF77B990697A962F"},"handshake_document":{"tests":41,"failures":0,"sha256":"2A3F49A172AD702EE44722CA393304084FDA83DDD45DB0CD253147CE9518BD79"},"handshake_storage_support":{"tests":34,"failures":0,"sha256":"A499897A89EAA1497A2D16F31514CD319B53BDEE3160BDE51D09797A7EE82C76"},"all_junits_complete":true,"mt032_verdict_ref":"MT-032.json#validation_v13"}},
   "identity": {
@@ -1505,6 +1505,52 @@
         "event": "completed",
         "idempotency_key": "158-791a81dd-round",
         "at_utc": "2026-10-01T11:25:00Z",
+        "decision": "inconclusive",
+        "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
+      }
+    ]
+  },
+  "validation_round_5da8b75a": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "validated_at_utc": "2026-10-01T13:05:00Z",
+    "candidate_commit": "5da8b75a0211aa607ea430a6764770709915f80e",
+    "started_at": "2026-10-01T11:53:22.7623303Z",
+    "completed_at": "2026-10-01T12:44:09.9299094Z",
+    "results_ref": {
+      "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-5da8b75a0211aa607ea430a6764770709915f80e-core.xml",
+      "core_junit_sha256": "779e08480280a1fc4a6afadcd433bf54f480ea699f4ee9c5566586cf406ff650",
+      "native_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-5da8b75a0211aa607ea430a6764770709915f80e-native.xml",
+      "native_junit_sha256": "e4dcd3e8e5a29e9d5b5a8bf81afa95109d29ff40b3023e95648d73b8839f7dcc",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-5da8b75a0211aa607ea430a6764770709915f80e.stdout.log",
+      "log_sha256": "ec3094a001494ea6614a2edf00f6d585acfa89882cf8b860a6c028255d9f4103",
+      "stderr_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-5da8b75a0211aa607ea430a6764770709915f80e.stderr.log",
+      "stderr_log_sha256": "6f1e16ddc114a5d13b672ffd9502b847875e08cf73a796a36e075c4b5e27f98c",
+      "export_identity_sha256": "8160ec04019d00f2b89f1925aea568ed8dca215311dd8747855f57b58a6c6606",
+      "selection": "WPV-round-selection.json (gov 89e3796a; CX-VAL-002 intersection under key 'intersection')"
+    },
+    "proof_record_ids": [
+      "PR-WP012-UNION-5da8b75a"
+    ],
+    "gameplan_before_verdict": "wp_validator before_round PASS 34/34, before_verdict PASS 5/5 at 5da8b75a",
+    "decision": "inconclusive",
+    "checks_run": {
+      "storage::surreal::schema::tests (10 named pin tests incl. MT-153-PIN-CONFIRM 7)": "PASS 10/10",
+      "MT-158-PINS (named schema pin tests)": "PASS (all named tests in the 10/10 union)"
+    },
+    "unclosed": "pin-affected re-proof only (schema.surql/schema.rs changed by MT-153); other unclosed items of this MT unchanged",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "158-5da8b75a-round",
+        "at_utc": "2026-10-01T13:05:00Z",
+        "decision": "inconclusive",
+        "payload_ref": "MT-158.json#validation_round_5da8b75a"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "158-5da8b75a-round",
+        "at_utc": "2026-10-01T13:05:00Z",
         "decision": "inconclusive",
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
       }
