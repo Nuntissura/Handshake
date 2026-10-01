@@ -231,7 +231,7 @@
     "validator_verdict": "FAIL_V1",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "WP_VALIDATOR union round",
+    "next_actor": "WP_VALIDATOR",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-167.json#implementation_record.owning_module_evidence",
@@ -240,12 +240,15 @@
       "MT-167.json#adversarial_review_20261001_f_a",
       "MT-167.json#operator_decision_request_20261001_ingestion_share_vs_ac_167_3",
       "MT-167.json#diagnosis_20261001_4d0da145_projection_cost",
-      "MT-167.json#remediation_20261001_222b33cc"
+      "MT-167.json#remediation_20261001_222b33cc",
+      "MT-167.json#diagnosis_20261002_evidence_link_accumulation",
+      "MT-167.json#remediation_20261002_dbdae422",
+      "MT-167.json#adversarial_review_20261002_evidence_replace"
     ],
     "status_before_ready": "BLOCKED",
-    "candidate_commit": "222b33cc97421388d7be78b8d0a3b0eb577f9928",
-    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 222b33cc97421388d7be78b8d0a3b0eb577f9928",
-    "ready_for_validation_at_utc": "2026-10-01T21:16:27Z",
+    "candidate_commit": "dbdae422e64113b18975f90f87ed34738f853a04",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = dbdae422e64113b18975f90f87ed34738f853a04",
+    "ready_for_validation_at_utc": "2026-10-01T23:59:28Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "gameplan": "before_submit kernel_builder PASS 2/2 at ee2345e9; GP-158 confirmed (loom edge/counter txn files untouched; only code-index engine.rs, Cargo.toml, MT-167 test)",
     "selection_note": "run tests/mt167_code_nav_index_cost_tests.rs (timing AC-167-3 + MT-167-EQUAL-COUNTS), knowledge_code_index_tests, knowledge_code_nav_api_tests, code_nav_index_account_tests (now batch path, review R8), and the downstream MT-008 PC-008-05 / MT-064 PC-064-04 / MT-065 PC-065-01. Expectation: MT-008 fixture loses the 24 s fallback; FEMS (MT-064/065) is NOT expected to pass from F-A alone (H-B; ingestion share under the open ODR); the full-route < 5 s median may be out of reach for the same reason (MT-167 stop clause)",
@@ -255,7 +258,8 @@
     "status_reason": "FAIL_V1 on 4d0da145 union round (validation_round_4d0da145)",
     "status_before_stop_clause": "FAIL_V1",
     "status_before_222b33cc_resubmission": "BLOCKED",
-    "resolution_ref": "WP012-OPERATOR-MT167-OPTIMIZE-TEST-DB-20261001"
+    "resolution_ref": "WP012-OPERATOR-MT167-OPTIMIZE-TEST-DB-20261001",
+    "status_before_dbdae422_resubmission": "READY_FOR_VALIDATION"
   },
   "scope": {
     "summary": "Bring the code-nav index route within Master Spec §2.3.14.17.3 (index update propagation <5 s target, 30 s max) by fixing the evidenced cause of persist_code_index_batch returning Ok(None) in 0 ms and falling back to the ~24 s per-file writer; prove with a median-of-N timing test.",
@@ -457,6 +461,18 @@
         "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/check-f-a-review-core.log (pre-review state: check-f-a-core.log, exit 0)",
         "warnings": "no new warning; the engine.rs:49 unused import KnowledgeIndexRunCounts predates this change (also in MT-153 check-diag-revert-core.log)",
         "deviation": "run on the canonical ../Handshake_Artifacts/handshake-cargo-target via the checked-in Cargo config (AGENTS.md:88: never set CARGO_TARGET_DIR to another path) instead of the MT text's per-MT CARGO_TARGET_DIR; same features; 0 cargo/rustc before launch"
+      },
+      {
+        "check_id": "MT-167-BUILDER-COMPILE",
+        "command": "cargo check --locked -j 4 --config <gov>/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils (cwd src/backend/handshake_core)",
+        "env": "CARGO_TARGET_DIR=Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target (owner target, CX-984-002), CARGO_INCREMENTAL=0, CARGO_PROFILE_DEV_DEBUG=line-tables-only, CARGO_PROFILE_TEST_DEBUG=line-tables-only",
+        "exit_code": 0,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/check-evidence-replace-core.log (start 23:40:07Z, 18m10s)",
+        "warnings": "no new warning (engine.rs:49 unused KnowledgeIndexRunCounts predates MT-167)",
+        "pre_launch": "0 cargo/rustc host-wide (a first run of the same check was stopped by me before the review fixes; it was my own process)",
+        "executor": "KERNEL_BUILDER-20260930",
+        "at_utc": "2026-10-01T23:59:28Z",
+        "commit": "dbdae422e64113b18975f90f87ed34738f853a04"
       }
     ]
   },
@@ -1316,5 +1332,111 @@
     },
     "expected_effect": "HYPOTHESIS (to be measured by the validator): per-re-index projection stays flat instead of +~6.3 s per pass; edge_spans/entity_spans counts stable across passes in both writers; parity unchanged",
     "attempt": "attempt 2 on the MT-167 timing line, on this NEW diagnosis"
+  },
+  "adversarial_review_20261002_evidence_replace": {
+    "schema_id": "hsk.adversarial_review@1",
+    "rule": "orchestrator order (3); KERNEL_BUILDER_PROTOCOL.md:67 persistence boundary",
+    "reviewer": "independent read-only sub-agent (no edits/builds), 2026-10-02",
+    "reviewed_state": "uncommitted evidence-replace diff on 222b33cc (before review fixes)",
+    "verdict": "ACCEPTABLE WITH FIXES",
+    "findings": [
+      {
+        "id": "E1",
+        "severity": "MAJOR",
+        "finding": "concurrent re-index of the same source: per-file upserts commit before the separate replace transaction; interleaved passes A/B could delete each other's fresh links -> evidence-less entity/edge (spec 2.3.13.11)",
+        "disposition": "FIXED in dbdae422: the replace deletes only links whose span was created BEFORE the pass started (span_id.created_at < $scope.pass_started; knowledge_spans.created_at DEFAULT time::now(), schema.surql:3592; pass start captured before the first span: PassEvidence::start / batch pass_started). A concurrent pass's spans are newer and survive; the later pass always keeps its own links"
+      },
+      {
+        "id": "E2",
+        "severity": "MAJOR",
+        "finding": "index_config_file (config facts) still accumulated entity/contains-edge links per pass; roots with non-code files fall back to the per-file writer",
+        "disposition": "FIXED in dbdae422: index_config_file collects PassEvidence and runs the same replace (stage index_config_file.replace_source_evidence)"
+      },
+      {
+        "id": "E3",
+        "severity": "MINOR",
+        "finding": "test gaps: per-file DELETE under record-user scope not exercised (per-file side runs as System without scope); shared entity across two sources, content edits, config files, validates edges and concurrency not covered; stale comment at test :512",
+        "disposition": "comment FIXED; the batch side (route, record user) exercises the in-transaction DELETE under record-user permissions; remaining gaps ACCEPTED as residual and listed for the validator (no further test expansion in this attempt)"
+      },
+      {
+        "id": "E4",
+        "severity": "MINOR",
+        "finding": "per-file replace runs outside guarded_mutation (no lock/retry); a conflict fails the file with stage index_code_file.replace_source_evidence",
+        "disposition": "ACCEPTED: self-healing (the next successful pass replaces all older links on the source); a crash between upserts and replace leaves only duplicates, never lost links"
+      },
+      {
+        "id": "E5",
+        "severity": "MINOR",
+        "finding": "NOT IN $scope.spans compares against all spans of the file; batch Vec::contains dedup is quadratic in per-file symbols",
+        "disposition": "ACCEPTED for the evidenced shapes (small per-file sets); noted as a large-file performance follow-up"
+      },
+      {
+        "id": "E6",
+        "severity": "NOTE",
+        "finding": "DELETE permission is checked per candidate row; denied rows are skipped silently (links stay, no failure); per-file DELETE runs in the record-user scope via with_data_operation; the first cleanup of an already bloated DB costs ~links^2 per entity once",
+        "disposition": "noted"
+      },
+      {
+        "id": "E7",
+        "severity": "NOTE",
+        "finding": "planner uses the pk compound index on the leading column with bare params (UNVERIFIED for DELETE in 3.2.0)",
+        "disposition": "noted; the validator's projection timing across passes is the measurement"
+      },
+      {
+        "id": "E8",
+        "severity": "NOTE",
+        "finding": "verified by reading: other sources' links kept; non-re-asserted entities/edges keep stale evidence (by design); every link the pass creates has its span in scope (no fresh link deleted); duplicate symbol keys still differ between writers (pre-existing)",
+        "disposition": "noted"
+      },
+      {
+        "id": "E9",
+        "severity": "NOTE",
+        "finding": "compile-level reading clean ($scope not reserved; no shadowing of the record-user scope variable; no dead code)",
+        "disposition": "confirmed by cargo check exit 0"
+      },
+      {
+        "id": "E10",
+        "severity": "NOTE",
+        "finding": "orphan knowledge_spans rows still accumulate (record-user delete NONE); pre-existing, not on predicate loops",
+        "disposition": "residual; storage growth only (not cost growth), follow-up for the schema owners"
+      }
+    ]
+  },
+  "remediation_20261002_dbdae422": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T23:59:28Z",
+    "rule": "CX-EXEC-014 (new assertion named here); CX-VAL-008",
+    "remediates": {
+      "verdict_ref": "MT-167.json#targeted_result_20261002_222b33cc_a2",
+      "failure_class": "projection grows ~6.3 s per re-index of the same shape; edge_spans/entity_spans accumulate in both writers"
+    },
+    "diagnosis_ref": "MT-167.json#diagnosis_20261002_evidence_link_accumulation (DX-MT-167-20261002-EVIDENCE-LINK-ACCUMULATION; attempt 2 on the timing line)",
+    "fix": {
+      "commit": "dbdae422",
+      "files": [
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+        "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs"
+      ],
+      "change": "per-source evidence replace for every entity/edge a pass re-asserts (batch: inside PERSIST_CLEAN_CODE_BATCH before the link INSERTs; per-file and config files: one transaction after the writes), limited to links whose span is on the same source and older than the pass start; supersedes the R1 symbol-only DELETE loop"
+    },
+    "new_assertion": "MT-167-EQUAL-COUNTS now also asserts that row totals (entities, linked spans, entity_spans, edges, edge_spans) after pass 2 equal those after pass 1, for every shape (src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs, mt167_batch_and_per_file_writer_produce_equal_rows; per-pass parity makes it cover both writers)",
+    "expected_effect": "HYPOTHESIS (validator measures): per-re-index projection stays flat; edge_spans/entity_spans stable across passes",
+    "candidate_commit": "dbdae422e64113b18975f90f87ed34738f853a04",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = dbdae422e64113b18975f90f87ed34738f853a04",
+    "implementer_checks": [
+      {
+        "check_id": "MT-167-BUILDER-COMPILE",
+        "command": "cargo check --locked -j 4 --config <gov>/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils (cwd src/backend/handshake_core)",
+        "env": "CARGO_TARGET_DIR=Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target (owner target, CX-984-002), CARGO_INCREMENTAL=0, CARGO_PROFILE_DEV_DEBUG=line-tables-only, CARGO_PROFILE_TEST_DEBUG=line-tables-only",
+        "exit_code": 0,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/check-evidence-replace-core.log (start 23:40:07Z, 18m10s)",
+        "warnings": "no new warning (engine.rs:49 unused KnowledgeIndexRunCounts predates MT-167)",
+        "pre_launch": "0 cargo/rustc host-wide (a first run of the same check was stopped by me before the review fixes; it was my own process)"
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at dbdae422; GP-158 confirmed (loom edge/counter txn files untouched)",
+    "selection_note": "MT-167 timing (same-shape re-index projection must stay flat), MT-167-EQUAL-COUNTS incl. the stable-across-passes assertion, knowledge_code_index_tests, knowledge_code_nav_api_tests, code_nav_index_account_tests; downstream MT-008 PC-008-05, MT-064 PC-064-04, MT-065 PC-065-01 as evidence",
+    "next_actor": "WP_VALIDATOR"
   }
 }
