@@ -601,7 +601,10 @@ fn interconnect_ic03_ckc_moodboard_on_canvas() {
     let negative_status = be.get_status(&format!(
         "/workspaces/{ws}/loom/canvas-boards/CANVAS-ic03-missing"
     ));
-    assert_eq!(negative_status, 404, "IC-03: missing board fails closed");
+    // Loom canvas reads authorize the exact board resource FIRST (api/loom.rs get_canvas_board:
+    // authorize_request -> HSK-403-PROTECTED-RESOURCE), so an unknown board is the constant-shape 403
+    // denial that never discloses existence, not a 404.
+    assert_eq!(negative_status, 403, "IC-03: missing board fails closed");
     let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{block_id}"));
     let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{board_id}"));
     be.assert_cleanup();
@@ -701,8 +704,10 @@ fn interconnect_ic04_ckc_character_wikilink_backlink() {
     let negative_status = be.get_status(&format!(
         "/workspaces/{ws}/loom/blocks/CKC-ic04-missing/backlinks"
     ));
+    // Same authorization-first contract (api/loom.rs loom_block_account -> loom_denied): an unknown
+    // block's backlinks are the constant-shape 403 denial, not a 404.
     assert_eq!(
-        negative_status, 404,
+        negative_status, 403,
         "IC-04: missing character fails closed"
     );
     let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
