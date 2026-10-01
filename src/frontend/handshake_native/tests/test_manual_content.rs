@@ -2162,6 +2162,31 @@ fn mt067_calendar_temporal_manual_documents_lossless_local_date_workflow() {
     }
 }
 
+/// MT-143 AC-143-3: the cross-surface date-navigation answer is operator- and model-visible. The
+/// Daily Journal topic must state which date-nav row owns which ids, that both rows drive ONE
+/// selected date (the editor nav is mirrored into the mounted Calendar state and supersedes the
+/// in-flight read), that the buttons are reserved against the pane's right edge, and how to check a
+/// date-nav click that appears to do nothing.
+#[test]
+fn mt143_daily_journal_manual_answers_date_nav_ownership_and_pane_bounds() {
+    let section = editors_manual_section();
+    let body = topic_body(&section, "Daily Journal");
+    for needle in [
+        "The outer Calendar nav uses daily-journal-prev-day, daily-journal-next-day, daily-journal-today",
+        "embedded editor keeps the distinct journal-* ids, so agents never select a control by tree order",
+        "Either date-nav row is a valid input to the SAME selected date",
+        "app mirrors that date into the mounted Calendar state and supersedes the in-flight calendar read",
+        "both surfaces converge on one date",
+        "Both rows reserve their buttons against the pane's right edge and let the date display truncate into the remaining width",
+        "If a date-nav click appears to do nothing, verify the control's bounds lie inside its own pane",
+    ] {
+        assert!(
+            manual_body_contains(body, needle),
+            "MT-143 Daily Journal manual must state the date-nav contract fact '{needle}'"
+        );
+    }
+}
+
 #[test]
 fn mt021_knowledge_graph_manual_documents_live_ids_and_recovery() {
     let section = editors_manual_section();
