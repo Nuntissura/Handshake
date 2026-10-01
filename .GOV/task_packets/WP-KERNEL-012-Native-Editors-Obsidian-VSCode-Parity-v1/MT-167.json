@@ -412,8 +412,46 @@
     "proof_records": []
   },
   "implementation_record": {
-    "owning_module_evidence": null,
-    "status": "not_started"
+    "owning_module_evidence": {
+      "schema_id": "hsk.owning_module_evidence@1",
+      "check_id": "MT-167-OWNING-MODULE-EVIDENCE",
+      "recorded_before_edit": true,
+      "rule": "CX-EXEC-003A; CX-UNIT-001 (Handshake_Codex_v1.4.md:47)",
+      "recorded_at_utc": "2026-10-01T17:32:54Z",
+      "recorded_by": "KERNEL_BUILDER-20260930",
+      "method": "code reading at product 9191e8b5 + retained backend.stdout.log stage lines (no run)",
+      "mt008_fixture": {
+        "input": "tests/mt008_code_nav_support/mod.rs:67-68 writes one lib.rs: '/// Adds two numbers.\\npub fn add(a: i32, b: i32) -> i32 { a + b }\\npub fn caller() -> i32 { add(1, 2) }\\n'",
+        "return_site": "src/backend/handshake_core/src/knowledge_code_index/engine.rs:940-942 in try_index_prepared_batch: `if !docs.is_empty() || !relationships.is_empty() || !test_mappings.is_empty() { return Ok(None); }`",
+        "trigger": "docs non-empty: the '///' line is a doc passage (knowledge_code_index/docs_todo.rs:95 extract_doc_passages, Rust doc-comment branch); relationships non-empty: caller() contains call_expression add(1, 2) -> RelationshipKind::Calls (knowledge_code_index/relationships.rs:87-98 extract_relationships -> extract_calls). Either alone triggers the guard; the earlier guards (:913 empty/len, :919 path, :921 language, :924 utf8, :930 parse, :933 root_has_error) pass for this file",
+        "log_evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-56fbaa1154750223/3fbd4e2e-d9d0-4b40-b554-d8f423d98258/backend.stdout.log:88-91: persist_code_index_batch files=1 stage_elapsed_ms=0 with NO 'try_index_prepared_batch.lookup_existing' line (engine.rs:1103, logged only after the guard loop) -> returned before any write; finish_index_run starts 23.95 s later (18:36:29.03 -> 18:36:52.98); route total 30.1 s",
+        "fallback_cost_site": "api/code_nav_index.rs:476-503 Ok(None) arm calls read_and_index (knowledge_code_index/engine.rs:2668) per file; the 24 s is spent inside the knowledge_code_index per-file writer (index_code_source, engine.rs:1496), not in the route"
+      },
+      "fems_seed": {
+        "input": "test_fems_interop_proofs.rs:527-545 seed_code_authority writes target.rs ('pub fn <name>() -> &'static str { \"canonical-fems-café\" }') and anchor.rs ('pub fn anchor() {}')",
+        "premise_correction": "the FEMS seed does NOT hit Ok(None): no doc comment, no call/import/impl, the string literal is not inside a RUST_STRING_SINKS macro (docs_todo.rs extract_rust_operator_strings only scans macro_invocation), no test mapping -> all guards pass and the batch path runs",
+        "log_evidence": [
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-65bcbd5131bf5c0b/7568aacc-8f22-454f-8def-60d72bb1a949/backend.stdout.log:89-91: persist_code_index_batch files=2 started 18:41:42.038; 'try_index_prepared_batch.lookup_existing' 16 ms (engine.rs:1103); 'try_index_prepared_batch.event_ledger' 0 ms at 18:41:42.226 (engine.rs:1210); NO 'try_index_prepared_batch.projection' completion (engine.rs:1359) and no persist_code_index_batch completion before the workspace delete at 18:41:45 (client 8 s timeout from request start 18:41:34.853)",
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-f750d70f750b17ba/9b107ed2-70e6-4715-93e4-057309df4faf/backend.stdout.log:89-91: same shape (batch start 18:44:12.217, event_ledger 18:44:12.397, no projection completion; delete 18:44:16)"
+        ],
+        "route_cost_before_code_indexing": "register_root 0.67 s + persist_ingestion_batch 4.99 s (projection 4.07 s; knowledge_ingestion/engine.rs, MT-154, forbidden) + start_index_run 0.45 s + bind_run_sources ~1.05 s (18:41:40.98 -> 18:41:42.04) = 7.2 s before try_index_prepared_batch starts; second run 6.4 s",
+        "slow_site": "knowledge_code_index/engine.rs try_index_prepared_batch projection stage (after :1210 event_ledger, completion log at :1359) - running > 3 s for 2 files"
+      },
+      "owning_module_binding": {
+        "owning_module": "handshake_core knowledge_code_index (src/backend/handshake_core/src/knowledge_code_index/engine.rs)",
+        "why": "the MT-008 Ok(None) return site (:940-942), the 24 s per-file writer it falls back to (read_and_index :2668 / index_code_source :1496) and the FEMS slow batch projection stage (:1216-1359) are all in knowledge_code_index/engine.rs; api/code_nav_index.rs only dispatches",
+        "not_edited": "src/backend/handshake_core/src/api/code_nav_index.rs (CX-UNIT-001: exactly one owning module)"
+      },
+      "risks_for_ac_167_3_reported_before_edit": [
+        "FEMS: under union load the route spends 6.4-7.2 s BEFORE code indexing (ingestion persist 4.8-5.0 s in knowledge_ingestion/engine.rs, MT-154, forbidden); a median < 5 s for the full route is not reachable from knowledge_code_index alone if the timing test sees similar load -> stop condition 'cause outside both candidate modules' may apply to the remainder",
+        "MT-008: 4.3 s elapsed before the batch (ingestion 2.5 s) and finish_index_run 1.9 s, so even a 0 ms batch gives ~6.2 s under that load; the 24 s fallback is the part inside the owning module",
+        "AC-167-3 timing test runs on the embedded harness in a core test (lighter load than the union native rounds) - whether its medians are < 5 s is UNVERIFIED until the validator runs it",
+        "extending the batch path to docs/relationships must keep passages, Calls edges and test mappings identical (red_team risk 2); alternative is cutting per-file writer cost"
+      ]
+    },
+    "status": "evidence_recorded_owning_module_bound_no_edit_yet",
+    "owning_module": "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+    "updated_at_utc": "2026-10-01T17:32:54Z"
   },
   "authored_by": "KERNEL_BUILDER-LANE-B-20260930",
   "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-164 precedent shape"
