@@ -41138,6 +41138,59 @@ mod mt117_bounded_completion_tests {
             .is_some());
     }
 
+    /// AC-117-5: the observers are proof-only in effect. The live app always runs its MCP server, so
+    /// `update()` projects this observer into every captured snapshot; "no Argus binding open" therefore
+    /// means no client-dispatched action. Without one, the REAL projection must leave the observer
+    /// settled and must never spawn the authoritative save readback. The counterfactual on the SAME
+    /// app proves the projection is live and not vacuous: one dispatched Stage click is what arms it.
+    #[test]
+    fn mt117_observer_is_inert_without_a_dispatched_argus_action() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Loading);
+        let semantic = stage_semantic();
+        let settled_value = Mt117InteropActionCompletion::default().observer_value();
+
+        for frame in 0..3 {
+            let mut projected = tree_for(&Mt117InteropActionCompletion::default(), &semantic);
+            app.project_mt117_interop_action_completion(&mut projected);
+            assert!(
+                !app.mt117_interop_action_completion.is_pending(),
+                "frame {frame}: with no dispatched Argus action the MT-117 observer must stay settled"
+            );
+            assert_eq!(
+                app.mt117_interop_action_completion.observer_value(),
+                settled_value,
+                "frame {frame}: the observer must not advance without a dispatched action"
+            );
+            assert!(
+                !app.mt117_interop_action_completion.save_readback_requested,
+                "frame {frame}: no authoritative save readback may be requested without an action"
+            );
+            assert!(
+                app.mt117_save_readback_cell
+                    .lock()
+                    .expect("save readback cell")
+                    .is_none(),
+                "frame {frame}: no save readback may be spawned without an action"
+            );
+        }
+
+        // Counterfactual: the SAME projection binds as soon as a client dispatches the Stage click.
+        let pre = tree_for(&Mt117InteropActionCompletion::default(), &semantic);
+        {
+            let mut channel = app.mcp_action_channel.lock().expect("action channel");
+            channel
+                .enqueue(&pre, TARGET, UiAction::Click)
+                .expect("the MT-117 Stage target is steerable");
+            channel.drain_revalidated_into_events(&pre);
+        }
+        let mut projected = pre.clone();
+        app.project_mt117_interop_action_completion(&mut projected);
+        assert!(
+            app.mt117_interop_action_completion.is_pending(),
+            "a dispatched Stage click must arm the observer, so the inert result above is not vacuous"
+        );
+    }
+
     #[test]
     fn mt117_applied_requires_the_exact_generation_transition() {
         let (pre, mut observer, semantic) = bound();

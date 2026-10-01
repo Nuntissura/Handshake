@@ -1651,7 +1651,7 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
         3,
         "OP-04 Stage edge dispatches exactly three canonical actions, each terminally bound"
     );
-    stage_argus.finish();
+    stage_argus.finish_require_no_indeterminate();
 
     // Calendar: today's canonical rows -> mounted journal loader -> stable AccessKit event activation.
     let today = chrono::Local::now().date_naive();
@@ -1864,7 +1864,7 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
         2,
         "OP-04 Calendar edge dispatches exactly two canonical actions, each terminally bound"
     );
-    calendar_argus.finish();
+    calendar_argus.finish_require_no_indeterminate();
 
     // Locus: persisted reference -> mounted rich chip -> resolve and reverse lookup product effects.
     let wp_id = format!("WP-4-{}", &suffix[..8]);
@@ -2081,7 +2081,7 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
     verdict.stage("OP04_CLEANUP_BEFORE_ARGUS_TEARDOWN");
     assert_no_local_artifact_dir();
     fixtures.assert_cleanup();
-    locus_argus.finish();
+    locus_argus.finish_require_no_indeterminate();
     drop(stage_binding);
     drop(fixtures);
     be.assert_cleanup();
@@ -3264,7 +3264,7 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
     // FIRST, and teardown happens last (remediation item 6).
     verdict.stage("OP01_CLEANUP_BEFORE_ARGUS_TEARDOWN");
     fixtures.assert_cleanup();
-    argus.finish();
+    argus.finish_require_no_indeterminate();
     assert_manifest_entry_declares_pass(
         "OP-01",
         "other_pillar_op01_stage_route_embed_back_other_pillar_interop",
@@ -3643,7 +3643,7 @@ fn other_pillar_op02_calendar_bind_activity_span_other_pillar_interop() {
     // `SwarmMcpServer` and removes the native-MCP binding the MT-109 credential comes from.
     verdict.stage("OP02_CLEANUP_BEFORE_ARGUS_TEARDOWN");
     fixtures.assert_cleanup();
-    argus.finish();
+    argus.finish_require_no_indeterminate();
     assert_manifest_entry_declares_pass(
         "OP-02",
         "other_pillar_op02_calendar_bind_activity_span_other_pillar_interop",
@@ -3929,7 +3929,7 @@ fn other_pillar_op03_locus_resolve_reverse_other_pillar_interop() {
     // `SwarmMcpServer` and removes the native-MCP binding the MT-109 credential comes from.
     verdict.stage("OP03_CLEANUP_BEFORE_ARGUS_TEARDOWN");
     fixtures.assert_cleanup();
-    argus.finish();
+    argus.finish_require_no_indeterminate();
     assert_manifest_entry_declares_pass(
         "OP-03",
         "other_pillar_op03_locus_resolve_reverse_other_pillar_interop",
