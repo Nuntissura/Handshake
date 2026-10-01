@@ -3271,5 +3271,36 @@
         "state_effect": "lifecycle.status FAIL_V12"
       }
     ]
+  },
+  "diagnosis_20261001_bcv_fr_stall": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-153-20261001-BCV-FR-STALL-HYPOTHESIS",
+    "kind": "blocker_diagnosis",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T11:16:42Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "method": "round logs + retained store/WAL scans + file mtimes + code reading (no run)",
+    "failure_class": "MOUNTED_BLOCK_VIEW_LOAD_TIMEOUT (recurred)",
+    "failing_assertion": "tests/test_block_collection_view.rs:2001 await_app_collection: view c11d6b64-9241-4fc1-bf39-e9f842881ae2 not loaded within 10 s (round 791a81dd; test 298.6 s vs 145.6 s in 7548bc72)",
+    "p1_status": "MT-153.json#diagnosis_20261001_view_outbox_publish_race / hypothesis_20261001_view_outbox_p1: NOT CONFIRMED - no 'Transaction conflict' logged this round and the timeout recurred; P1 code stays (no evidence it is harmful: it only re-reads/re-marks a Surreal row on a retryable conflict)",
+    "which_view": "c11d6b64 = the TABLE view (retained RocksDB WAL ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/e/wp-kernel-012/backend-runtime/r-ba3ad9886c6b6c80/s-368a110cf51f6ec4/81df6774-.../data/handshake-surreal/000004.log places it next to title 'mt027-251700-...-table'; Flight Recorder WAL lists it as the first view_def created)",
+    "which_await": "the mounted-table section (:2563-2660): kind->table (:2568), ->kanban (:2587), ->calendar (:2606), ->table (:2625), title sort (:2647), each a definition PATCH then a requery. The Flight Recorder WAL holds exactly four c11d6b64 view_definition updates after the calendar range update (011450f1), i.e. the four kind switches; no event for the sort PATCH -> the failing await is :2647 (sort) or the requery after the 4th switch (:2625); the output gives no line of the await call site (await_app_collection panics inside the helper)",
+    "timeline": {
+      "backend.stdout.log": "last line 11:00:42.94Z (workspace create); no later route/info/warn/error line - in particular NO 'workspace deleted', 'workspace delete transaction failed' or 'Flight Recorder workspace purge failed' line for the teardown delete",
+      "flight_recorder.db.wal": "last write 11:01:33.02Z (mtime) = right after the 4th table update event",
+      "handshake-surreal/000004.log": "last write 11:04:53.93Z (mtime); its tail contains fems_workspace_write_anchors writes = the teardown workspace delete transaction committed (WAL is written at commit)",
+      "api/workspaces.rs ~758-795": "after the DB commit the delete handler calls flight_recorder.delete_workspace_events then record_event(audit) and only then logs 'workspace deleted' - neither the success line nor either FR-failure line was logged",
+      "native stderr": "'WARN: pre-reap owned fixture logout unverified' (logout request did not complete)",
+      "previous round 7548bc72 (same class, calendar view)": "FR WAL last write 09:36:47.99Z, the request-path 'Resource busy' at 09:36:48.13Z (140 ms later); the teardown delete there reached the DB guard and logged (statement 20 denial happens before any FR call)"
+    },
+    "hypothesis": "HYPOTHESIS (new, evidence-based): Flight Recorder operations stop completing at a point in the run (DuckDbFlightRecorder holds one std::sync::Mutex<DuckDbConnection> around every blocking DuckDB call, flight_recorder/duckdb.rs:26/1103 etc.; a holder that never releases, or a DuckDB call that never returns, blocks every later FR caller); request paths that publish to FR after their durable write then never answer: the view PATCH (update_block_view -> reconcile_block_view_events -> record_block_view_event_idempotent -> list_events/record_event) and the teardown workspace delete (FR purge + audit after commit). The mounted view stays in_flight/error -> 10 s await timeout. Not attributable to this round's commits: none touches flight_recorder/ or the FR call sites (P1 touches only a Surreal outbox UPDATE; route (a) only fn::mt120_workspace_delete)",
+    "unknowns": [
+      "which operation holds or blocks the FR connection (background block-view reconciler every 15 s, the Argus receipt reads through the FR route, another FR consumer) - no lock-wait instrumentation exists",
+      "whether the 7548bc72 'Resource busy' was the first symptom or a coincidence"
+    ],
+    "proposed_next": "NAMED diagnostic run (CX-EXEC-014) before any fix: in api/loom.rs (MT-153 path) time every FR call on the block-view publication path and in the background reconciler and log a warn with the operation, event id and elapsed when it exceeds 2 s (and when it completes), so the next round shows whether FR calls block and which caller; flight_recorder/duckdb.rs (not an MT-153 path) untouched unless the owner approves a lock-wait watchdog there",
+    "attempt_rule": "a fix needs this new hypothesis confirmed; if the next fix fails -> escalate",
+    "ref": "MT-153.json#diagnosis_20261001_bcv_fr_stall"
   }
 }

@@ -1689,5 +1689,26 @@
         "state_effect": "lifecycle.status FAIL_V12"
       }
     ]
+  },
+  "diagnosis_20261001_ac10_move_deadline": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-042-20261001-AC10-SHARED-MOVE-DEADLINE",
+    "kind": "classification",
+    "recorded_before_edit": true,
+    "recorded_at_utc": "2026-10-01T11:16:42Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "method": "failure output + test code + schema code path (no run)",
+    "failure_class": "MOUNTED_KANBAN_ACCESSKIT_RECONCILE_TIMEOUT",
+    "failing_assertion": "tests/test_e7_knowledge_accesskit.rs:2509 'mounted collection AccessKit tree did not reconcile the moved row/lane' (round 791a81dd); passed in d9ce6017 and 7548bc72",
+    "from_output_only": "the persist/refetch loop (:2466-2486, its own assertion text not printed) completed; the UI loop (:2490-2511) then hit the SAME move_deadline (Instant set once at :2465, 5 s). The output carries no timing, so how much of the 5 s persist/refetch consumed and whether the UI reconcile was progressing are NOT determinable from the output",
+    "structure": "the persist loop polls the backend through a separate BlockViewClient; the mounted host must still receive its own PATCH response, requery and render inside whatever remains of the same 5 s - a slower move PATCH shrinks the UI window",
+    "round_commit_narrowing": {
+      "P1 (block_view_outbox.rs)": "not on the card-move path (the move PATCH writes no outbox row)",
+      "route (a) attempt 2 (fn::mt120_workspace_delete W-B)": "IS on the card-move path: the F2 move transaction's `DELETE $del_record` evaluates loom_edges FOR delete WHERE (A) OR fn::mt120_workspace_delete(...) OR (endpoint clause) (schema.surql:567), and for tag edges A is false at its first term so W runs in full on every card move (MT-153.json#analysis_20261001_schema_hygiene); 1ff1821f adds per knowledge entity a LET, record::exists and an IF expression (8ff1565d added a deref) to that evaluation - extra cost per move, magnitude unmeasured",
+      "pins / test-only commits": "no runtime effect"
+    },
+    "classification": "product-plausible, not proven: the round's W-B change lengthens every card-move DELETE that already sits inside the shared 5 s budget; infrastructure/host-load flakiness cannot be excluded from the output alone",
+    "proposed_next": "remove W from the card-move path instead of tuning it: reorder loom_edges FOR delete to `(A) OR (endpoint clause) OR fn::mt120_workspace_delete(...)` - semantics-preserving per MT-153.json#analysis_20261001_schema_hygiene (OR of side-effect-free, non-throwing operands; allow/deny identical) and removes the full W evaluation from every tag-edge delete; schema change -> re-pin; orchestrator decision",
+    "ref": "MT-153.json#diagnosis_20261001_ac10_move_deadline"
   }
 }
