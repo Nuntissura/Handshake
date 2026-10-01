@@ -219,8 +219,8 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "FAIL_V1",
-    "blocked_on": null,
+    "status": "BLOCKED",
+    "blocked_on": "Operator decision MT-167.json#operator_decision_request_20261001_ingestion_share_vs_ac_167_3 (stop clause applied after FAIL_V1: permission fan-out + ingestion share outside MT-167 paths)",
     "depends_on": [],
     "blocks": [
       "MT-008",
@@ -231,14 +231,15 @@
     "validator_verdict": "FAIL_V1",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_4d0da145.remediation_required",
+    "next_actor": "ORCHESTRATOR / Operator (decision on AC-167-3 scope and on keeping F-A)",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-167.json#implementation_record.owning_module_evidence",
       "MT-167.json#hypothesis_20261001_engine_cost_and_intended_fix",
       "MT-167.json#intent_20261001_f_a_go_conditions",
       "MT-167.json#adversarial_review_20261001_f_a",
-      "MT-167.json#operator_decision_request_20261001_ingestion_share_vs_ac_167_3"
+      "MT-167.json#operator_decision_request_20261001_ingestion_share_vs_ac_167_3",
+      "MT-167.json#diagnosis_20261001_4d0da145_projection_cost"
     ],
     "status_before_ready": "BLOCKED",
     "candidate_commit": "ee2345e94bf7f78ccb8e0920169d406e32baf14f",
@@ -250,7 +251,8 @@
     "validated_by": "WP_VALIDATOR-20260930-ORCH-SUB",
     "validated_at_utc": "2026-10-01T20:40:00Z",
     "validated_commit": "4d0da14584dc63e676a322527091caa933c4fc82",
-    "status_reason": "FAIL_V1 on 4d0da145 union round (validation_round_4d0da145)"
+    "status_reason": "FAIL_V1 on 4d0da145 union round (validation_round_4d0da145)",
+    "status_before_stop_clause": "FAIL_V1"
   },
   "scope": {
     "summary": "Bring the code-nav index route within Master Spec §2.3.14.17.3 (index update propagation <5 s target, 30 s max) by fixing the evidenced cause of persist_code_index_batch returning Ok(None) in 0 ms and falling back to the ~24 s per-file writer; prove with a median-of-N timing test.",
@@ -526,7 +528,14 @@
     "cross_reference": "MT-153.json#research_20261001_debug_backend_profile (status OPERATOR_DECISION_PENDING): the owned backend is a dev-profile (unoptimized) build incl. unoptimized RocksDB C++; the same uniform per-statement cost applies to the ingestion projection and to the code-index writes; a dependency-only opt-level override is the pending decision",
     "mt167_position": "MT-167 removes the cost inside knowledge_code_index/engine.rs only. Per its stop condition ('The Ok(None) cause lies outside both candidate modules ... record ... operator_decision_request; do not edit'), if engine.rs costs are removed but the < 5 s median stays out of reach because of the ingestion share, that is recorded as the blocker and no time is chased in other modules",
     "spec": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:4470-4478 §2.3.14.17.3 Index update propagation <5 s target / 30 s maximum",
-    "blocks": "MT-167 AC-167-3 median (not the engine.rs work); MT-008/064/065 stay BLOCKED until MT-167 has a verdict"
+    "blocks": "MT-167 AC-167-3 median (not the engine.rs work); MT-008/064/065 stay BLOCKED until MT-167 has a verdict",
+    "addendum_20261001_4d0da145": {
+      "at_utc": "2026-10-01T20:24:03Z",
+      "by": "KERNEL_BUILDER-20260930",
+      "new_evidence": "round 4d0da145: the code-index projection alone took 27.3 s for one 2-symbol file in the in-process core test (dev/test profile); cause = record-user permission predicate fan-out in schema.surql at dev per-evaluation cost (DX-MT-167-20261001-PROJECTION-PERMISSION-FANOUT); the approved backend dependency-opt override does not reach the core test process",
+      "scope_widened": "the < 5 s median is blocked by (1) the ingestion share (MT-154 module) and (2) the schema permission fan-out (MT-153/154 schema owners), not only by (1)",
+      "builder_recommendation": "option (c) re-scope AC-167-3; alternatives for the Operator: measure the median against the optimized (dependency-opt) build, or open a schema-owned MT to reduce the mt120/mt109 permission fan-out"
+    }
   },
   "hypothesis_20261001_engine_cost_and_intended_fix": {
     "schema_id": "hsk.mt_hypothesis@1",
@@ -855,5 +864,52 @@
         "state_effect": "lifecycle.status FAIL_V1"
       }
     ]
+  },
+  "diagnosis_20261001_4d0da145_projection_cost": {
+    "schema_id": "hsk.mt_diagnosis@1",
+    "diagnosis_id": "DX-MT-167-20261001-PROJECTION-PERMISSION-FANOUT",
+    "kind": "blocker_diagnosis",
+    "recorded_before_edit": true,
+    "rule": "CX-EXEC-003A",
+    "recorded_at_utc": "2026-10-01T20:24:03Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "method": "read-only: round log + code/schema reading (no run, no edit)",
+    "failure": "round 4d0da145 (MT-167 FAIL_V1): AC-167-3 warm-up 33.8 s with try_index_prepared_batch.projection = 27,346 ms for ONE file with 2 symbols; next request hit the 45 s client timeout (no median); EQUAL-COUNTS pass 1 equal, pass 2 not reached (timeout)",
+    "stage_evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/union-4d0da14584dc63e676a322527091caa933c4fc82.mt167_timing_stdout.txt: mt008 warm-up register_root 741 ms, prepare_files 24, persist_ingestion_batch 2649 (ingestion projection 1880), start_index_run 439, gap to batch 645, lookup_existing 13, event_ledger 0, projection 27346, finish_index_run 1794; total 33,752 ms. No per-statement breakdown exists in the log (the projection is one query_values call)",
+    "attempt_1_hypothesis_refuted": "H-A (cost = number of record-user transactions/signins) is REFUTED: the same file costs ~24 s through 18 per-file transactions (round b4faed35) and 27.3 s through ONE transaction. The cost is not per transaction",
+    "mechanism": {
+      "label": "HYPOTHESIS (strong; code arithmetic, not measured per statement)",
+      "what": "record-user PERMISSIONS predicate fan-out evaluated per row, at dev-profile per-query cost",
+      "predicates": [
+        "knowledge_entities FOR create -> fn::mt120_entity_write (schema.surql:7164) = mt120_index_source_write + loop over the entity's knowledge_entity_spans",
+        "knowledge_spans FOR create -> mt120_index_source_write (:3578)",
+        "knowledge_entity_spans FOR create -> mt120_entity_write(entity) AND mt120_index_source_write (:3618)",
+        "knowledge_edges FOR create -> fn::mt120_edge_write (:7171) = 2x mt120_entity_write (source, target; each looping that entity's spans) + loop over the edge's spans",
+        "knowledge_edge_spans FOR create -> mt120_edge_write AND mt120_index_source_write (:3649)",
+        "the batch's post-write verification SELECTs and FOR link loops (engine.rs PERSIST_CLEAN_CODE_BATCH) evaluate the SELECT predicates mt120_entity_read / mt120_edge_read (:7069, :7077), which again call mt120_index_source_read per entity and per evidence span",
+        "mt120_index_source_write (:7159) = fn::mt109_has_grant + fn::mt109_has_workspace_access; mt120_index_source_read (:7065) = fn::mt109_source_read (:6117) = up to 2x mt109_has_grant + mt109_has_workspace_access + 2-3 resource walks; each mt109 grant check = mt109_live_session (12 $auth record dereferences) + protected_resources lookup + resource_grants query + ~10 field dereferences (:6044-6110)"
+      ],
+      "arithmetic_mt008_batch": "rows: 4 entities, 4 spans, 3 entity_spans, 4 edges, 4 edge_spans (+1 code file, 1 receipt, 2 stale-link deletes); write predicates ~50 source-grant evaluations (edge and edge_span rows dominate: each re-checks both endpoint entities and their spans), verification reads ~65 more -> on the order of 100+ mt120 source checks = ~250-300 mt109 grant evaluations, each several queries/dereferences -> ~90 ms per grant evaluation explains 27 s",
+      "not_a_scan": "the lookups are indexed (pk_knowledge_entity_spans (entity_id, span_id) :3623, pk_knowledge_edge_spans :3654, protected_resources_external_unique :5810, resource_grants_exact_idx :5850); the test DB is fresh per test (few rows), so no table-size growth explains it; the R1 stale-link DELETE loop deletes nothing on a fresh workspace",
+      "classification": "uniform per-evaluation cost of the dev (unoptimized) build, AMPLIFIED by the schema's permission-predicate fan-out (structural, but in schema.surql permission functions owned by MT-153/154 and forbidden to MT-167). The approved backend dependency-opt override does not reach this in-process core test (test profile)"
+    },
+    "engine_rs_options_rejected": [
+      "removing or reducing the post-write verification SELECTs/FOR loops (~half the evaluations) would weaken the fail-closed guards (AC-167-5) - rejected",
+      "splitting or reordering rows does not change the per-row predicate count - no effect",
+      "a third engine change is not made (orchestrator rule: if uniform per-statement debug cost, apply the stop clause)"
+    ],
+    "f_a_value_note": "F-A (ee2345e9) delivers parity (EQUAL-COUNTS pass 1 equal) but no measured time saving (27.3 s vs ~24 s); its atomicity change stands. Whether to keep or revert F-A is for the orchestrator/Operator",
+    "downstream": "FEMS 11/33 fail at the seed POST /code-nav/index (test_fems_interop_proofs.rs:498, 8 s client timeout) and MT-008 ac006 (:331) are consistent with the same projection cost"
+  },
+  "stop_clause_20261001": {
+    "schema_id": "hsk.mt_stop_clause@1",
+    "recorded_at_utc": "2026-10-01T20:24:03Z",
+    "recorded_by": "KERNEL_BUILDER-20260930",
+    "clause": "execution.stop_conditions[2]: 'Meeting the <5 s median needs schema/permission changes: stop and record the blocker (schema owners MT-153/154).' and the GO condition 'if engine.rs costs are removed but the < 5 s median remains out of reach ... record that as the blocker - do not chase time in other modules'",
+    "applied": true,
+    "basis": "DX-MT-167-20261001-PROJECTION-PERMISSION-FANOUT",
+    "blocker": "the code-index projection cost is dominated by record-user permission predicates (schema.surql mt120_*/mt109_* fan-out) at dev-profile per-evaluation cost, plus the ingestion share (knowledge_ingestion/engine.rs, MT-154); neither is an MT-167 path",
+    "operator_decision_request_ref": "MT-167.json#operator_decision_request_20261001_ingestion_share_vs_ac_167_3 (now also covers the permission fan-out); recommended option (c): re-scope AC-167-3 (keep the 30 s maximum on the full route as a target for the optimized/backend profile, measure the < 5 s target only where it is achievable, or defer the median to the optimized profile) - Operator decision",
+    "no_further_engine_change": true
   }
 }
