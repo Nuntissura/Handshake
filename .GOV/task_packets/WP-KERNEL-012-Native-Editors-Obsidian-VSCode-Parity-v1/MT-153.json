@@ -5061,5 +5061,39 @@
     "command": "cd src/backend/handshake_core && HANDSHAKE_ARTIFACTS_ROOT=<abs artifacts root> cargo nextest run -p handshake_core --lib --features app-runtime,surreal-test-support,test-utils --no-capture -E 'test(=api::loom::tests::mt153_owner_workspace_delete_removes_saved_view)'",
     "cleanup": "per-test embedded store released by the EmbeddedTestBackend guard; LoomCreateBinding tempdir dropped",
     "stays": "kept (acceptance proof for the W widening, not a diagnostic)"
+  },
+  "remediation_20261001_route_a_8ff1565d": {
+    "schema_id": "hsk.mt_remediation_partial@1",
+    "by": "KERNEL_BUILDER-20260930",
+    "at_utc": "2026-10-01T08:27:29Z",
+    "kind": "route (a) schema change pushed; NOT resubmitted - awaiting validator PIN-MEASURE (schema_repin_procedure step 3), then pin update commit, then one union round with PIN-CONFIRM",
+    "commit": "8ff1565d18ceb9082edacbaa14c38985e607f5d8",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 8ff1565d18ceb9082edacbaa14c38985e607f5d8",
+    "builds_on": "f98e1e20 (partial remediation: Argus binding assert + MT-152 keyed_lock pin path)",
+    "changes": {
+      "schema.surql": "fn::mt120_workspace_delete: W-A `} ELSE IF $block.content_type != 'view_def' {` (standalone-block loop); W-B `LET $entity_block = type::record('loom_blocks', $entity.entity_key); IF ($entity_block.content_type != 'view_def' OR $entity_block.workspace_id != $workspace) AND array::len(...) != 1 { RETURN false; };` (entity loop); +3/-2 lines, no other schema text changed",
+      "schema.rs": "MT153_WORKSPACE_DELETE_VIEW_DEF_DELTAS (cfg(test), 2 (current, previous) pairs) reverted FIRST in restore_pre_indexed_grant_schema with exactly-once asserts; indexed_grant_upgrade_statements re-emits fn::mt120_workspace_delete; NO pin constant changed; NO PREDECESSOR constant touched",
+      "api/loom.rs": "new test api::loom::tests::mt153_owner_workspace_delete_removes_saved_view (tests module only)"
+    },
+    "delta_check": "scratch delta_check.py: each pair's current occurs exactly once in schema.surql; applying the pairs to schema.surql@8ff1565d reproduces schema.surql@f98e1e20 byte-exactly; schema.surql numstat 3/2",
+    "lane_quiet": "before the edit: product worktree clean (lane B no uncommitted files), 0 cargo/rustc processes; other worktrees are other WP branches",
+    "implementer_checks": [
+      {
+        "command": "cargo check --locked -j 4 --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "src/backend/handshake_core",
+        "exit_code": 0,
+        "inputs": "8ff1565d backend files",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-153/kb-20260930/check-route-a2.log",
+        "new_warnings": 0
+      }
+    ],
+    "gameplan": "before_submit kernel_builder PASS 2/2 at 8ff1565d; GP-158 confirmed: loom_store.rs/database.rs unchanged since d9ce6017 (empty diff) and the api/loom.rs hunk is test-module only (@@ +10001,115 inside mod tests at :6670), so the edge/counter transactions are untouched",
+    "next": [
+      "validator: MT-153-PIN-MEASURE on 8ff1565d (expected exit 101; prints the new current pins)",
+      "builder: one commit updating ONLY current pins in schema.rs (GENERATED_SURREALQL_SHA256, DECLARATIVE_SCHEMA_CATALOG_SHA256, EXPECTED_SCHEMA_INFO_SHA256, EXPECTED_ATELIER_CATALOG_SHA256, MT109 Loom/authority current pins) from that output",
+      "one union round: MT-153-PIN-CONFIRM + MT-153/027/042 + api::loom::tests::mt153_owner_workspace_delete_removes_saved_view + MT-154/157/158/159 pin proofs via selection"
+    ],
+    "risk": "no SCHEMA_REVISION bump (precedent MT-166/MT-157 inside the in-flight revision): a dev store already at revision 162 with the old guard would not match the new current pin",
+    "open_item": "d5f5d8e3 (2026-09-29, single 'file' block, no view) not explained by this fix"
   }
 }
