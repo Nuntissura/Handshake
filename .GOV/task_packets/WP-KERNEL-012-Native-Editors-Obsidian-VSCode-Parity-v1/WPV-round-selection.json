@@ -1,5 +1,5 @@
 {
-  "candidate": "e4566f11265a59d769dc8e3701576081bfdbd166",
+  "candidate": "fea3ce0a509ae54f669fb122bf1bf64e68cb1421",
   "prior_native_proof": "8ea13a9b6650eecc819acfacbbf0c5d8299e9f75",
   "changed_native_test_bins": [
     "test_calendar_interop",
@@ -11,13 +11,12 @@
     "test_tags_panel"
   ],
   "native_src_changed": false,
-  "planned_native_tests_estimate": 80,
+  "planned_native_tests_estimate": 32,
   "core_lib": [
     "api::loom::tests::mt153_loom_route_family_authority_matrix",
     "api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows",
     "api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit",
-    "api::workspaces::tests::mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default",
-    "api::loom::tests::mt109_c3_record_user_assets_collections_and_views"
+    "api::workspaces::tests::mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default"
   ],
   "core_whole": [
     "loom_daily_journal_tests",
@@ -31,31 +30,9 @@
     "lib": "mt136_database_surface_proof_(a|b|c)::*"
   },
   "native_whole_binaries": [
-    "test_manual_content",
-    "test_manual_pane_editors",
-    "test_stage_interop"
+    "test_e7_knowledge_accesskit"
   ],
   "per_mt": {
-    "MT-023": {
-      "run": [
-        "test_tags_panel::proof2_three_tag_rows_present",
-        "test_tags_panel::proof3_search_filter_narrows_rows",
-        "test_tags_panel::ac3_tag_click_fires_open_tag",
-        "test_tags_panel::ac8_empty_no_tags",
-        "test_tags_panel::proof4_hub_page_title_and_members",
-        "test_tags_panel::ac5_member_click_fires_open_member",
-        "test_tags_panel::proof5_add_tag_selects_candidate_and_fires_edge",
-        "test_tags_panel::proof5_tag_edge_request_shape",
-        "test_tags_panel::tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip",
-        "test_tags_panel_argus::mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve",
-        "test_tags_panel_argus::mt023_mounted_tags_panel_empty_state_canonical_argus"
-      ],
-      "reuse": [
-        "lib::graph::tags_panel::tests::filtered_tags_prefix_match",
-        "lib::graph::tags_panel::tests::empty_tags_is_empty"
-      ],
-      "core": "loom_atomic_receipt_tests mt023_ (see CORE list)"
-    },
     "MT-027": {
       "run": [
         "test_block_collection_view::block_collection_views_live_surrealdb_self_seed_full_round_trip"
@@ -79,17 +56,11 @@
       ],
       "core": "loom_block_collection_views_tests exact list (6) (see CORE list)"
     },
-    "MT-066": {
+    "MT-042": {
       "run": [
-        "test_stage_interop::*"
+        "test_e7_knowledge_accesskit::*"
       ],
-      "reuse": [
-        "lib::interop::stage_interop::tests::build_from_text_range_selection",
-        "lib::interop::stage_interop::tests::build_from_canvas_node_payload",
-        "lib::interop::stage_interop::tests::embed_back_builds_mt014_hslink_with_provenance",
-        "lib::interop::stage_interop::tests::embed_back_endpoint_absent_is_typed_blocker"
-      ],
-      "core": "wp_kernel_012_native_editor_routes_tests route2_stage_artifact_create_and_resolve (see CORE list)"
+      "reuse": []
     },
     "MT-079": {
       "run": [],
@@ -119,36 +90,9 @@
         "test_theme::no_hardcoded_color32_outside_theme_module"
       ]
     },
-    "MT-113": {
-      "run": [
-        "test_author_id_budget::mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
-        "test_manual_content::*",
-        "test_manual_pane_editors::*"
-      ],
-      "reuse": [
-        "lib::find_in_files::tests::mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize",
-        "lib::find_in_files::tests::mt113_measured_regression_inputs_now_compose_in_budget",
-        "lib::find_in_files::tests::mt113_every_route_that_fits_is_byte_identical_to_the_legacy_composition",
-        "lib::find_in_files::tests::mt113_bookmark_stable_id_is_byte_identical_where_it_fits_and_still_dedups",
-        "lib::find_in_files::tests::mt113_bounded_routes_stay_injective_across_both_regimes",
-        "lib::find_in_files::tests::mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity",
-        "lib::find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token",
-        "lib::find_in_files::tests::mt113_mt029_exact_reversibility_contract_is_unchanged",
-        "lib::find_in_files::tests::mt113_baseline_long_query_bookmark_remove_completion_token_is_silently_dropped",
-        "lib::find_in_files::tests::mt113_baseline_twenty_three_character_query_is_the_first_failing_input",
-        "lib::mcp::action::tests::mt113_over_budget_pending_target_is_loud_at_authoring_time",
-        "lib::mcp::action::tests::mt113_over_budget_observer_author_id_is_loud_at_authoring_time",
-        "lib::mcp::action::tests::mt113_completion_unavailable_marker_names_the_failure_at_the_proof_surface",
-        "lib::mcp::action::tests::mt113_author_budget_is_the_stricter_of_the_two_so_siblings_cannot_diverge",
-        "test_find_in_files::accesskit_result_ids_are_utf8_injective_and_exactly_reversible",
-        "lib::find_in_files::tests::result_author_id_is_injective_and_reversible"
-      ]
-    },
     "MT-122": {
       "run": [
-        "test_author_id_budget::mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
-        "test_manual_content::*",
-        "test_manual_pane_editors::*"
+        "test_author_id_budget::mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query"
       ],
       "reuse": [
         "lib::find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane",
