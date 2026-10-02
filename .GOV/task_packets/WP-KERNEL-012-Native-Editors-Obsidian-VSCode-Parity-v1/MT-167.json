@@ -1211,7 +1211,8 @@
         "run4": 33841,
         "run5_partial_before_timeout": 42782
       },
-      "observation": "try_index_prepared_batch.projection grows ~+6.3 s per repeated index of the SAME 1-file shape in the same workspace (7.5 -> 12.7 -> 19.0 -> 25.7 -> 33.8 -> 42.8 s); other stages flat (ingestion 0.7-1.0 s, finish 0.5-0.9 s); vs 4d0da145 dev-profile warm-up projection 27.3 s -> 7.5 s at O2 (~3.7x)"
+      "observation": "try_index_prepared_batch.projection grows ~+6.3 s per repeated index of the SAME 1-file shape in the same workspace (7.5 -> 12.7 -> 19.0 -> 25.7 -> 33.8 -> 42.8 s); other stages flat (ingestion 0.7-1.0 s, finish 0.5-0.9 s); vs 4d0da145 dev-profile warm-up projection 27.3 s -> 7.5 s at O2 (~3.7x)",
+      "observation_correction_20261002": "CORRECTION: the attempt-2 observation said 'repeated index of the SAME 1-file shape in the same workspace'; the timing test creates a fresh workspace per sample (same account, same database), so the growth tracks rows accumulated in the database across workspaces (see MT-167.json#targeted_result_20261002_dbdae422.ac_167_3_timing.test_structure)"
     },
     "equal_counts": {
       "result": "FAIL (request timeout on the third, parity-only rich shape; tests/mt167_code_nav_index_cost_tests.rs:161)",
@@ -1470,5 +1471,118 @@
       "core test": "dev/test + 8-crate opt-level 2; check_test_profile on the -v core log; runner gets the same --config (GP-162)"
     },
     "result_key": "MT-167.json#targeted_result_20261002_dbdae422"
+  },
+  "targeted_result_20261002_dbdae422": {
+    "schema_id": "hsk.targeted_run_result@1",
+    "kind": "TARGETED evidence run PHASE A (core); no verdict; MT-167 core items FAIL -> phase B (native) and union round not run (orchestrator rule)",
+    "remediation_ref": "MT-167.json#remediation_20261002_targeted_dbdae422",
+    "recorded_by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "recorded_at_utc": "2026-10-02T00:50:00Z",
+    "candidate_commit": "dbdae422e64113b18975f90f87ed34738f853a04",
+    "run": {
+      "bash_start_utc": "2026-10-02T00:03:42.8172116Z",
+      "completed_utc": "2026-10-02T00:34:20.2961800Z",
+      "wrapper_exit": 0,
+      "core_nextest_exit": 100,
+      "core_tests": 28,
+      "core_failed": 5,
+      "refs": {
+        "core_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-dbdae422e64113b18975f90f87ed34738f853a04-core-targeted.xml",
+        "stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-dbdae422e64113b18975f90f87ed34738f853a04.stdout.log",
+        "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-dbdae422e64113b18975f90f87ed34738f853a04.stderr.log",
+        "core_build_v": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/core-build-v-dbdae422e64113b18975f90f87ed34738f853a04-targeted.log",
+        "timing_stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-dbdae422e64113b18975f90f87ed34738f853a04.mt167_code_nav_index_median_within_spec_baseline.stdout.txt",
+        "equal_counts_stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-dbdae422e64113b18975f90f87ed34738f853a04.mt167_batch_and_per_file_writer_produce_equal_rows.stdout.txt"
+      },
+      "sha256": {
+        "core_junit": "fe16e282c9b11058625804653ae2f6128d7d45593c7f8c4dad6499056490544d",
+        "stdout": "3329131143902bc304ff6d99201b6809046abe448d227d0edfa4338f6bdc6c98",
+        "stderr": "f6c67a1076f878e11280eb07e29237198591fd5beb5c77f63008907f9e25f957",
+        "core_build_v": "def3568218c5c57aa54f814f81cce85e3078d4f5807da8a60b0aa5f5ed51f691",
+        "timing_stdout": "522f7771d51fd7ed667d623a8b38d1bd66f717dfc8b5184c0ecfbebad575760f",
+        "equal_counts_stdout": "c43e855e547da222304e6f0d53d503eb4a82dac1461da9015d137abfcaad53ee"
+      },
+      "rebuild_accounting": "compiled_crates=1 (handshake_core) relinked_test_binaries=19 backend_bin_relinked=0"
+    },
+    "build_profile": {
+      "core_test": "dev/test + 8-crate opt-level 2",
+      "test_profile_proof": "compiled_o2=0 fresh=8 absent=0 bad=0 (handshake_core recompiled without O2)",
+      "backend": "not built (phase A)"
+    },
+    "ac_167_3_timing": {
+      "samples_ms": {
+        "run0 warm-up": 9230,
+        "run1": 12601,
+        "run2": 21126,
+        "run3": 28125,
+        "run4": 36244,
+        "run5": "request > 45 s client bound (tests/mt167_code_nav_index_cost_tests.rs:162 TimedOut); MT167_TIMING_SUMMARY not printed"
+      },
+      "projection_ms_per_run": {
+        "run0": 7558,
+        "run1": 10846,
+        "run2": 18976,
+        "run3": 25906,
+        "run4": 33677,
+        "run5_partial": 42850
+      },
+      "hypothesis_projection_flat": "REFUTED: projection still grows ~7 s per sample (7.6 -> 10.8 -> 19.0 -> 25.9 -> 33.7 -> 42.9 s), same curve as 222b33cc attempt 2",
+      "test_structure": "each sample indexes into a FRESH workspace (test file lines 1-8 and 215-217: account.owner.create_workspace per run; 6 distinct workspace ids in the stage log), same account and same embedded database; so the growth tracks rows accumulated across workspaces in the database, not re-index of one workspace",
+      "verdict_input": "AC-167-3 NOT MET: 4 of 5 timed samples completed (12.6, 21.1, 28.1, 36.2 s), median not computable and > 5 s, run4 36.2 s > 30 s maximum"
+    },
+    "equal_counts": {
+      "result": "FAIL (request timeout on the third, parity-only rich shape at :162, 134.9 s)",
+      "completed_sets": {
+        "mt008-fixture pass 1": {
+          "batch": {
+            "edge_spans": 4,
+            "edges": 4,
+            "entities": 4,
+            "entity_spans": 3,
+            "spans": 4
+          },
+          "per_file": "identical"
+        },
+        "mt008-fixture pass 2": {
+          "batch": {
+            "edge_spans": 4,
+            "edges": 4,
+            "entities": 4,
+            "entity_spans": 3,
+            "spans": 4
+          },
+          "per_file": "identical"
+        },
+        "fems-seed pass 1": {
+          "batch": {
+            "edge_spans": 2,
+            "edges": 2,
+            "entities": 4,
+            "entity_spans": 2,
+            "spans": 2
+          },
+          "per_file": "identical"
+        },
+        "fems-seed pass 2": {
+          "batch": {
+            "edge_spans": 2,
+            "edges": 2,
+            "entities": 4,
+            "entity_spans": 2,
+            "spans": 2
+          },
+          "per_file": "identical"
+        }
+      },
+      "new_pass2_eq_pass1_assertion": "holds for mt008-fixture and fems-seed (edge_spans/entity_spans no longer accumulate: 222b33cc mt008 pass 2 had edge_spans 8, entity_spans 4); not reached for the rich shape"
+    },
+    "account_test": "PASS (23.5 s)",
+    "existing_tests": {
+      "knowledge_code_index_tests": "PASS 22/22",
+      "knowledge_code_nav_api_tests": "FAIL 0/3, same three as since 2026-09-24 (mt045_lc06 timeout :167, mt106 'add present' :571, mt106 'add in lookup' :316)"
+    },
+    "not_run": "phase B native downstream and the union round (MT-167 core items failed)",
+    "credentials": "252/33 before and after",
+    "other": "observer 57 polls, 0 errors, no spin; runtime 148 (+1 preserved store)"
   }
 }
