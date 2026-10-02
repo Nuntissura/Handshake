@@ -20,13 +20,13 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-02T09:15:00Z",
+  "updated_at_utc": "2026-10-02T09:35:00Z",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
     "title": "E5-MT-168-Index-Bound-Grant-Predicates-And-Workspace-Delete-Scans",
     "version": 1,
-    "contract_revision": 2
+    "contract_revision": 3
   },
   "closure_unit": {
     "outcome": "Every record-user grant check (fn::mt109_has_grant, fn::mt109_has_workspace_access, fn::mt109_source_read, fn::mt120_document_access, fn::mt109_ledger_access) and the resource/grant scans of fn::mt120_workspace_delete (W) are served by indexes, so their cost no longer grows with resource_grants / protected_resources rows owned by other workspaces; allow/deny semantics unchanged.",
@@ -105,7 +105,9 @@
     "allowed_write_paths": [
       "src/backend/handshake_core/src/storage/surreal/schema.surql (only the seven grant function bodies named in AC-168-2 rev 2, the fn::mt120_workspace_delete body, one new protected_resources parent_resource_id index, and new helper fns if AC-168-2/3 need them)",
       "src/backend/handshake_core/src/storage/surreal/schema.rs (only the revision/GENERATED/INFO pins and upgrade entries this change forces, MT-164 AC-164-5 pattern)",
-      "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (timing tests only)"
+      "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (timing tests only)",
+      "src/backend/handshake_core/src/storage/surreal/workspaces.rs (only the delete_account_workspace $children lookup, :540 at 6846e7d4)",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs (only the grant lookup statement at :1195 at 6846e7d4)"
     ],
     "forbidden_write_paths": [
       "app/src/**",
@@ -241,14 +243,16 @@
       "MT-153.json#analysis_20261001_step1_w_scans_ownership",
       "MT-167.json#diagnosis_20261002_dbdae422_grant_table_scan"
     ],
-    "candidate_commit": "6846e7d444ca643d0944f4fe1cae726314f6bd06"
+    "candidate_commit": "a721de1d356082b9a1eadac3491c38f8755d8927"
   },
   "scope": {
     "summary": "Make grant checks and W resource/grant scans index-served (key-first all-AND lookups with bare LET params; new parent_resource_id index) so their cost is independent of other workspaces' rows; semantics unchanged.",
     "allowed_paths": [
       "src/backend/handshake_core/src/storage/surreal/schema.surql (only the seven grant function bodies named in AC-168-2 rev 2, the fn::mt120_workspace_delete body, one new protected_resources parent_resource_id index, and new helper fns if AC-168-2/3 need them)",
       "src/backend/handshake_core/src/storage/surreal/schema.rs (only the revision/GENERATED/INFO pins and upgrade entries this change forces, MT-164 AC-164-5 pattern)",
-      "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (timing tests only)"
+      "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (timing tests only)",
+      "src/backend/handshake_core/src/storage/surreal/workspaces.rs (only the delete_account_workspace $children lookup, :540 at 6846e7d4)",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs (only the grant lookup statement at :1195 at 6846e7d4)"
     ],
     "forbidden_paths": [
       "app/src/**",
@@ -475,6 +479,24 @@
         "command": "same as PR-WP012-MT168-KB-CHECK-01",
         "warnings": "schema.rs warning set identical to CHECK-01 (no new warning)",
         "static": "rustfmt --check schema.rs exit 0; GENERATED/DECLARATIVE recomputed by a Python port of compiled_schema_catalog_entries that reproduces the previous pins (50d3244b / 46477292) on the HEAD source"
+      },
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-04",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261002",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "a721de1d356082b9a1eadac3491c38f8755d8927",
+        "started_at_utc": "2026-10-02T09:25:41Z",
+        "completed_at_utc": "2026-10-02T09:30:38Z",
+        "exit_code": 0,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/logs/04-check-txn-scans-core.log",
+        "log_sha256": "c45003e9192ff68bf8e9b70b500e4d5b0ec311921ebfc03d9548268a1c06425e",
+        "input_digest_before_after": "equal: workspaces.rs a9462d9e..., resource_authority.rs 3e3a9dc7...",
+        "command": "same as PR-WP012-MT168-KB-CHECK-01",
+        "warnings": "only pre-existing warnings in these files (lookup_registered_resource unused; RecordUserScope visibility)",
+        "static": "rustfmt: resource_authority.rs clean; workspaces.rs has the same 59-line pre-existing deviation as HEAD (edit is inside a string literal)"
       }
     ]
   },
@@ -525,13 +547,21 @@
           "AC-168-3",
           "AC-168-6 (GENERATED + DECLARATIVE re-pinned, INDEX counts 817/556, upgrade emits index, rev-161 restore reverts MT168_WORKSPACE_DELETE_DELTAS)"
         ]
+      },
+      {
+        "sha": "a721de1d356082b9a1eadac3491c38f8755d8927",
+        "acs": [
+          "scope extension (operator_decision_request_20261002_delete_txn_children_scan answered): workspaces.rs $children, resource_authority.rs grant lookup"
+        ]
       }
     ],
     "remaining": [
       "AC-168-5: workspace-delete timing proof (needs an API-level record-user delete harness: delete_account_workspace requires session token, channel binding and grant ids) and unrelated-filler coverage for mt109_has_grant, mt120_loom_block_access, mt109_source_read, mt166_resource_select_grant, mt109_ledger_access",
       "runtime proof AC-168-4/5 and PIN-MEASURE by WP validator"
     ],
-    "ac_168_3_unchanged_lookups": "rich_document / loom_block / entity lookups in W are already all-AND on protected_resources_external_unique; the legacy planner computes $document.rich_document_id / $block.block_id (tree.rs:342-353), so they are index-served without edits. The 64 workspace consistency checks with IN-subqueries remain table scans (Expr::Select is Unsupported, plan.rs:80-86); not in AC-168-3"
+    "ac_168_3_unchanged_lookups": "rich_document / loom_block / entity lookups in W are already all-AND on protected_resources_external_unique; the legacy planner computes $document.rich_document_id / $block.block_id (tree.rs:342-353), so they are index-served without edits. The 64 workspace consistency checks with IN-subqueries remain table scans (Expr::Select is Unsupported, plan.rs:80-86); not in AC-168-3",
+    "open_finding_20261002": "workspaces.rs delete_account_workspace per-child $child_grant lookup (:543 at 6846e7d4) is also OR-shaped (full resource_grants scan per child); outside the approved two statements; not edited",
+    "new_planner_note": "resource_authority.rs grant query is a top-level read-only SELECT (default BestEffortReadOnlyStatements may use the new planner); its inner key-only SELECT uses $auth.* path params; index use under the new planner is NOT_INSPECTED - validator timing evidence decides"
   },
   "dispatch_20261002": {
     "authorized_by": "OPERATOR",
@@ -552,7 +582,7 @@
     "rule": "KB-IMPL-006; CX-CAP-001",
     "by": "KERNEL_BUILDER-20261002",
     "recorded_at_utc": "2026-10-02T09:15:00Z",
-    "status": "open",
+    "status": "answered",
     "finding": "src/backend/handshake_core/src/storage/surreal/workspaces.rs:540 (delete_account_workspace transaction) runs `SELECT id, resource_kind FROM protected_resources WHERE parent_resource_id = $resource OR parent_resource_id.parent_resource_id = $resource` - the same OR/two-hop full protected_resources scan MT-168 removed from W; it runs in the same workspace delete, so it can mask the AC-168-3 gain. Also resource_authority.rs:1195 OR-shaped grant lookup (contract_revision_2_20261002.out_of_scope_finding)",
     "question": "Extend MT-168 allowed_paths to workspaces.rs (the $children lookup only) and resource_authority.rs:1195 (grant lookup only), or leave them (another owner / accept cost)?",
     "options": [
@@ -560,6 +590,12 @@
       "route to another MT/owner",
       "accept current cost"
     ],
-    "effect_until_answered": "MT-168 does not edit those files; continues within its paths"
+    "effect_until_answered": "MT-168 does not edit those files; continues within its paths",
+    "answer": {
+      "chosen_option": "Extend MT-168 (Recommended)",
+      "authorized_by": "OPERATOR",
+      "method": "AskUserQuestion 2026-10-02",
+      "recorded_at_utc": "2026-10-02T09:20:00Z"
+    }
   }
 }
