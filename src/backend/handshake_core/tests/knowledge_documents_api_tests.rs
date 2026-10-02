@@ -3660,3 +3660,169 @@ async fn mt120_authenticated_save_stamps_derived_principal_without_rebinding_act
         .await
         .expect("cleanup embedded knowledge test store");
 }
+
+/// A standalone `note` Loom block created through the real Loom route by the client's owner.
+async fn mt170_create_note(
+    base: &str,
+    http: &reqwest::Client,
+    workspace_id: &str,
+    title: &str,
+) -> String {
+    let response = headers_with_kind(
+        http.post(format!("{base}/workspaces/{workspace_id}/loom/blocks")),
+        "mt170-note",
+        "operator",
+    )
+    .json(&json!({"content_type": "note", "title": title}))
+    .send()
+    .await
+    .expect("create standalone note");
+    assert_eq!(response.status(), 200, "standalone note create");
+    let body: Value = response.json().await.expect("standalone note body");
+    body["block_id"]
+        .as_str()
+        .expect("standalone note id")
+        .to_string()
+}
+
+/// MT-170 AC-170-2 / AC-170-4: a wikilink to a standalone same-workspace Loom block projects
+/// exactly one mention edge, readable through the Loom backlinks route and still one edge after a
+/// rebuild; links to a block in another workspace of the same owner, or to a block owned by another
+/// account, project nothing.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
+    let store = open_embedded_store()
+        .await
+        .expect("MT-170 requires isolated embedded-store proof");
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = owned_workspace(&store, &account).await;
+    let other_workspace_id = owned_workspace(&store, &account).await;
+    let stranger = OwnerSession::provision(&store.storage, account.binding_token()).await;
+    let stranger_workspace_id = owned_workspace(&store, &stranger).await;
+    let (base, http, _doc_server) = doc_server(&store, &account).await;
+    let (loom_base, loom_http, _loom_server) = loom_server(&store, &account).await;
+    let (stranger_loom_base, stranger_loom_http, _stranger_loom_server) =
+        loom_server(&store, &stranger).await;
+
+    let target_id = mt170_create_note(
+        &loom_base,
+        &loom_http,
+        &workspace_id,
+        "MT170 standalone target",
+    )
+    .await;
+    let other_workspace_id_block = mt170_create_note(
+        &loom_base,
+        &loom_http,
+        &other_workspace_id,
+        "MT170 other workspace",
+    )
+    .await;
+    let stranger_block = mt170_create_note(
+        &stranger_loom_base,
+        &stranger_loom_http,
+        &stranger_workspace_id,
+        "MT170 stranger note",
+    )
+    .await;
+
+    let source_response = headers_with_kind(
+        http.post(format!("{base}/knowledge/documents")),
+        "mt170-source",
+        "operator",
+    )
+    .json(&json!({
+        "workspace_id": workspace_id,
+        "title": "MT170 Source",
+        "content_json": {
+            "type": "doc",
+            "content": [{
+                "type": "paragraph",
+                "content": [{"type": "text", "text": format!(
+                    "see [[{target_id}]] and [[{other_workspace_id_block}]] and [[{stranger_block}]]"
+                )}]
+            }]
+        }
+    }))
+    .send()
+    .await
+    .expect("create MT-170 source document");
+    assert_eq!(source_response.status(), 200, "MT-170 source create");
+    let source: Value = source_response.json().await.expect("MT-170 source body");
+    let source_id = source["document"]["rich_document_id"]
+        .as_str()
+        .expect("MT-170 source id")
+        .to_string();
+
+    let mention_edges_to = |edges: &[handshake_core::storage::LoomEdge], target: &str| {
+        edges
+            .iter()
+            .filter(|edge| {
+                edge.source_block_id == source_id
+                    && edge.target_block_id == target
+                    && edge.edge_type == LoomEdgeType::Mention
+            })
+            .count()
+    };
+    let edges = store
+        .db
+        .list_loom_edges_for_block(&workspace_id, &source_id)
+        .await
+        .expect("MT-170 edge readback");
+    assert_eq!(
+        mention_edges_to(&edges, &target_id),
+        1,
+        "a wikilink to a standalone same-workspace block projects exactly one mention edge"
+    );
+    assert_eq!(
+        mention_edges_to(&edges, &other_workspace_id_block),
+        0,
+        "a block in another workspace is never projected"
+    );
+    assert_eq!(
+        mention_edges_to(&edges, &stranger_block),
+        0,
+        "a block owned by another account is never projected"
+    );
+
+    let backlinks = headers_with_kind(
+        loom_http.get(format!(
+            "{loom_base}/workspaces/{workspace_id}/loom/blocks/{target_id}/backlinks"
+        )),
+        "mt170-backlinks",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("MT-170 Loom backlinks");
+    assert_eq!(backlinks.status(), 200, "MT-170 Loom backlinks route");
+    let backlinks: Value = backlinks.json().await.expect("MT-170 Loom backlinks body");
+    assert!(
+        backlinks
+            .as_array()
+            .expect("Loom backlinks array")
+            .iter()
+            .any(|row| row["edge"]["source_block_id"] == source_id.as_str()),
+        "the projected edge is visible through the Loom backlinks route: {backlinks}"
+    );
+
+    let rebuild = headers_with_kind(
+        http.post(format!("{base}/knowledge/documents/{source_id}/backlinks")),
+        "mt170-rebuild",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("MT-170 backlink rebuild");
+    assert_eq!(rebuild.status(), 200, "MT-170 rebuild");
+    let edges = store
+        .db
+        .list_loom_edges_for_block(&workspace_id, &source_id)
+        .await
+        .expect("MT-170 edge readback after rebuild");
+    assert_eq!(
+        mention_edges_to(&edges, &target_id),
+        1,
+        "rebuild keeps exactly one projected mention edge"
+    );
+}

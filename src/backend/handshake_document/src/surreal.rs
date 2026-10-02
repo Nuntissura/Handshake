@@ -236,6 +236,40 @@ pub fn backlink_write_binds(
     ]
 }
 
+/// MT-170 AC-170-3: why a wikilink did not become a Loom mention edge. Emitted as a typed
+/// `tracing` event (relationship id and reason only; never link text) instead of a silent skip.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BacklinkProjectionSkip {
+    /// The target block lives in another workspace; the backlink row is dropped.
+    ForeignWorkspace,
+    /// A `KRD-` target is not a live rich document; the backlink row is dropped.
+    MissingDocument,
+    /// The title matches only deleted documents; the backlink row is dropped.
+    DeletedTitle,
+    /// No live Loom block readable by the saver matches the target; the row stays textual.
+    NoReadableLoomTarget,
+}
+
+impl BacklinkProjectionSkip {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ForeignWorkspace => "foreign_workspace",
+            Self::MissingDocument => "missing_document",
+            Self::DeletedTitle => "deleted_title",
+            Self::NoReadableLoomTarget => "no_readable_loom_target",
+        }
+    }
+}
+
+fn log_projection_skip(relationship_id: &str, skip: BacklinkProjectionSkip) {
+    tracing::info!(
+        target: "handshake_document::backlinks",
+        relationship_id,
+        reason = skip.as_str(),
+        "knowledge backlink not projected to a Loom mention edge"
+    );
+}
+
 /// Ports the removed backend's wikilink resolution verbatim: exact live
 /// same-workspace Loom identity wins, cross-workspace ids are dropped, KRD ids
 /// must be live, ambiguous titles keep the prior live target or stay textual,
@@ -373,9 +407,17 @@ pub async fn resolve_backlink_rows(
         let target = if upsert.link_kind == "wikilink" && live_loom_ids.contains(&upsert.target) {
             upsert.target.clone()
         } else if upsert.link_kind == "wikilink" && foreign_loom_ids.contains(&upsert.target) {
+            log_projection_skip(
+                &upsert.relationship_id,
+                BacklinkProjectionSkip::ForeignWorkspace,
+            );
             continue;
         } else if upsert.link_kind == "wikilink" && upsert.target.starts_with("KRD-") {
             if !live_ids.contains(&upsert.target) {
+                log_projection_skip(
+                    &upsert.relationship_id,
+                    BacklinkProjectionSkip::MissingDocument,
+                );
                 continue;
             }
             upsert.target.clone()
@@ -389,7 +431,13 @@ pub async fn resolve_backlink_rows(
                 None if prior_live_target.is_some() => {
                     prior_live_target.expect("checked above").clone()
                 }
-                None if deleted_titles.contains(&upsert.target) => continue,
+                None if deleted_titles.contains(&upsert.target) => {
+                    log_projection_skip(
+                        &upsert.relationship_id,
+                        BacklinkProjectionSkip::DeletedTitle,
+                    );
+                    continue;
+                }
                 None => upsert.target.clone(),
             }
         } else {
@@ -404,6 +452,12 @@ pub async fn resolve_backlink_rows(
             ));
         }
         let project_to_loom = upsert.link_kind == "wikilink" && live_loom_ids.contains(&target);
+        if upsert.link_kind == "wikilink" && !project_to_loom {
+            log_projection_skip(
+                &upsert.relationship_id,
+                BacklinkProjectionSkip::NoReadableLoomTarget,
+            );
+        }
         resolved.push(ResolvedBacklink {
             backlink_id: new_knowledge_id("KDBL"),
             relationship_id: upsert.relationship_id,
