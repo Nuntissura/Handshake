@@ -4275,3 +4275,296 @@ async fn grant_check_cost_is_independent_of_unrelated_grant_rows() -> ResourceAu
     )
     .await
 }
+
+const MT168_PACK_CREATE: &str = "CREATE $record SET pack_id = record::id($record), workspace_id = $other, pack = {}, generated_at = time::now() RETURN AFTER;";
+const MT168_RECENT_CREATE: &str = "CREATE type::record($table, $record_id) SET workspace_id = $workspace, source_kind = 'document', ref_id = $record_id, hit_key = string::concat('document:', $record_id), result_kind = 'loom_block', title = 'MT-168 recent', event_ledger_event_id = type::record('kernel_event_ledger', $sentinel_id) RETURN AFTER;";
+const MT168_DELETE: &str = "DELETE $record RETURN BEFORE;";
+
+/// Median of [`GRANT_COST_SAMPLES`] timed record-user deletes after one warm-up delete; each delete
+/// removes a distinct row from `records` and must return exactly that row (no vacuous timing).
+async fn median_authorized_delete(
+    storage: &super::SurrealStorage,
+    scope: &RecordUserScope,
+    records: &mut Vec<RecordId>,
+    label: &str,
+) -> Result<Duration, Box<dyn std::error::Error>> {
+    let mut samples = Vec::with_capacity(GRANT_COST_SAMPLES);
+    for sample in 0..=GRANT_COST_SAMPLES {
+        let record = records.pop().expect("one seeded row per delete sample");
+        let (rows, elapsed) =
+            timed_record_user_rows(storage, scope.clone(), MT168_DELETE, record).await?;
+        assert_eq!(
+            rows.len(),
+            1,
+            "{label} sample {sample} must delete the authorized row"
+        );
+        if sample > 0 {
+            samples.push(elapsed);
+        }
+    }
+    samples.sort();
+    Ok(samples[samples.len() / 2])
+}
+
+/// MT-168 AC-168-5 (unrelated-row sibling of the MT-166 timing test): the protected_resources
+/// select grant (`fn::mt166_resource_select_grant`), the ledger access check
+/// (`fn::mt109_ledger_reader` -> `fn::mt109_ledger_access`), a `fn::mt109_has_grant` check (the
+/// `fems_memory_packs` select PERMISSIONS are exactly that call) and the workspace-delete guard
+/// (`fn::mt120_workspace_delete`; the `knowledge_quick_switcher_recents` delete PERMISSIONS are
+/// exactly that call, so each timed DELETE evaluates the whole guard) cost the same whether 50 or 500
+/// grants held by an UNRELATED principal exist.
+#[tokio::test]
+async fn authority_checks_cost_is_independent_of_unrelated_grant_rows(
+) -> ResourceAuthorityTestResult {
+    run_resource_authority_test_backend(
+        crate::storage::tests::embedded_test_backend().await?,
+        |backend| {
+            Box::pin(async move {
+                let storage = &backend.storage;
+                let database = SurrealDatabase::new(storage.clone());
+                let mut workspaces = Vec::new();
+                for name in ["MT-168 guard probed workspace", "MT-168 guard unrelated workspace"] {
+                    workspaces.push(
+                        database
+                            .create_workspace(
+                                &WriteContext::human(Some("mt168-guard-cost".to_owned())),
+                                NewWorkspace {
+                                    name: name.to_owned(),
+                                },
+                            )
+                            .await?,
+                    );
+                }
+                let workspace = &workspaces[0];
+                let unrelated_workspace = &workspaces[1];
+                let workspace_record = RecordId::new("workspaces", workspace.id.as_str());
+                let capabilities = [
+                    "fs.read".to_owned(),
+                    "fs.write".to_owned(),
+                    "fr.ingest.native_editor".to_owned(),
+                    "memory.read".to_owned(),
+                ];
+                let owner =
+                    provision_direct_negative_principal(storage, "mt168-guard-cost", &capabilities)
+                        .await?;
+                let unrelated = provision_direct_negative_principal(
+                    storage,
+                    "mt168-guard-cost-unrelated",
+                    &capabilities,
+                )
+                .await?;
+                let workspace_resource = storage
+                    .register_workspace_resource(&owner.identity, &workspace.id)
+                    .await?;
+                let granted_resource = storage
+                    .register_protected_resource(
+                        &owner.identity,
+                        ResourceKind::RichDocument,
+                        "mt168-guard-cost-granted",
+                        Some(&workspace_resource.resource_id),
+                        "private",
+                    )
+                    .await?;
+                // The workspace-delete guard requires a delete/fs.write grant on the workspace and on
+                // every owned child resource; reads use fs.read.
+                for (resource_id, action, capability) in [
+                    (&workspace_resource.resource_id, ResourceAction::Read, "fs.read"),
+                    (&workspace_resource.resource_id, ResourceAction::Delete, "fs.write"),
+                    (&granted_resource.resource_id, ResourceAction::Read, "fs.read"),
+                    (&granted_resource.resource_id, ResourceAction::Delete, "fs.write"),
+                ] {
+                    source_probe_grant(storage, &owner, resource_id, action, capability).await?;
+                }
+                let recorder_resource = storage
+                    .register_protected_resource(
+                        &owner.identity,
+                        ResourceKind::FlightRecorder,
+                        &workspace.id,
+                        None,
+                        "account_private",
+                    )
+                    .await?;
+                source_probe_grant(
+                    storage,
+                    &owner,
+                    &recorder_resource.resource_id,
+                    ResourceAction::Create,
+                    "fr.ingest.native_editor",
+                )
+                .await?;
+                let pack_resource = storage
+                    .register_protected_resource(
+                        &owner.identity,
+                        ResourceKind::MemoryPack,
+                        &workspace.id,
+                        None,
+                        "account_private",
+                    )
+                    .await?;
+                source_probe_grant(
+                    storage,
+                    &owner,
+                    &pack_resource.resource_id,
+                    ResourceAction::Read,
+                    "memory.read",
+                )
+                .await?;
+                let unrelated_workspace_resource = storage
+                    .register_workspace_resource(&unrelated.identity, &unrelated_workspace.id)
+                    .await?;
+
+                let receipt_id = "mt168-guard-cost-ledger".to_owned();
+                let operational = |table: &str, record_id: &str| OperationalProbeBindings {
+                    table: table.to_owned(),
+                    record_id: record_id.to_owned(),
+                    sentinel_id: receipt_id.clone(),
+                    workspace: workspace_record.clone(),
+                    workspace_key: workspace.id.clone(),
+                    authority_resource: RecordId::new(
+                        "protected_resources",
+                        recorder_resource.resource_id.as_str(),
+                    ),
+                    authority_session: RecordId::new(
+                        "authenticated_sessions",
+                        owner.session.session_id.as_str(),
+                    ),
+                    hash: OPERATIONAL_HASH.to_owned(),
+                };
+                let created = privileged_operational_rows(
+                    storage,
+                    GRANT_COST_LEDGER_CREATE,
+                    operational("kernel_event_ledger", &receipt_id),
+                )
+                .await?;
+                assert_eq!(created.len(), 1, "privileged ledger seed");
+                let receipt = RecordId::new("kernel_event_ledger", receipt_id.as_str());
+                let pack = RecordId::new("fems_memory_packs", "mt168-guard-cost-pack");
+                let created = source_probe_query(
+                    storage,
+                    MT168_PACK_CREATE,
+                    SourceProbeBindings {
+                        record: pack.clone(),
+                        other: Some(workspace_record.clone()),
+                    },
+                )
+                .await?;
+                assert_eq!(created.len(), 1, "privileged memory pack seed");
+                let mut recents = Vec::new();
+                for index in 0..GRANT_COST_COUNTS.len() * (GRANT_COST_SAMPLES + 1) {
+                    let record_id = format!("mt168-guard-cost-recent-{index}");
+                    let created = privileged_operational_rows(
+                        storage,
+                        MT168_RECENT_CREATE,
+                        operational("knowledge_quick_switcher_recents", &record_id),
+                    )
+                    .await?;
+                    assert_eq!(created.len(), 1, "privileged recent seed {record_id}");
+                    recents.push(RecordId::new(
+                        "knowledge_quick_switcher_recents",
+                        record_id.as_str(),
+                    ));
+                }
+                let granted_row =
+                    RecordId::new("protected_resources", granted_resource.resource_id.as_str());
+                let read_scope = direct_negative_scope(
+                    &owner,
+                    &granted_resource.resource_id,
+                    "fs.read",
+                    ResourceAction::Read,
+                );
+                let delete_scope = direct_negative_scope(
+                    &owner,
+                    &workspace_resource.resource_id,
+                    "fs.write",
+                    ResourceAction::Delete,
+                );
+                let unrelated_record =
+                    RecordId::new("principals", unrelated.identity.principal_id.as_str());
+
+                let mut filler = 0usize;
+                let mut medians = Vec::new();
+                for count in GRANT_COST_COUNTS {
+                    while filler < count {
+                        let resource = storage
+                            .register_protected_resource(
+                                &unrelated.identity,
+                                ResourceKind::RichDocument,
+                                &format!("mt168-guard-cost-unrelated-{filler}"),
+                                Some(&unrelated_workspace_resource.resource_id),
+                                "private",
+                            )
+                            .await?;
+                        source_probe_grant(
+                            storage,
+                            &unrelated,
+                            &resource.resource_id,
+                            ResourceAction::Read,
+                            "fs.read",
+                        )
+                        .await?;
+                        filler += 1;
+                    }
+                    let active = source_probe_query(
+                        storage,
+                        GRANT_COST_ACTIVE_GRANTS,
+                        SourceProbeBindings {
+                            record: unrelated_record.clone(),
+                            other: None,
+                        },
+                    )
+                    .await?;
+                    assert_eq!(active.len(), count, "unrelated principal grants at N={count}");
+                    let resource_select =
+                        median_authorized_read(storage, &read_scope, &granted_row, "resource_select")
+                            .await?;
+                    let ledger_access =
+                        median_authorized_read(storage, &read_scope, &receipt, "ledger_access")
+                            .await?;
+                    let has_grant =
+                        median_authorized_read(storage, &read_scope, &pack, "memory_pack_has_grant")
+                            .await?;
+                    let workspace_delete = median_authorized_delete(
+                        storage,
+                        &delete_scope,
+                        &mut recents,
+                        "workspace_delete_guard",
+                    )
+                    .await?;
+                    println!(
+                        "MT168_GUARD_COST unrelated_n={count} resource_select_median_us={} ledger_access_median_us={} has_grant_median_us={} workspace_delete_guard_median_us={}",
+                        resource_select.as_micros(),
+                        ledger_access.as_micros(),
+                        has_grant.as_micros(),
+                        workspace_delete.as_micros()
+                    );
+                    medians.push((count, [resource_select, ledger_access, has_grant, workspace_delete]));
+                }
+
+                let labels = ["resource_select", "ledger_access", "has_grant", "workspace_delete_guard"];
+                for (index, label) in labels.iter().enumerate() {
+                    let small = medians[0].1[index];
+                    let large = medians[1].1[index];
+                    let ratio = large.as_secs_f64() / small.as_secs_f64().max(f64::MIN_POSITIVE);
+                    println!("MT168_GUARD_COST ratio_unrelated_500_over_50 {label}={ratio:.3}");
+                    assert!(
+                        ratio < GRANT_COST_RATIO_LIMIT,
+                        "{label} median ratio unrelated N=500/N=50 is {ratio:.3}"
+                    );
+                }
+                for (count, values) in &medians {
+                    // Single grant checks keep the MT-164 bound; the workspace-delete guard evaluates
+                    // the whole guard body, so only its unrelated-row independence is asserted.
+                    for (index, label) in labels.iter().enumerate().take(3) {
+                        assert!(
+                            values[index] < GRANT_COST_MEDIAN_LIMIT,
+                            "{label} median {:?} at unrelated N={count} exceeds {GRANT_COST_MEDIAN_LIMIT:?}",
+                            values[index]
+                        );
+                    }
+                }
+                Ok(())
+            })
+        },
+    )
+    .await
+}
