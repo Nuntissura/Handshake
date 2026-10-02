@@ -4069,3 +4069,209 @@ async fn resource_select_and_ledger_access_cost_is_independent_of_grant_count(
     )
     .await
 }
+
+/// MT-168 AC-168-5: a grant check costs the same whether 50 or 500 grants held by an UNRELATED
+/// principal exist in the table. The MT-164/MT-166 tests vary the grants held by the probing
+/// principal; a full resource_grants scan (any OR in the grant WHERE disables index use in the
+/// surrealdb-core 3.2.0 planner, idx/planner/tree.rs:514-520) grows with every row in the table,
+/// including rows of other principals, which is what made the MT-167 projection grow per sample.
+/// Metrics as in MT-164: (i) record-user SELECT of a `knowledge_idempotency_keys` row and (ii) one
+/// `fn::mt120_document_access` check (which also runs `fn::mt109_has_workspace_access`).
+#[tokio::test]
+async fn grant_check_cost_is_independent_of_unrelated_grant_rows() -> ResourceAuthorityTestResult {
+    use crate::storage::knowledge::{KnowledgeStore, NewKnowledgeRichDocument};
+    use serde_json::json;
+
+    run_resource_authority_test_backend(
+        crate::storage::tests::embedded_test_backend().await?,
+        |backend| {
+            Box::pin(async move {
+                let storage = &backend.storage;
+                let database = SurrealDatabase::new(storage.clone());
+                let mut workspaces = Vec::new();
+                for name in ["MT-168 probed workspace", "MT-168 unrelated workspace"] {
+                    workspaces.push(
+                        database
+                            .create_workspace(
+                                &WriteContext::human(Some("mt168-grant-cost".to_owned())),
+                                NewWorkspace {
+                                    name: name.to_owned(),
+                                },
+                            )
+                            .await?,
+                    );
+                }
+                let workspace = &workspaces[0];
+                let unrelated_workspace = &workspaces[1];
+                let document = database
+                    .create_knowledge_rich_document(NewKnowledgeRichDocument {
+                        workspace_id: workspace.id.clone(),
+                        title: "MT-168 granted document".to_owned(),
+                        schema_version: "hsk_richdoc_v1".to_owned(),
+                        content_json: json!({"type":"doc","content":[]}),
+                        ..Default::default()
+                    })
+                    .await?;
+                let capabilities = ["fs.read".to_owned(), "fs.write".to_owned()];
+                let owner =
+                    provision_direct_negative_principal(storage, "mt168-grant-cost", &capabilities)
+                        .await?;
+                let unrelated = provision_direct_negative_principal(
+                    storage,
+                    "mt168-grant-cost-unrelated",
+                    &capabilities,
+                )
+                .await?;
+                let workspace_resource = storage
+                    .register_workspace_resource(&owner.identity, &workspace.id)
+                    .await?;
+                source_probe_grant(
+                    storage,
+                    &owner,
+                    &workspace_resource.resource_id,
+                    ResourceAction::Read,
+                    "fs.read",
+                )
+                .await?;
+                let document_resource = storage
+                    .register_protected_resource(
+                        &owner.identity,
+                        ResourceKind::RichDocument,
+                        &document.rich_document_id,
+                        Some(&workspace_resource.resource_id),
+                        "private",
+                    )
+                    .await?;
+                source_probe_grant(
+                    storage,
+                    &owner,
+                    &document_resource.resource_id,
+                    ResourceAction::Read,
+                    "fs.read",
+                )
+                .await?;
+                let unrelated_workspace_resource = storage
+                    .register_workspace_resource(&unrelated.identity, &unrelated_workspace.id)
+                    .await?;
+
+                let other = Some(RecordId::new(
+                    "knowledge_rich_documents",
+                    document.rich_document_id.as_str(),
+                ));
+                let idempotency =
+                    RecordId::new("knowledge_idempotency_keys", "mt168-grant-cost-granted");
+                let anchor = RecordId::new(
+                    "knowledge_rich_document_title_anchors",
+                    "mt168-grant-cost-granted",
+                );
+                for (statement, record) in [
+                    (GRANT_COST_IDEMPOTENCY_CREATE, &idempotency),
+                    (GRANT_COST_ANCHOR_CREATE, &anchor),
+                ] {
+                    let created = source_probe_query(
+                        storage,
+                        statement,
+                        SourceProbeBindings {
+                            record: record.clone(),
+                            other: other.clone(),
+                        },
+                    )
+                    .await?;
+                    assert_eq!(created.len(), 1, "privileged seed {record:?}");
+                }
+                let scope = direct_negative_scope(
+                    &owner,
+                    &document_resource.resource_id,
+                    "fs.read",
+                    ResourceAction::Read,
+                );
+                let owner_record = RecordId::new("principals", owner.identity.principal_id.as_str());
+                let unrelated_record =
+                    RecordId::new("principals", unrelated.identity.principal_id.as_str());
+
+                let mut filler = 0usize;
+                let mut medians = Vec::new();
+                for count in GRANT_COST_COUNTS {
+                    // Only the unrelated principal gains grants; the probed principal always holds
+                    // exactly its two (workspace and document).
+                    while filler < count {
+                        let resource = storage
+                            .register_protected_resource(
+                                &unrelated.identity,
+                                ResourceKind::RichDocument,
+                                &format!("mt168-grant-cost-unrelated-{filler}"),
+                                Some(&unrelated_workspace_resource.resource_id),
+                                "private",
+                            )
+                            .await?;
+                        source_probe_grant(
+                            storage,
+                            &unrelated,
+                            &resource.resource_id,
+                            ResourceAction::Read,
+                            "fs.read",
+                        )
+                        .await?;
+                        filler += 1;
+                    }
+                    for (record, expected, label) in [
+                        (&owner_record, 2, "probed principal"),
+                        (&unrelated_record, count, "unrelated principal"),
+                    ] {
+                        let active = source_probe_query(
+                            storage,
+                            GRANT_COST_ACTIVE_GRANTS,
+                            SourceProbeBindings {
+                                record: record.clone(),
+                                other: None,
+                            },
+                        )
+                        .await?;
+                        assert_eq!(active.len(), expected, "{label} active grants at N={count}");
+                    }
+                    let idempotency_median =
+                        median_authorized_read(storage, &scope, &idempotency, "idempotency")
+                            .await?;
+                    let access_median =
+                        median_authorized_read(storage, &scope, &anchor, "document_access")
+                            .await?;
+                    println!(
+                        "MT168_GRANT_COST unrelated_n={count} idempotency_select_median_us={} document_access_check_median_us={}",
+                        idempotency_median.as_micros(),
+                        access_median.as_micros()
+                    );
+                    medians.push((count, idempotency_median, access_median));
+                }
+
+                let ratio = |large: Duration, small: Duration| {
+                    large.as_secs_f64() / small.as_secs_f64().max(f64::MIN_POSITIVE)
+                };
+                let idempotency_ratio = ratio(medians[1].1, medians[0].1);
+                let access_ratio = ratio(medians[1].2, medians[0].2);
+                println!(
+                    "MT168_GRANT_COST ratio_unrelated_500_over_50 idempotency_select={idempotency_ratio:.3} document_access_check={access_ratio:.3}"
+                );
+                for (count, idempotency_median, access_median) in &medians {
+                    assert!(
+                        *idempotency_median < GRANT_COST_MEDIAN_LIMIT,
+                        "idempotency select median {idempotency_median:?} at unrelated N={count} exceeds {GRANT_COST_MEDIAN_LIMIT:?}"
+                    );
+                    assert!(
+                        *access_median < GRANT_COST_MEDIAN_LIMIT,
+                        "document access check median {access_median:?} at unrelated N={count} exceeds {GRANT_COST_MEDIAN_LIMIT:?}"
+                    );
+                }
+                assert!(
+                    idempotency_ratio < GRANT_COST_RATIO_LIMIT,
+                    "idempotency select median ratio unrelated N=500/N=50 is {idempotency_ratio:.3}"
+                );
+                assert!(
+                    access_ratio < GRANT_COST_RATIO_LIMIT,
+                    "document access check median ratio unrelated N=500/N=50 is {access_ratio:.3}"
+                );
+                Ok(())
+            })
+        },
+    )
+    .await
+}
