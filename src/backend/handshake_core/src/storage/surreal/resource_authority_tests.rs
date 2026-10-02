@@ -4568,3 +4568,212 @@ async fn authority_checks_cost_is_independent_of_unrelated_grant_rows(
     )
     .await
 }
+
+/// MT-168 AC-168-5 (remaining two grant functions): a record-user read of a standalone Loom block
+/// through `fn::mt120_loom_block_access` (fs.read grant on the block) and through
+/// `fn::mt109_source_read` (memory.propose grant, the shape of
+/// `memory_source_reads_require_exact_grants_and_preserve_derived_origin`) costs the same whether
+/// 50 or 500 grants held by an UNRELATED principal exist.
+#[tokio::test]
+async fn loom_block_and_source_read_cost_is_independent_of_unrelated_grant_rows(
+) -> ResourceAuthorityTestResult {
+    use crate::storage::{LoomBlockContentType, NewLoomBlock};
+
+    run_resource_authority_test_backend(
+        crate::storage::tests::embedded_test_backend().await?,
+        |backend| {
+            Box::pin(async move {
+                let storage = &backend.storage;
+                let database = SurrealDatabase::new(storage.clone());
+                let ctx = WriteContext::human(Some("mt168-loom-cost".to_owned()));
+                let mut workspaces = Vec::new();
+                for name in ["MT-168 loom probed workspace", "MT-168 loom unrelated workspace"] {
+                    workspaces.push(
+                        database
+                            .create_workspace(
+                                &ctx,
+                                NewWorkspace {
+                                    name: name.to_owned(),
+                                },
+                            )
+                            .await?,
+                    );
+                }
+                let workspace = &workspaces[0];
+                let unrelated_workspace = &workspaces[1];
+                let mut blocks = Vec::new();
+                for block_id in ["mt168-loom-access-block", "mt168-source-read-block"] {
+                    blocks.push(
+                        database
+                            .create_loom_block(
+                                &ctx,
+                                NewLoomBlock {
+                                    block_id: Some(block_id.to_owned()),
+                                    workspace_id: workspace.id.clone(),
+                                    content_type: LoomBlockContentType::Note,
+                                    document_id: None,
+                                    asset_id: None,
+                                    title: Some(block_id.to_owned()),
+                                    original_filename: None,
+                                    content_hash: None,
+                                    pinned: false,
+                                    journal_date: None,
+                                    imported_at: None,
+                                    derived: Default::default(),
+                                },
+                            )
+                            .await?,
+                    );
+                }
+                let capabilities = [
+                    "fs.read".to_owned(),
+                    "memory.read".to_owned(),
+                    "memory.propose".to_owned(),
+                ];
+                let owner =
+                    provision_direct_negative_principal(storage, "mt168-loom-cost", &capabilities)
+                        .await?;
+                let unrelated = provision_direct_negative_principal(
+                    storage,
+                    "mt168-loom-cost-unrelated",
+                    &capabilities,
+                )
+                .await?;
+                let root = storage
+                    .register_workspace_resource(&owner.identity, &workspace.id)
+                    .await?;
+                let outer = storage
+                    .register_protected_resource(
+                        &owner.identity,
+                        ResourceKind::MemoryProposal,
+                        &workspace.id,
+                        Some(&root.resource_id),
+                        "private",
+                    )
+                    .await?;
+                let mut block_resources = Vec::new();
+                for block in &blocks {
+                    block_resources.push(
+                        storage
+                            .register_protected_resource(
+                                &owner.identity,
+                                ResourceKind::LoomBlock,
+                                &block.block_id,
+                                Some(&root.resource_id),
+                                "private",
+                            )
+                            .await?,
+                    );
+                }
+                for (resource_id, action, capability) in [
+                    (&root.resource_id, ResourceAction::Read, "fs.read"),
+                    (&root.resource_id, ResourceAction::Read, "memory.read"),
+                    (&outer.resource_id, ResourceAction::Create, "memory.propose"),
+                    (&block_resources[0].resource_id, ResourceAction::Read, "fs.read"),
+                    (
+                        &block_resources[1].resource_id,
+                        ResourceAction::Read,
+                        "memory.propose",
+                    ),
+                ] {
+                    source_probe_grant(storage, &owner, resource_id, action, capability).await?;
+                }
+                let unrelated_root = storage
+                    .register_workspace_resource(&unrelated.identity, &unrelated_workspace.id)
+                    .await?;
+                let loom_scope = direct_negative_scope(
+                    &owner,
+                    &block_resources[0].resource_id,
+                    "fs.read",
+                    ResourceAction::Read,
+                );
+                let source_scope = direct_negative_scope(
+                    &owner,
+                    outer.resource_id.clone(),
+                    "memory.propose",
+                    ResourceAction::Create,
+                );
+                let loom_block = RecordId::new("loom_blocks", blocks[0].block_id.as_str());
+                let source_block = RecordId::new("loom_blocks", blocks[1].block_id.as_str());
+                let unrelated_record =
+                    RecordId::new("principals", unrelated.identity.principal_id.as_str());
+
+                let mut filler = 0usize;
+                let mut medians = Vec::new();
+                for count in GRANT_COST_COUNTS {
+                    while filler < count {
+                        let resource = storage
+                            .register_protected_resource(
+                                &unrelated.identity,
+                                ResourceKind::RichDocument,
+                                &format!("mt168-loom-cost-unrelated-{filler}"),
+                                Some(&unrelated_root.resource_id),
+                                "private",
+                            )
+                            .await?;
+                        source_probe_grant(
+                            storage,
+                            &unrelated,
+                            &resource.resource_id,
+                            ResourceAction::Read,
+                            "fs.read",
+                        )
+                        .await?;
+                        filler += 1;
+                    }
+                    let active = source_probe_query(
+                        storage,
+                        GRANT_COST_ACTIVE_GRANTS,
+                        SourceProbeBindings {
+                            record: unrelated_record.clone(),
+                            other: None,
+                        },
+                    )
+                    .await?;
+                    assert_eq!(active.len(), count, "unrelated principal grants at N={count}");
+                    let loom_access =
+                        median_authorized_read(storage, &loom_scope, &loom_block, "loom_block_access")
+                            .await?;
+                    let source_read =
+                        median_authorized_read(storage, &source_scope, &source_block, "source_read")
+                            .await?;
+                    println!(
+                        "MT168_LOOM_COST unrelated_n={count} loom_block_access_median_us={} source_read_median_us={}",
+                        loom_access.as_micros(),
+                        source_read.as_micros()
+                    );
+                    medians.push((count, loom_access, source_read));
+                }
+
+                let ratio = |large: Duration, small: Duration| {
+                    large.as_secs_f64() / small.as_secs_f64().max(f64::MIN_POSITIVE)
+                };
+                let loom_ratio = ratio(medians[1].1, medians[0].1);
+                let source_ratio = ratio(medians[1].2, medians[0].2);
+                println!(
+                    "MT168_LOOM_COST ratio_unrelated_500_over_50 loom_block_access={loom_ratio:.3} source_read={source_ratio:.3}"
+                );
+                for (count, loom_access, source_read) in &medians {
+                    assert!(
+                        *loom_access < GRANT_COST_MEDIAN_LIMIT,
+                        "loom block access median {loom_access:?} at unrelated N={count} exceeds {GRANT_COST_MEDIAN_LIMIT:?}"
+                    );
+                    assert!(
+                        *source_read < GRANT_COST_MEDIAN_LIMIT,
+                        "source read median {source_read:?} at unrelated N={count} exceeds {GRANT_COST_MEDIAN_LIMIT:?}"
+                    );
+                }
+                assert!(
+                    loom_ratio < GRANT_COST_RATIO_LIMIT,
+                    "loom block access median ratio unrelated N=500/N=50 is {loom_ratio:.3}"
+                );
+                assert!(
+                    source_ratio < GRANT_COST_RATIO_LIMIT,
+                    "source read median ratio unrelated N=500/N=50 is {source_ratio:.3}"
+                );
+                Ok(())
+            })
+        },
+    )
+    .await
+}

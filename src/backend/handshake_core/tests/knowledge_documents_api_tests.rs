@@ -3699,9 +3699,9 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
     let other_workspace_id = owned_workspace(&store, &account).await;
     let stranger = OwnerSession::provision(&store.storage, account.binding_token()).await;
     let stranger_workspace_id = owned_workspace(&store, &stranger).await;
-    let (base, http, _doc_server) = doc_server(&store, &account).await;
-    let (loom_base, loom_http, _loom_server) = loom_server(&store, &account).await;
-    let (stranger_loom_base, stranger_loom_http, _stranger_loom_server) =
+    let (base, http, doc_server_guard) = doc_server(&store, &account).await;
+    let (loom_base, loom_http, loom_server_guard) = loom_server(&store, &account).await;
+    let (stranger_loom_base, stranger_loom_http, stranger_loom_server_guard) =
         loom_server(&store, &stranger).await;
 
     let target_id = mt170_create_note(
@@ -3825,4 +3825,11 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
         1,
         "rebuild keeps exactly one projected mention edge"
     );
+    doc_server_guard.shutdown().await;
+    loom_server_guard.shutdown().await;
+    stranger_loom_server_guard.shutdown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
