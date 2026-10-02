@@ -2675,6 +2675,8 @@ fn schema_delta_upgrade_statements() -> String {
         "DEFINE TABLE OVERWRITE protected_resources TYPE NORMAL SCHEMAFULL",
         &mut spans,
     );
+    // MT-168: the protected_resources parent index serves the workspace-delete child lookups.
+    schema_statements_enclosing(MT168_PROTECTED_RESOURCES_PARENT_INDEX, &mut spans);
     for (start, end) in spans {
         if block.as_ref().is_some_and(|range| range.contains(&start)) {
             continue;
@@ -2738,6 +2740,28 @@ IF array::len(SELECT id FROM media_asset_tiers WHERE workspace_id = $workspace) 
 IF array::len(SELECT id FROM stage_capture_artifacts WHERE workspace_id = $workspace) > 0 { RETURN false; };
 "#;
 
+/// MT-168 (AC-168-3): `fn::mt120_workspace_delete` reaches its owned resources, child grants and
+/// child resources through index-served all-AND lookups (new protected_resources_parent_idx; key-only
+/// resource_grants candidates). (current, previous) pairs against schema.surql at 75705221; reverted
+/// FIRST in [`restore_pre_indexed_grant_schema`]; the revision-162 upgrade re-emits the whole
+/// function and the index ([`indexed_grant_upgrade_statements`]).
+#[cfg(test)]
+const MT168_WORKSPACE_DELETE_DELTAS: [(&str, &str); 3] = [
+    (
+        "LET $child_resources = SELECT * FROM protected_resources WHERE parent_resource_id = $resource;\nLET $child_resource_ids = $child_resources.id;\nLET $resources = array::concat(array::concat((SELECT * FROM $resource), $child_resources),\n    (SELECT * FROM protected_resources WHERE parent_resource_id IN $child_resource_ids));\nFOR $owned IN $resources {\n    LET $owned_id = $owned.id;\n",
+        "LET $resources = SELECT * FROM protected_resources WHERE id = $resource\n    OR parent_resource_id = $resource OR parent_resource_id.parent_resource_id = $resource;\nFOR $owned IN $resources {\n",
+    ),
+    (
+        "        LET $child_grant_candidates = SELECT * FROM resource_grants WHERE account_id = $account\n            AND principal_id = $principal AND access_space_id = $space AND resource_id = $owned_id;\n        LET $now = time::now();\n        LET $child_grants = $child_grant_candidates[WHERE status = 'active' AND revoked_at = NONE\n            AND (expires_at = NONE OR expires_at > $now) AND delegation_chain = $live.delegation_chain\n            AND actions CONTAINS 'delete' AND capability_ids CONTAINS 'fs.write' AND resource_id.policy_version <= policy_version AND policy_version <= $live.policy_version];\n",
+        "        LET $child_grants = SELECT id FROM resource_grants WHERE resource_id = $owned.id AND account_id = $account\n            AND principal_id = $principal AND access_space_id = $space AND status = 'active' AND revoked_at = NONE\n            AND (expires_at = NONE OR expires_at > time::now()) AND delegation_chain = $live.delegation_chain\n            AND actions CONTAINS 'delete' AND capability_ids CONTAINS 'fs.write' AND resource_id.policy_version <= policy_version AND policy_version <= $live.policy_version;\n",
+    ),
+    (
+        "    IF array::len(SELECT id FROM protected_resources WHERE parent_resource_id = $owned_id AND id NOT IN $resources.id) > 0 {\n",
+        "    IF array::len(SELECT id FROM protected_resources WHERE parent_resource_id = $owned.id AND id NOT IN $resources.id) > 0 {\n",
+    ),
+];
+/// MT-168 (AC-168-3): the protected_resources parent index served to the workspace-delete lookups.
+const MT168_PROTECTED_RESOURCES_PARENT_INDEX: &str = "DEFINE INDEX OVERWRITE protected_resources_parent_idx ON TABLE protected_resources FIELDS parent_resource_id;";
 /// MT-153 (AC-153-6/AC-153-8, AC-154-6; Operator decision 2026-09-22): a saved view (`view_def`)
 /// follows the workspace grant (schema.surql loom_blocks / knowledge_entities view_def clauses), so
 /// `fn::mt120_workspace_delete` no longer demands a per-block protected resource for a view block
@@ -2774,6 +2798,22 @@ fn restore_pre_indexed_grant_schema(mut source: String) -> String {
     // MT-153: the loom_edges delete OR reorder and the view_def workspace-delete widening are newer
     // than every predecessor; revert them first so the predecessor texts below (and the older
     // chains built on them) match exactly.
+    // MT-168 is newer still: drop the parent index and revert the workspace-delete lookups first.
+    let index_line = format!("{MT168_PROTECTED_RESOURCES_PARENT_INDEX}\n");
+    assert_eq!(
+        source.matches(&index_line).count(),
+        1,
+        "MT-168 protected_resources parent index must occur exactly once"
+    );
+    source = source.replacen(&index_line, "", 1);
+    for (current, previous) in MT168_WORKSPACE_DELETE_DELTAS {
+        assert_eq!(
+            source.matches(current).count(),
+            1,
+            "MT-168 workspace-delete delta must occur exactly once"
+        );
+        source = source.replacen(current, previous, 1);
+    }
     for (current, previous) in MT153_LOOM_EDGE_DELETE_ORDER_DELTAS {
         assert_eq!(
             source.matches(current).count(),
@@ -2871,6 +2911,9 @@ fn indexed_grant_upgrade_statements() -> String {
     // MT-153: loom_edges delete evaluates the endpoint clause before the workspace-delete guard.
     let (start, end) = schema_table_definition_bounds(SCHEMA, "loom_edges");
     statements.push_str(&SCHEMA[start..end]);
+    statements.push('\n');
+    // MT-168: the workspace-delete child lookups are served by the protected_resources parent index.
+    statements.push_str(MT168_PROTECTED_RESOURCES_PARENT_INDEX);
     statements.push('\n');
     statements
 }
@@ -3095,8 +3138,11 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-168 re-pin (revision 162, re-pinned in place): the seven resource_grants lookups select by the
 // resource_grants_exact_idx key only and filter the candidates in a second step (previous value
 // 3e9333cc67e21a126ae2759673f27bd7fe6b9cb8fa7b477fc8e2889ab1c3095b); sha256 of schema.surql.
+// MT-168 AC-168-3 re-pin: fn::mt120_workspace_delete index-served lookups and the
+// protected_resources_parent_idx index (previous value
+// 464772928f331dc7d88460456bc64161401462a9e42deff281935db56dff7734); sha256 of schema.surql.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "464772928f331dc7d88460456bc64161401462a9e42deff281935db56dff7734";
+    "8452a3f9bfdff502dafbb1ed7d6e7df60ce70ae47f3557edb13c391bf7b38513";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -3120,8 +3166,11 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // MT-166 re-pin: catalog identities gained function:fn::mt166_resource_select_grant (previous
 // a50bd154872a5cffe14e3d1ffe8823852d70a76f4a7a2853ecd91736f461238c); statically derived with the
 // compiled_schema_catalog_entries algorithm (reproduces the previous pin on the unchanged source).
+// MT-168 re-pin: catalog identities gained index:protected_resources:protected_resources_parent_idx
+// (previous 50d3244b292a63e7928a04ce9fc9f7c575580531f20167441b6e802cdfc27a8e); statically derived
+// with the compiled_schema_catalog_entries algorithm (reproduces the previous pin on the unchanged source).
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "50d3244b292a63e7928a04ce9fc9f7c575580531f20167441b6e802cdfc27a8e";
+    "83e20821794146d8d30834bf038f067d35bc4ff79eae25fec457eb4d45010462";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -3201,7 +3250,8 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT-153 re-pin: loom_edges delete OR reorder (previous
 // 0fa659b50938c531101082bfa5a3d626f4ec3646cd4722b39d97e103fb6f3148); measured by WP validator
 // PIN-MEASURE on 94ba0ed1 (MT-153.json pin_measure_20261001_94ba0ed1).
-// MT-168 PIN-MEASURE PENDING: the seven grant function bodies changed (key-only candidate lookup);
+// MT-168 PIN-MEASURE PENDING: the seven grant function bodies changed (key-only candidate lookup),
+// fn::mt120_workspace_delete changed and protected_resources gained protected_resources_parent_idx;
 // value below is the 94ba0ed1 measurement.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
     "823b37d8026854aeb65c617dddb0a951ee452746f341d38752ec0c67d3138730";
@@ -3610,7 +3660,8 @@ const AUTHORED_FIELD_DEFINITION_COUNT: usize =
 const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 55;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
-const INDEX_DEFINITION_COUNT: usize = 816;
+// MT-168: +1 index (protected_resources_parent_idx).
+const INDEX_DEFINITION_COUNT: usize = 817;
 const EVENT_DEFINITION_COUNT: usize = 42;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
@@ -3621,7 +3672,7 @@ const ACCESS_DEFINITION_COUNT: usize = 1;
 const FUNCTION_DEFINITION_COUNT: usize = 56;
 const SOURCE_TABLE_COUNT: usize = 291;
 const SOURCE_VIEW_COUNT: usize = 2;
-const SOURCE_NAMED_INDEX_COUNT: usize = 555;
+const SOURCE_NAMED_INDEX_COUNT: usize = 556;
 const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 260;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;

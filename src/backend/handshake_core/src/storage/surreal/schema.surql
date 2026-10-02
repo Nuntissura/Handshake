@@ -5810,6 +5810,7 @@ DEFINE FIELD OVERWRITE updated_at ON TABLE protected_resources TYPE datetime;
 DEFINE INDEX OVERWRITE protected_resources_external_unique ON TABLE protected_resources FIELDS resource_kind, external_resource_id UNIQUE;
 
 DEFINE INDEX OVERWRITE protected_resources_owner_idx ON TABLE protected_resources FIELDS owner_account_id, access_space_id;
+DEFINE INDEX OVERWRITE protected_resources_parent_idx ON TABLE protected_resources FIELDS parent_resource_id;
 
 DEFINE TABLE OVERWRITE resource_grants TYPE NORMAL SCHEMAFULL
   PERMISSIONS FOR select WHERE
@@ -6787,23 +6788,28 @@ DEFINE FUNCTION OVERWRITE fn::mt120_workspace_delete($external: string) {
         AND external_resource_id = $external AND owner_account_id = $account AND access_space_id = $space
         AND lifecycle_state = 'active')[0];
     IF $resource = NONE OR !record::exists($workspace) { RETURN false; };
-LET $resources = SELECT * FROM protected_resources WHERE id = $resource
-    OR parent_resource_id = $resource OR parent_resource_id.parent_resource_id = $resource;
+LET $child_resources = SELECT * FROM protected_resources WHERE parent_resource_id = $resource;
+LET $child_resource_ids = $child_resources.id;
+LET $resources = array::concat(array::concat((SELECT * FROM $resource), $child_resources),
+    (SELECT * FROM protected_resources WHERE parent_resource_id IN $child_resource_ids));
 FOR $owned IN $resources {
+    LET $owned_id = $owned.id;
     IF $owned.owner_account_id != $account OR $owned.access_space_id != $space { RETURN false; };
     IF $owned.policy_version > $live.policy_version OR $owned.created_by_principal_id.status != 'enabled'
         OR $owned.lifecycle_state != 'active' { RETURN false; };
     IF $owned.resource_kind != 'flight_recorder' {
-        LET $child_grants = SELECT id FROM resource_grants WHERE resource_id = $owned.id AND account_id = $account
-            AND principal_id = $principal AND access_space_id = $space AND status = 'active' AND revoked_at = NONE
-            AND (expires_at = NONE OR expires_at > time::now()) AND delegation_chain = $live.delegation_chain
-            AND actions CONTAINS 'delete' AND capability_ids CONTAINS 'fs.write' AND resource_id.policy_version <= policy_version AND policy_version <= $live.policy_version;
+        LET $child_grant_candidates = SELECT * FROM resource_grants WHERE account_id = $account
+            AND principal_id = $principal AND access_space_id = $space AND resource_id = $owned_id;
+        LET $now = time::now();
+        LET $child_grants = $child_grant_candidates[WHERE status = 'active' AND revoked_at = NONE
+            AND (expires_at = NONE OR expires_at > $now) AND delegation_chain = $live.delegation_chain
+            AND actions CONTAINS 'delete' AND capability_ids CONTAINS 'fs.write' AND resource_id.policy_version <= policy_version AND policy_version <= $live.policy_version];
         IF array::len($child_grants) = 0 { RETURN false; };
     } ELSE {
         IF $owned.parent_resource_id != $resource OR $owned.external_resource_id != $external { RETURN false; };
     };
 
-    IF array::len(SELECT id FROM protected_resources WHERE parent_resource_id = $owned.id AND id NOT IN $resources.id) > 0 {
+    IF array::len(SELECT id FROM protected_resources WHERE parent_resource_id = $owned_id AND id NOT IN $resources.id) > 0 {
         RETURN false;
     };
 };
