@@ -20,13 +20,13 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-02T07:55:00Z",
+  "updated_at_utc": "2026-10-02T08:55:00Z",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
     "title": "E5-MT-168-Index-Bound-Grant-Predicates-And-Workspace-Delete-Scans",
     "version": 1,
-    "contract_revision": 1
+    "contract_revision": 2
   },
   "closure_unit": {
     "outcome": "Every record-user grant check (fn::mt109_has_grant, fn::mt109_has_workspace_access, fn::mt109_source_read, fn::mt120_document_access, fn::mt109_ledger_access) and the resource/grant scans of fn::mt120_workspace_delete (W) are served by indexes, so their cost no longer grows with resource_grants / protected_resources rows owned by other workspaces; allow/deny semantics unchanged.",
@@ -53,7 +53,7 @@
       },
       {
         "id": "AC-168-2",
-        "requirement": "The grant SELECTs in fn::mt109_has_grant (schema.surql:6044), fn::mt109_has_workspace_access (:6081), fn::mt109_source_read (:6117), fn::mt120_document_access (:6171) and fn::mt109_ledger_access (:6392) select candidate rows by the exact resource_grants_exact_idx key (account_id, principal_id, access_space_id, resource_id; :5850) with an all-AND WHERE of bare LET params only; expiry, reconciliation_queue, actions/capabilities CONTAINS and delegation_chain filters run as a second step over that candidate set. Flattened sequential early exits (MT164-UDF-AND-CHAIN-STACK-OVERFLOW). Allow/deny results identical for every existing input."
+        "requirement": "The grant SELECTs in fn::mt109_has_grant (schema.surql:6044), fn::mt109_has_workspace_access (:6081), fn::mt109_source_read (:6117), fn::mt120_document_access (:6171) and fn::mt109_ledger_access (:6392) select candidate rows by the exact resource_grants_exact_idx key (account_id, principal_id, access_space_id, resource_id; :5850) with an all-AND WHERE of bare LET params only; expiry, reconciliation_queue, actions/capabilities CONTAINS and delegation_chain filters run as a second step over that candidate set. Flattened sequential early exits (MT164-UDF-AND-CHAIN-STACK-OVERFLOW). Allow/deny results identical for every existing input. Contract revision 2: also fn::mt120_loom_block_access (schema.surql:6236 at dbdae422) and fn::mt166_resource_select_grant (:6384), which carry the same OR-shaped resource_grants query (seven queries in total)."
       },
       {
         "id": "AC-168-3",
@@ -103,7 +103,7 @@
     "depends_on": [],
     "first_step": "AC-168-1 planner evidence (code reading of surrealdb-core 3.2.0 planner; at most one recorded EXPLAIN probe), recorded before editing schema.surql.",
     "allowed_write_paths": [
-      "src/backend/handshake_core/src/storage/surreal/schema.surql (only the five grant function bodies named in AC-168-2, the fn::mt120_workspace_delete body, one new protected_resources parent_resource_id index, and new helper fns if AC-168-2/3 need them)",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql (only the seven grant function bodies named in AC-168-2 rev 2, the fn::mt120_workspace_delete body, one new protected_resources parent_resource_id index, and new helper fns if AC-168-2/3 need them)",
       "src/backend/handshake_core/src/storage/surreal/schema.rs (only the revision/GENERATED/INFO pins and upgrade entries this change forces, MT-164 AC-164-5 pattern)",
       "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (timing tests only)"
     ],
@@ -225,7 +225,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "build disk for MT-168 owner target not named in a dispatch (KB-OUT-008); AC-168-1 recorded, schema edit next",
+    "blocked_on": null,
     "depends_on": [],
     "blocks": [
       "MT-167",
@@ -233,19 +233,20 @@
     ],
     "active": true,
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER (dispatch names build disk)",
+    "next_actor": "KERNEL_BUILDER (AC-168-2/3 schema edit, compile check, push, submit)",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-153.json#analysis_20261001_step1_w_scans_ownership",
       "MT-167.json#diagnosis_20261002_dbdae422_grant_table_scan"
-    ]
+    ],
+    "candidate_commit": "2ad00add9c84fc6b136eb6029ea30f969041cf13"
   },
   "scope": {
     "summary": "Make grant checks and W resource/grant scans index-served (key-first all-AND lookups with bare LET params; new parent_resource_id index) so their cost is independent of other workspaces' rows; semantics unchanged.",
     "allowed_paths": [
-      "src/backend/handshake_core/src/storage/surreal/schema.surql (only the five grant function bodies named in AC-168-2, the fn::mt120_workspace_delete body, one new protected_resources parent_resource_id index, and new helper fns if AC-168-2/3 need them)",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql (only the seven grant function bodies named in AC-168-2 rev 2, the fn::mt120_workspace_delete body, one new protected_resources parent_resource_id index, and new helper fns if AC-168-2/3 need them)",
       "src/backend/handshake_core/src/storage/surreal/schema.rs (only the revision/GENERATED/INFO pins and upgrade entries this change forces, MT-164 AC-164-5 pattern)",
       "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (timing tests only)"
     ],
@@ -266,7 +267,7 @@
       },
       {
         "id": "AC-168-2",
-        "requirement": "The grant SELECTs in fn::mt109_has_grant (schema.surql:6044), fn::mt109_has_workspace_access (:6081), fn::mt109_source_read (:6117), fn::mt120_document_access (:6171) and fn::mt109_ledger_access (:6392) select candidate rows by the exact resource_grants_exact_idx key (account_id, principal_id, access_space_id, resource_id; :5850) with an all-AND WHERE of bare LET params only; expiry, reconciliation_queue, actions/capabilities CONTAINS and delegation_chain filters run as a second step over that candidate set. Flattened sequential early exits (MT164-UDF-AND-CHAIN-STACK-OVERFLOW). Allow/deny results identical for every existing input."
+        "requirement": "The grant SELECTs in fn::mt109_has_grant (schema.surql:6044), fn::mt109_has_workspace_access (:6081), fn::mt109_source_read (:6117), fn::mt120_document_access (:6171) and fn::mt109_ledger_access (:6392) select candidate rows by the exact resource_grants_exact_idx key (account_id, principal_id, access_space_id, resource_id; :5850) with an all-AND WHERE of bare LET params only; expiry, reconciliation_queue, actions/capabilities CONTAINS and delegation_chain filters run as a second step over that candidate set. Flattened sequential early exits (MT164-UDF-AND-CHAIN-STACK-OVERFLOW). Allow/deny results identical for every existing input. Contract revision 2: also fn::mt120_loom_block_access (schema.surql:6236 at dbdae422) and fn::mt166_resource_select_grant (:6384), which carry the same OR-shaped resource_grants query (seven queries in total)."
       },
       {
         "id": "AC-168-3",
@@ -420,7 +421,27 @@
     "effect": "New narrow MT MT-168 approved; see packet decision entry."
   },
   "validation": {
-    "proof_records": []
+    "proof_records": [
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-01",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261002",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "2ad00add9c84fc6b136eb6029ea30f969041cf13",
+        "command": "cargo check --locked -j 4 --config <gov>/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils (cwd src/backend/handshake_core)",
+        "env": "CARGO_TARGET_DIR=Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target (dispatch_20261002), CARGO_INCREMENTAL=0, CARGO_PROFILE_DEV_DEBUG=line-tables-only, CARGO_PROFILE_TEST_DEBUG=line-tables-only; 0 cargo/rustc before launch",
+        "started_at_utc": "2026-10-02T08:44:38Z",
+        "completed_at_utc": "2026-10-02T08:49:57Z",
+        "exit_code": 0,
+        "result_line": "Finished `dev` profile in 5m 16s; compiling=1 (handshake_core); warnings: existing lib/test warning summaries only",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/logs/01-check-grants-core.log",
+        "log_sha256": "3771a4b91b50578b017c0860447a68fab9a54bdba038724f57b3bf3ef6bfa7cf",
+        "input_digest_before_after": "equal: schema.surql 46477292..., schema.rs f31bd637...",
+        "limit": "compile proves Rust only; SurrealQL parse/semantics of the rewritten functions are runtime-proven (AC-168-4/5)"
+      }
+    ]
   },
   "authored_by": "KERNEL_BUILDER-20261002",
   "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-167 narrow-MT shape",
@@ -447,6 +468,35 @@
       },
       "rewrite_shape_selected": "Per query: candidate SELECT whose WHERE is ONLY `field = $bare_param` conjuncts covering the index key (resource_grants_exact_idx account_id, principal_id, access_space_id, resource_id; protected_resources_external_unique resource_kind, external_resource_id; new protected_resources parent_resource_id index), no OR, no NOT/prefix, no subquery in WHERE; LET-bind path values to bare params first (new-planner safe). All other filters (expiry OR, reconciliation OR, CONTAINS, delegation_chain, consistency IN-subqueries) move to a second step over the candidate array (array::filter / WHERE on $candidates). Flattened early exits (MT164-UDF-AND-CHAIN-STACK-OVERFLOW)",
       "owning_module": "handshake_core storage/surreal (bound as contracted; AC-168-1 does not move ownership)"
-    }
+    },
+    "commits": [
+      {
+        "sha": "2ad00add9c84fc6b136eb6029ea30f969041cf13",
+        "acs": [
+          "AC-168-2",
+          "AC-168-6 (GENERATED re-pinned; runtime pins PIN-MEASURE PENDING)"
+        ],
+        "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 2ad00add"
+      }
+    ],
+    "remaining": [
+      "AC-168-3 W scans + parent_resource_id index (needs re-emit/restore entries for mt120_workspace_delete and the index; DECLARATIVE + index count re-pin)",
+      "AC-168-5 timing test with unrelated-principal filler grants",
+      "AC-168-4/5 runtime proof by WP validator; PIN-MEASURE of INFO/Atelier/Loom pins"
+    ]
+  },
+  "dispatch_20261002": {
+    "authorized_by": "OPERATOR",
+    "method": "AskUserQuestion 2026-10-02",
+    "build_target": "Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target (D:; warm handshake_core, WPV backend profile; idle while MT-167 is blocked on MT-168); ownership transferred to MT-168 for its compile checks",
+    "sequence": "MT-170 builds after MT-168's check completes (one build per physical disk, CX-984-002)",
+    "rule": "KB-OUT-008",
+    "recorded_at_utc": "2026-10-02T08:00:00Z"
+  },
+  "contract_revision_2_20261002": {
+    "by": "KERNEL_BUILDER-20261002",
+    "at_utc": "2026-10-02T08:25:00Z",
+    "reason": "census of `FROM resource_grants` in schema.surql found seven function-level grant queries with the OR expiry clause (6064, 6101, 6156, 6200, 6236, 6384, 6409) plus W :6789; DX-MT-167-20261002-GRANT-QUERY-TABLE-SCAN listed five. Same capability (index-bound grant scans) assigned to MT-168 by WP012-OPERATOR-OWNERSHIP-20261002; CX-CAP-001 one owner",
+    "out_of_scope_finding": "src/backend/handshake_core/src/storage/surreal/resource_authority.rs:1195 Rust-side grant lookup has the same OR-shaped WHERE (full resource_grants scan on its call path); file outside MT-168 allowed paths -> not edited; owner decision needed if its call path is hot (not measured)"
   }
 }
