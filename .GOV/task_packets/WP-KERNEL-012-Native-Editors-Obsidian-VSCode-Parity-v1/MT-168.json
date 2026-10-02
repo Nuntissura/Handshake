@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-02T07:40:00Z",
+  "updated_at_utc": "2026-10-02T07:55:00Z",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -225,7 +225,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "first step AC-168-1 not started; dispatch (owner, build disk) pending",
+    "blocked_on": "build disk for MT-168 owner target not named in a dispatch (KB-OUT-008); AC-168-1 recorded, schema edit next",
     "depends_on": [],
     "blocks": [
       "MT-167",
@@ -426,6 +426,27 @@
   "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-167 narrow-MT shape",
   "implementation_record": {
     "owning_module_evidence": null,
-    "first_step_evidence": null
+    "first_step_evidence": {
+      "ac": "AC-168-1",
+      "method": "code reading only (no run, no probe); surrealdb-core-3.2.0 (cargo registry index.crates.io-1949cf8c6b5b557f)",
+      "recorded_at_utc": "2026-10-02T07:55:00Z",
+      "recorded_by": "KERNEL_BUILDER-20261002",
+      "which_planner": {
+        "finding": "VERIFIED: SELECTs inside a DEFINE FUNCTION body evaluated from a write-statement PERMISSIONS predicate run on the legacy compute path, planned by idx/planner (tree.rs + plan.rs), not by the new streaming executor",
+        "evidence": [
+          "exec/planner.rs:1490-1503 try_plan_expr! rejects Create/Update/Upsert/Delete/Insert/Relate with PlannerUnsupported -> compute path",
+          "expr/function.rs:111-150 Function::Custom evaluates val.block.compute(...) (legacy)",
+          "expr/block.rs:81-98 Block::compute evaluates each statement with .compute (legacy Select -> dbs/iterator.rs:358 planner.add_iterables)"
+        ],
+        "not_traced": "top-level read-only SELECTs (default NewPlannerStrategy::BestEffortReadOnlyStatements, dbs/session.rs:55-64) evaluating SELECT PERMISSIONS: whether their function bodies use the new planner is NOT_INSPECTED; key-first bare-param form is chosen so it is index-usable under both"
+      },
+      "index_selection_rules": {
+        "any_or": "tree.rs:514-520 check_boolean_operator sets all_and=false on any OR in the WHERE tree; plan.rs:92-163 compound/single index only when all_and; plan.rs:165-178 otherwise MultiIndex only when EVERY expression is index-backed; else plan.rs:179 table scan",
+        "any_unsupported_node": "plan.rs:80-86 + :327-348 eval_node: a single Node::Unsupported anywhere in the WHERE tree aborts analysis -> full table scan. tree.rs:229-310 eval_value supports only Binary, Idiom, scalar Literal, Param, FunctionCall, Array; Expr::Select (IN-subquery), Expr::Prefix (NOT/!), Block, IfElse etc. are Unsupported (expr/expression.rs:36-81; no paren variant, so grouping parentheses are harmless)",
+        "params": "tree.rs:342-353 eval_idiom computes an idiom whose first part is a Param ($owned.id, $block.block_id) to a literal before index matching; tree.rs:304 bare Param is Computable. So path params are indexable on the legacy path; MT-153.json#analysis_20261001_step1_w_scans_ownership 'PATH params would not match' holds only for the new planner (not shown for this path)"
+      },
+      "rewrite_shape_selected": "Per query: candidate SELECT whose WHERE is ONLY `field = $bare_param` conjuncts covering the index key (resource_grants_exact_idx account_id, principal_id, access_space_id, resource_id; protected_resources_external_unique resource_kind, external_resource_id; new protected_resources parent_resource_id index), no OR, no NOT/prefix, no subquery in WHERE; LET-bind path values to bare params first (new-planner safe). All other filters (expiry OR, reconciliation OR, CONTAINS, delegation_chain, consistency IN-subqueries) move to a second step over the candidate array (array::filter / WHERE on $candidates). Flattened early exits (MT164-UDF-AND-CHAIN-STACK-OVERFLOW)",
+      "owning_module": "handshake_core storage/surreal (bound as contracted; AC-168-1 does not move ownership)"
+    }
   }
 }
