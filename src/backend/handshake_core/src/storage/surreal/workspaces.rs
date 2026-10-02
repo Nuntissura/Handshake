@@ -536,7 +536,9 @@ IF array::len(UPDATE $principal SET authorization_touch_nonce = (authorization_t
 IF array::len(UPDATE $space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
 IF array::len(UPDATE $resource SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
 IF array::len(UPDATE $grant SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
-LET $children = (SELECT id, resource_kind FROM protected_resources WHERE parent_resource_id = $resource OR parent_resource_id.parent_resource_id = $resource);
+LET $direct_children = (SELECT id, resource_kind FROM protected_resources WHERE parent_resource_id = $resource);
+LET $direct_child_ids = $direct_children.id;
+LET $children = array::concat($direct_children, (SELECT id, resource_kind FROM protected_resources WHERE parent_resource_id IN $direct_child_ids));
 FOR $child IN $children {
     LET $child_action = IF $child.resource_kind = 'flight_recorder' { 'read' } ELSE { 'delete' };
     LET $child_capability = IF $child.resource_kind = 'flight_recorder' { 'fr.read' } ELSE { 'fs.write' };
