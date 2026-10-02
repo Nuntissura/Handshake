@@ -2187,6 +2187,28 @@ fn mt143_daily_journal_manual_answers_date_nav_ownership_and_pane_bounds() {
     }
 }
 
+/// MT-117 AC-117-6 (folded from MT-130): the Daily Journal topic states the calendar-event chip
+/// value contract - the AccessKit value is the closed click-completion token and the chip identity
+/// travels inside its semantic_value (app.rs mt117_semantic / mcp::action ClickCompletionToken).
+#[test]
+fn mt117_daily_journal_manual_states_the_calendar_chip_value_contract() {
+    let section = editors_manual_section();
+    let body = topic_body(&section, "Daily Journal");
+    for needle in [
+        "The daily-journal-calendar-event-chip AccessKit value is the closed handshake.click-completion/v1 token, not a domain object",
+        "the token rejects unknown keys, so the chip identity travels inside the token's semantic_value",
+        "action open-calendar-event, calendar_event_id and daily_note_doc_id",
+        "Parse semantic_value to read the exact event and daily-note binding",
+        "its completion is read from the mt117.interop-action-completion observer node",
+        "When no completion token is published, the chip value is the plain object with calendar_event_id and daily_note_doc_id",
+    ] {
+        assert!(
+            manual_body_contains(body, needle),
+            "MT-117 Daily Journal manual must state the chip value contract fact '{needle}'"
+        );
+    }
+}
+
 #[test]
 fn mt021_knowledge_graph_manual_documents_live_ids_and_recovery() {
     let section = editors_manual_section();

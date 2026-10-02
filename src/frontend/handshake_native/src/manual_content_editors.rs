@@ -1998,7 +1998,13 @@ derived in that persisted view timezone on both the outer and embedded date navi
 timezone. The strip: \
 daily-journal-date-header selects a day, daily-journal-calendar-event-chip opens the exact CalendarEvent through \
 the named loom.daily-note.focus-calendar-event InteractionBus command, and daily-journal-activity-strip shows a \
-read-only day overview. Previous/next/calendar navigation reloads the selected day's journal, CalendarEvent, and \
+read-only day overview. The daily-journal-calendar-event-chip AccessKit value is the closed \
+handshake.click-completion/v1 token, not a domain object: the token rejects unknown keys, so the chip identity \
+travels inside the token's semantic_value as JSON carrying action open-calendar-event, calendar_event_id and \
+daily_note_doc_id. Parse semantic_value to read the exact event and daily-note binding; the chip is a flexible \
+target that is replaced when the event opens, so its completion is read from the mt117.interop-action-completion \
+observer node. When no completion token is published, the chip value is the plain object with calendar_event_id \
+and daily_note_doc_id. Previous/next/calendar navigation reloads the selected day's journal, CalendarEvent, and \
 ActivitySpans as one workspace-plus-date-plus-view-timezone request; rapid navigation discards late responses from an older day, so \
 the visible chips cannot fall back to today or be overwritten by a stale request. The content-addressed Calendar \
 Event destination exposes Details, Notes, and Activity \
