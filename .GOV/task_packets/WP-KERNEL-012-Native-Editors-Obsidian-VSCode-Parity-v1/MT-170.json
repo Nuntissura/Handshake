@@ -20,13 +20,13 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-02T16:20:00Z",
+  "updated_at_utc": "2026-10-02T17:20:00Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
     "title": "E8-MT-170-Rich-Document-Wikilink-Loom-Edge-Projection",
     "version": 1,
-    "contract_revision": 1
+    "contract_revision": 2
   },
   "closure_unit": {
     "outcome": "Saving a rich document whose wikilink targets an existing Loom block in the same workspace projects the mention edge into loom_edges, so GET backlinks returns it (MT-046 ic04/ic10/ic12); a skipped projection is never silent; authority unchanged.",
@@ -91,18 +91,20 @@
   "execution": {
     "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
     "foreground_or_interactive_tools_forbidden": true,
-    "owning_module": "UNBOUND until AC-170-1 evidence; primary candidate: handshake_document (src/backend/handshake_document/src/surreal.rs resolve_backlink_rows). Exactly one module bound (CX-UNIT-001).",
+    "owning_module": "handshake_core storage/surreal (loom_edges PERMISSIONS, bound by AC-170-1 evidence + operator decision); handshake_document surreal.rs for the AC-170-3 skip reason",
     "depends_on": [],
     "first_step": "One recorded diagnostic of the record-user live_loom_ids read for ic04/ic10/ic12 inputs (AC-170-1); bind owning_module; record intended fix; then edit.",
     "allowed_write_paths": [
       "the ONE owning module bound by AC-170-1 evidence (expected src/backend/handshake_document/src/surreal.rs) - recorded in implementation_record before editing",
-      "one focused test in that module's crate for AC-170-2/3/4"
+      "one focused test in that module's crate for AC-170-2/3/4",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql (only the loom_edges table PERMISSIONS projection branch: select/create/update/delete target clause)",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs (only GENERATED re-pin, PIN-MEASURE notes and MT170_LOOM_EDGE_PROJECTION_TARGET_DELTAS restore entries)",
+      "src/backend/handshake_document/src/surreal.rs (AC-170-3 typed skip reason only)"
     ],
     "forbidden_write_paths": [
       "app/src/**",
       ".GOV/**",
       "src/frontend/** (MT-046 tests are not edited by this MT)",
-      "src/backend/handshake_core/src/storage/surreal/schema.surql and src/backend/handshake_core/src/storage/surreal/schema.rs (MT-168)",
       "src/backend/handshake_core/src/storage/surreal/loom_store.rs (MT-153)",
       "any SQLite/PostgreSQL path (CX-503R)"
     ],
@@ -196,33 +198,57 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "BLOCKED",
-    "blocked_on": "operator_decision_request_20261002_projection_target (loom_edges projection target permission vs resolver)",
+    "status": "READY_FOR_VALIDATION",
+    "blocked_on": null,
     "depends_on": [],
     "blocks": [
       "MT-046"
     ],
     "active": true,
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER (dispatch names build disk)",
+    "next_actor": "WP_VALIDATOR union round (MT-168 + MT-170 together)",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
-    ]
+    ],
+    "candidate_commit": "280ef9851901db2a8ab32b13c82fdfb1656225e6",
+    "status_before_ready": "BLOCKED",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 280ef9851901db2a8ab32b13c82fdfb1656225e6",
+    "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20261002",
+    "selection_note": {
+      "MT-168": [
+        "handshake_core lib resource_authority_tests (whole, incl. grant_check_cost_is_independent_of_unrelated_grant_rows, authority_checks_cost_is_independent_of_unrelated_grant_rows, loom_block_and_source_read_cost_is_independent_of_unrelated_grant_rows, MT-164/MT-166 cost tests)",
+        "schema pin tests after PIN-MEASURE of EXPECTED_SCHEMA_INFO_SHA256, EXPECTED_ATELIER_CATALOG_SHA256, Loom EXPECTED_CATALOG_SHA256 (+ mt109_loom_catalog_dependencies test literal)",
+        "workspace-delete authority tests (MT-153/154/157 selections)"
+      ],
+      "MT-170": [
+        "handshake_core knowledge_documents_api_tests::mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge",
+        "MT-046 ic04 (test_interconnect_ckc_to_note), ic10 + ic12 (test_interconnect_loom_backlink_search)"
+      ],
+      "downstream_observation": [
+        "MT-167 timing (mt167_code_nav_index_cost_tests) - MT-167 stays BLOCKED on MT-168 until MT-168 passes",
+        "MT-153 BCV cleanup + MT-042 card-move timing"
+      ],
+      "extra_build_proof_proposal": "R6 counterfactual: revert 2ad00add+6846e7d4 and run the MT-168 cost tests (expected fail) - declare in extra_build_proofs if the validator adopts it"
+    },
+    "gameplan": "kernel_builder before_submit PASS 2/2 at 280ef985 (GP-023 cmd; GP-158 confirmed: loom_store/api loom untouched, tag-edge permission branch byte-equal)"
   },
   "scope": {
     "summary": "Fix the rich-document wikilink -> loom_edges mention projection (live_loom_ids read empty, silent skip) so backlinks appear for ic04/ic10/ic12; make skips typed, not silent.",
     "allowed_paths": [
       "the ONE owning module bound by AC-170-1 evidence (expected src/backend/handshake_document/src/surreal.rs) - recorded in implementation_record before editing",
-      "one focused test in that module's crate for AC-170-2/3/4"
+      "one focused test in that module's crate for AC-170-2/3/4",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql (only the loom_edges table PERMISSIONS projection branch: select/create/update/delete target clause)",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs (only GENERATED re-pin, PIN-MEASURE notes and MT170_LOOM_EDGE_PROJECTION_TARGET_DELTAS restore entries)",
+      "src/backend/handshake_document/src/surreal.rs (AC-170-3 typed skip reason only)"
     ],
     "forbidden_paths": [
       "app/src/**",
       ".GOV/**",
       "src/frontend/** (MT-046 tests are not edited by this MT)",
-      "src/backend/handshake_core/src/storage/surreal/schema.surql and src/backend/handshake_core/src/storage/surreal/schema.rs (MT-168)",
       "src/backend/handshake_core/src/storage/surreal/loom_store.rs (MT-153)",
       "any SQLite/PostgreSQL path (CX-503R)"
     ],
@@ -378,7 +404,47 @@
     "effect": "New narrow MT MT-170 approved; see packet decision entry."
   },
   "validation": {
-    "proof_records": []
+    "proof_records": [
+      {
+        "id": "PR-WP012-MT170-KB-CHECK-01",
+        "check_id": "MT-170-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261002",
+        "covers": [
+          "MT-170"
+        ],
+        "commit": "d87e5e1a",
+        "command": "cargo check --locked -j 4 --config <gov>/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils (cwd src/backend/handshake_core; compiles handshake_document); env CARGO_TARGET_DIR=Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target (dispatch_20261002, shared sequentially with MT-168), CARGO_INCREMENTAL=0, line-tables-only debug; 0 cargo/rustc before launch",
+        "started_at_utc": "2026-10-02T16:41:20Z",
+        "completed_at_utc": "2026-10-02T16:45:49Z",
+        "exit_code": 0,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/logs/01-check-loom-edges-core.log",
+        "log_sha256": "11234fc7dfde0f6eb166e7d4fc37c0b9fdbd6a33f2ee3dc99d25af35c8ebf7bf",
+        "input_digest_before_after": "equal: schema.surql a0b177fe..., schema.rs 2b2295a3...",
+        "static": "rustfmt schema.rs clean; GENERATED a0b177fe statically derived, declarative catalog unchanged (83e20821); offline restore chain (MT-170 then MT-168 deltas) reproduces schema.surql at 75705221"
+      },
+      {
+        "id": "PR-WP012-MT170-KB-CHECK-02",
+        "check_id": "MT-170-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261002",
+        "covers": [
+          "MT-170"
+        ],
+        "commit": "ca482502",
+        "command": "cargo check --locked -j 4 --config <gov>/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils (cwd src/backend/handshake_core; compiles handshake_document); env CARGO_TARGET_DIR=Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target (dispatch_20261002, shared sequentially with MT-168), CARGO_INCREMENTAL=0, line-tables-only debug; 0 cargo/rustc before launch",
+        "started_at_utc": "2026-10-02T16:46:36Z",
+        "completed_at_utc": "2026-10-02T16:52:09Z",
+        "exit_code": 0,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/logs/02-check-skip-reason-test-core.log",
+        "log_sha256": "9dcdce8c4c02ca7a503b88b8cc447d45bedcc24f4d6038c9d42615b74d9f3ef6",
+        "input_digest_before_after": "equal: handshake_document/src/surreal.rs 1fbb9ac5..., knowledge_documents_api_tests.rs 71acedd3...",
+        "warnings": "only pre-existing (knowledge_documents_api_tests.rs unused LoomBlockDerived/NewLoomBlock also in MT-168 CHECK-01 log)",
+        "static": "rustfmt: both files formatted; test file was rustfmt-clean before the append"
+      },
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-08",
+        "ref": "MT-168.json#validation.proof_records[PR-WP012-MT168-KB-CHECK-08] (covers MT-170 test edit)"
+      }
+    ]
   },
   "authored_by": "KERNEL_BUILDER-20261002",
   "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-167 narrow-MT shape",
@@ -406,20 +472,129 @@
       ],
       "distinguishing_diagnostic": "tracing::info! after surreal.rs:366 (candidate/live/foreign counts) and after :506 (projected count); projected=1 with no edge -> H1",
       "owning_module": "NOT BOUND: the evidenced cause is schema.surql loom_edges PERMISSIONS (forbidden to MT-170; schema owners MT-153/MT-168), plus an optional typed skip reason in handshake_document/src/surreal.rs"
-    }
+    },
+    "commits": [
+      {
+        "sha": "d87e5e1a",
+        "acs": [
+          "AC-170-2 (loom_edges projection branch admits standalone same-workspace targets; select/create/update/delete)",
+          "AC-170-4 (rich-document targets keep exact check; standalone via fn::mt120_loom_endpoint_access read)"
+        ]
+      },
+      {
+        "sha": "ca482502",
+        "acs": [
+          "AC-170-3 (BacklinkProjectionSkip typed tracing reasons, no link text)",
+          "AC-170-2/AC-170-4 test mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge"
+        ]
+      }
+    ],
+    "ac_170_1_runtime_note": "AC-170-1 runtime diagnostic not run (builder runtime probes are blocked by the in-session gameplan hook scope); the code evidence is verified and the MT-170 test plus MT-046 ic04/ic10/ic12 in the union round are the runtime confirmation"
   },
   "operator_decision_request_20261002_projection_target": {
     "schema_id": "hsk.operator_decision_request@1",
     "rule": "KB-IMPL-006",
     "by": "KERNEL_BUILDER-20261002",
     "recorded_at_utc": "2026-10-02T16:20:00Z",
-    "status": "open",
+    "status": "answered",
     "question": "Resolver and MT-046 acceptance treat any live same-workspace Loom block as a wikilink projection target; the loom_edges PERMISSIONS projection branch admits only rich-document projection blocks. Which side changes?",
     "options": [
       "(a) widen the loom_edges select/create/update projection branch so a standalone same-workspace target is admitted when fn::mt120_loom_endpoint_access(target_block_id, ws, 'read', 'fs.read') holds (no other change); MT-170 gets that schema.surql statement + pins (Recommended: matches resolver intent and MT-046 ic04/ic10/ic12)",
       "(b) resolver stops projecting standalone targets (project_to_loom=false with a typed reason); MT-046 ic04/ic10/ic12 expectations change (acceptance change)",
       "(c) other"
     ],
-    "effect_until_answered": "MT-170 no product edit; MT-046 stays blocked on MT-170"
+    "effect_until_answered": "MT-170 no product edit; MT-046 stays blocked on MT-170",
+    "answer": {
+      "decision_id": "WP012-OPERATOR-MT170-PROJECTION-TARGET-20261002",
+      "chosen_option": "(a) Widen loom_edges (Recommended)",
+      "authorized_by": "OPERATOR",
+      "method": "AskUserQuestion 2026-10-02",
+      "recorded_at_utc": "2026-10-02T16:40:00Z"
+    }
+  },
+  "adversarial_review_20261002": {
+    "schema_id": "hsk.mt_adversarial_review@1",
+    "rule": "KB-PROOF-005",
+    "reviewer": "independent read-only review sub-agent (KERNEL_BUILDER-20261002 parent); no builds or test runs",
+    "scope": "75705221^..ca482502 (MT-168 2ad00add 75705221 6846e7d4 a721de1d 9f8a6e32 0b344130; MT-170 d87e5e1a ca482502)",
+    "recorded_at_utc": "2026-10-02T17:20:00Z",
+    "verified_ok": [
+      "array filter $x[WHERE] evaluates each element as a document; record-link derefs resolve as in the old WHERE (surrealdb-core val/value/get.rs:362-388)",
+      "permission predicates run perms-off; resource_grants table select permission applies equally; no field-level permissions (schema.surql:5823-5849)",
+      "every original grant filter preserved incl. OR groups and reconciliation clause; single $now immaterial",
+      "W / delete-txn row set equal incl. dangling parents and cycles",
+      "restore chain reproduces schema.surql at 75705221; GENERATED pin = sha256(schema.surql); upgrade emitters include the index; counts 817/556",
+      "MT-170 widening: same-workspace + per-block fs.read required; mispointed source_rich_document_id impossible (ASSERT schema.surql:471-472); re-save deletes old standalone edges"
+    ],
+    "findings": [
+      {
+        "id": "R1",
+        "severity": "MAJOR",
+        "finding": "AC-168-5 lacked unrelated-row timing for mt120_loom_block_access and mt109_source_read",
+        "disposition": "FIXED in candidate: loom_block_and_source_read_cost_is_independent_of_unrelated_grant_rows"
+      },
+      {
+        "id": "R2",
+        "severity": "MINOR",
+        "finding": "AC-170-3 skip reasons do not cover a DB-level CREATE denial when the target is readable via memory/view_def but lacks per-block fs.read",
+        "disposition": "RESIDUAL recorded; no change (narrow case; edge CREATE result inspection would add a statement to BACKLINK_WRITE)"
+      },
+      {
+        "id": "R3",
+        "severity": "MINOR",
+        "finding": "projection branch does not pin edge_id KDLNK- prefix / zero edit_event_id; a user with document update could write SYSTEM-attributed projection-looking edges (pre-existing for rich-doc targets, now also standalone)",
+        "disposition": "OUT OF SCOPE -> operator_decision_request_20261002_projection_edge_identity (MT-170)"
+      },
+      {
+        "id": "R4",
+        "severity": "MINOR",
+        "finding": "AC-168-6 says one SCHEMA_REVISION bump; revision 162 re-pinned in place",
+        "disposition": "revision_decision_20261002 recorded (unreleased revision 162 re-pinned in place, MT-164/MT-166/MT-153 precedent); validator judges against AC text"
+      },
+      {
+        "id": "R5",
+        "severity": "MINOR",
+        "finding": "INFO/Atelier/Loom runtime pins PIN-MEASURE PENDING",
+        "disposition": "by design (AC-168-6): WP validator measures before the confirming round"
+      },
+      {
+        "id": "R6",
+        "severity": "MINOR",
+        "finding": "timing tests not shown to fail on pre-fix code; 2.0 ratio at small N may pass a scan",
+        "disposition": "RESIDUAL; counterfactual (revert 2ad00add/6846e7d4 and run the timing tests) proposed as an extra_build_proof for the validator"
+      },
+      {
+        "id": "R7",
+        "severity": "MINOR",
+        "finding": "MT-170 test negatives filtered before CREATE; no unreadable same-workspace case or link-removal case; no explicit close_and_remove",
+        "disposition": "PARTIAL: explicit server shutdown + close_and_remove added; missing cases RESIDUAL (MT-046 ic04/ic10/ic12 runtime is the downstream proof)"
+      },
+      {
+        "id": "R8",
+        "severity": "MINOR",
+        "finding": "logged relationship_id is an unsalted hash; info level on every unresolved wikilink",
+        "disposition": "RESIDUAL accepted: relationship_id already stored as edge_id; no link text logged"
+      }
+    ],
+    "overall": "reviewer NOT READY before R1; R1 fixed in candidate"
+  },
+  "revision_decision_20261002": {
+    "decision": "revision 162 re-pinned in place (SCHEMA_REVISION stays 162)",
+    "basis": "revision 162 is unreleased on feat/WP-KERNEL-012 (not merged to main); MT-164, MT-166 and MT-153 re-pinned 162 in place (schema.rs GENERATED/INFO pin history comments)",
+    "ac_text_deviation": "AC-168-6 says 'one SCHEMA_REVISION bump'; the in-place re-pin follows the established packet practice instead",
+    "recorded_at_utc": "2026-10-02T17:20:00Z",
+    "by": "KERNEL_BUILDER-20261002"
+  },
+  "operator_decision_request_20261002_projection_edge_identity": {
+    "schema_id": "hsk.operator_decision_request@1",
+    "rule": "KB-PROOF-005 out-of-scope finding R3",
+    "by": "KERNEL_BUILDER-20261002",
+    "recorded_at_utc": "2026-10-02T17:20:00Z",
+    "status": "open",
+    "question": "Pin the loom_edges projection branch to edge_id KDLNK- prefix and the zero edit_event_id (select/create/update/delete) so only the backlink rebuild can write SYSTEM projection edges? Pre-existing for rich-document targets; MT-170 extends the branch to standalone targets",
+    "options": [
+      "add the pin (small schema change, same proof route)",
+      "leave as is"
+    ]
   }
 }

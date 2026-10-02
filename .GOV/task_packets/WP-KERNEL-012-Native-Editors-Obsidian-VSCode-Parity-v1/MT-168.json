@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-02T09:35:00Z",
+  "updated_at_utc": "2026-10-02T17:20:00Z",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -226,7 +226,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "BLOCKED",
+    "status": "READY_FOR_VALIDATION",
     "blocked_on": null,
     "depends_on": [],
     "blocks": [
@@ -237,13 +237,34 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER (AC-168-2/3 schema edit, compile check, push, submit)",
+    "next_actor": "WP_VALIDATOR union round (MT-168 + MT-170 together)",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-153.json#analysis_20261001_step1_w_scans_ownership",
       "MT-167.json#diagnosis_20261002_dbdae422_grant_table_scan"
     ],
-    "candidate_commit": "a721de1d356082b9a1eadac3491c38f8755d8927"
+    "candidate_commit": "280ef9851901db2a8ab32b13c82fdfb1656225e6",
+    "status_before_ready": "BLOCKED",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 280ef9851901db2a8ab32b13c82fdfb1656225e6",
+    "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20261002",
+    "selection_note": {
+      "MT-168": [
+        "handshake_core lib resource_authority_tests (whole, incl. grant_check_cost_is_independent_of_unrelated_grant_rows, authority_checks_cost_is_independent_of_unrelated_grant_rows, loom_block_and_source_read_cost_is_independent_of_unrelated_grant_rows, MT-164/MT-166 cost tests)",
+        "schema pin tests after PIN-MEASURE of EXPECTED_SCHEMA_INFO_SHA256, EXPECTED_ATELIER_CATALOG_SHA256, Loom EXPECTED_CATALOG_SHA256 (+ mt109_loom_catalog_dependencies test literal)",
+        "workspace-delete authority tests (MT-153/154/157 selections)"
+      ],
+      "MT-170": [
+        "handshake_core knowledge_documents_api_tests::mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge",
+        "MT-046 ic04 (test_interconnect_ckc_to_note), ic10 + ic12 (test_interconnect_loom_backlink_search)"
+      ],
+      "downstream_observation": [
+        "MT-167 timing (mt167_code_nav_index_cost_tests) - MT-167 stays BLOCKED on MT-168 until MT-168 passes",
+        "MT-153 BCV cleanup + MT-042 card-move timing"
+      ],
+      "extra_build_proof_proposal": "R6 counterfactual: revert 2ad00add+6846e7d4 and run the MT-168 cost tests (expected fail) - declare in extra_build_proofs if the validator adopts it"
+    },
+    "gameplan": "kernel_builder before_submit PASS 2/2 at 280ef985 (GP-023 cmd; GP-158 confirmed: loom_store/api loom untouched, tag-edge permission branch byte-equal)"
   },
   "scope": {
     "summary": "Make grant checks and W resource/grant scans index-served (key-first all-AND lookups with bare LET params; new parent_resource_id index) so their cost is independent of other workspaces' rows; semantics unchanged.",
@@ -497,6 +518,56 @@
         "command": "same as PR-WP012-MT168-KB-CHECK-01",
         "warnings": "only pre-existing warnings in these files (lookup_registered_resource unused; RecordUserScope visibility)",
         "static": "rustfmt: resource_authority.rs clean; workspaces.rs has the same 59-line pre-existing deviation as HEAD (edit is inside a string literal)"
+      },
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-05",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261002",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "9f8a6e32",
+        "started_at_utc": "2026-10-02T15:53:49Z",
+        "completed_at_utc": "2026-10-02T15:57:25Z",
+        "exit_code": 0,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/logs/05-check-child-grant-core.log",
+        "log_sha256": "bd5ff9126bbbf2449d8a19be9f1cc87050335a631a9184468806432d13ea5e87",
+        "input_digest_before_after": "equal: workspaces.rs d28255c9...",
+        "command": "same as PR-WP012-MT168-KB-CHECK-01"
+      },
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-06",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261002",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "0b344130",
+        "started_at_utc": "2026-10-02T15:57:45Z",
+        "completed_at_utc": "2026-10-02T16:01:15Z",
+        "exit_code": 0,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/logs/06-check-guard-test-core.log",
+        "log_sha256": "73eef1693052f68be2c155abaa6e23980e0f1d3848bc2c0e9d2b6f8d2dc46641",
+        "input_digest_before_after": "equal: resource_authority_tests.rs ac0058d1...",
+        "command": "same as PR-WP012-MT168-KB-CHECK-01",
+        "static": "rustfmt formatted only the appended block (293 insertions, 0 deletions)"
+      },
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-08",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261002",
+        "covers": [
+          "MT-168",
+          "MT-170"
+        ],
+        "commit": "280ef9851901db2a8ab32b13c82fdfb1656225e6",
+        "started_at_utc": "2026-10-02T17:04:48Z",
+        "completed_at_utc": "2026-10-02T17:10:35Z",
+        "exit_code": 0,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/logs/08-check-loom-cost-test-core.log",
+        "log_sha256": "62a0db27a245cdbe3b2d1dfc595fe10f83f1e21a37dd1db623c8f45e85f0bea1",
+        "input_digest_before_after": "equal (resource_authority_tests.rs, knowledge_documents_api_tests.rs)",
+        "command": "same as PR-WP012-MT168-KB-CHECK-01"
       }
     ]
   },
@@ -553,15 +624,49 @@
         "acs": [
           "scope extension (operator_decision_request_20261002_delete_txn_children_scan answered): workspaces.rs $children, resource_authority.rs grant lookup"
         ]
+      },
+      {
+        "sha": "9f8a6e32",
+        "acs": [
+          "Operator-approved follow-up ('go' on the recommendation): delete-txn per-child $child_grant lookup key-first (workspaces.rs)"
+        ]
+      },
+      {
+        "sha": "0b344130",
+        "acs": [
+          "AC-168-5: authority_checks_cost_is_independent_of_unrelated_grant_rows (mt166_resource_select_grant, mt109_ledger_access, mt109_has_grant, mt120_workspace_delete via record-user DELETE of knowledge_quick_switcher_recents)"
+        ]
+      },
+      {
+        "sha": "280ef9851901db2a8ab32b13c82fdfb1656225e6",
+        "acs": [
+          "AC-168-5 remaining: loom_block_and_source_read_cost_is_independent_of_unrelated_grant_rows",
+          "MT-170 test explicit shutdown/close_and_remove (review R7)"
+        ]
       }
     ],
     "remaining": [
-      "AC-168-5: workspace-delete timing proof (needs an API-level record-user delete harness: delete_account_workspace requires session token, channel binding and grant ids) and unrelated-filler coverage for mt109_has_grant, mt120_loom_block_access, mt109_source_read, mt166_resource_select_grant, mt109_ledger_access",
       "runtime proof AC-168-4/5 and PIN-MEASURE by WP validator"
     ],
     "ac_168_3_unchanged_lookups": "rich_document / loom_block / entity lookups in W are already all-AND on protected_resources_external_unique; the legacy planner computes $document.rich_document_id / $block.block_id (tree.rs:342-353), so they are index-served without edits. The 64 workspace consistency checks with IN-subqueries remain table scans (Expr::Select is Unsupported, plan.rs:80-86); not in AC-168-3",
-    "open_finding_20261002": "workspaces.rs delete_account_workspace per-child $child_grant lookup (:543 at 6846e7d4) is also OR-shaped (full resource_grants scan per child); outside the approved two statements; not edited",
-    "new_planner_note": "resource_authority.rs grant query is a top-level read-only SELECT (default BestEffortReadOnlyStatements may use the new planner); its inner key-only SELECT uses $auth.* path params; index use under the new planner is NOT_INSPECTED - validator timing evidence decides"
+    "open_finding_20261002": "RESOLVED by 9f8a6e32 (Operator 'go' on the recommendation to include the per-child grant lookup)",
+    "new_planner_note": "resource_authority.rs grant query is a top-level read-only SELECT (default BestEffortReadOnlyStatements may use the new planner); its inner key-only SELECT uses $auth.* path params; index use under the new planner is NOT_INSPECTED - validator timing evidence decides",
+    "ac_168_5_coverage": {
+      "unrelated_filler_timing": [
+        "mt120_document_access + mt109_has_workspace_access (75705221)",
+        "mt166_resource_select_grant, mt109_ledger_access, mt109_has_grant, mt120_workspace_delete (0b344130)"
+      ],
+      "not_directly_timed": [
+        "mt120_loom_block_access",
+        "mt109_source_read"
+      ],
+      "why": "same key-first rewrite text as the timed functions; downstream timing: MT-042/MT-153 card-move (loom_block_access) and MT-167 projection (source_read) in the same union round"
+    },
+    "builder_probe_20261002": {
+      "attempted": "cheap focused runtime probe of the four cost_is_independent tests (WP012-ORCH-SESSION-20260930 exception)",
+      "result": "NOT RUN: gameplan PreToolUse hook blocked it (scope role=* because GAMEPLAN_ROLE is not visible to the in-session hook; validator/orchestrator confirm steps unconfirmed; 20 s budget exceeded). Not bypassed (GLOBAL-GAMEPLAN-004; role-prefix workaround reverted by Operator 2026-09-30)",
+      "effect": "runtime proof only from the WP validator round"
+    }
   },
   "dispatch_20261002": {
     "authorized_by": "OPERATOR",
@@ -597,5 +702,78 @@
       "method": "AskUserQuestion 2026-10-02",
       "recorded_at_utc": "2026-10-02T09:20:00Z"
     }
+  },
+  "adversarial_review_20261002": {
+    "schema_id": "hsk.mt_adversarial_review@1",
+    "rule": "KB-PROOF-005",
+    "reviewer": "independent read-only review sub-agent (KERNEL_BUILDER-20261002 parent); no builds or test runs",
+    "scope": "75705221^..ca482502 (MT-168 2ad00add 75705221 6846e7d4 a721de1d 9f8a6e32 0b344130; MT-170 d87e5e1a ca482502)",
+    "recorded_at_utc": "2026-10-02T17:20:00Z",
+    "verified_ok": [
+      "array filter $x[WHERE] evaluates each element as a document; record-link derefs resolve as in the old WHERE (surrealdb-core val/value/get.rs:362-388)",
+      "permission predicates run perms-off; resource_grants table select permission applies equally; no field-level permissions (schema.surql:5823-5849)",
+      "every original grant filter preserved incl. OR groups and reconciliation clause; single $now immaterial",
+      "W / delete-txn row set equal incl. dangling parents and cycles",
+      "restore chain reproduces schema.surql at 75705221; GENERATED pin = sha256(schema.surql); upgrade emitters include the index; counts 817/556",
+      "MT-170 widening: same-workspace + per-block fs.read required; mispointed source_rich_document_id impossible (ASSERT schema.surql:471-472); re-save deletes old standalone edges"
+    ],
+    "findings": [
+      {
+        "id": "R1",
+        "severity": "MAJOR",
+        "finding": "AC-168-5 lacked unrelated-row timing for mt120_loom_block_access and mt109_source_read",
+        "disposition": "FIXED in candidate: loom_block_and_source_read_cost_is_independent_of_unrelated_grant_rows"
+      },
+      {
+        "id": "R2",
+        "severity": "MINOR",
+        "finding": "AC-170-3 skip reasons do not cover a DB-level CREATE denial when the target is readable via memory/view_def but lacks per-block fs.read",
+        "disposition": "RESIDUAL recorded; no change (narrow case; edge CREATE result inspection would add a statement to BACKLINK_WRITE)"
+      },
+      {
+        "id": "R3",
+        "severity": "MINOR",
+        "finding": "projection branch does not pin edge_id KDLNK- prefix / zero edit_event_id; a user with document update could write SYSTEM-attributed projection-looking edges (pre-existing for rich-doc targets, now also standalone)",
+        "disposition": "OUT OF SCOPE -> operator_decision_request_20261002_projection_edge_identity (MT-170)"
+      },
+      {
+        "id": "R4",
+        "severity": "MINOR",
+        "finding": "AC-168-6 says one SCHEMA_REVISION bump; revision 162 re-pinned in place",
+        "disposition": "revision_decision_20261002 recorded (unreleased revision 162 re-pinned in place, MT-164/MT-166/MT-153 precedent); validator judges against AC text"
+      },
+      {
+        "id": "R5",
+        "severity": "MINOR",
+        "finding": "INFO/Atelier/Loom runtime pins PIN-MEASURE PENDING",
+        "disposition": "by design (AC-168-6): WP validator measures before the confirming round"
+      },
+      {
+        "id": "R6",
+        "severity": "MINOR",
+        "finding": "timing tests not shown to fail on pre-fix code; 2.0 ratio at small N may pass a scan",
+        "disposition": "RESIDUAL; counterfactual (revert 2ad00add/6846e7d4 and run the timing tests) proposed as an extra_build_proof for the validator"
+      },
+      {
+        "id": "R7",
+        "severity": "MINOR",
+        "finding": "MT-170 test negatives filtered before CREATE; no unreadable same-workspace case or link-removal case; no explicit close_and_remove",
+        "disposition": "PARTIAL: explicit server shutdown + close_and_remove added; missing cases RESIDUAL (MT-046 ic04/ic10/ic12 runtime is the downstream proof)"
+      },
+      {
+        "id": "R8",
+        "severity": "MINOR",
+        "finding": "logged relationship_id is an unsalted hash; info level on every unresolved wikilink",
+        "disposition": "RESIDUAL accepted: relationship_id already stored as edge_id; no link text logged"
+      }
+    ],
+    "overall": "reviewer NOT READY before R1; R1 fixed in candidate"
+  },
+  "revision_decision_20261002": {
+    "decision": "revision 162 re-pinned in place (SCHEMA_REVISION stays 162)",
+    "basis": "revision 162 is unreleased on feat/WP-KERNEL-012 (not merged to main); MT-164, MT-166 and MT-153 re-pinned 162 in place (schema.rs GENERATED/INFO pin history comments)",
+    "ac_text_deviation": "AC-168-6 says 'one SCHEMA_REVISION bump'; the in-place re-pin follows the established packet practice instead",
+    "recorded_at_utc": "2026-10-02T17:20:00Z",
+    "by": "KERNEL_BUILDER-20261002"
   }
 }
