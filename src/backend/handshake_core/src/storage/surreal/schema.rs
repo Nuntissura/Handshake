@@ -2740,6 +2740,31 @@ IF array::len(SELECT id FROM media_asset_tiers WHERE workspace_id = $workspace) 
 IF array::len(SELECT id FROM stage_capture_artifacts WHERE workspace_id = $workspace) > 0 { RETURN false; };
 "#;
 
+/// MT-170 (Operator decision WP012-OPERATOR-MT170-PROJECTION-TARGET-20261002): the loom_edges
+/// projection branch also admits a standalone same-workspace target the saver can read
+/// (`fn::mt120_loom_endpoint_access`); rich-document projection targets keep their exact check.
+/// (current, previous) pairs for the select/create/update/delete lines against schema.surql at
+/// 0b344130; reverted FIRST in [`restore_pre_indexed_grant_schema`]; the revision-162 upgrade
+/// re-emits the loom_edges table ([`indexed_grant_upgrade_statements`]).
+#[cfg(test)]
+const MT170_LOOM_EDGE_PROJECTION_TARGET_DELTAS: [(&str, &str); 4] = [
+    (
+        "    PERMISSIONS FOR select WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'read', 'fs.read') AND ((target_block_id.source_rich_document_id != NONE AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')) OR (target_block_id.source_rich_document_id = NONE AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read'))) OR (last_actor_id != 'knowledge_rich_document_backlink_projection' AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND fn::mt120_loom_endpoint_access(source_block_id, record::id(workspace_id), 'read', 'fs.read') AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read'))\n",
+        "    PERMISSIONS FOR select WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'read', 'fs.read') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read') OR (last_actor_id != 'knowledge_rich_document_backlink_projection' AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND fn::mt120_loom_endpoint_access(source_block_id, record::id(workspace_id), 'read', 'fs.read') AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read'))\n",
+    ),
+    (
+        "                FOR create WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND ((target_block_id.source_rich_document_id != NONE AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')) OR (target_block_id.source_rich_document_id = NONE AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read'))) OR (last_actor_id != 'knowledge_rich_document_backlink_projection' AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND fn::mt120_loom_endpoint_access(source_block_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read'))\n",
+        "                FOR create WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read') OR (last_actor_id != 'knowledge_rich_document_backlink_projection' AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND fn::mt120_loom_endpoint_access(source_block_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read'))\n",
+    ),
+    (
+        "                FOR update WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND ((target_block_id.source_rich_document_id != NONE AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')) OR (target_block_id.source_rich_document_id = NONE AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read'))) OR (last_actor_id != 'knowledge_rich_document_backlink_projection' AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND fn::mt120_loom_endpoint_access(source_block_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read'))\n",
+        "                FOR update WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read') OR (last_actor_id != 'knowledge_rich_document_backlink_projection' AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND fn::mt120_loom_endpoint_access(source_block_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read'))\n",
+    ),
+    (
+        "                FOR delete WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND ((target_block_id.source_rich_document_id != NONE AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')) OR (target_block_id.source_rich_document_id = NONE AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read'))) OR (last_actor_id != 'knowledge_rich_document_backlink_projection' AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND fn::mt120_loom_endpoint_access(source_block_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read')) OR fn::mt120_workspace_delete(record::id(workspace_id));\n",
+        "                FOR delete WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read') OR (last_actor_id != 'knowledge_rich_document_backlink_projection' AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND fn::mt120_loom_endpoint_access(source_block_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_loom_endpoint_access(target_block_id, record::id(workspace_id), 'read', 'fs.read')) OR fn::mt120_workspace_delete(record::id(workspace_id));\n",
+    ),
+];
 /// MT-168 (AC-168-3): `fn::mt120_workspace_delete` reaches its owned resources, child grants and
 /// child resources through index-served all-AND lookups (new protected_resources_parent_idx; key-only
 /// resource_grants candidates). (current, previous) pairs against schema.surql at 75705221; reverted
@@ -2798,6 +2823,15 @@ fn restore_pre_indexed_grant_schema(mut source: String) -> String {
     // MT-153: the loom_edges delete OR reorder and the view_def workspace-delete widening are newer
     // than every predecessor; revert them first so the predecessor texts below (and the older
     // chains built on them) match exactly.
+    // MT-170 is the newest: revert the widened loom_edges projection target first.
+    for (current, previous) in MT170_LOOM_EDGE_PROJECTION_TARGET_DELTAS {
+        assert_eq!(
+            source.matches(current).count(),
+            1,
+            "MT-170 loom_edges projection delta must occur exactly once"
+        );
+        source = source.replacen(current, previous, 1);
+    }
     // MT-168 is newer still: drop the parent index and revert the workspace-delete lookups first.
     let index_line = format!("{MT168_PROTECTED_RESOURCES_PARENT_INDEX}\n");
     assert_eq!(
@@ -3141,8 +3175,10 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-168 AC-168-3 re-pin: fn::mt120_workspace_delete index-served lookups and the
 // protected_resources_parent_idx index (previous value
 // 464772928f331dc7d88460456bc64161401462a9e42deff281935db56dff7734); sha256 of schema.surql.
+// MT-170 re-pin: loom_edges projection branch admits standalone same-workspace targets (previous
+// value 8452a3f9bfdff502dafbb1ed7d6e7df60ce70ae47f3557edb13c391bf7b38513); sha256 of schema.surql.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "8452a3f9bfdff502dafbb1ed7d6e7df60ce70ae47f3557edb13c391bf7b38513";
+    "a0b177fe32c68a5b17813dede906f83877241532c3c8996e2a3c3fd124c6fbb5";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -3252,6 +3288,7 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // PIN-MEASURE on 94ba0ed1 (MT-153.json pin_measure_20261001_94ba0ed1).
 // MT-168 PIN-MEASURE PENDING: the seven grant function bodies changed (key-only candidate lookup),
 // fn::mt120_workspace_delete changed and protected_resources gained protected_resources_parent_idx;
+// MT-170 PIN-MEASURE PENDING: loom_edges select/create/update/delete projection branch changed;
 // value below is the 94ba0ed1 measurement.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
     "823b37d8026854aeb65c617dddb0a951ee452746f341d38752ec0c67d3138730";
