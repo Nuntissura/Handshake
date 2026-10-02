@@ -1462,5 +1462,44 @@
     "remaining_obligation_UserManual": "AC-117-6",
     "recorded_at_utc": "2026-10-02T07:40:00Z",
     "recorded_by": "KERNEL_BUILDER-20261002"
+  },
+  "remediation_20261002_cb1d3a8c": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20261002",
+    "at_utc": "2026-10-02T07:45:00Z",
+    "remediates": "MT-117 AC-117-6 (folded from MT-130 remaining_obligation:UserManual; WP012-OPERATOR-OWNERSHIP-20261002)",
+    "contract_verified_in_code": [
+      "src/frontend/handshake_native/src/app.rs:12387-12409 mt117_semantic chip arm: semantic carries action open-calendar-event, target, calendar_event_id, daily_note_doc_id",
+      "src/frontend/handshake_native/src/app.rs:12782-12807 declaration replaces the chip node value (MT-130 relocation)",
+      "src/frontend/handshake_native/src/app.rs:1237-1250 chip is Mt117TargetMode::Flexible; observer mt117.interop-action-completion (:947)",
+      "src/frontend/handshake_native/src/mcp/action.rs:214-236 ClickCompletionToken (semantic_value field; deny_unknown_fields)",
+      "src/frontend/handshake_native/src/graph/daily_journal_panel.rs:613-616 plain domain value when no declaration is published"
+    ],
+    "fix_commit": "cb1d3a8c725c1d40132d078de54c8c2e00121b81",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = cb1d3a8c725c1d40132d078de54c8c2e00121b81",
+    "changed_files": [
+      "src/frontend/handshake_native/src/manual_content_editors.rs (daily_journal_body: chip value contract paragraph)",
+      "src/frontend/handshake_native/tests/test_manual_content.rs (mt117_daily_journal_manual_states_the_calendar_chip_value_contract)"
+    ],
+    "proof_record": {
+      "id": "PR-WP012-MT117-KB-CHECK-03",
+      "executor_role": "KERNEL_BUILDER",
+      "covers": [
+        "MT-117"
+      ],
+      "command": "cargo check --locked --tests --features integration,integration_tests,wgpu_screenshots -j 2 (cwd src/frontend/handshake_native)",
+      "env": "CARGO_TARGET_DIR=Handshake_Artifacts/WP-KERNEL-012/MT-143/kb-laneb/target (warm lane-B owner target reused, same command/features as PR-WP012-MT117-KB-LANEB-CHECK-02; D: artifact disk, not the validator C: build disk; 0 cargo/rustc before launch); CARGO_INCREMENTAL=0; CARGO_PROFILE_DEV_DEBUG=line-tables-only; CARGO_PROFILE_TEST_DEBUG=line-tables-only",
+      "started_at_utc": "2026-10-02T07:38:41Z",
+      "completed_at_utc": "2026-10-02T07:40:46Z",
+      "exit_code": 0,
+      "result_line": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 05s; checking=1 (handshake-native); warnings only in test test_code_nav_client (2, pre-existing, not in changed files)",
+      "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-143/kb-laneb/logs/03-check-mt117-ac6.log",
+      "log_sha256": "5f73283f57d88740a663f03ec690f6b351a44f34e0eeaeedfa3f993905bb8dff",
+      "input_digest_before_after": "equal: manual_content_editors.rs e13149cf..., test_manual_content.rs 5c79fb6d... before and after",
+      "static": "rustfmt --edition 2021 --check tests/test_manual_content.rs exit 0"
+    },
+    "runtime_proof_for_validator": "handshake-native test_manual_content::mt117_daily_journal_manual_states_the_calendar_chip_value_contract (plus the whole test_manual_content target, since daily_journal_body changed)",
+    "status_change": "none: MT-117 stays BLOCKED on MT-074 (CX-STATUS-002); disjoint unblocked work (KB-IMPL-005)",
+    "next_actor": "WP_VALIDATOR includes the runtime proof in the next union round; MT-117 readiness follows MT-074"
   }
 }
