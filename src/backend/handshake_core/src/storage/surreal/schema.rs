@@ -3092,8 +3092,11 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // fn::mt120_workspace_delete (previous value
 // ac8d7465ad9ceb66aed0cef0107971db4a3c13a95c4ebd0312a127bb9bf8a70f); measured by WP validator
 // PIN-MEASURE on 94ba0ed1 (MT-153.json pin_measure_20261001_94ba0ed1).
+// MT-168 re-pin (revision 162, re-pinned in place): the seven resource_grants lookups select by the
+// resource_grants_exact_idx key only and filter the candidates in a second step (previous value
+// 3e9333cc67e21a126ae2759673f27bd7fe6b9cb8fa7b477fc8e2889ab1c3095b); sha256 of schema.surql.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "3e9333cc67e21a126ae2759673f27bd7fe6b9cb8fa7b477fc8e2889ab1c3095b";
+    "464772928f331dc7d88460456bc64161401462a9e42deff281935db56dff7734";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -3198,6 +3201,8 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT-153 re-pin: loom_edges delete OR reorder (previous
 // 0fa659b50938c531101082bfa5a3d626f4ec3646cd4722b39d97e103fb6f3148); measured by WP validator
 // PIN-MEASURE on 94ba0ed1 (MT-153.json pin_measure_20261001_94ba0ed1).
+// MT-168 PIN-MEASURE PENDING: the seven grant function bodies changed (key-only candidate lookup);
+// value below is the 94ba0ed1 measurement.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
     "823b37d8026854aeb65c617dddb0a951ee452746f341d38752ec0c67d3138730";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
@@ -3218,6 +3223,8 @@ pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
 // measured by WP validator PIN-MEASURE 2 on 4d4f7e12.
 // MT-166 re-pin (previous 06abcd428ba60a72ad66d7d0f9a9b9b9331dba1c871c791a3078dcbed3a9b998): measured
 // by WP validator PIN-MEASURE on e012e80d from one store; the confirming round checks determinism.
+// MT-168 PIN-MEASURE PENDING: the catalog carries the changed grant function bodies; value below is
+// the e012e80d measurement.
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
     "e98e231c40f88f614b4ed36bbe0990406f0851ea86ba15177e85b02c2ea0271a";
 const PENDING_SCHEMA_INFO_SHA256: &str =
@@ -4099,6 +4106,8 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // measured by WP validator PIN-MEASURE 2 on 4d4f7e12.
     // TENTH pin (MT-166, previous 07cc44c4f68e05f89698dfa9a1eb5a34b0807d57618ead55ff9b572cfe41e718):
     // measured by WP validator PIN-MEASURE on e012e80d.
+    // MT-168 PIN-MEASURE PENDING (also the test literal in
+    // mt109_loom_catalog_dependencies_are_complete_and_deterministic): e012e80d value; re-measure.
     const EXPECTED_CATALOG_SHA256: &str =
         "6a224fa74f38e204df71ddfe1a7d4e162bd2c5ee1d2c4900e2fcc506d2fa5b74";
     let ddl = loom_receipt_test_schema_ddl();

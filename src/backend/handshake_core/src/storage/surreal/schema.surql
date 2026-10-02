@@ -6061,20 +6061,19 @@ DEFINE FUNCTION OVERWRITE fn::mt109_has_grant($kind: string, $external: string, 
     LET $policy = $auth.policy_version;
     LET $chain = $auth.delegation_chain;
     LET $resource_policy = $resource.policy_version;
-    LET $grants = SELECT id FROM resource_grants
-        WHERE account_id = $acct
-          AND principal_id = $prin
-          AND access_space_id = $space
-          AND resource_id = $resource
-          AND status = 'active'
+    LET $candidates = SELECT * FROM resource_grants
+        WHERE account_id = $acct AND principal_id = $prin
+          AND access_space_id = $space AND resource_id = $resource;
+    LET $now = time::now();
+    LET $grants = $candidates[WHERE status = 'active'
           AND revoked_at = NONE
-          AND (expires_at = NONE OR expires_at > time::now())
+          AND (expires_at = NONE OR expires_at > $now)
           AND $resource_policy <= policy_version
           AND policy_version <= $policy
           AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'))
           AND (actions CONTAINS $action)
           AND (capability_ids CONTAINS $capability)
-          AND delegation_chain = $chain;
+          AND delegation_chain = $chain];
     RETURN array::len($grants) > 0;
 };
 
@@ -6098,19 +6097,18 @@ DEFINE FUNCTION OVERWRITE fn::mt109_has_workspace_access($external: string, $act
     LET $policy = $auth.policy_version;
     LET $chain = $auth.delegation_chain;
     LET $resource_policy = $resource.policy_version;
-    LET $grants = SELECT id FROM resource_grants
-        WHERE account_id = $acct
-          AND principal_id = $prin
-          AND access_space_id = $space
-          AND resource_id = $resource
-          AND status = 'active'
+    LET $candidates = SELECT * FROM resource_grants
+        WHERE account_id = $acct AND principal_id = $prin
+          AND access_space_id = $space AND resource_id = $resource;
+    LET $now = time::now();
+    LET $grants = $candidates[WHERE status = 'active'
           AND revoked_at = NONE
-          AND (expires_at = NONE OR expires_at > time::now())
+          AND (expires_at = NONE OR expires_at > $now)
           AND $resource_policy <= policy_version
           AND policy_version <= $policy
           AND (actions CONTAINS $action)
           AND (capability_ids CONTAINS $capability)
-          AND delegation_chain = $chain;
+          AND delegation_chain = $chain];
     RETURN array::len($grants) > 0;
 };
 
@@ -6153,17 +6151,17 @@ DEFINE FUNCTION OVERWRITE fn::mt109_source_read($kind: string, $external: string
     LET $space = $auth.access_space_id;
     LET $delegated = $auth.delegated_capabilities;
     LET $chain = $auth.delegation_chain;
-    LET $grants = SELECT id FROM resource_grants
+    LET $candidates = SELECT * FROM resource_grants
         WHERE account_id = $acct AND principal_id = $prin
-          AND access_space_id = $space AND resource_id = $resource
-          AND status = 'active' AND revoked_at = NONE
-          AND (expires_at = NONE OR expires_at > time::now())
+          AND access_space_id = $space AND resource_id = $resource;
+    LET $now = time::now();
+    LET $grants = $candidates[WHERE status = 'active'
+          AND revoked_at = NONE
+          AND (expires_at = NONE OR expires_at > $now)
           AND actions CONTAINS 'read'
           AND (capability_ids CONTAINS 'memory.propose' OR capability_ids CONTAINS 'memory.read')
-          AND (($delegated CONTAINS '*')
-               OR ($delegated CONTAINS 'memory.propose' AND capability_ids CONTAINS 'memory.propose')
-               OR ($delegated CONTAINS 'memory.read' AND capability_ids CONTAINS 'memory.read'))
-          AND delegation_chain = $chain;
+          AND (($delegated CONTAINS '*') OR ($delegated CONTAINS 'memory.propose' AND capability_ids CONTAINS 'memory.propose') OR ($delegated CONTAINS 'memory.read' AND capability_ids CONTAINS 'memory.read'))
+          AND delegation_chain = $chain];
     RETURN array::len($grants) > 0;
 };
 
@@ -6197,15 +6195,18 @@ DEFINE FUNCTION OVERWRITE fn::mt120_document_access($document: string, $workspac
     LET $policy = $auth.policy_version;
     LET $chain = $auth.delegation_chain;
     LET $resource_policy = $resource.policy_version;
-    LET $grants = SELECT id FROM resource_grants
+    LET $candidates = SELECT * FROM resource_grants
         WHERE account_id = $acct AND principal_id = $prin
-          AND access_space_id = $space AND resource_id = $resource
-          AND status = 'active' AND revoked_at = NONE
-          AND (expires_at = NONE OR expires_at > time::now())
+          AND access_space_id = $space AND resource_id = $resource;
+    LET $now = time::now();
+    LET $grants = $candidates[WHERE status = 'active'
+          AND revoked_at = NONE
+          AND (expires_at = NONE OR expires_at > $now)
           AND $resource_policy <= policy_version
           AND policy_version <= $policy
-          AND actions CONTAINS $action AND capability_ids CONTAINS $capability
-          AND delegation_chain = $chain;
+          AND actions CONTAINS $action
+          AND capability_ids CONTAINS $capability
+          AND delegation_chain = $chain];
     RETURN array::len($grants) > 0;
 };
 DEFINE FUNCTION OVERWRITE fn::mt120_loom_block_access($block: string, $workspace: string, $action: string, $capability: string) {
@@ -6233,13 +6234,16 @@ DEFINE FUNCTION OVERWRITE fn::mt120_loom_block_access($block: string, $workspace
     LET $prin = $auth.principal_id;
     LET $space = $auth.access_space_id;
     LET $chain = $auth.delegation_chain;
-    LET $grants = SELECT id FROM resource_grants
+    LET $candidates = SELECT * FROM resource_grants
         WHERE account_id = $acct AND principal_id = $prin
-          AND access_space_id = $space AND resource_id = $resource
-          AND status = 'active' AND revoked_at = NONE
-          AND (expires_at = NONE OR expires_at > time::now())
-          AND actions CONTAINS $action AND capability_ids CONTAINS $capability
-          AND delegation_chain = $chain;
+          AND access_space_id = $space AND resource_id = $resource;
+    LET $now = time::now();
+    LET $grants = $candidates[WHERE status = 'active'
+          AND revoked_at = NONE
+          AND (expires_at = NONE OR expires_at > $now)
+          AND actions CONTAINS $action
+          AND capability_ids CONTAINS $capability
+          AND delegation_chain = $chain];
     RETURN array::len($grants) > 0;
 };
 DEFINE FUNCTION OVERWRITE fn::mt120_loom_endpoint_access($block: option<record<loom_blocks>>, $workspace: string, $action: string, $capability: string) {
@@ -6381,11 +6385,13 @@ DEFINE FUNCTION OVERWRITE fn::mt166_resource_select_grant($resource: record<prot
     LET $acct = $auth.account_id;
     LET $prin = $auth.principal_id;
     LET $space = $auth.access_space_id;
-    LET $grants = SELECT id FROM resource_grants
+    LET $candidates = SELECT * FROM resource_grants
         WHERE account_id = $acct AND principal_id = $prin
-          AND access_space_id = $space AND resource_id = $resource
-          AND status = 'active' AND revoked_at = NONE
-          AND (expires_at = NONE OR expires_at > time::now());
+          AND access_space_id = $space AND resource_id = $resource;
+    LET $now = time::now();
+    LET $grants = $candidates[WHERE status = 'active'
+          AND revoked_at = NONE
+          AND (expires_at = NONE OR expires_at > $now)];
     RETURN array::len($grants) > 0;
 };
 
@@ -6406,15 +6412,17 @@ DEFINE FUNCTION OVERWRITE fn::mt109_ledger_access($resource: option<record<prote
     LET $space = $auth.access_space_id;
     LET $chain = $auth.delegation_chain;
     LET $not_reconciliation = $resource.resource_kind != 'reconciliation_queue';
-    LET $grants = SELECT id FROM resource_grants
+    LET $candidates = SELECT * FROM resource_grants
         WHERE account_id = $acct AND principal_id = $prin
-          AND access_space_id = $space AND resource_id = $resource
-          AND status = 'active' AND revoked_at = NONE
-          AND (expires_at = NONE OR expires_at > time::now())
-          AND actions CONTAINS $action AND capability_ids CONTAINS $capability
+          AND access_space_id = $space AND resource_id = $resource;
+    LET $now = time::now();
+    LET $grants = $candidates[WHERE status = 'active'
+          AND revoked_at = NONE
+          AND (expires_at = NONE OR expires_at > $now)
+          AND actions CONTAINS $action
+          AND capability_ids CONTAINS $capability
           AND delegation_chain = $chain
-          AND ($not_reconciliation OR
-               (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'));
+          AND ($not_reconciliation OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'))];
     RETURN array::len($grants) > 0;
 };
 
