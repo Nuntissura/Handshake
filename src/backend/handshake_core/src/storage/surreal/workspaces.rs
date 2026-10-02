@@ -542,9 +542,10 @@ LET $children = array::concat($direct_children, (SELECT id, resource_kind FROM p
 FOR $child IN $children {
     LET $child_action = IF $child.resource_kind = 'flight_recorder' { 'read' } ELSE { 'delete' };
     LET $child_capability = IF $child.resource_kind = 'flight_recorder' { 'fr.read' } ELSE { 'fs.write' };
-    LET $child_grant = (SELECT VALUE id FROM resource_grants WHERE resource_id = $child.id
-        AND principal_id = $principal AND account_id = $account AND access_space_id = $space
-        AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now())
+    LET $child_id = $child.id;
+    LET $child_grant = (SELECT VALUE id FROM (SELECT * FROM resource_grants WHERE account_id = $account
+        AND principal_id = $principal AND access_space_id = $space AND resource_id = $child_id)
+        WHERE status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now())
         AND actions CONTAINS $child_action AND capability_ids CONTAINS $child_capability
         AND delegation_chain = $auth.delegation_chain AND resource_id.policy_version <= policy_version
         AND policy_version <= $auth.policy_version LIMIT 1)[0];
