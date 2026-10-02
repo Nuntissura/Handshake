@@ -1438,5 +1438,37 @@
     "gameplan": "before_submit kernel_builder PASS 2/2 at dbdae422; GP-158 confirmed (loom edge/counter txn files untouched)",
     "selection_note": "MT-167 timing (same-shape re-index projection must stay flat), MT-167-EQUAL-COUNTS incl. the stable-across-passes assertion, knowledge_code_index_tests, knowledge_code_nav_api_tests, code_nav_index_account_tests; downstream MT-008 PC-008-05, MT-064 PC-064-04, MT-065 PC-065-01 as evidence",
     "next_actor": "WP_VALIDATOR"
+  },
+  "remediation_20261002_targeted_dbdae422": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "kind": "TARGETED validator run (CX-EXEC-014 named run; evidence only, no verdict)",
+    "by": "WP_VALIDATOR-20260930-ORCH-SUB",
+    "at_utc": "2026-10-02T01:10:00Z",
+    "authority": "Operator targeted-first cadence; orchestrator dispatch 2026-10-02 after MT-167 READY on dbdae422 (gov 231a1213, remediation_20261002_dbdae422)",
+    "candidate_commit": "dbdae422e64113b18975f90f87ed34738f853a04",
+    "phase_A_core": {
+      "selection": "WPV-round-selection-targeted.sh (NATIVE_SKIP=1)",
+      "items": {
+        "MT-167-VALIDATOR-TIMING": "mt167_code_nav_index_median_within_spec_baseline: every MT167_TIMING sample + try_index_prepared_batch.projection per re-index (hypothesis to measure: projection stays flat)",
+        "MT-167-EQUAL-COUNTS": "mt167_batch_and_per_file_writer_produce_equal_rows incl. the new pass-2 == pass-1 totals assertion, all shapes",
+        "existing tests": "knowledge_code_index_tests, knowledge_code_nav_api_tests (whole)",
+        "account test (GP-161)": "api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete"
+      },
+      "outputs": [
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-dbdae422e64113b18975f90f87ed34738f853a04-core-targeted.xml",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-dbdae422e64113b18975f90f87ed34738f853a04.*"
+      ]
+    },
+    "phase_B_native": {
+      "condition": "only if every MT-167 core item in phase A passes; otherwise stop and report",
+      "items": "MT-008 PC-008-05 (test_completion_hover_accesskit ac005/ac006), MT-064 PC-064-04 + MT-065 PC-065-01 (test_fems_interop_proofs whole) as MT-167-DOWNSTREAM evidence; MT-008/064/065 stay BLOCKED",
+      "mechanism": "same targeted mode with CORE_SKIP=1 selection; phase A outputs renamed -core first; credentials before/after"
+    },
+    "then": "everything passes -> one union round on dbdae422 with all READY MTs (verdicts from the union round)",
+    "build_profiles": {
+      "backend": "dev + allow-listed dependency opt-level 2 (-j 2) [phase B only]",
+      "core test": "dev/test + 8-crate opt-level 2; check_test_profile on the -v core log; runner gets the same --config (GP-162)"
+    },
+    "result_key": "MT-167.json#targeted_result_20261002_dbdae422"
   }
 }

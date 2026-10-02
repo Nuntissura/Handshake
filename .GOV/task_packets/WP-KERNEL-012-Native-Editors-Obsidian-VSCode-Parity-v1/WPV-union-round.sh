@@ -268,7 +268,9 @@ if [[ -z "$MODE" || "$MODE" = targeted ]]; then
   [ "${ROUND_SELECTION_MODE:-full}" = "${MODE:-full}" ] || { echo "[run-round] FATAL: selection mode ${ROUND_SELECTION_MODE:-full} != run mode ${MODE:-full}"; exit 2; }
   echo "[run-round] round selection: core ${#CORE_TESTS[@]} targets + lib, native ${#NATIVE_TESTS[@]} targets lib=$NATIVE_LIB"
 fi
-CORE_SKIP=0
+# A targeted selection may set CORE_SKIP=1 (native-only phase after a passing core phase; orchestrator cadence 2026-10-02).
+CORE_SKIP="${CORE_SKIP:-0}"
+[[ "$CORE_SKIP" = 1 && "$MODE" != targeted && "$MODE" != backend-opt-diag ]] && { echo "[run-round] FATAL: CORE_SKIP only allowed in targeted mode"; exit 2; }
 NATIVE_JUNIT_NAME="junit-$SHA-native$OUT_SUFFIX.xml"
 if [[ "$MODE" = backend-opt-diag ]]; then
   CORE_SKIP=1
