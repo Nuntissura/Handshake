@@ -1,0 +1,431 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-168",
+  "created_at_utc": "2026-10-02T07:40:00Z",
+  "updated_at_utc": "2026-10-02T07:40:00Z",
+  "identity": {
+    "mt_id": "MT-168",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "E5-MT-168-Index-Bound-Grant-Predicates-And-Workspace-Delete-Scans",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Every record-user grant check (fn::mt109_has_grant, fn::mt109_has_workspace_access, fn::mt109_source_read, fn::mt120_document_access, fn::mt109_ledger_access) and the resource/grant scans of fn::mt120_workspace_delete (W) are served by indexes, so their cost no longer grows with resource_grants / protected_resources rows owned by other workspaces; allow/deny semantics unchanged.",
+    "requirement_refs": [
+      "packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]",
+      "MT-153.json#operator_decision_request_20261001_w_scan_ownership",
+      "MT-153.json#analysis_20261001_step1_w_scans_ownership.ii_W_scans_and_index_use",
+      "MT-153.json#research_20261001_fr_stall_refuted",
+      "MT-167.json#diagnosis_20261002_dbdae422_grant_table_scan",
+      "MT-166.json#closure_unit (closed predecessor of the same capability: index-bound grant scans)"
+    ],
+    "acceptance_refs": [
+      "AC-168-1",
+      "AC-168-2",
+      "AC-168-3",
+      "AC-168-4",
+      "AC-168-5",
+      "AC-168-6"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-168-1",
+        "requirement": "First step, before any product edit: record in implementation_record.first_step_evidence, from surrealdb-core 3.2.0 source (src/idx/planner/tree.rs:514-520, plan.rs:92-179) plus, if needed, ONE recorded EXPLAIN probe named in a remediation, whether SELECTs inside a DEFINE FUNCTION body evaluated from a PERMISSIONS predicate are planned by the index planner and which WHERE shapes it serves (all-AND, bare LET params, IN-subquery). The rewrite shape in AC-168-2/3 is chosen from this evidence."
+      },
+      {
+        "id": "AC-168-2",
+        "requirement": "The grant SELECTs in fn::mt109_has_grant (schema.surql:6044), fn::mt109_has_workspace_access (:6081), fn::mt109_source_read (:6117), fn::mt120_document_access (:6171) and fn::mt109_ledger_access (:6392) select candidate rows by the exact resource_grants_exact_idx key (account_id, principal_id, access_space_id, resource_id; :5850) with an all-AND WHERE of bare LET params only; expiry, reconciliation_queue, actions/capabilities CONTAINS and delegation_chain filters run as a second step over that candidate set. Flattened sequential early exits (MT164-UDF-AND-CHAIN-STACK-OVERFLOW). Allow/deny results identical for every existing input."
+      },
+      {
+        "id": "AC-168-3",
+        "requirement": "fn::mt120_workspace_delete (schema.surql:6771-7036): the :6782 OR/two-hop protected_resources lookup is replaced by all-AND index-served lookups (a new DEFINE INDEX on protected_resources.parent_resource_id is allowed); the per-owned-resource grant (:6789) and child (:6798) lookups and the per-block/entity (resource_kind, external_resource_id) lookups (:6822, :7015-7016) compare against LET-bound bare params. W allow/deny unchanged, including MT-153 AC-153-8, MT-154 AC-154-6 and MT-157 W rowset behavior."
+      },
+      {
+        "id": "AC-168-4",
+        "requirement": "Existing authority/denial tests stay green (resource_authority_tests, the union core authority selections, MT-153/154/157 workspace-delete tests); stack-overflow count does not rise."
+      },
+      {
+        "id": "AC-168-5",
+        "requirement": "Timing tests in resource_authority_tests.rs (MT-164/MT-166 pattern): for each of the five grant functions and for a workspace delete, the median with 500 unrelated grant/resource rows in other workspaces vs 50 has ratio < 2.0, medians < 250 ms for single grant checks, non-vacuous (asserts the check returned true/false as expected)."
+      },
+      {
+        "id": "AC-168-6",
+        "requirement": "Schema pins handled as in MT-164 AC-164-5: one SCHEMA_REVISION bump (schema.rs:18, currently 162), GENERATED_SURREALQL_SHA256 re-derived by the builder; runtime-measured pins (EXPECTED_SCHEMA_INFO_SHA256, schema.rs:3201) marked PIN-MEASURE PENDING and measured by the validator before the confirming round."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Schema permission-predicate rewrite with security semantics; needs planner source reading and careful equivalence.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "max_fix_rounds_per_mt": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [
+      "MT-153.json#analysis_20261001_step1_w_scans_ownership",
+      "MT-167.json#diagnosis_20261002_dbdae422_grant_table_scan"
+    ],
+    "no_counter_reset": true
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "foreground_or_interactive_tools_forbidden": true,
+    "owning_module": "handshake_core storage/surreal (src/backend/handshake_core/src/storage/surreal) [CX-UNIT-001]; active owner of the capability 'index-bound grant/resource scans' after MT-166 (CX-CAP-001)",
+    "depends_on": [],
+    "first_step": "AC-168-1 planner evidence (code reading of surrealdb-core 3.2.0 planner; at most one recorded EXPLAIN probe), recorded before editing schema.surql.",
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/storage/surreal/schema.surql (only the five grant function bodies named in AC-168-2, the fn::mt120_workspace_delete body, one new protected_resources parent_resource_id index, and new helper fns if AC-168-2/3 need them)",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs (only the revision/GENERATED/INFO pins and upgrade entries this change forces, MT-164 AC-164-5 pattern)",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (timing tests only)"
+    ],
+    "forbidden_write_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/frontend/**",
+      "src/backend/handshake_document/**",
+      "any other schema.surql/schema.rs statement (table PERMISSIONS clauses stay as written)",
+      "src/backend/handshake_core/src/knowledge_ingestion/** (MT-154)",
+      "src/backend/handshake_core/src/knowledge_code_index/** (MT-167)",
+      "any SQLite/PostgreSQL path (CX-503R)"
+    ],
+    "stop_conditions": [
+      "Any needed write outside allowed_write_paths: stop and report file:line; do not edit.",
+      "If identical allow/deny semantics cannot be kept with key-first lookups, stop and record operator_decision_request; never widen via privileged execution.",
+      "If AC-168-1 shows function-body SELECTs are never index-planned, stop and record the blocker with the source evidence before rewriting.",
+      "Only one schema.rs revision bump per candidate; coordinate with any concurrent schema owner (MT-153/154/157) before committing.",
+      "Builder runs compile/static checks plus cheap focused tests allowed by WP012-ORCH-SESSION-20260930; union runtime acceptance belongs to the WP validator."
+    ],
+    "product_worktree": "wtc-native-editors-v1 (branch feat/WP-KERNEL-012)",
+    "artifact_owner_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/ (CX-984-002; build disk as named in dispatch, KB-OUT-008)",
+    "execution_authorized": true,
+    "execution_authorization_scope": "Operator decision WP012-OPERATOR-OWNERSHIP-20261002 (packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]); contract authored 2026-10-02 by KERNEL_BUILDER (KB-PREP-002)."
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "MT-168-PLANNER-EVIDENCE",
+        "executor_role": "KERNEL_BUILDER",
+        "claim_refs": [
+          "AC-168-1"
+        ],
+        "command_or_method": "code reading of surrealdb-core 3.2.0 planner (cargo registry) + at most one recorded EXPLAIN probe",
+        "expected": "recorded in implementation_record.first_step_evidence with file:line",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "implementation_record.first_step_evidence"
+        ]
+      },
+      {
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "claim_refs": [
+          "AC-168-2",
+          "AC-168-3",
+          "AC-168-6"
+        ],
+        "command_or_method": "cargo check --locked -j 4 --config <gov>/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils (cwd src/backend/handshake_core); env CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-168/kb/target, CARGO_INCREMENTAL=0, CARGO_PROFILE_DEV_DEBUG=line-tables-only, CARGO_PROFILE_TEST_DEBUG=line-tables-only; build disk as named in the dispatch (KB-OUT-008)",
+        "expected": "exit 0; input digest unchanged",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "validation.proof_records"
+        ]
+      },
+      {
+        "check_id": "MT-168-VALIDATOR-AUTHORITY",
+        "executor_role": "WP_VALIDATOR",
+        "claim_refs": [
+          "AC-168-2",
+          "AC-168-3",
+          "AC-168-4"
+        ],
+        "command_or_method": "union round: resource_authority_tests (whole), core authority selections, MT-153/154/157 workspace-delete tests",
+        "expected": "all pass; stack-overflow count not higher than the previous round",
+        "timeout_seconds": 1200,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "junit"
+        ]
+      },
+      {
+        "check_id": "MT-168-VALIDATOR-TIMING",
+        "executor_role": "WP_VALIDATOR",
+        "claim_refs": [
+          "AC-168-5"
+        ],
+        "command_or_method": "union round: the new MT-168 timing tests in resource_authority_tests.rs",
+        "expected": "ratio < 2.0, medians within AC-168-5, non-vacuous",
+        "timeout_seconds": 1200,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "junit",
+          "printed medians"
+        ]
+      },
+      {
+        "check_id": "MT-168-DOWNSTREAM",
+        "executor_role": "WP_VALIDATOR",
+        "claim_refs": [
+          "AC-168-4"
+        ],
+        "command_or_method": "same round: MT-167 timing (mt167_code_nav_index_cost_tests) and MT-153 BCV cleanup, as downstream observation (their own verdicts stay theirs)",
+        "expected": "recorded medians; MT-167 projection no longer grows per sample",
+        "timeout_seconds": 1200,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "junit"
+        ]
+      }
+    ]
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-168.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-168.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json",
+    "precedent": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-167.json (narrow-MT shape; MT-164/MT-166 pattern)"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-168.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "first step AC-168-1 not started; dispatch (owner, build disk) pending",
+    "depends_on": [],
+    "blocks": [
+      "MT-167",
+      "MT-169"
+    ],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "next_actor": "KERNEL_BUILDER (dispatch names build disk)",
+    "rounds_without_output": 0,
+    "diagnosis_refs": [
+      "MT-153.json#analysis_20261001_step1_w_scans_ownership",
+      "MT-167.json#diagnosis_20261002_dbdae422_grant_table_scan"
+    ]
+  },
+  "scope": {
+    "summary": "Make grant checks and W resource/grant scans index-served (key-first all-AND lookups with bare LET params; new parent_resource_id index) so their cost is independent of other workspaces' rows; semantics unchanged.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/storage/surreal/schema.surql (only the five grant function bodies named in AC-168-2, the fn::mt120_workspace_delete body, one new protected_resources parent_resource_id index, and new helper fns if AC-168-2/3 need them)",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs (only the revision/GENERATED/INFO pins and upgrade entries this change forces, MT-164 AC-164-5 pattern)",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (timing tests only)"
+    ],
+    "forbidden_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/frontend/**",
+      "src/backend/handshake_document/**",
+      "any other schema.surql/schema.rs statement (table PERMISSIONS clauses stay as written)",
+      "src/backend/handshake_core/src/knowledge_ingestion/** (MT-154)",
+      "src/backend/handshake_core/src/knowledge_code_index/** (MT-167)",
+      "any SQLite/PostgreSQL path (CX-503R)"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-168-1",
+        "requirement": "First step, before any product edit: record in implementation_record.first_step_evidence, from surrealdb-core 3.2.0 source (src/idx/planner/tree.rs:514-520, plan.rs:92-179) plus, if needed, ONE recorded EXPLAIN probe named in a remediation, whether SELECTs inside a DEFINE FUNCTION body evaluated from a PERMISSIONS predicate are planned by the index planner and which WHERE shapes it serves (all-AND, bare LET params, IN-subquery). The rewrite shape in AC-168-2/3 is chosen from this evidence."
+      },
+      {
+        "id": "AC-168-2",
+        "requirement": "The grant SELECTs in fn::mt109_has_grant (schema.surql:6044), fn::mt109_has_workspace_access (:6081), fn::mt109_source_read (:6117), fn::mt120_document_access (:6171) and fn::mt109_ledger_access (:6392) select candidate rows by the exact resource_grants_exact_idx key (account_id, principal_id, access_space_id, resource_id; :5850) with an all-AND WHERE of bare LET params only; expiry, reconciliation_queue, actions/capabilities CONTAINS and delegation_chain filters run as a second step over that candidate set. Flattened sequential early exits (MT164-UDF-AND-CHAIN-STACK-OVERFLOW). Allow/deny results identical for every existing input."
+      },
+      {
+        "id": "AC-168-3",
+        "requirement": "fn::mt120_workspace_delete (schema.surql:6771-7036): the :6782 OR/two-hop protected_resources lookup is replaced by all-AND index-served lookups (a new DEFINE INDEX on protected_resources.parent_resource_id is allowed); the per-owned-resource grant (:6789) and child (:6798) lookups and the per-block/entity (resource_kind, external_resource_id) lookups (:6822, :7015-7016) compare against LET-bound bare params. W allow/deny unchanged, including MT-153 AC-153-8, MT-154 AC-154-6 and MT-157 W rowset behavior."
+      },
+      {
+        "id": "AC-168-4",
+        "requirement": "Existing authority/denial tests stay green (resource_authority_tests, the union core authority selections, MT-153/154/157 workspace-delete tests); stack-overflow count does not rise."
+      },
+      {
+        "id": "AC-168-5",
+        "requirement": "Timing tests in resource_authority_tests.rs (MT-164/MT-166 pattern): for each of the five grant functions and for a workspace delete, the median with 500 unrelated grant/resource rows in other workspaces vs 50 has ratio < 2.0, medians < 250 ms for single grant checks, non-vacuous (asserts the check returned true/false as expected)."
+      },
+      {
+        "id": "AC-168-6",
+        "requirement": "Schema pins handled as in MT-164 AC-164-5: one SCHEMA_REVISION bump (schema.rs:18, currently 162), GENERATED_SURREALQL_SHA256 re-derived by the builder; runtime-measured pins (EXPECTED_SCHEMA_INFO_SHA256, schema.rs:3201) marked PIN-MEASURE PENDING and measured by the validator before the confirming round."
+      }
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Database permission-predicate performance; no operator surface change. Visible effect is proven downstream by MT-167/MT-153/MT-042 timing proofs."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": "No control or documented behavior changes; allow/deny identical (AC-168-2/3)."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "resource_grants",
+      "protected_resources",
+      "workspaces delete path"
+    ],
+    "identity_and_scope_contexts": [
+      "authenticated record-user session of the indexing workspace"
+    ],
+    "enforcement_boundaries": [
+      "record-user PERMISSIONS unchanged in meaning; no root/privileged path"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [
+      "existing resource_authority denial tests stay green (AC-168-4)"
+    ],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [
+      "stable_resource_owner_scope_linkage",
+      "default_deny_negative_test",
+      "same_project_cross_account_isolation_test_when_applicable",
+      "derived_resource_scope_non_widening_test_when_applicable",
+      "actor_owner_access_space_attribution",
+      "revocation_or_context_switch_test_when_applicable",
+      "remote_delegation_sync_scope_test_when_applicable",
+      "argus_or_typed_privacy_state_inspection_when_operator_visible"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER_EVENTLEDGER",
+      "status": "UNCHANGED",
+      "reason": "Index-run receipts keep their current EventLedger shape; spec §2.3.14.4.6 FR latency logging is not widened by this MT."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "UNCHANGED",
+      "reason": "Existing code_nav_index stage timing logs remain the diagnostic surface."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE_WITH_REASON",
+      "reason": "No native process surface."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "status_update_requirements": [
+      "Record the first-step evidence in implementation_record before any product edit.",
+      "On pushed commit: record SHA and proof_records (input digest unchanged), gameplan before_submit, READY_FOR_VALIDATION.",
+      "On PASS: clear lifecycle.blocked_on in MT-167, MT-169."
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Semantic drift: a key-first rewrite drops a filter (expiry, delegation, reconciliation) and widens access.",
+      "Planner still table-scans because a PATH param or OR survives in the rewritten WHERE.",
+      "Deep AND chains overflow the UDF stack (MT164-UDF-AND-CHAIN-STACK-OVERFLOW).",
+      "Concurrent schema.rs revision bumps from MT-153/154/157 collide.",
+      "Timing test vacuous (checks never reach the grant query) or load-flaky."
+    ],
+    "minimum_controls": [
+      "AC-168-1 evidence before edit; AC-168-4 full authority suites green.",
+      "Flattened early exits; stack-overflow count compared to previous round.",
+      "One revision bump per candidate; coordinate before commit.",
+      "AC-168-5 asserts the expected boolean result per sample, median of N after warm-up."
+    ]
+  },
+  "title": "E5-MT-168-Index-Bound-Grant-Predicates-And-Workspace-Delete-Scans",
+  "group": "E5",
+  "spec_basis": {
+    "kind": "remediation_derived_mt",
+    "note": "Created to own recorded validator failures/diagnoses that had no owning MT; CX-SPEC-TRUTH-001 activation gate does not apply to remediation work. Downstream timing baseline: Master Spec v02.206 §2.3.14.17.3 (02-system-architecture.md:4470-4478) as quoted in MT-167.json#spec_basis."
+  },
+  "hbr_swarm_allocation": "Grant-check cost independent of other workspaces' rows is what lets parallel agents/workspaces coexist; no new swarm surface; no waiver.",
+  "operator_decision": {
+    "decision_id": "WP012-OPERATOR-OWNERSHIP-20261002",
+    "ref": "packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]",
+    "effect": "New narrow MT MT-168 approved; see packet decision entry."
+  },
+  "validation": {
+    "proof_records": []
+  },
+  "authored_by": "KERNEL_BUILDER-20261002",
+  "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-167 narrow-MT shape",
+  "implementation_record": {
+    "owning_module_evidence": null,
+    "first_step_evidence": null
+  }
+}

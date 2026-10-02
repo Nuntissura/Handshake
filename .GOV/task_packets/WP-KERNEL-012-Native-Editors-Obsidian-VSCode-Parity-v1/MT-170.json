@@ -1,0 +1,389 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-170",
+  "created_at_utc": "2026-10-02T07:40:00Z",
+  "updated_at_utc": "2026-10-02T07:40:00Z",
+  "identity": {
+    "mt_id": "MT-170",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "E8-MT-170-Rich-Document-Wikilink-Loom-Edge-Projection",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Saving a rich document whose wikilink targets an existing Loom block in the same workspace projects the mention edge into loom_edges, so GET backlinks returns it (MT-046 ic04/ic10/ic12); a skipped projection is never silent; authority unchanged.",
+    "requirement_refs": [
+      "packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]",
+      "MT-046.json#diagnosis_20261001_bd8c7532 (DX-MT-046-20261001-BD8C-NEG-403-AND-LOOM-PROJECTION)",
+      "MT-046.json#remediation_20261001_0c416dc4",
+      "MT-046.json#validation_round_bd8c7532"
+    ],
+    "acceptance_refs": [
+      "AC-170-1",
+      "AC-170-2",
+      "AC-170-3",
+      "AC-170-4",
+      "AC-170-5"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-170-1",
+        "requirement": "First step, before any product edit: ONE recorded diagnostic (named in a remediation) of the record-user read in resolve_backlink_rows (src/backend/handshake_document/src/surreal.rs:244; candidate read :343-353 `SELECT block_id, workspace_id FROM $candidate_loom_records`; live_loom_ids :358-362; project_to_loom :406) for the ic04/ic10/ic12 inputs, recording which input empties live_loom_ids (candidate id derivation, workspace mismatch, record-user permission denial, or timing). Recorded in implementation_record.first_step_evidence with file:line; owning_module bound from it."
+      },
+      {
+        "id": "AC-170-2",
+        "requirement": "The fix makes a wikilink to an existing same-workspace Loom block produce the mention loom_edges row, readable through get_backlinks (src/backend/handshake_core/src/storage/surreal/loom_store.rs:1955); re-save is idempotent (no duplicate edges)."
+      },
+      {
+        "id": "AC-170-3",
+        "requirement": "A wikilink whose target resolves but is not projected (denied, other workspace, missing) records a typed reason in the existing backlink diagnostics/log path instead of being dropped silently (HBR-INT diagnostics)."
+      },
+      {
+        "id": "AC-170-4",
+        "requirement": "Authority unchanged: no privileged/root read; a target in another account or workspace is never projected (negative test)."
+      },
+      {
+        "id": "AC-170-5",
+        "requirement": "Downstream: MT-046 PC-046-01/02/03 ic04 (test_interconnect_ckc_to_note.rs:692), ic10 (test_interconnect_loom_backlink_search.rs:285), ic12 (:502) pass in the same round."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Cross-crate projection repair with authority semantics; cause must be diagnosed before editing.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "max_fix_rounds_per_mt": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [
+      "MT-046.json#diagnosis_20261001_bd8c7532"
+    ],
+    "no_counter_reset": true
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "foreground_or_interactive_tools_forbidden": true,
+    "owning_module": "UNBOUND until AC-170-1 evidence; primary candidate: handshake_document (src/backend/handshake_document/src/surreal.rs resolve_backlink_rows). Exactly one module bound (CX-UNIT-001).",
+    "depends_on": [],
+    "first_step": "One recorded diagnostic of the record-user live_loom_ids read for ic04/ic10/ic12 inputs (AC-170-1); bind owning_module; record intended fix; then edit.",
+    "allowed_write_paths": [
+      "the ONE owning module bound by AC-170-1 evidence (expected src/backend/handshake_document/src/surreal.rs) - recorded in implementation_record before editing",
+      "one focused test in that module's crate for AC-170-2/3/4"
+    ],
+    "forbidden_write_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/frontend/** (MT-046 tests are not edited by this MT)",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql and src/backend/handshake_core/src/storage/surreal/schema.rs (MT-168)",
+      "src/backend/handshake_core/src/storage/surreal/loom_store.rs (MT-153)",
+      "any SQLite/PostgreSQL path (CX-503R)"
+    ],
+    "stop_conditions": [
+      "The empty read is caused by schema PERMISSIONS: record file:line and route to MT-168/operator_decision_request; never read as root.",
+      "The cause lies in loom_store.rs or another owned module: record file:line and operator_decision_request.",
+      "Builder runs compile/static checks plus cheap focused tests allowed by WP012-ORCH-SESSION-20260930; union acceptance belongs to the WP validator."
+    ],
+    "product_worktree": "wtc-native-editors-v1 (branch feat/WP-KERNEL-012)",
+    "artifact_owner_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/ (CX-984-002; build disk as named in dispatch, KB-OUT-008)",
+    "execution_authorized": true,
+    "execution_authorization_scope": "Operator decision WP012-OPERATOR-OWNERSHIP-20261002 (packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]); contract authored 2026-10-02 by KERNEL_BUILDER (KB-PREP-002)."
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "MT-170-FIRST-STEP-DIAGNOSTIC",
+        "executor_role": "KERNEL_BUILDER",
+        "claim_refs": [
+          "AC-170-1"
+        ],
+        "command_or_method": "one recorded diagnostic run of the live_loom_ids read for ic04/ic10/ic12 inputs, named in a remediation",
+        "expected": "emptying input identified with file:line; owning_module bound",
+        "timeout_seconds": 1200,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "implementation_record.first_step_evidence"
+        ]
+      },
+      {
+        "check_id": "MT-170-BUILDER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "claim_refs": [
+          "AC-170-2",
+          "AC-170-3",
+          "AC-170-4"
+        ],
+        "command_or_method": "cargo check --locked -j 4 --tests in the bound module's crate (plus handshake_core --lib --tests with features app-runtime,surreal-test-support,test-utils if it depends on it); env CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-170/kb/target, CARGO_INCREMENTAL=0, line-tables-only debug; build disk as named in the dispatch (KB-OUT-008)",
+        "expected": "exit 0; input digest unchanged",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "validation.proof_records"
+        ]
+      },
+      {
+        "check_id": "MT-170-VALIDATOR",
+        "executor_role": "WP_VALIDATOR",
+        "claim_refs": [
+          "AC-170-2",
+          "AC-170-3",
+          "AC-170-4"
+        ],
+        "command_or_method": "union round: the MT-170 focused test(s) + existing handshake_document and backlink tests",
+        "expected": "pass",
+        "timeout_seconds": 1200,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "junit"
+        ]
+      },
+      {
+        "check_id": "MT-170-DOWNSTREAM",
+        "executor_role": "WP_VALIDATOR",
+        "claim_refs": [
+          "AC-170-5"
+        ],
+        "command_or_method": "same round: MT-046 test_interconnect_ckc_to_note, test_interconnect_loom_backlink_search",
+        "expected": "ic04, ic10, ic12 pass",
+        "timeout_seconds": 1200,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "junit"
+        ]
+      }
+    ]
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-170.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-170.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json",
+    "precedent": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-167.json (narrow-MT shape; MT-164/MT-166 pattern)"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-170.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "first step AC-170-1 not started; dispatch (owner, build disk) pending",
+    "depends_on": [],
+    "blocks": [
+      "MT-046"
+    ],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "next_actor": "KERNEL_BUILDER (dispatch names build disk)",
+    "rounds_without_output": 0,
+    "diagnosis_refs": [
+      "MT-046.json#diagnosis_20261001_bd8c7532"
+    ]
+  },
+  "scope": {
+    "summary": "Fix the rich-document wikilink -> loom_edges mention projection (live_loom_ids read empty, silent skip) so backlinks appear for ic04/ic10/ic12; make skips typed, not silent.",
+    "allowed_paths": [
+      "the ONE owning module bound by AC-170-1 evidence (expected src/backend/handshake_document/src/surreal.rs) - recorded in implementation_record before editing",
+      "one focused test in that module's crate for AC-170-2/3/4"
+    ],
+    "forbidden_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/frontend/** (MT-046 tests are not edited by this MT)",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql and src/backend/handshake_core/src/storage/surreal/schema.rs (MT-168)",
+      "src/backend/handshake_core/src/storage/surreal/loom_store.rs (MT-153)",
+      "any SQLite/PostgreSQL path (CX-503R)"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-170-1",
+        "requirement": "First step, before any product edit: ONE recorded diagnostic (named in a remediation) of the record-user read in resolve_backlink_rows (src/backend/handshake_document/src/surreal.rs:244; candidate read :343-353 `SELECT block_id, workspace_id FROM $candidate_loom_records`; live_loom_ids :358-362; project_to_loom :406) for the ic04/ic10/ic12 inputs, recording which input empties live_loom_ids (candidate id derivation, workspace mismatch, record-user permission denial, or timing). Recorded in implementation_record.first_step_evidence with file:line; owning_module bound from it."
+      },
+      {
+        "id": "AC-170-2",
+        "requirement": "The fix makes a wikilink to an existing same-workspace Loom block produce the mention loom_edges row, readable through get_backlinks (src/backend/handshake_core/src/storage/surreal/loom_store.rs:1955); re-save is idempotent (no duplicate edges)."
+      },
+      {
+        "id": "AC-170-3",
+        "requirement": "A wikilink whose target resolves but is not projected (denied, other workspace, missing) records a typed reason in the existing backlink diagnostics/log path instead of being dropped silently (HBR-INT diagnostics)."
+      },
+      {
+        "id": "AC-170-4",
+        "requirement": "Authority unchanged: no privileged/root read; a target in another account or workspace is never projected (negative test)."
+      },
+      {
+        "id": "AC-170-5",
+        "requirement": "Downstream: MT-046 PC-046-01/02/03 ic04 (test_interconnect_ckc_to_note.rs:692), ic10 (test_interconnect_loom_backlink_search.rs:285), ic12 (:502) pass in the same round."
+      }
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend projection repair; the backlink panel already renders loom_edges. Visible effect proven downstream by MT-046."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": "No control or documented behavior changes (backlinks already documented as appearing on save)."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "loom_edges",
+      "knowledge rich document backlinks"
+    ],
+    "identity_and_scope_contexts": [
+      "authenticated record-user session of the indexing workspace"
+    ],
+    "enforcement_boundaries": [
+      "record-user PERMISSIONS on loom_blocks/loom_edges; no root read"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [
+      "cross-account/workspace wikilink target never projected (AC-170-4)"
+    ],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [
+      "stable_resource_owner_scope_linkage",
+      "default_deny_negative_test",
+      "same_project_cross_account_isolation_test_when_applicable",
+      "derived_resource_scope_non_widening_test_when_applicable",
+      "actor_owner_access_space_attribution",
+      "revocation_or_context_switch_test_when_applicable",
+      "remote_delegation_sync_scope_test_when_applicable",
+      "argus_or_typed_privacy_state_inspection_when_operator_visible"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER_EVENTLEDGER",
+      "status": "UNCHANGED",
+      "reason": "Index-run receipts keep their current EventLedger shape; spec §2.3.14.4.6 FR latency logging is not widened by this MT."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "UNCHANGED",
+      "reason": "Existing code_nav_index stage timing logs remain the diagnostic surface."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE_WITH_REASON",
+      "reason": "No native process surface."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "status_update_requirements": [
+      "Record the first-step evidence in implementation_record before any product edit.",
+      "On pushed commit: record SHA and proof_records (input digest unchanged), gameplan before_submit, READY_FOR_VALIDATION.",
+      "On PASS: clear lifecycle.blocked_on in MT-046."
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Fix by reading as root widens authority.",
+      "Duplicate edges on re-save.",
+      "Fix in the wrong module because the emptying input was guessed.",
+      "Silent skip remains for other inputs."
+    ],
+    "minimum_controls": [
+      "AC-170-1 diagnostic before edit; AC-170-4 negative test; AC-170-2 idempotency; AC-170-3 typed skip reason."
+    ]
+  },
+  "title": "E8-MT-170-Rich-Document-Wikilink-Loom-Edge-Projection",
+  "group": "E8",
+  "spec_basis": {
+    "kind": "remediation_derived_mt",
+    "note": "Created to own recorded validator failures/diagnoses that had no owning MT; CX-SPEC-TRUTH-001 activation gate does not apply to remediation work. Downstream timing baseline: Master Spec v02.206 §2.3.14.17.3 (02-system-architecture.md:4470-4478) as quoted in MT-167.json#spec_basis."
+  },
+  "hbr_swarm_allocation": "Backlink projection serves cross-pillar navigation for parallel agents; no new swarm surface; no waiver.",
+  "operator_decision": {
+    "decision_id": "WP012-OPERATOR-OWNERSHIP-20261002",
+    "ref": "packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]",
+    "effect": "New narrow MT MT-170 approved; see packet decision entry."
+  },
+  "validation": {
+    "proof_records": []
+  },
+  "authored_by": "KERNEL_BUILDER-20261002",
+  "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-167 narrow-MT shape",
+  "implementation_record": {
+    "owning_module_evidence": null,
+    "first_step_evidence": null
+  }
+}

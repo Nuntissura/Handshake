@@ -66,7 +66,7 @@
     "rule": "KB-IMPL-006",
     "by": "KERNEL_BUILDER lane B (WP-KERNEL-012, orchestrator-steered)",
     "at_utc": "2026-10-01T17:42:25Z",
-    "status": "OPEN",
+    "status": "ANSWERED",
     "stale_blocker_check": "lifecycle.blocked_on MT-066 is PASS_V9 (MT-066.json#validation_round_e4566f11); validation_v3 co-blockers MT-067 PASS_V8, MT-032 PASS_V15. The dependency blocker is resolved; the remaining items below are not.",
     "recorded_gaps": [
       "validation_v3.remaining_proof_gaps AC-130-2: no test asserts the exact applied/indeterminate counts (ops call finish(); counts only in the receipt artifact)",
@@ -89,12 +89,11 @@
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "status": "BLOCKED",
-    "blocked_on": "operator_decision_request_20261001_write_scope (allowed_paths DECISION_ONLY; formal depends_on MT-117 BLOCKED); prior blocked_on MT-066 now PASS_V9",
+    "blocked_on": "MT-117 (AC-130-2 folded into MT-117 AC-117-4; UserManual chip contract folded into MT-117 AC-117-6; WP012-OPERATOR-OWNERSHIP-20261002)",
     "depends_on": [
       "MT-117"
     ],
     "blocks": [
-      "MT-117",
       "MT-108"
     ],
     "creation_reason": "Isolated by direct source inspection plus a runtime receipt census while re-proving MT-117. Both readers of one AccessKit node value are provably mutually exclusive. A builder must not pick the winner: option (a) weakens a product-wide schema and option (b) rewrites another microtask proof.",
@@ -864,5 +863,15 @@
     "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
     "verdict_labelling": "every verdict records the backend build profile",
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
+  },
+  "operator_decision_20261002_write_scope": {
+    "decision_id": "WP012-OPERATOR-OWNERSHIP-20261002",
+    "ref": "packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]",
+    "answers": "operator_decision_request_20261001_write_scope",
+    "chosen_option": "(b) fold: AC-130-2 count assertion -> MT-117 AC-117-4 (zero indeterminate via finish_require_no_indeterminate(), edited at 222b33cc); UserManual chip value contract -> MT-117 AC-117-6",
+    "cycle_resolution": "MT-117 removed from MT-130 lifecycle.blocks; MT-130 depends_on MT-117 only",
+    "allowed_paths_effect": "MT-130 keeps no product write scope; its remaining obligations are proven through MT-117",
+    "recorded_at_utc": "2026-10-02T07:40:00Z",
+    "recorded_by": "KERNEL_BUILDER-20261002"
   }
 }

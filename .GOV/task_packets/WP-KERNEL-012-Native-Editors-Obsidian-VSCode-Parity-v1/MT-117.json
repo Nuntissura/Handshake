@@ -346,7 +346,8 @@
       "AC-117-2: each observer publishes Applied ONLY on the authoritative durable effect (the persisted artifact id + sha256 for embed-back; the advanced doc_version for save; the exact bound CalendarEvent id and the exact ActivitySpan/document correlation for Calendar), and publishes a TYPED rejection on a bounded window rather than hanging Pending.",
       "AC-117-3: canonical_argus_driver.rs is NOT modified and finish() is NOT weakened.",
       "AC-117-4: re-running MT-074 test_other_pillar_interop_proofs shows those receipts terminalizing APPLIED, with the suite still green. The strict gate finish_require_no_indeterminate() should then be reachable for those scenarios.",
-      "AC-117-5: the observers are proof-only in effect - the product must behave identically with no Argus binding open."
+      "AC-117-5: the observers are proof-only in effect - the product must behave identically with no Argus binding open.",
+      "AC-117-6 (folded from MT-130 remaining_obligation:UserManual, WP012-OPERATOR-OWNERSHIP-20261002): src/frontend/handshake_native/src/manual_content_editors.rs, Daily Journal topic, states the calendar-event chip value contract: the chip's AccessKit value is the closed handshake.click-completion/v1 token, and the chip identity (calendar_event_id, daily_note_doc_id) travels inside that token's semantic_value; tests/test_manual_content.rs asserts that statement."
     ],
     "proof_targets": [
       "PT-117-1: MT-074 suite re-run showing 13/13 receipts applied and zero indeterminate.",
@@ -1453,5 +1454,13 @@
     "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
     "verdict_labelling": "every verdict records the backend build profile",
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
+  },
+  "fold_from_mt130_20261002": {
+    "decision_id": "WP012-OPERATOR-OWNERSHIP-20261002",
+    "ref": "packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]",
+    "AC-130-2": "same assertion as AC-117-4 (op01-op04 call finish_require_no_indeterminate(); 222b33cc)",
+    "remaining_obligation_UserManual": "AC-117-6",
+    "recorded_at_utc": "2026-10-02T07:40:00Z",
+    "recorded_by": "KERNEL_BUILDER-20261002"
   }
 }

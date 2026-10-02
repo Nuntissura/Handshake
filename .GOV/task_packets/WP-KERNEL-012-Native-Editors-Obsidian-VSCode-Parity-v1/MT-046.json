@@ -124,7 +124,7 @@
     },
     "livepg_evidence_2026_07_09": "LIVE-PG (2026-07-09): ~5/9 requires_pg interconnect round-trips PASS live (interconnect_support identity-header fix commit 286aca3c + CKC content-types route5). IC-03/04 ckc_moodboard/character types now exist backend-side. Remaining = scenario-specific seed. 15 substrate proofs already in-process.",
     "validated_commit": "bd8c753223c2714707d6c78d7550448340c85c35",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_bd8c7532.remediation_required",
+    "next_actor": "WP_VALIDATOR union round after MT-170 and MT-167 PASS",
     "status_before_remediation_v6": "BLOCKED_ON_DEPENDENCY",
     "ready_for_validation_transition": {
       "at_utc": "2026-09-23T23:27:08.158Z",
@@ -139,7 +139,7 @@
       "MT-046.json#diagnosis_20260930"
     ],
     "status_before_20260930": "FAIL_V7",
-    "blocked_on": null,
+    "blocked_on": "MT-170 (ic04/ic10/ic12 wikilink -> loom_edges projection; owner per WP012-OPERATOR-OWNERSHIP-20261002); MT-167 (ic06 code-nav index cost)",
     "prior_validator_verdict": "FAIL_V8",
     "status_reason": "FAIL_V9 on bd8c7532 union round (validation_round_bd8c7532)"
   },
@@ -1826,5 +1826,14 @@
     "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
     "verdict_labelling": "every verdict records the backend build profile",
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
+  },
+  "operator_decision_20261002_owner": {
+    "decision_id": "WP012-OPERATOR-OWNERSHIP-20261002",
+    "ref": "packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]",
+    "answers": "MT-046.json#diagnosis_20261001_bd8c7532.outside_allowed_paths (which MT owns the backlink projection defect)",
+    "owner": "MT-170",
+    "status_effect": "status unchanged (FAIL_V9 kept); lifecycle.blocked_on MT-170 + MT-167",
+    "recorded_at_utc": "2026-10-02T07:40:00Z",
+    "recorded_by": "KERNEL_BUILDER-20261002"
   }
 }

@@ -327,7 +327,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-30T14:10:43Z",
+  "updated_at_utc": "2026-10-02T07:40:00Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -600,7 +600,8 @@
           "MT-161",
           "MT-162",
           "MT-163",
-          "MT-164"
+          "MT-164",
+          "MT-168"
         ],
         "summary": "Shared selection + clipboard + command bus across editors; everything-is-a-Loom-block addressing + live backlinks; CKC embeds/drag-in (media/characters/moodboards) + route-to-Stage; code<->note cross-references; one unified undo scope policy; one event-ledger (Flight Recorder) across surfaces; designed extension seams for image/spreadsheet/engines."
       },
@@ -621,7 +622,8 @@
         "mt_ids": [
           "MT-041",
           "MT-042",
-          "MT-043"
+          "MT-043",
+          "MT-169"
         ],
         "summary": "Expose every editor + knowledge + search action through the WP-011 AccessKit surface with stable author_ids; a swarm agent can create/edit a note and code and drive graph/canvas by id; in-process snapshot + action proof."
       },
@@ -631,7 +633,8 @@
         "mt_ids": [
           "MT-044",
           "MT-045",
-          "MT-046"
+          "MT-046",
+          "MT-170"
         ],
         "summary": "Parity proof suite mapping each KERNEL-009 delivered feature to a passing native runtime proof (the parity gate); large-document performance proof; interconnection scenario proofs (CKC->note embed, note<->code, Loom backlink/search across surfaces)."
       },
@@ -862,7 +865,10 @@
       "MT-162",
       "MT-163",
       "MT-164",
-      "MT-167"
+      "MT-167",
+      "MT-168",
+      "MT-169",
+      "MT-170"
     ],
     "active_id": null,
     "next_id": "MT-164",
@@ -1101,6 +1107,18 @@
         "MT-065"
       ],
       "numbering_note": "MT-167 = next free id by contract-file census (MT-165, MT-166 exist); mt_plan.next_id/declared_ids were stale at MT-164 and are not otherwise rewritten here."
+    },
+    "mt168_170_addition_20261002": {
+      "decision_id": "WP012-OPERATOR-OWNERSHIP-20261002",
+      "decision_ref": "packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]",
+      "authored_by": "KERNEL_BUILDER-20261002",
+      "authored_at_utc": "2026-10-02T07:40:00Z",
+      "contracts": [
+        ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-168.json",
+        ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-169.json",
+        ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-170.json"
+      ],
+      "numbering_note": "next free ids by contract-file census (MT-167 highest); mt_plan.next_id not otherwise rewritten (MT-167 precedent)"
     }
   },
   "microtasks": {
@@ -3833,5 +3851,37 @@
       "MT-166",
       "MT-167"
     ]
-  }
+  },
+  "operator_decisions_20261002": [
+    {
+      "recorded_at_utc": "2026-10-02T07:40:00Z",
+      "recorded_by": "KERNEL_BUILDER-20261002",
+      "decision_id": "WP012-OPERATOR-OWNERSHIP-20261002",
+      "authorized_by": "OPERATOR",
+      "method": "AskUserQuestion in the KERNEL_BUILDER session 2026-10-02 (options built from the open operator_decision_requests, KB-IMPL-006)",
+      "answers": [
+        {
+          "question_ref": "MT-153.json#operator_decision_request_20261001_w_scan_ownership",
+          "chosen_option": "Reopen MT-166 / new MT (Recommended)",
+          "implemented_as": "new MT-168 (MT-166 is PASS_V1; CX-STATUS-001 defines no reopen transition). MT-168 becomes the active owner of the capability 'index-bound grant/resource scans' (CX-CAP-001), covering W scans and the five grant-function table scans of DX-MT-167-20261002-GRANT-QUERY-TABLE-SCAN"
+        },
+        {
+          "question_ref": "MT-043.json#operator_decision_request_20260930_bb9548e1 (same request in MT-128)",
+          "chosen_option": "New narrow MT (Recommended)",
+          "implemented_as": "new MT-169, depends_on MT-168 (create path runs the grant predicates MT-168 changes; attribution measured on the MT-168 candidate)"
+        },
+        {
+          "question_ref": "MT-046.json#diagnosis_20261001_bd8c7532.outside_allowed_paths",
+          "chosen_option": "New narrow MT (Recommended)",
+          "implemented_as": "new MT-170"
+        },
+        {
+          "question_ref": "MT-130.json#operator_decision_request_20261001_write_scope",
+          "chosen_option": "Fold into MT-074/117 (b)",
+          "implemented_as": "AC-130-2 zero-indeterminate assertion = MT-117 AC-117-4 (already edited in 222b33cc, tests/test_other_pillar_interop_proofs.rs within MT-117 allowed_paths); UserManual chip value contract = new MT-117 AC-117-6; MT-130 no longer blocks MT-117 (cycle removed); MT-130 BLOCKED on MT-117"
+        }
+      ],
+      "status_effect": "MT-168/169/170 created BLOCKED (MT-168/170 await dispatch, MT-169 awaits MT-168); MT-167 blocked_on MT-168; MT-043/MT-128 blocked_on MT-169 and MT-046 blocked_on MT-170 + MT-167, statuses unchanged (FAIL_Vn kept, MT-008 precedent)"
+    }
+  ]
 }

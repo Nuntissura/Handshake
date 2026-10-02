@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-167",
   "created_at_utc": "2026-09-30T21:30:00Z",
-  "updated_at_utc": "2026-10-01T20:40:00Z",
+  "updated_at_utc": "2026-10-02T07:40:00Z",
   "identity": {
     "mt_id": "MT-167",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -220,8 +220,10 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "open owner operator_decision_request MT-153.json#operator_decision_request_20261001_w_scan_ownership (W-scan / predicate index-binding ownership; MT-166 capability overlap), now also covering the resource_grants full-table scans in fn::mt109_has_grant / mt109_has_workspace_access / mt109_source_read / mt120_document_access / mt109_ledger_access (DX-MT-167-20261002-GRANT-QUERY-TABLE-SCAN); AC-167-3 cannot be met from MT-167 paths",
-    "depends_on": [],
+    "blocked_on": "MT-168 (index-bound grant predicates and W scans; owner per WP012-OPERATOR-OWNERSHIP-20261002); AC-167-3 re-measured on the MT-168 candidate",
+    "depends_on": [
+      "MT-168"
+    ],
     "blocks": [
       "MT-008",
       "MT-064",
@@ -231,7 +233,7 @@
     "validator_verdict": "FAIL_V1",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "ORCHESTRATOR / Operator decision",
+    "next_actor": "WP_VALIDATOR re-measure after MT-168 PASS",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-167.json#implementation_record.owning_module_evidence",
@@ -261,7 +263,8 @@
     "status_before_222b33cc_resubmission": "BLOCKED",
     "resolution_ref": "WP012-OPERATOR-MT167-OPTIMIZE-TEST-DB-20261001",
     "status_before_dbdae422_resubmission": "READY_FOR_VALIDATION",
-    "status_before_grant_scan_blocker": "READY_FOR_VALIDATION"
+    "status_before_grant_scan_blocker": "READY_FOR_VALIDATION",
+    "blocked_on_before_20261002": "open owner operator_decision_request MT-153.json#operator_decision_request_20261001_w_scan_ownership (W-scan / predicate index-binding ownership; MT-166 capability overlap), now also covering the resource_grants full-table scans in fn::mt109_has_grant / mt109_has_workspace_access / mt109_source_read / mt120_document_access / mt109_ledger_access (DX-MT-167-20261002-GRANT-QUERY-TABLE-SCAN); AC-167-3 cannot be met from MT-167 paths"
   },
   "scope": {
     "summary": "Bring the code-nav index route within Master Spec §2.3.14.17.3 (index update propagation <5 s target, 30 s max) by fixing the evidenced cause of persist_code_index_batch returning Ok(None) in 0 ms and falling back to the ~24 s per-file writer; prove with a median-of-N timing test.",

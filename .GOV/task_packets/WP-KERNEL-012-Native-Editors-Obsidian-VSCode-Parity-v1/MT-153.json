@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-10-01T20:40:00Z",
+  "updated_at_utc": "2026-10-02T07:40:00Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -5902,7 +5902,13 @@
       "assign to MT-154 (W extension owner)",
       "accept current cost (test cleanup budget)"
     ],
-    "status": "open"
+    "status": "answered",
+    "answer": {
+      "decision_id": "WP012-OPERATOR-OWNERSHIP-20261002",
+      "ref": "packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]",
+      "chosen_option": "Reopen MT-166 / new MT",
+      "owner": "MT-168"
+    }
   },
   "hypothesis_20261001_batch_reorder_and_probe": {
     "schema_id": "hsk.mt_attempt_hypothesis@1",

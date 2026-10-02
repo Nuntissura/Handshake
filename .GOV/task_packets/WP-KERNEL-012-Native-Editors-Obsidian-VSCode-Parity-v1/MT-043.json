@@ -133,9 +133,9 @@
     "ready_for_validation_by": "KERNEL_BUILDER-20260930",
     "status_before_20260930": "FAIL_V5",
     "validated_commit": "bb9548e1e67a5b4a69d66b14b38726bd0aa4cbc3",
-    "blocked_on": null,
+    "blocked_on": "MT-169 (document create cost; owner per WP012-OPERATOR-OWNERSHIP-20261002); MT-169 depends_on MT-168",
     "prior_validator_verdict": "FAIL_V5",
-    "next_actor": "KERNEL_BUILDER via ORCHESTRATOR: remediation per validation_round_bb9548e1.remediation_required",
+    "next_actor": "WP_VALIDATOR union round after MT-169 PASS (failure class SWARM_MERGED_RESAVE_RECEIPT_TIMEOUT)",
     "status_reason": "FAIL_V6 on bb9548e1 union round (validation_round_bb9548e1)"
   },
   "scope": {
@@ -729,5 +729,14 @@
     "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
     "verdict_labelling": "every verdict records the backend build profile",
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
+  },
+  "operator_decision_20261002_owner": {
+    "decision_id": "WP012-OPERATOR-OWNERSHIP-20261002",
+    "ref": "packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]",
+    "answers": "operator_decision_request_20260930_bb9548e1 (which MT owns this fix)",
+    "owner": "MT-169",
+    "status_effect": "status unchanged (FAIL_Vn kept); lifecycle.blocked_on MT-169",
+    "recorded_at_utc": "2026-10-02T07:40:00Z",
+    "recorded_by": "KERNEL_BUILDER-20261002"
   }
 }

@@ -1,0 +1,391 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-169",
+  "created_at_utc": "2026-10-02T07:40:00Z",
+  "updated_at_utc": "2026-10-02T07:40:00Z",
+  "identity": {
+    "mt_id": "MT-169",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "E7-MT-169-Document-Create-Cost-Within-Merged-Resave-Receipt-Budget",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "A rich-document create (create transaction + create_index) costs little enough that the MT-043/MT-128 loser merged resave returns its receipt within the existing 5 s deadline, by removing the attributed cause; document/index semantics unchanged; the 5 s deadline is not raised.",
+    "requirement_refs": [
+      "packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]",
+      "MT-043.json#operator_decision_request_20260930_bb9548e1",
+      "MT-128.json#operator_decision_request_20260930_bb9548e1",
+      "MT-043.json#diagnosis_20260930_bb9548e1 (DX-MT-043-20260930-BB95-DOC-CREATE-3.5S)",
+      "MT-043.json#validation_round_bb9548e1",
+      "MT-128.json#validation_round_bb9548e1"
+    ],
+    "acceptance_refs": [
+      "AC-169-1",
+      "AC-169-2",
+      "AC-169-3",
+      "AC-169-4"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-169-1",
+        "requirement": "First step, after MT-168 lands (the create path runs the record-user grant predicates MT-168 changes): attribute the document create cost per statement on the MT-168 candidate - create_rich_document_transaction (src/backend/handshake_core/src/storage/surreal/knowledge.rs:1912), create_owned_document_rows (:2077), the create_index step and the receipt path - from retained timing logs or ONE recorded diagnostic run named in a remediation. Record in implementation_record.owning_module_evidence with file:line and bind owning_module to exactly one module (CX-UNIT-001). If MT-168 alone brings the merged resave within 5 s, record that and propose closure instead of editing."
+      },
+      {
+        "id": "AC-169-2",
+        "requirement": "The fix removes the attributed cost without skipping work: the same rows, index entries, receipts and authority checks are written; existing knowledge/document tests stay green."
+      },
+      {
+        "id": "AC-169-3",
+        "requirement": "A focused timing test asserts the document create cost is independent of unrelated rows in other workspaces (ratio < 2.0) and below an absolute bound recorded with the AC-169-1 evidence before the edit; non-vacuous (asserts the created document and its index rows exist)."
+      },
+      {
+        "id": "AC-169-4",
+        "requirement": "Downstream: MT-043 PROOF-043-A / MT-128 proof_commands[0] swarm_edit_live_conflict_merge_search_and_receipts passes (tests/test_e7_swarm_edit_proof.rs:3252 loser merged resave receipt within 5 s) in the same round."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Storage transaction performance repair with authority and receipt semantics; owning module bound only from evidence.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "max_fix_rounds_per_mt": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [
+      "MT-043.json#diagnosis_20260930_bb9548e1"
+    ],
+    "no_counter_reset": true
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "foreground_or_interactive_tools_forbidden": true,
+    "owning_module": "UNBOUND until AC-169-1 evidence; candidates: handshake_core storage/surreal knowledge.rs document create/save/index transactions; lane-A candidates kernel_queue_store.rs:141, promotion_store.rs:90-152 (NOT_INSPECTED). Exactly one is bound (CX-UNIT-001).",
+    "depends_on": [
+      "MT-168"
+    ],
+    "first_step": "After MT-168 PASS: attribute per statement (AC-169-1), bind owning_module, record intended fix, then edit.",
+    "allowed_write_paths": [
+      "the ONE owning module bound by AC-169-1 evidence - recorded in implementation_record before editing",
+      "one new focused core timing test file under src/backend/handshake_core/tests/ (AC-169-3), registered in src/backend/handshake_core/Cargo.toml [[test]] if required"
+    ],
+    "forbidden_write_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/frontend/** (the 5 s deadline in tests/test_e7_swarm_edit_proof.rs is not raised)",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql and src/backend/handshake_core/src/storage/surreal/schema.rs (MT-168)",
+      "src/backend/handshake_core/src/knowledge_ingestion/** (MT-154)",
+      "src/backend/handshake_core/src/storage/surreal/event_ledger.rs (MT-153)",
+      "any SQLite/PostgreSQL path (CX-503R)"
+    ],
+    "stop_conditions": [
+      "The attributed cause lies in schema permission predicates: route the finding to MT-168 with file:line; do not edit schema.",
+      "The cause lies outside every candidate module: record file:line and operator_decision_request.",
+      "Meeting the budget needs dropping writes/receipts/authority checks: record operator_decision_request.",
+      "Builder runs compile/static checks plus cheap focused tests allowed by WP012-ORCH-SESSION-20260930; union acceptance belongs to the WP validator."
+    ],
+    "product_worktree": "wtc-native-editors-v1 (branch feat/WP-KERNEL-012)",
+    "artifact_owner_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-169/kb/ (CX-984-002; build disk as named in dispatch, KB-OUT-008)",
+    "execution_authorized": true,
+    "execution_authorization_scope": "Operator decision WP012-OPERATOR-OWNERSHIP-20261002 (packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]); contract authored 2026-10-02 by KERNEL_BUILDER (KB-PREP-002)."
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "MT-169-OWNING-MODULE-EVIDENCE",
+        "executor_role": "KERNEL_BUILDER",
+        "claim_refs": [
+          "AC-169-1"
+        ],
+        "command_or_method": "per-statement attribution on the MT-168 candidate (retained logs or one recorded diagnostic run)",
+        "expected": "one owning module bound with file:line; absolute bound for AC-169-3 recorded",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "implementation_record.owning_module_evidence"
+        ]
+      },
+      {
+        "check_id": "MT-169-BUILDER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "claim_refs": [
+          "AC-169-2"
+        ],
+        "command_or_method": "cargo check --locked -j 4 --config <gov>/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils (cwd src/backend/handshake_core); env CARGO_TARGET_DIR=<artifact root>/WP-KERNEL-012/MT-169/kb/target, CARGO_INCREMENTAL=0, CARGO_PROFILE_DEV_DEBUG=line-tables-only, CARGO_PROFILE_TEST_DEBUG=line-tables-only; build disk as named in the dispatch (KB-OUT-008)",
+        "expected": "exit 0; input digest unchanged",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "validation.proof_records"
+        ]
+      },
+      {
+        "check_id": "MT-169-VALIDATOR-TIMING",
+        "executor_role": "WP_VALIDATOR",
+        "claim_refs": [
+          "AC-169-2",
+          "AC-169-3"
+        ],
+        "command_or_method": "union round: the new MT-169 timing test + existing knowledge/document core tests",
+        "expected": "pass; non-vacuous",
+        "timeout_seconds": 1200,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "junit",
+          "printed medians"
+        ]
+      },
+      {
+        "check_id": "MT-169-DOWNSTREAM",
+        "executor_role": "WP_VALIDATOR",
+        "claim_refs": [
+          "AC-169-4"
+        ],
+        "command_or_method": "same round: handshake-native test_e7_swarm_edit_proof (whole; MT-043 PROOF-043-A, MT-128 proof_commands[0])",
+        "expected": "swarm_edit_live_conflict_merge_search_and_receipts passes",
+        "timeout_seconds": 1200,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "junit"
+        ]
+      }
+    ]
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-169.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-169.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json",
+    "precedent": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-167.json (narrow-MT shape; MT-164/MT-166 pattern)"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-169.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "MT-168",
+    "depends_on": [
+      "MT-168"
+    ],
+    "blocks": [
+      "MT-043",
+      "MT-128"
+    ],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "next_actor": "KERNEL_BUILDER after MT-168 PASS",
+    "rounds_without_output": 0,
+    "diagnosis_refs": [
+      "MT-043.json#diagnosis_20260930_bb9548e1"
+    ]
+  },
+  "scope": {
+    "summary": "Remove the attributed cost of rich-document create (create txn ~2.0 s + create_index ~1.2 s at bb9548e1) so the merged resave receipt meets the existing 5 s deadline.",
+    "allowed_paths": [
+      "the ONE owning module bound by AC-169-1 evidence - recorded in implementation_record before editing",
+      "one new focused core timing test file under src/backend/handshake_core/tests/ (AC-169-3), registered in src/backend/handshake_core/Cargo.toml [[test]] if required"
+    ],
+    "forbidden_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/frontend/** (the 5 s deadline in tests/test_e7_swarm_edit_proof.rs is not raised)",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql and src/backend/handshake_core/src/storage/surreal/schema.rs (MT-168)",
+      "src/backend/handshake_core/src/knowledge_ingestion/** (MT-154)",
+      "src/backend/handshake_core/src/storage/surreal/event_ledger.rs (MT-153)",
+      "any SQLite/PostgreSQL path (CX-503R)"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-169-1",
+        "requirement": "First step, after MT-168 lands (the create path runs the record-user grant predicates MT-168 changes): attribute the document create cost per statement on the MT-168 candidate - create_rich_document_transaction (src/backend/handshake_core/src/storage/surreal/knowledge.rs:1912), create_owned_document_rows (:2077), the create_index step and the receipt path - from retained timing logs or ONE recorded diagnostic run named in a remediation. Record in implementation_record.owning_module_evidence with file:line and bind owning_module to exactly one module (CX-UNIT-001). If MT-168 alone brings the merged resave within 5 s, record that and propose closure instead of editing."
+      },
+      {
+        "id": "AC-169-2",
+        "requirement": "The fix removes the attributed cost without skipping work: the same rows, index entries, receipts and authority checks are written; existing knowledge/document tests stay green."
+      },
+      {
+        "id": "AC-169-3",
+        "requirement": "A focused timing test asserts the document create cost is independent of unrelated rows in other workspaces (ratio < 2.0) and below an absolute bound recorded with the AC-169-1 evidence before the edit; non-vacuous (asserts the created document and its index rows exist)."
+      },
+      {
+        "id": "AC-169-4",
+        "requirement": "Downstream: MT-043 PROOF-043-A / MT-128 proof_commands[0] swarm_edit_live_conflict_merge_search_and_receipts passes (tests/test_e7_swarm_edit_proof.rs:3252 loser merged resave receipt within 5 s) in the same round."
+      }
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend storage performance; no operator surface change. Visible effect proven downstream by MT-043/MT-128."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": "No control or documented behavior changes."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "knowledge rich documents",
+      "document index rows",
+      "kernel_event_ledger receipts"
+    ],
+    "identity_and_scope_contexts": [
+      "authenticated record-user session of the indexing workspace"
+    ],
+    "enforcement_boundaries": [
+      "existing record-user PERMISSIONS; no root path"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [
+      "existing knowledge/document authority tests stay green"
+    ],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [
+      "stable_resource_owner_scope_linkage",
+      "default_deny_negative_test",
+      "same_project_cross_account_isolation_test_when_applicable",
+      "derived_resource_scope_non_widening_test_when_applicable",
+      "actor_owner_access_space_attribution",
+      "revocation_or_context_switch_test_when_applicable",
+      "remote_delegation_sync_scope_test_when_applicable",
+      "argus_or_typed_privacy_state_inspection_when_operator_visible"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER_EVENTLEDGER",
+      "status": "UNCHANGED",
+      "reason": "Index-run receipts keep their current EventLedger shape; spec §2.3.14.4.6 FR latency logging is not widened by this MT."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "UNCHANGED",
+      "reason": "Existing code_nav_index stage timing logs remain the diagnostic surface."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE_WITH_REASON",
+      "reason": "No native process surface."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "status_update_requirements": [
+      "Record the first-step evidence in implementation_record before any product edit.",
+      "On pushed commit: record SHA and proof_records (input digest unchanged), gameplan before_submit, READY_FOR_VALIDATION.",
+      "On PASS: clear lifecycle.blocked_on in MT-043, MT-128."
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Attribution measured before MT-168 is invalidated by MT-168's predicate change.",
+      "Fix skips index/receipt/authority work to meet the budget.",
+      "Editing a module not bound by evidence.",
+      "Raising the client deadline instead of removing cost."
+    ],
+    "minimum_controls": [
+      "depends_on MT-168; AC-169-1 measured on the MT-168 candidate.",
+      "AC-169-2 equal writes; AC-169-3 non-vacuous.",
+      "forbidden paths include the test deadline and schema files."
+    ]
+  },
+  "title": "E7-MT-169-Document-Create-Cost-Within-Merged-Resave-Receipt-Budget",
+  "group": "E7",
+  "spec_basis": {
+    "kind": "remediation_derived_mt",
+    "note": "Created to own recorded validator failures/diagnoses that had no owning MT; CX-SPEC-TRUTH-001 activation gate does not apply to remediation work. Downstream timing baseline: Master Spec v02.206 §2.3.14.17.3 (02-system-architecture.md:4470-4478) as quoted in MT-167.json#spec_basis."
+  },
+  "hbr_swarm_allocation": "Faster document create serves concurrent swarm edits (MT-043 swarm proof); no new swarm surface; no waiver.",
+  "operator_decision": {
+    "decision_id": "WP012-OPERATOR-OWNERSHIP-20261002",
+    "ref": "packet.json#operator_decisions_20261002[WP012-OPERATOR-OWNERSHIP-20261002]",
+    "effect": "New narrow MT MT-169 approved; see packet decision entry."
+  },
+  "validation": {
+    "proof_records": []
+  },
+  "authored_by": "KERNEL_BUILDER-20261002",
+  "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-167 narrow-MT shape",
+  "implementation_record": {
+    "owning_module_evidence": null,
+    "first_step_evidence": null
+  }
+}
