@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-02T07:40:00Z",
+  "updated_at_utc": "2026-10-02T16:20:00Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -197,7 +197,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "first step AC-170-1 not started; dispatch (owner, build disk) pending",
+    "blocked_on": "operator_decision_request_20261002_projection_target (loom_edges projection target permission vs resolver)",
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -384,6 +384,42 @@
   "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-167 narrow-MT shape",
   "implementation_record": {
     "owning_module_evidence": null,
-    "first_step_evidence": null
+    "first_step_evidence": {
+      "ac": "AC-170-1",
+      "method": "code reading (read-only sub-agent, parent-verified at the cited lines); no run yet",
+      "recorded_at_utc": "2026-10-02T16:20:00Z",
+      "recorded_by": "KERNEL_BUILDER-20261002",
+      "verified_by_parent": [
+        "schema.surql:564-565 loom_edges select/create projection branch requires target_block_id.source_rich_document_id != NONE (standalone note/file blocks have none)",
+        "handshake_document/src/surreal.rs:186-188 BACKLINK_WRITE_STATEMENTS CREATE loom_edges ... RETURN NONE (a permission-denied CREATE is ignored without error)",
+        "handshake_document/src/surreal.rs:236-243 resolver doc: exact live same-workspace Loom identity wins (any live block is a target)"
+      ],
+      "sub_agent_findings": [
+        "ic04/ic10/ic12 targets are standalone note/file blocks created via POST /loom/blocks with no source_rich_document_id (loom_canvas_store.rs:1382-1425); link refValue = block id (backlink.rs:292-316)",
+        "resolver read runs as record user; owner grant on the block exists (loom_canvas_store.rs:60) so live_loom_ids likely non-empty",
+        "surrealdb-core 3.2.0 doc/check.rs:455-470 + dbs/iterator.rs:1278-1279: denied CREATE is IgnoreError::Ignore -> silent"
+      ],
+      "ranked_hypotheses": [
+        "H1 (VERIFIED in code, runtime NOT_RUN): loom_edges create permission rejects projection edges to standalone targets; select permission would also hide them",
+        "H2 (HYPOTHESIS, low): live_loom_ids empty via loom_blocks select permission",
+        "H3 (HYPOTHESIS, very low): workspace mismatch -> foreign_loom_ids"
+      ],
+      "distinguishing_diagnostic": "tracing::info! after surreal.rs:366 (candidate/live/foreign counts) and after :506 (projected count); projected=1 with no edge -> H1",
+      "owning_module": "NOT BOUND: the evidenced cause is schema.surql loom_edges PERMISSIONS (forbidden to MT-170; schema owners MT-153/MT-168), plus an optional typed skip reason in handshake_document/src/surreal.rs"
+    }
+  },
+  "operator_decision_request_20261002_projection_target": {
+    "schema_id": "hsk.operator_decision_request@1",
+    "rule": "KB-IMPL-006",
+    "by": "KERNEL_BUILDER-20261002",
+    "recorded_at_utc": "2026-10-02T16:20:00Z",
+    "status": "open",
+    "question": "Resolver and MT-046 acceptance treat any live same-workspace Loom block as a wikilink projection target; the loom_edges PERMISSIONS projection branch admits only rich-document projection blocks. Which side changes?",
+    "options": [
+      "(a) widen the loom_edges select/create/update projection branch so a standalone same-workspace target is admitted when fn::mt120_loom_endpoint_access(target_block_id, ws, 'read', 'fs.read') holds (no other change); MT-170 gets that schema.surql statement + pins (Recommended: matches resolver intent and MT-046 ic04/ic10/ic12)",
+      "(b) resolver stops projecting standalone targets (project_to_loom=false with a typed reason); MT-046 ic04/ic10/ic12 expectations change (acceptance change)",
+      "(c) other"
+    ],
+    "effect_until_answered": "MT-170 no product edit; MT-046 stays blocked on MT-170"
   }
 }
