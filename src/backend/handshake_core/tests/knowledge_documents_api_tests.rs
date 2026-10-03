@@ -52,6 +52,77 @@ use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
 use serde_json::{json, Value};
 
+#[cfg(feature = "surreal-test-support")]
+mod mt170_resolver_observation_capture {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+
+    use tracing::field::{Field, Visit};
+    use tracing::Subscriber;
+    use tracing_subscriber::layer::{Context, Layer};
+    use tracing_subscriber::prelude::*;
+    use tracing_subscriber::registry::LookupSpan;
+
+    static EVENTS: OnceLock<Mutex<Vec<HashMap<String, String>>>> = OnceLock::new();
+
+    fn events() -> &'static Mutex<Vec<HashMap<String, String>>> {
+        EVENTS.get_or_init(|| Mutex::new(Vec::new()))
+    }
+
+    struct Fields(HashMap<String, String>);
+
+    impl Visit for Fields {
+        fn record_str(&mut self, field: &Field, value: &str) {
+            self.0.insert(field.name().to_owned(), value.to_owned());
+        }
+
+        fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
+            self.0.insert(
+                field.name().to_owned(),
+                format!("{value:?}").trim_matches('"').to_owned(),
+            );
+        }
+    }
+
+    struct Capture;
+
+    impl<S> Layer<S> for Capture
+    where
+        S: Subscriber + for<'a> LookupSpan<'a>,
+    {
+        fn on_event(&self, event: &tracing::Event<'_>, _ctx: Context<'_, S>) {
+            if event.metadata().target() != "handshake_document::mt170_resolver_diagnostic" {
+                return;
+            }
+            let mut fields = Fields(HashMap::new());
+            event.record(&mut fields);
+            fields.0.insert(
+                "producer_module_path".to_owned(),
+                event
+                    .metadata()
+                    .module_path()
+                    .unwrap_or("unknown")
+                    .to_owned(),
+            );
+            events().lock().unwrap().push(fields.0);
+        }
+    }
+
+    pub fn install_and_clear() -> bool {
+        static INSTALLED: OnceLock<bool> = OnceLock::new();
+        let installed = *INSTALLED.get_or_init(|| {
+            let subscriber = tracing_subscriber::registry().with(Capture);
+            tracing::subscriber::set_global_default(subscriber).is_ok()
+        });
+        events().lock().unwrap().clear();
+        installed
+    }
+
+    pub fn snapshot() -> Vec<HashMap<String, String>> {
+        events().lock().unwrap().clone()
+    }
+}
+
 #[derive(Default)]
 struct NoopRecorder;
 
@@ -3685,12 +3756,53 @@ async fn mt170_create_note(
         .to_string()
 }
 
+async fn mt170_assert_record_user_note_read(
+    base: &str,
+    http: &reqwest::Client,
+    workspace_id: &str,
+    block_id: &str,
+    label: &str,
+) {
+    let response = headers_with_kind(
+        http.get(format!(
+            "{base}/workspaces/{workspace_id}/loom/blocks/{block_id}"
+        )),
+        "mt170-record-user-read-check",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("MT-170 canonical record-user fixture read");
+    assert_eq!(
+        response.status(),
+        200,
+        "MT-170 canonical fixture read: {label}"
+    );
+    let block: Value = response
+        .json()
+        .await
+        .expect("MT-170 canonical fixture read body");
+    assert!(
+        block["block_id"].as_str() == Some(block_id),
+        "MT-170 canonical fixture identity is stable: {label}"
+    );
+    assert!(
+        block["workspace_id"].as_str() == Some(workspace_id),
+        "MT-170 canonical fixture workspace is stable: {label}"
+    );
+}
+
 /// MT-170 AC-170-2 / AC-170-4: a wikilink to a standalone same-workspace Loom block projects
 /// exactly one mention edge, readable through the Loom backlinks route and still one edge after a
 /// rebuild; links to a block in another workspace of the same owner, or to a block owned by another
 /// account, project nothing.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
+    #[cfg(feature = "surreal-test-support")]
+    assert!(
+        mt170_resolver_observation_capture::install_and_clear(),
+        "MT-170 diagnostic subscriber is isolated in the focused test process"
+    );
     let store = open_embedded_store()
         .await
         .expect("MT-170 requires isolated embedded-store proof");
@@ -3726,6 +3838,31 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
     )
     .await;
 
+    mt170_assert_record_user_note_read(
+        &loom_base,
+        &loom_http,
+        &workspace_id,
+        &target_id,
+        "same_workspace_before_save",
+    )
+    .await;
+    mt170_assert_record_user_note_read(
+        &loom_base,
+        &loom_http,
+        &other_workspace_id,
+        &other_workspace_id_block,
+        "same_owner_other_workspace_before_save",
+    )
+    .await;
+    mt170_assert_record_user_note_read(
+        &stranger_loom_base,
+        &stranger_loom_http,
+        &stranger_workspace_id,
+        &stranger_block,
+        "other_account_before_save",
+    )
+    .await;
+
     let source_response = headers_with_kind(
         http.post(format!("{base}/knowledge/documents")),
         "mt170-source",
@@ -3753,6 +3890,106 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
         .as_str()
         .expect("MT-170 source id")
         .to_string();
+
+    mt170_assert_record_user_note_read(
+        &loom_base,
+        &loom_http,
+        &workspace_id,
+        &target_id,
+        "same_workspace_after_save",
+    )
+    .await;
+    mt170_assert_record_user_note_read(
+        &loom_base,
+        &loom_http,
+        &other_workspace_id,
+        &other_workspace_id_block,
+        "same_owner_other_workspace_after_save",
+    )
+    .await;
+    mt170_assert_record_user_note_read(
+        &stranger_loom_base,
+        &stranger_loom_http,
+        &stranger_workspace_id,
+        &stranger_block,
+        "other_account_after_save",
+    )
+    .await;
+
+    #[cfg(feature = "surreal-test-support")]
+    {
+        let observations = mt170_resolver_observation_capture::snapshot();
+        assert_eq!(
+            observations.len(),
+            1,
+            "one resolver read was observed before rebuild"
+        );
+        let observation = observations
+            .iter()
+            .find(|event| {
+                event
+                    .get("case_label")
+                    .is_some_and(|label| label.contains("mt170_record_user_candidate_read"))
+            })
+            .expect("MT-170 redacted record-user resolver observation");
+        assert_eq!(
+            observation.get("owning_module").map(String::as_str),
+            Some("handshake_document::surreal")
+        );
+        assert_eq!(
+            observation.get("producer_module_path").map(String::as_str),
+            Some("handshake_document::surreal")
+        );
+        assert_eq!(
+            observation
+                .get("candidate_input_count")
+                .and_then(|value| value.parse::<usize>().ok()),
+            Some(3)
+        );
+        assert_eq!(
+            observation
+                .get("candidate_id_count")
+                .and_then(|value| value.parse::<usize>().ok()),
+            Some(3)
+        );
+        assert_eq!(
+            observation
+                .get("returned_row_count")
+                .and_then(|value| value.parse::<usize>().ok()),
+            Some(2)
+        );
+        assert_eq!(
+            observation
+                .get("same_workspace_count")
+                .and_then(|value| value.parse::<usize>().ok()),
+            Some(1)
+        );
+        assert_eq!(
+            observation
+                .get("foreign_workspace_count")
+                .and_then(|value| value.parse::<usize>().ok()),
+            Some(1)
+        );
+        assert_eq!(
+            observation.get("query_outcome").map(String::as_str),
+            Some("ok")
+        );
+        let elapsed_micros = observation
+            .get("elapsed_micros")
+            .and_then(|value| value.parse::<u64>().ok())
+            .expect("elapsed interval is recorded");
+        println!(
+            "MT170_RESOLVER_DIAGNOSTIC candidates={} ids={} returned={} same_workspace={} foreign_workspace={} outcome={} error_class={} elapsed_us={} fixture_reads=6",
+            observation["candidate_input_count"],
+            observation["candidate_id_count"],
+            observation["returned_row_count"],
+            observation["same_workspace_count"],
+            observation["foreign_workspace_count"],
+            observation["query_outcome"],
+            observation["error_class"],
+            elapsed_micros,
+        );
+    }
 
     let mention_edges_to = |edges: &[handshake_core::storage::LoomEdge], target: &str| {
         edges

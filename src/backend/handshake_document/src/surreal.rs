@@ -371,6 +371,10 @@ pub async fn resolve_backlink_rows(
         .collect();
     candidate_loom_ids.sort();
     candidate_loom_ids.dedup();
+    let candidate_input_count = upserts
+        .iter()
+        .filter(|upsert| upsert.link_kind == "wikilink")
+        .count();
     let candidate_loom_targets: Vec<CandidateLoomRecord> = if candidate_loom_ids.is_empty() {
         Vec::new()
     } else {
@@ -378,16 +382,74 @@ pub async fn resolve_backlink_rows(
             .iter()
             .map(|id| thing(LOOM_BLOCKS_TABLE, id))
             .collect();
-        query_rows(
+        #[cfg(feature = "surreal-test-support")]
+        let query_started = std::time::Instant::now();
+        let candidate_result = query_rows(
             storage,
             "SELECT block_id, workspace_id FROM $candidate_loom_records \
              WHERE block_id IN $candidate_loom_ids ORDER BY block_id ASC;",
             vec![
-                b("candidate_loom_ids", candidate_loom_ids),
+                b("candidate_loom_ids", candidate_loom_ids.clone()),
                 b("candidate_loom_records", candidate_loom_records),
             ],
         )
-        .await?
+        .await;
+        #[cfg(feature = "surreal-test-support")]
+        match &candidate_result {
+            Ok(rows) => {
+                let mut same_workspace_count = 0usize;
+                let mut foreign_workspace_count = 0usize;
+                for row in rows {
+                    if record_key(row.workspace_id.clone())? == workspace_key {
+                        same_workspace_count += 1;
+                    } else {
+                        foreign_workspace_count += 1;
+                    }
+                }
+                tracing::info!(
+                    target: "handshake_document::mt170_resolver_diagnostic",
+                    owning_module = module_path!(),
+                    case_label = "mt170_record_user_candidate_read",
+                    candidate_input_count,
+                    candidate_id_count = candidate_loom_ids.len(),
+                    returned_row_count = rows.len(),
+                    same_workspace_count,
+                    foreign_workspace_count,
+                    query_outcome = "ok",
+                    error_class = "none",
+                    elapsed_micros = query_started.elapsed().as_micros() as u64,
+                    "MT-170 redacted resolver candidate observation"
+                );
+            }
+            Err(error) => {
+                let error_class = match error {
+                    StorageError::NotFound(_) => "not_found",
+                    StorageError::Conflict(_) => "conflict",
+                    StorageError::ConflictDetails { .. } => "conflict_details",
+                    StorageError::Validation(_) => "validation",
+                    StorageError::Guard(_) => "guard",
+                    StorageError::NotImplemented(_) => "not_implemented",
+                    StorageError::Serialization(_) => "serialization",
+                    StorageError::Database(_) => "database",
+                    StorageError::Migration(_) => "migration",
+                };
+                tracing::info!(
+                    target: "handshake_document::mt170_resolver_diagnostic",
+                    owning_module = module_path!(),
+                    case_label = "mt170_record_user_candidate_read",
+                    candidate_input_count,
+                    candidate_id_count = candidate_loom_ids.len(),
+                    returned_row_count = 0usize,
+                    same_workspace_count = 0usize,
+                    foreign_workspace_count = 0usize,
+                    query_outcome = "error",
+                    error_class,
+                    elapsed_micros = query_started.elapsed().as_micros() as u64,
+                    "MT-170 redacted resolver candidate observation"
+                );
+            }
+        }
+        candidate_result?
     };
     let mut live_loom_ids: HashSet<String> = HashSet::new();
     let mut foreign_loom_ids: HashSet<String> = HashSet::new();
