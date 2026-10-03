@@ -384,7 +384,7 @@ pub async fn resolve_backlink_rows(
             .collect();
         #[cfg(feature = "surreal-test-support")]
         let query_started = std::time::Instant::now();
-        let candidate_result = query_rows(
+        let candidate_result: StorageResult<Vec<CandidateLoomRecord>> = query_rows(
             storage,
             "SELECT block_id, workspace_id FROM $candidate_loom_records \
              WHERE block_id IN $candidate_loom_ids ORDER BY block_id ASC;",
