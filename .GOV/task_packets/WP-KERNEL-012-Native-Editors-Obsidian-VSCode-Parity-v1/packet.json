@@ -3867,7 +3867,41 @@
         "Present implementation steps to the existing workflow buddy before continuing",
         "Use the gameplan and preserve existing proof and acceptance requirements"
       ],
-      "r3_disposition": "Delegated decision pending inspected recommendation and buddy workflow review; no selection assumed"
+      "r3_disposition": "Session-selected projection identity restriction after code, active Master Spec, WP and official SurrealDB inspection; not a personal Operator selection",
+      "session_selected_plan": {
+        "decision_id": "WP012-SESSION-INSPECTED-PROJECTION-RECOVERY-20261004",
+        "selected_by": "ORCHESTRATOR-20261004 under the live delegated decision instruction",
+        "authority_ref": "packet.json#operator_decisions_20261004[WP012-OPERATOR-AUTONOMOUS-INSPECTED-DECISIONS-20261004]",
+        "basis": [
+          "Kernel Builder and independent WP Validator inspected current source, MT-168/170 contracts and Master Spec v02.206 section 2.3.13.12.4 resource privacy",
+          "Existing backlink rebuild read/delete already use KDLNK- identity and zero edit_event_id; projection table permissions omit them",
+          "MT-168 AC-168-6 requires a schema revision bump; revision 162 retention has no recorded Operator exception",
+          "MT-170 original first-step record is NOT BOUND/runtime NOT_RUN; inspected old MT-046 logs contain no resolver input-count observation",
+          "Official SurrealDB DEFINE TABLE and row-level permission documentation confirms per-operation record-user permissions and privileged-session bypass"
+        ],
+        "buddy_review": "workflow_buddy reviewed diagnostic predecessor, candidate binding, complete READY disposition and proof ownership before product edits",
+        "procedural_recovery": {
+          "historical_ac_170_1_before_edit_gate": "NOT_SATISFIED; preserve original missing observation and chronology",
+          "scoped_exception": "Permit diagnostic-only instrumentation needed for current-state recovery; require independent record-user diagnostic before further functional edits",
+          "required_observation": "Current candidate input-match/returned/live/foreign counts, query result/error and endpoint permission distinction under real record-user state; independently reconcile fixture target existence/workspace",
+          "ownership": "Bind actual owning module only from observed evidence; a new successful result never retro-proves the original pre-edit gate",
+          "acceptance": "Retain all semantic, privacy, diagnostic and downstream proof; independent WP Validator judges the explicit recovery disposition, not fabricated historical compliance"
+        },
+        "functional_choices_after_diagnostic": [
+          "Restrict only the loom_edges projection SELECT/CREATE/UPDATE/DELETE branch to KDLNK- edge identity and zero edit_event_id; preserve existing owner/workspace/read/write checks and general branch",
+          "Close AC-170-3 typed-denial evidence with the existing focused test and required redacted diagnostic assertions; do not silently retain a required permission-race gap",
+          "Bump schema revision 162 to 163 once for the combined repair, preserve predecessor upgrade behavior, regenerate static hash and independently measure runtime pins"
+        ],
+        "proof_order": [
+          "Record exact named diagnostic remediation and role gameplan/resource prerequisites",
+          "Kernel Builder diagnostic-only edit, narrow compile/static proof in verified assigned owner target, explicit product commit and push",
+          "WP Validator independent diagnostic on that pushed candidate through configured entrypoint; diagnostic-only evidence",
+          "Kernel Builder minimal functional repair, stable narrow compile/static proof, explicit product commit and push",
+          "WP Validator refreshes stale selection from MT-own commands, records every READY MT reuse/rerun/unclosed disposition, freezes pushed candidate and executes one union batch with valid warm artifacts",
+          "Record independent per-MT verdicts and handoff; keep WP-end extra proofs at their recorded boundary"
+        ],
+        "cleanup": "Inspect every referenced owner target before choosing a bin move; preserve warm validator target, stable source, retained logs and proof evidence"
+      }
     }
   ],
   "operator_decisions_20261002": [
