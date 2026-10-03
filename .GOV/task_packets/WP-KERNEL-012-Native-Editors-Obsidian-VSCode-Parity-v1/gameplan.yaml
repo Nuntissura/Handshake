@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 195
+generation: 197
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -183,3 +183,5 @@ steps:
 - {id: GP-162, role: wp_validator, at: before_round, do: confirm every test-runner run/list/show-config call passes the same cargo --config as its build line, check: {type: confirm}, source: 'infra targeted 222b33cc: runner rebuilt without --config; core exit 101', state: active}
 - {id: GP-163, role: orchestrator, at: before_dispatch, do: verify confirmation note length <= 120 chars, check: {type: confirm}, source: 'resume: confirmation rejected for note length before read-only dispatch', state: active}
 - {id: GP-164, role: wp_validator, at: before_round, do: confirm one owned size-inventory process per target and no duplicate scan remains, check: {type: confirm}, source: 'infra: duplicate D target inventory scans competed while builder assignment waited', state: active}
+- {id: GP-165, role: builder, at: before_round, do: confirm precompile checkpoint is uncompiled and unvalidated; no readiness submission, check: {type: confirm}, source: 'prep: GP149 pushed-candidate gate conflicts with compile-before-push sequence', state: active}
+- {id: GP-166, role: orchestrator, at: before_dispatch, do: verify JSON patch anchor names owning object before editing repeated field names, check: {type: confirm}, source: 'prep: packet has both mt_plan.mt_status and tracker.mt_status; scoped patch assertion failed', state: active}
