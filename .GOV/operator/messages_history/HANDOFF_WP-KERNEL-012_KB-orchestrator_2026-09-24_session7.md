@@ -1,10 +1,28 @@
 ---
 file_id: HANDOFF-WP-KERNEL-012-KB-ORCHESTRATOR-2026-09-24-SESSION7
 file_kind: operator_handoff
-updated_at: 2026-10-01
+updated_at: 2026-10-04
 authority: reference_only
 wp_id: WP-KERNEL-012
 ---
+
+<topic id="session-2026-10-04-orchestrator" wp="WP-KERNEL-012" status="reconciling" updated_at="2026-10-04">
+
+## Resume at 2026-10-03 22:38Z (2026-10-04 00:38 Europe/Brussels)
+
+This topic records the current session. Older sections remain historical reference; current typed MT records govern status and proof.
+
+- Operator assignment: root orchestrates and does not manipulate product code. One Kernel Builder and one independent WP Validator read their respective protocols and Codex; cheap agents inspect code/proof/research. One workflow buddy checks ordering, gameplan use and handoff freshness only.
+- Operator requires current-state reconciliation before selecting the first batch; reuse valid Cargo builds/proofs and bundle expensive validation. Inspect obsolete WP cargo output before moving it to a bin for Operator deletion; do not delete output or disrupt another session's processes.
+- Verified product worktree: `../wtc-native-editors-v1`, branch `feat/WP-KERNEL-012`, clean including untracked files; HEAD and freshly fetched `origin/feat/WP-KERNEL-012` = `280ef9851901db2a8ab32b13c82fdfb1656225e6`. Source: explicit feature-ref fetch, git status/log on resume. Governance started at `9afeaae2af08b0659f93cc4fdbb657873ad2065a` on clean `gov_kernel`.
+- Recount from all 170 canonical `MT-NNN.json` lifecycle fields: 132 PASS, 6 FAIL, 18 BLOCKED, 14 READY_FOR_VALIDATION. READY: MT-079, 111, 121, 122, 136, 143, 153, 154, 155, 157, 158, 159, 168, 170. FAIL: MT-008, 043, 046, 064, 065, 128. Counts are status evidence, not fresh runtime acceptance.
+- MT-168 and MT-170 have pushed October 2 implementation commits. MT-167 and MT-169 name MT-168 as a blocker. MT-033 still names MT-032 and MT-116 still names MT-027; dependency/proof disposition is being inspected, not assumed ready.
+- Governing pin remains `896f4e15` plus recorded Operator exceptions. The later global lifetime-three-failure cap is not imported into this pinned WP. October 2 ownership decisions assign index-bound grant/resource scans to MT-168, document-create cost to MT-169, backlink projection to MT-170, and MT-130's remaining scope to MT-117.
+- Gameplan skill read; orchestrator `on_resume`, `before_dispatch`, and next `before_round` steps shown. Scoped read-only dispatch gate passed 13/13 on product HEAD `280ef9851901`; GP-163 was added through the controller after a rejected confirmation longer than 120 characters. Resume confirmations await the agents' half-written-record and proof reconciliation.
+- Active delegated work is read-only: `workflow_buddy` reviews workflow; `kernel_builder` compares source with MT contracts; `wp_validator` checks proof reuse, batch readiness, resource state and obsolete artifact candidates. No runtime run, product edit, cleanup, MT verdict or lifecycle transition has been launched by this session.
+- Next: reconcile their exact findings, update this topic with the first batch and proof/resource blockers, then use the applicable role gameplan gates before any authorized implementation, validation or artifact move. Keep the same buddy and builder context for follow-up work.
+
+</topic>
 
 <topic id="session-2026-09-30-orchestrator" wp="WP-KERNEL-012" status="active" updated_at="2026-10-01">
 

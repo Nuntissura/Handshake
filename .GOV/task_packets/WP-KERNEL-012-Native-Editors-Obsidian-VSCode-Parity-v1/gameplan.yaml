@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 193
+generation: 194
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -181,3 +181,4 @@ steps:
 - {id: GP-160, role: wp_validator, at: before_round, do: 'confirm each generated PowerShell launcher/observer parses (Parser.ParseFile, 0 errors) before detached launch', check: {type: confirm}, source: 'infra 11f1b034: sed field regex stopped at a '')'' inside a quoted item; launcher died at parse, no run started', state: active}
 - {id: GP-161, role: wp_validator, at: before_round, do: 'confirm each lib filter is a real module path (check mod decl incl. #[path] renames), not a file name', check: {type: confirm}, source: '4d0da145: filter code_nav_index_account_tests ran 0 tests; module is account_tests', state: active}
 - {id: GP-162, role: wp_validator, at: before_round, do: confirm every test-runner run/list/show-config call passes the same cargo --config as its build line, check: {type: confirm}, source: 'infra targeted 222b33cc: runner rebuilt without --config; core exit 101', state: active}
+- {id: GP-163, role: orchestrator, at: before_dispatch, do: verify confirmation note length <= 120 chars, check: {type: confirm}, source: 'resume: confirmation rejected for note length before read-only dispatch', state: active}
