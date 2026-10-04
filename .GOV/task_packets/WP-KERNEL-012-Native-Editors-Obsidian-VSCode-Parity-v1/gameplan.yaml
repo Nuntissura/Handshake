@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 321
+generation: 322
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -294,3 +294,4 @@ steps:
 - {id: GP-273, role: builder, at: before_round, do: verify target guard diff retains KRD and exact standalone NONE branch with record-user UPDATE authority, check: {type: confirm}, source: 'fail: MT170 source-create403 at statement15; KRD-only target guard excludes standalone NONE note', state: active}
 - {id: GP-274, role: builder, at: before_round, do: record full gate output and exit before proceeding, check: {type: confirm}, source: 'infra: before_round tool result handle was not retained', state: retired}
 - {id: GP-275, role: builder, at: before_submit, do: verify measured CURRENT consumers match WPV digests; unmeasured scopes stay UNVALIDATED with no readiness claim, check: {type: confirm}, source: 'phase: GP259 precedes schema163 measurement inputs; retain all-consumer check at pin/readiness submission', state: active}
+- {id: GP-276, role: builder, at: before_round, do: verify endpoint-read set gates projection/fallback; retain live/conflict set and exact unreadable-target fixture, check: {type: confirm}, source: 'review: D6-AC1703-01 query visibility was mistaken for endpoint-read authorization', state: active}

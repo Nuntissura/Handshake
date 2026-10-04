@@ -473,6 +473,44 @@
         "input_digest": "candidate 8c147394 tree 201f4c5c006f0bdc02c4f2800a26b6f227133752, tracked_files=7167, manifest_sha256=8b609770c2ac82e22fa8d77cc312207f7756d00bd338bae274eec3c3763417b9",
         "result": "PASS",
         "scope": "builder compile only; does not prove AC-170 runtime or acceptance"
+      },
+      {
+        "id": "PR-WP012-MT170-KB-CHECK-05",
+        "check_id": "MT-170-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261005",
+        "covers": [
+          "MT-170"
+        ],
+        "commit": "d6ed538cf7bcfda86b48f2f49438980c0835f97c",
+        "tree": "92403a822607776c7aaebd74f79fd4c923701f95",
+        "command": "cargo check --locked -j 1 --config <packet-qualified WPV-backend-profile.toml> --lib --tests --features app-runtime,surreal-test-support,test-utils; cwd=src/backend/handshake_core; CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target; CARGO_INCREMENTAL=0; CARGO_PROFILE_DEV_DEBUG=line-tables-only; CARGO_PROFILE_TEST_DEBUG=line-tables-only",
+        "started_at_utc": "2026-10-04T23:23:40.0580626Z",
+        "completed_at_utc": "2026-10-04T23:36:14.9509831Z",
+        "exit_code": 0,
+        "stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/cargo-check-d6ed538c.stdout.log",
+        "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/cargo-check-d6ed538c.stderr.log",
+        "exit_code_file": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/cargo-check-d6ed538c.exit-code.txt",
+        "artifact_bytes": {
+          "stdout": 0,
+          "stderr": 87414,
+          "exit_code_file": 3
+        },
+        "artifacts_sha256": {
+          "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr": "e983f0d762e5caef65e2d3732932a4fb062fa2d6108dddaed8cb29c27163be41",
+          "exit_code": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+        },
+        "input_sha256": {
+          "knowledge_rs": "017f821de3350f6b6130f35d4f69ab4ced64b729d9a960dad944c6214e6d921f",
+          "schema_rs": "b28042bd7afc6064ee95878c349e6698119466cafd771d7da400d8d1d3132de1",
+          "schema_surql": "41c41a52fc29a08f32c1db5525820cc8977997e6a2918be606e67756bc311c0e",
+          "knowledge_documents_api_tests_rs": "4d4e3c8efe495d9576d24fd7861bf4262e3cedee650dca7f78cf65ff324592d0",
+          "handshake_document_surreal_rs": "ac29df1fcd265bdee15783e2ff2d30363d20b7de1a117c738b689091fc935828",
+          "backend_profile_toml": "304141037aa802c844b08bbcbd9798ab9297b1908020bd425f804bd1376d1729"
+        },
+        "post_run_recheck": "Current candidate, clean pushed source tree and each listed source/profile digest re-read after completion; inputs unchanged.",
+        "result": "PASS_COMPILE_ONLY",
+        "scope_limit": "Compile only; no test/runtime, lint verdict, complete tracked-file manifest, or MT acceptance is claimed. MT170 remains BLOCKED; validator_verdict null; AC-170-1 historical ordering remains unsatisfied."
       }
     ]
   },
@@ -2757,7 +2795,7 @@
     "remote_ref": "origin/feat/WP-KERNEL-012",
     "remote_commit": "d6ed538cf7bcfda86b48f2f49438980c0835f97c",
     "working_tree": "clean",
-    "disposition": "PUSHED_UNCOMPILED_UNVALIDATED; MT170 remains BLOCKED; validator_verdict null",
+    "disposition": "PUSHED_COMPILE_CHECKED_UNVALIDATED; MT170 remains BLOCKED; validator_verdict null",
     "changed_files": [
       "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
       "src/backend/handshake_core/src/storage/surreal/schema.rs",
@@ -2777,8 +2815,8 @@
         "result": "PASS"
       }
     ],
-    "validation_limit": "No Cargo/build/test/runtime proof yet. CURRENT revision-163 pins remain pending WPV PIN-MEASURE; no MT acceptance advanced.",
-    "next_actor": "KERNEL_BUILDER scoped cargo check after current builder gate and fresh resource admission; WP_VALIDATOR owns post-revision six-pin/runtime proof"
+    "validation_limit": "Named Cargo check passed compile-only on d6ed. No test/runtime or lint verdict; CURRENT revision-163 pins remain pending WPV PIN-MEASURE; no MT acceptance advanced.",
+    "next_actor": "KERNEL_BUILDER address the open AC-170-3 source finding after buddy-reviewed route; WP_VALIDATOR owns post-revision six-pin/runtime proof"
   },
   "adversarial_review_d6ed538c_20261005": {
     "schema_id": "hsk.mt_adversarial_review@1",
@@ -2802,12 +2840,35 @@
         "id": "D6-AC1703-02",
         "severity": "MODERATE",
         "finding": "The new HSK-KDBL-LOOM-EDGE-CREATE-DENIED result guard at handshake_document/src/surreal.rs:188,197-198 is not exercised by the changed test. Its wrong-type file case is rejected earlier by the note-only target_guard at handshake_core/src/storage/surreal/knowledge.rs:2114; no fixture reaches CREATE with a denied edge permission. Thus the CREATE-result denial path remains unproven, including any silent denial after a permission change between precheck and CREATE.",
+        "independent_route_and_contract_assessment_20261005": {
+          "source_anchors": [
+            "handshake_document/src/surreal.rs:12-27 (public DocumentQuery rows interface)",
+            "handshake_document/src/surreal.rs:175-205 (public ResolvedBacklink, write statements, guards, and bind builder)",
+            "handshake_document/src/surreal.rs:282 (public resolve_backlink_rows)",
+            "handshake_document/src/surreal.rs:591-656 (replace_backlinks_attempt resolves internally before invoking the write)",
+            "handshake_core/src/storage/surreal/knowledge.rs:1979-2005 (create path resolves and appends backlink writes in one transaction)",
+            "handshake_core/src/storage/surreal.rs:1119 (record-user scope executor is pub(crate))",
+            "handshake_core/src/storage/surreal/knowledge.rs:2116 (target guard), 2137-2140 (guarded create result)",
+            "handshake_document/src/surreal.rs:188,197-199 (CREATE denial throws and maps to StorageError::Guard)"
+          ],
+          "route_finding": "Public low-level resolver and write primitives exist, but no current production orchestrator accepts stale resolved rows: replace_backlinks_attempt always resolves then writes, while initial document creation combines resolution and writes in one transaction. The named external integration test cannot enter the crate-private record-user scope to call the low-level stages as an authenticated user. A deterministic authenticated resolve-revoke-write sequence therefore requires an additional test seam or API change; no such current interleave is exposed.",
+          "contract_refs": [
+            "MT-170 AC-170-3: typed reason for resolved targets not projected because denied, other workspace, or missing",
+            "MT-170.json#resource_privacy_obligation.revocation_and_context_switch_cases: []",
+            "MT-170.json#adversarial_review_20261002.R2: CREATE-denial case recorded as residual, no change",
+            "MT-170.json#implementation_scope.MT170-TG-004: CREATE-result handling only where required by AC-170-3"
+          ],
+          "disposition": "Preserve the permission-change-after-precheck race as an explicitly unexercised residual; it is not an AC-170-3 waiver because AC-170-3 does not specify a revocation interleave. Runtime proof of the ordinary visible-but-unreadable precheck-denial case remains required for AC-170-3. The existing CREATE-denial guard fails the operation with a typed storage error rather than silently dropping a projected row; this source fact is not runtime proof."
+        },
         "authority_refs": [
           "MT-170 AC-170-3",
           "MT-170.json#implementation_scope",
-          "MT-170.json#direct_blocker_remediation_20261004"
+          "MT-170.json#direct_blocker_remediation_20261004",
+          "MT-170.json#adversarial_review_20261002.R2",
+          "MT-170.json#implementation_scope.MT170-TG-004",
+          "MT-170.json#resource_privacy_obligation.revocation_and_context_switch_cases"
         ],
-        "state": "OPEN; runtime proof not run"
+        "state": "OPEN; race residual explicitly unexercised; AC-170-3 precheck-denial runtime proof still required"
       }
     ],
     "review_limit": "No Cargo/build/test/runtime was run for this review; KB compile was active. Existing statement-15 source-create 403 is not edge-CREATE-denial proof."
