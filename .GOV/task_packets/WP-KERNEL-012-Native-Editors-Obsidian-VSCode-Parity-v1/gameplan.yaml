@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 234
+generation: 235
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -220,3 +220,4 @@ steps:
 - {id: GP-199, role: orchestrator, at: before_dispatch, do: verify dispatched helper path is read from the actual WP packet and consumer before edits, check: {type: confirm}, source: 'infra: .GOV/WP shorthand was dispatched instead of the existing packet observer path', state: active}
 - {id: GP-200, role: wp_validator, at: before_round, do: verify observer rejects null commit counters before numeric casts and labels extrema as sampled, check: {type: confirm}, source: 'review: null CommittedBytes cast to zero could fabricate available telemetry and a zero baseline', state: active}
 - {id: GP-201, role: wp_validator, at: before_dispatch, do: verify confirmation note length <= 120 chars before the controller call, check: {type: confirm}, source: 'infra: observer source confirmation note exceeded 120 chars and was rejected before mutation', state: active}
+- {id: GP-202, role: builder, at: before_round, do: 'verify resource inventory is metadata-only and covers compiler, runner and assigned target owners', check: {type: confirm}, source: 'infra: runner literal in process-name metadata query triggered costly hook and exceeded20s before body', state: active}

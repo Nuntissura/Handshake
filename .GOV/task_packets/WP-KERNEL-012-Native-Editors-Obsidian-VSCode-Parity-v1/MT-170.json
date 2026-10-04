@@ -1023,7 +1023,15 @@
       "heartbeat": "API update and saved TOML reread: ACTIVE, 20e9 floor, serial warm compile before WPV diagnostic",
       "cause_checks": ["GP199 shorthand path corrected before edit", "GP200 null-counter coercion fixed before execution", "GP201 overlong WPV confirm note rejected then shortened"],
       "record_write_recovery": "Supplemental Python write raised OSError22 before opening MT170; original JSON reread intact; minimal patch and GP130 readback required before staging",
-      "proof_limit": "STATIC ONLY; no Cargo/export/supervisor/runtime; old8c observer cannot prove current3e readiness"
+      "proof_limit": "STATIC ONLY; no Cargo/export/supervisor/runtime; old8c observer cannot prove current3e readiness",
+      "resource_inventory_recovery": {
+        "cause_id": "IR-WP012-METADATA-HOOK-20261004",
+        "cause": "Runner-name literal in a read-only process metadata query triggered the costly hook and exceeded20s before body",
+        "gameplan_step": "GP-202",
+        "buddy_review": "Complete broad compiler/process and assigned-target ownership metadata with descendant coverage is a classification correction, not a test/build or gate waiver",
+        "approved_action": "Fresh metadata-only resource inventory, then current Builder/any gates; actual Cargo remains gated",
+        "result": "PENDING fresh inventory and Builder checks; no Cargo started"
+      }
     }
   },
   "diagnostic_capture_recovery_20261004": {
