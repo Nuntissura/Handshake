@@ -222,11 +222,7 @@ mod mt170_resolver_observation_capture {
                 "handshake_core::knowledge_documents_api" => {
                     // This target carries three allowlisted diagnostic shapes. Classify
                     // only from their typed fields; IDs and the tracing message are discarded.
-                    let names = event
-                        .fields()
-                        .iter()
-                        .map(|field| field.name())
-                        .collect::<Vec<_>>();
+                    let names = event.fields().map(|field| field.name()).collect::<Vec<_>>();
                     if names.contains(&"phase") && names.contains(&"event") {
                         ("phase", &["phase", "event", "count", "elapsed_ms"][..])
                     } else if names.contains(&"statement_index") {
