@@ -1017,6 +1017,14 @@
       "retention_review": "Root independently re-read all19 archived raw hashes/lengths, owned paths and canonical-source absence; no retrospective gate clearance for Force retry/manifest repair before GP232/233 recording",
       "root_resource_sample": {"utc": "2026-10-04T14:44:57.8729763Z", "commit_limit_bytes": 149695787008, "committed_bytes": 50784641024, "free_commit_bytes": 98911145984, "cpu_percent": 11, "competing_compiler_or_bash_count": 0},
       "proof_limit": "Sample is system-wide only and not future launch admission; early five tests do not complete six-test parity, prove resolver ownership, advance historical AC1701 or accept MT170",
+      "launch_context_recovery": {
+        "cause": "Root's resumed dispatch incorrectly required historical WPV parent184740; current exec shell245928 had parent214696 and then exited; no new observer/supervisor/runtime was started",
+        "independent_basis": "KB inspected GP225/156, MT170 historical supervisor identity and launcher221-246/284-286; no fixed parent PID is required, actual current launch identity and WPV scope are required",
+        "buddy_review": "Workflow-clear for current WPV context reproof; do not control old parent or alter app-server/global environment; fresh target-growth/scratch and resource gates remain separate",
+        "correction": "Re-prove supported environment digest, approved Bash builtin resolver and actual current WPV launch PID/start/parent/run binding; old184740 is historical evidence only",
+        "gameplan_disposition": "GP234 records the stale-parent cause and is retired as redundant: existing rootGP052 and WPVGP156/220/225 own current identity/context checks; no new admission gate",
+        "state": "SOURCE_CLEAR; actual current launch-context and admission proof still required"
+      },
       "next": "WPV fresh current role/resource/config/identity gates and new one-use release, then exactly five-test evidence-only measurement; no KB pin edit before actual outputs"
     },
     "required_commit_free_bytes": 20000000000,
