@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 227
+generation: 229
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -214,3 +214,5 @@ steps:
 - {id: GP-193, role: builder, at: before_submit, do: verify rustfmt edition flag matches inspected owning crate manifest, check: {type: confirm}, source: 'infra: bare rustfmt used2015 and rejected async; actual handshake_core manifest edition2021', state: active}
 - {id: GP-194, role: wp_validator, at: before_round, do: verify redacted diagnostic events reach retained output before early assertions and after snapshot, check: {type: confirm}, source: 'capture: e6 buffers events but early assertion skips output and later emissions lack another snapshot', state: active}
 - {id: GP-195, role: wp_validator, at: before_dispatch, do: verify unchanged profile evidence is reused and actual effective hash is required before launch, check: {type: confirm}, source: 'infra: redundant combined profile read matched runner-name hook and exceeded20s before execution', state: active}
+- {id: GP-196, role: orchestrator, at: on_resume, do: verify status recount selects exact MT-NNN.json records before reading lifecycle.status, check: {type: confirm}, source: 'infra: MT-*.json included supplemental MT-136-candidate-boundary.json without lifecycle', state: active}
+- {id: GP-197, role: orchestrator, at: on_resume, do: verify controller path with spaces is one quoted argument or one subprocess argv item, check: {type: confirm}, source: 'infra: unquoted controller path split at Ilja Smets and failed before body', state: active}
