@@ -3291,7 +3291,7 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT-170 PIN-MEASURE PENDING: loom_edges select/create/update/delete projection branch changed;
 // value below is the 94ba0ed1 measurement.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "823b37d8026854aeb65c617dddb0a951ee452746f341d38752ec0c67d3138730";
+    "f7b1f5f7ae76a3b1c60713832c11f856fcdb83d72fddbf6336a1abbb708c524d";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -3313,7 +3313,7 @@ pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
 // MT-168 PIN-MEASURE PENDING: the catalog carries the changed grant function bodies; value below is
 // the e012e80d measurement.
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
-    "e98e231c40f88f614b4ed36bbe0990406f0851ea86ba15177e85b02c2ea0271a";
+    "895ff21ea89a4daf09fd7617166bd8500e64ec7a82ae072ba53222c1746e4d99";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 /// Second allowlisted lineage (MT-142): every store bootstrapped at schema revision 157 before
@@ -9107,7 +9107,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "6a224fa74f38e204df71ddfe1a7d4e162bd2c5ee1d2c4900e2fcc506d2fa5b74"
+            "1cb097999983c18661eeef206ee0ae14254f26e4a9fdfffe023a1e4fc6742a0b"
         );
     }
 
