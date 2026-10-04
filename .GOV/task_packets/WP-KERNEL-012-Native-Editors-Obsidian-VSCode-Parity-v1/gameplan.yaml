@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 264
+generation: 267
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -244,3 +244,6 @@ steps:
 - {id: GP-223, role: wp_validator, at: before_verdict, do: 'compare current run VERIFY_OK, metadata result and export identity with frozen candidate through independent reads', check: {type: confirm}, source: VPX011 actual before-Cargo verification and identitylast; preserve former GP155/159 proof at producing phase, state: active}
 - {id: GP-224, role: wp_validator, at: before_verdict, do: 'compare actual refresh mode, prior identity, physical root argv and per-file metadata with the run record', check: {type: confirm}, source: 'phase: VPX011 creates these outcomes inside round; preserves former GP172/173/175 proofs', state: active}
 - {id: GP-225, role: wp_validator, at: before_round, do: confirm launch parent role and explicit controller scope are WPV; launcher sets role before its current gate, check: {type: confirm}, source: GP213 historical omission cannot be undone; GP216 separate hook does not inherit inline child role assignment, state: active}
+- {id: GP-226, role: wp_validator, at: before_dispatch, do: verify separate Test-Path calls are parenthesized before Boolean combination, check: {type: confirm}, source: 'infra: Test-Path stdout -or Test-Path stderr parsed -or as parameter; preexistence check did not execute', state: active}
+- {id: GP-227, role: wp_validator, at: before_dispatch, do: verify every execution result retains exit status or live session handle before a repeated check, check: {type: confirm}, source: 'infra: WPV lost initial running-check handle and started duplicate check before collecting completion', state: active}
+- {id: GP-228, role: wp_validator, at: before_verdict, do: verify final proof log hashes use closed files; live sharing errors do not imply absent logs, check: {type: confirm}, source: 'infra: live supervisor redirect streams allowed reads but rejected file hashing while handles remained open', state: active}

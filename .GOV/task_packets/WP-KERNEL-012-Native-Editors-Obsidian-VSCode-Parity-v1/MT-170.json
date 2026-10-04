@@ -1092,6 +1092,23 @@
       "fresh_metadata": "WPV12:01:05.9064760Z target exists/non-reparse, Cfree832661131264, freecommit99297619968; proven broad compiler/target process method found no compiler/tester, old8c observer/foreign historical tail followers preserved",
       "effective_profile": "Actual lane nextest-core.toml FileInfo1192B, SHAe651a5b229a0a609b426cb3d485ae5fd17301c0b3440e7868c9de296ba2c7922 matches packet source; similarly named unused copy is not consumed"
     },
+    "passive_supervisor_20261004": {
+      "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
+      "state": "waiting_for_release; no Bash/Cargo/runtime yet",
+      "run_id": "a05f062509ea4e86bc1cf55e8cc3c5c9",
+      "pid": 246740,
+      "parent_pid": 184740,
+      "start_utc": "2026-10-04T13:03:57.8449583Z",
+      "ready_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.supervisor-a05f062509ea4e86bc1cf55e8cc3c5c9.ready.json",
+      "root_live_read": "Exact ready JSON/CIM command and normalized creation bind PID/start/parent/candidate/run/profile/target/observer/argv; descendants conhost only; no compiler/Bash at13:09:29.3066010Z",
+      "wpv_gate": "before_round PASS50/50 after actual detached GP153 confirmation",
+      "fresh_root_resources": "13:09:29.3066010Z limit149695787008 committed50690850816 free99004936192 CPU4; system-wide sample only",
+      "collision_check_limit": "WPV malformed Test-Path Boolean preexistence check did not execute; no pre-start absence claim; GP226 records cause, current metadata read required before release",
+      "check_handle_limit": "WPV repeated a running gate after losing its first handle; reported50/50 result retained, GP227 records cause",
+      "log_hash_limit": "Live supervisor stdout was readable/236B and stderr0B, but open redirect streams rejected hashing; GP228 requires sealed final proof hashes",
+      "source_only_caveat": "KB observed create_workspace temporary server abort happens after successful response/JSON parse; panic drops JoinHandle. No current runtime failure/acceptance inference or adjacent product edit authorized",
+      "next": "Fresh exact input/process/resource/root gates and current collision metadata, then one-use root marker; WPV canonical diagnostic and independent produced export/JUnit/log proof"
+    },
     "latest_admission_observation": {
       "observed_at_utc": "2026-10-04T11:07:51.1510166Z",
       "source": "Win32_PerfFormattedData_PerfOS_Memory and Processor/_Total",
