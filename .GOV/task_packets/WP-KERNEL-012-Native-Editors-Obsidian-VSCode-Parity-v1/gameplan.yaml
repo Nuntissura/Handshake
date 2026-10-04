@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 197
+generation: 206
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -185,3 +185,11 @@ steps:
 - {id: GP-164, role: wp_validator, at: before_round, do: confirm one owned size-inventory process per target and no duplicate scan remains, check: {type: confirm}, source: 'infra: duplicate D target inventory scans competed while builder assignment waited', state: active}
 - {id: GP-165, role: builder, at: before_round, do: confirm precompile checkpoint is uncompiled and unvalidated; no readiness submission, check: {type: confirm}, source: 'prep: GP149 pushed-candidate gate conflicts with compile-before-push sequence', state: active}
 - {id: GP-166, role: orchestrator, at: before_dispatch, do: verify JSON patch anchor names owning object before editing repeated field names, check: {type: confirm}, source: 'prep: packet has both mt_plan.mt_status and tracker.mt_status; scoped patch assertion failed', state: active}
+- {id: GP-167, role: builder, at: before_round, do: verify candidate resolver result type annotation before retry, check: {type: file, path: src/backend/handshake_document/src/surreal.rs, contains: 'let candidate_result: StorageResult<Vec<CandidateLoomRecord>>'}, source: 'compile: E0282 at candidate_result inference on line 387', state: retired}
+- {id: GP-168, role: builder, at: before_round, do: 'confirm compile stdout, stderr and exit-code artifact capture configured before launch', check: {type: confirm}, source: 'infra: exec90321 compile failure had only captured-session output and no retained file log', state: active}
+- {id: GP-169, role: builder, at: before_round, do: verify diagnostic resolver result type in assigned sibling product path before retry, check: {type: file, path: ../wtc-native-editors-v1/src/backend/handshake_document/src/surreal.rs, contains: 'let candidate_result: StorageResult<Vec<CandidateLoomRecord>>'}, source: compile E0282; GP167 used governance-root source path; verified sibling product path replaces it, state: active}
+- {id: GP-170, role: wp_validator, at: before_round, do: confirm effective profile retains successful MT170 diagnostic stdout in hashed proof output, check: {type: confirm}, source: 'prep: default successful-test output hid the required MT170 runtime observation', state: active}
+- {id: GP-171, role: wp_validator, at: before_round, do: confirm validator helper and launcher use verified governed Git Bash, check: {type: confirm}, source: 'infra: generic bash dry-run could not resolve assigned C path and reported previous=none', state: active}
+- {id: GP-172, role: wp_validator, at: before_round, do: confirm actual export refresh mode and prior identity provenance reconciled before build, check: {type: confirm}, source: 'infra: actual refresh fell back to full replace after verified incremental M9 dry-run', state: active}
+- {id: GP-173, role: wp_validator, at: before_round, do: confirm actual refresh and launcher export-root argv equal the assigned physical C owner target, check: {type: confirm}, source: 'infra: helper argv used canonical D artifact root instead of the assigned capped C target', state: active}
+- {id: GP-174, role: wp_validator, at: before_round, do: confirm refresh candidate argv is loaded from verified pushed 40-hex product HEAD without manual retyping, check: {type: confirm}, source: 'infra: mistyped candidate SHA rejected canonical C dry-run before mutation', state: active}

@@ -3893,16 +3893,35 @@
         "functional_choices_after_diagnostic": [
           "Restrict only the loom_edges projection SELECT/CREATE/UPDATE/DELETE branch to KDLNK- edge identity and zero edit_event_id; preserve existing owner/workspace/read/write checks and general branch",
           "Close AC-170-3 typed-denial evidence with the existing focused test and required redacted diagnostic assertions; do not silently retain a required permission-race gap",
-          "Bump schema revision 162 to 163 once for the combined repair, preserve predecessor upgrade behavior, regenerate static hash and independently measure runtime pins"
+          "Bump schema revision 162 to 163 once for the combined repair; add an exact revision-162 predecessor/upgrade and data-preserving reopen proof, preserve historical pins, regenerate static hash and independently measure current runtime pins"
         ],
         "proof_order": [
           "Record exact named diagnostic remediation and role gameplan/resource prerequisites",
           "Kernel Builder diagnostic-only edit and scoped checkpoint commit/push marked UNCOMPILED/UNVALIDATED; no READY submission; verify pushed SHA, satisfy GP149 and run narrow compile/static proof in assigned warm owner target",
           "WP Validator independent diagnostic on that pushed candidate through configured entrypoint; diagnostic-only evidence",
-          "Kernel Builder minimal functional repair and scoped unvalidated checkpoint commit/push; verify pushed SHA and run stable narrow compile/static proof before READY submission",
+          "Kernel Builder minimal functional/revision-163 repair including exact revision-162 upgrade path, scoped unvalidated checkpoint commit/push and stable narrow compile/static proof",
+          "WP Validator executes one named measurement-only pin selection through existing targeted mode on the pushed schema-163 candidate, stable export-current and warm owner target; no acceptance verdict",
+          "Kernel Builder updates only CURRENT expected pins from the measured outputs, pushes the scoped checkpoint and compiles changed inputs before READY submission; never re-pin historical PREDECESSOR values",
           "WP Validator refreshes stale selection from MT-own commands, records every READY MT reuse/rerun/unclosed disposition, freezes pushed candidate and executes one union batch with valid warm artifacts",
           "Record independent per-MT verdicts and handoff; keep WP-end extra proofs at their recorded boundary"
         ],
+        "pin_measure_predecessor": {
+          "basis": "MT-168 AC-168-6 and MT-158.json#schema_repin_procedure; buddy reviewed the existing targeted-route predecessor before recording",
+          "entrypoint": "WPV-union-round.sh <frozen schema-163 candidate SHA> targeted, through HBR-governed Git Bash",
+          "scope": "Core lib only; NATIVE_SKIP=1; no native, integration-test-target or extracted-crate build; evidence-only measurement",
+          "source_and_target": "Existing verified export-current and assigned warm WPV target; refresh changed files in place and bind full candidate/tree/manifest identity",
+          "required_pin_tests": [
+            "storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive",
+            "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+            "storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic",
+            "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin",
+            "storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection",
+            "storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic"
+          ],
+          "proof_control": "Verify exact current/predecessor statement deltas and retain redacted runtime pin outputs/config identity; the revision-162 upgrade/reopen proof and PIN-CONFIRM belong in the final confirming union",
+          "pin_update_boundary": "Update CURRENT GENERATED/DECLARATIVE/schema-info/Atelier/Loom/authority pins only; never change PRE_* or PREDECESSOR_* historical catalog values",
+          "excluded_routes": "Stale MT-154/164 measurement scripts use per-candidate exports and old configuration hashes; do not execute them"
+        },
         "cleanup": "Inspect every referenced owner target before choosing a bin move; preserve warm validator target, stable source, retained logs and proof evidence"
       }
     }
