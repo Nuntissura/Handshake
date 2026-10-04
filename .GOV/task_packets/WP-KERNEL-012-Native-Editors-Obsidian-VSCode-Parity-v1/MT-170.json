@@ -784,6 +784,46 @@
         "root_readback": "Opened JSON, independently hashed raw bytes, inspected candidate/tree/manifest and source path; all 7167 tracked records are present"
       },
       "proof_floor": "Canonical prospective refresh capture and independent filesystem reconciliation remain pending; no runtime release or verdict"
+    },
+    "prelaunch_state_20261004": {
+      "recorded_at_utc": "2026-10-04T01:32:14Z",
+      "governance_implementation_commit": "703a9e9569e57318769e1ef8e0abe8e3b4326608",
+      "candidate": "8c147394cfff86e0f4a7d75fafdfdb8c64a5b8f7",
+      "effective_profile": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/nextest-core.toml",
+        "bytes": 1192,
+        "sha256": "e651a5b229a0a609b426cb3d485ae5fd17301c0b3440e7868c9de296ba2c7922",
+        "root_readback": "Opened actual consumed file and independently hashed raw bytes and parsed TOML; mistaken source-basename copy retained separately",
+        "gameplan_step": "GP-176"
+      },
+      "supervisor": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-launch-targeted-8c147394.ps1",
+        "bytes": 5445,
+        "sha256": "a4068719d51c7973921c1a81a91ed363c0fae6fae8ec1b973187a0386401f153",
+        "root_parse_errors": 0,
+        "executed": false
+      },
+      "observer": {
+        "pid": 259320,
+        "start_utc": "2026-10-04T01:27:08.3242767Z",
+        "ready": true,
+        "root_readback": "Opened identity and ten observations; matching live CIM PID/start/command, current candidate/owner; no wrapper or Cargo launched",
+        "latest_observation_utc": "2026-10-04T01:32:14.5635573Z",
+        "target_bytes": 102639233074,
+        "headroom_to_stop_bytes": 44360766926
+      },
+      "host_launch_blocker": {
+        "source": "Win32_PerfFormattedData_PerfOS_Memory",
+        "commit_limit_bytes": 149695787008,
+        "committed_bytes": 119875436544,
+        "commit_free_bytes": 29820350464,
+        "required_commit_free_bytes": 45000000000,
+        "physical_available_bytes": 57201311744,
+        "disposition": "GP-154 FAIL; GP-111 host admission false; physical RAM is not commit capacity",
+        "constraints": "No floor waiver, foreign process disruption or system reconfiguration; runtime and functional repair held"
+      },
+      "acceptance_advanced": false,
+      "buddy_review": "Finish truthful independent preparation; require fresh resource and both role gates before runtime; exact external capacity escalation if no permitted unblock remains"
     }
   },
   "operator_decision_request_20261002_projection_target": {

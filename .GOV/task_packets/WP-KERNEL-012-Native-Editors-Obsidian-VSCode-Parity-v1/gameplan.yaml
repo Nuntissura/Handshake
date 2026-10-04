@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 207
+generation: 208
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -194,3 +194,4 @@ steps:
 - {id: GP-173, role: wp_validator, at: before_round, do: confirm actual refresh and launcher export-root argv equal the assigned physical C owner target, check: {type: confirm}, source: 'infra: helper argv used canonical D artifact root instead of the assigned capped C target', state: active}
 - {id: GP-174, role: wp_validator, at: before_round, do: confirm refresh candidate argv is loaded from verified pushed 40-hex product HEAD without manual retyping, check: {type: confirm}, source: 'infra: mistyped candidate SHA rejected canonical C dry-run before mutation', state: active}
 - {id: GP-175, role: wp_validator, at: before_round, do: confirm refresh metadata comparison retains per-file snapshots and reports every differing path, check: {type: confirm}, source: 'prep: count-only mtime comparison lost the path for one reported unchanged-file difference', state: active}
+- {id: GP-176, role: wp_validator, at: before_round, do: confirm effective profile path matches canonical runner config-file argv and pushed bytes, check: {type: confirm}, source: 'infra: source basename was copied to lane instead of the core config-file path consumed by runner', state: active}
