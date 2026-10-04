@@ -1000,6 +1000,25 @@
     "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
     "state": "POLICY_PUBLISHED; currentce warm compile PASS; WPV canonical diagnostic round COMPLETED_FAILED_BEFORE_RESOLVER; runtime acceptance UNVALIDATED; MT170 BLOCKED",
     "startup_pin_recovery_ref": "packet.json#operator_decisions_20261004[WP012-OPERATOR-AUTONOMOUS-INSPECTED-DECISIONS-20261004].session_selected_plan.diagnostic_startup_pin_recovery",
+    "current_pin_measurement_20261004": {
+      "phase_id": "WP012-PINREC-002",
+      "state": "SELECTOR_STATIC_CLEAR; fresh runtime gates, supervisor identity and release required",
+      "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
+      "candidate_tree": "0712b674ab3fc138bd85a365afd60cb8b5952cda",
+      "schema_revision": 162,
+      "selector_path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection-targeted.sh",
+      "selector_bytes": 934,
+      "selector_sha256": "a12fe4ed8cdd944c47f323ce31366b8f30ae799cfd3145e8d2c0cbee6f53946e",
+      "selector_review": "WPV Bash syntax/diff/exact five-name comparison; independent KB full source/hash/consumer review; root full selector/delta/raw hash read",
+      "scope": "Existing targeted mode, exact five packet early_measurement_tests, core library only; native/extracted targets skipped; separate full-schema parity excluded",
+      "preserved_selector": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-mt170-startup-diagnostic-ce593857-ec99cc5f/governance/WPV-round-selection-targeted.before-pinrec.sh",
+      "preserved_selector_bytes": 540,
+      "preserved_selector_sha256": "da8bd295de2a62f0d508c3070599b9572f60807ae23d0c0cb162edb1e86e8cf2",
+      "retention_review": "Root independently re-read all19 archived raw hashes/lengths, owned paths and canonical-source absence; no retrospective gate clearance for Force retry/manifest repair before GP232/233 recording",
+      "root_resource_sample": {"utc": "2026-10-04T14:44:57.8729763Z", "commit_limit_bytes": 149695787008, "committed_bytes": 50784641024, "free_commit_bytes": 98911145984, "cpu_percent": 11, "competing_compiler_or_bash_count": 0},
+      "proof_limit": "Sample is system-wide only and not future launch admission; early five tests do not complete six-test parity, prove resolver ownership, advance historical AC1701 or accept MT170",
+      "next": "WPV fresh current role/resource/config/identity gates and new one-use release, then exactly five-test evidence-only measurement; no KB pin edit before actual outputs"
+    },
     "required_commit_free_bytes": 20000000000,
     "launcher_admission_recovery": {
       "diagnosis_id": "IR-WP012-LAUNCHER-ADMISSION-20261004",
@@ -1154,7 +1173,7 @@
         "failure": "Test store startup panicked at tests/knowledge_ingestion_support/mod.rs:85:10 with HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH; expected 823b37d8026854aeb65c617dddb0a951ee452746f341d38752ec0c67d3138730, observed f7b1f5f7ae76a3b1c60713832c11f856fcdb83d72fddbf6336a1abbb708c524d",
         "diagnostic_observation": "Resolver was not reached; no MT170_RESOLVER_DIAGNOSTIC event was emitted, so AC-170-1 remains NOT_SATISFIED and this current-state attempt does not retro-prove its before-edit ordering",
         "junit": {
-          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ce593857d3b355a1cc0ffd76bbd72494104973a7-core-targeted.xml",
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-mt170-startup-diagnostic-ce593857-ec99cc5f/junit-ce593857d3b355a1cc0ffd76bbd72494104973a7-core-targeted.xml",
           "bytes": 2278,
           "sha256": "E54F40B6FE2BB40BA09995208B200B2D85D9197DF4BAACE907EEC43BC908930A",
           "tests": 1,
@@ -1165,17 +1184,17 @@
           "system_out_contains_resolver_diagnostic": false
         },
         "stdout": {
-          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.stdout.log",
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-mt170-startup-diagnostic-ce593857-ec99cc5f/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.stdout.log",
           "bytes": 292049,
           "sha256": "07D34983C33007B02D0704CA719812EA004F2BA771AE20308109475FA13225FA"
         },
         "stderr": {
-          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.stderr.log",
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-mt170-startup-diagnostic-ce593857-ec99cc5f/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.stderr.log",
           "bytes": 42835,
           "sha256": "B881DC7DE419834A8EED84D2A5D5E99DA572EEC5AD9FB5A272F281AB7A85349C"
         },
         "exit_record": {
-          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.exit.json",
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-mt170-startup-diagnostic-ce593857-ec99cc5f/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.exit.json",
           "bytes": 818,
           "sha256": "1A597585EBA2472561A3D03341D76F183D2E840AE51F4104BBA0DF25CE7B8FD7",
           "bash_exit_code": 0,
@@ -1202,7 +1221,14 @@
           "classification_counts": {"unchanged": 7166, "M": 1},
           "changed_file": "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
         },
-        "acceptance": "No MT status, READY status, semantic PASS, or historical AC-170-1 advancement; MT-170 remains BLOCKED pending diagnosis/pin reconciliation and a valid diagnostic run"
+        "acceptance": "No MT status, READY status, semantic PASS, or historical AC-170-1 advancement; MT-170 remains BLOCKED pending diagnosis/pin reconciliation and a valid diagnostic run",
+        "retention_manifest": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-mt170-startup-diagnostic-ce593857-ec99cc5f/manifest.json",
+          "sha256": "266a6e92a305dc513eb569a9fb661518718dc023192763578e7dfc0741d1452e",
+          "state": "SOURCE_MOVED_HASH_VERIFIED",
+          "preserved_round_artifacts": 19,
+          "selector_backup_sha256": "da8bd295de2a62f0d508c3070599b9572f60807ae23d0c0cb162edb1e86e8cf2"
+        }
       },
       "next": "Preserve this startup blocker for KB and buddy review; no retry or functional scope until authorized diagnosis and a fresh governed round"
     },

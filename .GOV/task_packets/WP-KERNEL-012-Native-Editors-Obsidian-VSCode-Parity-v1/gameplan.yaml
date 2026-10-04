@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 270
+generation: 272
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -250,3 +250,5 @@ steps:
 - {id: GP-229, role: orchestrator, at: before_submit, do: verify metadata summaries bound nested collections before serialization, check: {type: confirm}, source: 'infra: export metadata summary printed tracked and observed maps instead of bounded facts', state: active}
 - {id: GP-230, role: wp_validator, at: before_submit, do: verify changed governance JSON has no duplicate keys before claiming saved-record clearance, check: {type: confirm}, source: 'infra: WPV appended duplicate supervisor state; ordinary JSON parse hid the second key', state: active}
 - {id: GP-231, role: wp_validator, at: before_dispatch, do: verify selected pin-recovery phase follows the scoped packet order and incomplete output is never six-test proof, check: {type: confirm}, source: 'fail: current schema-info pin blocked MT170 fixture; sixth parity test also opens guarded store before outputs', state: active}
+- {id: GP-232, role: wp_validator, at: before_dispatch, do: verify retained moves stay in owned paths and every existing destination matches the original raw hash, check: {type: confirm}, source: 'infra: Move-Item rejected copied destination; Force retry preceded requested cause record, so fresh proof required', state: active}
+- {id: GP-233, role: wp_validator, at: before_dispatch, do: verify manifest update uses a mutable mapping or an existing property before metadata repair, check: {type: confirm}, source: 'infra: all19 archived files moved but PSCustomObject rejected new completed_utc; manifest retained copied state', state: active}
