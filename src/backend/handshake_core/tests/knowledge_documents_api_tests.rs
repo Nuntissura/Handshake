@@ -55,6 +55,7 @@ use serde_json::{json, Value};
 #[cfg(feature = "surreal-test-support")]
 mod mt170_resolver_observation_capture {
     use std::collections::HashMap;
+    use std::io::Write;
     use std::sync::{Mutex, OnceLock};
 
     use tracing::field::{Field, Visit};
@@ -67,6 +68,54 @@ mod mt170_resolver_observation_capture {
 
     fn events() -> &'static Mutex<Vec<HashMap<String, String>>> {
         EVENTS.get_or_init(|| Mutex::new(Vec::new()))
+    }
+
+    fn value<'a>(fields: &'a HashMap<String, String>, name: &str) -> &'a str {
+        fields
+            .get(name)
+            .map(String::as_str)
+            .unwrap_or("unavailable")
+    }
+
+    fn sanitized_line(fields: &HashMap<String, String>) -> Option<String> {
+        Some(match value(fields, "capture_kind") {
+            "resolver" => format!(
+                "MT170_RESOLVER_DIAGNOSTIC module={} candidates={} ids={} returned={} same_workspace={} foreign_workspace={} outcome={} error_class={} elapsed_us={}",
+                value(fields, "producer_module_path"),
+                value(fields, "candidate_input_count"),
+                value(fields, "candidate_id_count"),
+                value(fields, "returned_row_count"),
+                value(fields, "same_workspace_count"),
+                value(fields, "foreign_workspace_count"),
+                value(fields, "query_outcome"),
+                value(fields, "error_class"),
+                value(fields, "elapsed_micros"),
+            ),
+            "phase" => format!(
+                "MT170_CAPTURE_PHASE phase={} event={} count={} elapsed_ms={}",
+                value(fields, "phase"),
+                value(fields, "event"),
+                value(fields, "count"),
+                value(fields, "elapsed_ms"),
+            ),
+            "statement" => format!(
+                "MT170_CAPTURE_STATEMENT index={} count={} timing_available={} execution_time_us={}",
+                value(fields, "statement_index"),
+                value(fields, "statement_count"),
+                value(fields, "timing_available"),
+                value(fields, "execution_time_us"),
+            ),
+            "receipt" => format!(
+                "MT170_CAPTURE_RECEIPT branch={} clock={} timing_valid={} lookup_performed={} lookup_elapsed_us={} operation_elapsed_us={}",
+                value(fields, "branch"),
+                value(fields, "clock"),
+                value(fields, "timing_valid"),
+                value(fields, "lookup_performed"),
+                value(fields, "lookup_elapsed_us"),
+                value(fields, "operation_elapsed_us"),
+            ),
+            _ => return None,
+        })
     }
 
     struct Fields {
@@ -171,8 +220,8 @@ mod mt170_resolver_observation_capture {
                     ][..],
                 ),
                 "handshake_core::knowledge_documents_api" => {
-                    // This target carries three fixed event shapes. Classify only from
-                    // their typed field names; IDs and the tracing message are discarded.
+                    // This target carries three allowlisted diagnostic shapes. Classify
+                    // only from their typed fields; IDs and the tracing message are discarded.
                     let names = event
                         .fields()
                         .iter()
@@ -227,7 +276,15 @@ mod mt170_resolver_observation_capture {
                     },
                 );
             }
-            events().lock().unwrap().push(fields.values);
+            let line = sanitized_line(&fields.values);
+            {
+                let mut captured = events().lock().unwrap();
+                captured.push(fields.values);
+            }
+            if let Some(line) = line {
+                println!("{line}");
+                let _ = std::io::stdout().flush();
+            }
         }
     }
 
@@ -4101,21 +4158,10 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
             observation.get("query_outcome").map(String::as_str),
             Some("ok")
         );
-        let elapsed_micros = observation
+        let _elapsed_micros = observation
             .get("elapsed_micros")
             .and_then(|value| value.parse::<u64>().ok())
             .expect("elapsed interval is recorded");
-        println!(
-            "MT170_RESOLVER_DIAGNOSTIC candidates={} ids={} returned={} same_workspace={} foreign_workspace={} outcome={} error_class={} elapsed_us={} fixture_reads=6",
-            observation["candidate_input_count"],
-            observation["candidate_id_count"],
-            observation["returned_row_count"],
-            observation["same_workspace_count"],
-            observation["foreign_workspace_count"],
-            observation["query_outcome"],
-            observation["error_class"],
-            elapsed_micros,
-        );
 
         let phases = observations
             .iter()
@@ -4137,28 +4183,6 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
             phase_events.contains(&"end"),
             "a core phase end reached capture"
         );
-        for phase in &phases {
-            println!(
-                "MT170_CAPTURE_PHASE phase={} event={} count={} elapsed_ms={}",
-                phase
-                    .get("phase")
-                    .map(String::as_str)
-                    .unwrap_or("unavailable"),
-                phase
-                    .get("event")
-                    .map(String::as_str)
-                    .expect("allowlisted phase event"),
-                phase
-                    .get("count")
-                    .map(String::as_str)
-                    .unwrap_or("unavailable"),
-                phase
-                    .get("elapsed_ms")
-                    .map(String::as_str)
-                    .unwrap_or("unavailable"),
-            );
-        }
-
         let statements = observations
             .iter()
             .filter(|event| {
@@ -4189,26 +4213,12 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
                 .and_then(|value| value.parse::<u64>().ok())
                 .expect("allowlisted execution time");
             assert!(index < count, "statement index is within its query result");
-            println!(
-                "MT170_CAPTURE_STATEMENT index={} count={} timing_available={} execution_time_us={}",
-                index, count, timing_available, execution_time_us
-            );
-        }
-
-        for receipt in observations.iter().filter(|event| {
-            event
-                .get("capture_kind")
-                .is_some_and(|kind| kind == "receipt")
-        }) {
-            println!(
-                "MT170_CAPTURE_RECEIPT branch={} clock={} timing_valid={} lookup_performed={} lookup_elapsed_us={} operation_elapsed_us={}",
-                receipt.get("branch").map(String::as_str).expect("allowlisted receipt branch"),
-                receipt.get("clock").map(String::as_str).expect("allowlisted receipt clock"),
-                receipt.get("timing_valid").map(String::as_str).expect("allowlisted receipt validity"),
-                receipt.get("lookup_performed").map(String::as_str).expect("allowlisted receipt lookup state"),
-                receipt.get("lookup_elapsed_us").map(String::as_str).unwrap_or("unavailable"),
-                receipt.get("operation_elapsed_us").map(String::as_str).unwrap_or("unavailable"),
-            );
+            if !timing_available {
+                assert_eq!(
+                    execution_time_us, 0,
+                    "unavailable statement timing preserves the emitted zero"
+                );
+            }
         }
     }
 
