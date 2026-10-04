@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 292
+generation: 293
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -267,3 +267,4 @@ steps:
 - {id: GP-246, role: wp_validator, at: before_dispatch, do: verify unchanged profile evidence is reused and actual effective hash is required before launch, check: {type: confirm}, source: 'infra: current combined profile metadata literal matched runner hook; body never ran; re-prove GP195', state: active}
 - {id: GP-247, role: orchestrator, at: before_round, do: verify materialized release cell parses and replacements preserve literal dollar characters, check: {type: confirm}, source: 'infra: JS replacement dollar-quote consumed regex terminator; PowerShell rejected cell before body', state: active}
 - {id: GP-248, role: orchestrator, at: before_round, do: verify token-cell process predicate is selected only from canonical Assert-HostAdmission, check: {type: confirm}, source: 'infra: whole-launcher Name match scan found host, child and file-discovery predicates; no token written', state: active}
+- {id: GP-249, role: orchestrator, at: before_round, do: verify ready timestamps retain typed dates and use canonical UTC conversion before identity comparison, check: {type: confirm}, source: 'infra: ready datetime string coercion lost fractional UTC; token guard rejected same live PID', state: active}
