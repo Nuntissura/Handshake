@@ -69,18 +69,81 @@ mod mt170_resolver_observation_capture {
         EVENTS.get_or_init(|| Mutex::new(Vec::new()))
     }
 
-    struct Fields(HashMap<String, String>);
+    struct Fields {
+        allowed: &'static [&'static str],
+        values: HashMap<String, String>,
+    }
+
+    impl Fields {
+        fn record(&mut self, field: &Field, value: &str) {
+            let name = field.name();
+            if !self.allowed.contains(&name) {
+                return;
+            }
+            let safe = match name {
+                "owning_module" => {
+                    (value == "handshake_document::surreal").then_some(value.to_owned())
+                }
+                "case_label" => {
+                    (value == "mt170_record_user_candidate_read").then_some(value.to_owned())
+                }
+                "query_outcome" => matches!(value, "ok" | "error").then_some(value.to_owned()),
+                "error_class" => matches!(
+                    value,
+                    "none"
+                        | "not_found"
+                        | "conflict"
+                        | "conflict_details"
+                        | "validation"
+                        | "guard"
+                        | "not_implemented"
+                        | "serialization"
+                        | "database"
+                        | "migration"
+                )
+                .then_some(value.to_owned()),
+                "event" => matches!(value, "begin" | "end" | "error" | "dropped")
+                    .then_some(value.to_owned()),
+                "phase" => (!value.is_empty()
+                    && value.len() <= 64
+                    && value.bytes().all(|byte| {
+                        byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_'
+                    }))
+                .then_some(value.to_owned()),
+                "branch" => matches!(value, "create" | "replay").then_some(value.to_owned()),
+                "clock" => (value == "surreal_wall").then_some(value.to_owned()),
+                "timing_available" | "timing_valid" | "lookup_performed" => {
+                    matches!(value, "true" | "false").then_some(value.to_owned())
+                }
+                "candidate_input_count"
+                | "candidate_id_count"
+                | "returned_row_count"
+                | "same_workspace_count"
+                | "foreign_workspace_count"
+                | "elapsed_micros"
+                | "count"
+                | "elapsed_ms"
+                | "statement_index"
+                | "statement_count"
+                | "execution_time_us" => value.parse::<u64>().ok().map(|number| number.to_string()),
+                "lookup_elapsed_us" | "operation_elapsed_us" => {
+                    value.parse::<i64>().ok().map(|number| number.to_string())
+                }
+                _ => None,
+            };
+            if let Some(value) = safe {
+                self.values.insert(name.to_owned(), value);
+            }
+        }
+    }
 
     impl Visit for Fields {
         fn record_str(&mut self, field: &Field, value: &str) {
-            self.0.insert(field.name().to_owned(), value.to_owned());
+            self.record(field, value);
         }
 
         fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
-            self.0.insert(
-                field.name().to_owned(),
-                format!("{value:?}").trim_matches('"').to_owned(),
-            );
+            self.record(field, &format!("{value:?}").trim_matches('"'));
         }
     }
 
@@ -91,20 +154,80 @@ mod mt170_resolver_observation_capture {
         S: Subscriber + for<'a> LookupSpan<'a>,
     {
         fn on_event(&self, event: &tracing::Event<'_>, _ctx: Context<'_, S>) {
-            if event.metadata().target() != "handshake_document::mt170_resolver_diagnostic" {
-                return;
-            }
-            let mut fields = Fields(HashMap::new());
+            let (capture_kind, allowed) = match event.metadata().target() {
+                "handshake_document::mt170_resolver_diagnostic" => (
+                    "resolver",
+                    &[
+                        "owning_module",
+                        "case_label",
+                        "candidate_input_count",
+                        "candidate_id_count",
+                        "returned_row_count",
+                        "same_workspace_count",
+                        "foreign_workspace_count",
+                        "query_outcome",
+                        "error_class",
+                        "elapsed_micros",
+                    ][..],
+                ),
+                "handshake_core::knowledge_documents_api" => {
+                    // This target carries three fixed event shapes. Classify only from
+                    // their typed field names; IDs and the tracing message are discarded.
+                    let names = event
+                        .fields()
+                        .iter()
+                        .map(|field| field.name())
+                        .collect::<Vec<_>>();
+                    if names.contains(&"phase") && names.contains(&"event") {
+                        ("phase", &["phase", "event", "count", "elapsed_ms"][..])
+                    } else if names.contains(&"statement_index") {
+                        (
+                            "statement",
+                            &[
+                                "statement_index",
+                                "statement_count",
+                                "timing_available",
+                                "execution_time_us",
+                            ][..],
+                        )
+                    } else if names.contains(&"branch") {
+                        (
+                            "receipt",
+                            &[
+                                "branch",
+                                "clock",
+                                "timing_valid",
+                                "lookup_performed",
+                                "lookup_elapsed_us",
+                                "operation_elapsed_us",
+                            ][..],
+                        )
+                    } else {
+                        return;
+                    }
+                }
+                _ => return,
+            };
+            let mut fields = Fields {
+                allowed,
+                values: HashMap::new(),
+            };
             event.record(&mut fields);
-            fields.0.insert(
-                "producer_module_path".to_owned(),
-                event
-                    .metadata()
-                    .module_path()
-                    .unwrap_or("unknown")
-                    .to_owned(),
-            );
-            events().lock().unwrap().push(fields.0);
+            fields
+                .values
+                .insert("capture_kind".to_owned(), capture_kind.to_owned());
+            if capture_kind == "resolver" {
+                let module_path = event.metadata().module_path().unwrap_or("unknown");
+                fields.values.insert(
+                    "producer_module_path".to_owned(),
+                    if module_path == "handshake_document::surreal" {
+                        module_path.to_owned()
+                    } else {
+                        "unbound".to_owned()
+                    },
+                );
+            }
+            events().lock().unwrap().push(fields.values);
         }
     }
 
@@ -3919,18 +4042,22 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
     #[cfg(feature = "surreal-test-support")]
     {
         let observations = mt170_resolver_observation_capture::snapshot();
+        let resolver_observations = observations
+            .iter()
+            .filter(|event| {
+                event
+                    .get("capture_kind")
+                    .is_some_and(|kind| kind == "resolver")
+            })
+            .collect::<Vec<_>>();
         assert_eq!(
-            observations.len(),
+            resolver_observations.len(),
             1,
             "one resolver read was observed before rebuild"
         );
-        let observation = observations
+        let observation = resolver_observations
             .iter()
-            .find(|event| {
-                event
-                    .get("case_label")
-                    .is_some_and(|label| label.contains("mt170_record_user_candidate_read"))
-            })
+            .next()
             .expect("MT-170 redacted record-user resolver observation");
         assert_eq!(
             observation.get("owning_module").map(String::as_str),
@@ -3989,6 +4116,100 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
             observation["error_class"],
             elapsed_micros,
         );
+
+        let phases = observations
+            .iter()
+            .filter(|event| {
+                event
+                    .get("capture_kind")
+                    .is_some_and(|kind| kind == "phase")
+            })
+            .collect::<Vec<_>>();
+        let phase_events = phases
+            .iter()
+            .filter_map(|event| event.get("event").map(String::as_str))
+            .collect::<Vec<_>>();
+        assert!(
+            phase_events.contains(&"begin"),
+            "a core phase begin reached capture"
+        );
+        assert!(
+            phase_events.contains(&"end"),
+            "a core phase end reached capture"
+        );
+        for phase in &phases {
+            println!(
+                "MT170_CAPTURE_PHASE phase={} event={} count={} elapsed_ms={}",
+                phase
+                    .get("phase")
+                    .map(String::as_str)
+                    .unwrap_or("unavailable"),
+                phase
+                    .get("event")
+                    .map(String::as_str)
+                    .expect("allowlisted phase event"),
+                phase
+                    .get("count")
+                    .map(String::as_str)
+                    .unwrap_or("unavailable"),
+                phase
+                    .get("elapsed_ms")
+                    .map(String::as_str)
+                    .unwrap_or("unavailable"),
+            );
+        }
+
+        let statements = observations
+            .iter()
+            .filter(|event| {
+                event
+                    .get("capture_kind")
+                    .is_some_and(|kind| kind == "statement")
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            !statements.is_empty(),
+            "core statement timing reached capture"
+        );
+        for statement in &statements {
+            let index = statement
+                .get("statement_index")
+                .and_then(|value| value.parse::<u64>().ok())
+                .expect("allowlisted statement index");
+            let count = statement
+                .get("statement_count")
+                .and_then(|value| value.parse::<u64>().ok())
+                .expect("allowlisted statement count");
+            let timing_available = statement
+                .get("timing_available")
+                .and_then(|value| value.parse::<bool>().ok())
+                .expect("allowlisted timing availability");
+            let execution_time_us = statement
+                .get("execution_time_us")
+                .and_then(|value| value.parse::<u64>().ok())
+                .expect("allowlisted execution time");
+            assert!(index < count, "statement index is within its query result");
+            println!(
+                "MT170_CAPTURE_STATEMENT index={} count={} timing_available={} execution_time_us={}",
+                index, count, timing_available, execution_time_us
+            );
+        }
+
+        for receipt in observations.iter().filter(|event| {
+            event
+                .get("capture_kind")
+                .is_some_and(|kind| kind == "receipt")
+        }) {
+            println!(
+                "MT170_CAPTURE_RECEIPT branch={} clock={} timing_valid={} lookup_performed={} lookup_elapsed_us={} operation_elapsed_us={}",
+                receipt.get("branch").map(String::as_str).expect("allowlisted receipt branch"),
+                receipt.get("clock").map(String::as_str).expect("allowlisted receipt clock"),
+                receipt.get("timing_valid").map(String::as_str).expect("allowlisted receipt validity"),
+                receipt.get("lookup_performed").map(String::as_str).expect("allowlisted receipt lookup state"),
+                receipt.get("lookup_elapsed_us").map(String::as_str).unwrap_or("unavailable"),
+                receipt.get("operation_elapsed_us").map(String::as_str).unwrap_or("unavailable"),
+            );
+        }
     }
 
     let mention_edges_to = |edges: &[handshake_core::storage::LoomEdge], target: &str| {
