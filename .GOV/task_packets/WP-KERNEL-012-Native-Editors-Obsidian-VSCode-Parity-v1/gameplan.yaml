@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 274
+generation: 277
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -253,3 +253,6 @@ steps:
 - {id: GP-232, role: wp_validator, at: before_dispatch, do: verify retained moves stay in owned paths and every existing destination matches the original raw hash, check: {type: confirm}, source: 'infra: Move-Item rejected copied destination; Force retry preceded requested cause record, so fresh proof required', state: active}
 - {id: GP-233, role: wp_validator, at: before_dispatch, do: verify manifest update uses a mutable mapping or an existing property before metadata repair, check: {type: confirm}, source: 'infra: all19 archived files moved but PSCustomObject rejected new completed_utc; manifest retained copied state', state: active}
 - {id: GP-234, role: orchestrator, at: before_dispatch, do: 'verify resumed launch context uses fresh actual WPV role and process identity, never a historical fixed PID', check: {type: confirm}, source: 'infra: root required historical parent184740 after resume; current GP225 and launcher require actual scoped identity', state: retired}
+- {id: GP-235, role: wp_validator, at: before_dispatch, do: verify ready entrypoint hash matches canonical Bash source; supervisor script hash is separately attributed, check: {type: confirm}, source: 'infra: local ready assertion compared canonical Bash entrypoint SHA9d8 to external PowerShell supervisor SHAe2dd', state: active}
+- {id: GP-236, role: wp_validator, at: before_dispatch, do: verify metadata query has valid pipeline syntax before current process identity inspection, check: {type: confirm}, source: 'infra: narrow CIM query had an empty pipe element ParserError; body produced no process evidence', state: active}
+- {id: GP-237, role: wp_validator, at: before_dispatch, do: verify each launch preflight fact is retained before later assertions can terminate output, check: {type: confirm}, source: 'infra: wrong-hash ready assertion skipped final output object; parent exited with env/resolver/gate proof unretained', state: active}
