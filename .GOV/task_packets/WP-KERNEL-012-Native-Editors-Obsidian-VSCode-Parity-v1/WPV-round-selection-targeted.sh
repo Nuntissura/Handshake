@@ -1,6 +1,6 @@
 # WPV targeted evidence selection for the MT-170 current-state resolver diagnostic.
 # This is procedural recovery evidence for AC-170-1 only; it is not acceptance or a verdict.
-ROUND_SELECTION_SHA=3e5f4024806b3052efa1917cd57cd9a45b0462ae
+ROUND_SELECTION_SHA=ce593857d3b355a1cc0ffd76bbd72494104973a7
 ROUND_SELECTION_MODE=targeted
 NATIVE_SKIP=1
 CORE_TESTS=(knowledge_documents_api_tests)
