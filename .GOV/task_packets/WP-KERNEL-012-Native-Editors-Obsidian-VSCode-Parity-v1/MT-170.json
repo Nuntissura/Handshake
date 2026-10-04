@@ -998,7 +998,7 @@
     "authority_ref": "packet.json#operator_decisions_20261004[WP012-OPERATOR-RELAXED-COMMIT-ADMISSION-20261004]",
     "recorded_at_utc": "2026-10-04T10:40:54.616461Z",
     "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
-    "state": "POLICY_PUBLISHED; currentce warm compile PASS; runtime UNVALIDATED and MT170 BLOCKED",
+    "state": "POLICY_PUBLISHED; currentce warm compile PASS; WPV canonical diagnostic round RUNNING; runtime acceptance UNVALIDATED; MT170 BLOCKED",
     "required_commit_free_bytes": 20000000000,
     "launcher_admission_recovery": {
       "diagnosis_id": "IR-WP012-LAUNCHER-ADMISSION-20261004",
@@ -1094,7 +1094,7 @@
     },
     "passive_supervisor_20261004": {
       "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
-      "state": "waiting_for_release; no Bash/Cargo/runtime yet",
+      "state": "running; canonical export verified; core library-test compile active; diagnostic test not yet executed at13:30Z",
       "run_id": "a05f062509ea4e86bc1cf55e8cc3c5c9",
       "pid": 246740,
       "parent_pid": 184740,
@@ -1107,7 +1107,39 @@
       "check_handle_limit": "WPV repeated a running gate after losing its first handle; reported50/50 result retained, GP227 records cause",
       "log_hash_limit": "Live supervisor stdout was readable/236B and stderr0B, but open redirect streams rejected hashing; GP228 requires sealed final proof hashes",
       "source_only_caveat": "KB observed create_workspace temporary server abort happens after successful response/JSON parse; panic drops JoinHandle. No current runtime failure/acceptance inference or adjacent product edit authorized",
-      "next": "Fresh exact input/process/resource/root gates and current collision metadata, then one-use root marker; WPV canonical diagnostic and independent produced export/JUnit/log proof"
+      "running_observation": {
+        "release_id": "8abb1849e2ff4ab48448feff52381313",
+        "issued_utc": "2026-10-04T13:20:23.594890Z",
+        "release_state": "consumed",
+        "consumed_record_sha256": "81e725d6dea13bb43d26cf5a0ad4e372b4e40c17487280d91a591a20c95c5e83",
+        "bash_pid": 254948,
+        "bash_start_utc": "2026-10-04T13:21:06.1957366Z",
+        "round_identity_sha256": "0b9fcc4ca3cddafb320042d9f47665b5ae0818b6eb1b760dcd468448ecb909da",
+        "root_live_read": "13:30:15.4782458Z CIM binds supervisor246740/parent184740 and Bash254948; cargo270000 has rustc248456 library --test unit; no competing Builder job",
+        "command_phase": "Sequential configured backend -j2 completed; core cargo test --locked -j1 --no-run --lib --test knowledge_documents_api_tests is compiling its library-test unit",
+        "policy_scope": "Packet decision specifies core union and named Builder check -j1 plus no overlapping jobs; it does not impose -j1 on every backend stage",
+        "root_resources": {"utc": "2026-10-04T13:30:15.4782458Z", "commit_limit_bytes": 149695787008, "committed_bytes": 57607516160, "free_commit_bytes": 92088270848, "cpu_percent": 6.42435008518123},
+        "observer_sample": {"utc": "2026-10-04T13:29:42.6497364Z", "poll": 143, "target_bytes": 102160668150, "stop_bytes": 147000000000, "cap_bytes": 150000000000, "stop_exceeded": false, "commit_sample_utc": "2026-10-04T13:29:45.3928104Z", "free_commit_bytes": 93577670656, "max_sampled_committed_bytes": 63115034624, "min_sampled_free_commit_bytes": 86580752384},
+        "sample_limit": "System-wide 30s samples, not true or process-attributed peaks; compile liveness does not prove runtime acceptance",
+        "export_proof": {
+          "source": "Actual canonical log and before/after/compare artifacts independently opened by root; WPV GP223/224 independent disposition remains required",
+          "identity_path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-current.identity",
+          "identity_sha256": "8d06e0056bbda4284d970dcf79e03e634febac8ab3377452d5a8b26dd49ee4db",
+          "candidate_sha": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
+          "tree_id": "0712b674ab3fc138bd85a365afd60cb8b5952cda",
+          "previous_sha": "8c147394cfff86e0f4a7d75fafdfdb8c64a5b8f7",
+          "file_count": 7167,
+          "manifest_sha256": "8172d449b6426e8ec7e118617cb7f3d95f3d30aee4c19952c2ea7b64496a2d6e",
+          "refresh_mode": "incremental",
+          "refreshed_utc": "2026-10-04T13:22:00Z",
+          "result": "VERIFY_OK before Cargo; METADATA_COMPARE_PASS failures0",
+          "metadata_round_instance": "fe4eb2ae87664691b839f344bdeac9a3",
+          "metadata_hashes": {"before": "d581a053edf61e8aa47e5ef048853562e59ba94723df083d49e24cfe47656d88", "after": "9846aa11203d684325ad821200f62c6722a0d64ef9e99f21ac929d23619f7487", "compare": "60ce7367a6d85d0db9168af81034b321f1d623392a6ede262711914abb56cc4f"},
+          "classification_counts": {"unchanged": 7166, "M": 1},
+          "changed_file": "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
+        }
+      },
+      "next": "WPV monitors this owned round to diagnostic output/exit and independently proves export/JUnit/log facts; no KB edit/build/push before owning-module proof and buddy plan review"
     },
     "latest_admission_observation": {
       "observed_at_utc": "2026-10-04T11:07:51.1510166Z",
@@ -1126,7 +1158,7 @@
     "builder_environment": "CARGO_INCREMENTAL=0; CARGO_PROFILE_DEV_DEBUG=line-tables-only; CARGO_PROFILE_TEST_DEBUG=line-tables-only; stable product source",
     "sample_limit": "No measured memory-demand guarantee; admission reading and subsequent system-wide samples do not prove unsampled true peaks",
     "history": "All earlier 45/60 GB samples and procedural holds remain historical; this current policy supersedes their live floor only",
-    "next_actor": "Independent WPV currentce launch preparation/gates and scoped current-state MT170 diagnostic; no functional repair before diagnostic proof",
+    "next_actor": "Independent WPV monitors the running currentce diagnostic and proves owning-module observations; buddy reviews functional sequence before KB acts",
     "compile_pass_ce593857": {
       "proof_id": "PR-WP012-MT170-KB-CHECK-04",
       "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
