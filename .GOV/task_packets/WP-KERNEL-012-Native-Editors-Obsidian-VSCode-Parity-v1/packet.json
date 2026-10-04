@@ -327,7 +327,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-10-02T07:40:00Z",
+  "updated_at_utc": "2026-10-04T22:37:33.819162Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -4007,7 +4007,18 @@
           "pin_update_boundary": "Update CURRENT GENERATED/DECLARATIVE/schema-info/Atelier/Loom/authority pins only; never change PRE_* or PREDECESSOR_* historical catalog values",
           "excluded_routes": "Stale MT-154/164 measurement scripts use per-candidate exports and old configuration hashes; do not execute them"
         },
-        "cleanup": "Inspect every referenced owner target before choosing a bin move; preserve warm validator target, stable source, retained logs and proof evidence"
+        "cleanup": "Inspect every referenced owner target before choosing a bin move; preserve warm validator target, stable source, retained logs and proof evidence",
+        "direct_source_create_guard_remediation": {
+          "decision_id": "WP012-MT170-STANDALONE-TARGET-GUARD-REMEDIATION-20261004",
+          "recorded_at_utc": "2026-10-04T22:37:33.819162Z",
+          "state": "APPROVED_NARROW_DIRECT_BLOCKER_REMEDIATION",
+          "mt_ref": "MT-170.json#direct_blocker_remediation_20261004",
+          "basis": "Actual run241 source-create403/statement15 plus KB and independent WPV source mapping and same buddy review",
+          "delegation_ref": "packet.json#operator_decisions_20261004[WP012-OPERATOR-AUTONOMOUS-INSPECTED-DECISIONS-20261004]",
+          "allowed_change": "Only knowledge.rs target_guard standaloneNONE branch; explicit existing MT170 test and schema163/162predecessor allowances; all prior scope and acceptance preserved",
+          "proof_order": "One scoped unvalidated functional checkpoint; independent required six-pin measurement/CURRENT confirmation in inspected startup order; fresh repaired MT170 GREEN; exact162upgrade/reopen and finalunion/dispositions/WPextras at existing boundaries",
+          "historical_gate": "AC170-1 NOT_SATISFIED retained; current resolver owner observation never retro-proves chronology"
+        }
       }
     },
     {
