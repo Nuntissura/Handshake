@@ -4197,7 +4197,7 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // MT-168 PIN-MEASURE PENDING (also the test literal in
     // mt109_loom_catalog_dependencies_are_complete_and_deterministic): e012e80d value; re-measure.
     const EXPECTED_CATALOG_SHA256: &str =
-        "6a224fa74f38e204df71ddfe1a7d4e162bd2c5ee1d2c4900e2fcc506d2fa5b74";
+        "1cb097999983c18661eeef206ee0ae14254f26e4a9fdfffe023a1e4fc6742a0b";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
