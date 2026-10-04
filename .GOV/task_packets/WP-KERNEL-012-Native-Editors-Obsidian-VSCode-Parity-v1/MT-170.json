@@ -1019,6 +1019,25 @@
       "binding_limit": "All actual launcher/token/gate bindings must use final3ab4c557 bytes; olddfa/326c hashes are historical only",
       "compile_reuse": "Current productce compile remains valid; no product input changed"
     },
+    "launcher_identity_recovery": {
+      "diagnosis_id": "IR-WP012-LAUNCHER-IDENTITY-20261004",
+      "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
+      "source_launcher_sha256": "3ab4c5574a395e3caf8eb9a8e13d6be671e236fcdb34783a3009e9aef1fdc145",
+      "observer_pid": 261532,
+      "observer_identity_start_utc": "2026-10-04T12:10:49.8069907Z",
+      "observer_cim_start_utc": "2026-10-04T12:10:49.8069900Z",
+      "root_evidence": "JSON start is typed UTC DateTime; string cast localizes to10/04/2026 12:10:49, parsed UTC becomes2026-04-10T10:10:49Z; actual ticks639267126498069907 versus CIM639267126498069900",
+      "findings": [
+        "Localized DateTime string round trip loses ISO date, UTC and fractions",
+        "Floating ticks/10 then long cast rounds rather than exact microsecond normalization"
+      ],
+      "scope": "WPV minimal same-launcher identity conversion/comparison repair; preserve strict PID/start binding, fields, modes, floor, paths and release semantics",
+      "buddy_review": "Preserve3ab bytes, record causes, correct matching sites, static parse/full diff/hash and independent KB review; refresh launch evidence then parent-bound resolver and fresh gates before supervisor/release",
+      "gameplan_refs": ["GP-217", "GP-218", "GP-219"],
+      "state": "ACTUAL_GP101_BLOCKER; no supervisor, round token, C refresh or runtime launched",
+      "compile_reuse": "Currentce product compile remains green and unchanged; no rerun for launcher repair",
+      "incidental_failure": "WPV malformed read-only version-query expression failed parsing before body; GP219 records cause, no retry required"
+    },
     "preflight_hook_boundary": {
       "diagnosis_id": "IR-WP012-PREFLIGHT-HOOK-BOUNDARY-20261004",
       "evidence": "KB read current hooks.json and gameplan.py:51-53,1372-1418; separate PreToolUse process reads only own GAMEPLAN_ROLE before child shell body",

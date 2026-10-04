@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 249
+generation: 252
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -235,3 +235,6 @@ steps:
 - {id: GP-214, role: wp_validator, at: before_round, do: verify launcher admission rejects null or invalid commit counters before numeric conversion, check: {type: confirm}, source: 'review: launcher casts null CommittedBytes to zero and can fabricate floor admission', state: active}
 - {id: GP-215, role: wp_validator, at: before_round, do: verify launcher competing-compiler inventory includes cl.exe in its existing name filter, check: {type: confirm}, source: 'review: active no-competing-compile inventory omits unrelated cl.exe by name', state: active}
 - {id: GP-216, role: wp_validator, at: before_dispatch, do: verify hook role comes from parent environment; inline assignments scope only the child command, check: {type: confirm}, source: 'infra: separate PreToolUse hook reads own env before shell body; documented inline role cannot scope it', state: active}
+- {id: GP-217, role: wp_validator, at: before_round, do: verify process identity timestamps preserve UTC without localized string round trips, check: {type: confirm}, source: 'infra: JSON DateTime string cast swapped observer month/day and discarded UTC fractions', state: active}
+- {id: GP-218, role: wp_validator, at: before_round, do: compare process start ticks at exact integer microsecond precision without floating point division, check: {type: confirm}, source: 'infra: long cast of ticks divided by10 rounded observer and CIM starts differently', state: active}
+- {id: GP-219, role: wp_validator, at: before_dispatch, do: verify PowerShell metadata expression parses before combining arrays and pipeline predicates, check: {type: confirm}, source: 'infra: version query malformed array predicate failed parsing before body', state: active}
