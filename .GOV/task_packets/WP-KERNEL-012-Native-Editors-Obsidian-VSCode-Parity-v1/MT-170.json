@@ -2779,5 +2779,37 @@
     ],
     "validation_limit": "No Cargo/build/test/runtime proof yet. CURRENT revision-163 pins remain pending WPV PIN-MEASURE; no MT acceptance advanced.",
     "next_actor": "KERNEL_BUILDER scoped cargo check after current builder gate and fresh resource admission; WP_VALIDATOR owns post-revision six-pin/runtime proof"
+  },
+  "adversarial_review_d6ed538c_20261005": {
+    "schema_id": "hsk.mt_adversarial_review@1",
+    "reviewer": "WP_VALIDATOR-20261005",
+    "recorded_at_utc": "2026-10-04T23:30:35Z",
+    "scope": "d6ed538cf7bcfda86b48f2f49438980c0835f97c; source review only",
+    "disposition": "SOURCE_FINDINGS_OPEN; no runtime proof or MT verdict; lifecycle BLOCKED and validator_verdict null unchanged",
+    "findings": [
+      {
+        "id": "D6-AC1703-01",
+        "severity": "MAJOR",
+        "finding": "Visible-but-per-block-unreadable standalone targets are not distinguished before projection. resolve_backlink_rows classifies candidate rows by workspace at handshake_document/src/surreal.rs:393-402 and sets project_to_loom from live_loom_ids at :520; it does not observe mt120_loom_endpoint_access(read, fs.read). loom_blocks SELECT also admits view_def by workspace fs.read at handshake_core/src/storage/surreal/schema.surql:467, while the endpoint helper checks per-block read for source_rich_document_id=NONE at :6252-6254. Such a row can be query-visible yet unreadable by endpoint policy. The test assertion at knowledge_documents_api_tests.rs:4211 can be satisfied by the missing/hidden targets and does not establish the visible-but-unreadable case emits a typed denial and omits projection.",
+        "authority_refs": [
+          "MT-170 AC-170-3",
+          "MT-170.json#implementation_scope",
+          "packet.json#operator_decisions_20261004[WP012-OPERATOR-AUTONOMOUS-INSPECTED-DECISIONS-20261004]"
+        ],
+        "state": "OPEN; source-level requirement is not demonstrated by this candidate review"
+      },
+      {
+        "id": "D6-AC1703-02",
+        "severity": "MODERATE",
+        "finding": "The new HSK-KDBL-LOOM-EDGE-CREATE-DENIED result guard at handshake_document/src/surreal.rs:188,197-198 is not exercised by the changed test. Its wrong-type file case is rejected earlier by the note-only target_guard at handshake_core/src/storage/surreal/knowledge.rs:2114; no fixture reaches CREATE with a denied edge permission. Thus the CREATE-result denial path remains unproven, including any silent denial after a permission change between precheck and CREATE.",
+        "authority_refs": [
+          "MT-170 AC-170-3",
+          "MT-170.json#implementation_scope",
+          "MT-170.json#direct_blocker_remediation_20261004"
+        ],
+        "state": "OPEN; runtime proof not run"
+      }
+    ],
+    "review_limit": "No Cargo/build/test/runtime was run for this review; KB compile was active. Existing statement-15 source-create 403 is not edge-CREATE-denial proof."
   }
 }
