@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 312
+generation: 315
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -287,3 +287,6 @@ steps:
 - {id: GP-266, role: wp_validator, at: before_round, do: verify nested exec result retains exit code or running session ID before any retry, check: {type: confirm}, source: 'infra: WPV before_round wrapper returned output only; exit/session handle omitted; prior gate result unobserved', state: active}
 - {id: GP-267, role: orchestrator, at: before_verdict, do: verify gameplan report numerator is pass count before interpreting FAIL fractions, check: {type: confirm}, source: 'infra: root misread FAIL8/51 as8fail; inspected controller prints8pass and43fail', state: active}
 - {id: GP-268, role: orchestrator, at: before_dispatch, do: verify passive-stage facts follow passive launch and full round gates precede costly release, check: {type: confirm}, source: 'workflow: full-round pass was demanded before passive ready and observer facts existed; circular preparation', state: active}
+- {id: GP-269, role: wp_validator, at: before_dispatch, do: verify file hash uses supported LiteralPath from discovered FileInfo before current digest claims, check: {type: confirm}, source: 'infra: effective profile Get-FileHash InputObject parameter unsupported; current digest not produced', state: active}
+- {id: GP-270, role: wp_validator, at: before_dispatch, do: verify launch-prep JavaScript wrapper parses before invoking the shell tool, check: {type: confirm}, source: 'infra: combined launch-prep JS wrapper failed Unexpected identifier t before shell execution', state: active}
+- {id: GP-271, role: wp_validator, at: before_dispatch, do: verify Start-Process argument line quotes the full launcher path containing spaces, check: {type: confirm}, source: 'infra: flattened ArgumentList split ps1 path at D Projects LLM; child pwsh usage; supervisor never started', state: active}
