@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-03T23:55:00Z",
+  "updated_at_utc": "2026-10-04T04:08:49Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -822,9 +822,244 @@
         "disposition": "GP-154 FAIL; GP-111 host admission false; physical RAM is not commit capacity",
         "constraints": "No floor waiver, foreign process disruption or system reconfiguration; runtime and functional repair held"
       },
+      "latest_inspected_preflight": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-before-round-after-gp131-20261004.txt",
+        "sha256": "39320fd957a82d216798a3fe83613639bf37811ff1f5d3c6219bea971e727b56",
+        "bytes": 1084,
+        "passed_steps": 36,
+        "selected_steps": 45,
+        "unconfirmed_ids": ["GP-027", "GP-045", "GP-089", "GP-097", "GP-116", "GP-117", "GP-153", "GP-154", "GP-156"],
+        "current_selected_steps": 48,
+        "prior_snapshot": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-before-round-final-20261004.txt",
+          "passed_steps": 30,
+          "selected_steps": 45,
+          "unconfirmed_ids": ["GP-027", "GP-045", "GP-089", "GP-097", "GP-116", "GP-117", "GP-119", "GP-120", "GP-131", "GP-140", "GP-153", "GP-154", "GP-156", "GP-161", "GP-170"]
+        },
+        "proof_limit": "Root opened raw result; historical snapshot, not admission. Earlier thirteen-confirmation claim included unwritten GP170/176 and is corrected; GP176 subsequently confirmed from exact profile bytes.",
+        "preparation_scope": "Output-retention/JUnit configuration and actual diagnostic filters are preparation; future163/R3 and final-union result proof remain pending at their required stages"
+      },
+      "launch_sequence_question": {
+        "step": "GP-153",
+        "observed": "Step asks wrapper already launched detached; prepared supervisor lines40-41 require before_round PASS before Bash Start-Process line45",
+        "authority": "Handshake_Codex_v1.4.md CX-VAL-010:157; WP_VALIDATOR_PROTOCOL.md WPV-GP-001:104 require check before canary/entrypoint",
+        "current_entrypoint": "Canonical Bash has no armed/waiting phase",
+        "next_inspection": "KB reads original GP153 incident/identity history to identify outer PowerShell wrapper versus canonical Bash; no inferred staging mechanism or launch",
+        "disposition": "UNCONFIRMED; preserve literal post-launch fact and all resource gates until authority resolves ordering"
+      },
       "acceptance_advanced": false,
-      "buddy_review": "Finish truthful independent preparation; require fresh resource and both role gates before runtime; exact external capacity escalation if no permitted unblock remains"
+      "buddy_review": "Finish truthful independent preparation; require fresh resource and both role gates before runtime; exact external capacity escalation if no permitted unblock remains",
+      "orchestrator_heartbeat": {
+        "id": "wp-kernel-012-orchestrator-tick",
+        "kind": "heartbeat",
+        "status_at_readback": "ACTIVE",
+        "target_thread_id": "01a103d0-9930-77d2-b2b0-a990e6f74e34",
+        "cadence_minutes": 10,
+        "authority": "WP012-OPERATOR-ORCHESTRATOR-NEVER-SELF-STOPS-20261001; existing buddy reviewed current-thread implementation",
+        "proof_limit": "Created and saved configuration independently opened; first future execution not yet proven; no launch or acceptance authority is replaced"
+      },
+      "incident_output_cleanup": {
+        "wrong_d_export_files": 7167,
+        "wrong_d_export_bytes": 279582478,
+        "wrong_d_identity_bytes": 345,
+        "wrong_d_identity_sha256": "8defd09badd1d9094d08cad4f144227ed00ae24955ef21c2062332761963bb21",
+        "marker_disposition": "app/src/lib/debug is tracked source tree 747f8fe46d1a5eba01556288aeb1878f3e3b7990; no Cargo output marker matched",
+        "reparse_entries": 0,
+        "owner_release": "WPV released only wrong D source export and unused WPV-named D profile; active C source/target and consumed D profile retained",
+        "decision": "Retain recoverable incident outputs; no move because neither is Cargo output under the Operator's cleanup request",
+        "bin_created": false,
+        "cargo_disposition": "All inspected warm Cargo targets remain required or reusable; none proven obsolete"
+      }
     }
+  },
+  "infrastructure_recovery_20261004_detached_supervisor": {
+    "id": "AUDIT-20261004-WP012-DETACHED-SUPERVISOR",
+    "board_id": "RGF-330",
+    "state": "STATIC_REVIEWED_RUNTIME_HELD",
+    "owner": "WP_VALIDATOR",
+    "coordinator": "ORCHESTRATOR",
+    "artifact_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-launch-targeted-8c147394.ps1",
+    "before_sha256": "a4068719d51c7973921c1a81a91ed363c0fae6fae8ec1b973187a0386401f153",
+    "initial_static_candidate": {
+      "bytes": 18949,
+      "sha256": "d5201b8a6e814c22a18c3be17a52ee8b880a1930bc73e611a99c4cd7c3225c64",
+      "root_inspection": "Opened the complete frozen artifact and independently hashed bytes; no execution",
+      "finding": "Actual short-SHA launcher filename fails its full40 suffix regex before arming; KB independent review pending",
+      "original_retention_limit": "WPV replaced the original file without a separate original-byte backup; before_sha256 alone is not preserved bytes",
+      "retracted_finding": "Root misread serialized escaping as two source backslashes; direct token inspection proves Length1/codepoint92; no slash change authorized",
+      "review_gameplan_steps": ["GP-184", "GP-185"]
+    },
+    "independent_initial_review": {
+      "reviewer": "KERNEL_BUILDER",
+      "inspected_sha256": "d5201b8a6e814c22a18c3be17a52ee8b880a1930bc73e611a99c4cd7c3225c64",
+      "parser_errors": 0,
+      "blocking_findings": [
+        "Actual short8 filename cannot satisfy full40 regex before candidate derivation",
+        "Actual entrypoint is not rehashed after armed wait/gates before Bash; saved hash can be stale",
+        "Supervisor consumes release before its own round check; require local fresh gates before consumption"
+      ],
+      "capture_exception_limit": "If postlaunch identity capture throws, retained failure marker lacks canonical exit evidence; infrastructure UNKNOWN and no verdict",
+      "candidate_correction_scope": "Snapshot current raw bytes/hash; derive full pushed HEAD and require filename prefix; local gates before marker consumption; rehash same entrypoint immediately before Bash",
+      "buddy_review": "Approved exact correction order; keep external gates before marker creation, unique run/PID/start/candidate marker and fresh run after failed gates",
+      "gameplan_steps": ["GP-186", "GP-187", "GP-188"],
+      "runtime_proof": "NONE"
+    },
+    "independent_diagnostic_preparation_review": {
+      "reviewer": "KERNEL_BUILDER",
+      "candidate": "8c147394cfff86e0f4a7d75fafdfdb8c64a5b8f7",
+      "source_refs": [
+        "handshake_document/src/surreal.rs:374-448",
+        "handshake_core/tests/knowledge_documents_api_tests.rs:3795-4032",
+        "handshake_core/tests/account_session_support/mod.rs:49-90",
+        "handshake_core/src/storage/tests.rs:145-185",
+        "StatementTimingContext::emit and unchanged diagnostics.rs"
+      ],
+      "capture": "Only fixed labels/counts/outcome/static error class/elapsed; no IDs/workspace names/query text/titles; unchanged optional statement timing and phase/error/drop attribution",
+      "fixtures": "Six authenticated reads; expected 3 inputIDs/2 rows/1 same-workspace/1 foreign; same-workspace-only edge, backlinks and idempotence assertions",
+      "cleanup": "Embedded store/in-process binding; servers shut down before explicit store removal; RAII restores env/removes binding temp file and store Drop reports best-effort cleanup failure; no OS vault",
+      "prep_steps_supported": ["GP-045", "GP-089", "GP-116", "GP-117"],
+      "subsequent_correction": "WPV and KB independently found the subscriber discards core diagnostics; this producer-only review does not support GP089/116. See diagnostic_capture_recovery_20261004; neither capture gate is claimed passed from this review",
+      "proof_limit": "Source/static preparation only; WPV retains independent confirmation responsibility; no runtime counts, cleanup success or acceptance proven"
+    },
+    "corrected_static_artifact": {
+      "bytes": 21463,
+      "sha256": "8eebb211b51313616af1459c8bd22f89eb9b403f7071920c1d1dfd9e086ff349",
+      "retained_before_correction": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-launch-targeted-8c147394.pre-gp186-d520.ps1",
+        "bytes": 18949,
+        "sha256": "d5201b8a6e814c22a18c3be17a52ee8b880a1930bc73e611a99c4cd7c3225c64"
+      },
+      "root_review": "Opened full corrected file and exact snapshot, independently hashed both, opened scoped diff and parsed corrected file with zero errors",
+      "independent_review": "KB independently opened/hash-verified full corrected file and snapshot diff; parser0; no remaining requested static blocker",
+      "behavior": "Full pushed HEAD matches filename8; own fresh gates before one-use marker consumption; same resolved entrypoint rehashed immediately before Bash; PS/Bash identities separate; empty stdin/stdout/stderr/exit retention",
+      "actual_argv": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+        "8c147394cfff86e0f4a7d75fafdfdb8c64a5b8f7",
+        "targeted"
+      ],
+      "limits": "No launcher execution or actual detached readiness; original a406 raw-byte backup missing; postlaunch identity-capture failure is infrastructure UNKNOWN/no verdict"
+    },
+    "latest_manual_tick": {
+      "observed_utc": "2026-10-04T02:58:02.1684257Z",
+      "source": "Win32_PerfFormattedData_PerfOS_Memory and Processor/_Total",
+      "commit_limit_bytes": 149695787008,
+      "committed_bytes": 122322124800,
+      "commit_free_bytes": 27373662208,
+      "required_commit_free_bytes": 45000000000,
+      "cpu_percent": 5,
+      "observer_utc": "2026-10-04T02:57:57.0125130Z",
+      "observer_poll": 163,
+      "target_bytes": 102639233074,
+      "observer_processes": [],
+      "observer_logs": [],
+      "exit_record_present": false,
+      "disposition": "GP154 and GP111 false; even passive supervisor arming remains held; no direct runtime/acceptance progress"
+    },
+    "recorded_failure": "Prepared supervisor checks before_round before creating Bash and records Bash as wrapper_pid; literal GP153 detached-wrapper fact cannot be established under that interpretation",
+    "verified_process_meaning": {
+      "source_commit": "2cae85f103b69338d9278a32d54914534e3f4e38",
+      "incident": "bb9548e1 infrastructure interruption at native170/210",
+      "retained_identity_examples": "union-1f4e0f69-r2 wrapper193268/pwsh parent of bash183764; union-bb9548e1 wrapper214340/pwsh parent of bash244672; matching retained observer samples",
+      "observer_source": "WPV-round-observer.ps1:184-185 roots process tree at wrapper_pid",
+      "finding": "GP153 refers to outer PowerShell launcher/supervisor, not canonical Bash child"
+    },
+    "research_basis": {
+      "source": "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/start-process?view=powershell-7.5",
+      "verified_pattern": "Local Start-Process is asynchronous and process lifetime independent of calling shell; stdout/stderr file redirection supported; stdin defaults to keyboard without redirection",
+      "limits": "Documentation does not prove future Codex/tool-timeout or external job ownership; Hidden alone does not prove detachment; future actual readiness/identity/ancestry required"
+    },
+    "buddy_reviewed_order": [
+      "WPV corrects only existing external launcher artifact, with actual outer-PowerShell readiness identity and separate Bash identity; no product/entrypoint/config/protocol/gameplan-step change",
+      "Wait for a unique release bound to candidate SHA, supervisor PID, creation time and run ID before existing before_round check and Bash launch",
+      "KB independently reviews/parses/hashes static artifact before any launch; retained static proof does not establish future process readiness",
+      "Fresh GP154 free commit >=45000000000 and GP111 host admission are mandatory before starting even the passive supervisor",
+      "Verify detached passive supervisor alive/waiting with no Bash/Cargo child; only then confirm actual GP153 fact and run current before_round gates",
+      "Recheck candidate/remote/config/observer/resources/roles; issue bound release only after gates pass; supervisor validates release and freshly rechecks before canonical Bash child"
+    ],
+    "constraints": "No actual supervisor/Bash/Cargo launch while resource gates fail; no foreign process or host configuration change, step retirement, threshold waiver, suspended-process mechanism or alternate test mode",
+    "runtime_authorized": false,
+    "historical_ac_170_1": "NOT_SATISFIED"
+  },
+  "diagnostic_capture_recovery_20261004": {
+    "diagnosis_id": "AUDIT-20261004-WP012-MT170-CAPTURE-FILTER",
+    "state": "SOURCE_REVIEWED_COMPILE_RUNTIME_HELD",
+    "owner": "KERNEL_BUILDER",
+    "reviewer": "WP_VALIDATOR",
+    "candidate": "8c147394cfff86e0f4a7d75fafdfdb8c64a5b8f7",
+    "affected_source": "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
+    "failure": "Global subscriber returns for all targets except mt170_resolver_diagnostic, dropping existing statement/phase/drop capture",
+    "evidence": "WPV independently inspected StatementTimingContext::emit, MT032 phase events and selected test-global subscriber",
+    "blocked_steps": ["GP-089", "GP-116"],
+    "prior_review_limit": "KB verified unchanged producers; that did not prove the changed subscriber preserves their events",
+    "next_action": "Fresh resource/role/candidate gates, then warm compile and candidate-bound isolated diagnostic; no functional repair until observed diagnostic binds ownership",
+    "buddy_review": "Approved exact two-target and strict redacted field/event-kind allowlist, partitioned resolver assertion, real normal core phase/statement checks and preservation of unavailable optional timing; no synthetic events or producer/schema/query/R3 edit",
+    "gameplan_step": "GP-190",
+    "dispatched_on": "2026-10-04",
+    "checkpoint": {
+      "commit": "e6d23ef2dacdc80aff8e81c6690d8ef8dcd51ce2",
+      "tree": "b46bc321cd9a58b2014ddce5105ada27eb461442",
+      "parent": "8c147394cfff86e0f4a7d75fafdfdb8c64a5b8f7",
+      "committed_at": "2026-10-04T05:41:57+02:00",
+      "tracked_files": 7167,
+      "changed_paths": ["src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"],
+      "changed_file_sha256": "9e6f1f3e8fb75bc4e32bc3af9aed7e1e1579896de87b40ea5736609c3c03d2ef",
+      "root_identity_review": "Fetched exact feature ref; directly read HEAD/tree/parent/live origin/clean tree and complete diff; independently hashed changed file",
+      "builder_static_checks": "rustfmt --edition 2021 --check and git diff --check PASS; static triage only",
+      "builder_gate_limit": "Before-submit4/4 bound to pre-commit8c, not admission for e6d23ef2",
+      "compile": "UNCOMPILED; no Cargo run",
+      "runtime": "UNVALIDATED; no refresh or runtime",
+      "independent_review": "WPV first source pass supported fields/privacy; root independently opened full capture/install/output path and reopened early-failure/later-event retention before accepting source clearance",
+      "stale_bindings": "8c compile, C export/selection/launcher prefix/observer candidate and per-HEAD confirmations; preserve warm target/source paths"
+    },
+    "current_candidate": "3e5f4024806b3052efa1917cd57cd9a45b0462ae",
+    "early_retention_checkpoint": {
+      "commit": "3e5f4024806b3052efa1917cd57cd9a45b0462ae",
+      "tree": "610f824ae157f638e815f64e28c87bbbae589aa4",
+      "parent": "e6d23ef2dacdc80aff8e81c6690d8ef8dcd51ce2",
+      "committed_at": "2026-10-04T05:59:59+02:00",
+      "changed_paths": ["src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"],
+      "changed_file_sha256": "d691501cd3cc0d13a54e5674819a1101e29e729ed767d5ad9d2a5a9c71b53702",
+      "root_identity_review": "Fetched exact feature ref; clean HEAD/tree/parent/live remote match; opened complete e6-to-3e diff and cumulative path/stat with prior full8c-to-e6 diff; independently hashed changed file",
+      "builder_static_checks": "rustfmt --edition 2021 --check and git diff --check PASS; before-submit4/4 renewed at3e; implementer static triage only",
+      "independent_source_review": "WPV opened exact candidate module/test/diff/producers and reused unchanged effective output config with primary Rust/nextest documentation; no remaining source-level capture blocker",
+      "observed_source_behavior": "Sanitized fixed resolver/phase/statement/receipt lines emit per actual event after scoped buffer unlock, with explicit stdout flush; buffered assertions retained and snapshot duplicate printers removed",
+      "failure_path_review": "Emission precedes source-response assertions and continues for events after snapshot; missing fields use unavailable, no raw IDs/query/errors or trace recursion",
+      "optional_timing": "False availability plus emitted zero is preserved and conditionally asserted; never interpret sentinel as measured zero",
+      "output_config_limit": "Earlier effective profile hash/config is reused unchanged; extra combined reread was hook-blocked before execution, not fresh evidence. Require actual effective hashes before launch",
+      "static_confirmations": {"by": "WP_VALIDATOR", "candidate": "3e5f4024806b3052efa1917cd57cd9a45b0462ae", "steps": ["GP-089", "GP-116", "GP-194"], "limit": "STATIC source/config only; compile/runtime/verdict unproven"},
+      "redundant_read_incident": {"command_shape": "Get-Content and Get-FileHash of actual nextest-core.toml plus scoped rg of test/profile; metadata only", "observed": "BUDGET checks within20s exceeded GLOBAL-GAMEPLAN-001; blocked before command body", "cause_step": "GP-195", "disposition": "No retry; reuse valid unchanged profile evidence, require fresh actual hash at launch"},
+      "residual": "println write failure may panic and flush result is ignored; actual runner-pipe behavior/output completeness remain runtime proof, not inferred success",
+      "compile": "UNCOMPILED; no Cargo run",
+      "runtime": "UNVALIDATED; no export refresh or runtime",
+      "acceptance_advanced": false,
+      "stale_bindings": "8c compile/C export, prior selector/launcher prefix/observer candidate and older per-HEAD confirms; rebind only through applicable gates while preserving warm paths"
+    },
+    "resource_hold": {
+      "observed_utc": "2026-10-04T04:05:44.0273523Z",
+      "commit_limit_bytes": 149695787008,
+      "committed_bytes": 121851490304,
+      "commit_free_bytes": 27844296704,
+      "required_commit_free_bytes": 45000000000,
+      "cpu_percent": 13,
+      "disposition": "GP154/GP111 false; Cargo, C refresh, runtime and passive supervisor held"
+    },
+    "gp097_applicability": "Current targeted route writes no capacity/cleanup proposal and proposes no cleanup; KB/source/history and buddy reviewed; WPV independently confirmed route-scoped N/A with step active and no typed-artifact parse claim",
+    "gp156_status": "Actual Git Bash Cargo resolver is UNVERIFIED; resolve before any Cargo-based check or diagnostic; no cargo-test probe",
+    "failure_retention_review": {
+      "diagnosis_id": "AUDIT-20261004-WP012-MT170-CAPTURE-EARLY-EXIT",
+      "candidate": "e6d23ef2dacdc80aff8e81c6690d8ef8dcd51ce2",
+      "root_evidence": "Opened full Capture/install/snapshot module and selected test: on_event only appends static EVENTS; send/status/body/id and fixture assertions precede snapshot/output, and rebuild/cleanup follows the only snapshot",
+      "finding": "Actual emitted diagnostics cannot reach retained stdout if the test fails before snapshot; post-snapshot events have no output path",
+      "role_review": "KB and WPV independently confirmed the early-failure and later-event retention blocker; immediate sanitized output at capture time is the minimal proposed remedy",
+      "source_confirmation_limit": "WPV withdrew GP089 retention/GP116 clearance on e6; those entries are invalid evidence. GP194 was unconfirmed at that diagnosis; 3e invalidated older entries and subsequently received STATIC-only GP089/116/194 review recorded above",
+      "proposed_scope": "Same test file; emit strict sanitized fixed records in on_event after releasing buffer lock, retain snapshot assertions, remove duplicate snapshot prints and clarify allowlisted-shapes comment; buddy review precedes edit",
+      "buddy_review": "Approved exact patch/order before dispatch; sink uses fixed sentinels without assertions, no recursion/raw fields, per-line stdout serialization; GP190 static checkpoint gate and GP194 source/config review retain future runtime uncertainty",
+      "gameplan_step": "GP-194",
+      "constraints": "Same capture-only diagnostic recovery, no synthetic events, producer/query/schema/R3 change or heavyweight proof"
+    },
+    "constraints": "Diagnostic-only repair; no functional/schema/R3/query change, full test or source refresh; checkpoint UNCOMPILED/UNVALIDATED if compile held",
+    "runtime_proof": "NONE",
+    "historical_ac_170_1": "NOT_SATISFIED"
   },
   "operator_decision_request_20261002_projection_target": {
     "schema_id": "hsk.operator_decision_request@1",
@@ -925,11 +1160,19 @@
     "rule": "KB-PROOF-005 out-of-scope finding R3",
     "by": "KERNEL_BUILDER-20261002",
     "recorded_at_utc": "2026-10-02T17:20:00Z",
-    "status": "open",
+    "status": "answered",
     "question": "Pin the loom_edges projection branch to edge_id KDLNK- prefix and the zero edit_event_id (select/create/update/delete) so only the backlink rebuild can write SYSTEM projection edges? Pre-existing for rich-document targets; MT-170 extends the branch to standalone targets",
     "options": [
       "add the pin (small schema change, same proof route)",
       "leave as is"
-    ]
+    ],
+    "answer": {
+      "decision_id": "WP012-SESSION-INSPECTED-PROJECTION-RECOVERY-20261004",
+      "chosen_option": "Add the pin only to the projection permission branch after the independent diagnostic predecessor",
+      "selected_by": "ORCHESTRATOR under explicit Operator delegation; not a personal Operator option selection",
+      "delegation_ref": "packet.json#operator_decisions_20261004[WP012-OPERATOR-AUTONOMOUS-INSPECTED-DECISIONS-20261004]",
+      "plan_ref": "packet.json#operator_decisions_20261004[0].session_selected_plan",
+      "implementation_state": "PENDING_DIAGNOSTIC; no R3/schema functional edit or runtime acceptance yet"
+    }
   }
 }
