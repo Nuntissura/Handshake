@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-04T13:44:17Z",
+  "updated_at_utc": "2026-10-04T16:25:02Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -828,13 +828,39 @@
         "bytes": 1084,
         "passed_steps": 36,
         "selected_steps": 45,
-        "unconfirmed_ids": ["GP-027", "GP-045", "GP-089", "GP-097", "GP-116", "GP-117", "GP-153", "GP-154", "GP-156"],
+        "unconfirmed_ids": [
+          "GP-027",
+          "GP-045",
+          "GP-089",
+          "GP-097",
+          "GP-116",
+          "GP-117",
+          "GP-153",
+          "GP-154",
+          "GP-156"
+        ],
         "current_selected_steps": 48,
         "prior_snapshot": {
           "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-before-round-final-20261004.txt",
           "passed_steps": 30,
           "selected_steps": 45,
-          "unconfirmed_ids": ["GP-027", "GP-045", "GP-089", "GP-097", "GP-116", "GP-117", "GP-119", "GP-120", "GP-131", "GP-140", "GP-153", "GP-154", "GP-156", "GP-161", "GP-170"]
+          "unconfirmed_ids": [
+            "GP-027",
+            "GP-045",
+            "GP-089",
+            "GP-097",
+            "GP-116",
+            "GP-117",
+            "GP-119",
+            "GP-120",
+            "GP-131",
+            "GP-140",
+            "GP-153",
+            "GP-154",
+            "GP-156",
+            "GP-161",
+            "GP-170"
+          ]
         },
         "proof_limit": "Root opened raw result; historical snapshot, not admission. Earlier thirteen-confirmation claim included unwritten GP170/176 and is corrected; GP176 subsequently confirmed from exact profile bytes.",
         "preparation_scope": "Output-retention/JUnit configuration and actual diagnostic filters are preparation; future163/R3 and final-union result proof remain pending at their required stages"
@@ -900,7 +926,10 @@
       "finding": "Actual short-SHA launcher filename fails its full40 suffix regex before arming; KB independent review pending",
       "original_retention_limit": "WPV replaced the original file without a separate original-byte backup; before_sha256 alone is not preserved bytes",
       "retracted_finding": "Root misread serialized escaping as two source backslashes; direct token inspection proves Length1/codepoint92; no slash change authorized",
-      "review_gameplan_steps": ["GP-184", "GP-185"]
+      "review_gameplan_steps": [
+        "GP-184",
+        "GP-185"
+      ]
     },
     "independent_initial_review": {
       "reviewer": "KERNEL_BUILDER",
@@ -914,7 +943,11 @@
       "capture_exception_limit": "If postlaunch identity capture throws, retained failure marker lacks canonical exit evidence; infrastructure UNKNOWN and no verdict",
       "candidate_correction_scope": "Snapshot current raw bytes/hash; derive full pushed HEAD and require filename prefix; local gates before marker consumption; rehash same entrypoint immediately before Bash",
       "buddy_review": "Approved exact correction order; keep external gates before marker creation, unique run/PID/start/candidate marker and fresh run after failed gates",
-      "gameplan_steps": ["GP-186", "GP-187", "GP-188"],
+      "gameplan_steps": [
+        "GP-186",
+        "GP-187",
+        "GP-188"
+      ],
       "runtime_proof": "NONE"
     },
     "independent_diagnostic_preparation_review": {
@@ -930,7 +963,12 @@
       "capture": "Only fixed labels/counts/outcome/static error class/elapsed; no IDs/workspace names/query text/titles; unchanged optional statement timing and phase/error/drop attribution",
       "fixtures": "Six authenticated reads; expected 3 inputIDs/2 rows/1 same-workspace/1 foreign; same-workspace-only edge, backlinks and idempotence assertions",
       "cleanup": "Embedded store/in-process binding; servers shut down before explicit store removal; RAII restores env/removes binding temp file and store Drop reports best-effort cleanup failure; no OS vault",
-      "prep_steps_supported": ["GP-045", "GP-089", "GP-116", "GP-117"],
+      "prep_steps_supported": [
+        "GP-045",
+        "GP-089",
+        "GP-116",
+        "GP-117"
+      ],
       "subsequent_correction": "WPV and KB independently found the subscriber discards core diagnostics; this producer-only review does not support GP089/116. See diagnostic_capture_recovery_20261004; neither capture gate is claimed passed from this review",
       "proof_limit": "Source/static preparation only; WPV retains independent confirmation responsibility; no runtime counts, cleanup success or acceptance proven"
     },
@@ -1015,7 +1053,14 @@
       "preserved_selector_bytes": 540,
       "preserved_selector_sha256": "da8bd295de2a62f0d508c3070599b9572f60807ae23d0c0cb162edb1e86e8cf2",
       "retention_review": "Root independently re-read all19 archived raw hashes/lengths, owned paths and canonical-source absence; no retrospective gate clearance for Force retry/manifest repair before GP232/233 recording",
-      "root_resource_sample": {"utc": "2026-10-04T14:44:57.8729763Z", "commit_limit_bytes": 149695787008, "committed_bytes": 50784641024, "free_commit_bytes": 98911145984, "cpu_percent": 11, "competing_compiler_or_bash_count": 0},
+      "root_resource_sample": {
+        "utc": "2026-10-04T14:44:57.8729763Z",
+        "commit_limit_bytes": 149695787008,
+        "committed_bytes": 50784641024,
+        "free_commit_bytes": 98911145984,
+        "cpu_percent": 11,
+        "competing_compiler_or_bash_count": 0
+      },
       "proof_limit": "Sample is system-wide only and not future launch admission; early five tests do not complete six-test parity, prove resolver ownership, advance historical AC1701 or accept MT170",
       "launch_context_recovery": {
         "cause": "Root's resumed dispatch incorrectly required historical WPV parent184740; current exec shell245928 had parent214696 and then exited; no new observer/supervisor/runtime was started",
@@ -1025,150 +1070,223 @@
         "gameplan_disposition": "GP234 records the stale-parent cause and is retired as redundant: existing rootGP052 and WPVGP156/220/225 own current identity/context checks; no new admission gate",
         "state": "SOURCE_CLEAR; actual current launch-context and admission proof still required"
       },
-  "latest_supervisor_preparation_20261004": {
-    "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
-    "candidate_tree": "0712b674ab3fc138bd85a365afd60cb8b5952cda",
-    "schema_revision": 162,
-    "state": "WAITING_FOR_RELEASE; no round launched; runtime and pin measurement not performed",
-    "run_id": "be733849b1554a32a3c6e87bc791b55f",
-    "ready_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.supervisor-be733849b1554a32a3c6e87bc791b55f.ready.json",
-    "ready_sha256": "7c99060dd72fa3032ddaaa2ec04f53e427cff31edf01d1e378d626d14b98a816",
-    "supervisor_pid": 185816,
-    "supervisor_start_utc": "2026-10-04T15:16:21.8852339Z",
-    "supervisor_parent_pid": 28620,
-    "parent_present_at_read": false,
-    "observer_identity_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.observer.identity.json",
-    "observer_identity_sha256": "ea0ab559e4b44935c963fdf83380e3f662e7689175fdc27526d2934190e02268",
-    "observer_pid": 169432,
-    "observer_start_utc": "2026-10-04T15:16:17.2710033Z",
-    "entrypoint_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
-    "entrypoint_sha256": "9d8fb25e303df784d9b35bc9575a65807a22ffe9a2e2593b4111fcdb0133bb53",
-    "entrypoint_arguments": [
-      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
-      "ce593857d3b355a1cc0ffd76bbd72494104973a7",
-      "targeted"
-    ],
-    "profile_sha256": "e651a5b229a0a609b426cb3d485ae5fd17301c0b3440e7868c9de296ba2c7922",
-    "target_path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
-    "release_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.supervisor-be733849b1554a32a3c6e87bc791b55f.release.json",
-    "release_present_at_read": false,
-    "actual_supervisor_environment": {
-      "source": "psutil 7.2.2 Process.environ; supervisor PID/start/status matched before and after child lookup",
-      "GAMEPLAN_ROLE": "wp_validator",
-      "PATH_sha256": "828ae79926f936d4a427d8a9e1be3018ad0dafcdff653fc38a631c99f4e7b05d",
-      "BASH_ENV_present": false,
-      "environment_digest_sha256": "9a33c832f1403a5c181c62da7a822d4da9fb0ae4e5fd72be427888678ef9ef79"
-    },
-    "current_static_context_observation_20261004": {
-      "recorded_at_utc": "2026-10-04T16:05:30Z",
-      "scope": "read-only current PowerShell/runtime and live supervisor environment facts; no test or executable launch",
-      "ps_api": {
-        "command": "$hp = [System.Security.Cryptography.SHA256].GetMethods() | Where-Object Name -eq 'HashData'; $cp = [System.Security.Cryptography.SHA256].GetMethods() | Where-Object Name -eq 'Create'; [pscustomobject]@{ process_path=[Environment]::ProcessPath; ps_version=$PSVersionTable.PSVersion.ToString(); hash_data_overloads=@($hp | ForEach-Object ToString); create_overloads=@($cp | ForEach-Object ToString) } | ConvertTo-Json -Depth 4 -Compress",
-        "stdout": "{\"process_path\":\"C:\\\\Users\\\\Ilja Smets\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\",\"ps_version\":\"7.6.5\",\"hash_data_overloads\":[\"Byte[] HashData(Byte[])\",\"Byte[] HashData(System.ReadOnlySpan`1[System.Byte])\",\"Int32 HashData(System.ReadOnlySpan`1[System.Byte], System.Span`1[System.Byte])\",\"Int32 HashData(System.IO.Stream, System.Span`1[System.Byte])\",\"Byte[] HashData(System.IO.Stream)\"],\"create_overloads\":[\"System.Security.Cryptography.SHA256 Create()\",\"System.Security.Cryptography.SHA256 Create(System.String)\"]}",
-        "interpretation": "Current pwsh 7.6.5 at the same executable path as supervisor 185816; SHA256.HashData and Create APIs exist."
-      },
-      "supervisor_process": {
-        "command": "Get-CimInstance Win32_Process -Filter 'ProcessId=185816' | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CreationDate | ConvertTo-Json -Depth 2 -Compress",
-        "stdout": "{\"ProcessId\":185816,\"ParentProcessId\":28620,\"Name\":\"pwsh.exe\",\"ExecutablePath\":\"C:\\\\Users\\\\Ilja Smets\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\",\"CreationDate\":\"2026-10-04T17:16:21.885233+02:00\"}"
-      },
-      "supervisor_environment": {
-        "command": "python -c \"import psutil,json,hashlib,os; p=psutil.Process(185816); e=p.environ(); s=lambda b:hashlib.sha256(b).hexdigest(); print(json.dumps({'pid':p.pid,'create_time':p.create_time(),'ppid':p.ppid(),'status':p.status(),'role':e.get('GAMEPLAN_ROLE'),'env_sha256':s(json.dumps(sorted(e.items()),separators=(',',':'),ensure_ascii=False).encode()),'path_sha256':s(e.get('PATH','').encode()),'path_entries':len(e.get('PATH','').split(os.pathsep)),'bash_env_present':bool(e.get('BASH_ENV')),'env_present':bool(e.get('ENV'))},separators=(',',':')))\"",
-        "stdout": "{\"pid\":185816,\"create_time\":1791126981.885234,\"ppid\":28620,\"status\":\"running\",\"role\":\"wp_validator\",\"env_sha256\":\"9a33c832f1403a5c181c62da7a822d4da9fb0ae4e5fd72be427888678ef9ef79\",\"path_sha256\":\"828ae79926f936d4a427d8a9e1be3018ad0dafcdff653fc38a631c99f4e7b05d\",\"path_entries\":61,\"bash_env_present\":false,\"env_present\":false}",
-        "digest_algorithm": "SHA-256(UTF-8(json.dumps(sorted(env.items()), separators=(',', ':'), ensure_ascii=False)))",
-        "limit": "Exact live process facts; snapshot-reproduced env digest, not an immutable former parent environment."
-      },
-      "wrapper_source": {
-        "text_search_command": "rg -n 'NEXTEST|cygpath|PATH|Packet|cargo' .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
-        "observed_lines": [
-          "41:NEXTEST=\"D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/tools/cargo-nextest/0.9.146/cargo-nextest.exe\"",
-          "71:BACKEND_PROFILE_CONFIG=\"$(cygpath -m \"$BACKEND_PROFILE_TOML\")\"",
-          "456:  \"$NEXTEST\" nextest run --locked --no-fail-fast --config \"$BACKEND_PROFILE_CONFIG\" ",
-          "459:CORE_NEXTEST_EXIT=$?"
+      "latest_supervisor_preparation_20261004": {
+        "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
+        "candidate_tree": "0712b674ab3fc138bd85a365afd60cb8b5952cda",
+        "schema_revision": 162,
+        "state": "WAITING_FOR_RELEASE; no round launched; runtime and pin measurement not performed",
+        "run_id": "be733849b1554a32a3c6e87bc791b55f",
+        "ready_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.supervisor-be733849b1554a32a3c6e87bc791b55f.ready.json",
+        "ready_sha256": "7c99060dd72fa3032ddaaa2ec04f53e427cff31edf01d1e378d626d14b98a816",
+        "supervisor_pid": 185816,
+        "supervisor_start_utc": "2026-10-04T15:16:21.8852339Z",
+        "supervisor_parent_pid": 28620,
+        "parent_present_at_read": false,
+        "observer_identity_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.observer.identity.json",
+        "observer_identity_sha256": "ea0ab559e4b44935c963fdf83380e3f662e7689175fdc27526d2934190e02268",
+        "observer_pid": 169432,
+        "observer_start_utc": "2026-10-04T15:16:17.2710033Z",
+        "entrypoint_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+        "entrypoint_sha256": "9d8fb25e303df784d9b35bc9575a65807a22ffe9a2e2593b4111fcdb0133bb53",
+        "entrypoint_arguments": [
+          "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+          "ce593857d3b355a1cc0ffd76bbd72494104973a7",
+          "targeted"
         ],
-        "finding": "Runner is invoked as an absolute path; profile conversion is cygpath -m, and no PATH addition was observed in the reported matching output."
-      },
-      "runner_directory_discovery": {
-        "command": "Get-ChildItem -LiteralPath 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/tools/cargo-nextest/0.9.146' -File -Filter '*.exe' | Select-Object FullName,Length,LastWriteTimeUtc | ConvertTo-Json -Depth 2",
-        "stdout": "{\"FullName\":\"D:\\\\Projects\\\\LLM projects\\\\Handshake\\\\Handshake Worktrees\\\\gov_runtime\\\\tools\\\\cargo-nextest\\\\0.9.146\\\\cargo-nextest.exe\",\"Length\":20230448,\"LastWriteTimeUtc\":\"2026-09-21T16:29:00Z\"}",
-        "limit": "File metadata only; no hash or Bash resolution was obtained."
-      },
-      "prior_runtime_resolution_reuse_assessment": {
-        "retained_log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-mt170-startup-diagnostic-ce593857-ec99cc5f/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.stdout.log",
-        "observed_log_lines": [
-          "[run-round] nextest CORE run",
-          "[run-round] core nextest exit=100 tests=1"
-        ],
-        "meaning": "The prior canonical targeted round reached the nextest stage and received one test result through the then-current wrapper, which sourced the same absolute runner path.",
-        "reuse_limit": "The retained runtime log does not record the child executable path, invocation argv, or runner file hash at execution time. Current directory inventory gives path/size/mtime only, and the current hash attempt was blocked before execution. Therefore file-identity invariance is unproven and this prior run is not reused as GP-238 resolution proof."
-      },
-      "failed_metadata_attempts": [
-        {
-          "command": "The exact attempted command and hook output are retained in the WPV subagent tool transcript for this turn; it began `$code = @'` and embedded a Python `subprocess.run` that would have invoked approved Bash builtins `test -f`, `test -x`, and `command -v` against the sourced absolute path. The pre-tool hook blocked before body execution.",
-          "result": "Command blocked before execution: scope role=* at before_round; all-role checks exceeded the 20-second budget (GLOBAL-GAMEPLAN-001). No subprocess, file, or artifact was created.",
-          "classification": "The literal nextest filename appeared in a filesystem path/Python variable; intended Bash command was metadata-only and did not execute the runner."
+        "profile_sha256": "e651a5b229a0a609b426cb3d485ae5fd17301c0b3440e7868c9de296ba2c7922",
+        "target_path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
+        "release_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.supervisor-be733849b1554a32a3c6e87bc791b55f.release.json",
+        "release_present_at_read": false,
+        "actual_supervisor_environment": {
+          "source": "psutil 7.2.2 Process.environ; supervisor PID/start/status matched before and after child lookup",
+          "GAMEPLAN_ROLE": "wp_validator",
+          "PATH_sha256": "828ae79926f936d4a427d8a9e1be3018ad0dafcdff653fc38a631c99f4e7b05d",
+          "BASH_ENV_present": false,
+          "environment_digest_sha256": "9a33c832f1403a5c181c62da7a822d4da9fb0ae4e5fd72be427888678ef9ef79"
         },
-        {
-          "command": "Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256 after discovery of the sole `*.exe` FileInfo in the pinned version directory",
-          "result": "Command blocked before execution by the same all-role 20-second before_round hook; no hash output was produced.",
-          "classification": "The version directory path contained the runner name; no binary was invoked."
-        }
-      ],
-      "confirmation_status": "GP-238 remains unconfirmed: absolute source path and directory inventory are known, but no file hash or Bash builtin path-resolution result is retained. GP-239 source facts are supported by these current outputs; record does not claim confirmation."
-    },
-    "resolver_artifact": {
-      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-cargo-resolution-be733849b1554a32a3c6e87bc791b55f.json",
-      "bytes": 1392,
-      "sha256": "c40926159f3b7e46951a629314e8b04004a6d2694e0d0c92d2bc4afe9b228bd3",
-      "auditing_parent_pid": 273036,
-      "child_pid": 232292,
-      "child_start_epoch": 1791128031.6522903,
-      "cwd": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel",
-      "bash_path": "C:/Program Files/Git/bin/bash.exe",
-      "bash_sha256": "df3148577f726a45c2c9ad6bdfb8833c9bee9ae99d7c28364d6d9784b4ebe28e",
-      "argv": ["C:/Program Files/Git/bin/bash.exe", "-c", "command -v cargo"],
-      "exit_code": 0,
-      "stdout": "/c/Users/Ilja Smets/.cargo/bin/cargo",
-      "stderr": "",
-      "scope": "One read-only builtin lookup using the exact environment captured from the waiting WPV supervisor; no executable lookup target was launched",
-      "proof_disposition": "PARTIAL; does not satisfy GP-156",
-      "limitation": "The lookup ran with cwd wt-gov-kernel and queried only command -v cargo. It did not use the canonical packet working directory or resolve the required runner/subcommand. Do not reuse this as GP-156 proof or repeat until the independent source review authorizes the exact route.",
-      "process_relationship": "Snapshot-reproduced context only: resolver child PID 232292 had auditing Python parent PID 273036, not supervisor PID 185816.",
-      "environment_proof_limit": "The captured env digest binds the actual supervisor environment supplied to this child, but does not establish an immutable original shell-parent environment. GP-220 requires root correction/clearance before acceptance."
-    },
-    "observer_sample": {
-      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.observations.jsonl",
-      "latest_line_sha256": "cb62236c2ab9263e0829863a3f11fa14e2f4f3abfe4e188ec4564b6e40016410",
-      "latest_utc": "2026-10-04T15:39:20.5303334Z",
-      "poll": 43,
-      "target_bytes": 103681163671,
-      "gci_errors": 0,
-      "headroom_to_stop_bytes": 43318836329,
-      "stop_bytes": 147000000000,
-      "cap_bytes": 150000000000,
-      "free_commit_bytes": 98885890048,
-      "processes": [],
-      "exit_record_present": false,
-      "sample_limit": "Observed sample only; not a guaranteed peak"
-    },
-    "prep_failures": [
-      {"cause": "GP-235", "summary": "Local assertion compared ready.entrypoint_sha256 (Bash wrapper 9d8fb25e...) with external PowerShell supervisor source hash (e2ddec45...); distinct files. Assertion output was not retained; root independently re-read identities. No runtime result."},
-      {"cause": "GP-236", "summary": "A subsequent read-only process query contained an empty pipeline element and failed parsing before its body; no process mutation or runtime."},
-      {"cause": "GP-237", "summary": "The earlier combined command did not retain its final object with environment, resolver, and gate output; those outputs are not claimed."}
-    ],
-    "scope_limit": "Readiness only; no release marker, wrapper round, build/test, pin measurement, acceptance verdict, or semantic PASS."
-  },
-  "next": "WPV fresh current role/resource/config/identity gates and new one-use release, then exactly five-test evidence-only measurement; no KB pin edit before actual outputs"
+        "current_static_context_observation_20261004": {
+          "recorded_at_utc": "2026-10-04T16:05:30Z",
+          "scope": "read-only current PowerShell/runtime and live supervisor environment facts; no test or executable launch",
+          "ps_api": {
+            "command": "$hp = [System.Security.Cryptography.SHA256].GetMethods() | Where-Object Name -eq 'HashData'; $cp = [System.Security.Cryptography.SHA256].GetMethods() | Where-Object Name -eq 'Create'; [pscustomobject]@{ process_path=[Environment]::ProcessPath; ps_version=$PSVersionTable.PSVersion.ToString(); hash_data_overloads=@($hp | ForEach-Object ToString); create_overloads=@($cp | ForEach-Object ToString) } | ConvertTo-Json -Depth 4 -Compress",
+            "stdout": "{\"process_path\":\"C:\\\\Users\\\\Ilja Smets\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\",\"ps_version\":\"7.6.5\",\"hash_data_overloads\":[\"Byte[] HashData(Byte[])\",\"Byte[] HashData(System.ReadOnlySpan`1[System.Byte])\",\"Int32 HashData(System.ReadOnlySpan`1[System.Byte], System.Span`1[System.Byte])\",\"Int32 HashData(System.IO.Stream, System.Span`1[System.Byte])\",\"Byte[] HashData(System.IO.Stream)\"],\"create_overloads\":[\"System.Security.Cryptography.SHA256 Create()\",\"System.Security.Cryptography.SHA256 Create(System.String)\"]}",
+            "interpretation": "Current pwsh 7.6.5 at the same executable path as supervisor 185816; SHA256.HashData and Create APIs exist."
+          },
+          "supervisor_process": {
+            "command": "Get-CimInstance Win32_Process -Filter 'ProcessId=185816' | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CreationDate | ConvertTo-Json -Depth 2 -Compress",
+            "stdout": "{\"ProcessId\":185816,\"ParentProcessId\":28620,\"Name\":\"pwsh.exe\",\"ExecutablePath\":\"C:\\\\Users\\\\Ilja Smets\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\",\"CreationDate\":\"2026-10-04T17:16:21.885233+02:00\"}"
+          },
+          "supervisor_environment": {
+            "command": "python -c \"import psutil,json,hashlib,os; p=psutil.Process(185816); e=p.environ(); s=lambda b:hashlib.sha256(b).hexdigest(); print(json.dumps({'pid':p.pid,'create_time':p.create_time(),'ppid':p.ppid(),'status':p.status(),'role':e.get('GAMEPLAN_ROLE'),'env_sha256':s(json.dumps(sorted(e.items()),separators=(',',':'),ensure_ascii=False).encode()),'path_sha256':s(e.get('PATH','').encode()),'path_entries':len(e.get('PATH','').split(os.pathsep)),'bash_env_present':bool(e.get('BASH_ENV')),'env_present':bool(e.get('ENV'))},separators=(',',':')))\"",
+            "stdout": "{\"pid\":185816,\"create_time\":1791126981.885234,\"ppid\":28620,\"status\":\"running\",\"role\":\"wp_validator\",\"env_sha256\":\"9a33c832f1403a5c181c62da7a822d4da9fb0ae4e5fd72be427888678ef9ef79\",\"path_sha256\":\"828ae79926f936d4a427d8a9e1be3018ad0dafcdff653fc38a631c99f4e7b05d\",\"path_entries\":61,\"bash_env_present\":false,\"env_present\":false}",
+            "digest_algorithm": "SHA-256(UTF-8(json.dumps(sorted(env.items()), separators=(',', ':'), ensure_ascii=False)))",
+            "limit": "Exact live process facts; snapshot-reproduced env digest, not an immutable former parent environment."
+          },
+          "wrapper_source": {
+            "text_search_command": "rg -n 'NEXTEST|cygpath|PATH|Packet|cargo' .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+            "observed_lines": [
+              "41:NEXTEST=\"D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/tools/cargo-nextest/0.9.146/cargo-nextest.exe\"",
+              "71:BACKEND_PROFILE_CONFIG=\"$(cygpath -m \"$BACKEND_PROFILE_TOML\")\"",
+              "456:  \"$NEXTEST\" nextest run --locked --no-fail-fast --config \"$BACKEND_PROFILE_CONFIG\" ",
+              "459:CORE_NEXTEST_EXIT=$?"
+            ],
+            "finding": "Runner is invoked as an absolute path; profile conversion is cygpath -m, and no PATH addition was observed in the reported matching output."
+          },
+          "runner_directory_discovery": {
+            "command": "Get-ChildItem -LiteralPath 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/tools/cargo-nextest/0.9.146' -File -Filter '*.exe' | Select-Object FullName,Length,LastWriteTimeUtc | ConvertTo-Json -Depth 2",
+            "stdout": "{\"FullName\":\"D:\\\\Projects\\\\LLM projects\\\\Handshake\\\\Handshake Worktrees\\\\gov_runtime\\\\tools\\\\cargo-nextest\\\\0.9.146\\\\cargo-nextest.exe\",\"Length\":20230448,\"LastWriteTimeUtc\":\"2026-09-21T16:29:00Z\"}",
+            "limit": "File metadata only; no hash or Bash resolution was obtained."
+          },
+          "source_bound_file_hash_read_20261004": {
+            "observed_interval_utc": "after 2026-10-04T16:05:30Z and before 2026-10-04T16:20:23Z; shell tool did not expose per-command UTC timestamps",
+            "method": "Parsed entrypoint_path from the ready JSON, read line 41 from that FileInfo path, parsed its absolute RHS, then hashed the resulting FileInfo objects.",
+            "stdout": "{\"ready\":\"D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.supervisor-be733849b1554a32a3c6e87bc791b55f.ready.json\",\"entrypoint_path\":\"D:\\\\Projects\\\\LLM projects\\\\Handshake\\\\Handshake Worktrees\\\\wt-gov-kernel\\\\.GOV\\\\task_packets\\\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\\\WPV-union-round.sh\",\"entrypoint_bytes\":37996,\"entrypoint_sha256\":\"9d8fb25e303df784d9b35bc9575a65807a22ffe9a2e2593b4111fcdb0133bb53\",\"source_line_41\":\"NEXTEST=\\\"D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/tools/cargo-nextest/0.9.146/cargo-nextest.exe\\\"\",\"source_derived_absolute_value\":\"D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/tools/cargo-nextest/0.9.146/cargo-nextest.exe\",\"runner_file\":\"D:\\\\Projects\\\\LLM projects\\\\Handshake\\\\Handshake Worktrees\\\\gov_runtime\\\\tools\\\\cargo-nextest\\\\0.9.146\\\\cargo-nextest.exe\",\"runner_bytes\":20230448,\"runner_last_write_utc\":\"2026-09-21T16:29:00.0000000Z\",\"runner_sha256\":\"124cf1963c7c4c43cfc698e17daf441eb8ab8e160c053d83ebe2d40e82834f4c\",\"ready_arg0\":\"D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\",\"argv0_matches_path\":false,\"entrypoint_hash_matches_ready\":true}",
+            "readback_note": "Ready argv0 used forward slashes and FileInfo.FullName used backslashes, so raw string equality is false; both identify the same path after separator normalization. The entrypoint SHA matches ready metadata. The observed prior runtime log proves nextest reached one test, but does not retain the executable argv/hash at runtime; no Bash path check occurred in this read."
+          },
+          "latest_approved_bash_metadata_attempt_20261004": {
+            "observed_interval_utc": "after 2026-10-04T16:05:30Z and before 2026-10-04T16:20:23Z; shell tool did not expose per-command UTC timestamps",
+            "command": "$code = @'\nimport os,json,hashlib,datetime,subprocess,psutil,pathlib,re\nready_path=r'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-012\\MT-109\\wpv-c3x\\logs\\targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.supervisor-be733849b1554a32a3c6e87bc791b55f.ready.json'\nready=json.loads(pathlib.Path(ready_path).read_text(encoding='utf-8'))\nentry=pathlib.Path(ready['entrypoint_path'])\nlines=entry.read_text(encoding='utf-8').splitlines()\nline=lines[40]\nm=re.search(r'=\"([^\"]+)\"$',line)\nif not m: raise ValueError('source line parse failed')\ntarget=m.group(1)\npacket=str(entry.parent)\nbash=r'C:\\Program Files\\Git\\bin\\bash.exe'\npid=int(ready['supervisor_pid'])\ndef sha(b): return hashlib.sha256(b).hexdigest()\ndef ident(p):\n c=p.cmdline(); return {'pid':p.pid,'create_time':p.create_time(),'ppid':p.ppid(),'status':p.status(),'name':p.name(),'cmd_sha256':sha(' '.join(c).encode('utf-8','replace'))}\nsup=psutil.Process(pid); before=ident(sup); env=sup.environ()\nenv_digest=sha(json.dumps(sorted(env.items()),separators=(',',':'),ensure_ascii=False).encode('utf-8'))\npath=env.get('PATH',''); bash_path=pathlib.Path(bash); target_path=pathlib.Path(target)\nargv=[bash,'-c','test -f \"$1\" && test -x \"$1\" && command -v \"$1\"','--',target]\ncp=subprocess.run(argv,cwd=packet,env=env,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,encoding='utf-8',errors='replace',timeout=10)\nafter=ident(psutil.Process(pid)); now=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='microseconds').replace('+00:00','Z')\nrecord={'kind':'wpv_source_bound_runner_path_metadata','recorded_at_utc':now,'scope':'Bash builtins and file metadata only; resolved file is not executed','ready_path':ready_path,'candidate':ready['candidate'],'run_id':ready['run_id'],'supervisor_before':before,'supervisor_after':after,'same_supervisor_identity':before==after,'environment_digest_algorithm':'SHA256(UTF8(compact JSON of sorted env.items(), ensure_ascii=False))','environment_digest_sha256':env_digest,'selected_environment':{'GAMEPLAN_ROLE':env.get('GAMEPLAN_ROLE'),'PATH_sha256':sha(path.encode('utf-8','replace')),'PATH_entries':len(path.split(os.pathsep)),'BASH_ENV_present':bool(env.get('BASH_ENV')),'ENV_present':bool(env.get('ENV'))},'audit_parent':{'pid':os.getpid(),'ppid':os.getppid(),'relationship':'snapshot-reproduced environment; separate process, not child of supervisor'},'cwd':packet,'wrapper':{'path':str(entry),'bytes':entry.stat().st_size,'sha256':sha(entry.read_bytes()),'source_line_41':line,'source_target_value':target},'bash':{'path':bash,'bytes':bash_path.stat().st_size,'sha256':sha(bash_path.read_bytes())},'target_file':{'path':str(target_path),'exists':target_path.is_file(),'bytes':target_path.stat().st_size,'mtime_utc':datetime.datetime.fromtimestamp(target_path.stat().st_mtime,datetime.timezone.utc).isoformat().replace('+00:00','Z'),'sha256':sha(target_path.read_bytes())},'argv':argv,'exit_code':cp.returncode,'stdout':cp.stdout,'stderr':cp.stderr,'execution_boundary':'No Cargo, nextest, or product executable was invoked.'}\nlogs=pathlib.Path(ready_path).parent\nout=logs/('wpv-path-metadata-'+now.replace(':','').replace('-','').replace('.','')+'.json')\ntmp=out.with_suffix('.tmp'); tmp.write_text(json.dumps(record,indent=2,ensure_ascii=False)+'\\n',encoding='utf-8'); tmp.replace(out)\nprint(json.dumps({'artifact':str(out),'artifact_sha256':sha(out.read_bytes()),'artifact_bytes':out.stat().st_size,'candidate':ready['candidate'],'run_id':ready['run_id'],'same_supervisor_identity':before==after,'env_digest':env_digest,'bash_sha256':record['bash']['sha256'],'wrapper_sha256':record['wrapper']['sha256'],'target_sha256':record['target_file']['sha256'],'target_exists':record['target_file']['exists'],'argv':argv,'cwd':packet,'exit_code':cp.returncode,'stdout':cp.stdout,'stderr':cp.stderr,'audit_pid':os.getpid(),'audit_parent_pid':os.getppid()},indent=2))\n'@; python -c $code",
+            "result": "Blocked before execution by PreToolUse: scope role=* at before_round; all-role checks exceeded the 20-second budget; GLOBAL-GAMEPLAN-001. No subprocess or artifact was created.",
+            "trigger_classification": "The executable pathname was source-derived dynamically; command text included `runner` in an artifact label and `Cargo`/`nextest` in descriptive strings. The intended Bash argv used only builtins and a positional path; no target executable invocation occurred.",
+            "disposition": "Do not retry until KB/buddy review of the exact classifier route; no disguised command, hook change or runtime."
+          },
+          "source_bound_bash_path_check_20261004": {
+            "artifact_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-path-metadata-20261004T162423265366Z.json",
+            "artifact_bytes": 3388,
+            "artifact_sha256": "ba4cb3807f5a0959b983334384880eeb1b918909b5406b3a1317c76ab6605f77",
+            "candidate": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
+            "run_id": "be733849b1554a32a3c6e87bc791b55f",
+            "source_entrypoint_sha256": "9d8fb25e303df784d9b35bc9575a65807a22ffe9a2e2593b4111fcdb0133bb53",
+            "source_line_41": "NEXTEST=\"D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/tools/cargo-nextest/0.9.146/cargo-nextest.exe\"",
+            "absolute_file_sha256": "124cf1963c7c4c43cfc698e17daf441eb8ab8e160c053d83ebe2d40e82834f4c",
+            "absolute_file_bytes": 20230448,
+            "bash_sha256": "df3148577f726a45c2c9ad6bdfb8833c9bee9ae99d7c28364d6d9784b4ebe28e",
+            "argv": [
+              "C:/Program Files/Git/bin/bash.exe",
+              "-c",
+              "test -f \"$1\" && test -x \"$1\" && command -v \"$1\"",
+              "--",
+              "D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/tools/cargo-nextest/0.9.146/cargo-nextest.exe"
+            ],
+            "cwd": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+            "result": "exit 0; stdout is the exact absolute source-derived file path; stderr empty; no target executable invoked",
+            "supervisor_before_after_same_identity": true,
+            "environment_digest_sha256": "9a33c832f1403a5c181c62da7a822d4da9fb0ae4e5fd72be427888678ef9ef79",
+            "audit_process": "PID179536, parent247228; separate snapshot-reproduced audit process, not child of supervisor185816",
+            "path_addition_source_search": {
+              "command": "rg -n 'PATH=|export PATH|cygpath' .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+              "stdout": "71:BACKEND_PROFILE_CONFIG=\"$(cygpath -m \"$BACKEND_PROFILE_TOML\")\"",
+              "finding": "No PATH additions found; cygpath -m converts the backend profile configuration path only."
+            },
+            "prior_runtime_reuse": "Not reused as file-identity proof: retained prior stdout confirms the nextest stage and one result but has no child argv or execution-time file hash. Fresh path check is bound to current source and hash.",
+            "confirmation_status": "GP-238 evidence complete: no PATH additions; source invokes the absolute pinned file directly, and Bash builtins confirmed it is a file/executable and resolve the exact path."
+          },
+          "prior_runtime_resolution_reuse_assessment": {
+            "retained_log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-mt170-startup-diagnostic-ce593857-ec99cc5f/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.stdout.log",
+            "observed_log_lines": [
+              "[run-round] nextest CORE run",
+              "[run-round] core nextest exit=100 tests=1"
+            ],
+            "meaning": "The prior canonical targeted round reached the nextest stage and received one test result through the then-current wrapper, which sourced the same absolute runner path.",
+            "reuse_limit": "The retained runtime log does not record the child executable path, invocation argv, or runner file hash at execution time. A current source-bound file hash is retained, but there is no runtime-time hash to compare; file-identity invariance remains unproven and this prior run is not reused as GP-238 resolution proof."
+          },
+          "failed_metadata_attempts": [
+            {
+              "command": "The exact attempted command and hook output are retained in the WPV subagent tool transcript for this turn; it began `$code = @'` and embedded a Python `subprocess.run` that would have invoked approved Bash builtins `test -f`, `test -x`, and `command -v` against the sourced absolute path. The pre-tool hook blocked before body execution.",
+              "result": "Command blocked before execution: scope role=* at before_round; all-role checks exceeded the 20-second budget (GLOBAL-GAMEPLAN-001). No subprocess, file, or artifact was created.",
+              "classification": "The literal nextest filename appeared in a filesystem path/Python variable; intended Bash command was metadata-only and did not execute the runner."
+            },
+            {
+              "command": "Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256 after discovery of the sole `*.exe` FileInfo in the pinned version directory",
+              "result": "Command blocked before execution by the same all-role 20-second before_round hook; no hash output was produced.",
+              "classification": "The version directory path contained the runner name; no binary was invoked."
+            }
+          ],
+          "confirmation_status": "GP-238 result is recorded at source_bound_bash_path_check_20261004. GP-239 current API/environment facts are recorded above and confirmed separately."
+        },
+        "resolver_artifact": {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-cargo-resolution-be733849b1554a32a3c6e87bc791b55f.json",
+          "bytes": 1392,
+          "sha256": "c40926159f3b7e46951a629314e8b04004a6d2694e0d0c92d2bc4afe9b228bd3",
+          "auditing_parent_pid": 273036,
+          "child_pid": 232292,
+          "child_start_epoch": 1791128031.6522903,
+          "cwd": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel",
+          "bash_path": "C:/Program Files/Git/bin/bash.exe",
+          "bash_sha256": "df3148577f726a45c2c9ad6bdfb8833c9bee9ae99d7c28364d6d9784b4ebe28e",
+          "argv": [
+            "C:/Program Files/Git/bin/bash.exe",
+            "-c",
+            "command -v cargo"
+          ],
+          "exit_code": 0,
+          "stdout": "/c/Users/Ilja Smets/.cargo/bin/cargo",
+          "stderr": "",
+          "scope": "One read-only builtin lookup using the exact environment captured from the waiting WPV supervisor; no executable lookup target was launched",
+          "proof_disposition": "PARTIAL; does not satisfy GP-156",
+          "limitation": "The lookup ran with cwd wt-gov-kernel and queried only command -v cargo. It did not use the canonical packet working directory or resolve the required runner/subcommand. Do not reuse this as GP-156 proof or repeat until the independent source review authorizes the exact route.",
+          "process_relationship": "Snapshot-reproduced context only: resolver child PID 232292 had auditing Python parent PID 273036, not supervisor PID 185816.",
+          "environment_proof_limit": "The captured env digest binds the actual supervisor environment supplied to this child, but does not establish an immutable original shell-parent environment. GP-220 requires root correction/clearance before acceptance."
+        },
+        "observer_sample": {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.observations.jsonl",
+          "latest_line_sha256": "cb62236c2ab9263e0829863a3f11fa14e2f4f3abfe4e188ec4564b6e40016410",
+          "latest_utc": "2026-10-04T15:39:20.5303334Z",
+          "poll": 43,
+          "target_bytes": 103681163671,
+          "gci_errors": 0,
+          "headroom_to_stop_bytes": 43318836329,
+          "stop_bytes": 147000000000,
+          "cap_bytes": 150000000000,
+          "free_commit_bytes": 98885890048,
+          "processes": [],
+          "exit_record_present": false,
+          "sample_limit": "Observed sample only; not a guaranteed peak"
+        },
+        "prep_failures": [
+          {
+            "cause": "GP-235",
+            "summary": "Local assertion compared ready.entrypoint_sha256 (Bash wrapper 9d8fb25e...) with external PowerShell supervisor source hash (e2ddec45...); distinct files. Assertion output was not retained; root independently re-read identities. No runtime result."
+          },
+          {
+            "cause": "GP-236",
+            "summary": "A subsequent read-only process query contained an empty pipeline element and failed parsing before its body; no process mutation or runtime."
+          },
+          {
+            "cause": "GP-237",
+            "summary": "The earlier combined command did not retain its final object with environment, resolver, and gate output; those outputs are not claimed."
+          }
+        ],
+        "scope_limit": "Readiness only; no release marker, wrapper round, build/test, pin measurement, acceptance verdict, or semantic PASS."
+      },
+      "next": "WPV fresh current role/resource/config/identity gates and new one-use release, then exactly five-test evidence-only measurement; no KB pin edit before actual outputs",
+      "manifest_repair_20261004": {
+        "state": "NO_REPAIR_PLANNED",
+        "phase": "WP012-PINREC-002 current five-test measurement preparation",
+        "basis": "Selected sequence only reads the immutable retention manifest; no manifest update is planned in this stage.",
+        "manifest_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-mt170-startup-diagnostic-ce593857-ec99cc5f/manifest.json",
+        "manifest_sha256": "266a6e92a305dc513eb569a9fb661518718dc023192763578e7dfc0741d1452e",
+        "manifest_state": "SOURCE_MOVED_HASH_VERIFIED",
+        "manifest_record_count": 19,
+        "manifest_completed_utc": "2026-10-04T14:26:05.8231521Z"
+      }
     },
     "required_commit_free_bytes": 20000000000,
     "launcher_admission_recovery": {
       "diagnosis_id": "IR-WP012-LAUNCHER-ADMISSION-20261004",
       "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
       "source_launcher_sha256": "dfaacb149b4755193bfb17e4cae5bdbb56ba5993396d54f5dd3e02b9f2a4c333",
-      "findings": ["Assert-HostAdmission casts null CommittedBytes to0 before floor check", "Existing competing-name filter omits cl.exe"],
+      "findings": [
+        "Assert-HostAdmission casts null CommittedBytes to0 before floor check",
+        "Existing competing-name filter omits cl.exe"
+      ],
       "scope": "WPV minimal existing launcher guards/filter correction only; preserve20GB threshold, paths, runtime mode and release semantics",
       "counter_contract": "Reject missing/non-numeric counters, limit<=0, committed<0 or committed>limit before free subtraction; numeric committed0 remains valid",
       "buddy_review": "Both findings directly affect active GP198/GP111; preserve bytes, record cause, static and independent KB review, rebind token/gates before one diagnostic",
-      "gameplan_refs": ["GP-214", "GP-215"],
+      "gameplan_refs": [
+        "GP-214",
+        "GP-215"
+      ],
       "state": "STATIC_CLEAR; actual runtime/release remains held",
       "current_launcher_sha256": "3ab4c5574a395e3caf8eb9a8e13d6be671e236fcdb34783a3009e9aef1fdc145",
       "current_launcher_bytes": 22597,
@@ -1193,7 +1311,11 @@
       ],
       "scope": "WPV minimal same-launcher identity conversion/comparison repair; preserve strict PID/start binding, fields, modes, floor, paths and release semantics",
       "buddy_review": "Preserve3ab bytes, record causes, correct matching sites, static parse/full diff/hash and independent KB review; refresh launch evidence then parent-bound resolver and fresh gates before supervisor/release",
-      "gameplan_refs": ["GP-217", "GP-218", "GP-219"],
+      "gameplan_refs": [
+        "GP-217",
+        "GP-218",
+        "GP-219"
+      ],
       "state": "STATIC_CLEAR; fresh actual resolver/export/gates and supervisor readiness remain required",
       "current_launcher_sha256": "e2ddec450a91727f9347d8a74f3e7a6869f5c402bbf2b6f285dce60fa58c6964",
       "current_launcher_bytes": 23690,
@@ -1279,10 +1401,35 @@
         "command_phase": "Sequential configured backend -j2 completed; core cargo test --locked -j1 --no-run --lib --test knowledge_documents_api_tests is compiling its library-test unit",
         "later_phase": "13:41Z actual configured core command also compiles package bins; root CIM capability_registry_workflow rustc212072/link212520 under cargo270000. WPV observed selected knowledge_documents_api_tests compile warning. No runtime outcome; preserve VPX011 compiled-crate/relinked-test counts and report any evidenced footprint defect without changing this run",
         "policy_scope": "Packet decision specifies core union and named Builder check -j1 plus no overlapping jobs; it does not impose -j1 on every backend stage",
-        "root_resources": {"utc": "2026-10-04T13:30:15.4782458Z", "commit_limit_bytes": 149695787008, "committed_bytes": 57607516160, "free_commit_bytes": 92088270848, "cpu_percent": 6.42435008518123},
-        "observer_sample": {"utc": "2026-10-04T13:29:42.6497364Z", "poll": 143, "target_bytes": 102160668150, "stop_bytes": 147000000000, "cap_bytes": 150000000000, "stop_exceeded": false, "commit_sample_utc": "2026-10-04T13:29:45.3928104Z", "free_commit_bytes": 93577670656, "max_sampled_committed_bytes": 63115034624, "min_sampled_free_commit_bytes": 86580752384},
+        "root_resources": {
+          "utc": "2026-10-04T13:30:15.4782458Z",
+          "commit_limit_bytes": 149695787008,
+          "committed_bytes": 57607516160,
+          "free_commit_bytes": 92088270848,
+          "cpu_percent": 6.42435008518123
+        },
+        "observer_sample": {
+          "utc": "2026-10-04T13:29:42.6497364Z",
+          "poll": 143,
+          "target_bytes": 102160668150,
+          "stop_bytes": 147000000000,
+          "cap_bytes": 150000000000,
+          "stop_exceeded": false,
+          "commit_sample_utc": "2026-10-04T13:29:45.3928104Z",
+          "free_commit_bytes": 93577670656,
+          "max_sampled_committed_bytes": 63115034624,
+          "min_sampled_free_commit_bytes": 86580752384
+        },
         "sample_limit": "System-wide 30s samples, not true or process-attributed peaks; compile liveness does not prove runtime acceptance",
-        "later_resources": {"root_utc": "2026-10-04T13:41:51.1769135Z", "free_commit_bytes": 96815218688, "cpu_percent": 8.027716845120924, "observer_utc": "2026-10-04T13:41:31.7828299Z", "target_bytes": 103419188109, "max_sampled_committed_bytes": 69036675072, "min_sampled_free_commit_bytes": 80659111936},
+        "later_resources": {
+          "root_utc": "2026-10-04T13:41:51.1769135Z",
+          "free_commit_bytes": 96815218688,
+          "cpu_percent": 8.027716845120924,
+          "observer_utc": "2026-10-04T13:41:31.7828299Z",
+          "target_bytes": 103419188109,
+          "max_sampled_committed_bytes": 69036675072,
+          "min_sampled_free_commit_bytes": 80659111936
+        },
         "export_proof": {
           "source": "Actual canonical log and before/after/compare artifacts independently opened by root; WPV GP223/224 independent disposition remains required",
           "identity_path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-current.identity",
@@ -1296,8 +1443,15 @@
           "refreshed_utc": "2026-10-04T13:22:00Z",
           "result": "VERIFY_OK before Cargo; METADATA_COMPARE_PASS failures0",
           "metadata_round_instance": "fe4eb2ae87664691b839f344bdeac9a3",
-          "metadata_hashes": {"before": "d581a053edf61e8aa47e5ef048853562e59ba94723df083d49e24cfe47656d88", "after": "9846aa11203d684325ad821200f62c6722a0d64ef9e99f21ac929d23619f7487", "compare": "60ce7367a6d85d0db9168af81034b321f1d623392a6ede262711914abb56cc4f"},
-          "classification_counts": {"unchanged": 7166, "M": 1},
+          "metadata_hashes": {
+            "before": "d581a053edf61e8aa47e5ef048853562e59ba94723df083d49e24cfe47656d88",
+            "after": "9846aa11203d684325ad821200f62c6722a0d64ef9e99f21ac929d23619f7487",
+            "compare": "60ce7367a6d85d0db9168af81034b321f1d623392a6ede262711914abb56cc4f"
+          },
+          "classification_counts": {
+            "unchanged": 7166,
+            "M": 1
+          },
           "changed_file": "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
         }
       },
@@ -1358,7 +1512,10 @@
           "compare_sha256": "60CE7367A6D85D0DB9168AF81034B321F1D623392A6EDE262711914ABB56CC4F",
           "result": "PASS",
           "failures": 0,
-          "classification_counts": {"unchanged": 7166, "M": 1},
+          "classification_counts": {
+            "unchanged": 7166,
+            "M": 1
+          },
           "changed_file": "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
         },
         "acceptance": "No MT status, READY status, semantic PASS, or historical AC-170-1 advancement; MT-170 remains BLOCKED pending diagnosis/pin reconciliation and a valid diagnostic run",
@@ -1423,7 +1580,11 @@
       "root_identity": "Explicit feature-ref fetch, HEAD/tree/tracking ref/live remote/clean tree and exact full diff/hash independently read",
       "proof_state": "UNCOMPILED/UNVALIDATED at checkpoint; failed3e attempt cannot be reused",
       "artifact_binding": "Currentce selector/launcher source preparation is separately recorded; export/actual runtime bindings remain required before WPV launch",
-      "cause_checks": ["GP207 Iterator API", "GP208 rustfmt chain", "GP209 quoted PowerShell Git revision syntax"]
+      "cause_checks": [
+        "GP207 Iterator API",
+        "GP208 rustfmt chain",
+        "GP209 quoted PowerShell Git revision syntax"
+      ]
     },
     "validator_ce593857_static_preparation": {
       "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
@@ -1453,7 +1614,15 @@
       "gameplan_cause": "GP-207",
       "buddy_review": "Verified API then minimal static correction, independent diff review, pushed UNCOMPILED checkpoint, fresh gates and one warm -j1 retry",
       "proof_status": "COMPILE_FAILED; runtime UNVALIDATED; MT170 remains BLOCKED; no functional repair or acceptance advanced",
-      "post_attempt_sample": {"sample_utc": "2026-10-04T11:18:52.9268476Z", "commit_limit_bytes": 149695787008, "committed_bytes": 50353655808, "free_commit_bytes": 99342131200, "available_bytes": 103076839424, "cpu_percent": 11, "limit": "Single system-wide sample after owned compiler processes were absent; not a true peak"}
+      "post_attempt_sample": {
+        "sample_utc": "2026-10-04T11:18:52.9268476Z",
+        "commit_limit_bytes": 149695787008,
+        "committed_bytes": 50353655808,
+        "free_commit_bytes": 99342131200,
+        "available_bytes": 103076839424,
+        "cpu_percent": 11,
+        "limit": "Single system-wide sample after owned compiler processes were absent; not a true peak"
+      }
     },
     "static_preparation": {
       "observer_path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-observer.ps1",
@@ -1468,7 +1637,11 @@
       "selector_sha256": "79372b9b9a213f72cb381eb41bf8478d508a28b35b7056afd5087ef9e99fe8e7",
       "selector_review": "Only full candidate SHA changed; exact one-test filter retained; KB independent consumer review",
       "heartbeat": "API update and saved TOML reread: ACTIVE, 20e9 floor, serial warm compile before WPV diagnostic",
-      "cause_checks": ["GP199 shorthand path corrected before edit", "GP200 null-counter coercion fixed before execution", "GP201 overlong WPV confirm note rejected then shortened"],
+      "cause_checks": [
+        "GP199 shorthand path corrected before edit",
+        "GP200 null-counter coercion fixed before execution",
+        "GP201 overlong WPV confirm note rejected then shortened"
+      ],
       "record_write_recovery": "Supplemental Python write raised OSError22 before opening MT170; original JSON reread intact; minimal patch and GP130 readback required before staging",
       "proof_limit": "STATIC ONLY; no Cargo/export/supervisor/runtime; old8c observer cannot prove current3e readiness",
       "resource_inventory_recovery": {
@@ -1490,7 +1663,10 @@
     "affected_source": "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
     "failure": "Global subscriber returns for all targets except mt170_resolver_diagnostic, dropping existing statement/phase/drop capture",
     "evidence": "WPV independently inspected StatementTimingContext::emit, MT032 phase events and selected test-global subscriber",
-    "blocked_steps": ["GP-089", "GP-116"],
+    "blocked_steps": [
+      "GP-089",
+      "GP-116"
+    ],
     "prior_review_limit": "KB verified unchanged producers; that did not prove the changed subscriber preserves their events",
     "next_action": "Fresh resource/role/candidate gates, then warm compile and candidate-bound isolated diagnostic; no functional repair until observed diagnostic binds ownership",
     "buddy_review": "Approved exact two-target and strict redacted field/event-kind allowlist, partitioned resolver assertion, real normal core phase/statement checks and preservation of unavailable optional timing; no synthetic events or producer/schema/query/R3 edit",
@@ -1502,7 +1678,9 @@
       "parent": "8c147394cfff86e0f4a7d75fafdfdb8c64a5b8f7",
       "committed_at": "2026-10-04T05:41:57+02:00",
       "tracked_files": 7167,
-      "changed_paths": ["src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"],
+      "changed_paths": [
+        "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
+      ],
       "changed_file_sha256": "9e6f1f3e8fb75bc4e32bc3af9aed7e1e1579896de87b40ea5736609c3c03d2ef",
       "root_identity_review": "Fetched exact feature ref; directly read HEAD/tree/parent/live origin/clean tree and complete diff; independently hashed changed file",
       "builder_static_checks": "rustfmt --edition 2021 --check and git diff --check PASS; static triage only",
@@ -1518,7 +1696,9 @@
       "tree": "610f824ae157f638e815f64e28c87bbbae589aa4",
       "parent": "e6d23ef2dacdc80aff8e81c6690d8ef8dcd51ce2",
       "committed_at": "2026-10-04T05:59:59+02:00",
-      "changed_paths": ["src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"],
+      "changed_paths": [
+        "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
+      ],
       "changed_file_sha256": "d691501cd3cc0d13a54e5674819a1101e29e729ed767d5ad9d2a5a9c71b53702",
       "root_identity_review": "Fetched exact feature ref; clean HEAD/tree/parent/live remote match; opened complete e6-to-3e diff and cumulative path/stat with prior full8c-to-e6 diff; independently hashed changed file",
       "builder_static_checks": "rustfmt --edition 2021 --check and git diff --check PASS; before-submit4/4 renewed at3e; implementer static triage only",
@@ -1527,8 +1707,22 @@
       "failure_path_review": "Emission precedes source-response assertions and continues for events after snapshot; missing fields use unavailable, no raw IDs/query/errors or trace recursion",
       "optional_timing": "False availability plus emitted zero is preserved and conditionally asserted; never interpret sentinel as measured zero",
       "output_config_limit": "Earlier effective profile hash/config is reused unchanged; extra combined reread was hook-blocked before execution, not fresh evidence. Require actual effective hashes before launch",
-      "static_confirmations": {"by": "WP_VALIDATOR", "candidate": "3e5f4024806b3052efa1917cd57cd9a45b0462ae", "steps": ["GP-089", "GP-116", "GP-194"], "limit": "STATIC source/config only; compile/runtime/verdict unproven"},
-      "redundant_read_incident": {"command_shape": "Get-Content and Get-FileHash of actual nextest-core.toml plus scoped rg of test/profile; metadata only", "observed": "BUDGET checks within20s exceeded GLOBAL-GAMEPLAN-001; blocked before command body", "cause_step": "GP-195", "disposition": "No retry; reuse valid unchanged profile evidence, require fresh actual hash at launch"},
+      "static_confirmations": {
+        "by": "WP_VALIDATOR",
+        "candidate": "3e5f4024806b3052efa1917cd57cd9a45b0462ae",
+        "steps": [
+          "GP-089",
+          "GP-116",
+          "GP-194"
+        ],
+        "limit": "STATIC source/config only; compile/runtime/verdict unproven"
+      },
+      "redundant_read_incident": {
+        "command_shape": "Get-Content and Get-FileHash of actual nextest-core.toml plus scoped rg of test/profile; metadata only",
+        "observed": "BUDGET checks within20s exceeded GLOBAL-GAMEPLAN-001; blocked before command body",
+        "cause_step": "GP-195",
+        "disposition": "No retry; reuse valid unchanged profile evidence, require fresh actual hash at launch"
+      },
       "residual": "println write failure may panic and flush result is ignored; actual runner-pipe behavior/output completeness remain runtime proof, not inferred success",
       "compile": "UNCOMPILED; no Cargo run",
       "runtime": "UNVALIDATED; no export refresh or runtime",
