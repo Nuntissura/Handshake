@@ -8,7 +8,10 @@ wp_id: WP-KERNEL-012
 
 <topic id="session-2026-10-04-orchestrator" wp="WP-KERNEL-012" status="active" updated_at="2026-10-04">
 
-## Current checkpoint: c0afe905 sixth parity PASS 1/1; original MT170 resolver diagnostic next
+## Current checkpoint: sixth parity PASS; original c0 MT170 diagnostic passive-ready, root release pending
+
+- Original diagnostic passive run is `241fc3ac719a46d8a72108bf75c1fddc`, supervisor229072/start `2026-10-04T21:24:17.4366929Z`/parent246888. Root directly opened ready1870B/SHA `d91a7c5440824739b39e92d47e6d92c663aa2e73604d3ee99f0ea4af20e6f206`: waiting_for_release,c0/targeted,canonicalwrapper9d8/profilee651/stableCtarget/originalselector2aa6. Observer234888/start `2026-10-04T21:23:40.6287684Z`,identity624B/SHA `9523ad7687569253c134f3f1215fb7666f46ac4df2bebe5016bd5bbc89803da7`; root opened latest poll5 at21:25:57.6556535Z,target103681161926B,gci_errors0,no roundprocess/log/exit; sample21:25:59.7324086Z free87612948480B. No token/Bash/Cargo/runtime yet. WPV acquires current actual supervisor environment/cwd/command/resolution receipt and fresh current gates; KB rebinds only the approved archived transient cell to these new actual controls, then root reviews/executes it once. Preserve consumed78f/098 history; do not duplicate passive staging.
+
 
 - Closed sixth-only round `78f26c2e674f4f0fadeac26262c65971` completed at `2026-10-04T20:55:35.3517305Z`, Bash exit0. Root and WPV independently opened the actual lane-root JUnit: tests1/failures0/errors0, exact Atelier parity test PASS11.419s; 533B/SHA `1d26308b546045bde15ec154b47ecb8a77d78a3f64d8d1eb6bf6ee3de03c7de1`. Root also opened actual closed stdout/stderr/exit and export identity. Current compile reported compiled_crates0/relinked_test_binaries1/backend_bin_relinked0; no repeat parity run is needed for unchanged inputs.
 - MT170's factual result is in `resource_admission_policy_20261004.sixth_parity_preparation_c0afe905.sixth_parity_round_result`. Root strict-read184347B/SHA `e98a0bd5b065d885c32b1af37c6c839403e6d8f77f0c03f4fd59662ef035e35c` and independently opened exact before/after/compare metadata:7167 tracked,7166 unchanged/M1/A0/D0/T0/full0/PASS/failures0; hashes match. MT170 remains BLOCKED/verdictnull, historical AC170-1 NOT_SATISFIED; sixth parity is the prerequisite, not whole-MT acceptance.

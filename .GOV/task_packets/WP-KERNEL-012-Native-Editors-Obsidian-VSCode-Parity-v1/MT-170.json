@@ -1981,7 +1981,7 @@
         "84610": "Collected exit1, FAIL8/51 means8pass/43missing confirmations; result object not retained afterward; GP266 confirmation followed this check",
         "42290": "Collected full exec completion exit1, FAIL9/51 means9pass/42missing confirmations; no Cargo/supervisor started"
       },
-    "current_passive_stage": {
+    "prior_passive_stage_78f26c2e": {
       "recorded_at_utc": "2026-10-04T20:32:25.7981699Z",
       "candidate_commit": "c0afe905114738812227f26ab45fc83705ebd841",
       "candidate_tree": "f89ee2d8f9012bfbbfa80db151369f01e696c4b5",
@@ -2219,6 +2219,97 @@
       },
       "retention_next_step": "Restore the exact MT170 integration selector for c0, review the retained manifest and selector, then create fresh passive controls and obtain a new bound one-use release before runtime; preserve the c0 sixth-parity result and keep MT170 BLOCKED",
       "scope_limit": "This is the sixth parity proof only; MT170 remains BLOCKED, historical AC170-1 remains NOT_SATISFIED, and no semantic acceptance or overall verdict is asserted"
+    },
+    "current_passive_stage": {
+      "recorded_at_utc": "2026-10-04T21:37:57Z",
+      "candidate_commit": "c0afe905114738812227f26ab45fc83705ebd841",
+      "candidate_tree": "f89ee2d8f9012bfbbfa80db151369f01e696c4b5",
+      "run_id": "241fc3ac719a46d8a72108bf75c1fddc",
+      "ready_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-c0afe905114738812227f26ab45fc83705ebd841.supervisor-241fc3ac719a46d8a72108bf75c1fddc.ready.json",
+      "ready_bytes": 1870,
+      "ready_sha256": "d91a7c5440824739b39e92d47e6d92c663aa2e73604d3ee99f0ea4af20e6f206",
+      "ready_state": "waiting_for_release",
+      "supervisor": {
+        "pid": 229072,
+        "start_utc": "2026-10-04T21:24:17.4366929Z",
+        "parent_pid": 246888,
+        "observed_status": "running; ready waits for root release",
+        "release_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-c0afe905114738812227f26ab45fc83705ebd841.supervisor-241fc3ac719a46d8a72108bf75c1fddc.release.json",
+        "release_present_at_2026-10-04T21:37Z": false,
+        "bash_started": false
+      },
+      "observer": {
+        "pid": 234888,
+        "start_utc": "2026-10-04T21:23:40.6287684Z",
+        "identity_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-c0afe905114738812227f26ab45fc83705ebd841.observer.identity.json",
+        "identity_bytes": 624,
+        "identity_sha256": "9523ad7687569253c134f3f1215fb7666f46ac4df2bebe5016bd5bbc89803da7",
+        "observations_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-c0afe905114738812227f26ab45fc83705ebd841.observations.jsonl",
+        "observations_rows": 24,
+        "last_observation_utc": "2026-10-04T21:36:36.3187119Z",
+        "target_bytes": 103681161926,
+        "stop_bytes": 147000000000,
+        "cap_bytes": 150000000000,
+        "headroom_to_stop": 43318838074,
+        "gci_errors": 0,
+        "free_commit_bytes": 84818788352,
+        "max_sampled_committed_bytes": 64876998656,
+        "min_sampled_free_commit_bytes": 84818788352,
+        "sample_limit": "Sampled extrema are observed values, not guaranteed peak or future admission"
+      },
+      "launch_binding": {
+        "entrypoint_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+        "entrypoint_sha256": "9d8fb25e303df784d9b35bc9575a65807a22ffe9a2e2593b4111fcdb0133bb53",
+        "entrypoint_arguments": [
+          "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+          "c0afe905114738812227f26ab45fc83705ebd841",
+          "targeted"
+        ],
+        "profile_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/nextest-core.toml",
+        "profile_sha256_from_ready": "e651a5b229a0a609b426cb3d485ae5fd17301c0b3440e7868c9de296ba2c7922",
+        "selector_path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection-targeted.sh",
+        "selector_sha256": "2aa6f05e636c8a6c7f5c82a35e8e38e576998b8df325156e499ce89666602933",
+        "target_path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
+        "mode": "targeted; original MT170 integration test; NATIVE_SKIP=1; NATIVE_LIB=0; extracted targets empty"
+      },
+      "resolver_receipt": {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-path-metadata-20261004T213127677156Z.json",
+        "bytes": 3543,
+        "sha256": "191c0bacf6c55351ed3db38885e0b75eebb73f5b825c4e9270b88e98f3f4c0ee",
+        "environment_sha256": "ff52b18a9dac72e2e0d546772e82db06141fc38501b7b39a64db383d8493d643",
+        "environment_role_before_release": null,
+        "path_sha256": "828ae79926f936d4a427d8a9e1be3018ad0dafcdff653fc38a631c99f4e7b05d",
+        "path_entries": 61,
+        "BASH_ENV_present": false,
+        "ENV_present": false,
+        "audit_parent_pid": 216752,
+        "audit_parent_parent_pid": 270616,
+        "relationship": "separate snapshot-reproduced metadata process, not supervisor child; cwd equals canonical packet directory and was independently matched to live supervisor cwd",
+        "bash_path": "C:/Program Files/Git/bin/bash.exe",
+        "bash_sha256": "df3148577f726a45c2c9ad6bdfb8833c9bee9ae99d7c28364d6d9784b4ebe28e",
+        "pinned_executable_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/tools/cargo-nextest/0.9.146/cargo-nextest.exe",
+        "pinned_executable_bytes": 20230448,
+        "pinned_executable_sha256": "124cf1963c7c4c43cfc698e17daf441eb8ab8e160c053d83ebe2d40e82834f4c",
+        "exit_code": 0,
+        "stdout": "/c/Users/Ilja Smets/.cargo/bin/cargo\\nD:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/tools/cargo-nextest/0.9.146/cargo-nextest.exe\\n",
+        "stderr": "",
+        "scope": "Bash built-ins and file metadata only; no Cargo or pinned executable was invoked"
+      },
+      "current_wpv_gates": {
+        "before_dispatch": {
+          "exit_code": 0,
+          "stdout": "PASS 23/23",
+          "captured_at_utc": "2026-10-04T21:37Z"
+        },
+        "before_round": {
+          "exit_code": 0,
+          "stdout": "PASS 51/51",
+          "session_id": 18083,
+          "captured_at_utc": "2026-10-04T21:37Z"
+        }
+      },
+      "prior_syntax_failure": "First metadata receipt recipe failed before body with Python SyntaxError from newline-in-string interpolation; no child lookup, no receipt; corrected recipe passed AST parse then produced the receipt above.",
+      "scope_limit": "Passive preparation only. No release token, Bash round, Cargo, test, MT170 acceptance, or semantic verdict; MT170 remains BLOCKED and historical AC170-1 remains NOT_SATISFIED."
     },
     "wpv_current_gate_results": {
       "confirmation_store": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.confirmations.yaml",
