@@ -15,7 +15,13 @@ use super::{
 };
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 162;
+pub const SCHEMA_REVISION: i64 = 163;
+/// Exact revision-162 state measured before MT-170 identity and revision-163 changes.
+const PRE_MT170_IDENTITY_REVISION: i64 = 162;
+const PRE_MT170_IDENTITY_GENERATED_SHA256: &str =
+    "a0b177fe32c68a5b17813dede906f83877241532c3c8996e2a3c3fd124c6fbb5";
+const PRE_MT170_IDENTITY_INFO_SHA256: &str =
+    "f7b1f5f7ae76a3b1c60713832c11f856fcdb83d72fddbf6336a1abbb708c524d";
 /// Exact revision-161 catalog before MT-164 rewrote the five grant/access functions to resolve the
 /// protected resource first (indexed grant lookup; allow/deny semantics unchanged). Its generated
 /// and INFO pins are the revision-161 current pins at 4e7b14ba.
@@ -2820,6 +2826,8 @@ const MT153_LOOM_EDGE_DELETE_ORDER_DELTAS: [(&str, &str); 1] = [(
 /// its revision-161 link-traversal text.
 #[cfg(test)]
 fn restore_pre_indexed_grant_schema(mut source: String) -> String {
+    // The revision-163 identity pins are newer than the revision-162 MT-170 widening.
+    source = restore_pre_mt170_identity_schema(source);
     // MT-153: the loom_edges delete OR reorder and the view_def workspace-delete widening are newer
     // than every predecessor; revert them first so the predecessor texts below (and the older
     // chains built on them) match exactly.
@@ -2950,6 +2958,19 @@ fn indexed_grant_upgrade_statements() -> String {
     statements.push_str(MT168_PROTECTED_RESOURCES_PARENT_INDEX);
     statements.push('\n');
     statements
+}
+
+#[cfg(test)]
+fn restore_pre_mt170_identity_schema(mut source: String) -> String {
+    let identity_pin =
+        " AND string::starts_with(edge_id, 'KDLNK-') AND edit_event_id = '00000000-0000-0000-0000-000000000000'";
+    assert_eq!(
+        source.matches(identity_pin).count(),
+        4,
+        "MT-170 identity pins must occur once in each projection CRUD permission"
+    );
+    source = source.replace(identity_pin, "");
+    source
 }
 
 #[cfg(test)]
@@ -4843,6 +4864,22 @@ impl SchemaState {
             && self.info_fingerprint_sha256 == EXPECTED_SCHEMA_INFO_SHA256
     }
 
+    fn has_pre_mt170_identity_revision(&self) -> bool {
+        self.version == SCHEMA_VERSION
+            && self.revision == PRE_MT170_IDENTITY_REVISION
+            && self.target_revision == PRE_MT170_IDENTITY_REVISION
+            && self.namespace == DEFAULT_NAMESPACE
+            && self.database == DEFAULT_DATABASE
+            && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
+    }
+
+    fn is_exact_pre_mt170_identity_revision(&self) -> bool {
+        self.has_pre_mt170_identity_revision()
+            && self.generated_surql_sha256 == PRE_MT170_IDENTITY_GENERATED_SHA256
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == PRE_MT170_IDENTITY_INFO_SHA256
+    }
+
     fn has_pre_indexed_grant_identity(&self) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == PRE_INDEXED_GRANT_REVISION
@@ -5492,6 +5529,11 @@ async fn bootstrap_schema_unbounded(
                     Some(state) if state.is_exact_current() => {
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
+                    }
+                    Some(state) if state.is_exact_pre_mt170_identity_revision() => {
+                        verified_observed =
+                            Some(upgrade_pre_mt170_identity_revision(&database, &state).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
                     Some(state) if state.is_exact_pre_indexed_grant_current() => {
                         verified_observed =
@@ -6959,6 +7001,115 @@ COMMIT TRANSACTION;\n"
             fail_closed(
                 database,
                 "HANDSHAKE_SURREAL_PRE_MT141_UPGRADE_FINAL_STATE_MISSING".to_owned(),
+            )
+            .await
+        }
+    }
+}
+
+/// MT-170: upgrade the exact revision-162 predecessor in place to the revision-163 projection
+/// identity constraints and standalone-note write guard.
+async fn upgrade_pre_mt170_identity_revision(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_mt170_identity_revision() {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_PRE_MT170_IDENTITY_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    let predecessor_observed = read_schema_catalog(database).await?;
+    if predecessor_observed.info_fingerprint_sha256 != PRE_MT170_IDENTITY_INFO_SHA256 {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_PRE_MT170_IDENTITY_CATALOG_MISMATCH: expected={PRE_MT170_IDENTITY_INFO_SHA256}; observed={}",
+                predecessor_observed.info_fingerprint_sha256
+            ),
+        )
+        .await;
+    }
+    let schema_upgrade = indexed_grant_upgrade_statements();
+    let upgrade = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_PRE_MT170_IDENTITY_STATE_CHANGED';\n\
+}};\n\
+{schema_upgrade}\n\
+UPDATE ONLY handshake_schema_state:primary SET\n\
+    revision = $schema_revision, target_revision = $schema_revision,\n\
+    generated_surql_sha256 = $generated_surql_sha256,\n\
+    info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
+    apply_state = 'schema_applied',\n\
+    updated_at = time::now();\n\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            upgrade.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_MT170_IDENTITY_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: PRE_MT170_IDENTITY_GENERATED_SHA256.to_owned(),
+                predecessor_info_fingerprint_sha256: PRE_MT170_IDENTITY_INFO_SHA256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+
+    let upgraded = match read_context_and_state(database).await? {
+        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) => {
+            return fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT170_IDENTITY_STATE_MISMATCH: {state:?}"),
+            )
+            .await;
+        }
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT170_IDENTITY_STATE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    ensure_knowledge_schema_registry(database).await?;
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
+    match read_context_and_state(database).await? {
+        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) => {
+            fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT170_IDENTITY_FINAL_STATE_MISMATCH: {state:?}"),
+            )
+            .await
+        }
+        None => {
+            fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT170_IDENTITY_FINAL_STATE_MISSING".to_owned(),
             )
             .await
         }
@@ -11065,6 +11216,113 @@ mod tests {
             .shutdown()
             .await
             .expect("close restarted indexed grant store");
+    }
+
+    /// MT-170 AC-170-5: the exact revision-162 catalog upgrades to revision 163 in place,
+    /// retains existing rows and reopens as the current schema.
+    #[tokio::test]
+    async fn mt170_revision_162_upgrade_preserves_data_and_restarts_current() {
+        let previous_schema = restore_pre_mt170_identity_schema(SCHEMA.to_owned());
+        assert_eq!(
+            sha256_hex(previous_schema.as_bytes()),
+            PRE_MT170_IDENTITY_GENERATED_SHA256,
+            "the revision-162 predecessor must match the measured c0 schema snapshot"
+        );
+        let delta = indexed_grant_upgrade_statements();
+        assert_eq!(
+            delta
+                .matches("DEFINE TABLE OVERWRITE loom_edges SCHEMAFULL")
+                .count(),
+            1,
+            "the upgrade must re-emit the single current loom_edges permission definition"
+        );
+        assert!(delta.contains("string::starts_with(edge_id, 'KDLNK-')"));
+        assert!(delta.contains("edit_event_id = '00000000-0000-0000-0000-000000000000'"));
+
+        let directory = tempfile::tempdir().expect("temporary revision-162 predecessor");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open exact revision-162 predecessor store");
+        storage
+            .with_admin_operation(move |database| {
+                Box::pin(async move {
+                    let script = fresh_bootstrap_script(&previous_schema)
+                        .expect("split exact revision-162 bootstrap");
+                    let bindings = || BootstrapBindings {
+                        schema_version: SCHEMA_VERSION.to_owned(),
+                        schema_revision: PRE_MT170_IDENTITY_REVISION,
+                        namespace: DEFAULT_NAMESPACE.to_owned(),
+                        database: DEFAULT_DATABASE.to_owned(),
+                        source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                        generated_surql_sha256: PRE_MT170_IDENTITY_GENERATED_SHA256.to_owned(),
+                    };
+                    database.query_bound(script.definitions, bindings()).await?;
+                    database.query_bound(script.indexes_and_rest, bindings()).await?;
+                    ensure_knowledge_schema_registry(&database).await?;
+                    assert_eq!(
+                        read_schema_catalog(&database).await?.info_fingerprint_sha256,
+                        PRE_MT170_IDENTITY_INFO_SHA256,
+                        "revision-162 predecessor must carry its measured catalog fingerprint"
+                    );
+                    database
+                        .query(format!(
+                            "UPDATE ONLY {BOOTSTRAP_STATE_ID} SET apply_state = 'complete', info_fingerprint_sha256 = '{PRE_MT170_IDENTITY_INFO_SHA256}'; CREATE workspaces:mt170_revision162_sentinel CONTENT {{ name: 'mt170-revision162-sentinel' }};"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("seed exact complete revision-162 predecessor");
+
+        let upgraded = bootstrap_schema(&storage)
+            .await
+            .expect("upgrade exact revision-162 MT-170 predecessor");
+        assert_eq!(
+            upgraded.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        assert_eq!(
+            upgraded.outcome,
+            SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+        );
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("revision-163 state after exact upgrade");
+                    assert_eq!(state.revision, SCHEMA_REVISION);
+                    assert!(state.is_exact_current());
+                    let mut sentinel = database
+                        .query("RETURN workspaces:mt170_revision162_sentinel.name;")
+                        .await?;
+                    assert_eq!(
+                        sentinel.take::<Option<String>>(0)?.as_deref(),
+                        Some("mt170-revision162-sentinel")
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("verify revision-163 current state and retained row");
+        storage.shutdown().await.expect("close upgraded store");
+
+        let reopened = open_test_storage(&directory)
+            .await
+            .expect("reopen upgraded revision-163 store");
+        let restarted = bootstrap_schema(&reopened)
+            .await
+            .expect("reuse current revision-163 schema after restart");
+        assert_eq!(
+            restarted.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        assert_eq!(
+            restarted.outcome,
+            SchemaBootstrapOutcome::ReusedExactCurrent
+        );
+        reopened.shutdown().await.expect("close restarted store");
     }
 
     #[tokio::test]

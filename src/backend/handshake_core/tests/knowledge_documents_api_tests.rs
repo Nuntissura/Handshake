@@ -114,6 +114,10 @@ mod mt170_resolver_observation_capture {
                 value(fields, "lookup_elapsed_us"),
                 value(fields, "operation_elapsed_us"),
             ),
+            "skip" => format!(
+                "MT170_PROJECTION_SKIP reason={}",
+                value(fields, "reason"),
+            ),
             _ => return None,
         })
     }
@@ -153,6 +157,14 @@ mod mt170_resolver_observation_capture {
                 .then_some(value.to_owned()),
                 "event" => matches!(value, "begin" | "end" | "error" | "dropped")
                     .then_some(value.to_owned()),
+                "reason" => matches!(
+                    value,
+                    "foreign_workspace"
+                        | "missing_document"
+                        | "deleted_title"
+                        | "no_readable_loom_target"
+                )
+                .then_some(value.to_owned()),
                 "phase" => (!value.is_empty()
                     && value.len() <= 64
                     && value.bytes().all(|byte| {
@@ -251,6 +263,7 @@ mod mt170_resolver_observation_capture {
                         return;
                     }
                 }
+                "handshake_document::backlinks" => ("skip", &["reason"][..]),
                 _ => return,
             };
             let mut fields = Fields {
@@ -3932,6 +3945,29 @@ async fn mt170_create_note(
         .to_string()
 }
 
+async fn mt170_create_file(
+    base: &str,
+    http: &reqwest::Client,
+    workspace_id: &str,
+    title: &str,
+) -> String {
+    let response = headers_with_kind(
+        http.post(format!("{base}/workspaces/{workspace_id}/loom/blocks")),
+        "mt170-file",
+        "operator",
+    )
+    .json(&json!({"content_type": "file", "title": title}))
+    .send()
+    .await
+    .expect("create wrong-type fixture");
+    assert_eq!(response.status(), 200, "wrong-type fixture create");
+    let body: Value = response.json().await.expect("wrong-type fixture body");
+    body["block_id"]
+        .as_str()
+        .expect("wrong-type fixture id")
+        .to_string()
+}
+
 async fn mt170_assert_record_user_note_read(
     base: &str,
     http: &reqwest::Client,
@@ -4013,6 +4049,9 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
         "MT170 stranger note",
     )
     .await;
+    let wrong_type_block =
+        mt170_create_file(&loom_base, &loom_http, &workspace_id, "MT170 wrong type").await;
+    let missing_block = "LOOM-MT170-MISSING-TARGET";
 
     mt170_assert_record_user_note_read(
         &loom_base,
@@ -4052,7 +4091,7 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
             "content": [{
                 "type": "paragraph",
                 "content": [{"type": "text", "text": format!(
-                    "see [[{target_id}]] and [[{other_workspace_id_block}]] and [[{stranger_block}]]"
+                    "see [[{target_id}]] and [[{other_workspace_id_block}]] and [[{stranger_block}]] and [[{missing_block}]]"
                 )}]
             }]
         }
@@ -4124,13 +4163,13 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
             observation
                 .get("candidate_input_count")
                 .and_then(|value| value.parse::<usize>().ok()),
-            Some(3)
+            Some(4)
         );
         assert_eq!(
             observation
                 .get("candidate_id_count")
                 .and_then(|value| value.parse::<usize>().ok()),
-            Some(3)
+            Some(4)
         );
         assert_eq!(
             observation
@@ -4158,6 +4197,20 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
             .get("elapsed_micros")
             .and_then(|value| value.parse::<u64>().ok())
             .expect("elapsed interval is recorded");
+
+        let skip_reasons = observations
+            .iter()
+            .filter(|event| event.get("capture_kind").is_some_and(|kind| kind == "skip"))
+            .filter_map(|event| event.get("reason").map(String::as_str))
+            .collect::<Vec<_>>();
+        assert!(
+            skip_reasons.contains(&"foreign_workspace"),
+            "foreign-workspace targets retain their typed skip reason"
+        );
+        assert!(
+            skip_reasons.contains(&"no_readable_loom_target"),
+            "targets hidden from the record user retain their typed skip reason"
+        );
 
         let phases = observations
             .iter()
@@ -4248,6 +4301,11 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
         0,
         "a block owned by another account is never projected"
     );
+    assert_eq!(
+        mention_edges_to(&edges, missing_block),
+        0,
+        "a missing block identity is never projected"
+    );
 
     let backlinks = headers_with_kind(
         loom_http.get(format!(
@@ -4288,6 +4346,48 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
         mention_edges_to(&edges, &target_id),
         1,
         "rebuild keeps exactly one projected mention edge"
+    );
+
+    let wrong_type_source = headers_with_kind(
+        http.post(format!("{base}/knowledge/documents")),
+        "mt170-wrong-type-source",
+        "operator",
+    )
+    .json(&json!({
+        "workspace_id": workspace_id,
+        "title": "MT170 Wrong Type Source",
+        "content_json": {
+            "type": "doc",
+            "content": [{"type": "paragraph", "content": [{"type": "text", "text": format!("see [[{wrong_type_block}]]")}]}]
+        }
+    }))
+    .send()
+    .await
+    .expect("attempt wrong-type projection");
+    assert_eq!(
+        wrong_type_source.status(),
+        403,
+        "a same-workspace non-note cannot pass the note-only record-user target guard"
+    );
+    let wrong_type_backlinks = headers_with_kind(
+        loom_http.get(format!(
+            "{loom_base}/workspaces/{workspace_id}/loom/blocks/{wrong_type_block}/backlinks"
+        )),
+        "mt170-wrong-type-backlinks",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("read wrong-type backlinks");
+    assert_eq!(wrong_type_backlinks.status(), 200);
+    let wrong_type_backlinks: Value = wrong_type_backlinks
+        .json()
+        .await
+        .expect("wrong-type backlinks body");
+    assert_eq!(
+        wrong_type_backlinks.as_array().map(Vec::len),
+        Some(0),
+        "a failed wrong-type transaction creates no projected backlink"
     );
     doc_server_guard.shutdown().await;
     loom_server_guard.shutdown().await;
