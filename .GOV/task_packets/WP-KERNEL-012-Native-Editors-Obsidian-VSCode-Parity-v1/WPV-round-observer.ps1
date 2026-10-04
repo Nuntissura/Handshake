@@ -171,6 +171,9 @@ $state = New-SpinState
 if (Test-Path -LiteralPath "$prefix.spin-captured") { $state.fired = $true }
 $script:procdumpProc = $null; $script:procdumpDone = $false
 $poll = 0
+$commitBaselineBytes = $null
+$commitMaxSampledBytes = $null
+$freeCommitMinSampledBytes = $null
 while ($true) {
     $poll++
     $done = Test-Path -LiteralPath "$prefix.exit.json"
@@ -198,8 +201,39 @@ while ($true) {
         $bytes = [int64](Get-ChildItem -LiteralPath $Target -File -Recurse -Force -ErrorAction SilentlyContinue -ErrorVariable gciErr | Measure-Object -Property Length -Sum).Sum
         $logs = @('stdout', 'stderr', 'tests' | ForEach-Object { $file = "$prefix.$_.log"; if (Test-Path -LiteralPath $file) { $i = Get-Item -LiteralPath $file; [ordered]@{ path = $file; bytes = $i.Length; mtime_utc = $i.LastWriteTimeUtc.ToString('o') } } })
         $exceeded = ($bytes -gt $StopBytes)
+        $commitSampleAvailable = $false
+        $commitSampleErrorType = $null
+        $commitLimitBytes = $null
+        $committedBytes = $null
+        $freeCommitBytes = $null
+        try {
+            $memory = Get-CimInstance -ClassName Win32_PerfFormattedData_PerfOS_Memory -ErrorAction Stop
+            if ($null -eq $memory) { throw [System.InvalidOperationException]::new('commit telemetry returned no row') }
+            if ($null -eq $memory.CommitLimit -or $null -eq $memory.CommittedBytes) {
+                throw [System.InvalidOperationException]::new('commit telemetry returned a missing counter')
+            }
+            $limit = [int64]$memory.CommitLimit
+            $committed = [int64]$memory.CommittedBytes
+            if ($limit -le 0 -or $committed -lt 0 -or $committed -gt $limit) {
+                throw [System.InvalidOperationException]::new('commit telemetry returned invalid counters')
+            }
+            $commitLimitBytes = $limit
+            $committedBytes = $committed
+            $freeCommitBytes = $limit - $committed
+            $commitSampleAvailable = $true
+            if ($null -eq $commitBaselineBytes) { $commitBaselineBytes = $committed }
+            if ($null -eq $commitMaxSampledBytes -or $committed -gt $commitMaxSampledBytes) { $commitMaxSampledBytes = $committed }
+            if ($null -eq $freeCommitMinSampledBytes -or $freeCommitBytes -lt $freeCommitMinSampledBytes) { $freeCommitMinSampledBytes = $freeCommitBytes }
+        } catch {
+            $commitSampleErrorType = $_.Exception.GetType().FullName
+        }
+        $commitSampleUtc = [DateTime]::UtcNow.ToString('o')
         Write-Obs ([ordered]@{ utc = $now.ToString('o'); poll = $poll; candidate = $Sha; C_bytes = $bytes; gci_errors = @($gciErr).Count; stop_bytes = $StopBytes; cap_bytes = 150000000000
-                headroom_to_stop = $StopBytes - $bytes; stop_exceeded = $exceeded; processes = $processes; logs = $logs; exit_record_present = $done })
+                headroom_to_stop = $StopBytes - $bytes; stop_exceeded = $exceeded; processes = $processes; logs = $logs; exit_record_present = $done
+                commit_sample_utc = $commitSampleUtc; commit_sample_available = $commitSampleAvailable; commit_sample_error_type = $commitSampleErrorType
+                commit_limit_bytes = $commitLimitBytes; committed_bytes = $committedBytes; free_commit_bytes = $freeCommitBytes
+                baseline_committed_bytes = $commitBaselineBytes; max_sampled_committed_bytes = $commitMaxSampledBytes
+                min_sampled_free_commit_bytes = $freeCommitMinSampledBytes })
         if ($exceeded -and $owned.Count -gt 0 -and -not $done) {
             foreach ($p in ($owned | Select-Object -Skip 1 | Sort-Object -Descending)) { try { Stop-Process -Id $p -Force -ErrorAction Stop } catch {} }
             [ordered]@{ utc = [DateTime]::UtcNow.ToString('o'); C_bytes = $bytes; stopped = $owned } | ConvertTo-Json -Compress | Set-Content -LiteralPath "$prefix.protective-stop.json" -Encoding utf8NoBOM

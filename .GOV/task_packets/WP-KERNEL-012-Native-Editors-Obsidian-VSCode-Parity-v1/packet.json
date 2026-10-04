@@ -3924,6 +3924,50 @@
         },
         "cleanup": "Inspect every referenced owner target before choosing a bin move; preserve warm validator target, stable source, retained logs and proof evidence"
       }
+    },
+    {
+      "decision_id": "WP012-OPERATOR-RELAXED-COMMIT-ADMISSION-20261004",
+      "recorded_at_utc": "2026-10-04T10:40:54.616461Z",
+      "recorded_by": "ORCHESTRATOR-20261004",
+      "authorized_by": "OPERATOR",
+      "operator_quote": "since this is my only pc, i do like to run browser with thousands of tabs open, so i get this eats at the resources, but i feel this should still be usable for work what is left. lower it and continue, so future runs will use the relaxed requirements",
+      "scope": "Persistent admission policy for current and future WP-KERNEL-012 compile and validation runs; no global or unrelated WP change",
+      "selected_by": "ROOT after Kernel Builder, independent WP Validator and workflow buddy review",
+      "new_commit_free_min_bytes": 20000000000,
+      "supersedes_live_gate": "GP-154 only; retired history retained",
+      "active_validator_gate": "GP-198",
+      "basis": [
+        "Prior 45/60 GB floors followed concurrent rustc-LLVM OOM, not measured peak demand",
+        "Retained union observer and successful 8c warm compile contain no commit-demand peak",
+        "20 GB is an operational continuation reserve chosen under the delegated lowering instruction; not a measured safe minimum"
+      ],
+      "last_selection_sample": {
+        "observed_at_utc": "2026-10-04T10:31:55.4101471Z",
+        "commit_limit_bytes": 149695787008,
+        "committed_bytes": 123880861696,
+        "commit_free_bytes": 25814925312,
+        "physical_available_bytes": 52440657920,
+        "cpu_percent": 22,
+        "bytes_above_new_admission_floor": 5814925312,
+        "limitation": "Historical selection sample; fresh per-launch reading required; excess above floor is not job allocation budget"
+      },
+      "preserved_controls": [
+        "GP-111 independent host and assigned-disk admission",
+        "No overlapping Builder and WP Validator compile/test jobs; one Cargo job at a time",
+        "Core union -j 1; current named Builder warm check -j 1",
+        "Stable product/export/target paths, warm caches, disk cap and stop threshold",
+        "Current candidate, profile, entrypoint, PID and independent runtime proof gates",
+        "Browser remains open; no foreign process disruption or host/pagefile changes"
+      ],
+      "proof_order": [
+        "Publish relaxed policy and matching gameplan, live launcher and heartbeat",
+        "Fresh current-candidate Builder gates and exclusive warm D compile; sample system commit with existing tools",
+        "Independent WPV review, stable C export refresh and current selector/launcher/observer binding",
+        "Fresh GP-198/GP-111 and all applicable role gates; one exact MT-170 diagnostic through the configured entrypoint",
+        "Inspect redacted observations and sampled commit extrema before the already-recorded functional repair and later union"
+      ],
+      "telemetry": "Extend the existing WPV observer stream with current/baseline/max-sampled committed bytes and min-sampled free bytes; 30 s samples are not true or process-attributed peaks; Builder uses existing-tool CIM samples",
+      "acceptance": "No READY/PASS or historical AC-170-1 repair claimed by this policy change; current 3e remains uncompiled/unvalidated until its own proof completes"
     }
   ],
   "operator_decisions_20261002": [
