@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 293
+generation: 301
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -268,3 +268,11 @@ steps:
 - {id: GP-247, role: orchestrator, at: before_round, do: verify materialized release cell parses and replacements preserve literal dollar characters, check: {type: confirm}, source: 'infra: JS replacement dollar-quote consumed regex terminator; PowerShell rejected cell before body', state: active}
 - {id: GP-248, role: orchestrator, at: before_round, do: verify token-cell process predicate is selected only from canonical Assert-HostAdmission, check: {type: confirm}, source: 'infra: whole-launcher Name match scan found host, child and file-discovery predicates; no token written', state: active}
 - {id: GP-249, role: orchestrator, at: before_round, do: verify ready timestamps retain typed dates and use canonical UTC conversion before identity comparison, check: {type: confirm}, source: 'infra: ready datetime string coercion lost fractional UTC; token guard rejected same live PID', state: active}
+- {id: GP-250, role: wp_validator, at: before_submit, do: verify foreach results are captured as an array before a metadata-output pipeline, check: {type: confirm}, source: 'infra: JUnit hash foreach pipeline had an empty pipe element; PowerShell rejected before body', state: active}
+- {id: GP-251, role: orchestrator, at: before_verdict, do: verify proof artifact path from current inventory or recorded producer before opening it, check: {type: confirm}, source: 'infra: guessed completed core JUnit under logs was absent; no XML evidence acquired', state: active}
+- {id: GP-252, role: wp_validator, at: before_submit, do: verify MT patch preserves comma separators through strict JSON readback, check: {type: confirm}, source: 'infra: measurement-record patch omitted comma after next; strict parser rejected before claim', state: active}
+- {id: GP-253, role: orchestrator, at: before_dispatch, do: verify process metadata query uses source-derived names and separates Git from resource reads, check: {type: confirm}, source: 'infra: root combined Git/resource metadata literal matched heavy hook; rejected before body', state: active}
+- {id: GP-254, role: wp_validator, at: before_submit, do: compare recorded artifact hashes with computed hashes from the exact referenced bytes, check: {type: confirm}, source: 'infra: measurement MT JUnit hash transcription differs from directly hashed exact current XML', state: active}
+- {id: GP-255, role: wp_validator, at: before_submit, do: verify export identity uses its declared key-value format before parsing, check: {type: confirm}, source: 'infra: export-current.identity key-value text was assumed JSON; read-only parser failed', state: active}
+- {id: GP-256, role: orchestrator, at: on_resume, do: verify inline metadata Python uses actual newlines or the existing canonical recount command, check: {type: confirm}, source: 'infra: root custom recount ended with literal newline escape outside Python string; pre-body syntax error', state: active}
+- {id: GP-257, role: orchestrator, at: on_resume, do: require strict duplicate-key parsing only for changed records; recount unchanged lifecycle fields normally, check: {type: confirm}, source: 'infra: strict scan of unchanged MT records encountered historical duplicate operator_decision key', state: active}
