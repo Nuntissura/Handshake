@@ -1094,7 +1094,7 @@
     },
     "passive_supervisor_20261004": {
       "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
-      "state": "running; canonical export verified; core library-test compile active; diagnostic test not yet executed at13:30Z",
+      "state": "running; canonical export verified; selected test target compiled and package bins linking sequentially; no diagnostic execution observed at13:41Z",
       "run_id": "a05f062509ea4e86bc1cf55e8cc3c5c9",
       "pid": 246740,
       "parent_pid": 184740,
@@ -1117,10 +1117,12 @@
         "round_identity_sha256": "0b9fcc4ca3cddafb320042d9f47665b5ae0818b6eb1b760dcd468448ecb909da",
         "root_live_read": "13:30:15.4782458Z CIM binds supervisor246740/parent184740 and Bash254948; cargo270000 has rustc248456 library --test unit; no competing Builder job",
         "command_phase": "Sequential configured backend -j2 completed; core cargo test --locked -j1 --no-run --lib --test knowledge_documents_api_tests is compiling its library-test unit",
+        "later_phase": "13:41Z actual configured core command also compiles package bins; root CIM capability_registry_workflow rustc212072/link212520 under cargo270000. WPV observed selected knowledge_documents_api_tests compile warning. No runtime outcome; preserve VPX011 compiled-crate/relinked-test counts and report any evidenced footprint defect without changing this run",
         "policy_scope": "Packet decision specifies core union and named Builder check -j1 plus no overlapping jobs; it does not impose -j1 on every backend stage",
         "root_resources": {"utc": "2026-10-04T13:30:15.4782458Z", "commit_limit_bytes": 149695787008, "committed_bytes": 57607516160, "free_commit_bytes": 92088270848, "cpu_percent": 6.42435008518123},
         "observer_sample": {"utc": "2026-10-04T13:29:42.6497364Z", "poll": 143, "target_bytes": 102160668150, "stop_bytes": 147000000000, "cap_bytes": 150000000000, "stop_exceeded": false, "commit_sample_utc": "2026-10-04T13:29:45.3928104Z", "free_commit_bytes": 93577670656, "max_sampled_committed_bytes": 63115034624, "min_sampled_free_commit_bytes": 86580752384},
         "sample_limit": "System-wide 30s samples, not true or process-attributed peaks; compile liveness does not prove runtime acceptance",
+        "later_resources": {"root_utc": "2026-10-04T13:41:51.1769135Z", "free_commit_bytes": 96815218688, "cpu_percent": 8.027716845120924, "observer_utc": "2026-10-04T13:41:31.7828299Z", "target_bytes": 103419188109, "max_sampled_committed_bytes": 69036675072, "min_sampled_free_commit_bytes": 80659111936},
         "export_proof": {
           "source": "Actual canonical log and before/after/compare artifacts independently opened by root; WPV GP223/224 independent disposition remains required",
           "identity_path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-current.identity",
