@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 268
+generation: 270
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -248,3 +248,5 @@ steps:
 - {id: GP-227, role: wp_validator, at: before_dispatch, do: verify every execution result retains exit status or live session handle before a repeated check, check: {type: confirm}, source: 'infra: WPV lost initial running-check handle and started duplicate check before collecting completion', state: active}
 - {id: GP-228, role: wp_validator, at: before_verdict, do: verify final proof log hashes use closed files; live sharing errors do not imply absent logs, check: {type: confirm}, source: 'infra: live supervisor redirect streams allowed reads but rejected file hashing while handles remained open', state: active}
 - {id: GP-229, role: orchestrator, at: before_submit, do: verify metadata summaries bound nested collections before serialization, check: {type: confirm}, source: 'infra: export metadata summary printed tracked and observed maps instead of bounded facts', state: active}
+- {id: GP-230, role: wp_validator, at: before_submit, do: verify changed governance JSON has no duplicate keys before claiming saved-record clearance, check: {type: confirm}, source: 'infra: WPV appended duplicate supervisor state; ordinary JSON parse hid the second key', state: active}
+- {id: GP-231, role: wp_validator, at: before_dispatch, do: verify selected pin-recovery phase follows the scoped packet order and incomplete output is never six-test proof, check: {type: confirm}, source: 'fail: current schema-info pin blocked MT170 fixture; sixth parity test also opens guarded store before outputs', state: active}

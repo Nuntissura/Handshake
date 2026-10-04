@@ -3905,6 +3905,91 @@
           "WP Validator refreshes stale selection from MT-own commands, records every READY MT reuse/rerun/unclosed disposition, freezes pushed candidate and executes one union batch with valid warm artifacts",
           "Record independent per-MT verdicts and handoff; keep WP-end extra proofs at their recorded boundary"
         ],
+        "diagnostic_startup_pin_recovery": {
+          "decision_id": "WP012-MT170-CURRENT-PIN-STARTUP-RECOVERY-20261004",
+          "selected_by": "ORCHESTRATOR-20261004 under Operator autonomous delegated inspection/decision authority",
+          "authority_refs": [
+            "WP012-OPERATOR-AUTONOMOUS-INSPECTED-DECISIONS-20261004",
+            "CX-EXEC-014",
+            "GLOBAL-CLOSURE-045",
+            "GLOBAL-CLOSURE-047",
+            "MT-158.json#schema_repin_procedure"
+          ],
+          "state": "SCOPED_PREPARATION_AUTHORIZED; runtime gates and independent selector review still required",
+          "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
+          "candidate_tree": "0712b674ab3fc138bd85a365afd60cb8b5952cda",
+          "schema_revision": 162,
+          "cause": "Completed one-test diagnostic failed in guarded embedded-store startup before resolver: expected current info823b37d8 vs observedf7b1f5f7; this failure is not a measurement or owning-module proof",
+          "independent_source_basis": "KB and WPV traced fixture migration and fresh-catalog guard; five named tests use static/direct Mem/bounded DDL, while full-schema parity opens guarded storage before output",
+          "buddy_review": "Workflow-clear for narrow staged predecessor recovery; retain all original post163 proof and no semantic waiver",
+          "early_measurement_tests": [
+            "storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive",
+            "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+            "storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic",
+            "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin",
+            "storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic"
+          ],
+          "follow_up_parity_test": "storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection",
+          "route_ref": "session_selected_plan.pin_measure_predecessor; existing targeted mode through governed entrypoint and fixed core commands",
+          "selection_constraints": {
+            "CORE_TESTS": [],
+            "NATIVE_SKIP": 1,
+            "NATIVE_LIB": 0,
+            "EXTRACTED_CRATES": [],
+            "core_jobs": 1,
+            "new_mode_flags_helpers": false
+          },
+          "sequence": [
+            {
+              "id": "WP012-PINREC-001",
+              "executor": "WP_VALIDATOR",
+              "action": "Preserve completed failed diagnostic artifacts immutably and bind archived historical paths before canonical same-candidate outputs are reused; prepare exact five-test selector and independent KB static review"
+            },
+            {
+              "id": "WP012-PINREC-002",
+              "executor": "WP_VALIDATOR",
+              "action": "Run one evidence-only five-test library measurement on pushed ce with fresh role/resource/identity gates and new one-use release; preserve actual captured outputs, failures and limitations"
+            },
+            {
+              "id": "WP012-PINREC-003",
+              "executor": "KERNEL_BUILDER",
+              "action": "Update only changed CURRENT pin constants directly supported by actual measurements; preserve revision162, all historical pins and runtime/schema semantics; push pin-only checkpoint and run named cheap compile/static proof"
+            },
+            {
+              "id": "WP012-PINREC-004",
+              "executor": "WP_VALIDATOR",
+              "action": "On the pushed pin-only candidate prove the sixth full-schema parity test through existing library route with fresh binding/gates; reuse valid compiler artifacts"
+            },
+            {
+              "id": "WP012-PINREC-005",
+              "executor": "WP_VALIDATOR",
+              "action": "After parity proof rebind exact original MT170 integration diagnostic and run it on that candidate with fresh gates; require actual independent owning-module observations"
+            },
+            {
+              "id": "WP012-PINREC-006",
+              "executor": "ORCHESTRATOR",
+              "action": "Only owning-module proof permits the originally ordered R3/revision163 functional batch; preserve original post163 all-six measurement, CURRENT confirmation, revision162 upgrade/reopen and final union in full"
+            }
+          ],
+          "proof_limits": [
+            "Early five-test run never completes the six-test requirement or semantic acceptance",
+            "Do not use the startup panic digest as pin-update evidence",
+            "Do not change any PRE or PREDECESSOR constant, schema revision, permissions, R3 or functional behavior in this early checkpoint",
+            "MT170 remains BLOCKED and historical AC1701 NOT_SATISFIED; no retrospective proof",
+            "Stop this recovery at actual missing measurements, failed follow-up parity or source/identity drift and deliberate from that evidence; no identical unchanged retry"
+          ],
+          "preserved_controls": [
+            "Persistent20e9 free-commit floor, GP111 and current role gates",
+            "One owned compile/test job at a time; core library-j1",
+            "Stable source/export/target/profile and warm artifacts",
+            "No native/integration/extracted build in the early measurement",
+            "No foreign process disruption, host change or cleanup"
+          ],
+          "gameplan_refs": [
+            "GP-230",
+            "GP-231"
+          ]
+        },
         "pin_measure_predecessor": {
           "basis": "MT-168 AC-168-6 and MT-158.json#schema_repin_procedure; buddy reviewed the existing targeted-route predecessor before recording",
           "entrypoint": "WPV-union-round.sh <frozen schema-163 candidate SHA> targeted, through HBR-governed Git Bash",

@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-04T04:21:48Z",
+  "updated_at_utc": "2026-10-04T13:44:17Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -998,7 +998,8 @@
     "authority_ref": "packet.json#operator_decisions_20261004[WP012-OPERATOR-RELAXED-COMMIT-ADMISSION-20261004]",
     "recorded_at_utc": "2026-10-04T10:40:54.616461Z",
     "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
-    "state": "POLICY_PUBLISHED; currentce warm compile PASS; WPV canonical diagnostic round RUNNING; runtime acceptance UNVALIDATED; MT170 BLOCKED",
+    "state": "POLICY_PUBLISHED; currentce warm compile PASS; WPV canonical diagnostic round COMPLETED_FAILED_BEFORE_RESOLVER; runtime acceptance UNVALIDATED; MT170 BLOCKED",
+    "startup_pin_recovery_ref": "packet.json#operator_decisions_20261004[WP012-OPERATOR-AUTONOMOUS-INSPECTED-DECISIONS-20261004].session_selected_plan.diagnostic_startup_pin_recovery",
     "required_commit_free_bytes": 20000000000,
     "launcher_admission_recovery": {
       "diagnosis_id": "IR-WP012-LAUNCHER-ADMISSION-20261004",
@@ -1094,7 +1095,7 @@
     },
     "passive_supervisor_20261004": {
       "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
-      "state": "running; canonical export verified; selected test target compiled and package bins linking sequentially; no diagnostic execution observed at13:41Z",
+      "state": "completed; test failed before resolver; no semantic verdict; no active WPV process",
       "run_id": "a05f062509ea4e86bc1cf55e8cc3c5c9",
       "pid": 246740,
       "parent_pid": 184740,
@@ -1141,7 +1142,69 @@
           "changed_file": "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
         }
       },
-      "next": "WPV monitors this owned round to diagnostic output/exit and independently proves export/JUnit/log facts; no KB edit/build/push before owning-module proof and buddy plan review"
+      "completed_diagnostic_observation": {
+        "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
+        "candidate_tree": "0712b674ab3fc138bd85a365afd60cb8b5952cda",
+        "run_id": "a05f062509ea4e86bc1cf55e8cc3c5c9",
+        "supervisor_pid": 246740,
+        "bash_pid": 254948,
+        "bash_start_utc": "2026-10-04T13:21:06.1957366Z",
+        "completed_utc": "2026-10-04T13:44:16.9471917Z",
+        "result": "DIAGNOSTIC_FAILED_BEFORE_RESOLVER; no semantic verdict",
+        "failure": "Test store startup panicked at tests/knowledge_ingestion_support/mod.rs:85:10 with HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH; expected 823b37d8026854aeb65c617dddb0a951ee452746f341d38752ec0c67d3138730, observed f7b1f5f7ae76a3b1c60713832c11f856fcdb83d72fddbf6336a1abbb708c524d",
+        "diagnostic_observation": "Resolver was not reached; no MT170_RESOLVER_DIAGNOSTIC event was emitted, so AC-170-1 remains NOT_SATISFIED and this current-state attempt does not retro-prove its before-edit ordering",
+        "junit": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-ce593857d3b355a1cc0ffd76bbd72494104973a7-core-targeted.xml",
+          "bytes": 2278,
+          "sha256": "E54F40B6FE2BB40BA09995208B200B2D85D9197DF4BAACE907EEC43BC908930A",
+          "tests": 1,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "test_name": "mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge",
+          "system_out_contains_resolver_diagnostic": false
+        },
+        "stdout": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.stdout.log",
+          "bytes": 292049,
+          "sha256": "07D34983C33007B02D0704CA719812EA004F2BA771AE20308109475FA13225FA"
+        },
+        "stderr": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.stderr.log",
+          "bytes": 42835,
+          "sha256": "B881DC7DE419834A8EED84D2A5D5E99DA572EEC5AD9FB5A272F281AB7A85349C"
+        },
+        "exit_record": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.exit.json",
+          "bytes": 818,
+          "sha256": "1A597585EBA2472561A3D03341D76F183D2E840AE51F4104BBA0DF25CE7B8FD7",
+          "bash_exit_code": 0,
+          "meaning": "wrapper transport completed; JUnit is the test result and reports one failure"
+        },
+        "export_identity": {
+          "path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-current.identity",
+          "sha256": "8D06E0056BBDA4284D970DCF79E03E634FEBAC8AB3377452D5A8B26DD49EE4DB",
+          "candidate_sha": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
+          "tree_id": "0712b674ab3fc138bd85a365afd60cb8b5952cda",
+          "file_count": 7167,
+          "manifest_sha256": "8172d449b6426e8ec7e118617cb7f3d95f3d30aee4c19952c2ea7b64496a2d6e",
+          "previous_sha": "8c147394cfff86e0f4a7d75fafdfdb8c64a5b8f7",
+          "refresh_mode": "incremental",
+          "state": "complete"
+        },
+        "metadata_comparison": {
+          "round_instance": "fe4eb2ae87664691b839f344bdeac9a3",
+          "before_sha256": "D581A053EDF61E8AA47E5EF048853562E59BA94723DF083D49E24CFE47656D88",
+          "after_sha256": "9846AA11203D684325AD821200F62C6722A0D64EF9E99F21AC929D23619F7487",
+          "compare_sha256": "60CE7367A6D85D0DB9168AF81034B321F1D623392A6EDE262711914ABB56CC4F",
+          "result": "PASS",
+          "failures": 0,
+          "classification_counts": {"unchanged": 7166, "M": 1},
+          "changed_file": "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
+        },
+        "acceptance": "No MT status, READY status, semantic PASS, or historical AC-170-1 advancement; MT-170 remains BLOCKED pending diagnosis/pin reconciliation and a valid diagnostic run"
+      },
+      "next": "Preserve this startup blocker for KB and buddy review; no retry or functional scope until authorized diagnosis and a fresh governed round"
     },
     "latest_admission_observation": {
       "observed_at_utc": "2026-10-04T11:07:51.1510166Z",
@@ -1160,7 +1223,7 @@
     "builder_environment": "CARGO_INCREMENTAL=0; CARGO_PROFILE_DEV_DEBUG=line-tables-only; CARGO_PROFILE_TEST_DEBUG=line-tables-only; stable product source",
     "sample_limit": "No measured memory-demand guarantee; admission reading and subsequent system-wide samples do not prove unsampled true peaks",
     "history": "All earlier 45/60 GB samples and procedural holds remain historical; this current policy supersedes their live floor only",
-    "next_actor": "Independent WPV monitors the running currentce diagnostic and proves owning-module observations; buddy reviews functional sequence before KB acts",
+    "next_actor": "WPV diagnostic attempt completed with startup failure before resolver; KB and buddy review the schema fingerprint mismatch and authorized pin route before further edits or runs",
     "compile_pass_ce593857": {
       "proof_id": "PR-WP012-MT170-KB-CHECK-04",
       "candidate_commit": "ce593857d3b355a1cc0ffd76bbd72494104973a7",
