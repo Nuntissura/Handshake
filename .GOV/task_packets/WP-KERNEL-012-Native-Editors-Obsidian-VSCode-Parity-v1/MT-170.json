@@ -1784,7 +1784,10 @@
         "cargo_pid": 214072,
         "rustc_pid": 264772,
         "rustc_parent_pid": 214072,
-        "additional_rustc_pids_observed": [226740, 254308],
+        "additional_rustc_pids_observed": [
+          226740,
+          254308
+        ],
         "observed_cargo_executable": "C:/Users/Ilja Smets/.rustup/toolchains/1.97.1-x86_64-pc-windows-msvc/bin/cargo.exe",
         "observed_target_process_tree": "rustup -> cargo -> rustc; assigned D target path in command line",
         "process_observed_at_utc": "2026-10-04T18:42:55.396809Z"
@@ -1943,6 +1946,48 @@
         "approved_action": "Fresh metadata-only resource inventory, then current Builder/any gates; actual Cargo remains gated",
         "result": "PENDING fresh inventory and Builder checks; no Cargo started"
       }
+    },
+    "sixth_parity_preparation_c0afe905": {
+      "recorded_at_utc": "2026-10-04T19:33:14.139282+00:00",
+      "candidate_commit": "c0afe905114738812227f26ab45fc83705ebd841",
+      "candidate_tree": "f89ee2d8f9012bfbbfa80db151369f01e696c4b5",
+      "state": "STATIC_REVIEWED; live-stage and final admission predicates UNPROVEN; no runtime or export refresh",
+      "selected_test": "storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection",
+      "selection": {
+        "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection-targeted.sh",
+        "bytes": 524,
+        "sha256": "90ba64210e9a99405e5e9ce6b96552284b61abc859f513d11fc4f7b3c5ff65f7"
+      },
+      "previous_selection_retained": {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-selection-targeted-ce593857.pre-c0afe905.sh",
+        "bytes": 934,
+        "sha256": "a12fe4ed8cdd944c47f323ce31366b8f30ae799cfd3145e8d2c0cbee6f53946e"
+      },
+      "passive_supervisor_source": {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-launch-targeted-c0afe905.ps1",
+        "bytes": 23690,
+        "sha256": "e2ddec450a91727f9347d8a74f3e7a6869f5c402bbf2b6f285dce60fa58c6964"
+      },
+      "source_review": "KB independently compared actual selector diff and candidate launcher; launcher is byte-identical to reviewed ce source; Parser.ParseFile errors0 reported by WPV; root independently opened selector diff and raw hashes",
+      "route": "Existing targeted core-library route; CORE_TESTS empty, NATIVE_SKIP1, NATIVE_LIB0, native/extracted selections empty; existing wrapper/profile/target/modes unchanged",
+      "ce_identity_retained": {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/export-current-identity-ce593857d3b355a1cc0ffd76bbd72494104973a7-before-c0-retained.txt",
+        "bytes": 387,
+        "sha256": "98aea98de9026d8521891365bb659c587ef19bf5d99c7de12b6d9dd49305b277"
+      },
+      "ce_metadata_retention": "Existing ce d8ddbb3ab84b426c8ac8e9e272544bf2 candidate-specific before/after/compare snapshots retained in place; previously opened hashes and7167 unchanged/PASS0failures evidence preserved; stable export not refreshed",
+      "gate_history": {
+        "initial_output_only_check": "Result UNOBSERVED; no handle retained; fresh scoped process query observed no live prior controller; not PASS/FAIL proof",
+        "84610": "Collected exit1, FAIL8/51 means8pass/43missing confirmations; result object not retained afterward; GP266 confirmation followed this check",
+        "42290": "Collected full exec completion exit1, FAIL9/51 means9pass/42missing confirmations; no Cargo/supervisor started"
+      },
+      "gameplan_causes": [
+        "GP-266 missing WPV gate exit/session capture",
+        "GP-267 root FAIL fraction interpretation",
+        "GP-268 circular full-gate-before-passive demand"
+      ],
+      "next_stage": "Resolve supported preparation predicates; prepare only the existing passive observer/supervisor; obtain actual live facts; all applicable WPV/root gates and final fresh bound resource/process scan must pass before one-use release",
+      "proof_limit": "Single sixth parity preparation only, not six-test completion, runtime proof, MT170 readiness or semantic acceptance"
     }
   },
   "diagnostic_capture_recovery_20261004": {

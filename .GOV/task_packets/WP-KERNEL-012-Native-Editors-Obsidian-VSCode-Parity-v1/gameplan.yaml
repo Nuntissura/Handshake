@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 309
+generation: 312
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -284,3 +284,6 @@ steps:
 - {id: GP-263, role: builder, at: before_round, do: verify confirmation note is one line <= 120 characters before controller submission, check: {type: confirm}, source: 'infra: KB c0 confirmation note exceeded120 characters; controller rejected before shortened retry', state: active}
 - {id: GP-264, role: orchestrator, at: before_verdict, do: verify artifact metadata serializes lengths and hashes explicitly instead of mixed table objects, check: {type: confirm}, source: 'infra: root mixed PowerShell metadata table hid Hash properties; readable digest proof absent', state: active}
 - {id: GP-265, role: builder, at: before_submit, do: require separate simple post-run record and source reads with balanced output expressions, check: {type: confirm}, source: 'infra: KB combined post-run record/product readback missed closing parenthesis; rejected before body', state: active}
+- {id: GP-266, role: wp_validator, at: before_round, do: verify nested exec result retains exit code or running session ID before any retry, check: {type: confirm}, source: 'infra: WPV before_round wrapper returned output only; exit/session handle omitted; prior gate result unobserved', state: active}
+- {id: GP-267, role: orchestrator, at: before_verdict, do: verify gameplan report numerator is pass count before interpreting FAIL fractions, check: {type: confirm}, source: 'infra: root misread FAIL8/51 as8fail; inspected controller prints8pass and43fail', state: active}
+- {id: GP-268, role: orchestrator, at: before_dispatch, do: verify passive-stage facts follow passive launch and full round gates precede costly release, check: {type: confirm}, source: 'workflow: full-round pass was demanded before passive ready and observer facts existed; circular preparation', state: active}
