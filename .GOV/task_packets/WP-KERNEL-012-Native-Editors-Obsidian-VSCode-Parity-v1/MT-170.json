@@ -726,6 +726,66 @@
       "After the independent diagnostic, record observed module ownership and intended functional repair before any functional edit; retain historical AC-170-1 NOT_SATISFIED"
     ]
   },
+  "infrastructure_recovery_20261004_export_metadata": {
+    "id": "AUDIT-20261004-WP012-EXPORT-METADATA-RECOVERY",
+    "board_id": "RGF-329",
+    "state": "IN_PROGRESS",
+    "owner": "WP_VALIDATOR",
+    "coordinator": "ORCHESTRATOR",
+    "purpose": "Remove the exact diagnostic launch-preparation blocker with prospective metadata capture in the existing canonical refresh path",
+    "prior_incidents": [
+      {
+        "kind": "wrong_export_root",
+        "actual_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/target-r52",
+        "result": "New full source export only; no Cargo or runtime; assigned C target untouched at that incident; retain unused D output pending cleanup"
+      },
+      {
+        "kind": "count_only_metadata_comparison",
+        "source_exec_session": 33994,
+        "reported_unaffected_count": 7159,
+        "reported_mtime_differences": 1,
+        "baseline_artifact": null,
+        "current_verified_files": 7167,
+        "current_diff_paths": 9,
+        "current_expected_unaffected": 7158,
+        "disposition": "INFRA_UNRESOLVED; differing path and historical no-touch cannot be reconstructed; not an acceptance verdict"
+      }
+    ],
+    "authority_inspection": "VPX-011 at WP_VALIDATOR_PROTOCOL.md:102 prescribes changed-only tar-m/no timestamp restore/exact contents/identity-last; does not prescribe historical per-file arrays. Independent KB/WPV source reviews corroborated helper behavior. No semantic waiver or historical retro-proof.",
+    "buddy_review": "Existing workflow buddy reviewed canonical-path pre/post capture and ordered CX-VAL-007 commit before runtime release",
+    "implementation_scope": [
+      "Validator-owned governance wrapper/helper only; no product/source/schema/permission changes",
+      "Capture prior/current tracked source-path union and per-file timestamp metadata outside export-current around the existing refresh call",
+      "Retain before/after snapshots, changed-path classification and unexpected path list; reject unexpected source changes before Cargo",
+      "Preserve entrypoint mode, test selection, features, timeouts, target, source path and required proof coverage",
+      "Static and focused comparator checks, root diff review, scoped commit/push and effective-profile verification before fresh role launch gates"
+    ],
+    "excluded_scope": "No helper prior-identity eligibility refactor: current prior identity fields independently verified; record any broader concern without expanding this recovery",
+    "runtime_authorized": false,
+    "historical_ac_170_1": "NOT_SATISFIED",
+    "recorded_at_utc": "2026-10-04T00:53:09.616187Z",
+    "implementation_review": {
+      "state": "IMPLEMENTED_PENDING_CANONICAL_EXECUTION",
+      "files_sha256": {
+        "WPV-union-round.sh": "9d8fb25e303df784d9b35bc9575a65807a22ffe9a2e2593b4111fcdb0133bb53",
+        "WPV-export-metadata.py": "93adda7d51af07f59442cce55b1b7a8e33fd09e890a7f5ce45ca0f43d3074f55"
+      },
+      "root_review": "Opened entire new helper and wrapper diff; same C source/target and D LANE logs, existing refresh helper unchanged, no mode/filter/features/profile/timeouts change",
+      "independent_review": "Same Kernel Builder reviewed the new helper/wrapper and independently captured current C tracked-file metadata without executing/importing the helper",
+      "static_checks_by_wp_validator": "ast.parse, Git Bash -n and git diff --check passed; no Cargo or canonical wrapper execution",
+      "focused_component_output": "COMPARATOR_PASS incremental clean classes=A/M/D/unchanged; full classes=full/D; COMPARATOR_REJECT unchanged timestamp touch; unexpected extra path",
+      "component_proof_limitation": "Executor supplied captured tool output from a temporary Git-repository here-string harness; no original script/log artifact was retained. This is component triage, not independent acceptance or historical metadata proof.",
+      "independent_baseline": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/independent-export-metadata-baseline-8c147394.json",
+        "sha256": "bd07c28b3f0e53393a41b45147438b90384cdb8a1a265dab55607b7670b9f29c",
+        "tracked_files": 7167,
+        "captured_utc": "2026-10-04T01:02:59.785926Z",
+        "identity_sha256": "79356ad9f56f7106b57fdeac28e93621e119da80b9cd1f0859c5d4e7ff06e80b",
+        "root_readback": "Opened JSON, independently hashed raw bytes, inspected candidate/tree/manifest and source path; all 7167 tracked records are present"
+      },
+      "proof_floor": "Canonical prospective refresh capture and independent filesystem reconciliation remain pending; no runtime release or verdict"
+    }
+  },
   "operator_decision_request_20261002_projection_target": {
     "schema_id": "hsk.operator_decision_request@1",
     "rule": "KB-IMPL-006",

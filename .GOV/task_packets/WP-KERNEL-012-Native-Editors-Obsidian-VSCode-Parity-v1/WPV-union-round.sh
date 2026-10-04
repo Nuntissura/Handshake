@@ -106,7 +106,41 @@ mkdir -p "$LANE/logs" "$LANE/tmp" "$LANE/runtime" "$LANE/workspace"
 #    every dependent; the identity record, not the path, now carries candidate provenance.
 # shellcheck source=/dev/null
 source "$(dirname "$(readlink -f "$0")")/WPV-export-refresh.sh"
-wpv_refresh_export_current "$SHA" "$WORKTREE" "$EXPORT_ROOT" "[run-round]" || { echo "[run-round] FATAL: export-current refresh failed"; exit 2; }
+META_HELPER="$(dirname "$(readlink -f "$0")")/WPV-export-metadata.py"
+META_LOG_ROOT="$LANE/logs"
+META_IDENT="$EXPORT_ROOT/export-current.identity"
+META_PREVIOUS="none"
+META_MODE="full"
+if [ -f "$META_IDENT" ]; then
+  META_RECORDED_PREVIOUS="$(sed -n 's/^candidate_sha=//p' "$META_IDENT")"
+  if [[ "$META_RECORDED_PREVIOUS" =~ ^[0-9a-f]{40}$ ]] && grep -q '^state=complete$' "$META_IDENT" \
+    && git -C "$WORKTREE" cat-file -e "$META_RECORDED_PREVIOUS^{commit}" 2>/dev/null; then
+    META_PREVIOUS="$META_RECORDED_PREVIOUS"
+    [ -d "$EXPORT_ROOT/export-current" ] && META_MODE="incremental"
+  fi
+fi
+META_INSTANCE="$(python -c 'import uuid; print(uuid.uuid4().hex)')"
+META_STEM="$META_LOG_ROOT/export-current-metadata-$SHA-$META_MODE-$META_INSTANCE"
+META_BEFORE="$META_STEM-before.json"
+META_AFTER="$META_STEM-after.json"
+META_COMPARE="$META_STEM-compare.json"
+python "$META_HELPER" snapshot --worktree "$WORKTREE" --sha "$META_PREVIOUS" \
+  --export "$EXPORT_ROOT/export-current" --output "$META_BEFORE" --instance "$META_INSTANCE" \
+  || { echo "[run-round] FATAL: pre-refresh metadata snapshot failed"; exit 2; }
+REFRESH_RC=0
+wpv_refresh_export_current "$SHA" "$WORKTREE" "$EXPORT_ROOT" "[run-round]" || REFRESH_RC=$?
+python "$META_HELPER" snapshot --worktree "$WORKTREE" --sha "$SHA" \
+  --export "$EXPORT_ROOT/export-current" --output "$META_AFTER" --instance "$META_INSTANCE" \
+  || { echo "[run-round] FATAL: post-refresh metadata snapshot failed"; exit 2; }
+META_COMPARE_RC=0
+python "$META_HELPER" compare --worktree "$WORKTREE" --candidate "$SHA" --previous "$META_PREVIOUS" \
+  --mode "$META_MODE" --before "$META_BEFORE" --after "$META_AFTER" --output "$META_COMPARE" \
+  || META_COMPARE_RC=$?
+echo "[run-round] metadata artifacts before=$META_BEFORE sha256=$(sha256sum "$META_BEFORE" | cut -d' ' -f1) after=$META_AFTER sha256=$(sha256sum "$META_AFTER" | cut -d' ' -f1) compare=$META_COMPARE sha256=$(sha256sum "$META_COMPARE" | cut -d' ' -f1)"
+if [ "$REFRESH_RC" -ne 0 ] || [ "$META_COMPARE_RC" -ne 0 ]; then
+  echo "[run-round] FATAL: export refresh or source metadata guard failed; Cargo not started"
+  exit 2
+fi
 EXPORT="$WPV_EXPORT"
 echo "[run-round] verdict binding: export identity sha256=$WPV_EXPORT_IDENTITY_SHA256 refresh_mode=$WPV_EXPORT_MODE HANDSHAKE_PROOF_SOURCE_SHA=$SHA"
 check_target_cap
