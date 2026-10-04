@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 290
+generation: 291
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -265,3 +265,4 @@ steps:
 - {id: GP-244, role: orchestrator, at: before_round, do: verify competing-job scan occurs after role gates in the bound release cell before token creation, check: {type: confirm}, source: 'infra: be733 refused release when Cargo/rustc appeared after an earlier admission sample', state: active}
 - {id: GP-245, role: wp_validator, at: before_dispatch, do: verify MT170 save path and writer against intact baseline; require strict readback after save, check: {type: confirm}, source: 'infra: MT170 Path.write_bytes failed at open wb with Err22; prior file remained intact', state: active}
 - {id: GP-246, role: wp_validator, at: before_dispatch, do: verify unchanged profile evidence is reused and actual effective hash is required before launch, check: {type: confirm}, source: 'infra: current combined profile metadata literal matched runner hook; body never ran; re-prove GP195', state: active}
+- {id: GP-247, role: orchestrator, at: before_round, do: verify materialized release cell parses and replacements preserve literal dollar characters, check: {type: confirm}, source: 'infra: JS replacement dollar-quote consumed regex terminator; PowerShell rejected cell before body', state: active}
