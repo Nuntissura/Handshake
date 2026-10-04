@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 244
+generation: 249
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -230,3 +230,8 @@ steps:
 - {id: GP-209, role: orchestrator, at: before_dispatch, do: verify Git revision expressions containing braces are quoted in PowerShell commands, check: {type: confirm}, source: 'metadata: unquoted HEAD tree expression parsed as a PowerShell script block before git rev-parse', state: active}
 - {id: GP-210, role: orchestrator, at: before_dispatch, do: verify confirmation batches select only active confirm-type steps; machine checks run through check, check: {type: confirm}, source: 'prep: GP058 machine git check was mistakenly included in confirm batch; controller rejected before mutation', state: active}
 - {id: GP-211, role: wp_validator, at: before_dispatch, do: verify artifact comparison reports name the exact compared snapshots and hashes, check: {type: confirm}, source: 'report: 45GB reverse comparison was attributed to3e20GB backup; actual reference is original8c45GB snapshot', state: active}
+- {id: GP-212, role: builder, at: before_submit, do: verify PowerShell parser ref arguments use initialized variables before invocation, check: {type: confirm}, source: 'static: independent launcher parser command used ref on an uninitialized variable; parser body did not run', state: active}
+- {id: GP-213, role: wp_validator, at: before_round, do: verify every preflight and round tool command begins with explicit wp_validator role assignment, check: {type: confirm}, source: 'prep: fresh target/resource inventory omitted role prefix; all-role hook demanded unrelated scopes before body', state: active}
+- {id: GP-214, role: wp_validator, at: before_round, do: verify launcher admission rejects null or invalid commit counters before numeric conversion, check: {type: confirm}, source: 'review: launcher casts null CommittedBytes to zero and can fabricate floor admission', state: active}
+- {id: GP-215, role: wp_validator, at: before_round, do: verify launcher competing-compiler inventory includes cl.exe in its existing name filter, check: {type: confirm}, source: 'review: active no-competing-compile inventory omits unrelated cl.exe by name', state: active}
+- {id: GP-216, role: wp_validator, at: before_dispatch, do: verify hook role comes from parent environment; inline assignments scope only the child command, check: {type: confirm}, source: 'infra: separate PreToolUse hook reads own env before shell body; documented inline role cannot scope it', state: active}
