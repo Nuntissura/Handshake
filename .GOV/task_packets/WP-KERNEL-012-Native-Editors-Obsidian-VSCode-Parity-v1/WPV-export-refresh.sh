@@ -39,7 +39,7 @@ wpv_export_verify() {
 wpv_refresh_export_current() {
   local sha="$1" wt="$2" root="$3" tag="${4:-[export]}" dry="${5:-}"
   local export="$root/export-current" ident="$root/export-current.identity"
-  local prev="" mode="" t0 t1
+  local prev="" mode="" t0 t1 tree_id refresh_seconds refreshed_utc identity_hash_line identity_hash
   WPV_EXPORT="$export"; WPV_EXPORT_IDENTITY="$ident"
   [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "$tag FATAL: candidate must be a full sha"; return 2; }
   t0=$(date +%s)
@@ -97,20 +97,42 @@ wpv_refresh_export_current() {
   wpv_export_verify "$sha" "$wt" "$export" || { echo "$tag FATAL: export-current does not equal candidate $sha (identity not written)"; return 2; }
   t1=$(date +%s)
   # (5) identity last
+  tree_id="$(git -C "$wt" rev-parse "$sha^{tree}")" || { echo "$tag FATAL: cannot resolve candidate tree for export identity"; return 2; }
+  [[ "$tree_id" =~ ^[0-9a-f]{40}$ ]] || { echo "$tag FATAL: candidate tree id is malformed"; return 2; }
+  [[ "$WPV_VERIFIED_COUNT" =~ ^[0-9]+$ ]] || { echo "$tag FATAL: verified export file count is malformed"; return 2; }
+  [[ "$WPV_VERIFIED_MANIFEST" =~ ^[0-9a-f]{64}$ ]] || { echo "$tag FATAL: verified export manifest is malformed"; return 2; }
+  refresh_seconds=$((t1 - t0))
+  refreshed_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)" || { echo "$tag FATAL: cannot timestamp export identity"; return 2; }
+  [[ "$refreshed_utc" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] || { echo "$tag FATAL: export identity timestamp is malformed"; return 2; }
   {
     echo "schema=handshake.wpv.export-identity@1"
     echo "candidate_sha=$sha"
-    echo "tree_id=$(git -C "$wt" rev-parse "$sha^{tree}")"
+    echo "tree_id=$tree_id"
     echo "file_count=$WPV_VERIFIED_COUNT"
     echo "manifest_sha256=$WPV_VERIFIED_MANIFEST"
     echo "previous_sha=${prev:-none}"
     echo "refresh_mode=$mode"
-    echo "refresh_seconds=$((t1 - t0))"
-    echo "refreshed_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "refresh_seconds=$refresh_seconds"
+    echo "refreshed_utc=$refreshed_utc"
     echo "state=complete"
-  } > "$ident.tmp" && mv -f "$ident.tmp" "$ident"
+  } > "$ident.tmp" || { echo "$tag FATAL: cannot write export identity temporary file"; rm -f "$ident.tmp"; return 2; }
+  mv -f "$ident.tmp" "$ident" || { echo "$tag FATAL: cannot publish export identity"; rm -f "$ident.tmp"; return 2; }
+  [ -f "$ident" ] || { echo "$tag FATAL: export identity is missing after publication"; return 2; }
+  grep -Fqx -- "schema=handshake.wpv.export-identity@1" "$ident" || { echo "$tag FATAL: export identity readback schema mismatch"; return 2; }
+  grep -Fqx -- "candidate_sha=$sha" "$ident" || { echo "$tag FATAL: export identity readback candidate mismatch"; return 2; }
+  grep -Fqx -- "tree_id=$tree_id" "$ident" || { echo "$tag FATAL: export identity readback tree mismatch"; return 2; }
+  grep -Fqx -- "file_count=$WPV_VERIFIED_COUNT" "$ident" || { echo "$tag FATAL: export identity readback file count mismatch"; return 2; }
+  grep -Fqx -- "manifest_sha256=$WPV_VERIFIED_MANIFEST" "$ident" || { echo "$tag FATAL: export identity readback manifest mismatch"; return 2; }
+  grep -Fqx -- "previous_sha=${prev:-none}" "$ident" || { echo "$tag FATAL: export identity readback previous SHA mismatch"; return 2; }
+  grep -Fqx -- "refresh_mode=$mode" "$ident" || { echo "$tag FATAL: export identity readback mode mismatch"; return 2; }
+  grep -Fqx -- "refresh_seconds=$refresh_seconds" "$ident" || { echo "$tag FATAL: export identity readback duration mismatch"; return 2; }
+  grep -Fqx -- "refreshed_utc=$refreshed_utc" "$ident" || { echo "$tag FATAL: export identity readback timestamp mismatch"; return 2; }
+  grep -Fqx -- 'state=complete' "$ident" || { echo "$tag FATAL: export identity readback state mismatch"; return 2; }
+  identity_hash_line="$(sha256sum "$ident")" || { echo "$tag FATAL: cannot hash export identity"; return 2; }
+  identity_hash="${identity_hash_line%% *}"
+  [[ "$identity_hash" =~ ^[0-9a-f]{64}$ ]] || { echo "$tag FATAL: export identity digest is malformed"; return 2; }
   WPV_EXPORT_MODE="$mode"
-  WPV_EXPORT_IDENTITY_SHA256="$(sha256sum "$ident" | cut -d' ' -f1)"
+  WPV_EXPORT_IDENTITY_SHA256="$identity_hash"
   echo "$tag export identity ($ident sha256=$WPV_EXPORT_IDENTITY_SHA256):"
   sed "s/^/$tag   /" "$ident"
   return 0
