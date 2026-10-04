@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 315
+generation: 316
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -290,3 +290,4 @@ steps:
 - {id: GP-269, role: wp_validator, at: before_dispatch, do: verify file hash uses supported LiteralPath from discovered FileInfo before current digest claims, check: {type: confirm}, source: 'infra: effective profile Get-FileHash InputObject parameter unsupported; current digest not produced', state: active}
 - {id: GP-270, role: wp_validator, at: before_dispatch, do: verify launch-prep JavaScript wrapper parses before invoking the shell tool, check: {type: confirm}, source: 'infra: combined launch-prep JS wrapper failed Unexpected identifier t before shell execution', state: active}
 - {id: GP-271, role: wp_validator, at: before_dispatch, do: verify Start-Process argument line quotes the full launcher path containing spaces, check: {type: confirm}, source: 'infra: flattened ArgumentList split ps1 path at D Projects LLM; child pwsh usage; supervisor never started', state: active}
+- {id: GP-272, role: orchestrator, at: before_round, do: verify gate captures unseeded native exit immediately before restoring cwd, check: {type: confirm}, source: 'infra: gate seeded LASTEXITCODE=-1; PASS13/13 stdout but exit-1 prevented release', state: active}
