@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-04T04:08:49Z",
+  "updated_at_utc": "2026-10-04T04:21:48Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -856,7 +856,20 @@
         "target_thread_id": "01a103d0-9930-77d2-b2b0-a990e6f74e34",
         "cadence_minutes": 10,
         "authority": "WP012-OPERATOR-ORCHESTRATOR-NEVER-SELF-STOPS-20261001; existing buddy reviewed current-thread implementation",
-        "proof_limit": "Created and saved configuration independently opened; first future execution not yet proven; no launch or acceptance authority is replaced"
+        "first_observed_delivery": {
+          "automation_id": "wp-kernel-012-orchestrator-tick",
+          "envelope_time_utc": "2026-10-04T04:18:19.735Z",
+          "source": "Scheduled heartbeat envelope received in this thread",
+          "resource_observation_utc": "2026-10-04T04:18:55.2085419Z",
+          "commit_limit_bytes": 149695787008,
+          "committed_bytes": 123457003520,
+          "commit_free_bytes": 26238783488,
+          "required_commit_free_bytes": 45000000000,
+          "cpu_percent": 10,
+          "candidate": "3e5f4024806b3052efa1917cd57cd9a45b0462ae",
+          "disposition": "GP154/GP111 false; candidate/status unchanged; no compile, refresh, supervisor or runtime action"
+        },
+        "proof_limit": "One scheduled envelope receipt observed; ongoing cadence and future delivery are not proven; no launch or acceptance authority is replaced"
       },
       "incident_output_cleanup": {
         "wrong_d_export_files": 7167,
