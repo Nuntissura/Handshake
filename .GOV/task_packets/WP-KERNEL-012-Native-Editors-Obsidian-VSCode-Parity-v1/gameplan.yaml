@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 316
+generation: 321
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -277,7 +277,7 @@ steps:
 - {id: GP-256, role: orchestrator, at: on_resume, do: verify inline metadata Python uses actual newlines or the existing canonical recount command, check: {type: confirm}, source: 'infra: root custom recount ended with literal newline escape outside Python string; pre-body syntax error', state: active}
 - {id: GP-257, role: orchestrator, at: on_resume, do: require strict duplicate-key parsing only for changed records; recount unchanged lifecycle fields normally, check: {type: confirm}, source: 'infra: strict scan of unchanged MT records encountered historical duplicate operator_decision key', state: active}
 - {id: GP-258, role: builder, at: before_round, do: verify nested gate result retains exit code or running session ID before repeating, check: {type: confirm}, source: 'infra: KB before_round exec wrapper omitted nested exit/session result; actual gate outcome unknown', state: active}
-- {id: GP-259, role: builder, at: before_round, do: verify every CURRENT expectation sharing a measured catalog scope matches the measured digest, check: {type: confirm}, source: 'review: three unique pin measurements have four consumers; nested Loom CURRENT expectation was omitted', state: active}
+- {id: GP-259, role: builder, at: before_round, do: verify every CURRENT expectation sharing a measured catalog scope matches the measured digest, check: {type: confirm}, source: 'review: three unique pin measurements have four consumers; nested Loom CURRENT expectation was omitted', state: retired}
 - {id: GP-260, role: builder, at: before_round, do: require separate simple metadata reads before builder gate; verify hashtable subexpression syntax, check: {type: confirm}, source: 'infra: combined KB metadata and gate cell had malformed hashtable subexpression; rejected before body', state: active}
 - {id: GP-261, role: builder, at: before_round, do: verify changed schema path exists in the assigned product worktree, check: {type: file, path: ../wtc-native-editors-v1/src/backend/handshake_core/src/storage/surreal/schema.rs, exists: true}, source: 'infra: KB schema source query guessed nonexistent handshake_document path instead of inspected core path', state: active}
 - {id: GP-262, role: builder, at: before_round, do: verify actual compile profile exists at its inspected packet-qualified path, check: {type: file, path: ../wtc-native-editors-v1/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-backend-profile.toml, exists: true}, source: 'infra: KB inferred profile at .GOV junction root; file absent; inspected profile is in packet subfolder', state: active}
@@ -291,3 +291,6 @@ steps:
 - {id: GP-270, role: wp_validator, at: before_dispatch, do: verify launch-prep JavaScript wrapper parses before invoking the shell tool, check: {type: confirm}, source: 'infra: combined launch-prep JS wrapper failed Unexpected identifier t before shell execution', state: active}
 - {id: GP-271, role: wp_validator, at: before_dispatch, do: verify Start-Process argument line quotes the full launcher path containing spaces, check: {type: confirm}, source: 'infra: flattened ArgumentList split ps1 path at D Projects LLM; child pwsh usage; supervisor never started', state: active}
 - {id: GP-272, role: orchestrator, at: before_round, do: verify gate captures unseeded native exit immediately before restoring cwd, check: {type: confirm}, source: 'infra: gate seeded LASTEXITCODE=-1; PASS13/13 stdout but exit-1 prevented release', state: active}
+- {id: GP-273, role: builder, at: before_round, do: verify target guard diff retains KRD and exact standalone NONE branch with record-user UPDATE authority, check: {type: confirm}, source: 'fail: MT170 source-create403 at statement15; KRD-only target guard excludes standalone NONE note', state: active}
+- {id: GP-274, role: builder, at: before_round, do: record full gate output and exit before proceeding, check: {type: confirm}, source: 'infra: before_round tool result handle was not retained', state: retired}
+- {id: GP-275, role: builder, at: before_submit, do: verify measured CURRENT consumers match WPV digests; unmeasured scopes stay UNVALIDATED with no readiness claim, check: {type: confirm}, source: 'phase: GP259 precedes schema163 measurement inputs; retain all-consumer check at pin/readiness submission', state: active}
