@@ -560,6 +560,87 @@
         "warnings": "Compiler stderr retained 87,412 bytes. The knowledge_documents_api_tests.rs warning at line 50 is an unused import pair already present in the d6ed baseline diff; no changed-line compile error. No lint verdict is claimed.",
         "result": "PASS_COMPILE_ONLY",
         "scope_limit": "No runtime/test, no lint PASS, no acceptance advancement. MT170 remains BLOCKED with validator_verdict null; historical AC-170-1 remains NOT_SATISFIED."
+      },
+      {
+        "id": "PR-WP012-MT170-KB-CHECK-07",
+        "check_id": "MT-170-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261005",
+        "covers": [
+          "MT-170"
+        ],
+        "commit": "70da366a3391206b2fba86f721c1095ea48a373e",
+        "tree": "e40d170e5a3b79433c5fd83b3ffdbd2ecbc0e443",
+        "command": "cargo check --locked -j 1 --config D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils; cwd=src/backend/handshake_core; CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target; CARGO_INCREMENTAL=0; CARGO_PROFILE_DEV_DEBUG=line-tables-only; CARGO_PROFILE_TEST_DEBUG=line-tables-only",
+        "started_at_utc": "2026-10-05T02:28:59.8850120Z",
+        "launcher_recorded_started_at_utc": "2026-10-05T02:28:59.8168599Z",
+        "completed_at_utc": "2026-10-05T02:39:33.3403942Z",
+        "exec_session": 76360,
+        "process_observations": {
+          "powershell_pid": 266080,
+          "powershell_created_utc": "2026-10-05T02:28:57.160690Z",
+          "cargo_pid": 176968,
+          "cargo_parent_pid": 249524,
+          "cargo_created_utc": "2026-10-05T02:28:59.885012Z",
+          "rustc_pid": 235112,
+          "rustc_parent_pid": 176968,
+          "rustc_created_utc": "2026-10-05T02:29:26.064082Z",
+          "basis": "Live Win32_Process observations during this session; launcher timestamp, PowerShell creation and Cargo creation are distinct."
+        },
+        "exit_code": 0,
+        "stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/logs/kb-check-70da366a3391206b2fba86f721c1095ea48a373e.stdout.log",
+        "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/logs/kb-check-70da366a3391206b2fba86f721c1095ea48a373e.stderr.log",
+        "exit_json": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/logs/kb-check-70da366a3391206b2fba86f721c1095ea48a373e.exit.json",
+        "inputs_before": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/logs/kb-check-70da366a3391206b2fba86f721c1095ea48a373e.inputs-before.json",
+        "inputs_after": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/logs/kb-check-70da366a3391206b2fba86f721c1095ea48a373e.inputs-after.json",
+        "artifact_bytes": {
+          "stdout": 0,
+          "stderr": 87259,
+          "exit_json": 2804,
+          "inputs_before": 1532,
+          "inputs_after": 832
+        },
+        "artifact_sha256": {
+          "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr": "e41cc1e0ab1b31cc9efe6ae3c6eada126eb18b6e3fbfd25fced3e75359e3ca9c",
+          "exit_json": "2400fb061d64d697eea769037ef62431b5be82b0cf81c29ff108e9b3672960bf",
+          "inputs_before": "e96750f7b73dd85f4ebc5b47b29b5cad0b774e105a3fee9e682535d59dd2f355",
+          "inputs_after": "45dd4bac1132c55d5051a62fee61e6bd9e03c7acb5d4fee1368aa8a3796c7154"
+        },
+        "input_sha256_before": {
+          "schema_rs": "1728f4541ff7e0194c0f4f52ca92bfd5c2fdcffe96691d357a16248f319fa06f",
+          "schema_surql": "41c41a52fc29a08f32c1db5525820cc8977997e6a2918be606e67756bc311c0e",
+          "core_tests": "bc150050dca4d002427bd486a89294d3cbb854add3d18d3f14138108db4140e1",
+          "document_surreal_rs": "22f3f2e02a009b25cb60fa430c7bce0b1b6a36566eb5cf52677fde30d6965a93",
+          "core_manifest": "68dee1852524c5b2daaa7620c1dbd7ad4ccbdddad1dddb97e991f60ad2993981",
+          "document_manifest": "acef03516c8f139a57773975c415117eec3f371352e772c641a0ca1cd21af7a4",
+          "backend_profile": "304141037aa802c844b08bbcbd9798ab9297b1908020bd425f804bd1376d1729"
+        },
+        "input_sha256_after": {
+          "schema_rs": "1728f4541ff7e0194c0f4f52ca92bfd5c2fdcffe96691d357a16248f319fa06f",
+          "schema_surql": "41c41a52fc29a08f32c1db5525820cc8977997e6a2918be606e67756bc311c0e",
+          "core_tests": "bc150050dca4d002427bd486a89294d3cbb854add3d18d3f14138108db4140e1",
+          "document_surreal_rs": "22f3f2e02a009b25cb60fa430c7bce0b1b6a36566eb5cf52677fde30d6965a93",
+          "core_manifest": "68dee1852524c5b2daaa7620c1dbd7ad4ccbdddad1dddb97e991f60ad2993981",
+          "document_manifest": "acef03516c8f139a57773975c415117eec3f371352e772c641a0ca1cd21af7a4",
+          "backend_profile": "304141037aa802c844b08bbcbd9798ab9297b1908020bd425f804bd1376d1729"
+        },
+        "lockfile_binding": {
+          "package_manifest": "wtc-native-editors-v1/src/backend/handshake_core/Cargo.toml ([package] name=handshake_core; standalone package)",
+          "lockfile": "wtc-native-editors-v1/src/backend/handshake_core/Cargo.lock",
+          "post_run_bytes": 210891,
+          "post_run_sha256": "05166270e7a27686cfb87486ab98bb579e304ca78e0ac21491df783420e85d92",
+          "candidate_git_blob": "9c9d5bd8ecdbe66badc5d92860df7564c1e7008e",
+          "worktree_git_blob_matches_candidate": true,
+          "path_status_clean": true,
+          "pre_run_sha256": "NOT_CAPTURED",
+          "pre_run_limit": "Original inputs-before artifact contains no lockfile key. Pre-launch clean candidate/tree evidence plus tracked lock blob and matching post-run file bind committed content indirectly; no direct pre-run lock digest is claimed."
+        },
+        "input_digest_before_after": "Equal for all seven captured source/profile inputs; original before/after files omit Cargo.lock.",
+        "post_run_recheck": "Independent post-run read at 2026-10-05T02:46:12.9500376Z confirmed clean product HEAD/origin 70da366a3391206b2fba86f721c1095ea48a373e and tree e40d170e5a3b79433c5fd83b3ffdbd2ecbc0e443; all seven source/profile hashes match before. No lock hash was retrofitted into either capture.",
+        "instrumentation_error": "Digest capture looked for Cargo.lock at product root; that path does not exist. The post-run capture emitted Get-FileHash and null-value errors after Cargo closed. Cargo itself exited 0; the crate-local lockfile was separately identified and checked against the candidate tree.",
+        "warnings": "Compiler stderr retained 87,259 bytes and ends with Finished dev profile in 10m30s. It includes an unused import warning at schema.rs:5, outside the changed pin lines. No changed-line compile error or lint verdict is claimed.",
+        "result": "PASS_COMPILE_ONLY",
+        "scope_limit": "Compile-only proof. No runtime/test or lint PASS; MT170 remains BLOCKED with validator_verdict null, and historical AC-170-1 remains NOT_SATISFIED."
       }
     ]
   },
