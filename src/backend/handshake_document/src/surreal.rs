@@ -170,6 +170,7 @@ pub struct CandidateDocRecord {
 pub struct CandidateLoomRecord {
     pub block_id: String,
     pub workspace_id: RecordId,
+    pub endpoint_readable: bool,
 }
 
 pub struct ResolvedBacklink {
@@ -390,7 +391,9 @@ pub async fn resolve_backlink_rows(
         let query_started = std::time::Instant::now();
         let candidate_result: StorageResult<Vec<CandidateLoomRecord>> = query_rows(
             storage,
-            "SELECT block_id, workspace_id FROM $candidate_loom_records \
+            "SELECT block_id, workspace_id, \
+                    fn::mt120_loom_endpoint_access(type::record('loom_blocks', block_id), record::id(workspace_id), 'read', 'fs.read') AS endpoint_readable \
+             FROM $candidate_loom_records \
              WHERE block_id IN $candidate_loom_ids ORDER BY block_id ASC;",
             vec![
                 b("candidate_loom_ids", candidate_loom_ids.clone()),
@@ -403,9 +406,16 @@ pub async fn resolve_backlink_rows(
             Ok(rows) => {
                 let mut same_workspace_count = 0usize;
                 let mut foreign_workspace_count = 0usize;
+                let mut same_workspace_readable_count = 0usize;
+                let mut same_workspace_unreadable_count = 0usize;
                 for row in rows {
                     if record_key(row.workspace_id.clone())? == workspace_key {
                         same_workspace_count += 1;
+                        if row.endpoint_readable {
+                            same_workspace_readable_count += 1;
+                        } else {
+                            same_workspace_unreadable_count += 1;
+                        }
                     } else {
                         foreign_workspace_count += 1;
                     }
@@ -419,6 +429,8 @@ pub async fn resolve_backlink_rows(
                     returned_row_count = rows.len(),
                     same_workspace_count,
                     foreign_workspace_count,
+                    same_workspace_readable_count,
+                    same_workspace_unreadable_count,
                     query_outcome = "ok",
                     error_class = "none",
                     elapsed_micros = query_started.elapsed().as_micros() as u64,
@@ -446,6 +458,8 @@ pub async fn resolve_backlink_rows(
                     returned_row_count = 0usize,
                     same_workspace_count = 0usize,
                     foreign_workspace_count = 0usize,
+                    same_workspace_readable_count = 0usize,
+                    same_workspace_unreadable_count = 0usize,
                     query_outcome = "error",
                     error_class,
                     elapsed_micros = query_started.elapsed().as_micros() as u64,
@@ -456,10 +470,14 @@ pub async fn resolve_backlink_rows(
         candidate_result?
     };
     let mut live_loom_ids: HashSet<String> = HashSet::new();
+    let mut readable_loom_ids: HashSet<String> = HashSet::new();
     let mut foreign_loom_ids: HashSet<String> = HashSet::new();
     for row in candidate_loom_targets {
         if record_key(row.workspace_id)? == workspace_key {
-            live_loom_ids.insert(row.block_id);
+            live_loom_ids.insert(row.block_id.clone());
+            if row.endpoint_readable {
+                readable_loom_ids.insert(row.block_id);
+            }
         } else {
             foreign_loom_ids.insert(row.block_id);
         }
@@ -467,9 +485,12 @@ pub async fn resolve_backlink_rows(
 
     let mut resolved = Vec::with_capacity(upserts.len());
     for upsert in upserts {
-        let prior_live_target = prior_by_relationship
-            .get(&upsert.relationship_id)
-            .filter(|target| live_loom_ids.contains(*target));
+        let prior_live_target =
+            prior_by_relationship
+                .get(&upsert.relationship_id)
+                .filter(|target| {
+                    live_loom_ids.contains(*target) && readable_loom_ids.contains(*target)
+                });
         let target = if upsert.link_kind == "wikilink" && live_loom_ids.contains(&upsert.target) {
             upsert.target.clone()
         } else if upsert.link_kind == "wikilink" && foreign_loom_ids.contains(&upsert.target) {
@@ -517,7 +538,9 @@ pub async fn resolve_backlink_rows(
                 "knowledge backlink target is missing its LoomBlock projection",
             ));
         }
-        let project_to_loom = upsert.link_kind == "wikilink" && live_loom_ids.contains(&target);
+        let project_to_loom = upsert.link_kind == "wikilink"
+            && live_loom_ids.contains(&target)
+            && readable_loom_ids.contains(&target);
         if upsert.link_kind == "wikilink" && !project_to_loom {
             log_projection_skip(
                 &upsert.relationship_id,

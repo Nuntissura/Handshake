@@ -43,7 +43,9 @@ use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
 use handshake_core::storage::knowledge::KnowledgeStore;
-use handshake_core::storage::surreal::RowFilter;
+use handshake_core::storage::surreal::{
+    RowFilter, ScalarValue, TestFieldMutation, TestMutationValue,
+};
 use handshake_core::storage::{
     Database, LoomBlockContentType, LoomBlockDerived, LoomEdgeCreatedBy, LoomEdgeType,
     NewLoomBlock, NewLoomEdge, WriteContext,
@@ -80,13 +82,15 @@ mod mt170_resolver_observation_capture {
     fn sanitized_line(fields: &HashMap<String, String>) -> Option<String> {
         Some(match value(fields, "capture_kind") {
             "resolver" => format!(
-                "MT170_RESOLVER_DIAGNOSTIC module={} candidates={} ids={} returned={} same_workspace={} foreign_workspace={} outcome={} error_class={} elapsed_us={}",
+                "MT170_RESOLVER_DIAGNOSTIC module={} candidates={} ids={} returned={} same_workspace={} foreign_workspace={} same_workspace_readable={} same_workspace_unreadable={} outcome={} error_class={} elapsed_us={}",
                 value(fields, "producer_module_path"),
                 value(fields, "candidate_input_count"),
                 value(fields, "candidate_id_count"),
                 value(fields, "returned_row_count"),
                 value(fields, "same_workspace_count"),
                 value(fields, "foreign_workspace_count"),
+                value(fields, "same_workspace_readable_count"),
+                value(fields, "same_workspace_unreadable_count"),
                 value(fields, "query_outcome"),
                 value(fields, "error_class"),
                 value(fields, "elapsed_micros"),
@@ -181,6 +185,8 @@ mod mt170_resolver_observation_capture {
                 | "returned_row_count"
                 | "same_workspace_count"
                 | "foreign_workspace_count"
+                | "same_workspace_readable_count"
+                | "same_workspace_unreadable_count"
                 | "elapsed_micros"
                 | "count"
                 | "elapsed_ms"
@@ -226,6 +232,8 @@ mod mt170_resolver_observation_capture {
                         "returned_row_count",
                         "same_workspace_count",
                         "foreign_workspace_count",
+                        "same_workspace_readable_count",
+                        "same_workspace_unreadable_count",
                         "query_outcome",
                         "error_class",
                         "elapsed_micros",
@@ -4035,6 +4043,92 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
         "MT170 standalone target",
     )
     .await;
+    let unreadable_document =
+        create_doc(&base, &http, &workspace_id, "MT170 update-only target").await;
+    let unreadable_target_id = unreadable_document["document"]["rich_document_id"]
+        .as_str()
+        .expect("MT-170 update-only target id")
+        .to_owned();
+    let inspector = store.storage.test_inspector();
+    let protected_resources = inspector
+        .table_selector("protected_resources")
+        .await
+        .expect("MT-170 protected resource table");
+    let resource_grants = inspector
+        .table_selector("resource_grants")
+        .await
+        .expect("MT-170 resource grant table");
+    let creator_grant = inspector
+        .references_to(&resource_grants)
+        .await
+        .expect("MT-170 grant references")
+        .into_iter()
+        .find(|reference| {
+            reference.source_table() == "protected_resources"
+                && reference.source_field() == "creator_grant_id"
+        })
+        .expect("protected resource creator grant reference");
+    let grant_ids = inspector
+        .referenced_ids(
+            &creator_grant,
+            RowFilter::FieldEquals {
+                field: protected_resources
+                    .field("external_resource_id")
+                    .expect("protected resource external id field"),
+                value: ScalarValue::String(unreadable_target_id.clone()),
+            },
+        )
+        .await
+        .expect("MT-170 target creator grant identity");
+    assert_eq!(grant_ids.len(), 1, "one creator grant backs the target");
+    let grant_id = grant_ids[0]
+        .key_string()
+        .expect("creator grant string key")
+        .to_owned();
+    store
+        .storage
+        .test_mutator()
+        .update_row(
+            &resource_grants,
+            grant_id,
+            &[
+                TestFieldMutation::new(
+                    resource_grants
+                        .field("actions")
+                        .expect("grant actions field"),
+                    TestMutationValue::array([
+                        TestMutationValue::string("read"),
+                        TestMutationValue::string("update"),
+                    ]),
+                ),
+                TestFieldMutation::new(
+                    resource_grants
+                        .field("capability_ids")
+                        .expect("grant capability field"),
+                    TestMutationValue::array([
+                        TestMutationValue::string("memory.read"),
+                        TestMutationValue::string("fs.write"),
+                    ]),
+                ),
+            ],
+        )
+        .await
+        .expect("MT-170 restrict target to update/write while retaining source read");
+    let unreadable_endpoint = headers_with_kind(
+        loom_http.get(format!(
+            "{loom_base}/workspaces/{workspace_id}/loom/blocks/{unreadable_target_id}"
+        )),
+        "mt170-update-only-target-read-check",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("MT-170 endpoint-read denial for update-only fixture");
+    assert_eq!(
+        unreadable_endpoint.status(),
+        403,
+        "update/write authority does not imply endpoint read authority"
+    );
     let other_workspace_id_block = mt170_create_note(
         &loom_base,
         &loom_http,
@@ -4188,6 +4282,18 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
                 .get("foreign_workspace_count")
                 .and_then(|value| value.parse::<usize>().ok()),
             Some(1)
+        );
+        assert_eq!(
+            observation
+                .get("same_workspace_readable_count")
+                .and_then(|value| value.parse::<usize>().ok()),
+            Some(1)
+        );
+        assert_eq!(
+            observation
+                .get("same_workspace_unreadable_count")
+                .and_then(|value| value.parse::<usize>().ok()),
+            Some(0)
         );
         assert_eq!(
             observation.get("query_outcome").map(String::as_str),
@@ -4389,6 +4495,123 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
         Some(0),
         "a failed wrong-type transaction creates no projected backlink"
     );
+
+    #[cfg(feature = "surreal-test-support")]
+    assert!(mt170_resolver_observation_capture::install_and_clear());
+    let unreadable_source_response = headers_with_kind(
+        http.post(format!("{base}/knowledge/documents")),
+        "mt170-unreadable-source",
+        "operator",
+    )
+    .json(&json!({
+        "workspace_id": workspace_id,
+        "title": "MT170 Unreadable Target Source",
+        "content_json": {
+            "type": "doc",
+            "content": [{"type": "paragraph", "content": [{"type": "text", "text": format!(
+                "see [[{unreadable_target_id}]]"
+            )}]}]
+        }
+    }))
+    .send()
+    .await
+    .expect("save source with update-only target");
+    assert_eq!(
+        unreadable_source_response.status(),
+        200,
+        "update/write on the target permits the source save"
+    );
+    let unreadable_source: Value = unreadable_source_response
+        .json()
+        .await
+        .expect("update-only source body");
+    let unreadable_source_id = unreadable_source["document"]["rich_document_id"]
+        .as_str()
+        .expect("update-only source id")
+        .to_owned();
+    let unreadable_backlinks = store
+        .db
+        .list_knowledge_document_backlinks_from(&unreadable_source_id)
+        .await
+        .expect("retained textual backlink for unreadable target");
+    assert!(
+        unreadable_backlinks
+            .iter()
+            .any(|backlink| backlink.target == unreadable_target_id),
+        "the textual backlink is retained without a Loom projection"
+    );
+    let unreadable_edges = store
+        .db
+        .list_loom_edges_for_block(&workspace_id, &unreadable_source_id)
+        .await
+        .expect("no projected edge for unreadable target");
+    assert_eq!(
+        mention_edges_to(&unreadable_edges, &unreadable_target_id),
+        0,
+        "visible but endpoint-unreadable targets stay textual"
+    );
+    #[cfg(feature = "surreal-test-support")]
+    {
+        let observations = mt170_resolver_observation_capture::snapshot();
+        let resolver = observations
+            .iter()
+            .find(|event| {
+                event
+                    .get("capture_kind")
+                    .is_some_and(|kind| kind == "resolver")
+            })
+            .expect("isolated unreadable-target resolver observation");
+        assert_eq!(
+            resolver
+                .get("candidate_input_count")
+                .and_then(|value| value.parse::<usize>().ok()),
+            Some(1)
+        );
+        assert_eq!(
+            resolver
+                .get("candidate_id_count")
+                .and_then(|value| value.parse::<usize>().ok()),
+            Some(1)
+        );
+        assert_eq!(
+            resolver
+                .get("returned_row_count")
+                .and_then(|value| value.parse::<usize>().ok()),
+            Some(1)
+        );
+        assert_eq!(
+            resolver
+                .get("same_workspace_count")
+                .and_then(|value| value.parse::<usize>().ok()),
+            Some(1)
+        );
+        assert_eq!(
+            resolver
+                .get("same_workspace_readable_count")
+                .and_then(|value| value.parse::<usize>().ok()),
+            Some(0)
+        );
+        assert_eq!(
+            resolver
+                .get("same_workspace_unreadable_count")
+                .and_then(|value| value.parse::<usize>().ok()),
+            Some(1)
+        );
+        assert_eq!(
+            resolver.get("query_outcome").map(String::as_str),
+            Some("ok")
+        );
+        let skips = observations
+            .iter()
+            .filter(|event| event.get("capture_kind").is_some_and(|kind| kind == "skip"))
+            .filter_map(|event| event.get("reason").map(String::as_str))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            skips,
+            vec!["no_readable_loom_target"],
+            "the visible-but-unreadable target emits its typed skip reason"
+        );
+    }
     doc_server_guard.shutdown().await;
     loom_server_guard.shutdown().await;
     stranger_loom_server_guard.shutdown().await;
