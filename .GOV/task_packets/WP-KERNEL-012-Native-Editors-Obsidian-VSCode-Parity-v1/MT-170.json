@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-04T22:37:33.819162Z",
+  "updated_at_utc": "2026-10-05T00:35:36Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -511,6 +511,55 @@
         "post_run_recheck": "Current candidate, clean pushed source tree and each listed source/profile digest re-read after completion; inputs unchanged.",
         "result": "PASS_COMPILE_ONLY",
         "scope_limit": "Compile only; no test/runtime, lint verdict, complete tracked-file manifest, or MT acceptance is claimed. MT170 remains BLOCKED; validator_verdict null; AC-170-1 historical ordering remains unsatisfied."
+      },
+      {
+        "id": "PR-WP012-MT170-KB-CHECK-06",
+        "check_id": "MT-170-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261005",
+        "covers": [
+          "MT-170"
+        ],
+        "commit": "9858d461bf33a341871327ebf4c4a7badad3300a",
+        "tree": "d4b4593f4fd42e321bfcfb6edda4e48947cf8a96",
+        "command": "cargo check --locked -j 1 --config D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils; cwd=src/backend/handshake_core; CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target; CARGO_INCREMENTAL=0; CARGO_PROFILE_DEV_DEBUG=line-tables-only; CARGO_PROFILE_TEST_DEBUG=line-tables-only",
+        "started_at_utc": "2026-10-05T00:21:41.1616030Z",
+        "completed_at_utc": "2026-10-05T00:30:59.6257115Z",
+        "exec_session": 6926,
+        "process_observations": {
+          "powershell_pid": 165844,
+          "powershell_created_utc": "2026-10-05T00:21:41.1616030Z",
+          "cargo_pid": 200080,
+          "cargo_created_utc": "2026-10-05T00:21:41.6361830Z",
+          "basis": "Live Win32_Process observations while the same compile session was running; launcher and Cargo starts are distinct."
+        },
+        "exit_code": 0,
+        "stdout": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/logs/kb-check-9858d461bf33a341871327ebf4c4a7badad3300a.stdout.log",
+        "stderr": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/logs/kb-check-9858d461bf33a341871327ebf4c4a7badad3300a.stderr.log",
+        "exit_json": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/logs/kb-check-9858d461bf33a341871327ebf4c4a7badad3300a.exit.json",
+        "derived_timing_record": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/logs/kb-check-9858d461bf33a341871327ebf4c4a7badad3300a.exit-derived.json",
+        "artifact_bytes": {
+          "stdout": 0,
+          "stderr": 87412,
+          "exit_json": 1318,
+          "derived_timing_record": 1865
+        },
+        "artifact_sha256": {
+          "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr": "d854825a8ff43acace170886e1df9ac47fbc51329a6fb7cbfd404278f0013001",
+          "exit_json": "d52adcb203e8202fbfbbe6d7505e42237c97a7dcbd26f06ae3ee4080d2c03276",
+          "derived_timing_record": "a92bd8f9d68e7a9947395e133f19aa212eb1332b3feea589eb1b42ff20e8fcc8"
+        },
+        "input_sha256": {
+          "handshake_document_surreal_rs": "22f3f2e02a009b25cb60fa430c7bce0b1b6a36566eb5cf52677fde30d6965a93",
+          "knowledge_documents_api_tests_rs": "bc150050dca4d002427bd486a89294d3cbb854add3d18d3f14138108db4140e1",
+          "handshake_document_cargo_toml": "acef03516c8f139a57773975c415117eec3f371352e772c641a0ca1cd21af7a4",
+          "handshake_core_cargo_toml": "68dee1852524c5b2daaa7620c1dbd7ad4ccbdddad1dddb97e991f60ad2993981",
+          "backend_profile_toml": "304141037aa802c844b08bbcbd9798ab9297b1908020bd425f804bd1376d1729"
+        },
+        "post_run_recheck": "Fresh post-run reads matched all five listed source/profile digests; product HEAD/tree and origin branch ref matched this candidate, working tree clean.",
+        "warnings": "Compiler stderr retained 87,412 bytes. The knowledge_documents_api_tests.rs warning at line 50 is an unused import pair already present in the d6ed baseline diff; no changed-line compile error. No lint verdict is claimed.",
+        "result": "PASS_COMPILE_ONLY",
+        "scope_limit": "No runtime/test, no lint PASS, no acceptance advancement. MT170 remains BLOCKED with validator_verdict null; historical AC-170-1 remains NOT_SATISFIED."
       }
     ]
   },
@@ -586,6 +635,12 @@
           "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
         ],
         "implementation_scope": "Batched record-user Loom candidate query now records canonical mt120_loom_endpoint_access(read,fs.read) separately from live/foreign identity sets; projection and prior-target fallback require endpoint readability. Existing NoReadableLoomTarget retains textual backlinks; CREATE fail-closed guard unchanged. Focused test mutates only fixture creator grant actions to read/update and capability_ids to memory.read/fs.write, then proves record-user row visibility, endpoint GET 403, successful save, textual backlink, no edge, and isolated typed skip."
+      },
+      {
+        "sha": "9858d461bf33a341871327ebf4c4a7badad3300a",
+        "tree": "d4b4593f4fd42e321bfcfb6edda4e48947cf8a96",
+        "state": "PASS_COMPILE_ONLY; runtime UNVALIDATED",
+        "proof_ref": "validation.proof_records#PR-WP012-MT170-KB-CHECK-06"
       }
     ],
     "ac_170_1_runtime_note": "AC-170-1 runtime diagnostic not run (builder runtime probes are blocked by the in-session gameplan hook scope); the code evidence is verified and the MT-170 test plus MT-046 ic04/ic10/ic12 in the union round are the runtime confirmation"
@@ -2808,7 +2863,7 @@
     "remote_ref": "origin/feat/WP-KERNEL-012",
     "remote_commit": "9858d461bf33a341871327ebf4c4a7badad3300a",
     "working_tree": "clean",
-    "disposition": "PUSHED_UNCOMPILED_UNVALIDATED; MT170 remains BLOCKED; validator_verdict null",
+    "disposition": "PUSHED_COMPILE_PASS_UNVALIDATED; MT170 remains BLOCKED; validator_verdict null",
     "changed_files": [
       "src/backend/handshake_document/src/surreal.rs",
       "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
@@ -2825,8 +2880,8 @@
         "result": "PASS"
       }
     ],
-    "validation_limit": "No Cargo check or runtime has run for 9858d461. Prior d6ed compile is baseline only. Historical AC-170-1 remains NOT_SATISFIED; no MT acceptance advanced.",
-    "next_actor": "KERNEL_BUILDER perform one changed-input warm-D Cargo check; WP_VALIDATOR owns the required fresh runtime proof after this candidate is stable"
+    "validation_limit": "The exact pushed candidate passed the locked -j1 cargo check for lib and test targets. No runtime/test, lint PASS, acceptance advancement, or historical AC-170-1 satisfaction is claimed.",
+    "next_actor": "WP_VALIDATOR post-163 five direct/static current-pin measurements, then the separate full-schema parity measurement and repaired MT170 runtime proof"
   },
   "adversarial_review_d6ed538c_20261005": {
     "schema_id": "hsk.mt_adversarial_review@1",
