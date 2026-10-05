@@ -19,6 +19,10 @@ pub trait DocumentQuery: Send + Sync {
         workspace_id: &str,
     ) -> StorageResult<SurrealValueData>;
 
+    async fn authorize_loom_block_read(&self, _block_id: &str) -> StorageResult<bool> {
+        Ok(false)
+    }
+
     async fn rows_pair<A: SurrealValue + Send + 'static, B: SurrealValue + Send + 'static>(
         &self,
         statement: String,
@@ -170,7 +174,6 @@ pub struct CandidateDocRecord {
 pub struct CandidateLoomRecord {
     pub block_id: String,
     pub workspace_id: RecordId,
-    #[cfg(feature = "surreal-test-support")]
     pub standalone_candidate: bool,
     #[cfg(feature = "surreal-test-support")]
     pub standalone_grant_readable: bool,
@@ -180,7 +183,8 @@ pub struct CandidateLoomRecord {
 #[cfg(feature = "surreal-test-support")]
 const MT170_RESOLVER_DIAGNOSTIC_PROJECTION: &str = "source_rich_document_id = NONE AS standalone_candidate, fn::mt109_has_grant('loom_block', block_id, 'read', 'fs.read') AS standalone_grant_readable,";
 #[cfg(not(feature = "surreal-test-support"))]
-const MT170_RESOLVER_DIAGNOSTIC_PROJECTION: &str = "";
+const MT170_RESOLVER_DIAGNOSTIC_PROJECTION: &str =
+    "source_rich_document_id = NONE AS standalone_candidate,";
 
 pub struct ResolvedBacklink {
     pub backlink_id: String,
@@ -509,7 +513,12 @@ pub async fn resolve_backlink_rows(
     for row in candidate_loom_targets {
         if record_key(row.workspace_id)? == workspace_key {
             live_loom_ids.insert(row.block_id.clone());
-            if row.endpoint_readable {
+            let endpoint_readable = match (profile_can_read_fs, row.standalone_candidate) {
+                (Some(true), true) => storage.authorize_loom_block_read(&row.block_id).await?,
+                (Some(false), true) => false,
+                _ => row.endpoint_readable,
+            };
+            if endpoint_readable {
                 readable_loom_ids.insert(row.block_id);
             }
         } else {

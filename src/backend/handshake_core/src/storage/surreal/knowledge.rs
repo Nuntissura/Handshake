@@ -6672,6 +6672,25 @@ impl handshake_document::surreal::DocumentQuery for SurrealStorage {
         .map(SurrealValue::into_value)
     }
 
+    async fn authorize_loom_block_read(&self, block_id: &str) -> StorageResult<bool> {
+        let Some(scope) = super::current_record_user_scope() else {
+            return Ok(false);
+        };
+        let request = super::resource_authority::AuthorizationRequest {
+            session_token: scope.session_token,
+            channel_binding_hash: scope.channel_binding_hash,
+            capability_id: "fs.read".to_owned(),
+            resource_kind: super::resource_authority::ResourceKind::LoomBlock,
+            external_resource_id: block_id.to_owned(),
+            action: super::resource_authority::ResourceAction::Read,
+        };
+        match self.authorize_protected_resource(request).await {
+            Ok(_) => Ok(true),
+            Err(super::resource_authority::ResourceAuthorityError::Denied { .. }) => Ok(false),
+            Err(error) => Err(map_err(error.into())),
+        }
+    }
+
     async fn rows_pair<A: SurrealValue + Send + 'static, B: SurrealValue + Send + 'static>(
         &self,
         statement: String,
