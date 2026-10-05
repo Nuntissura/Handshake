@@ -207,7 +207,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "The 4b8d revision-163 original MT170 diagnostic failed with same_workspace_readable_count=0 (expected 1); that RED is historical. Candidate 984238e00b9057df4f917fd417f3abe1f5f6894f contains the scoped profile-alignment repair, but its original MT170 diagnostic is still unproven. The latest d492 supervisor attempt failed before Bash because the scoped WPV before_round check exceeded its 60-second budget; no runtime result was produced and that release must not be replayed. The focused diagnostic requires a fresh reviewed release. The Builder compile proof remains required before READY. AC-170-1 runtime proof and final union evidence remain outstanding; the late CREATE race remains UNEXERCISED with no new race seam or waiver.",
+    "blocked_on": "The 4b8d revision-163 original MT170 diagnostic failed with same_workspace_readable_count=0 (expected 1); that RED is historical. Candidate 984238e00b9057df4f917fd417f3abe1f5f6894f contains the scoped profile-alignment repair. The d492 supervisor attempt failed before Bash because its scoped WPV before_round gate exceeded the 60-second budget; that release is historical and must not be replayed. Current run d1d2bd9cb3924c1f9c4e630dad1e1b1f has consumed its reviewed release and is RUNNING under supervisor PID 228332/Bash PID 242044; its test result is not yet known. The Builder compile proof remains required before READY. AC-170-1 runtime proof and final union evidence remain outstanding; the late CREATE race remains UNEXERCISED with no new race seam or waiver.",
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -216,7 +216,7 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER review the bounded gate-budget correction and fresh supervisor binding; WP_VALIDATOR run the original focused diagnostic after a fresh release; Builder compile remains required before READY",
+    "next_actor": "WP_VALIDATOR capture and seal the actual d1d2bd9cb3924c1f9c4e630dad1e1b1f focused-test exits/JUnit and update MT-170 from that result; KERNEL_BUILDER compile proof remains required before READY",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"

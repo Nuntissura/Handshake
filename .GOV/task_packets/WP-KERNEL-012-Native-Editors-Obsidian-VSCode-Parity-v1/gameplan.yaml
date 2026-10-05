@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 360
+generation: 361
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -329,3 +329,4 @@ steps:
 - {id: GP-308, role: wp_validator, at: before_round, do: confirm launcher assigns WPV role before explicit WPV before_round gate, check: {type: confirm}, source: 'phase: canonical launcher sets role before scoped gate; outer hook remains parent-scoped per GP-216', state: active}
 - {id: GP-309, role: wp_validator, at: before_round, do: verify lookup supplied-env proof is distinct from post-start child digest; frozen environment guards preserved, check: {type: confirm}, source: 'infra: attempt2 added child-env equality absent from frozen release guards', state: active}
 - {id: GP-310, role: orchestrator, at: before_round, do: verify observed target + unmeasured growth/scratch reserves < 147000000000B stop and 150000000000B cap, check: {type: confirm}, source: Operator operational projection policy replaces GP102 measured-growth wording; same buddy cleared, state: active}
+- {id: GP-311, role: wp_validator, at: before_dispatch, do: verify scoped supervisor gate uses 120s budget with unchanged predicates before release, check: {type: confirm}, source: 'infra: d492 WPV gate satisfied60 checks but exceeded internal60s budget before Bash', state: active}
