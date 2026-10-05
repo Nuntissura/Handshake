@@ -170,8 +170,17 @@ pub struct CandidateDocRecord {
 pub struct CandidateLoomRecord {
     pub block_id: String,
     pub workspace_id: RecordId,
+    #[cfg(feature = "surreal-test-support")]
+    pub standalone_candidate: bool,
+    #[cfg(feature = "surreal-test-support")]
+    pub standalone_grant_readable: bool,
     pub endpoint_readable: bool,
 }
+
+#[cfg(feature = "surreal-test-support")]
+const MT170_RESOLVER_DIAGNOSTIC_PROJECTION: &str = "source_rich_document_id = NONE AS standalone_candidate, fn::mt109_has_grant('loom_block', block_id, 'read', 'fs.read') AS standalone_grant_readable,";
+#[cfg(not(feature = "surreal-test-support"))]
+const MT170_RESOLVER_DIAGNOSTIC_PROJECTION: &str = "";
 
 pub struct ResolvedBacklink {
     pub backlink_id: String,
@@ -392,11 +401,11 @@ pub async fn resolve_backlink_rows(
         let query_started = std::time::Instant::now();
         let candidate_result: StorageResult<Vec<CandidateLoomRecord>> = query_rows(
             storage,
-            "SELECT block_id, workspace_id, \
+            format!("SELECT block_id, workspace_id, {MT170_RESOLVER_DIAGNOSTIC_PROJECTION} \
                     ((source_rich_document_id = NONE AND (($profile_can_read_fs = NONE AND fn::mt120_loom_endpoint_access(type::record('loom_blocks', block_id), record::id(workspace_id), 'read', 'fs.read')) OR ($profile_can_read_fs = true AND fn::mt109_has_grant('loom_block', block_id, 'read', 'fs.read')))) \
                     OR (source_rich_document_id != NONE AND ($profile_can_read_fs = NONE OR $profile_can_read_fs = true) AND fn::mt120_loom_endpoint_access(type::record('loom_blocks', block_id), record::id(workspace_id), 'read', 'fs.read'))) AS endpoint_readable \
              FROM $candidate_loom_records \
-             WHERE block_id IN $candidate_loom_ids ORDER BY block_id ASC;",
+             WHERE block_id IN $candidate_loom_ids ORDER BY block_id ASC;"),
             vec![
                 b("candidate_loom_ids", candidate_loom_ids.clone()),
                 b("candidate_loom_records", candidate_loom_records),
@@ -411,9 +420,17 @@ pub async fn resolve_backlink_rows(
                 let mut foreign_workspace_count = 0usize;
                 let mut same_workspace_readable_count = 0usize;
                 let mut same_workspace_unreadable_count = 0usize;
+                let mut same_workspace_standalone_count = 0usize;
+                let mut same_workspace_standalone_grant_readable_count = 0usize;
                 for row in rows {
                     if record_key(row.workspace_id.clone())? == workspace_key {
                         same_workspace_count += 1;
+                        if row.standalone_candidate {
+                            same_workspace_standalone_count += 1;
+                            if row.standalone_grant_readable {
+                                same_workspace_standalone_grant_readable_count += 1;
+                            }
+                        }
                         if row.endpoint_readable {
                             same_workspace_readable_count += 1;
                         } else {
@@ -434,6 +451,13 @@ pub async fn resolve_backlink_rows(
                     foreign_workspace_count,
                     same_workspace_readable_count,
                     same_workspace_unreadable_count,
+                    profile_read_mode = match profile_can_read_fs {
+                        Some(true) => "some_true",
+                        Some(false) => "some_false",
+                        None => "none",
+                    },
+                    same_workspace_standalone_count,
+                    same_workspace_standalone_grant_readable_count,
                     query_outcome = "ok",
                     error_class = "none",
                     elapsed_micros = query_started.elapsed().as_micros() as u64,
@@ -463,6 +487,13 @@ pub async fn resolve_backlink_rows(
                     foreign_workspace_count = 0usize,
                     same_workspace_readable_count = 0usize,
                     same_workspace_unreadable_count = 0usize,
+                    profile_read_mode = match profile_can_read_fs {
+                        Some(true) => "some_true",
+                        Some(false) => "some_false",
+                        None => "none",
+                    },
+                    same_workspace_standalone_count = 0usize,
+                    same_workspace_standalone_grant_readable_count = 0usize,
                     query_outcome = "error",
                     error_class,
                     elapsed_micros = query_started.elapsed().as_micros() as u64,

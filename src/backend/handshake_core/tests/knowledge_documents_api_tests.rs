@@ -82,7 +82,7 @@ mod mt170_resolver_observation_capture {
     fn sanitized_line(fields: &HashMap<String, String>) -> Option<String> {
         Some(match value(fields, "capture_kind") {
             "resolver" => format!(
-                "MT170_RESOLVER_DIAGNOSTIC module={} candidates={} ids={} returned={} same_workspace={} foreign_workspace={} same_workspace_readable={} same_workspace_unreadable={} outcome={} error_class={} elapsed_us={}",
+                "MT170_RESOLVER_DIAGNOSTIC module={} candidates={} ids={} returned={} same_workspace={} foreign_workspace={} same_workspace_readable={} same_workspace_unreadable={} profile_read_mode={} same_workspace_standalone={} same_workspace_standalone_grant_readable={} outcome={} error_class={} elapsed_us={}",
                 value(fields, "producer_module_path"),
                 value(fields, "candidate_input_count"),
                 value(fields, "candidate_id_count"),
@@ -91,6 +91,9 @@ mod mt170_resolver_observation_capture {
                 value(fields, "foreign_workspace_count"),
                 value(fields, "same_workspace_readable_count"),
                 value(fields, "same_workspace_unreadable_count"),
+                value(fields, "profile_read_mode"),
+                value(fields, "same_workspace_standalone_count"),
+                value(fields, "same_workspace_standalone_grant_readable_count"),
                 value(fields, "query_outcome"),
                 value(fields, "error_class"),
                 value(fields, "elapsed_micros"),
@@ -180,6 +183,9 @@ mod mt170_resolver_observation_capture {
                 "timing_available" | "timing_valid" | "lookup_performed" => {
                     matches!(value, "true" | "false").then_some(value.to_owned())
                 }
+                "profile_read_mode" => {
+                    matches!(value, "some_true" | "some_false" | "none").then_some(value.to_owned())
+                }
                 "candidate_input_count"
                 | "candidate_id_count"
                 | "returned_row_count"
@@ -187,6 +193,8 @@ mod mt170_resolver_observation_capture {
                 | "foreign_workspace_count"
                 | "same_workspace_readable_count"
                 | "same_workspace_unreadable_count"
+                | "same_workspace_standalone_count"
+                | "same_workspace_standalone_grant_readable_count"
                 | "elapsed_micros"
                 | "count"
                 | "elapsed_ms"
@@ -234,6 +242,9 @@ mod mt170_resolver_observation_capture {
                         "foreign_workspace_count",
                         "same_workspace_readable_count",
                         "same_workspace_unreadable_count",
+                        "profile_read_mode",
+                        "same_workspace_standalone_count",
+                        "same_workspace_standalone_grant_readable_count",
                         "query_outcome",
                         "error_class",
                         "elapsed_micros",
