@@ -1554,6 +1554,141 @@
         "export_refresh": "Canonical wrapper refreshed and verified export-current after the bound release; see completed-round export_refresh record"
       },
       "next": "KB and buddy inspect the measured current fingerprints and authorize the smallest pin-source action; preserve the four mismatch values, do not infer or edit pins without that review",
+      "five_test_measurement_9858d461_20261005": {
+        "recorded_at_utc": "2026-10-05T02:00:30Z",
+        "recording_chronology": "The initial combined read/write attempt was blocked before execution and made no file change. The measurement subsection was then added with apply_patch before the GP283 notification was received; the separate strict duplicate-key readback completed after that notification. GP283 is not claimed as a pre-patch check.",
+        "state": "COMPLETED; evidence-only five-test CURRENT-pin measurement; 3 pin mismatches and 2 passes; no pin edits or semantic acceptance",
+        "candidate_commit": "9858d461bf33a341871327ebf4c4a7badad3300a",
+        "candidate_tree": "d4b4593f4fd42e321bfcfb6edda4e48947cf8a96",
+        "schema_revision": 163,
+        "scope": "Five required CURRENT-pin measurement tests only; core-library targeted route; native and extracted targets skipped; sixth parity test remains separately required.",
+        "selector": {
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection-targeted.sh",
+          "sha256": "55a73dc05a5c92613a4fcc27c93b579d40773a870dca68b0740fca81e86daa52",
+          "review": "Independent KB static review of the exact five packet tests and core-library-only selection."
+        },
+        "launcher": {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-launch-targeted-9858d461.ps1",
+          "sha256": "e2ddec450a91727f9347d8a74f3e7a6869f5c402bbf2b6f285dce60fa58c6964"
+        },
+        "round": {
+          "run_id": "cacf37d1fbc54faa9e37545606aed306",
+          "release_id": "2d4a79b62e4c4168ab13f84c50211a57",
+          "release_issued_utc": "2026-10-05T01:39:21.3222809Z",
+          "consumed_release_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-9858d461bf33a341871327ebf4c4a7badad3300a.supervisor-cacf37d1fbc54faa9e37545606aed306.release-consumed.json",
+          "consumed_release_sha256": "c6cc473e2e3933c201c33275050b9be33f48a64856d9ebe61738f8be21faa732",
+          "ready_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-9858d461bf33a341871327ebf4c4a7badad3300a.supervisor-cacf37d1fbc54faa9e37545606aed306.ready.json",
+          "ready_bytes": 2160,
+          "ready_sha256": "f544d26f37a58e2adb7de2c1e51233421aab2b75c5a53c45bef556a59e3bb5cc",
+          "ready_state": "completed",
+          "supervisor_pid": 208792,
+          "supervisor_start_utc": "2026-10-05T00:50:50.1056653Z",
+          "supervisor_parent_pid": 233996,
+          "bash_pid": 258628,
+          "bash_start_utc": "2026-10-05T01:40:20.8323013Z",
+          "wrapper_exit_code": 0,
+          "completed_utc": "2026-10-05T01:52:31.2013089Z",
+          "entrypoint_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+          "entrypoint_sha256": "9d8fb25e303df784d9b35bc9575a65807a22ffe9a2e2593b4111fcdb0133bb53",
+          "entrypoint_arguments": [
+            "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+            "9858d461bf33a341871327ebf4c4a7badad3300a",
+            "targeted"
+          ],
+          "profile_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/nextest-core.toml",
+          "profile_sha256": "e651a5b229a0a609b426cb3d485ae5fd17301c0b3440e7868c9de296ba2c7922",
+          "target_path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52"
+        },
+        "export_refresh": {
+          "mode": "incremental",
+          "previous_candidate": "c0afe905114738812227f26ab45fc83705ebd841",
+          "verify_ok": true,
+          "verified_files": 7167,
+          "manifest_sha256": "57a5b745731e01506fec91829c434d51c3b0a2ddf897137d1da28f8001e39d45",
+          "identity_path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-current.identity",
+          "identity_bytes": 388,
+          "identity_sha256": "b7388b04a67d3e3bdf5ad2be081142f4ac1628862fc61daaca5975232f0a4a4d",
+          "identity_content": "schema=handshake.wpv.export-identity@1; candidate_sha=9858d461bf33a341871327ebf4c4a7badad3300a; tree_id=d4b4593f4fd42e321bfcfb6edda4e48947cf8a96; file_count=7167; manifest_sha256=57a5b745731e01506fec91829c434d51c3b0a2ddf897137d1da28f8001e39d45; previous_sha=c0afe905114738812227f26ab45fc83705ebd841; refresh_mode=incremental; refresh_seconds=24; refreshed_utc=2026-10-05T01:41:42Z; state=complete",
+          "metadata_compare": {
+            "result": "PASS",
+            "classified": 7167,
+            "failures": 0,
+            "before_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/export-current-metadata-9858d461bf33a341871327ebf4c4a7badad3300a-incremental-0c01fae6302247988063dd29a2446bd6-before.json",
+            "before_bytes": 1983350,
+            "before_sha256": "bb34bad5d116bfeb34247d0aadfd64581c87828bd0c3753081b9bcabf9c5f9a7",
+            "after_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/export-current-metadata-9858d461bf33a341871327ebf4c4a7badad3300a-incremental-0c01fae6302247988063dd29a2446bd6-after.json",
+            "after_bytes": 1983350,
+            "after_sha256": "b5737c521040c6153acc535710660ea43b812d6c76b4fff90f7ac6db740646a8",
+            "compare_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/export-current-metadata-9858d461bf33a341871327ebf4c4a7badad3300a-incremental-0c01fae6302247988063dd29a2446bd6-compare.json",
+            "compare_bytes": 574792,
+            "compare_sha256": "3c3ae49add57197d2261bee289765ff4befda73d21fcd3dddd10ffc991d3436f"
+          }
+        },
+        "build": {
+          "profile_config_sha256": "304141037aa802c844b08bbcbd9798ab9297b1908020bd425f804bd1376d1729",
+          "build_log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/core-build-v-9858d461bf33a341871327ebf4c4a7badad3300a-targeted.log",
+          "build_log_bytes": 65081,
+          "build_log_sha256": "51a5a3aad7891b815248a3c517561928e1edc5c63b2290ed90c6c89ff87d2d74",
+          "finished_test_profile": "9m 41s",
+          "test_executable": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/debug/deps/handshake_core-e359b57051e3b91d.exe",
+          "test_profile_proof": { "fresh": 8, "absent": 0, "bad": 0 },
+          "compiled_crates": 1,
+          "compiled_crate_names": ["handshake_document"],
+          "relinked_test_binaries": 1,
+          "backend_bin_relinked": 0,
+          "native_extracted_selection": "skipped by targeted selector"
+        },
+        "observer": {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-9858d461bf33a341871327ebf4c4a7badad3300a.observations.jsonl",
+          "bytes": 111027,
+          "sha256": "5452738d1b1a65117507793ed7d82987344281dce08ff49aa242c6006de32b8d",
+          "last_sample": {
+            "utc": "2026-10-05T01:52:48.3291107Z",
+            "poll": 116,
+            "target_bytes": 103689097051,
+            "stop_bytes": 147000000000,
+            "cap_bytes": 150000000000,
+            "stop_exceeded": false,
+            "scan_errors": 0,
+            "commit_limit_bytes": 149695787008,
+            "committed_bytes": 57710796800,
+            "free_commit_bytes": 91984990208,
+            "baseline_committed_bytes": 56095404032,
+            "max_sampled_committed_bytes": 76082581504,
+            "min_sampled_free_commit_bytes": 73613205504,
+            "exit_record_present": true
+          }
+        },
+        "artifacts": {
+          "stdout_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-9858d461bf33a341871327ebf4c4a7badad3300a.stdout.log",
+          "stdout_bytes": 71738,
+          "stdout_sha256": "8f6d83639fd8a43d057c6b26344400b1d60b39c78b072a7ea697bdceb2f00112",
+          "stderr_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-9858d461bf33a341871327ebf4c4a7badad3300a.stderr.log",
+          "stderr_bytes": 35109,
+          "stderr_sha256": "ccb2a89e0fec5054730d92e0071c0facfe53dc8dec1bc0680ef59a644b1f374b",
+          "exit_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-9858d461bf33a341871327ebf4c4a7badad3300a.exit.json",
+          "exit_bytes": 817,
+          "exit_sha256": "80d8b1bdf6fed055a2142c340be5162d7835a2ae8f21bf5b0be17997bf647205",
+          "bash_exit_code": 0,
+          "nextest_exit_code": 100,
+          "junit_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-9858d461bf33a341871327ebf4c4a7badad3300a-core-targeted.xml",
+          "junit_bytes": 6351,
+          "junit_sha256": "a7cee4843d84a53c41adc5bbe474292a2d6d8ad94297c3393a2f4280a2d4935b",
+          "test_count": 5,
+          "failure_count": 3,
+          "pass_count": 2,
+          "failure_details": [
+            { "test": "storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive", "line": 9502, "observed": "41c41a52fc29a08f32c1db5525820cc8977997e6a2918be606e67756bc311c0e", "expected": "a0b177fe32c68a5b17813dede906f83877241532c3c8996e2a3c3fd124c6fbb5" },
+            { "test": "storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic", "line": 9339, "observed": "f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6", "expected": "f7b1f5f7ae76a3b1c60713832c11f856fcdb83d72fddbf6336a1abbb708c524d" },
+            { "test": "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog", "line": 9373, "observed": "f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6", "expected": "f7b1f5f7ae76a3b1c60713832c11f856fcdb83d72fddbf6336a1abbb708c524d" }
+          ],
+          "passed_tests": [
+            "storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic",
+            "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin"
+          ]
+        },
+        "acceptance": "Evidence-only measurements for five CURRENT-pin tests; 3 fingerprints differ from compiled pins. No pin source edit, no final six-test confirmation, no MT170 acceptance, and no retroactive historical AC1701 satisfaction."
+      },
       "manifest_repair_20261004": {
         "state": "NO_REPAIR_PLANNED",
         "phase": "WP012-PINREC-002 current five-test measurement preparation",
