@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 345
+generation: 347
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -318,3 +318,5 @@ steps:
 - {id: GP-297, role: any, at: before_round, do: verify release ready digest equals programmatic actual file and receipt hashes, check: {type: confirm}, source: 'infra: hand-copied ready digest dropped one hex character; static review missed binding', state: active}
 - {id: GP-298, role: any, at: before_round, do: verify fixture grant is projected from its resource row and SQL UUID delimiters decode to the bound key, check: {type: confirm}, source: 'fail: MT170 fixture assumed an unannotated grant field existed in references_to catalog', state: active}
 - {id: GP-299, role: wp_validator, at: before_dispatch, do: verify source-derived metadata paths and exact payload classification preserve preparation before costly gates, check: {type: confirm}, source: 'infra: literal profile metadata basename matched runner pattern before passive producers existed', state: active}
+- {id: GP-300, role: wp_validator, at: before_dispatch, do: verify orchestration uses supported helpers and file-produced byte and hash proofs before payload invocation, check: {type: confirm}, source: 'infra: TextEncoder unavailable in orchestration isolate; wrapper stopped before payload invocation', state: active}
+- {id: GP-301, role: wp_validator, at: before_dispatch, do: verify launch candidate comes from clean pushed product HEAD and is 40 hex before any child starts, check: {type: confirm}, source: 'infra: B candidate literal lost final hex; observer rejected full 40-hex Sha before supervisor start', state: active}
