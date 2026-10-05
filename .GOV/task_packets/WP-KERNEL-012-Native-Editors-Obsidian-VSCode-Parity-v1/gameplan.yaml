@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 337
+generation: 338
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -310,3 +310,4 @@ steps:
 - {id: GP-289, role: orchestrator, at: before_round, do: verify reported receipt paths against canonical lane inventory before reading or hashing, check: {type: confirm}, source: 'infra: relayed resolver receipt parent path was absent; subsequent hash input was null', state: active}
 - {id: GP-290, role: wp_validator, at: before_dispatch, do: verify controller confirmation note uses safe PowerShell argument quoting, check: {type: confirm}, source: 'infra: single-quoted note contained apostrophe and failed before controller execution', state: active}
 - {id: GP-291, role: orchestrator, at: before_round, do: verify controller confirmation note length <= 120 characters, check: {type: confirm}, source: 'infra: root confirmation note exceeded controller120-character limit; no confirmations applied', state: active}
+- {id: GP-292, role: any, at: before_round, do: verify output-config metadata reads are bounded and invoke no runner, check: {type: confirm}, source: 'infra: KB/WPV packet and output-TOML reads hit20s PreToolUse budget before body; no files read', state: active}
