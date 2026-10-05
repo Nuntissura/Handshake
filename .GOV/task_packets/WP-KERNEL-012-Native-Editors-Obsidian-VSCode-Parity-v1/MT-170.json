@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-05T05:34:57Z",
+  "updated_at_utc": "2026-10-05T05:41:57.1511228Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -522,14 +522,14 @@
         "commit": "9858d461bf33a341871327ebf4c4a7badad3300a",
         "tree": "d4b4593f4fd42e321bfcfb6edda4e48947cf8a96",
         "command": "cargo check --locked -j 1 --config D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils; cwd=src/backend/handshake_core; CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target; CARGO_INCREMENTAL=0; CARGO_PROFILE_DEV_DEBUG=line-tables-only; CARGO_PROFILE_TEST_DEBUG=line-tables-only",
-        "started_at_utc": "2026-10-05T00:21:41.1616030Z",
+        "started_at_utc": "2026-10-05T00:21:41.161603Z",
         "completed_at_utc": "2026-10-05T00:30:59.6257115Z",
         "exec_session": 6926,
         "process_observations": {
           "powershell_pid": 165844,
-          "powershell_created_utc": "2026-10-05T00:21:41.1616030Z",
+          "powershell_created_utc": "2026-10-05T00:21:41.161603Z",
           "cargo_pid": 200080,
-          "cargo_created_utc": "2026-10-05T00:21:41.6361830Z",
+          "cargo_created_utc": "2026-10-05T00:21:41.636183Z",
           "basis": "Live Win32_Process observations while the same compile session was running; launcher and Cargo starts are distinct."
         },
         "exit_code": 0,
@@ -571,13 +571,13 @@
         "commit": "70da366a3391206b2fba86f721c1095ea48a373e",
         "tree": "e40d170e5a3b79433c5fd83b3ffdbd2ecbc0e443",
         "command": "cargo check --locked -j 1 --config D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils; cwd=src/backend/handshake_core; CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-167/kb/target; CARGO_INCREMENTAL=0; CARGO_PROFILE_DEV_DEBUG=line-tables-only; CARGO_PROFILE_TEST_DEBUG=line-tables-only",
-        "started_at_utc": "2026-10-05T02:28:59.8850120Z",
+        "started_at_utc": "2026-10-05T02:28:59.885012Z",
         "launcher_recorded_started_at_utc": "2026-10-05T02:28:59.8168599Z",
         "completed_at_utc": "2026-10-05T02:39:33.3403942Z",
         "exec_session": 76360,
         "process_observations": {
           "powershell_pid": 266080,
-          "powershell_created_utc": "2026-10-05T02:28:57.160690Z",
+          "powershell_created_utc": "2026-10-05T02:28:57.16069Z",
           "cargo_pid": 176968,
           "cargo_parent_pid": 249524,
           "cargo_created_utc": "2026-10-05T02:28:59.885012Z",
@@ -1209,7 +1209,7 @@
       "commit_free_bytes": 27373662208,
       "required_commit_free_bytes": 45000000000,
       "cpu_percent": 5,
-      "observer_utc": "2026-10-04T02:57:57.0125130Z",
+      "observer_utc": "2026-10-04T02:57:57.012513Z",
       "observer_poll": 163,
       "target_bytes": 102639233074,
       "observer_processes": [],
@@ -1712,9 +1712,15 @@
           "build_log_sha256": "51a5a3aad7891b815248a3c517561928e1edc5c63b2290ed90c6c89ff87d2d74",
           "finished_test_profile": "9m 41s",
           "test_executable": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/debug/deps/handshake_core-e359b57051e3b91d.exe",
-          "test_profile_proof": { "fresh": 8, "absent": 0, "bad": 0 },
+          "test_profile_proof": {
+            "fresh": 8,
+            "absent": 0,
+            "bad": 0
+          },
           "compiled_crates": 1,
-          "compiled_crate_names": ["handshake_document"],
+          "compiled_crate_names": [
+            "handshake_document"
+          ],
           "relinked_test_binaries": 1,
           "backend_bin_relinked": 0,
           "native_extracted_selection": "skipped by targeted selector"
@@ -1759,9 +1765,24 @@
           "failure_count": 3,
           "pass_count": 2,
           "failure_details": [
-            { "test": "storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive", "line": 9502, "observed": "41c41a52fc29a08f32c1db5525820cc8977997e6a2918be606e67756bc311c0e", "expected": "a0b177fe32c68a5b17813dede906f83877241532c3c8996e2a3c3fd124c6fbb5" },
-            { "test": "storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic", "line": 9339, "observed": "f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6", "expected": "f7b1f5f7ae76a3b1c60713832c11f856fcdb83d72fddbf6336a1abbb708c524d" },
-            { "test": "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog", "line": 9373, "observed": "f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6", "expected": "f7b1f5f7ae76a3b1c60713832c11f856fcdb83d72fddbf6336a1abbb708c524d" }
+            {
+              "test": "storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive",
+              "line": 9502,
+              "observed": "41c41a52fc29a08f32c1db5525820cc8977997e6a2918be606e67756bc311c0e",
+              "expected": "a0b177fe32c68a5b17813dede906f83877241532c3c8996e2a3c3fd124c6fbb5"
+            },
+            {
+              "test": "storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic",
+              "line": 9339,
+              "observed": "f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6",
+              "expected": "f7b1f5f7ae76a3b1c60713832c11f856fcdb83d72fddbf6336a1abbb708c524d"
+            },
+            {
+              "test": "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+              "line": 9373,
+              "observed": "f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6",
+              "expected": "f7b1f5f7ae76a3b1c60713832c11f856fcdb83d72fddbf6336a1abbb708c524d"
+            }
           ],
           "passed_tests": [
             "storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic",
@@ -1853,11 +1874,22 @@
         },
         "export_metadata": {
           "round_instance": "63d3471f14254064b61862970333fccb",
-          "before": { "bytes": 1983350, "sha256": "bd860f1b933bb936a2e483c76e8399792e3c4428b9bd83bad101a02ea4471ec9" },
-          "after": { "bytes": 1983350, "sha256": "4be70c87f18abc8dbfbc33d161af0c57b4b53c9f7410d43240f703b5089f3b90" },
-          "compare": { "bytes": 574824, "sha256": "f508878f0d85cf39126957642fa832cfaff3555199f236f43367dd48c50d03d7" },
+          "before": {
+            "bytes": 1983350,
+            "sha256": "bd860f1b933bb936a2e483c76e8399792e3c4428b9bd83bad101a02ea4471ec9"
+          },
+          "after": {
+            "bytes": 1983350,
+            "sha256": "4be70c87f18abc8dbfbc33d161af0c57b4b53c9f7410d43240f703b5089f3b90"
+          },
+          "compare": {
+            "bytes": 574824,
+            "sha256": "f508878f0d85cf39126957642fa832cfaff3555199f236f43367dd48c50d03d7"
+          },
           "tracked_observed_paths": 7167,
-          "classification_counts": { "unchanged": 7167 },
+          "classification_counts": {
+            "unchanged": 7167
+          },
           "failures": 0,
           "result": "PASS"
         },
@@ -1951,7 +1983,7 @@
             "wrapper_accounting": "incremental refresh; compiled_crates=0; relinked_test_binaries=0; backend_bin_relinked=0"
           },
           "export_identity": {
-            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-loom-output-70da366a-46c19fe3/C-export-current.identity",
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-loom-output-70da366a-46c19fe3/logs/C-export-current.identity",
             "bytes": 387,
             "sha256": "d72518c8138865c394cae99c357350090d86a42b4eb7985f4ea6767125fb6e3f",
             "candidate_sha": "70da366a3391206b2fba86f721c1095ea48a373e",
@@ -2038,7 +2070,7 @@
         "failure_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-ce593857d3b355a1cc0ffd76bbd72494104973a7.supervisor-be733849b1554a32a3c6e87bc791b55f.failure.json",
         "failure_bytes": 368,
         "failure_sha256": "1173f721427c207134467427b0a267bb9bf6d81b1371a86871ba1e5f86aaede8",
-        "failure_observed_utc": "2026-10-04T16:48:00.5603710Z",
+        "failure_observed_utc": "2026-10-04T16:48:00.560371Z",
         "failure": "competing build/test process detected: 241044:cargo.exe,258136:rustc.exe",
         "bash_started": false,
         "supervisor_absent_observed_utc": "2026-10-04T16:49:05Z; rechecked 2026-10-04T16:49:46Z",
@@ -2118,7 +2150,7 @@
       "source_launcher_sha256": "3ab4c5574a395e3caf8eb9a8e13d6be671e236fcdb34783a3009e9aef1fdc145",
       "observer_pid": 261532,
       "observer_identity_start_utc": "2026-10-04T12:10:49.8069907Z",
-      "observer_cim_start_utc": "2026-10-04T12:10:49.8069900Z",
+      "observer_cim_start_utc": "2026-10-04T12:10:49.80699Z",
       "root_evidence": "JSON start is typed UTC DateTime; string cast localizes to10/04/2026 12:10:49, parsed UTC becomes2026-04-10T10:10:49Z; actual ticks639267126498069907 versus CIM639267126498069900",
       "findings": [
         "Localized DateTime string round trip loses ISO date, UTC and fractions",
@@ -2206,7 +2238,7 @@
       "source_only_caveat": "KB observed create_workspace temporary server abort happens after successful response/JSON parse; panic drops JoinHandle. No current runtime failure/acceptance inference or adjacent product edit authorized",
       "running_observation": {
         "release_id": "8abb1849e2ff4ab48448feff52381313",
-        "issued_utc": "2026-10-04T13:20:23.594890Z",
+        "issued_utc": "2026-10-04T13:20:23.59489Z",
         "release_state": "consumed",
         "consumed_record_sha256": "81e725d6dea13bb43d26cf5a0ad4e372b4e40c17487280d91a591a20c95c5e83",
         "bash_pid": 254948,
@@ -2537,7 +2569,7 @@
       }
     },
     "sixth_parity_preparation_c0afe905": {
-      "recorded_at_utc": "2026-10-04T19:33:14.139282+00:00",
+      "recorded_at_utc": "2026-10-04T21:33:14.139282+02:00",
       "candidate_commit": "c0afe905114738812227f26ab45fc83705ebd841",
       "candidate_tree": "f89ee2d8f9012bfbbfa80db151369f01e696c4b5",
       "state": "SIXTH_PARITY_TEST_PASSED; MT170 remains BLOCKED; no overall semantic verdict",
