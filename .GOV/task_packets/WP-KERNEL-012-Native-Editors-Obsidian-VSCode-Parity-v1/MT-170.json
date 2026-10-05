@@ -1770,6 +1770,121 @@
         },
         "acceptance": "Evidence-only measurements for five CURRENT-pin tests; 3 fingerprints differ from compiled pins. No pin source edit, no final six-test confirmation, no MT170 acceptance, and no retroactive historical AC1701 satisfaction."
       },
+      "post163_six_required_runtime_70da366a_20261005": {
+        "recorded_at_utc": "2026-10-05T04:55:13.4304614Z",
+        "phase_id": "WP012-PINREC-003",
+        "state": "SIX_REQUIRED_TESTS_PASS; raw Loom digest output still unretained; no MT170 acceptance",
+        "candidate_commit": "70da366a3391206b2fba86f721c1095ea48a373e",
+        "candidate_tree": "e40d170e5a3b79433c5fd83b3ffdbd2ecbc0e443",
+        "schema_revision": 163,
+        "run_id": "446f95213f7c4ac981c455515ce08c7a",
+        "selector": {
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection-targeted.sh",
+          "sha256": "de64c0347b475ddd3d765f2af4ffda711a27d2997ba0e05ad12089057063171a",
+          "mode": "targeted",
+          "scope": "exact six required_pin_tests; core library only; native and extracted targets skipped"
+        },
+        "control_identity": {
+          "ready_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-six-pin-70da366a-446f9521/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.supervisor-446f95213f7c4ac981c455515ce08c7a.ready.json",
+          "ready_bytes": 2160,
+          "ready_sha256": "8425528833557764ccadba94618d7d247a95c874578a3a639f39d66d0ea2bd8a",
+          "supervisor_pid": 157772,
+          "supervisor_start_utc": "2026-10-05T03:06:39.2430148Z",
+          "supervisor_parent_pid": 218496,
+          "observer_identity_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-six-pin-70da366a-446f9521/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.observer.identity.json",
+          "observer_identity_bytes": 624,
+          "observer_identity_sha256": "41f341a7f082965f11a58d1d1de32ed7fe80e53510d782ea440f11f838f2c0c0",
+          "release_consumed_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-six-pin-70da366a-446f9521/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.supervisor-446f95213f7c4ac981c455515ce08c7a.release-consumed.json",
+          "release_consumed_bytes": 815,
+          "release_consumed_sha256": "322f5999e617e20496e4be45578dee4d2f9ae7cf8ff300f93a8b2861a0fcf037",
+          "release_id": "94873d0aa8c64fdcb1a63e72d0ff68a4",
+          "release_issued_utc": "2026-10-05T04:02:35.6063111Z"
+        },
+        "result": {
+          "completed_utc": "2026-10-05T04:18:53.2403864Z",
+          "bash_exit_code": 0,
+          "nextest_exit_code": 0,
+          "test_count": 6,
+          "pass_count": 6,
+          "failure_count": 0,
+          "error_count": 0,
+          "tests": [
+            "storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive",
+            "storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic",
+            "storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic",
+            "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin",
+            "storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection",
+            "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog"
+          ],
+          "junit": {
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-six-pin-70da366a-446f9521/logs/junit-70da366a3391206b2fba86f721c1095ea48a373e-core-targeted.xml",
+            "bytes": 1536,
+            "sha256": "42635190faf065a292a69026ae1026c2c778568a24fb36321584ab8fba0cd677"
+          },
+          "stdout": {
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-six-pin-70da366a-446f9521/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.stdout.log",
+            "bytes": 69170,
+            "sha256": "05e5443a712697163e6c9355921cddac1b0184959e44ca754de022236e6865e1"
+          },
+          "stderr": {
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-six-pin-70da366a-446f9521/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.stderr.log",
+            "bytes": 31985,
+            "sha256": "8bc4090fc93aa19d8e283ecba012fc5284e6dd3d9ad0d602aed0c305c004d23e"
+          },
+          "exit": {
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-six-pin-70da366a-446f9521/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.exit.json",
+            "bytes": 817,
+            "sha256": "7e6754c5e5f88f573d62421a73f9713e376ca96a4427919edc416fb114643a0f"
+          }
+        },
+        "export_identity": {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-six-pin-70da366a-446f9521/logs/C-export-current.identity",
+          "bytes": 387,
+          "sha256": "0ce954084392f8963feeb232d073003134f48616381874412ddab7dbc6c1e872",
+          "candidate_sha": "70da366a3391206b2fba86f721c1095ea48a373e",
+          "tree_id": "e40d170e5a3b79433c5fd83b3ffdbd2ecbc0e443",
+          "file_count": 7167,
+          "manifest_sha256": "2ded976301f8ab37ceed25cc83c3aacff6a7b8efd192742e7370e9be934e566e",
+          "previous_sha": "9858d461bf33a341871327ebf4c4a7badad3300a",
+          "refresh_mode": "incremental",
+          "refresh_seconds": 5,
+          "refreshed_utc": "2026-10-05T04:04:37Z",
+          "state": "complete"
+        },
+        "export_metadata": {
+          "round_instance": "63d3471f14254064b61862970333fccb",
+          "before": { "bytes": 1983350, "sha256": "bd860f1b933bb936a2e483c76e8399792e3c4428b9bd83bad101a02ea4471ec9" },
+          "after": { "bytes": 1983350, "sha256": "4be70c87f18abc8dbfbc33d161af0c57b4b53c9f7410d43240f703b5089f3b90" },
+          "compare": { "bytes": 574824, "sha256": "f508878f0d85cf39126957642fa832cfaff3555199f236f43367dd48c50d03d7" },
+          "tracked_observed_paths": 7167,
+          "classification_counts": { "unchanged": 7167 },
+          "failures": 0,
+          "result": "PASS"
+        },
+        "retention": {
+          "manifest_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/retained-six-pin-70da366a-446f9521/manifest.json",
+          "manifest_bytes": 21670,
+          "manifest_sha256": "98a16e867940b12ac21f551e143de0539b40c04d32cb279bd62f96d318c6f1a2",
+          "record_count": 26,
+          "verified_state": "SOURCE_MOVED_HASH_VERIFIED",
+          "c_local_junit": "NOT_INSPECTED_NOT_COPIED; authoritative lane JUnit retained; no equality claim"
+        },
+        "raw_pin_output": {
+          "loom_digest": "NOT_CAPTURED",
+          "reason": "The successful Loom assertion's output was suppressed in this six-test run; retained lane JUnit confirms the test passed but does not retain its digest line. The 9858 measurement also lacks a retained raw Loom digest line.",
+          "next_action": "One Loom-only run through the existing targeted route with the committed selector setting NEXTEST_SUCCESS_OUTPUT=final; capture raw test output only."
+        },
+        "output_capture_config": {
+          "candidate_commit": "5009021acd9ba61a40d230a15eecfdc26993de58",
+          "candidate_tree": "9a9981d8864c16ad2f5491fce9a06bce6bf4acb8",
+          "selector_path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection-targeted.sh",
+          "selector_bytes": 471,
+          "selector_sha256": "7203c16f4784b47daa97759ba2775c5284568ba211652e4451558b485fbefe8f",
+          "change": "one exact Loom test filter and sourced NEXTEST_SUCCESS_OUTPUT=final; existing targeted route, profile, wrapper, native/extracted settings unchanged",
+          "independent_static_review": "WPV compared exact selector with retained six-test selector; KB parser/diff checks passed; root independently read clean/live candidate"
+        },
+        "lifecycle_disposition": "This proves the six required assertions passed on schema revision 163 and supplies the prior export/current comparison. It does not record or synthesize the missing raw Loom digest, satisfy AC-170-1 ordering, or advance MT170; lifecycle remains BLOCKED with null validator verdict."
+      },
       "manifest_repair_20261004": {
         "state": "NO_REPAIR_PLANNED",
         "phase": "WP012-PINREC-002 current five-test measurement preparation",
