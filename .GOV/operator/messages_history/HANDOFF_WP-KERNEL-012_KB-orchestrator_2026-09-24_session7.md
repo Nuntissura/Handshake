@@ -8,7 +8,11 @@ wp_id: WP-KERNEL-012
 
 <topic id="session-2026-10-04-orchestrator" wp="WP-KERNEL-012" status="active" updated_at="2026-10-05">
 
-## Current checkpoint:4b8d5546 observer live; supervisor-only readiness recovery
+## Current checkpoint:4b8d5546 observer live; narrow typed-UTC supervisor-cell correction
+
+- KB's unique supervisor-only cell14934B/SHA `ce042ec9b821e59f9d960d20d0862c516838b266dc9700164f9dda13b3005122`, envelope2007B/SHA `c18c622f4205be6b1f66b1041be238a5569c98667d967f84aa0fea3de44cb94f`, passed independent WPV static/parser/classifier review and was invoked ONCE. It closed exit1 atline113 before receipt/confirmations/supervisor/ready: ConvertFrom-Json's typed DateTime was cast to localized `10/05/2026 08:41:48`, then ParseExact rejected it. No new supervisor/release/test; the existing observer is preserved. Same buddy cleared ONLY a unique typed-UTC conversion correction after exact source inspection, retaining UTC/.NET precision and canonical integer microseconds without locale strings/floating division. Existing GP217/218/249 cover this known cause; no duplicate gameplan step. KB must exercise the changed conversion read-only against actual observer identity/liveCIM before freezing it, then WPV reviews only that diff/current parser/classifier and invokes one supervisor-only correction. No broader audit or scope change; current gameplan remains351.
+
+## Prior checkpoint:4b8d5546 observer live; supervisor-only readiness recovery
 
 - Retry2 payload12822B/SHA `cf64b7ff873419e71b01f8c9383053e615236475b7524ee17529e4ff4bb5466a` was independently reviewed, parsed0/classified no match and executed ONCE/session61423 CLOSEDexit1, after actualGP201/301/239/302 confirmations/preparation, then `expected one ready record; observed0`. Actual run341883667a1e458ea1f4f6a467c1b01c preflight3680B/SHA `80e72922e91103c2f12f93f97e40003791713895e4f45c0c6623a2ad0f68f29f` binds parent178664 and Bash261244/PPID178664/exit0. Supervisorstderr is64B, exact `WPV supervisor failed: targeted observer artifacts are missing`; supervisor has exited, no ready/release/test. Same KB and independent WPV inspected the canonical e2d launcher: ready glob is correct, but Assert-Observer requires both identity and observationsJSONL with>=1row before ready. Retry2 waited only for identity, so its startup preparation missed that prerequisite. Final file mtime and first sample time must not be used as proof of historical file presence.
 
