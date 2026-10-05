@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-05T22:46:44Z",
+  "updated_at_utc": "2026-10-05T23:36:33Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -207,7 +207,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "The original 4b8d and 984238 d1d2 attempts are RED at same_workspace_readable_count (expected 1, observed 0). The 42754a06 focused diagnostic run 5f140717 is closed RED at the same assertion; its redacted output shows profile_read_mode=some_true and same_workspace_standalone_grant_readable=0 for one same-workspace standalone candidate. Candidate 656110ee043fb153faefa49fd187b0dcf8d6f0eb now contains an unvalidated canonical protected-resource authorization repair; the passing original focused proof and Builder compile proof remain outstanding. AC-170-1 and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver.",
+    "blocked_on": "The original 4b8d and 984238 d1d2 attempts are RED at same_workspace_readable_count (expected 1, observed 0). The 42754a06 focused diagnostic run 5f140717 is closed RED; its redacted output records profile_read_mode=some_true and same_workspace_standalone_grant_readable=0. Candidate 656110ee043fb153faefa49fd187b0dcf8d6f0eb contains the reviewed but unvalidated canonical protected-resource authorization repair. Current original focused run f5d3098717ef4c63820f1ccc08265641 has consumed release 30c1b468e9734bddbd74cfccaf106505, is RUNNING with Bash194444 under supervisor247824, and completed the incremental export identity comparison; no selected-test exit or JUnit exists yet. Passing focused proof and Builder compile proof remain outstanding; AC-170-1 and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver.",
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -216,14 +216,14 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER: bind the reviewed 656110ee repair to fresh selector, launcher, observer and supervisor controls. WPV: complete current gates and run the original focused MT170 proof only after root's one-use release. Builder compile proof, AC-170-1 proof and final union remain required before READY; late CREATE race stays UNEXERCISED.",
+    "next_actor": "WPV: observe the existing f5d3098717ef4c63820f1ccc08265641 original focused run through its actual closed test/JUnit result; do not relaunch. Preserve the prior 42754 RED. Builder compile, AC-170-1 proof and final union remain required before READY; late CREATE race stays UNEXERCISED.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
     ],
     "candidate_commit": "656110ee043fb153faefa49fd187b0dcf8d6f0eb",
     "status_before_ready": "BLOCKED",
-    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 656110ee043fb153faefa49fd187b0dcf8d6f0eb; clean pushed repair tree dc3c0c396967bfcdd88edee3d013a7da4b34ec4c; two-file canonical protected-resource authorization repair independently reviewed but UNVALIDATED; latest focused run 5f140717 on 42754a06 is CLOSED RED; passing focused repair proof and Builder compile proof remain outstanding",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 656110ee043fb153faefa49fd187b0dcf8d6f0eb; clean pushed repair tree dc3c0c396967bfcdd88edee3d013a7da4b34ec4c; two-file canonical protected-resource authorization repair independently reviewed but UNVALIDATED; current original focused run f5d3098717ef4c63820f1ccc08265641 is RUNNING after its one-use release and completed export comparison; no test verdict yet; prior 42754 run 5f140717 remains CLOSED RED; passing focused proof and Builder compile remain outstanding",
     "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20261002",
     "selection_note": {
