@@ -1,14 +1,21 @@
 ---
 file_id: HANDOFF-WP-KERNEL-012-KB-ORCHESTRATOR-2026-09-24-SESSION7
 file_kind: operator_handoff
-updated_at: 2026-10-04
+updated_at: 2026-10-05
 authority: reference_only
 wp_id: WP-KERNEL-012
 ---
 
-<topic id="session-2026-10-04-orchestrator" wp="WP-KERNEL-012" status="active" updated_at="2026-10-04">
+<topic id="session-2026-10-04-orchestrator" wp="WP-KERNEL-012" status="active" updated_at="2026-10-05">
 
-## Current checkpoint: d6ed cheap compile PASS; scoped endpoint-read denial remedy assigned
+## Current checkpoint: endpoint-read repair pushed at9858d461; single changed-input compile awaiting captured gate
+
+- Root freshly verified clean product HEAD/live remote `9858d461bf33a341871327ebf4c4a7badad3300a`, tree `d4b4593f4fd42e321bfcfb6edda4e48947cf8a96`; the exact checkpoint changes only document surreal.rs and the existing knowledge_documents_api_tests.rs,254 insertions/8 deletions. KB reports edition2021 rustfmt and diff checks PASS. This checkpoint is UNCOMPILED/UNVALIDATED; the canonical MT170 checkpoint still names d6ed until KB seals the new record. The closed d6ed compile below is an unchanged-input baseline only, not9858 proof.
+- KB implemented the same buddy-reviewed D6-AC1703-01 remedy: retain live/foreign identity sets, derive canonical record-user endpoint-readable set, gate projection and prior fallback by readability. Its dedicated new save has a cleared capture window and source assertions for one visible same-workspace unreadable row, successful save, textual backlink, no edge, exactly one typed no_readable_loom_target, and actual endpoint GET403. KB states the test mutator changes only the target grant actions to read/update and capabilities to memory.read/fs.write through the existing creator-grant catalog reference; production permissions/helpers/schema are untouched. WPV is independently opening the actual two-file diff and fixture; these source assertions are not runtime proof.
+- Controller generation323 adds GP277 for the pre-body rejected --moment flag; verified syntax is check --at. A corrected gate's nested result/session was then discarded; KB observed its PID230144 live then absent and retains the outcome UNOBSERVED/UNKNOWN, never PASS. Existing GP258 already records this capture cause. KB is authorized to obtain one fully captured current builder gate, fresh GP111/20e9 admission, then ONE warm-D changed-input compile with retained stdout/stderr/closed exit; no extra root approval or WPV-review wait before compile. Same buddy reaffirmed this direct order.
+- Root sample `2026-10-05T00:08:32.4997756Z`: free commit92621697024B/CPU4 percent; system samples, not peaks or later admission. Canonical170MTs remain132PASS/6FAIL/19BLOCKED/13READY; MT170 staysBLOCKED/verdictnull/historicalAC1701NOT_SATISFIED. After stable green repair, WPV owns all-six post163 measurements/startup order, CURRENT-only pin checkpoint/changed-input compile, sameMT170GREEN, then preserved finalunion/PINCONFIRM/exact162upgrade/reopen/perMT/WPendextras. D6-AC1703-02 late CREATE race remains explicitly UNEXERCISED with unchanged fail-closed guard/no new seam/API/waiver. Preserve all warm paths/caches; no unrelated research/cleanup or foreign process/host action.
+
+## Prior checkpoint: d6ed cheap compile PASS; scoped endpoint-read denial remedy assigned
 
 - Root directly opened closed d6ed compile artifacts: exit0, exit file3B/SHA13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354; stderr87414B/SHAe983f0d762e5caef65e2d3732932a4fb062fa2d6108dddaed8cb29c27163be41 reports Finished dev in12m32s; stdout empty SHAe3b0. MT170 PR-WP012-MT170-KB-CHECK-05 binds exact candidate/tree/command/env/source/profile hashes with unchanged post-run inputs. This is compile-only baseline; no runtime or lint PASS.
 - KB and independent WPV agree D6-AC1703-01: keep same-workspace live/foreign identity sets for conflict/precedence, derive a separate readable set through the existing record-user endpoint helper, gate projection and prior-target fallback by readability, retain typed NoReadableLoomTarget plus textual backlink. Extend only existing named MT170 test/direct fixtures with query-visible KRD note UPDATE/fs.write allowed but READ/fs.read denied, asserting successful save/no edge/typed reason and retaining existing positive/idempotent/foreign/other-account/missing proof. Same buddy reviewed these exact steps before implementation; KB is assigned only owning document surreal.rs and that test, pushed UNVALIDATED checkpoint/static checks or exact blocker due2026-10-05T00:05:00Z, then one changed-input warm cheap compile through current gates.
