@@ -20,13 +20,13 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-05T17:38:52Z",
+  "updated_at_utc": "2026-10-05T18:05:58Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
     "title": "E8-MT-170-Rich-Document-Wikilink-Loom-Edge-Projection",
     "version": 1,
-    "contract_revision": 2
+    "contract_revision": 3
   },
   "closure_unit": {
     "outcome": "Saving a rich document whose wikilink targets an existing Loom block in the same workspace projects the mention edge into loom_edges, so GET backlinks returns it (MT-046 ic04/ic10/ic12); a skipped projection is never silent; authority unchanged.",
@@ -101,7 +101,12 @@
       "src/backend/handshake_core/src/storage/surreal/schema.rs (existing pin/delta scope plus the already-authorized single revision162-to163 bump, exact revision162 predecessor and data-preserving upgrade/reopen entries or required existing tests; preserve every historical PRE/PREDECESSOR value; update CURRENT runtime values only from independent measurements)",
       "src/backend/handshake_document/src/surreal.rs (AC-170-3 typed skip reason only)",
       "src/backend/handshake_core/src/storage/surreal/knowledge.rs (only create_owned_document_rows target_guard predicate: preserve KRD-backed case and add standalone source_rich_document_id=NONE case under exact block/workspace/note and unchanged record-user UPDATE authorization)",
-      "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs (only the existing named MT170 standalone-wikilink test and its directly used fixtures/assertions needed for this guard, projection identity, typed-denial and authority proof; no unrelated test target)"
+      "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs (only the existing named MT170 standalone-wikilink test and its directly used fixtures/assertions needed for this guard, projection identity, typed-denial and authority proof; no unrelated test target)",
+      "src/backend/handshake_document/src/operations.rs (only internal profile-aware DocumentHost/DocumentStore opt-in variants for existing create/save operations; profile_alignment_remediation_20261005)",
+      "src/backend/handshake_core/src/storage/knowledge.rs (only internal profile-aware KnowledgeStore opt-in variants; existing raw methods preserve prior behavior; profile_alignment_remediation_20261005)",
+      "src/backend/handshake_core/src/storage/surreal/knowledge.rs (only profile-aware opt-in creation/replace propagation to the existing resolver; profile_alignment_remediation_20261005)",
+      "src/backend/handshake_core/src/api/knowledge_documents.rs (only same-session registry fs.read decision and existing create/import/save/rebuild adapter propagation; profile_alignment_remediation_20261005)",
+      "src/backend/handshake_document/src/surreal.rs (only profile-aware standalone readability alignment and unchanged legacy/rich-document behavior; profile_alignment_remediation_20261005)"
     ],
     "forbidden_write_paths": [
       "app/src/**",
@@ -279,7 +284,8 @@
         "requirement": "Downstream: MT-046 PC-046-01/02/03 ic04 (test_interconnect_ckc_to_note.rs:692), ic10 (test_interconnect_loom_backlink_search.rs:285), ic12 (:502) pass in the same round."
       }
     ],
-    "direct_blocker_scope_exception_ref": "direct_blocker_remediation_20261004"
+    "direct_blocker_scope_exception_ref": "direct_blocker_remediation_20261004",
+    "profile_alignment_scope_exception_ref": "profile_alignment_remediation_20261005"
   },
   "gui_obligation": {
     "operator_surface_required": false,
@@ -3513,6 +3519,37 @@
       }
     ],
     "scope_limit": "This adds only the direct observed guard blocker and makes existing revision/test allowances precise. It waives no acceptance, privacy, gameplan, resource, role or proof requirement."
+  },
+  "profile_alignment_remediation_20261005": {
+    "decision_id": "WP012-MT170-PROFILE-AWARE-READABILITY-REMEDIATION-20261005",
+    "recorded_at_utc": "2026-10-05T18:05:58Z",
+    "selected_by": "ORCHESTRATOR under existing autonomous inspected-decision delegation and explicit 2026-10-05 Operator instruction to resolve blockers and continue MT170",
+    "delegation_ref": "packet.json#operator_decisions_20261004[WP012-OPERATOR-AUTONOMOUS-INSPECTED-DECISIONS-20261004]",
+    "operator_instruction": "i want state recovery and mt status to be correct, evrything else i do not care about, i create the gameplan as a tool to keep you on track, just as your buddy. continue work, resolve blockers, use sub agents to help you. do not guess, deliberate and research or explore code or master spec.",
+    "state": "APPROVED_NARROW_UNVALIDATED_REMEDIATION; no acceptance or permission waiver",
+    "failure_ref": "resource_admission_policy_20261004.current_pin_measurement_20261004.original_mt170_diagnostic_20261005.followup_attempt_4b8d5546_20261005",
+    "observed_failure": "Current original MT170 run441ca215 candidate4b8d failed at knowledge_documents_api_tests.rs4290: same_workspace_readable_count Some(0), expected Some(1), while the isolated target GET status/body identity assertions passed.",
+    "source_basis": [
+      "KB and independent WPV: standalone mt120_loom_endpoint_access adds workspace fs.read beyond GET exact LoomBlock read/fs.read authorization; SELECT visibility can separately come from memory.read source-read.",
+      "Independent WPV: GET authorize_request also applies registry.profile_can(fs.read); SQL grant alone is insufficient because resolver endpoint_readable drives projection and fallback.",
+      "Auxiliary read-only builder: resource_authority.rs1195/1235 derives decision profile from the authenticated principal; same-session DOCUMENT_AUTHORITY carries that profile and AppState holds the registry. Record-user principal profile mutation is rejected; privileged concurrent mutation is not proven.",
+      "Buddy reviewed the corrected five-file internal opt-in flow; None retains legacy helper semantics, Some(false) denies, and Some(true) standalone uses exact target grant plus record-user SELECT and unchanged workspace equality."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_document/src/operations.rs",
+      "src/backend/handshake_document/src/surreal.rs",
+      "src/backend/handshake_core/src/storage/knowledge.rs",
+      "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+      "src/backend/handshake_core/src/api/knowledge_documents.rs"
+    ],
+    "constraints": [
+      {"id": "MT170-PR-001", "requirement": "Limit edits to the five listed existing files and existing internal opt-in interfaces/adapters needed for this failure; no new permission module, HTTP schema, table permission, grant expansion or unrelated caller change."},
+      {"id": "MT170-PR-002", "requirement": "Derive the opt-in fs.read boolean only from the server-authorized same-session principal profile through the existing registry; absent/error request context supplies Some(false), never permissive true or legacy None."},
+      {"id": "MT170-PR-003", "requirement": "For profile-aware standalone candidates require Some(true), exact mt109_has_grant loom_block/read/fs.read, record-user SELECT visibility and existing same-workspace identity; Some(false) is unreadable. Preserve live versus readable sets, projection/fallback readable gates and typed NoReadableLoomTarget."},
+      {"id": "MT170-PR-004", "requirement": "For legacy None callers preserve existing mt120_loom_endpoint_access behavior. Preserve the rich-document helper branch, with supplied false profile denying; do not alter workspaces/memory/loom/raw-test caller behavior through blanket default false."},
+      {"id": "MT170-PR-005", "requirement": "Carry the same scoped profile decision through existing knowledge_documents create/import/save/replace/rebuild paths, including direct routes bypassing the adapter; no root read or externally supplied authorization bit."},
+      {"id": "MT170-PR-006", "requirement": "KB supplies a pushed UNVALIDATED checkpoint and focused static proof; independent WPV reviews the exact propagation/diff before one changed-input warm compile and the same original MT170 test. Preserve every acceptance criterion, historical AC1701 disposition, race-unexercised limit and post-GREEN proof order; reuse prior evidence only where all asserted inputs remain unchanged."}
+    ]
   },
   "operator_decision_request_20261004_source_create_guard": {
     "schema_id": "hsk.operator_decision_request@1",
