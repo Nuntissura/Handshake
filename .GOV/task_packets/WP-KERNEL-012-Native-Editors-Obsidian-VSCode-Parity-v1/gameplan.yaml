@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 325
+generation: 328
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -298,3 +298,6 @@ steps:
 - {id: GP-277, role: builder, at: before_round, do: verify gameplan check uses --at and actual CLI help before invocation, check: {type: confirm}, source: 'infra: builder check --moment rejected at argument parse; no gate body or compile ran', state: active}
 - {id: GP-278, role: builder, at: before_round, do: verify resource process predicate parses before collecting fresh GP111 admission facts, check: {type: confirm}, source: 'infra: GP111 process predicate missed closing parenthesis; PowerShell rejected before body', state: active}
 - {id: GP-279, role: builder, at: before_round, do: verify compile timing captures real UTC before launch; forbid placeholder timestamps, check: {type: confirm}, source: 'infra: 9858 compile exit JSON recorded placeholder start; original bytes lost before correction', state: active}
+- {id: GP-280, role: wp_validator, at: before_dispatch, do: verify gate fraction numerator counts satisfied checks before reporting failed checks, check: {type: confirm}, source: 'infra: WPV misread FAIL9/23; controller numerator is total minus failed steps', state: active}
+- {id: GP-281, role: builder, at: before_round, do: verify bounded directory inventory parses before release-cell discovery, check: {type: confirm}, source: 'infra: KB inventory extra brace rejected pre-body; corrected read ran before cause recorded', state: active}
+- {id: GP-282, role: wp_validator, at: before_dispatch, do: verify lookup child identity captured while live; retain stdout/stderr/exit before post-exit reads, check: {type: confirm}, source: 'infra: lookup audit queried exited child via psutil; NoSuchProcess prevented receipt save', state: active}
