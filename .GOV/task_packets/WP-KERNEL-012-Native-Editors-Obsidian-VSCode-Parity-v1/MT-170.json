@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-05T21:46:15Z",
+  "updated_at_utc": "2026-10-05T22:21:41Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -207,7 +207,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "The original 4b8d and 984238 d1d2 focused MT170 attempts are RED at same_workspace_readable_count (expected 1, observed 0). Candidate 42754a06 test-support instrumentation run 5f140717aac84bac8ad6e20fba4a2160 is RUNNING under supervisor PID236512 after one-use release; its result is not yet closed. The profile_can_read_fs value and per-row standalone grant result remain unobserved until its retained output is closed. The Builder compile proof remains required before READY. MT170 remains BLOCKED with validator_verdict null; AC-170-1 runtime proof and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver.",
+    "blocked_on": "The original 4b8d and 984238 d1d2 attempts are RED at same_workspace_readable_count (expected 1, observed 0). The 42754a06 focused diagnostic run 5f140717 is now closed RED at the same assertion; its redacted output shows profile_read_mode=some_true and same_workspace_standalone_grant_readable=0 for one same-workspace standalone candidate. The false grant operand is now observed; a minimal authorization-preserving remediation and a passing original focused test are still required. Builder compile proof remains required before READY; AC-170-1 and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver.",
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -216,14 +216,14 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "WPV close and record original focused diagnostic run 5f140717aac84bac8ad6e20fba4a2160, including redacted profile/grant observations and JUnit; then KERNEL_BUILDER select the minimum fix from observed operands. Builder compile proof remains required before READY",
+    "next_actor": "KERNEL_BUILDER: select and implement the minimum authorization-preserving correction for the observed standalone grant=false result, then provide a pushed unvalidated checkpoint. WPV: independently review and run the same focused MT170 test after current gates and one-use release. Builder compile proof, AC-170-1 proof and final union remain required before READY; late CREATE race stays UNEXERCISED.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
     ],
     "candidate_commit": "42754a06c67124905cc80411ee64a5789f074278",
     "status_before_ready": "BLOCKED",
-    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 42754a06c67124905cc80411ee64a5789f074278; clean pushed diagnostic checkpoint tree 67468ebd346db2e466f0b337e8fd204298704064; two-file test-support-only redacted diagnostic instrumentation statically reviewed; focused diagnostic rerun and Builder compile proof remain outstanding",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 42754a06c67124905cc80411ee64a5789f074278; clean pushed diagnostic checkpoint tree 67468ebd346db2e466f0b337e8fd204298704064; two-file test-support-only redacted diagnostic instrumentation statically reviewed; focused run 5f140717 is CLOSED RED; passing focused repair proof and Builder compile proof remain outstanding",
     "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20261002",
     "selection_note": {
@@ -2077,7 +2077,10 @@
         "control_identity": {
           "ready_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.supervisor-13135d69e0fa4fb4b2fe8c6cc64926f1.ready.json",
           "ready_sha256_at_release_binding": "2d509efab020c2568e47729d0b10e607043b5f4f6fcabadb72eccfa39ce6e437",
-          "ready_final_readback": {"bytes": 2157, "sha256": "af7259c0505e6fde047958d627466694abc619964f849a62fda3a4d379b182e1"},
+          "ready_final_readback": {
+            "bytes": 2157,
+            "sha256": "af7259c0505e6fde047958d627466694abc619964f849a62fda3a4d379b182e1"
+          },
           "supervisor_pid": 8424,
           "supervisor_start_utc": "2026-10-05T05:40:03.6909670Z",
           "bash_pid": 26396,
@@ -2094,18 +2097,53 @@
           "test_name": "handshake_core::knowledge_documents_api_tests::mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge",
           "core_nextest_exit_code": 100,
           "bash_wrapper_exit_code": 0,
-          "junit_summary": {"tests": 1, "failures": 1, "errors": 0, "passed": 0},
+          "junit_summary": {
+            "tests": 1,
+            "failures": 1,
+            "errors": 0,
+            "passed": 0
+          },
           "failure_location": "tests/knowledge_documents_api_tests.rs:4070:10",
           "failure_text": "protected resource creator grant reference",
           "interpretation": "The selected test failed its fixture assertion. Bash exit 0 is wrapper transport status and does not indicate test success; this result is diagnostic evidence only."
         },
         "artifacts": {
-          "junit": {"path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-70da366a3391206b2fba86f721c1095ea48a373e-core-targeted.xml", "bytes": 26645, "sha256": "271f29c3f286a467b87235356e98f151c9d34f15b62fb0d1c3f0f1ce1119335e"},
-          "stdout": {"path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.stdout.log", "bytes": 276868, "sha256": "e672dc689c039a4b5c8190b09306e84292900d1f8ae119bcdfcc50c5ee94246d"},
-          "stderr": {"path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.stderr.log", "bytes": 68728, "sha256": "428b3f0b2050a07d8ab9330f84f87651be22f888edaac3b817960b8e3fe84ad6"},
-          "exit": {"path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.exit.json", "bytes": 815, "sha256": "f25c2e9da9dd47413da32e2d39189d221c6e9effab70eee56bd59390a0853417"},
-          "identity": {"path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.identity.json", "bytes": 2018, "sha256": "6c60050fc724686fa58f70c0369a23e19c7bb90094c08063d0260a5e491737bb"},
-          "observer": {"path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.observations.jsonl", "bytes": 148955, "sha256": "1af7e110b449c72f24717edea2b5885b82b078dce5cc789a325059fb3a787784", "final_observation_utc": "2026-10-05T06:25:48.723Z", "target_bytes": 103691623509, "gci_errors": 0, "stop_exceeded": false, "processes": [], "capacity_note": "Sampled observations, not a peak guarantee."}
+          "junit": {
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-70da366a3391206b2fba86f721c1095ea48a373e-core-targeted.xml",
+            "bytes": 26645,
+            "sha256": "271f29c3f286a467b87235356e98f151c9d34f15b62fb0d1c3f0f1ce1119335e"
+          },
+          "stdout": {
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.stdout.log",
+            "bytes": 276868,
+            "sha256": "e672dc689c039a4b5c8190b09306e84292900d1f8ae119bcdfcc50c5ee94246d"
+          },
+          "stderr": {
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.stderr.log",
+            "bytes": 68728,
+            "sha256": "428b3f0b2050a07d8ab9330f84f87651be22f888edaac3b817960b8e3fe84ad6"
+          },
+          "exit": {
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.exit.json",
+            "bytes": 815,
+            "sha256": "f25c2e9da9dd47413da32e2d39189d221c6e9effab70eee56bd59390a0853417"
+          },
+          "identity": {
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.identity.json",
+            "bytes": 2018,
+            "sha256": "6c60050fc724686fa58f70c0369a23e19c7bb90094c08063d0260a5e491737bb"
+          },
+          "observer": {
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.observations.jsonl",
+            "bytes": 148955,
+            "sha256": "1af7e110b449c72f24717edea2b5885b82b078dce5cc789a325059fb3a787784",
+            "final_observation_utc": "2026-10-05T06:25:48.723Z",
+            "target_bytes": 103691623509,
+            "gci_errors": 0,
+            "stop_exceeded": false,
+            "processes": [],
+            "capacity_note": "Sampled observations, not a peak guarantee."
+          }
         },
         "export_identity": {
           "path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-current.identity",
@@ -2120,9 +2158,28 @@
           "state": "complete"
         },
         "export_metadata": {
-          "before": {"path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/export-current-metadata-70da366a3391206b2fba86f721c1095ea48a373e-incremental-98460923ad3342009ee51ba4eb2a2436-before.json", "bytes": 1983350, "sha256": "e8da8dbc0fd0e6ef29852c27ae1245df4c4ffea1b5a2081267c5222a0a7aea8a"},
-          "after": {"path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/export-current-metadata-70da366a3391206b2fba86f721c1095ea48a373e-incremental-98460923ad3342009ee51ba4eb2a2436-after.json", "bytes": 1983350, "sha256": "ce9b80a7053739dd7fc060241b4fdd6515bedc647eca27cbbb209b0c98e0ee37"},
-          "comparison": {"path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/export-current-metadata-70da366a3391206b2fba86f721c1095ea48a373e-incremental-98460923ad3342009ee51ba4eb2a2436-compare.json", "bytes": 574832, "sha256": "7f54ee988e4ef49df0696c77fbd6f707a4186efa611282276a2c35a2fa9670a7", "classification": "pass", "classified": 7167, "failures": 0, "compiled_crates": 1, "relinked_test_binaries": 16, "backend_binaries_relinked": 0, "mode": "incremental"}
+          "before": {
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/export-current-metadata-70da366a3391206b2fba86f721c1095ea48a373e-incremental-98460923ad3342009ee51ba4eb2a2436-before.json",
+            "bytes": 1983350,
+            "sha256": "e8da8dbc0fd0e6ef29852c27ae1245df4c4ffea1b5a2081267c5222a0a7aea8a"
+          },
+          "after": {
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/export-current-metadata-70da366a3391206b2fba86f721c1095ea48a373e-incremental-98460923ad3342009ee51ba4eb2a2436-after.json",
+            "bytes": 1983350,
+            "sha256": "ce9b80a7053739dd7fc060241b4fdd6515bedc647eca27cbbb209b0c98e0ee37"
+          },
+          "comparison": {
+            "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/export-current-metadata-70da366a3391206b2fba86f721c1095ea48a373e-incremental-98460923ad3342009ee51ba4eb2a2436-compare.json",
+            "bytes": 574832,
+            "sha256": "7f54ee988e4ef49df0696c77fbd6f707a4186efa611282276a2c35a2fa9670a7",
+            "classification": "pass",
+            "classified": 7167,
+            "failures": 0,
+            "compiled_crates": 1,
+            "relinked_test_binaries": 16,
+            "backend_binaries_relinked": 0,
+            "mode": "incremental"
+          }
         },
         "followup_attempt_4b8d5546_20261005": {
           "candidate_commit": "4b8d5546e9970e99888ccb9b0a9f29dac5fb937b",
@@ -2324,7 +2381,110 @@
           },
           "disposition": "Focused MT170 attempt is RED at the readable-count assertion. Product profile-alignment repair did not pass this runtime proof. Actual retained artifacts do not distinguish profile decision false from standalone grant false; KB is adding bounded redacted diagnostic fields only. MT170 remains BLOCKED with validator_verdict null; AC-170-1 and final union evidence remain outstanding. Builder compile proof remains required before READY. Late CREATE race remains UNEXERCISED; no new race seam or waiver."
         },
-      "disposition": "The original 13135d69 attempt failed at the creator-grant fixture assertion on line 4070. The later 4b8d attempt is recorded separately above and failed its readable-count assertion at line 4290. No product edit or acceptance verdict is implied by this diagnostic record. MT170 lifecycle remains BLOCKED and validator_verdict remains null. Prior six-test PASS, raw Loom capture, and AC170-1 history remain distinct and unchanged; late CREATE race remains UNEXERCISED."
+        "disposition": "The original 13135d69 attempt failed at the creator-grant fixture assertion on line 4070. The later 4b8d attempt is recorded separately above and failed its readable-count assertion at line 4290. No product edit or acceptance verdict is implied by this diagnostic record. MT170 lifecycle remains BLOCKED and validator_verdict remains null. Prior six-test PASS, raw Loom capture, and AC170-1 history remain distinct and unchanged; late CREATE race remains UNEXERCISED.",
+        "followup_attempt_42754a06_5f140717aac84bac8ad6e20fba4a2160_20261005": {
+          "candidate_commit": "42754a06c67124905cc80411ee64a5789f074278",
+          "candidate_tree": "67468ebd346db2e466f0b337e8fd204298704064",
+          "schema_revision": 362,
+          "run_id": "5f140717aac84bac8ad6e20fba4a2160",
+          "selector_sha256": "1d975cb705f87419adf0c075dd4bea731f169957e394f31ac64aac7542ac5cd2",
+          "launcher_sha256": "a31d23891460c323a098e8946d96885e4a47f293206e53257cc54359e0f4a182",
+          "release_id": "63c05e4ba00c4252a7d4b068ff3b6220",
+          "release_consumed_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-42754a06c67124905cc80411ee64a5789f074278.supervisor-5f140717aac84bac8ad6e20fba4a2160.release-consumed.json",
+          "release_consumed_bytes": 815,
+          "release_consumed_sha256": "db3153184770bc788bf1c288f3ad09e1badf7655e1c1e6233a5cc709c7b6f137",
+          "ready_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-42754a06c67124905cc80411ee64a5789f074278.supervisor-5f140717aac84bac8ad6e20fba4a2160.ready.json",
+          "ready_bytes": 2160,
+          "ready_sha256": "95e7bcab3e015606194652563a07b28c9f0651298300d9206eb1bc69fc91f054",
+          "supervisor_pid": 236512,
+          "supervisor_parent_pid": 264064,
+          "supervisor_start_utc": "2026-10-05T21:24:04.7312305Z",
+          "bash_pid": 250916,
+          "observer_pid": 191496,
+          "completed_utc": "2026-10-05T22:08:54.4528432Z",
+          "result": {
+            "test_name": "handshake_core::knowledge_documents_api_tests::mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge",
+            "core_nextest_exit_code": 100,
+            "bash_wrapper_exit_code": 0,
+            "test_count": 1,
+            "pass_count": 0,
+            "failure_count": 1,
+            "error_count": 0,
+            "skipped_count": 28,
+            "duration_seconds": 14.977,
+            "failure_location": "tests/knowledge_documents_api_tests.rs:4301:9",
+            "failure_text": "same_workspace_readable_count actual Some(0), expected Some(1)",
+            "interpretation": "Focused diagnostic attempt is RED. Bash exit 0 is wrapper transport status only; the selected test failed. Actual redacted resolver output observed profile_read_mode=some_true, one same-workspace standalone candidate, and standalone grant readability false. This locates the false operand but does not establish MT170 acceptance."
+          },
+          "diagnostic_observation": {
+            "source": "MT170_RESOLVER_DIAGNOSTIC from candidate 42754a06",
+            "candidates": 4,
+            "ids": 4,
+            "returned": 2,
+            "same_workspace": 1,
+            "foreign_workspace": 1,
+            "same_workspace_readable": 0,
+            "same_workspace_unreadable": 1,
+            "profile_read_mode": "some_true",
+            "same_workspace_standalone": 1,
+            "same_workspace_standalone_grant_readable": 0,
+            "outcome": "ok",
+            "error_class": "none",
+            "elapsed_us": 30169
+          },
+          "artifacts": {
+            "junit": {
+              "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-42754a06c67124905cc80411ee64a5789f074278-core-targeted.xml",
+              "bytes": 54429,
+              "sha256": "42c56e2a2f029810d86c1354ae642a179b197515e48ee14815459e329315e900"
+            },
+            "stdout": {
+              "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-42754a06c67124905cc80411ee64a5789f074278.stdout.log",
+              "bytes": 291735,
+              "sha256": "34890536b8f750843b6c193ae1931d011c4642cc88429c290465a41830334775"
+            },
+            "stderr": {
+              "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-42754a06c67124905cc80411ee64a5789f074278.stderr.log",
+              "bytes": 97765,
+              "sha256": "bab353c4170589554048da48fbeac6d8430775b32605d90c375582970ff83297"
+            },
+            "exit": {
+              "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-42754a06c67124905cc80411ee64a5789f074278.exit.json",
+              "bytes": 818,
+              "sha256": "050a81998f82ef1c71434585ff31c82e9df3129184d40a0916e102745b4ad49b"
+            },
+            "identity": {
+              "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-42754a06c67124905cc80411ee64a5789f074278.identity.json",
+              "bytes": 2023,
+              "sha256": "ded4148b09629e41ebcedfe6ba8ea7c1d9fc8898a125ffe05f41f0a17ab4bb5d"
+            },
+            "observations": {
+              "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-42754a06c67124905cc80411ee64a5789f074278.observations.jsonl",
+              "bytes": 143466,
+              "sha256": "124ebf778f6724ee787cddd4279a0b2358ca577bdd9cdf057eda76030afe0d12",
+              "final_poll": 99,
+              "final_sample_utc": "2026-10-05T22:09:28.7998469Z",
+              "target_bytes": 103694407439,
+              "errors": 0,
+              "stop_bytes": 147000000000,
+              "interpretation": "Observed sample, not peak guarantee."
+            }
+          },
+          "export_identity": {
+            "path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-current.identity",
+            "bytes": 387,
+            "sha256": "8cbbbff2fddb0a72bf80a6a27132a9e52665cb8bceb5e47837e2829e235497d9",
+            "candidate": "42754a06c67124905cc80411ee64a5789f074278",
+            "tree": "67468ebd346db2e466f0b337e8fd204298704064",
+            "file_count": 7167,
+            "manifest_sha256": "c0de9f5f0dea6083eb155ee47674a1f1d28a588e2399a7ef9ddab8ef3be70238",
+            "previous_candidate": "984238e00b9057df4f917fd417f3abe1f5f6894f",
+            "refresh_mode": "incremental",
+            "refresh_state": "complete",
+            "refreshed_utc": "2026-10-05T21:43:19Z"
+          },
+          "disposition": "Focused MT170 attempt 5f140717 is RED at the expected readable-count assertion. Diagnostic fields show profile_read_mode=some_true, one same-workspace standalone candidate, and exact standalone grant readability false. This identifies the failing grant operand without changing authorization or acceptance. MT170 remains BLOCKED with validator_verdict null; required Builder compile proof, AC-170-1 and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver."
+        }
       },
       "manifest_repair_20261004": {
         "state": "NO_REPAIR_PLANNED",
@@ -3618,8 +3778,8 @@
     "delegation_ref": "packet.json#operator_decisions_20261004[WP012-OPERATOR-AUTONOMOUS-INSPECTED-DECISIONS-20261004]",
     "operator_instruction": "i want state recovery and mt status to be correct, evrything else i do not care about, i create the gameplan as a tool to keep you on track, just as your buddy. continue work, resolve blockers, use sub agents to help you. do not guess, deliberate and research or explore code or master spec.",
     "state": "APPROVED_NARROW_UNVALIDATED_REMEDIATION; no acceptance or permission waiver",
-    "failure_ref": "resource_admission_policy_20261004.current_pin_measurement_20261004.original_mt170_diagnostic_20261005.followup_attempt_984238e0_d1d2bd9cb3924c1f9c4e630dad1e1b1f_20261005",
-    "observed_failure": "Current original MT170 run d1d2bd9cb3924c1f9c4e630dad1e1b1f candidate984238 failed at knowledge_documents_api_tests.rs:4290: same_workspace_readable_count actual Some(0), expected Some(1), while earlier source-create and same-target GET assertions passed. Retained output does not expose profile_can_read_fs or per-row standalone grant values, so the false operand is unobserved.",
+    "failure_ref": "resource_admission_policy_20261004.current_pin_measurement_20261004.original_mt170_diagnostic_20261005.followup_attempt_42754a06_5f140717aac84bac8ad6e20fba4a2160_20261005",
+    "observed_failure": "Current candidate 42754a06 run 5f140717aac84bac8ad6e20fba4a2160 failed the focused test at knowledge_documents_api_tests.rs:4301:9; expected same_workspace_readable_count Some(1), observed Some(0). Redacted resolver output records profile_read_mode=some_true, one same-workspace standalone candidate, and standalone_grant_readable=false. This identifies the grant operand as false; it is diagnostic evidence only.",
     "source_basis": [
       "KB and independent WPV: standalone mt120_loom_endpoint_access adds workspace fs.read beyond GET exact LoomBlock read/fs.read authorization; SELECT visibility can separately come from memory.read source-read.",
       "Independent WPV: GET authorize_request also applies registry.profile_can(fs.read); SQL grant alone is insufficient because resolver endpoint_readable drives projection and fallback.",
@@ -3634,12 +3794,30 @@
       "src/backend/handshake_core/src/api/knowledge_documents.rs"
     ],
     "constraints": [
-      {"id": "MT170-PR-001", "requirement": "Limit edits to the five listed existing files and existing internal opt-in interfaces/adapters needed for this failure; no new permission module, HTTP schema, table permission, grant expansion or unrelated caller change."},
-      {"id": "MT170-PR-002", "requirement": "Derive the opt-in fs.read boolean only from the server-authorized same-session principal profile through the existing registry; absent/error request context supplies Some(false), never permissive true or legacy None."},
-      {"id": "MT170-PR-003", "requirement": "For profile-aware standalone candidates require Some(true), exact mt109_has_grant loom_block/read/fs.read, record-user SELECT visibility and existing same-workspace identity; Some(false) is unreadable. Preserve live versus readable sets, projection/fallback readable gates and typed NoReadableLoomTarget."},
-      {"id": "MT170-PR-004", "requirement": "For legacy None callers preserve existing mt120_loom_endpoint_access behavior. Preserve the rich-document helper branch, with supplied false profile denying; do not alter workspaces/memory/loom/raw-test caller behavior through blanket default false."},
-      {"id": "MT170-PR-005", "requirement": "Carry the same scoped profile decision through existing knowledge_documents create/import/save/replace/rebuild paths, including direct routes bypassing the adapter; no root read or externally supplied authorization bit."},
-      {"id": "MT170-PR-006", "requirement": "KB supplies a pushed UNVALIDATED checkpoint and focused static proof; independent WPV reviews the exact propagation/diff before one changed-input warm compile and the same original MT170 test. Preserve every acceptance criterion, historical AC1701 disposition, race-unexercised limit and post-GREEN proof order; reuse prior evidence only where all asserted inputs remain unchanged."}
+      {
+        "id": "MT170-PR-001",
+        "requirement": "Limit edits to the five listed existing files and existing internal opt-in interfaces/adapters needed for this failure; no new permission module, HTTP schema, table permission, grant expansion or unrelated caller change."
+      },
+      {
+        "id": "MT170-PR-002",
+        "requirement": "Derive the opt-in fs.read boolean only from the server-authorized same-session principal profile through the existing registry; absent/error request context supplies Some(false), never permissive true or legacy None."
+      },
+      {
+        "id": "MT170-PR-003",
+        "requirement": "For profile-aware standalone candidates require Some(true), exact mt109_has_grant loom_block/read/fs.read, record-user SELECT visibility and existing same-workspace identity; Some(false) is unreadable. Preserve live versus readable sets, projection/fallback readable gates and typed NoReadableLoomTarget."
+      },
+      {
+        "id": "MT170-PR-004",
+        "requirement": "For legacy None callers preserve existing mt120_loom_endpoint_access behavior. Preserve the rich-document helper branch, with supplied false profile denying; do not alter workspaces/memory/loom/raw-test caller behavior through blanket default false."
+      },
+      {
+        "id": "MT170-PR-005",
+        "requirement": "Carry the same scoped profile decision through existing knowledge_documents create/import/save/replace/rebuild paths, including direct routes bypassing the adapter; no root read or externally supplied authorization bit."
+      },
+      {
+        "id": "MT170-PR-006",
+        "requirement": "KB supplies a pushed UNVALIDATED checkpoint and focused static proof; independent WPV reviews the exact propagation/diff before one changed-input warm compile and the same original MT170 test. Preserve every acceptance criterion, historical AC1701 disposition, race-unexercised limit and post-GREEN proof order; reuse prior evidence only where all asserted inputs remain unchanged."
+      }
     ]
   },
   "operator_decision_request_20261004_source_create_guard": {
