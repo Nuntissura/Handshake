@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 357
+generation: 358
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -327,3 +327,4 @@ steps:
 - {id: GP-306, role: wp_validator, at: before_dispatch, do: confirm supervisor argv check binds candidate launcher path, check: {type: confirm}, source: 'infra: argv guard compared wrapper path; no audit child or receipt created', state: active}
 - {id: GP-307, role: wp_validator, at: before_dispatch, do: verify audit handshake writes one LF byte before closing child stdin, check: {type: confirm}, source: 'infra: Bash read saw escaped backslash-n; metadata lookup returned exit 1', state: active}
 - {id: GP-308, role: wp_validator, at: before_round, do: confirm launcher assigns WPV role before explicit WPV before_round gate, check: {type: confirm}, source: 'phase: canonical launcher sets role before scoped gate; outer hook remains parent-scoped per GP-216', state: active}
+- {id: GP-309, role: wp_validator, at: before_round, do: verify lookup supplied-env proof is distinct from post-start child digest; frozen environment guards preserved, check: {type: confirm}, source: 'infra: attempt2 added child-env equality absent from frozen release guards', state: active}
