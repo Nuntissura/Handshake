@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 342
+generation: 343
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -315,3 +315,4 @@ steps:
 - {id: GP-294, role: any, at: before_round, do: 'verify retention selector length and digest come from the current file, never older candidate metadata', check: {type: confirm}, source: 'infra: retention preflight assumed9858 selector924B for70da and stopped before moves', state: active}
 - {id: GP-295, role: orchestrator, at: before_round, do: verify metadata parent path from actual JSON before querying a reported nested key, check: {type: confirm}, source: 'infra: root queried reported six-proof key under assumed parent; KeyError before output', state: active}
 - {id: GP-296, role: wp_validator, at: before_round, do: verify boolean Test-Path operands are individually parenthesized and launch preflight errors terminate, check: {type: confirm}, source: 'infra: repeated LiteralPath in unparenthesized Test-Path OR errored; observer still launched', state: active}
+- {id: GP-297, role: any, at: before_round, do: verify release ready digest equals programmatic actual file and receipt hashes, check: {type: confirm}, source: 'infra: hand-copied ready digest dropped one hex character; static review missed binding', state: active}
