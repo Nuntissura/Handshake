@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 355
+generation: 357
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -243,7 +243,7 @@ steps:
 - {id: GP-222, role: wp_validator, at: before_round, do: 'confirm canonical wrapper verifies candidate files, metadata and written identity before first Cargo; failure aborts', check: {type: confirm}, source: 'phase: VPX011 refresh at round start; former GP155/159 demanded future export before Bash', state: active}
 - {id: GP-223, role: wp_validator, at: before_verdict, do: 'compare current run VERIFY_OK, metadata result and export identity with frozen candidate through independent reads', check: {type: confirm}, source: VPX011 actual before-Cargo verification and identitylast; preserve former GP155/159 proof at producing phase, state: active}
 - {id: GP-224, role: wp_validator, at: before_verdict, do: 'compare actual refresh mode, prior identity, physical root argv and per-file metadata with the run record', check: {type: confirm}, source: 'phase: VPX011 creates these outcomes inside round; preserves former GP172/173/175 proofs', state: active}
-- {id: GP-225, role: wp_validator, at: before_round, do: confirm launch parent role and explicit controller scope are WPV; launcher sets role before its current gate, check: {type: confirm}, source: GP213 historical omission cannot be undone; GP216 separate hook does not inherit inline child role assignment, state: active}
+- {id: GP-225, role: wp_validator, at: before_round, do: confirm launch parent role and explicit controller scope are WPV; launcher sets role before its current gate, check: {type: confirm}, source: GP213 historical omission cannot be undone; GP216 separate hook does not inherit inline child role assignment, state: retired}
 - {id: GP-226, role: wp_validator, at: before_dispatch, do: verify separate Test-Path calls are parenthesized before Boolean combination, check: {type: confirm}, source: 'infra: Test-Path stdout -or Test-Path stderr parsed -or as parameter; preexistence check did not execute', state: active}
 - {id: GP-227, role: wp_validator, at: before_dispatch, do: verify every execution result retains exit status or live session handle before a repeated check, check: {type: confirm}, source: 'infra: WPV lost initial running-check handle and started duplicate check before collecting completion', state: active}
 - {id: GP-228, role: wp_validator, at: before_verdict, do: verify final proof log hashes use closed files; live sharing errors do not imply absent logs, check: {type: confirm}, source: 'infra: live supervisor redirect streams allowed reads but rejected file hashing while handles remained open', state: active}
@@ -326,3 +326,4 @@ steps:
 - {id: GP-305, role: wp_validator, at: before_dispatch, do: verify historical failure markers do not collide with fresh run paths; retain active-ready protection, check: {type: confirm}, source: 'infra: transient candidate-wide failure glob rejected preserved closed e407 before supervisor start', state: active}
 - {id: GP-306, role: wp_validator, at: before_dispatch, do: confirm supervisor argv check binds candidate launcher path, check: {type: confirm}, source: 'infra: argv guard compared wrapper path; no audit child or receipt created', state: active}
 - {id: GP-307, role: wp_validator, at: before_dispatch, do: verify audit handshake writes one LF byte before closing child stdin, check: {type: confirm}, source: 'infra: Bash read saw escaped backslash-n; metadata lookup returned exit 1', state: active}
+- {id: GP-308, role: wp_validator, at: before_round, do: confirm launcher assigns WPV role before explicit WPV before_round gate, check: {type: confirm}, source: 'phase: canonical launcher sets role before scoped gate; outer hook remains parent-scoped per GP-216', state: active}
