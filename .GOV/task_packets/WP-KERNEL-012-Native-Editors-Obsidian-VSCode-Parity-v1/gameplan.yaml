@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 328
+generation: 330
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -301,3 +301,5 @@ steps:
 - {id: GP-280, role: wp_validator, at: before_dispatch, do: verify gate fraction numerator counts satisfied checks before reporting failed checks, check: {type: confirm}, source: 'infra: WPV misread FAIL9/23; controller numerator is total minus failed steps', state: active}
 - {id: GP-281, role: builder, at: before_round, do: verify bounded directory inventory parses before release-cell discovery, check: {type: confirm}, source: 'infra: KB inventory extra brace rejected pre-body; corrected read ran before cause recorded', state: active}
 - {id: GP-282, role: wp_validator, at: before_dispatch, do: verify lookup child identity captured while live; retain stdout/stderr/exit before post-exit reads, check: {type: confirm}, source: 'infra: lookup audit queried exited child via psutil; NoSuchProcess prevented receipt save', state: active}
+- {id: GP-283, role: wp_validator, at: before_submit, do: verify MT170 proof update uses patch tool; strict JSON readback is separate; no runtime invocation, check: {type: confirm}, source: 'infra: combined MT170 proof-record rewrite hit20s hook budget before body; record remained unchanged', state: active}
+- {id: GP-284, role: builder, at: before_round, do: confirm CLI check uses kernel_builder role scope, check: {type: confirm}, source: 'infra: manual CLI check omitted --role and selected all roles', state: active}
