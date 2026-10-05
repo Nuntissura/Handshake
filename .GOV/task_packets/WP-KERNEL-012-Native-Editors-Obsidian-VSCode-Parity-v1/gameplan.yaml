@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 350
+generation: 351
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -322,3 +322,4 @@ steps:
 - {id: GP-301, role: wp_validator, at: before_dispatch, do: verify launch candidate comes from clean pushed product HEAD and is 40 hex before any child starts, check: {type: confirm}, source: 'infra: B candidate literal lost final hex; observer rejected full 40-hex Sha before supervisor start', state: active}
 - {id: GP-302, role: wp_validator, at: before_dispatch, do: verify live lookup child PID start PPID equals B parent; retain argv cwd stdout stderr exit before post-exit reads, check: {type: confirm}, source: 'fail: GP282 confirmed with PPID0; supersede unsupported confirmation preserving live identity and complete capture', state: active}
 - {id: GP-303, role: orchestrator, at: before_dispatch, do: verify decoded JSON string characters before judging serialized wrapper syntax, check: {type: confirm}, source: 'infra: root mistook serialized JSON escaping for literal JS syntax and held a valid passive stage', state: active}
+- {id: GP-304, role: wp_validator, at: before_dispatch, do: verify live observer identity matches candidate and one complete observation exists before supervisor startup, check: {type: confirm}, source: 'infra: passive stage waited only for identity; supervisor rejected missing observations before ready', state: active}
