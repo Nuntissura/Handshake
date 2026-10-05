@@ -207,7 +207,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "The 4b8d revision-163 original MT170 diagnostic failed with same_workspace_readable_count=0 (expected 1); that RED is historical. Candidate 984238e00b9057df4f917fd417f3abe1f5f6894f contains the scoped profile-alignment repair, but its original MT170 diagnostic is still unproven. The focused diagnostic is next; the Builder compile proof remains required before READY. AC-170-1 runtime proof, late CREATE race proof, and final union evidence remain outstanding.",
+    "blocked_on": "The 4b8d revision-163 original MT170 diagnostic failed with same_workspace_readable_count=0 (expected 1); that RED is historical. Candidate 984238e00b9057df4f917fd417f3abe1f5f6894f contains the scoped profile-alignment repair, but its original MT170 diagnostic is still unproven. The focused diagnostic is next; the Builder compile proof remains required before READY. AC-170-1 runtime proof and final union evidence remain outstanding; the late CREATE race remains UNEXERCISED with no new race seam or waiver.",
     "depends_on": [],
     "blocks": [
       "MT-046"
