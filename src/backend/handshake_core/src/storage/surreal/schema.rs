@@ -3199,7 +3199,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-170 re-pin: loom_edges projection branch admits standalone same-workspace targets (previous
 // value 8452a3f9bfdff502dafbb1ed7d6e7df60ce70ae47f3557edb13c391bf7b38513); sha256 of schema.surql.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "a0b177fe32c68a5b17813dede906f83877241532c3c8996e2a3c3fd124c6fbb5";
+    "41c41a52fc29a08f32c1db5525820cc8977997e6a2918be606e67756bc311c0e";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -3309,10 +3309,9 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // PIN-MEASURE on 94ba0ed1 (MT-153.json pin_measure_20261001_94ba0ed1).
 // MT-168 PIN-MEASURE PENDING: the seven grant function bodies changed (key-only candidate lookup),
 // fn::mt120_workspace_delete changed and protected_resources gained protected_resources_parent_idx;
-// MT-170 PIN-MEASURE PENDING: loom_edges select/create/update/delete projection branch changed;
-// value below is the 94ba0ed1 measurement.
+// MT-170 CURRENT schema-info pin; measured on post-163 candidate 9858d461.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "f7b1f5f7ae76a3b1c60713832c11f856fcdb83d72fddbf6336a1abbb708c524d";
+    "f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
