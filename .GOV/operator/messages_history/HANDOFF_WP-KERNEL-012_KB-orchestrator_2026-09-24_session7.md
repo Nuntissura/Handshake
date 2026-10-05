@@ -8,7 +8,13 @@ wp_id: WP-KERNEL-012
 
 <topic id="session-2026-10-04-orchestrator" wp="WP-KERNEL-012" status="active" updated_at="2026-10-05">
 
-## Current checkpoint:4b8d5546 fixed fixture awaiting lawful passive setup; hook classification under exact inspection
+## Current checkpoint:4b8d5546 awaiting split metadata/preparation route; exact profile-filename gate collision proven
+
+- KB recovered the original raw current WPV tool call from the exact task rollout, call `call_KwsJ84fK8aXTNsaOfscPrlST` at `2026-10-05T07:17:40.964Z`, rejected output at07:18:02.255Z. Retained exact tool input at MT109/wpv-c3x/logs/blocked-preflight-tool-input-call_KwsJ84fK8aXTNsaOfscPrlST.txt:9502B/SHA `f3cf507dc4123533031eafee462b3d0e42d263097477dc7e2094b2cfd9da509b`; nested command9347B/SHA `e485493870a875b709140dc0b141d70c62faffa6e418133d500bc3838ab824b0`. Root independently opened the actual artifact/hash and line109, which hashes literal `nextest-core.toml`. KB's actual read-only current classifier returns before_round, matching only word nextest in that profile basename at unit199/span16–23. This resolves the earlier UNKNOWN; Start-Process is not the trigger. No process or run proof came from the rejected body.
+
+- Gameplan generation345 adds GP299 for source-derived metadata paths and exact preparation-payload classification. Same buddy cleared only genuine profile-path discovery from the owning source/FileInfo, with actual unchanged filename/bytes/hash exposed; no rename/string concealment/global-hook change. KB prepares short metadata-only GP239/282 producer facts and a separate passive-stage command, both exact retained payloads/current classifier results for independent WPV review. A plan still demanding full before_round before passive is rejected as circular because current GP092/093/098/101 require the producer. Actual profile binding and full costly-round gates remain before release. Invoke only after current lawful gates/live hook admit; no replay of the combined cell, false future facts, runtime/profile/PATH/host change or unrelated research. Root adds no product/helper code. MT170 remainsBLOCKED/null; fixture repairUNVALIDATED, same one warm changed-test proof and preserved downstream acceptance scope remain.
+
+## Prior checkpoint:4b8d5546 fixed fixture awaiting lawful passive setup; hook classification under exact inspection
 
 - WPV reports ONE combined preflight/passive-stage cell rejected by PreToolUse before its body, selecting before_round and ending with the20s check budget. Multiple messages described that same attempt; there was no second retry. No current preflight receipt, observer or supervisor was produced. Root fresh candidate-scoped lane inventory contains only the unchanged-byte launcher copy,23690B, and no new4b8d runtime/readiness artifacts. MT170 remainsBLOCKED/null and the pushed fixture repair remainsUNVALIDATED. The current direct blocker is setup classification, not a new product failure or resource-reserve refusal.
 
