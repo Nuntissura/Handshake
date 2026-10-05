@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 323
+generation: 324
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -296,3 +296,4 @@ steps:
 - {id: GP-275, role: builder, at: before_submit, do: verify measured CURRENT consumers match WPV digests; unmeasured scopes stay UNVALIDATED with no readiness claim, check: {type: confirm}, source: 'phase: GP259 precedes schema163 measurement inputs; retain all-consumer check at pin/readiness submission', state: active}
 - {id: GP-276, role: builder, at: before_round, do: verify endpoint-read set gates projection/fallback; retain live/conflict set and exact unreadable-target fixture, check: {type: confirm}, source: 'review: D6-AC1703-01 query visibility was mistaken for endpoint-read authorization', state: active}
 - {id: GP-277, role: builder, at: before_round, do: verify gameplan check uses --at and actual CLI help before invocation, check: {type: confirm}, source: 'infra: builder check --moment rejected at argument parse; no gate body or compile ran', state: active}
+- {id: GP-278, role: builder, at: before_round, do: verify resource process predicate parses before collecting fresh GP111 admission facts, check: {type: confirm}, source: 'infra: GP111 process predicate missed closing parenthesis; PowerShell rejected before body', state: active}

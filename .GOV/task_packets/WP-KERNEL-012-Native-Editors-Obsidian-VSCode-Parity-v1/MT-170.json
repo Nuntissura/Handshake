@@ -573,6 +573,19 @@
           "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
           "src/backend/handshake_document/src/surreal.rs"
         ]
+      },
+      {
+        "sha": "9858d461bf33a341871327ebf4c4a7badad3300a",
+        "tree": "d4b4593f4fd42e321bfcfb6edda4e48947cf8a96",
+        "acs": [
+          "AC-170-3 D6-AC1703-01 visible-but-endpoint-unreadable target remedy"
+        ],
+        "state": "PUSHED_UNCOMPILED_UNVALIDATED",
+        "files": [
+          "src/backend/handshake_document/src/surreal.rs",
+          "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
+        ],
+        "implementation_scope": "Batched record-user Loom candidate query now records canonical mt120_loom_endpoint_access(read,fs.read) separately from live/foreign identity sets; projection and prior-target fallback require endpoint readability. Existing NoReadableLoomTarget retains textual backlinks; CREATE fail-closed guard unchanged. Focused test mutates only fixture creator grant actions to read/update and capability_ids to memory.read/fs.write, then proves record-user row visibility, endpoint GET 403, successful save, textual backlink, no edge, and isolated typed skip."
       }
     ],
     "ac_170_1_runtime_note": "AC-170-1 runtime diagnostic not run (builder runtime probes are blocked by the in-session gameplan hook scope); the code evidence is verified and the MT-170 test plus MT-046 ic04/ic10/ic12 in the union round are the runtime confirmation"
@@ -2787,27 +2800,24 @@
     }
   },
   "implementation_checkpoint_20261005": {
-    "recorded_at_utc": "2026-10-04T22:58:00Z",
-    "recorded_by": "KERNEL_BUILDER-20261004",
-    "candidate_commit": "d6ed538cf7bcfda86b48f2f49438980c0835f97c",
-    "candidate_tree": "92403a822607776c7aaebd74f79fd4c923701f95",
+    "recorded_at_utc": "2026-10-05T00:14:27.783354Z",
+    "recorded_by": "KERNEL_BUILDER-20261005",
+    "candidate_commit": "9858d461bf33a341871327ebf4c4a7badad3300a",
+    "candidate_tree": "d4b4593f4fd42e321bfcfb6edda4e48947cf8a96",
     "branch": "feat/WP-KERNEL-012",
     "remote_ref": "origin/feat/WP-KERNEL-012",
-    "remote_commit": "d6ed538cf7bcfda86b48f2f49438980c0835f97c",
+    "remote_commit": "9858d461bf33a341871327ebf4c4a7badad3300a",
     "working_tree": "clean",
-    "disposition": "PUSHED_COMPILE_CHECKED_UNVALIDATED; MT170 remains BLOCKED; validator_verdict null",
+    "disposition": "PUSHED_UNCOMPILED_UNVALIDATED; MT170 remains BLOCKED; validator_verdict null",
     "changed_files": [
-      "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
-      "src/backend/handshake_core/src/storage/surreal/schema.rs",
-      "src/backend/handshake_core/src/storage/surreal/schema.surql",
-      "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
-      "src/backend/handshake_document/src/surreal.rs"
+      "src/backend/handshake_document/src/surreal.rs",
+      "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
     ],
-    "diffstat": "5 files changed, 375 insertions(+), 13 deletions(-)",
-    "implementation_scope": "Exact standalone NONE alternative in existing target_guard with existing KRD/workspace/block/note checks and one UPDATE; four R3 KDLNK/zero-event projection CRUD constraints; exactly-one typed CREATE result guard; schema revision 162-to-163 with exact measured 162 predecessor and data-preserving reopen test; scoped MT170 negatives.",
+    "diffstat": "2 files changed, 254 insertions(+), 8 deletions(-)",
+    "implementation_scope": "D6-AC1703-01: separate same-workspace live candidate identity from canonical endpoint-readability result; gate projection and prior-target reuse on readability. Existing record-user UPDATE/fs.write authority stays intact; CREATE fail-closed guard unchanged. The fixture changes only its creator grant data (actions read/update; capabilities memory.read/fs.write), then isolates the successful save and asserts one returned unreadable candidate, retained textual backlink, zero edge, and one typed no_readable_loom_target event. D6-AC1703-02 late CREATE race remains UNEXERCISED.",
     "static_checks": [
       {
-        "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/storage/surreal/knowledge.rs src/backend/handshake_core/src/storage/surreal/schema.rs src/backend/handshake_core/tests/knowledge_documents_api_tests.rs src/backend/handshake_document/src/surreal.rs",
+        "command": "rustfmt --edition 2021 --check src/backend/handshake_document/src/surreal.rs src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
         "result": "PASS"
       },
       {
@@ -2815,8 +2825,8 @@
         "result": "PASS"
       }
     ],
-    "validation_limit": "Named Cargo check passed compile-only on d6ed. No test/runtime or lint verdict; CURRENT revision-163 pins remain pending WPV PIN-MEASURE; no MT acceptance advanced.",
-    "next_actor": "KERNEL_BUILDER address the open AC-170-3 source finding after buddy-reviewed route; WP_VALIDATOR owns post-revision six-pin/runtime proof"
+    "validation_limit": "No Cargo check or runtime has run for 9858d461. Prior d6ed compile is baseline only. Historical AC-170-1 remains NOT_SATISFIED; no MT acceptance advanced.",
+    "next_actor": "KERNEL_BUILDER perform one changed-input warm-D Cargo check; WP_VALIDATOR owns the required fresh runtime proof after this candidate is stable"
   },
   "adversarial_review_d6ed538c_20261005": {
     "schema_id": "hsk.mt_adversarial_review@1",
@@ -2872,5 +2882,57 @@
       }
     ],
     "review_limit": "No Cargo/build/test/runtime was run for this review; KB compile was active. Existing statement-15 source-create 403 is not edge-CREATE-denial proof."
+  },
+  "adversarial_review_9858d461_20261005": {
+    "schema_id": "hsk.mt_adversarial_review@1",
+    "reviewer": "WP_VALIDATOR-20261005",
+    "candidate": {
+      "commit": "9858d461bf33a341871327ebf4c4a7badad3300a",
+      "tree": "d4b4593f4fd42e321bfcfb6edda4e48947cf8a96",
+      "baseline": "d6ed538cf7bcfda86b48f2f49438980c0835f97c"
+    },
+    "scope": [
+      "src/backend/handshake_document/src/surreal.rs",
+      "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
+    ],
+    "disposition": "SOURCE_REMEDIATION_PRESENT; AC-170-3 runtime proof remains required; MT-170 remains BLOCKED with verdict null",
+    "finding_01": {
+      "id": "D6-AC1703-01",
+      "state": "SOURCE_REMEDIATION_PRESENT; runtime unproven",
+      "source_observations": [
+        "surreal.rs:395 adds a record-user endpoint fs.read check to the candidate-row query; lines 473-479 preserve same-workspace live identity separately from endpoint-readable identity.",
+        "surreal.rs:488-493 and 541-544 require readable identity for prior-target fallback and projection, while live identity still governs candidate existence/conflict and foreign identity remains separate.",
+        "The fixture creates a real KRD target, resolves exactly one protected_resources.creator_grant_id by external_resource_id, and mutates that grant at knowledge_documents_api_tests.rs:4047-4109 to actions read+update and capabilities memory.read+fs.write. This allows source SELECT but omits endpoint fs.read.",
+        "The actual Loom read endpoint is asserted 403 at lines 4114-4129. A fresh capture is installed before saving the source at lines 4499-4520; the save succeeds and assertions retain the textual backlink, produce zero mention edges, observe exactly one same-workspace unreadable candidate, and record the typed no_readable_loom_target reason at lines 4529-4613.",
+        "Only these two files changed from d6ed; the existing write statement and CREATE fail-closed guard are unchanged. The test's prior readable/foreign/missing-path assertions remain in place."
+      ],
+      "independent_checks": [
+        "Inspected the complete d6ed..9858 diff and both changed source files directly.",
+        "Confirmed candidate commit/tree and clean worktree; git diff --check reported no errors.",
+        "Adversarial counterfactual: removing the readable-set gate would allow this visible but fs.read-denied target into projection and fail the zero-edge/typed-skip assertions; conflating readable with live would alter existence and conflict behavior."
+      ],
+      "limit": "No Cargo check or runtime test was run for 9858 during this review. Fixture and source assertions are not runtime proof."
+    },
+    "finding_02": {
+      "id": "D6-AC1703-02",
+      "state": "OPEN; late permission-change race remains explicitly unexercised",
+      "finding": "Existing routes resolve and write internally; no deterministic authenticated resolve/revoke/write interleave is exposed to the named integration test. The CREATE-denial guard remains source-covered but its late-race branch is not exercised.",
+      "disposition": "No AC-170-3 waiver: the AC requires a typed reason for precheck-denied, other-workspace, or missing targets, not a revocation interleave; the recorded revocation/context-switch list is empty. Runtime proof of the ordinary visible-but-unreadable precheck-denial case remains required."
+    },
+    "authority_refs": [
+      "MT-170 AC-170-3",
+      "MT-170.json#implementation_scope",
+      "MT-170.json#resource_privacy_obligation.revocation_and_context_switch_cases",
+      "MT-170.json#adversarial_review_d6ed538c_20261005.findings.D6-AC1703-02",
+      "MT-170.json#adversarial_review_20261002.R2",
+      "MT-170.json#implementation_scope.MT170-TG-004"
+    ],
+    "validation": {
+      "diff_check": "PASS",
+      "source_review": "PASS with runtime proof outstanding",
+      "compile": "NOT_RUN_BY_REVIEWER; KB compile status is separately recorded",
+      "runtime": "NOT_RUN",
+      "acceptance_verdict": null
+    }
   }
 }
