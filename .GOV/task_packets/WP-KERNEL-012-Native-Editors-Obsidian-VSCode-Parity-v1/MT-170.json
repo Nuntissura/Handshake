@@ -207,7 +207,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "The 4b8d and 984238 d1d2 focused MT170 attempts both failed the same_workspace_readable_count assertion (expected 1, observed 0). Candidate 984238 is therefore not a passing profile-alignment repair. The retained runtime output does not expose profile_can_read_fs or per-row standalone grant values, so the false operand remains unobserved; bounded redacted diagnostic capture is pending. The Builder compile proof remains required before READY. MT170 remains BLOCKED and validator_verdict null; AC-170-1 runtime proof and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver.",
+    "blocked_on": "The original 4b8d and 984238 d1d2 focused MT170 attempts are RED at same_workspace_readable_count (expected 1, observed 0). Candidate 42754a06 adds bounded redacted diagnostic output only; it has not yet been run and does not imply a repair. The profile_can_read_fs value and per-row standalone grant result remain unobserved until that run. The Builder compile proof remains required before READY. MT170 remains BLOCKED with validator_verdict null; AC-170-1 runtime proof and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver.",
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -216,14 +216,14 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER diagnose the exact false readability operand with bounded redacted output; then WPV rerun only the original focused MT170 test after the reviewed fix. Builder compile proof remains required before READY",
+    "next_actor": "WPV stage one original focused MT170 diagnostic on candidate 42754a06c67124905cc80411ee64a5789f074278 with bounded redacted fields after current gates and root release; then KERNEL_BUILDER select a fix from observed values. Builder compile proof remains required before READY",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
     ],
-    "candidate_commit": "984238e00b9057df4f917fd417f3abe1f5f6894f",
+    "candidate_commit": "42754a06c67124905cc80411ee64a5789f074278",
     "status_before_ready": "BLOCKED",
-    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 984238e00b9057df4f917fd417f3abe1f5f6894f; clean pushed checkpoint tree d225a4c5f955d974f20c6b868f155acab01b5b12; profile-alignment five-file diff statically reviewed; focused runtime and Builder compile proof remain outstanding",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 42754a06c67124905cc80411ee64a5789f074278; clean pushed diagnostic checkpoint tree 67468ebd346db2e466f0b337e8fd204298704064; two-file test-support-only redacted diagnostic instrumentation statically reviewed; focused diagnostic rerun and Builder compile proof remain outstanding",
     "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20261002",
     "selection_note": {
