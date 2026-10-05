@@ -207,7 +207,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Original MT170 integration diagnostic remains failed: revision 163 candidate 4b8d5546e9970e99888ccb9b0a9f29dac5fb937b failed same_workspace_readable_count at knowledge_documents_api_tests.rs:4290 (actual Some(0), expected Some(1)), following the historical 70da run failure at line 4070; independent diagnosis/remediation, required AC-170-1 runtime proof, and preserved final union evidence remain pending; historical AC-170-1 remains NOT_SATISFIED",
+    "blocked_on": "The 4b8d revision-163 original MT170 diagnostic failed with same_workspace_readable_count=0 (expected 1); that RED is historical. Candidate 984238e00b9057df4f917fd417f3abe1f5f6894f contains the scoped profile-alignment repair, but its original MT170 diagnostic is still unproven. The focused diagnostic is next; the Builder compile proof remains required before READY. AC-170-1 runtime proof, late CREATE race proof, and final union evidence remain outstanding.",
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -216,14 +216,14 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER compile after gate/resource admission; WP_VALIDATOR post-revision measurements and runtime proof",
+    "next_actor": "WP_VALIDATOR fresh passive controls/current gates and one focused original MT170 diagnostic; KERNEL_BUILDER compile proof remains required before READY",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
     ],
-    "candidate_commit": "d6ed538cf7bcfda86b48f2f49438980c0835f97c",
+    "candidate_commit": "984238e00b9057df4f917fd417f3abe1f5f6894f",
     "status_before_ready": "BLOCKED",
-    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = d6ed538cf7bcfda86b48f2f49438980c0835f97c; clean pushed checkpoint 92403a822607776c7aaebd74f79fd4c923701f95; static checks PASS; Cargo and runtime proof pending",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 984238e00b9057df4f917fd417f3abe1f5f6894f; clean pushed checkpoint tree d225a4c5f955d974f20c6b868f155acab01b5b12; profile-alignment five-file diff statically reviewed; focused runtime and Builder compile proof remain outstanding",
     "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20261002",
     "selection_note": {
