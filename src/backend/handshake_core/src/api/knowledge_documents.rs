@@ -532,6 +532,21 @@ fn db_for(state: &AppState) -> SurrealDatabase {
     SurrealDatabase::new(state.surreal.clone())
 }
 
+fn scoped_profile_can_read_fs() -> bool {
+    DOCUMENT_AUTHORITY
+        .try_with(|authority| {
+            DOCUMENT_STATE
+                .try_with(|state| {
+                    state
+                        .capability_registry
+                        .profile_can(&authority.capability_profile_id, "fs.read")
+                        .unwrap_or(false)
+                })
+                .unwrap_or(false)
+        })
+        .unwrap_or(false)
+}
+
 fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
     headers
         .get(name)
@@ -1609,8 +1624,9 @@ async fn import_document(
     let format = parse_import_format(&body.format)?;
     let outcome = import_snippet(&body.snippet, format);
 
-    let created = db
-        .create_knowledge_rich_document(NewKnowledgeRichDocument {
+    let created = KnowledgeStore::create_knowledge_rich_document_with_profile_read(
+        &db,
+        NewKnowledgeRichDocument {
             workspace_id: body.workspace_id,
             document_id: None,
             title: body.title,
@@ -1625,9 +1641,11 @@ async fn import_document(
             authority_label: Some("promoted".to_string()),
             owner_actor_kind: Some(ctx.actor_kind.as_str().to_string()),
             owner_actor_id: Some(actor_id_of(&ctx.actor)),
-        })
-        .await
-        .map_err(storage_error)?;
+        },
+        Some(scoped_profile_can_read_fs()),
+    )
+    .await
+    .map_err(storage_error)?;
 
     // Post-commit receipt (MT-149): never an error for a committed import.
     let (receipt, receipt_error) = record_receipt_non_fatal(
@@ -1823,10 +1841,14 @@ async fn rebuild_backlinks(
         KnowledgeDocumentTestPausePoint::BacklinkRebuildBeforeMutation,
     )
     .await;
-    let persisted = db
-        .replace_knowledge_document_backlinks(&document.rich_document_id, upserts)
-        .await
-        .map_err(storage_error)?;
+    let persisted = KnowledgeStore::replace_knowledge_document_backlinks_with_profile_read(
+        &db,
+        &document.rich_document_id,
+        upserts,
+        Some(scoped_profile_can_read_fs()),
+    )
+    .await
+    .map_err(storage_error)?;
 
     Ok(Json(json!({
         "source_document_id": document.rich_document_id,
@@ -2128,6 +2150,9 @@ impl handshake_document::operations::DocumentHost for OperationHost<'_> {
     fn require_index(&self) -> Result<(), ()> {
         self.ctx.require(DocumentAction::Index).map_err(|_| ())
     }
+    fn profile_can_read_fs(&self) -> Option<bool> {
+        Some(scoped_profile_can_read_fs())
+    }
     fn actor_kind(&self) -> DocumentActorKind {
         self.ctx.actor_kind
     }
@@ -2180,11 +2205,35 @@ impl handshake_document::operations::DocumentStore for SurrealDatabase {
     ) -> Result<KnowledgeRichDocument, StorageError> {
         KnowledgeStore::create_knowledge_rich_document(self, value).await
     }
+    async fn create_knowledge_rich_document_with_profile_read(
+        &self,
+        value: NewKnowledgeRichDocument,
+        profile_can_read_fs: Option<bool>,
+    ) -> Result<KnowledgeRichDocument, StorageError> {
+        KnowledgeStore::create_knowledge_rich_document_with_profile_read(
+            self,
+            value,
+            profile_can_read_fs,
+        )
+        .await
+    }
     async fn create_knowledge_rich_document_if_title_absent(
         &self,
         value: NewKnowledgeRichDocument,
     ) -> Result<(KnowledgeRichDocument, bool), StorageError> {
         KnowledgeStore::create_knowledge_rich_document_if_title_absent(self, value).await
+    }
+    async fn create_knowledge_rich_document_if_title_absent_with_profile_read(
+        &self,
+        value: NewKnowledgeRichDocument,
+        profile_can_read_fs: Option<bool>,
+    ) -> Result<(KnowledgeRichDocument, bool), StorageError> {
+        KnowledgeStore::create_knowledge_rich_document_if_title_absent_with_profile_read(
+            self,
+            value,
+            profile_can_read_fs,
+        )
+        .await
     }
     async fn save_knowledge_rich_document_version(
         &self,
@@ -2206,6 +2255,20 @@ impl handshake_document::operations::DocumentStore for SurrealDatabase {
         values: Vec<UpsertKnowledgeDocumentBacklink>,
     ) -> Result<Vec<KnowledgeDocumentBacklink>, StorageError> {
         KnowledgeStore::replace_knowledge_document_backlinks(self, id, values).await
+    }
+    async fn replace_knowledge_document_backlinks_with_profile_read(
+        &self,
+        id: &str,
+        values: Vec<UpsertKnowledgeDocumentBacklink>,
+        profile_can_read_fs: Option<bool>,
+    ) -> Result<Vec<KnowledgeDocumentBacklink>, StorageError> {
+        KnowledgeStore::replace_knowledge_document_backlinks_with_profile_read(
+            self,
+            id,
+            values,
+            profile_can_read_fs,
+        )
+        .await
     }
     async fn replace_knowledge_document_embeds(
         &self,

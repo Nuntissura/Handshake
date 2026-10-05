@@ -1877,6 +1877,13 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         new_document: NewKnowledgeRichDocument,
     ) -> StorageResult<KnowledgeRichDocument>;
+    async fn create_knowledge_rich_document_with_profile_read(
+        &self,
+        new_document: NewKnowledgeRichDocument,
+        _profile_can_read_fs: Option<bool>,
+    ) -> StorageResult<KnowledgeRichDocument> {
+        self.create_knowledge_rich_document(new_document).await
+    }
 
     /// Wikilink create-if-absent authority path. Concurrent callers for the same workspace and
     /// normalized title serialize inside the durable store; one creates and every loser receives that same
@@ -1885,6 +1892,14 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         new_document: NewKnowledgeRichDocument,
     ) -> StorageResult<(KnowledgeRichDocument, bool)>;
+    async fn create_knowledge_rich_document_if_title_absent_with_profile_read(
+        &self,
+        new_document: NewKnowledgeRichDocument,
+        _profile_can_read_fs: Option<bool>,
+    ) -> StorageResult<(KnowledgeRichDocument, bool)> {
+        self.create_knowledge_rich_document_if_title_absent(new_document)
+            .await
+    }
 
     async fn get_knowledge_rich_document(
         &self,
@@ -2068,6 +2083,15 @@ pub trait KnowledgeStore: Send + Sync {
         source_document_id: &str,
         upserts: Vec<UpsertKnowledgeDocumentBacklink>,
     ) -> StorageResult<Vec<KnowledgeDocumentBacklink>>;
+    async fn replace_knowledge_document_backlinks_with_profile_read(
+        &self,
+        source_document_id: &str,
+        upserts: Vec<UpsertKnowledgeDocumentBacklink>,
+        _profile_can_read_fs: Option<bool>,
+    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
+        self.replace_knowledge_document_backlinks(source_document_id, upserts)
+            .await
+    }
 
     /// Lists the backlinks a source document emits (MT-155).
     async fn list_knowledge_document_backlinks_from(

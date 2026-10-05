@@ -1913,6 +1913,7 @@ async fn create_rich_document_transaction(
     storage: &SurrealStorage,
     new_document: &NewKnowledgeRichDocument,
     title_anchor: &TitleAnchor,
+    profile_can_read_fs: Option<bool>,
 ) -> StorageResult<KnowledgeRichDocument> {
     if new_document.title.trim() != new_document.title || new_document.title.is_empty() {
         return Err(StorageError::Validation(
@@ -1983,6 +1984,7 @@ async fn create_rich_document_transaction(
         upserts,
         &HashMap::new(),
         &[],
+        profile_can_read_fs,
     )
     .await?;
     let affected_blocks: BTreeSet<String> = resolved
@@ -4019,6 +4021,15 @@ impl KnowledgeStore for SurrealDatabase {
         &self,
         new_document: NewKnowledgeRichDocument,
     ) -> StorageResult<KnowledgeRichDocument> {
+        self.create_knowledge_rich_document_with_profile_read(new_document, None)
+            .await
+    }
+
+    async fn create_knowledge_rich_document_with_profile_read(
+        &self,
+        new_document: NewKnowledgeRichDocument,
+        profile_can_read_fs: Option<bool>,
+    ) -> StorageResult<KnowledgeRichDocument> {
         // No natural key of its own (a fresh KRD id is generated per attempt,
         // and a commit conflict wrote nothing, so the re-run creates exactly
         // one document), but the transaction writes the title anchor so a
@@ -4038,7 +4049,12 @@ impl KnowledgeStore for SurrealDatabase {
         let new_document = &new_document;
         let anchor = &anchor;
         guarded_mutation(self, keys, replay_key, None, || {
-            create_rich_document_transaction(self.storage(), new_document, anchor)
+            create_rich_document_transaction(
+                self.storage(),
+                new_document,
+                anchor,
+                profile_can_read_fs,
+            )
         })
         .await
     }
@@ -4046,6 +4062,15 @@ impl KnowledgeStore for SurrealDatabase {
     async fn create_knowledge_rich_document_if_title_absent(
         &self,
         new_document: NewKnowledgeRichDocument,
+    ) -> StorageResult<(KnowledgeRichDocument, bool)> {
+        self.create_knowledge_rich_document_if_title_absent_with_profile_read(new_document, None)
+            .await
+    }
+
+    async fn create_knowledge_rich_document_if_title_absent_with_profile_read(
+        &self,
+        new_document: NewKnowledgeRichDocument,
+        profile_can_read_fs: Option<bool>,
     ) -> StorageResult<(KnowledgeRichDocument, bool)> {
         if new_document.title.trim() != new_document.title || new_document.title.is_empty() {
             return Err(StorageError::Validation(
@@ -4065,7 +4090,7 @@ impl KnowledgeStore for SurrealDatabase {
         let new_document = &new_document;
         let anchor = &anchor;
         guarded_mutation(self, keys, replay_key, None, || {
-            create_if_title_absent_attempt(self, new_document, anchor)
+            create_if_title_absent_attempt(self, new_document, anchor, profile_can_read_fs)
         })
         .await
     }
@@ -4798,6 +4823,20 @@ impl KnowledgeStore for SurrealDatabase {
         source_document_id: &str,
         upserts: Vec<UpsertKnowledgeDocumentBacklink>,
     ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
+        self.replace_knowledge_document_backlinks_with_profile_read(
+            source_document_id,
+            upserts,
+            None,
+        )
+        .await
+    }
+
+    async fn replace_knowledge_document_backlinks_with_profile_read(
+        &self,
+        source_document_id: &str,
+        upserts: Vec<UpsertKnowledgeDocumentBacklink>,
+        profile_can_read_fs: Option<bool>,
+    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
         // Content-derived, idempotent rebuild: the prior-state read, target
         // resolution and the atomic rewrite all run inside the retried attempt.
         // Target liveness is not revalidated in the transaction; that derived
@@ -4811,7 +4850,13 @@ impl KnowledgeStore for SurrealDatabase {
         let replay_key = format!("krd-backlinks:{source_document_id}");
         let upserts = &upserts;
         guarded_mutation(self, keys, replay_key, None, || async move {
-            replace_backlinks_attempt(self.storage(), source_document_id, upserts).await
+            replace_backlinks_attempt(
+                self.storage(),
+                source_document_id,
+                upserts,
+                profile_can_read_fs,
+            )
+            .await
         })
         .await
     }
@@ -5262,6 +5307,7 @@ async fn create_if_title_absent_attempt(
     database: &SurrealDatabase,
     new_document: &NewKnowledgeRichDocument,
     anchor: &TitleAnchor,
+    profile_can_read_fs: Option<bool>,
 ) -> StorageResult<(KnowledgeRichDocument, bool)> {
     let storage = database.storage();
     let candidates: Vec<DocTitleRecord> = query_rows(
@@ -5285,7 +5331,13 @@ async fn create_if_title_absent_attempt(
     });
     match matches.len() {
         0 => {
-            let document = create_rich_document_transaction(storage, new_document, anchor).await?;
+            let document = create_rich_document_transaction(
+                storage,
+                new_document,
+                anchor,
+                profile_can_read_fs,
+            )
+            .await?;
             Ok((document, true))
         }
         1 => {

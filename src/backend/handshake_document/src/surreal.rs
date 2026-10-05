@@ -287,6 +287,7 @@ pub async fn resolve_backlink_rows(
     upserts: Vec<UpsertKnowledgeDocumentBacklink>,
     prior_by_relationship: &HashMap<String, String>,
     prior_loom_targets: &[String],
+    profile_can_read_fs: Option<bool>,
 ) -> StorageResult<Vec<ResolvedBacklink>> {
     let mut candidate_titles: Vec<String> = upserts
         .iter()
@@ -392,12 +393,14 @@ pub async fn resolve_backlink_rows(
         let candidate_result: StorageResult<Vec<CandidateLoomRecord>> = query_rows(
             storage,
             "SELECT block_id, workspace_id, \
-                    fn::mt120_loom_endpoint_access(type::record('loom_blocks', block_id), record::id(workspace_id), 'read', 'fs.read') AS endpoint_readable \
+                    ((source_rich_document_id = NONE AND (($profile_can_read_fs = NONE AND fn::mt120_loom_endpoint_access(type::record('loom_blocks', block_id), record::id(workspace_id), 'read', 'fs.read')) OR ($profile_can_read_fs = true AND fn::mt109_has_grant('loom_block', block_id, 'read', 'fs.read')))) \
+                    OR (source_rich_document_id != NONE AND ($profile_can_read_fs = NONE OR $profile_can_read_fs = true) AND fn::mt120_loom_endpoint_access(type::record('loom_blocks', block_id), record::id(workspace_id), 'read', 'fs.read'))) AS endpoint_readable \
              FROM $candidate_loom_records \
              WHERE block_id IN $candidate_loom_ids ORDER BY block_id ASC;",
             vec![
                 b("candidate_loom_ids", candidate_loom_ids.clone()),
                 b("candidate_loom_records", candidate_loom_records),
+                b("profile_can_read_fs", profile_can_read_fs),
             ],
         )
         .await;
@@ -615,6 +618,7 @@ pub async fn replace_backlinks_attempt(
     storage: &impl DocumentQuery,
     source_document_id: &str,
     upserts: &[UpsertKnowledgeDocumentBacklink],
+    profile_can_read_fs: Option<bool>,
 ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
     let source = observe_result(
         "backlink_source_read",
@@ -644,6 +648,7 @@ pub async fn replace_backlinks_attempt(
             upserts.to_vec(),
             &prior_by_relationship,
             &prior_loom_targets,
+            profile_can_read_fs,
         ),
     )
     .await?;

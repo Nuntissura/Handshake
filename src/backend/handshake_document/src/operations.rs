@@ -15,10 +15,25 @@ pub trait DocumentStore: Send + Sync {
         &self,
         value: NewKnowledgeRichDocument,
     ) -> Result<KnowledgeRichDocument, StorageError>;
+    async fn create_knowledge_rich_document_with_profile_read(
+        &self,
+        value: NewKnowledgeRichDocument,
+        _profile_can_read_fs: Option<bool>,
+    ) -> Result<KnowledgeRichDocument, StorageError> {
+        self.create_knowledge_rich_document(value).await
+    }
     async fn create_knowledge_rich_document_if_title_absent(
         &self,
         value: NewKnowledgeRichDocument,
     ) -> Result<(KnowledgeRichDocument, bool), StorageError>;
+    async fn create_knowledge_rich_document_if_title_absent_with_profile_read(
+        &self,
+        value: NewKnowledgeRichDocument,
+        _profile_can_read_fs: Option<bool>,
+    ) -> Result<(KnowledgeRichDocument, bool), StorageError> {
+        self.create_knowledge_rich_document_if_title_absent(value)
+            .await
+    }
     async fn save_knowledge_rich_document_version(
         &self,
         id: &str,
@@ -33,6 +48,14 @@ pub trait DocumentStore: Send + Sync {
         id: &str,
         values: Vec<UpsertKnowledgeDocumentBacklink>,
     ) -> Result<Vec<KnowledgeDocumentBacklink>, StorageError>;
+    async fn replace_knowledge_document_backlinks_with_profile_read(
+        &self,
+        id: &str,
+        values: Vec<UpsertKnowledgeDocumentBacklink>,
+        _profile_can_read_fs: Option<bool>,
+    ) -> Result<Vec<KnowledgeDocumentBacklink>, StorageError> {
+        self.replace_knowledge_document_backlinks(id, values).await
+    }
     async fn replace_knowledge_document_embeds(
         &self,
         id: &str,
@@ -56,6 +79,9 @@ pub trait DocumentStore: Send + Sync {
 #[async_trait::async_trait]
 pub trait DocumentHost: Send + Sync {
     fn require_index(&self) -> Result<(), ()>;
+    fn profile_can_read_fs(&self) -> Option<bool> {
+        None
+    }
     fn actor_kind(&self) -> DocumentActorKind;
     fn minted_by_principal(&self) -> Option<&str>;
     fn take_backlink_failure(&self, id: &str) -> bool;
@@ -199,12 +225,18 @@ pub async fn create_document(
         "create_transaction",
         async {
             if create_if_title_absent {
-                db.create_knowledge_rich_document_if_title_absent(new_document)
-                    .await
+                db.create_knowledge_rich_document_if_title_absent_with_profile_read(
+                    new_document,
+                    host.profile_can_read_fs(),
+                )
+                .await
             } else {
-                db.create_knowledge_rich_document(new_document)
-                    .await
-                    .map(|created| (created, true))
+                db.create_knowledge_rich_document_with_profile_read(
+                    new_document,
+                    host.profile_can_read_fs(),
+                )
+                .await
+                .map(|created| (created, true))
             }
         },
         Result::is_err,
@@ -392,7 +424,11 @@ pub async fn save_document(
             } else {
                 match observe_document_phase(
                     "save_backlinks",
-                    db.replace_knowledge_document_backlinks(&saved.rich_document_id, upserts),
+                    db.replace_knowledge_document_backlinks_with_profile_read(
+                        &saved.rich_document_id,
+                        upserts,
+                        host.profile_can_read_fs(),
+                    ),
                     Result::is_err,
                 )
                 .await
