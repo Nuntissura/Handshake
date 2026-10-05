@@ -403,7 +403,7 @@ pub async fn resolve_backlink_rows(
             .collect();
         #[cfg(feature = "surreal-test-support")]
         let query_started = std::time::Instant::now();
-        let candidate_result: StorageResult<Vec<CandidateLoomRecord>> = query_rows(
+        let mut candidate_result: StorageResult<Vec<CandidateLoomRecord>> = query_rows(
             storage,
             format!("SELECT block_id, workspace_id, {MT170_RESOLVER_DIAGNOSTIC_PROJECTION} \
                     ((source_rich_document_id = NONE AND (($profile_can_read_fs = NONE AND fn::mt120_loom_endpoint_access(type::record('loom_blocks', block_id), record::id(workspace_id), 'read', 'fs.read')) OR ($profile_can_read_fs = true AND fn::mt109_has_grant('loom_block', block_id, 'read', 'fs.read')))) \
@@ -417,6 +417,31 @@ pub async fn resolve_backlink_rows(
             ],
         )
         .await;
+        let mut readability_results = Vec::new();
+        let mut readability_error = None;
+        if let Ok(rows) = &candidate_result {
+            for (index, row) in rows.iter().enumerate() {
+                if profile_can_read_fs == Some(true)
+                    && row.standalone_candidate
+                    && record_key(row.workspace_id.clone())? == workspace_key
+                {
+                    match storage.authorize_loom_block_read(&row.block_id).await {
+                        Ok(readable) => readability_results.push((index, readable)),
+                        Err(error) => {
+                            readability_error = Some(error);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if readability_error.is_none() {
+            if let Ok(rows) = &mut candidate_result {
+                for (index, readable) in readability_results {
+                    rows[index].endpoint_readable = readable;
+                }
+            }
+        }
         #[cfg(feature = "surreal-test-support")]
         match &candidate_result {
             Ok(rows) => {
@@ -505,6 +530,9 @@ pub async fn resolve_backlink_rows(
                 );
             }
         }
+        if let Some(error) = readability_error {
+            return Err(error);
+        }
         candidate_result?
     };
     let mut live_loom_ids: HashSet<String> = HashSet::new();
@@ -513,12 +541,7 @@ pub async fn resolve_backlink_rows(
     for row in candidate_loom_targets {
         if record_key(row.workspace_id)? == workspace_key {
             live_loom_ids.insert(row.block_id.clone());
-            let endpoint_readable = match (profile_can_read_fs, row.standalone_candidate) {
-                (Some(true), true) => storage.authorize_loom_block_read(&row.block_id).await?,
-                (Some(false), true) => false,
-                _ => row.endpoint_readable,
-            };
-            if endpoint_readable {
+            if row.endpoint_readable {
                 readable_loom_ids.insert(row.block_id);
             }
         } else {
