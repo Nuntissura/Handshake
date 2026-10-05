@@ -4058,19 +4058,13 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
         .table_selector("resource_grants")
         .await
         .expect("MT-170 resource grant table");
-    let creator_grant = inspector
-        .references_to(&resource_grants)
-        .await
-        .expect("MT-170 grant references")
-        .into_iter()
-        .find(|reference| {
-            reference.source_table() == "protected_resources"
-                && reference.source_field() == "creator_grant_id"
-        })
-        .expect("protected resource creator grant reference");
-    let grant_ids = inspector
-        .referenced_ids(
-            &creator_grant,
+    let creator_grant_field = protected_resources
+        .field("creator_grant_id")
+        .expect("protected resource creator grant field");
+    let creator_grant_rows = inspector
+        .project(
+            &protected_resources,
+            &[creator_grant_field],
             RowFilter::FieldEquals {
                 field: protected_resources
                     .field("external_resource_id")
@@ -4079,18 +4073,28 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
             },
         )
         .await
-        .expect("MT-170 target creator grant identity");
-    assert_eq!(grant_ids.len(), 1, "one creator grant backs the target");
-    let grant_id = grant_ids[0]
-        .key_string()
-        .expect("creator grant string key")
-        .to_owned();
+        .expect("MT-170 target creator grant projection");
+    assert_eq!(
+        creator_grant_rows.len(),
+        1,
+        "one protected resource backs the update-only target"
+    );
+    let creator_grant_record_id = creator_grant_rows[0]
+        .values
+        .get("creator_grant_id")
+        .and_then(Value::as_str)
+        .expect("creator grant record id string");
+    let grant_id = creator_grant_record_id
+        .strip_prefix("resource_grants:`")
+        .and_then(|key| key.strip_suffix('`'))
+        .expect("creator grant is a backtick-quoted resource_grants record id");
+    uuid::Uuid::parse_str(grant_id).expect("creator grant key is a UUIDv7 string");
     store
         .storage
         .test_mutator()
         .update_row(
             &resource_grants,
-            grant_id,
+            grant_id.to_owned(),
             &[
                 TestFieldMutation::new(
                     resource_grants
