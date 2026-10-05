@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 332
+generation: 334
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -305,3 +305,5 @@ steps:
 - {id: GP-284, role: builder, at: before_round, do: confirm CLI check uses kernel_builder role scope, check: {type: confirm}, source: 'infra: manual CLI check omitted --role and selected all roles', state: active}
 - {id: GP-285, role: builder, at: before_round, do: verify lockfile digest path resolves from the invoked package manifest directory, check: {type: confirm}, source: 'infra: compile70da capture used product-root lock path; actual lock was package-local', state: active}
 - {id: GP-286, role: wp_validator, at: before_round, do: verify passive-stage file creation uses a supported path parameter, check: {type: confirm}, source: 'infra: passive observer prep used unsupported New-Item LiteralPath; no process started', state: active}
+- {id: GP-287, role: wp_validator, at: before_round, do: verify metadata command workdir is the existing canonical governance directory, check: {type: confirm}, source: 'infra: ready/observer metadata exec used invalid explicit workdir; os267 before shell', state: active}
+- {id: GP-288, role: wp_validator, at: before_round, do: verify recovered resolver source bytes and bounded file invocation are frozen before retry, check: {type: confirm}, source: 'infra: snapshot resolver Python-c launch rejected filename/extension too long; native cause unproven', state: active}
