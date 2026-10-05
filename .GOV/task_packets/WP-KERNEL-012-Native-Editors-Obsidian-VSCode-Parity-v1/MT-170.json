@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-05T22:21:41Z",
+  "updated_at_utc": "2026-10-05T22:46:44Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -207,7 +207,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "The original 4b8d and 984238 d1d2 attempts are RED at same_workspace_readable_count (expected 1, observed 0). The 42754a06 focused diagnostic run 5f140717 is now closed RED at the same assertion; its redacted output shows profile_read_mode=some_true and same_workspace_standalone_grant_readable=0 for one same-workspace standalone candidate. The false grant operand is now observed; a minimal authorization-preserving remediation and a passing original focused test are still required. Builder compile proof remains required before READY; AC-170-1 and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver.",
+    "blocked_on": "The original 4b8d and 984238 d1d2 attempts are RED at same_workspace_readable_count (expected 1, observed 0). The 42754a06 focused diagnostic run 5f140717 is closed RED at the same assertion; its redacted output shows profile_read_mode=some_true and same_workspace_standalone_grant_readable=0 for one same-workspace standalone candidate. Candidate 656110ee043fb153faefa49fd187b0dcf8d6f0eb now contains an unvalidated canonical protected-resource authorization repair; the passing original focused proof and Builder compile proof remain outstanding. AC-170-1 and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver.",
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -216,14 +216,14 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER: select and implement the minimum authorization-preserving correction for the observed standalone grant=false result, then provide a pushed unvalidated checkpoint. WPV: independently review and run the same focused MT170 test after current gates and one-use release. Builder compile proof, AC-170-1 proof and final union remain required before READY; late CREATE race stays UNEXERCISED.",
+    "next_actor": "KERNEL_BUILDER: bind the reviewed 656110ee repair to fresh selector, launcher, observer and supervisor controls. WPV: complete current gates and run the original focused MT170 proof only after root's one-use release. Builder compile proof, AC-170-1 proof and final union remain required before READY; late CREATE race stays UNEXERCISED.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
     ],
-    "candidate_commit": "42754a06c67124905cc80411ee64a5789f074278",
+    "candidate_commit": "656110ee043fb153faefa49fd187b0dcf8d6f0eb",
     "status_before_ready": "BLOCKED",
-    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 42754a06c67124905cc80411ee64a5789f074278; clean pushed diagnostic checkpoint tree 67468ebd346db2e466f0b337e8fd204298704064; two-file test-support-only redacted diagnostic instrumentation statically reviewed; focused run 5f140717 is CLOSED RED; passing focused repair proof and Builder compile proof remain outstanding",
+    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 656110ee043fb153faefa49fd187b0dcf8d6f0eb; clean pushed repair tree dc3c0c396967bfcdd88edee3d013a7da4b34ec4c; two-file canonical protected-resource authorization repair independently reviewed but UNVALIDATED; latest focused run 5f140717 on 42754a06 is CLOSED RED; passing focused repair proof and Builder compile proof remain outstanding",
     "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20261002",
     "selection_note": {
@@ -3804,7 +3804,7 @@
       },
       {
         "id": "MT170-PR-003",
-        "requirement": "For profile-aware standalone candidates require Some(true), exact mt109_has_grant loom_block/read/fs.read, record-user SELECT visibility and existing same-workspace identity; Some(false) is unreadable. Preserve live versus readable sets, projection/fallback readable gates and typed NoReadableLoomTarget."
+        "requirement": "For profile-aware standalone candidates, Some(true) requires the current record-user context and canonical protected-resource authorization for the exact LoomBlock Read/fs.read/block ID, plus record-user SELECT visibility and same-workspace identity; Some(false) is unreadable. Preserve live versus readable sets, projection/fallback readable gates, typed NoReadableLoomTarget, legacy None behavior, and the RichDocument authorization path. The SQL mt109_has_grant value remains diagnostic only."
       },
       {
         "id": "MT170-PR-004",

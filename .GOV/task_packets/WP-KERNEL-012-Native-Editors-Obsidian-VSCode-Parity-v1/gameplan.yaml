@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 362
+generation: 363
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -331,3 +331,4 @@ steps:
 - {id: GP-310, role: orchestrator, at: before_round, do: verify observed target + unmeasured growth/scratch reserves < 147000000000B stop and 150000000000B cap, check: {type: confirm}, source: Operator operational projection policy replaces GP102 measured-growth wording; same buddy cleared, state: active}
 - {id: GP-311, role: wp_validator, at: before_dispatch, do: verify scoped supervisor gate uses 120s budget with unchanged predicates before release, check: {type: confirm}, source: 'infra: d492 WPV gate satisfied60 checks but exceeded internal60s budget before Bash', state: active}
 - {id: GP-312, role: wp_validator, at: before_round, do: confirm MT170 probe records actual profile option and standalone grant booleans, check: {type: confirm}, source: 'fail: 984 readable count 0 vs 1; profile and grant operands unobserved', state: active}
+- {id: GP-313, role: wp_validator, at: before_round, do: verify canonical Loom READ authorization is shared by resolver counts and projection, check: {type: confirm}, source: 'fail: 427 SQL helper differs from GET; 306 diagnostic counted the pre-authorization value', state: active}
