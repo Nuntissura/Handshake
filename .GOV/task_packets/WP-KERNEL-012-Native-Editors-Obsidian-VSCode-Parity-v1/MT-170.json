@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-05T18:05:58Z",
+  "updated_at_utc": "2026-10-05T21:46:15Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -207,7 +207,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "The original 4b8d and 984238 d1d2 focused MT170 attempts are RED at same_workspace_readable_count (expected 1, observed 0). Candidate 42754a06 adds bounded redacted diagnostic output only; it has not yet been run and does not imply a repair. The profile_can_read_fs value and per-row standalone grant result remain unobserved until that run. The Builder compile proof remains required before READY. MT170 remains BLOCKED with validator_verdict null; AC-170-1 runtime proof and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver.",
+    "blocked_on": "The original 4b8d and 984238 d1d2 focused MT170 attempts are RED at same_workspace_readable_count (expected 1, observed 0). Candidate 42754a06 test-support instrumentation run 5f140717aac84bac8ad6e20fba4a2160 is RUNNING under supervisor PID236512 after one-use release; its result is not yet closed. The profile_can_read_fs value and per-row standalone grant result remain unobserved until its retained output is closed. The Builder compile proof remains required before READY. MT170 remains BLOCKED with validator_verdict null; AC-170-1 runtime proof and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver.",
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -216,7 +216,7 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "WPV stage one original focused MT170 diagnostic on candidate 42754a06c67124905cc80411ee64a5789f074278 with bounded redacted fields after current gates and root release; then KERNEL_BUILDER select a fix from observed values. Builder compile proof remains required before READY",
+    "next_actor": "WPV close and record original focused diagnostic run 5f140717aac84bac8ad6e20fba4a2160, including redacted profile/grant observations and JUnit; then KERNEL_BUILDER select the minimum fix from observed operands. Builder compile proof remains required before READY",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
