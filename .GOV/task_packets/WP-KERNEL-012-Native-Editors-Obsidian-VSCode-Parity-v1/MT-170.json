@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-06T05:00:50Z",
+  "updated_at_utc": "2026-10-06T06:43:44.625585Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -254,16 +254,16 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Earlier 4b8d, 984238, 42754a06, 656110ee and be669520 attempts remain preserved history, including be669 run 9ba0a8677e294c9bbbab6642763e3d46 CLOSED RED before scenario on manifest drift. Prior c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb run ccbd772247ff4430bb11ff4f3b276e49 is CLOSED RED at startup before the backlink ACL scenario: HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6, observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976. Original selected test result: 1 selected, 0 passed, 1 failed, 28 filtered; JUnit SHA256 c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73. The one narrow fresh-Mem MT139 schema-info measurement completed on 2026-10-06: observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976 versus expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6. The selected measurement assertion was RED. The measured pin-only correction is pushed as candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661. Original focused follow-up run 1c9de898c10b43e5ad81987eab5e0101 CLOSED focused GREEN at 2026-10-06T04:56:27.0441941Z: the selected test passed (1 passed, 0 failed, 28 filtered), JUnit SHA256 fabdb58079f8c0a867ae717c07b8141f1724fb08cd46b9a0292aea425ba355ee and exit-record SHA256 db2f49d9324e8c24abdd54221bebfce525c0c443b77fe56c0a5bcf060a3a5504. The stderr includes the fixture’s expected HSK-403-PROTECTED-RESOURCE denial for the update-only target-read control; the test asserts source-save success, retained textual backlink, and zero Loom projection for that unreadable target. Exact outputs and the final observer snapshot are recorded in original_focused_proof_20261006. MT170 remains BLOCKED with null validator verdict; Builder compile proof remains required after focused GREEN and before READY; AC-170-1/final union remain outstanding; late CREATE race is UNEXERCISED, no new seam or waiver.",
+    "blocked_on": "Earlier 4b8d, 984238, 42754a06, 656110ee and be669520 attempts remain preserved history, including be669 run 9ba0a8677e294c9bbbab6642763e3d46 CLOSED RED before scenario on manifest drift. Prior c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb run ccbd772247ff4430bb11ff4f3b276e49 is CLOSED RED at startup before the backlink ACL scenario: HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6, observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976. Original selected test result: 1 selected, 0 passed, 1 failed, 28 filtered; JUnit SHA256 c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73. The one narrow fresh-Mem MT139 schema-info measurement completed on 2026-10-06: observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976 versus expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6. The selected measurement assertion was RED. The measured pin-only correction is pushed as candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661. Original focused follow-up run 1c9de898c10b43e5ad81987eab5e0101 CLOSED focused GREEN at 2026-10-06T04:56:27.0441941Z: the selected test passed (1 passed, 0 failed, 28 filtered), JUnit SHA256 fabdb58079f8c0a867ae717c07b8141f1724fb08cd46b9a0292aea425ba355ee and exit-record SHA256 db2f49d9324e8c24abdd54221bebfce525c0c443b77fe56c0a5bcf060a3a5504. The stderr includes the fixture’s expected HSK-403-PROTECTED-RESOURCE denial for the update-only target-read control; the test asserts source-save success, retained textual backlink, and zero Loom projection for that unreadable target. Exact outputs and the final observer snapshot are recorded in original_focused_proof_20261006. Current candidate Builder compile CHECK-08 passed --lib --tests with unchanged input digests. Independent single-MT verdict is INCONCLUSIVE; MT170 remains BLOCKED. AC-170-1 requires an explicit acceptance disposition; the existing document/backlink and original full MT-046 PC-046-01 (IC01–05) and PC-046-03 (IC10–14) proof remain unclosed. Late CREATE race remains UNEXERCISED; no new seam or waiver.",
     "depends_on": [],
     "blocks": [
       "MT-046"
     ],
     "active": true,
-    "validator_verdict": null,
+    "validator_verdict": "INCONCLUSIVE",
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER: run the one required compile check against pushed candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e before READY. Then WP_VALIDATOR continues the original MT-046 acceptance and final union; focused MT170 proof is GREEN, but overall MT170 remains BLOCKED with null validator verdict until original acceptance passes. Preserve AC-170-1 NOT_SATISFIED and late CREATE race UNEXERCISED.",
+    "next_actor": "OPERATOR: provide an explicit acceptance disposition for AC-170-1; its missed pre-edit chronology cannot be retroactively satisfied. Existing document/backlink coverage and the original full MT-046 PC-046-01 (IC01–05) and PC-046-03 (IC10–14) selections remain unclosed. No downstream run is authorized by this single-MT verdict; preserve BLOCKED and the retained focused GREEN.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
@@ -271,7 +271,7 @@
   "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
   "candidate_tree": "02dcf0fd0f7c107104997c6a7dd0e78223ebd661",
     "status_before_ready": "BLOCKED",
-  "pushed_verified": "Current product candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661 is clean and pushed. Its only product diff updates EXPECTED_SCHEMA_INFO_SHA256/comment to fresh-Mem value 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976; other pins and historical/C2 entries remain unchanged. Original focused MT170 follow-up 1c9de898c10b43e5ad81987eab5e0101 passed the selected test on pushed candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661. JUnit shows 1 passed, 0 failed, 28 filtered; exact output hashes are in original_focused_proof_20261006. This focused GREEN does not complete MT170: overall status remains BLOCKED with null validator verdict; the required Builder compile and original MT-046 acceptance remain outstanding.",
+  "pushed_verified": "Current product candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661 is clean and pushed. Its only product diff updates EXPECTED_SCHEMA_INFO_SHA256/comment to fresh-Mem value 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976; other pins and historical/C2 entries remain unchanged. Original focused MT170 follow-up 1c9de898c10b43e5ad81987eab5e0101 passed the selected test on pushed candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661. JUnit shows 1 passed, 0 failed, 28 filtered; exact output hashes are in original_focused_proof_20261006. This focused GREEN is retained and reused. Current candidate Builder compile CHECK-08 passed --lib --tests; independent single-MT verdict is INCONCLUSIVE and overall status remains BLOCKED. Historical AC-170-1 acceptance disposition and remaining original runtime coverage are outstanding.",
     "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20261002",
     "selection_note": {
@@ -695,6 +695,70 @@
         "warnings": "Compiler stderr retained 87,259 bytes and ends with Finished dev profile in 10m30s. It includes an unused import warning at schema.rs:5, outside the changed pin lines. No changed-line compile error or lint verdict is claimed.",
         "result": "PASS_COMPILE_ONLY",
         "scope_limit": "Compile-only proof. No runtime/test or lint PASS; MT170 remains BLOCKED with validator_verdict null, and historical AC-170-1 remains NOT_SATISFIED."
+      },
+      {
+        "id": "PR-WP012-MT170-KB-CHECK-08",
+        "check_id": "MT-170-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261006-subagent",
+        "covers": [
+          "MT-170"
+        ],
+        "commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+        "tree": "02dcf0fd0f7c107104997c6a7dd0e78223ebd661",
+        "command": "cargo check --locked -j 1 --config <kernel>/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils; cwd=<product>/src/backend/handshake_core; CARGO_TARGET_DIR=<artifact-root>/WP-KERNEL-012/MT-167/kb/target; CARGO_INCREMENTAL=0; dev/test debug=line-tables-only",
+        "started_at_utc": "2026-10-06T06:22:49.1391403Z",
+        "completed_at_utc": "2026-10-06T06:34:57.0193422Z",
+        "exec_session": 12195,
+        "exit_code": 0,
+        "result": "PASS_COMPILE_ONLY",
+        "artifact_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/logs/kb-check-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+        "artifacts": {
+          ".stdout.log": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          ".stderr.log": {
+            "bytes": 85190,
+            "sha256": "fa992236bd35b3353eee4f61bbe5fa056d308d23d7da153693eb24067e6dc75b"
+          },
+          ".exit.json": {
+            "bytes": 5026,
+            "sha256": "99a5cedfc8a360b429de3c55467bccfad6a980f2c57d27f708fffd9b3c63946c"
+          },
+          ".inputs-before.json": {
+            "bytes": 4486,
+            "sha256": "9d5adec1fd14fe53788616c4fd728c8770fa7c6856e33d47c3988afaeefefcb5"
+          },
+          ".inputs-after.json": {
+            "bytes": 4503,
+            "sha256": "ecf6d0fd20c0c378bf7df86b34f626c0cbb21812242d34b2f813107ff510fbc1"
+          },
+          ".running.json": {
+            "bytes": 1890,
+            "sha256": "16f7a64c46549a9b7a54e4564aaa256670743a6105a215be3c9e085fb6d59b1b"
+          },
+          ".observations.jsonl": {
+            "bytes": 374398,
+            "sha256": "0884d5860789752d4703e6e8811cdfcdf0c6036dd6bfab9861f96b80df023de7"
+          }
+        },
+        "input_digest_before_after": "All 12 captured hashes independently re-read and equal; includes all 8 changed product files, both manifests, package-local Cargo.lock and consumed profile; current 4eeb/tree 02dc/clean independently rechecked.",
+        "post_run_recheck": "At 06:35Z actual current HEAD/tree/clean unchanged; literal before/after worktree and branch inventories unchanged.",
+        "process_identity": {
+          "powershell_pid": 180416,
+          "powershell_start_utc": "2026-10-06T06:22:43.3669903Z",
+          "launch_pid": 259732,
+          "launch_start_utc": "2026-10-06T06:22:49.2583432Z",
+          "launch_process": "rustup.exe shim",
+          "actual_cargo_pid": 220664,
+          "actual_cargo_identity_ref": ".observations.jsonl"
+        },
+        "preparation": "Existing scoped gate 81554 exit 0 PASS 43/43; only 7 missing confirmations plus live GP111 updated; fresh launch commit-free 57337896960B, target 50528495423B, no competitors.",
+        "capture_limits": [
+          "inputs-before was written before launch; running.json with command/target/outputs/owned identity was written immediately AFTER Start-Process, not before; do not claim CX-VAL-004 prelaunch-running-record chronology.",
+          "Last observer row poll 23 at 2026-10-06T06:34:26.4717578Z has_exited=false; exit record completed 06:34:57.0193422Z and tool exit 0 independently close the job; no final observer-exit row claimed."
+        ],
+        "scope_limit": "Compile only; no runtime/test or lint PASS, no MT verdict or READY/COMPLETED claim. Historical AC-170-1 NOT_SATISFIED and late CREATE race UNEXERCISED remain unchanged. Product/GOV code untouched; original focused GREEN reused."
       }
     ]
   },
@@ -4237,5 +4301,80 @@
       "runtime": "NOT_RUN",
       "acceptance_verdict": null
     }
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "verdict": "INCONCLUSIVE",
+    "validated_by": "WP_VALIDATOR-20261006-MT170-ONLY",
+    "validated_at_utc": "2026-10-06T06:38:14Z",
+    "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+    "candidate_tree": "02dcf0fd0f7c107104997c6a7dd0e78223ebd661",
+    "started_at": "2026-10-06T06:38:14Z",
+    "completed_at": "2026-10-06T06:38:14Z",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e-core-targeted.xml",
+    "proof_record_ids": [
+      "PR-WP012-MT170-KB-CHECK-08"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-170-FIRST-STEP-DIAGNOSTIC",
+        "result": "NOT_SATISFIED",
+        "finding": "Required diagnostic before any product edit was missed; later observation cannot repair that chronology.",
+        "evidence_ref": "implementation_record.first_step_evidence",
+        "recovery_ref": "remediation_20261004_live_resolver_read_diagnostic.historical_gate"
+      },
+      {
+        "check_id": "MT-170-BUILDER-COMPILE",
+        "result": "PASS_COMPILE_ONLY",
+        "proof_record_id": "PR-WP012-MT170-KB-CHECK-08",
+        "scope": "handshake_core --lib --tests; locked -j1; app-runtime,surreal-test-support,test-utils",
+        "exit_code": 0,
+        "input_digest_unchanged": true,
+        "result_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/kb/logs/kb-check-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.exit.json"
+      },
+      {
+        "check_id": "MT-170-VALIDATOR",
+        "result": "PARTIAL_REUSED_FOCUSED_GREEN",
+        "reused_evidence_ref": "original_focused_proof_20261006",
+        "proof_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+        "reviewed_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+        "reuse_basis": "Same pushed candidate; actual JUnit, exits, logs and all five retained artifact hashes inspected.",
+        "scope_limit": "One selected integration test passed; 28 filtered. Existing document/backlink coverage remains unclosed."
+      },
+      {
+        "check_id": "MT-170-DOWNSTREAM",
+        "result": "NOT_RUN_UNCLOSED",
+        "required_selections": [
+          "MT-046 PC-046-01: test_interconnect_ckc_to_note interconnect_ (IC01–05)",
+          "MT-046 PC-046-03: test_interconnect_loom_backlink_search interconnect_ (IC10–14)"
+        ],
+        "reason": "These results cannot resolve the immutable AC-170-1 acceptance blocker."
+      }
+    ],
+    "acceptance": {
+      "AC-170-1": "NOT_SATISFIED; explicit acceptance disposition is required; chronology remains unchanged.",
+      "AC-170-2": "Supported by retained focused GREEN; complete MT validator proof floor remains unclosed.",
+      "AC-170-3": "Focused GREEN covers ordinary unreadable-target typed denial; complete proof floor remains unclosed.",
+      "AC-170-4": "Supported by retained focused GREEN negative controls; complete proof floor remains unclosed.",
+      "AC-170-5": "NOT_RUN_UNCLOSED; original full PC-046-01 and PC-046-03 selections preserved."
+    },
+    "finding": "No new product failure established. AC-170-1 prevents PASS; required remaining runtime coverage is unclosed.",
+    "residual": "Late CREATE permission-change race remains UNEXERCISED; recorded assessment makes it residual, not a new AC-170-3 test.",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT170-4eeb3531-single-mt-inconclusive-20261006",
+        "at_utc": "2026-10-06T06:42:33.104100Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT170-4eeb3531-single-mt-inconclusive-20261006",
+        "at_utc": "2026-10-06T06:43:44.621887Z",
+        "decision": "inconclusive",
+        "state_effect": "lifecycle.status remains BLOCKED; submission retained; validator_verdict INCONCLUSIVE"
+      }
+    ]
   }
 }
