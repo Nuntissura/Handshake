@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-06T04:33:40Z",
+  "updated_at_utc": "2026-10-06T05:00:50Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -205,9 +205,56 @@
     "generated_at_utc": null,
     "generator": null
   },
+  "original_focused_proof_20261006": {
+    "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+    "tree": "02dcf0fd0f7c107104997c6a7dd0e78223ebd661",
+    "run_id": "1c9de898c10b43e5ad81987eab5e0101",
+    "release_id": "1423a128b77c417aa57ff8e267793b5b",
+    "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x",
+    "test": "handshake_core::knowledge_documents_api_tests::mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge",
+    "result": "FOCUSED_GREEN_ONLY",
+    "completed_at_utc": "2026-10-06T04:56:27.0441941Z",
+    "junit": {
+      "path": "junit-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e-core-targeted.xml",
+      "bytes": 570,
+      "sha256": "fabdb58079f8c0a867ae717c07b8141f1724fb08cd46b9a0292aea425ba355ee",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0,
+      "filtered": 28,
+      "test_seconds": 33.022
+    },
+    "exit_record": {
+      "path": "logs/targeted-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.exit.json",
+      "bytes": 819,
+      "sha256": "db2f49d9324e8c24abdd54221bebfce525c0c443b77fe56c0a5bcf060a3a5504",
+      "bash_exit_code": 0,
+      "nextest_exit_code": 0
+    },
+    "stdout": {
+      "path": "logs/targeted-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.stdout.log",
+      "bytes": 289355,
+      "sha256": "a4015b35947565e91969c354dba797809065bcdd5a10138d498074908ffb935f"
+    },
+    "stderr": {
+      "path": "logs/targeted-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.stderr.log",
+      "bytes": 142114,
+      "sha256": "2d73b4ccf38a2137f75dd2916a0fd9c4870022c94dc875be22dd3e63158db849",
+      "note": "Contains the expected protected-resource 403 diagnostic for the update-only target-read negative control; the selected test passed."
+    },
+    "observer_rows": {
+      "path": "logs/targeted-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.observations.jsonl",
+      "bytes": 179704,
+      "sha256": "b536b89f0a9bd68d1a46b15f12722bcd551733c4df72c130c26b24cb28d1e694",
+      "last_poll": 120,
+      "last_observation_utc": "2026-10-06T04:56:40.2357125Z",
+      "exit_record_present": true,
+      "owned_processes": []
+    }
+  },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Earlier 4b8d, 984238, 42754a06, 656110ee and be669520 attempts remain preserved history, including be669 run 9ba0a8677e294c9bbbab6642763e3d46 CLOSED RED before scenario on manifest drift. Prior c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb run ccbd772247ff4430bb11ff4f3b276e49 is CLOSED RED at startup before the backlink ACL scenario: HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6, observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976. Original selected test result: 1 selected, 0 passed, 1 failed, 28 filtered; JUnit SHA256 c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73. The one narrow fresh-Mem MT139 schema-info measurement completed on 2026-10-06: observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976 versus expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6. The selected measurement assertion was RED. The measured pin-only correction is pushed as candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661. Current original focused attempt run 1c9de898c10b43e5ad81987eab5e0101 is RUNNING on supervisor 263804; Bash 224248 started 2026-10-06T04:23:48.3281530Z. Release 1423a128b77c417aa57ff8e267793b5b is consumed. Current stdout is 69,763 bytes (SHA256 49752f14e5a6a96baf8f1c79f56d38866f5e8918931c2742cab5a8498711d0ab), stderr is empty, exit/JUnit are pending; log phase is compiling handshake_core. MT170 remains BLOCKED with null validator verdict; Builder compile proof remains required after focused GREEN and before READY; AC-170-1/final union remain outstanding; late CREATE race is UNEXERCISED, no new seam or waiver.",
+    "blocked_on": "Earlier 4b8d, 984238, 42754a06, 656110ee and be669520 attempts remain preserved history, including be669 run 9ba0a8677e294c9bbbab6642763e3d46 CLOSED RED before scenario on manifest drift. Prior c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb run ccbd772247ff4430bb11ff4f3b276e49 is CLOSED RED at startup before the backlink ACL scenario: HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6, observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976. Original selected test result: 1 selected, 0 passed, 1 failed, 28 filtered; JUnit SHA256 c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73. The one narrow fresh-Mem MT139 schema-info measurement completed on 2026-10-06: observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976 versus expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6. The selected measurement assertion was RED. The measured pin-only correction is pushed as candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661. Original focused follow-up run 1c9de898c10b43e5ad81987eab5e0101 CLOSED focused GREEN at 2026-10-06T04:56:27.0441941Z: the selected test passed (1 passed, 0 failed, 28 filtered), JUnit SHA256 fabdb58079f8c0a867ae717c07b8141f1724fb08cd46b9a0292aea425ba355ee and exit-record SHA256 db2f49d9324e8c24abdd54221bebfce525c0c443b77fe56c0a5bcf060a3a5504. The stderr includes the fixture’s expected HSK-403-PROTECTED-RESOURCE denial for the update-only target-read control; the test asserts source-save success, retained textual backlink, and zero Loom projection for that unreadable target. Exact outputs and the final observer snapshot are recorded in original_focused_proof_20261006. MT170 remains BLOCKED with null validator verdict; Builder compile proof remains required after focused GREEN and before READY; AC-170-1/final union remain outstanding; late CREATE race is UNEXERCISED, no new seam or waiver.",
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -216,7 +263,7 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "WP_VALIDATOR: follow the existing run 1c9de898c10b43e5ad81987eab5e0101 (supervisor 263804, Bash 224248) to its actual focused-test JUnit and exit; current phase is core compilation, with verdict pending. If the focused proof becomes GREEN, run the required Builder compile before READY, then continue original acceptance and final union. Preserve earlier RED history, AC-170-1 NOT_SATISFIED, and late CREATE race UNEXERCISED.",
+    "next_actor": "KERNEL_BUILDER: run the one required compile check against pushed candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e before READY. Then WP_VALIDATOR continues the original MT-046 acceptance and final union; focused MT170 proof is GREEN, but overall MT170 remains BLOCKED with null validator verdict until original acceptance passes. Preserve AC-170-1 NOT_SATISFIED and late CREATE race UNEXERCISED.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
@@ -224,7 +271,7 @@
   "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
   "candidate_tree": "02dcf0fd0f7c107104997c6a7dd0e78223ebd661",
     "status_before_ready": "BLOCKED",
-  "pushed_verified": "Current product candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661 is clean and pushed. Its only product diff updates EXPECTED_SCHEMA_INFO_SHA256/comment to fresh-Mem value 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976; other pins and historical/C2 entries remain unchanged. Current original MT170 follow-up 1c9de898c10b43e5ad81987eab5e0101 has consumed release 1423a128b77c417aa57ff8e267793b5b, supervisor263804, Bash224248 and a complete incremental export (identity SHA256 4a8dfd289a6c4c125f2bd9b5bd5f9a30bec546d57bbd9b72e5832790ea98bfa0); the selected test verdict is pending during core compilation. MT170 remains BLOCKED with null validator verdict; Builder compile and original acceptance remain outstanding.",
+  "pushed_verified": "Current product candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661 is clean and pushed. Its only product diff updates EXPECTED_SCHEMA_INFO_SHA256/comment to fresh-Mem value 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976; other pins and historical/C2 entries remain unchanged. Original focused MT170 follow-up 1c9de898c10b43e5ad81987eab5e0101 passed the selected test on pushed candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661. JUnit shows 1 passed, 0 failed, 28 filtered; exact output hashes are in original_focused_proof_20261006. This focused GREEN does not complete MT170: overall status remains BLOCKED with null validator verdict; the required Builder compile and original MT-046 acceptance remain outstanding.",
     "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20261002",
     "selection_note": {
