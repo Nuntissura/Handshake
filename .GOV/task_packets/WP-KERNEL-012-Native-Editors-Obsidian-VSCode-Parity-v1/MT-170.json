@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-06T03:43:03Z",
+  "updated_at_utc": "2026-10-06T04:33:40Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -207,7 +207,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Earlier 4b8d, 984238, 42754a06, 656110ee and be669520 attempts remain preserved history, including be669 run 9ba0a8677e294c9bbbab6642763e3d46 CLOSED RED before scenario on manifest drift. Prior c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb run ccbd772247ff4430bb11ff4f3b276e49 is CLOSED RED at startup before the backlink ACL scenario: HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6, observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976. Original selected test result: 1 selected, 0 passed, 1 failed, 28 filtered; JUnit SHA256 c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73. The one narrow fresh-Mem MT139 schema-info measurement completed on 2026-10-06: observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976 versus expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6. The selected measurement assertion was RED. The measured pin-only correction is now pushed as candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661; one changed-input original focused proof remains outstanding. MT170 remains BLOCKED with null validator verdict; Builder compile proof remains required after focused GREEN and before READY; AC-170-1/final union remain outstanding; late CREATE race is UNEXERCISED, no new seam or waiver.",
+    "blocked_on": "Earlier 4b8d, 984238, 42754a06, 656110ee and be669520 attempts remain preserved history, including be669 run 9ba0a8677e294c9bbbab6642763e3d46 CLOSED RED before scenario on manifest drift. Prior c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb run ccbd772247ff4430bb11ff4f3b276e49 is CLOSED RED at startup before the backlink ACL scenario: HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6, observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976. Original selected test result: 1 selected, 0 passed, 1 failed, 28 filtered; JUnit SHA256 c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73. The one narrow fresh-Mem MT139 schema-info measurement completed on 2026-10-06: observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976 versus expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6. The selected measurement assertion was RED. The measured pin-only correction is pushed as candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661. Current original focused attempt run 1c9de898c10b43e5ad81987eab5e0101 is RUNNING on supervisor 263804; Bash 224248 started 2026-10-06T04:23:48.3281530Z. Release 1423a128b77c417aa57ff8e267793b5b is consumed. Current stdout is 69,763 bytes (SHA256 49752f14e5a6a96baf8f1c79f56d38866f5e8918931c2742cab5a8498711d0ab), stderr is empty, exit/JUnit are pending; log phase is compiling handshake_core. MT170 remains BLOCKED with null validator verdict; Builder compile proof remains required after focused GREEN and before READY; AC-170-1/final union remain outstanding; late CREATE race is UNEXERCISED, no new seam or waiver.",
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -216,14 +216,15 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "WP_VALIDATOR: bind the restored original MT170 selector to pushed candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e and run one changed-input focused proof under current gates and one-use release. If focused proof becomes GREEN, run the required Builder compile before READY, then continue original acceptance and final union. Preserve all earlier RED history, AC-170-1 NOT_SATISFIED and late CREATE race UNEXERCISED.",
+    "next_actor": "WP_VALIDATOR: follow the existing run 1c9de898c10b43e5ad81987eab5e0101 (supervisor 263804, Bash 224248) to its actual focused-test JUnit and exit; current phase is core compilation, with verdict pending. If the focused proof becomes GREEN, run the required Builder compile before READY, then continue original acceptance and final union. Preserve earlier RED history, AC-170-1 NOT_SATISFIED, and late CREATE race UNEXERCISED.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
     ],
   "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+  "candidate_tree": "02dcf0fd0f7c107104997c6a7dd0e78223ebd661",
     "status_before_ready": "BLOCKED",
-  "pushed_verified": "Current product candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661 is clean and pushed. Its only product diff updates the current EXPECTED_SCHEMA_INFO_SHA256/comment to the independently measured fresh-Mem value 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976; other pins and historical/C2 entries remain unchanged. The separate c1f8 MT139 measurement was RED against old expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6; it establishes the replacement measurement, not MT170 runtime PASS. MT170 remains BLOCKED with null validator verdict; original focused proof is pending.",
+  "pushed_verified": "Current product candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661 is clean and pushed. Its only product diff updates EXPECTED_SCHEMA_INFO_SHA256/comment to fresh-Mem value 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976; other pins and historical/C2 entries remain unchanged. Current original MT170 follow-up 1c9de898c10b43e5ad81987eab5e0101 has consumed release 1423a128b77c417aa57ff8e267793b5b, supervisor263804, Bash224248 and a complete incremental export (identity SHA256 4a8dfd289a6c4c125f2bd9b5bd5f9a30bec546d57bbd9b72e5832790ea98bfa0); the selected test verdict is pending during core compilation. MT170 remains BLOCKED with null validator verdict; Builder compile and original acceptance remain outstanding.",
     "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20261002",
     "selection_note": {
