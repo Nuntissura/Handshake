@@ -3309,9 +3309,9 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // PIN-MEASURE on 94ba0ed1 (MT-153.json pin_measure_20261001_94ba0ed1).
 // MT-168 PIN-MEASURE PENDING: the seven grant function bodies changed (key-only candidate lookup),
 // fn::mt120_workspace_delete changed and protected_resources gained protected_resources_parent_idx;
-// MT-170 CURRENT schema-info pin; measured on post-163 candidate 9858d461.
+// MT-170 CURRENT schema-info pin; fresh-Mem canonical measurement on c1f8d7cd.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6";
+    "14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
