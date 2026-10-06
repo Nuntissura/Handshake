@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-06T02:59:20Z",
+  "updated_at_utc": "2026-10-06T03:43:03Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -207,7 +207,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Earlier 4b8d, 984238, 42754a06, 656110ee and be669520 attempts remain preserved history, including be669 run 9ba0a8677e294c9bbbab6642763e3d46 CLOSED RED before scenario on manifest drift. Current c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb run ccbd772247ff4430bb11ff4f3b276e49 is CLOSED RED at startup before the backlink ACL scenario: HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6, observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976. Original selected test result: 1 selected, 0 passed, 1 failed, 28 filtered; JUnit SHA256 c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73. A single narrow fresh-Mem MT139 schema-info fingerprint measurement is authorized and pending; no pin change or focused retry has occurred. MT170 remains BLOCKED with null validator verdict; Builder compile proof remains required after focused GREEN and before READY; AC-170-1/final union remain outstanding; late CREATE race is UNEXERCISED, no new seam or waiver.",
+    "blocked_on": "Earlier 4b8d, 984238, 42754a06, 656110ee and be669520 attempts remain preserved history, including be669 run 9ba0a8677e294c9bbbab6642763e3d46 CLOSED RED before scenario on manifest drift. Prior c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb run ccbd772247ff4430bb11ff4f3b276e49 is CLOSED RED at startup before the backlink ACL scenario: HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6, observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976. Original selected test result: 1 selected, 0 passed, 1 failed, 28 filtered; JUnit SHA256 c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73. The one narrow fresh-Mem MT139 schema-info measurement completed on 2026-10-06: observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976 versus expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6. The selected measurement assertion was RED. The measured pin-only correction is now pushed as candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661; one changed-input original focused proof remains outstanding. MT170 remains BLOCKED with null validator verdict; Builder compile proof remains required after focused GREEN and before READY; AC-170-1/final union remain outstanding; late CREATE race is UNEXERCISED, no new seam or waiver.",
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -216,14 +216,14 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "WPV: obtain the already-authorized single fresh-Mem MT139 schema-info fingerprint measurement under current gates, then review the measured pin correction before one changed-input original focused proof. If focused proof becomes GREEN, run the required Builder compile before READY, then continue original acceptance and final union. Preserve all earlier attempt history, AC-170-1 NOT_SATISFIED and late CREATE race UNEXERCISED.",
+    "next_actor": "WP_VALIDATOR: bind the restored original MT170 selector to pushed candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e and run one changed-input focused proof under current gates and one-use release. If focused proof becomes GREEN, run the required Builder compile before READY, then continue original acceptance and final union. Preserve all earlier RED history, AC-170-1 NOT_SATISFIED and late CREATE race UNEXERCISED.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
     ],
-  "candidate_commit": "c1f8d7cdf272bd34a8168979574f05ecfad7353e",
+  "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
     "status_before_ready": "BLOCKED",
-  "pushed_verified": "Product candidate c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb is clean and pushed. The product diff is the single active GENERATED_SURREALQL_SHA256 literal re-pinned to current schema.surql; other manifest pins and historical/C2 entries are unchanged. The current c1f8 run ccbd772247ff4430bb11ff4f3b276e49 is CLOSED RED before the ACL scenario with HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH (expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6, observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976). JUnit SHA256 c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73; stdout SHA256 8eec735929e203a982eeac9c0743ca95eca51c6f8003b76f59c258a9f0a5e4a6; stderr SHA256 247800c08e1b7759f53d3aa040f26543c27eb31b7a5e7a629b9dad516b988387. The fresh-Mem MT139 fingerprint measurement remains pending; no runtime PASS is claimed. Lifecycle remains BLOCKED/null.",
+  "pushed_verified": "Current product candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661 is clean and pushed. Its only product diff updates the current EXPECTED_SCHEMA_INFO_SHA256/comment to the independently measured fresh-Mem value 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976; other pins and historical/C2 entries remain unchanged. The separate c1f8 MT139 measurement was RED against old expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6; it establishes the replacement measurement, not MT170 runtime PASS. MT170 remains BLOCKED with null validator verdict; original focused proof is pending.",
     "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20261002",
     "selection_note": {
@@ -650,7 +650,26 @@
       }
     ]
   },
-  "authored_by": "KERNEL_BUILDER-20261002",
+  "schema_info_measurement_20261006": {
+    "candidate_commit": "c1f8d7cdf272bd34a8168979574f05ecfad7353e",
+    "tree": "b6f697fa4f7595588a2691daab461b122f32eddb",
+    "run_id": "7d6bd524587449abb7cc7a748f5d1ed0",
+    "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x",
+    "test": "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+    "result": "MEASURED_RED_PIN_MISMATCH",
+    "observed_sha256": "14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976",
+    "expected_sha256": "f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6",
+    "completed_utc": "2026-10-06T03:31:53.3573665Z",
+    "junit": {"path": "logs/junit-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.xml", "bytes": 2204, "sha256": "05bf6d3330629d66dff0e06ab2f8347c37d1736db5e4950cc6a560907b0c875c"},
+    "exit_record": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.exit.json", "bytes": 817, "sha256": "4186126d746e714611721c6a9802d2f879fa1fefc0b1664e9a5a68804b1be40d", "bash_exit_code": 0, "nextest_exit_code": 100},
+    "stdout": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.stdout.log", "bytes": 56174, "sha256": "65dc6d67aea83f4d28f5d2f886c444142145987bb3e1180d2e0b9c2ea5de0f12"},
+    "stderr": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.stderr.log", "bytes": 31557, "sha256": "d22274885dc37362a08717aa1da424a24009392480c78bbbce4133753388a458"},
+    "runtime_identity": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.identity.json", "bytes": 2023, "sha256": "fca3ca23c2c51803efbd42a22ab19d202e028e5f871a7a83d15be474440a4586"},
+    "observer_identity": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.observer.identity.json", "bytes": 632, "sha256": "6bfd9f67134da3449e95a7c86be27a11cefdd8e8cbe12c5e50d99570cb695a8c"},
+    "observer_rows": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.observations.jsonl", "bytes": 25632, "sha256": "0cc543fd9f43d304401f7330fe33c8c47df4d5ca82c00548c06c84d88caf6bd4", "last_poll": 35, "last_observation_utc": "2026-10-06T03:32:23.7190247Z", "exit_record_present": true, "owned_processes": []},
+    "ready_snapshot": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.supervisor.ready.json", "bytes": 2160, "sha256": "cdfc36a69ef7307c422d89608a3924685dc4859ba589345733b3767af1467aa2"},
+    "originals_restored": {"selector_sha256": "d3ca61d25989fab26031342094855339cd21f151ad9a20f8e69b458a7f10d0dc", "junit_sha256": "c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73"}
+  },  "authored_by": "KERNEL_BUILDER-20261002",
   "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-167 narrow-MT shape",
   "implementation_record": {
     "owning_module_evidence": null,
