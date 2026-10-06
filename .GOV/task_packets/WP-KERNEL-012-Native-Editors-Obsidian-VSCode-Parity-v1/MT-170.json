@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-06T00:20:13Z",
+  "updated_at_utc": "2026-10-06T01:07:47Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -2582,6 +2582,59 @@
             "disposition": "Original focused MT170 run f5d3098717ef4c63820f1ccc08265641 is CLOSED RED at the source-save 403 assertion. Canonical resolver readability was observed true despite the raw grant-helper false; the later save failure requires its own direct diagnosis. MT170 remains BLOCKED with validator_verdict null; required Builder compile proof, AC-170-1 and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver."
           },
           "disposition": "Focused MT170 attempt 5f140717 is RED at the expected readable-count assertion. Diagnostic fields show profile_read_mode=some_true, one same-workspace standalone candidate, and exact standalone grant readability false. This identifies the failing grant operand without changing authorization or acceptance. MT170 remains BLOCKED with validator_verdict null; required Builder compile proof, AC-170-1 and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver."
+        },
+        "followup_attempt_be669520_9ba0a8677e294c9bbbab6642763e3d46_20261006": {
+          "candidate_commit": "be6695201eedb4536291a1609945981b55d94d8f",
+          "candidate_tree": "542753d07630e9b3a2b975f8648cb5b5f47c21d4",
+          "gameplan_generation_at_release": 368,
+          "run_id": "9ba0a8677e294c9bbbab6642763e3d46",
+          "selector_sha256": "7e62df95c13e1449cf045b5855a31ee649f9956792c600a7fe980fdbcc8ed4a0",
+          "launcher_sha256": "a31d23891460c323a098e8946d96885e4a47f293206e53257cc54359e0f4a182",
+          "release_id": "fbbf4e7fb9704ff389b0412c5991ccce",
+          "release_issued_utc": "2026-10-06T01:02:28.9061648Z",
+          "release_consumed_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-be6695201eedb4536291a1609945981b55d94d8f.supervisor-9ba0a8677e294c9bbbab6642763e3d46.release-consumed.json",
+          "release_consumed_bytes": 815,
+          "release_consumed_sha256": "276927cbd935b6d40b1b3c791a5393e24a28ac8d215249a1560fd8b68e4f34d7",
+          "ready_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-be6695201eedb4536291a1609945981b55d94d8f.supervisor-9ba0a8677e294c9bbbab6642763e3d46.ready.json",
+          "ready_bytes": 2142,
+          "ready_sha256": "745e6514d2e0f60d4c0ed1c976c7ece4b463d3fa32725c54f7666c2978a42147",
+          "supervisor_pid": 160452,
+          "supervisor_parent_pid": 221156,
+          "supervisor_start_utc": "2026-10-06T00:39:33.7381769Z",
+          "bash_pid": 270620,
+          "bash_start_utc": "2026-10-06T01:03:49.3571546Z",
+          "observer_pid": 219360,
+          "identity_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-be6695201eedb4536291a1609945981b55d94d8f.identity.json",
+          "identity_bytes": 2023,
+          "identity_sha256": "bb7509ae2a5033414a415aa395b11f0e493299bd144a493f52df1788d033d1fb",
+          "stdout_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-be6695201eedb4536291a1609945981b55d94d8f.stdout.log",
+          "stderr_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-be6695201eedb4536291a1609945981b55d94d8f.stderr.log",
+          "exit_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-be6695201eedb4536291a1609945981b55d94d8f.exit.json",
+          "root_gate": {
+            "result": "PASS22/22",
+            "exit_code": 0,
+            "stdout_sha256": "5cdfb3883719aee4a14cfb0e90ce4161846e1c12425a3a45cad079b93eeb3486",
+            "exit_record_sha256": "20b12899c06a6a45afd978aa7d0e7ed80c8fc85101af0136c8758e35d296ed10",
+            "stderr_bytes": 0,
+            "postgate_admission_utc": "2026-10-06T01:02:28.8966698Z",
+            "free_commit_bytes": 60851855360,
+            "matched_job_count": 0
+          },
+          "export_identity": {
+            "path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-current.identity",
+            "bytes": 387,
+            "sha256": "2c7e2179cd65c9b231b4d0e6952acf20efb396b6520b2a8c47584a8fdb6134f3",
+            "candidate": "be6695201eedb4536291a1609945981b55d94d8f",
+            "tree": "542753d07630e9b3a2b975f8648cb5b5f47c21d4",
+            "file_count": 7167,
+            "manifest_sha256": "eaf15c2f7dfd064fb9aa0a3b855e6abb3ab2de277c7677ac3ae4b14e56a679dc",
+            "previous_candidate": "656110ee043fb153faefa49fd187b0dcf8d6f0eb",
+            "refresh_mode": "incremental",
+            "refresh_state": "complete",
+            "refreshed_utc": "2026-10-06T01:04:05Z"
+          },
+          "execution_state": "RUNNING; latest opened stdout reached compilation of the handshake_core library with surreal-test-support; no selected-test result, JUnit or closed exit observed yet.",
+          "disposition": "The original focused MT170 run is active on the reviewed be669 candidate after consumed one-use release and root PASS22/22. This record is RUNNING only; it is not a product verdict. Lifecycle remains BLOCKED with validator_verdict null; prior RED attempts, Builder compile requirement, AC-170-1 and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver."
         }
       },
       "manifest_repair_20261004": {
