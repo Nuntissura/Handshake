@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 367
+generation: 368
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -336,3 +336,4 @@ steps:
 - {id: GP-315, role: wp_validator, at: before_verdict, do: verify source and baseline argument order before interpreting diff, check: {type: confirm}, source: 'infra: reversed diff inputs inverted current versus baseline labels', state: active}
 - {id: GP-316, role: wp_validator, at: before_round, do: verify supervisor cwd and ready packet share physical identity via samefile, check: {type: confirm}, source: 'infra: .GOV junction aliases failed lexical cwd comparison despite samefile identity', state: active}
 - {id: GP-317, role: wp_validator, at: before_round, do: confirm update-only textual backlink persistence without target READ, check: {type: confirm}, source: 'fail: 656 MT170 source-save 403; stmt27 backlink verification denied update-only RichDocument', state: active}
+- {id: GP-318, role: wp_validator, at: before_round, do: confirm linked observer identity hash matches current identity file, check: {type: confirm}, source: 'infra: be669 context capture copied stale 656 observer identity digest', state: active}
