@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-06T02:16:06Z",
+  "updated_at_utc": "2026-10-06T02:59:20Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -207,7 +207,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Earlier 4b8d, 984238, 42754a06, 656110ee and be669520 attempts remain preserved history, including be669 run 9ba0a8677e294c9bbbab6642763e3d46 CLOSED RED before scenario on manifest drift and the later c1f8 passive-stage failure before supervisor. Current pushed c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb run ccbd772247ff4430bb11ff4f3b276e49 is RUNNING after the one-use root release. WPV before_round passed 66/66; supervisor PID 216740 and Bash PID 153564 started 2026-10-06T02:13:11.1979652Z. Current ready is RUNNING; consumed release matches the issued token; candidate export is complete. Supervisor context/combined receipt and poll43 capacity are sealed. No selected-test JUnit or closed runtime exit is yet recorded. MT170 remains BLOCKED with null validator verdict; Builder compile proof remains required after focused GREEN and before READY; AC-170-1/final union remain outstanding; late CREATE race is UNEXERCISED, no new seam or waiver.",
+    "blocked_on": "Earlier 4b8d, 984238, 42754a06, 656110ee and be669520 attempts remain preserved history, including be669 run 9ba0a8677e294c9bbbab6642763e3d46 CLOSED RED before scenario on manifest drift. Current c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb run ccbd772247ff4430bb11ff4f3b276e49 is CLOSED RED at startup before the backlink ACL scenario: HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6, observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976. Original selected test result: 1 selected, 0 passed, 1 failed, 28 filtered; JUnit SHA256 c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73. A single narrow fresh-Mem MT139 schema-info fingerprint measurement is authorized and pending; no pin change or focused retry has occurred. MT170 remains BLOCKED with null validator verdict; Builder compile proof remains required after focused GREEN and before READY; AC-170-1/final union remain outstanding; late CREATE race is UNEXERCISED, no new seam or waiver.",
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -216,14 +216,14 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "WPV: observe only current run ccbd772247ff4430bb11ff4f3b276e49 through complete stdout/stderr/exit and original selected-test JUnit; do not replay. If focused proof is GREEN, run the required Builder compile before READY, then continue original acceptance and final union. Preserve all earlier attempt history, AC-170-1 NOT_SATISFIED and late CREATE race UNEXERCISED.",
+    "next_actor": "WPV: obtain the already-authorized single fresh-Mem MT139 schema-info fingerprint measurement under current gates, then review the measured pin correction before one changed-input original focused proof. If focused proof becomes GREEN, run the required Builder compile before READY, then continue original acceptance and final union. Preserve all earlier attempt history, AC-170-1 NOT_SATISFIED and late CREATE race UNEXERCISED.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
     ],
   "candidate_commit": "c1f8d7cdf272bd34a8168979574f05ecfad7353e",
     "status_before_ready": "BLOCKED",
-  "pushed_verified": "Product candidate c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb is clean and pushed. The product diff is the single active GENERATED_SURREALQL_SHA256 literal re-pinned to current schema.surql; other manifest pins and historical/C2 entries are unchanged. The current c1f8 run ccbd772247ff4430bb11ff4f3b276e49 is RUNNING after root release; no focused verdict is claimed. Current linked context SHA ae0dfc9e4690ab4ce172fab06739625c8282aa381cafbcb78d25904d49322bde; combined receipt SHA 30388ba148e0a20c88ce8a4298847f1c5d603997135dd3201e0d59d35485948b; ready SHA 1ff796bcb67187185cba788f52f076a3ec7527b25d858d180cf3cdd060acfb16; capacity proposal SHA e61f310fabbcfc056b364bbfa411cd195932f4ab6b8bee286191458aeab533e2. Lifecycle remains BLOCKED/null.",
+  "pushed_verified": "Product candidate c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb is clean and pushed. The product diff is the single active GENERATED_SURREALQL_SHA256 literal re-pinned to current schema.surql; other manifest pins and historical/C2 entries are unchanged. The current c1f8 run ccbd772247ff4430bb11ff4f3b276e49 is CLOSED RED before the ACL scenario with HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH (expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6, observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976). JUnit SHA256 c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73; stdout SHA256 8eec735929e203a982eeac9c0743ca95eca51c6f8003b76f59c258a9f0a5e4a6; stderr SHA256 247800c08e1b7759f53d3aa040f26543c27eb31b7a5e7a629b9dad516b988387. The fresh-Mem MT139 fingerprint measurement remains pending; no runtime PASS is claimed. Lifecycle remains BLOCKED/null.",
     "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20261002",
     "selection_note": {
