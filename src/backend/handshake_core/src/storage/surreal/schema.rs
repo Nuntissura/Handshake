@@ -3199,7 +3199,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-170 re-pin: loom_edges projection branch admits standalone same-workspace targets (previous
 // value 8452a3f9bfdff502dafbb1ed7d6e7df60ce70ae47f3557edb13c391bf7b38513); sha256 of schema.surql.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "41c41a52fc29a08f32c1db5525820cc8977997e6a2918be606e67756bc311c0e";
+    "50394566996175d7397b6cc7a9233085195d9634db88238c811360b94924bc23";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
