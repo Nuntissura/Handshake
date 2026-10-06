@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-05T23:36:33Z",
+  "updated_at_utc": "2026-10-06T00:20:13Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -207,7 +207,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "The original 4b8d and 984238 d1d2 attempts are RED at same_workspace_readable_count (expected 1, observed 0). The 42754a06 focused diagnostic run 5f140717 is closed RED; its redacted output records profile_read_mode=some_true and same_workspace_standalone_grant_readable=0. Candidate 656110ee043fb153faefa49fd187b0dcf8d6f0eb contains the reviewed but unvalidated canonical protected-resource authorization repair. Current original focused run f5d3098717ef4c63820f1ccc08265641 has consumed release 30c1b468e9734bddbd74cfccaf106505, is RUNNING with Bash194444 under supervisor247824, and completed the incremental export identity comparison; no selected-test exit or JUnit exists yet. Passing focused proof and Builder compile proof remain outstanding; AC-170-1 and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver.",
+  "blocked_on": "The original 4b8d, 984238 d1d2, 42754a06 and 656110ee focused attempts remain closed RED history. The latest original focused run, candidate 656110ee043fb153faefa49fd187b0dcf8d6f0eb / run f5d3098717ef4c63820f1ccc08265641, is CLOSED RED: source creation returned 403 instead of the expected 200 at tests/knowledge_documents_api_tests.rs:4534:5; core nextest exit 100, while Bash transport exit 0 is not a test pass. Candidate be6695201eedb4536291a1609945981b55d94d8f (tree 542753d07630e9b3a2b975f8648cb5b5f47c21d4) contains the reviewed two-file backlink CREATE/verification-SELECT authorization correction and is UNVALIDATED. The same original focused proof is outstanding on that candidate. Builder compile proof remains required after focused GREEN and before READY; AC-170-1 and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver.",
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -216,14 +216,14 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "WPV: observe the existing f5d3098717ef4c63820f1ccc08265641 original focused run through its actual closed test/JUnit result; do not relaunch. Preserve the prior 42754 RED. Builder compile, AC-170-1 proof and final union remain required before READY; late CREATE race stays UNEXERCISED.",
+  "next_actor": "WPV/KB: bind the current pushed UNVALIDATED candidate be6695201eedb4536291a1609945981b55d94d8f to fresh reviewed controls, then WPV runs ONE changed-input original focused proof after current gates and root release. After focused GREEN, run the required Builder compile proof before READY, then continue original acceptance and final union. Preserve all prior RED history; AC-170-1 remains NOT_SATISFIED and late CREATE race remains UNEXERCISED.",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
     ],
-    "candidate_commit": "656110ee043fb153faefa49fd187b0dcf8d6f0eb",
+  "candidate_commit": "be6695201eedb4536291a1609945981b55d94d8f",
     "status_before_ready": "BLOCKED",
-    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 656110ee043fb153faefa49fd187b0dcf8d6f0eb; clean pushed repair tree dc3c0c396967bfcdd88edee3d013a7da4b34ec4c; two-file canonical protected-resource authorization repair independently reviewed but UNVALIDATED; current original focused run f5d3098717ef4c63820f1ccc08265641 is RUNNING after its one-use release and completed export comparison; no test verdict yet; prior 42754 run 5f140717 remains CLOSED RED; passing focused proof and Builder compile remain outstanding",
+  "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = be6695201eedb4536291a1609945981b55d94d8f; clean pushed tree 542753d07630e9b3a2b975f8648cb5b5f47c21d4; current two-file schema.surql/schema.rs backlink CREATE and source-creator-scoped verification SELECT correction independently reviewed, UNVALIDATED; prior original focused run f5d3098717ef4c63820f1ccc08265641 on 656110ee is CLOSED RED at source save 403 (200 expected), core nextest exit 100, Bash transport exit 0; prior 42754 run 5f140717 remains CLOSED RED; same focused proof and Builder compile remain outstanding",
     "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20261002",
     "selection_note": {
@@ -2482,6 +2482,104 @@
             "refresh_mode": "incremental",
             "refresh_state": "complete",
             "refreshed_utc": "2026-10-05T21:43:19Z"
+          },
+          "followup_attempt_656110ee_f5d3098717ef4c63820f1ccc08265641_20261005": {
+            "candidate_commit": "656110ee043fb153faefa49fd187b0dcf8d6f0eb",
+            "candidate_tree": "dc3c0c396967bfcdd88edee3d013a7da4b34ec4c",
+    "gameplan_generation_at_release": 366,
+            "run_id": "f5d3098717ef4c63820f1ccc08265641",
+            "selector_sha256": "e3f6aa3850ba7cc290104c01f2129958b9dd42af723929cf3f0a3a5a5ed5a2f2",
+            "launcher_sha256": "a31d23891460c323a098e8946d96885e4a47f293206e53257cc54359e0f4a182",
+            "release_id": "30c1b468e9734bddbd74cfccaf106505",
+            "release_consumed_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-656110ee043fb153faefa49fd187b0dcf8d6f0eb.supervisor-f5d3098717ef4c63820f1ccc08265641.release-consumed.json",
+            "release_consumed_bytes": 815,
+            "release_consumed_sha256": "b2b850458969707ed199cb3a8a5dd731d4e5470dce95b87bcc7c131f48e27d76",
+            "ready_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-656110ee043fb153faefa49fd187b0dcf8d6f0eb.supervisor-f5d3098717ef4c63820f1ccc08265641.ready.json",
+            "ready_bytes": 2160,
+            "ready_sha256": "3015c349089eaa3df7ea51855e1fb5b3035e1b62b410d6ea587a77f1bffc4301",
+            "supervisor_pid": 247824,
+            "supervisor_parent_pid": 236268,
+            "supervisor_start_utc": "2026-10-05T23:00:35.9021821Z",
+            "bash_pid": 194444,
+            "observer_pid": 204764,
+            "completed_utc": "2026-10-05T23:57:42.5512621Z",
+            "result": {
+              "test_name": "handshake_core::knowledge_documents_api_tests::mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge",
+              "core_nextest_exit_code": 100,
+              "bash_wrapper_exit_code": 0,
+              "test_count": 1,
+              "pass_count": 0,
+              "failure_count": 1,
+              "error_count": 0,
+              "skipped_count": 0,
+              "duration_seconds": 20.745,
+              "failure_location": "tests/knowledge_documents_api_tests.rs:4534:5",
+              "failure_text": "source save expected status 200, observed 403 (update/write on the target permits the source save)",
+              "interpretation": "Focused original test is RED. Bash exit 0 is wrapper transport status only; the selected test failed and does not establish MT170 acceptance."
+            },
+            "diagnostic_observation": {
+              "source": "test-support resolver observations from candidate 656110ee",
+              "profile_read_mode": "some_true",
+              "same_workspace_standalone_candidate_count": 1,
+              "same_workspace_readable_count": 1,
+              "same_workspace_unreadable_count": 0,
+              "same_workspace_standalone_grant_readable_count": 0,
+      "initial_positive_resolver_observation_count": 2,
+              "interpretation": "Canonical effective resolver readability was true while the raw SQL grant helper was false; the source-save 403 occurs later, and its cause is not established by these diagnostics."
+            },
+            "artifacts": {
+              "junit": {
+                "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-656110ee043fb153faefa49fd187b0dcf8d6f0eb-core-targeted.xml",
+                "bytes": 79529,
+                "sha256": "5a7a7d439c2c3b73f629e732bd276f6698ba4f7d69fbfd6e9acfb95fac0ce404"
+              },
+              "stdout": {
+                "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-656110ee043fb153faefa49fd187b0dcf8d6f0eb.stdout.log",
+                "bytes": 291923,
+                "sha256": "62cfefe8e98d07b735f02df9b3c022df5144ddcb0aeb81a1ee49dee2effc0eea"
+              },
+              "stderr": {
+                "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-656110ee043fb153faefa49fd187b0dcf8d6f0eb.stderr.log",
+                "bytes": 124028,
+                "sha256": "3e56c4e2975c72c56d3d9aba611d927ad750301a50f9bd3464525282074dc4ce"
+              },
+              "exit": {
+                "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-656110ee043fb153faefa49fd187b0dcf8d6f0eb.exit.json",
+                "bytes": 819,
+                "sha256": "e997a35b5fb040260a8a4048790561d5a937f5f842dacc2330fced5f4445189f"
+              },
+              "identity": {
+                "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-656110ee043fb153faefa49fd187b0dcf8d6f0eb.identity.json",
+                "bytes": 2023,
+                "sha256": "e407a89207b60dd836ad44bdbd9fe125816802994e0481fbeaee19eaf57a72ae"
+              },
+              "observations": {
+                "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-656110ee043fb153faefa49fd187b0dcf8d6f0eb.observations.jsonl",
+                "bytes": 164843,
+                "sha256": "19c22b7330f8f74b71877c7e81cc40c2dc4a283c900a16163fffd95f011f778c",
+                "final_poll": 123,
+                "final_sample_utc": "2026-10-05T23:57:46.9125692Z",
+                "target_bytes": 103695260007,
+                "errors": 0,
+                "owned_processes": 0,
+                "exit_present": true,
+                "interpretation": "Observed sample, not a peak guarantee."
+              }
+            },
+            "export_identity": {
+              "path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52/export-current.identity",
+              "bytes": 387,
+              "sha256": "c3bd9bad37847dba97982cbe9aeb47007335604897f1190486535d55f20de6e9",
+              "candidate": "656110ee043fb153faefa49fd187b0dcf8d6f0eb",
+              "tree": "dc3c0c396967bfcdd88edee3d013a7da4b34ec4c",
+              "file_count": 7167,
+              "manifest_sha256": "d6d55ffea431653a42824a4ecab1d71f4a59e8f11d8663649bb2a897fd53bc28",
+              "previous_candidate": "42754a06c67124905cc80411ee64a5789f074278",
+              "refresh_mode": "incremental",
+              "refresh_state": "complete",
+              "refreshed_utc": "2026-10-05T23:30:16Z"
+            },
+            "disposition": "Original focused MT170 run f5d3098717ef4c63820f1ccc08265641 is CLOSED RED at the source-save 403 assertion. Canonical resolver readability was observed true despite the raw grant-helper false; the later save failure requires its own direct diagnosis. MT170 remains BLOCKED with validator_verdict null; required Builder compile proof, AC-170-1 and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver."
           },
           "disposition": "Focused MT170 attempt 5f140717 is RED at the expected readable-count assertion. Diagnostic fields show profile_read_mode=some_true, one same-workspace standalone candidate, and exact standalone grant readability false. This identifies the failing grant operand without changing authorization or acceptance. MT170 remains BLOCKED with validator_verdict null; required Builder compile proof, AC-170-1 and final union evidence remain outstanding. Late CREATE race remains UNEXERCISED; no new race seam or waiver."
         }
