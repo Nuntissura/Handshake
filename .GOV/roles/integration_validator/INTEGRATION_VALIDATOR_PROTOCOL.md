@@ -1,4 +1,12 @@
 ﻿# INTEGRATION_VALIDATOR_PROTOCOL [RGF-191]
+
+## Kernel-Rooted Startup and State
+
+- [IV-KERNEL-001] Start at the `wt-gov-kernel` root; read its root `AGENTS.md` and `CLAUDE.md`, then applicable Codex, this protocol and assigned contracts before product review or integration.
+- [IV-KERNEL-002] Read live kernel governance directly and keep all governance paperwork, workflow, communication, task, verdict and session state in the kernel. External `gov-runtime/` is tools/cache only; declared product build/test artifact roots remain external.
+- [IV-KERNEL-003] The assigned active WP worktree and branch are canonical for its product work; `main` is the product-only integrated target and may lag. Existing active WP layouts do not require junction enforcement or automatic cleanup.
+- [IV-KERNEL-004] Do not copy, robocopy, synchronize or commit governance into `main`; preserve independent whole-WP acceptance, product integration proof and role write boundaries.
+
 ## Deterministic Atomic Governance Files [CX-914]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
@@ -112,12 +120,12 @@ Write sequence:
 
 ## Inter-Role Wire Discipline [CX-914] (HARD)
 
-Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate schemas. Closeout provenance is recorded as a typed governed-action envelope (`INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`) and the terminal state is published to the per-WP `TERMINAL_CLOSEOUT_RECORD.json`. Concerns, blockers, and merge-condition status MUST be in schema fields the Orchestrator and downstream readers consume directly. Narrative validator-report sections exist for operator readability — they project from the typed verdict, they are NOT the verdict. The validator MUST NOT author governance documents in lieu of emitting the typed verdict and closeout record. See Codex `[CX-914]` for the full rule.
+Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate schemas. Record closeout provenance in the existing typed governed-action envelope (`INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`) and per-WP `TERMINAL_CLOSEOUT_RECORD.json` in the kernel; the legacy CLOSEOUT_SYNC identifier never authorizes governance-to-main synchronization. Concerns, blockers and merge-condition status MUST use schema fields consumed directly downstream. Narrative validator reports project the typed verdict; they do not replace it. The validator MUST NOT author governance documents in lieu of the typed verdict and closeout record [CX-914].
 
 ## Mechanical Intervention Discipline [CX-AUTH-003]
 
 - Before treating a closeout or merge path as blocked, classify 3-5 plausible causes: product proof failure, closeout artifact drift, notification/cursor drift, session drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift.
-- Choose the cheapest deterministic read, repair, or typed helper first: the final handoff MT JSON status, integration-validator context brief, contained-main proof, and closeout sync output before mutating verdict or merge truth.
+- Choose the cheapest deterministic read, repair or typed helper first: final handoff MT JSON status, integration-validator context brief, contained-main proof and kernel closeout output before mutating verdict or merge truth.
 - Distinguish product-outcome blockers from deterministic governance settlement debt. If deterministic closeout truth is broken, report the exact failing command/artifact to Orchestrator instead of repairing governance tooling from the Integration Validator lane.
 - Do not manually relay ordinary final-review content when typed verdict/concern fields or contained-main closeout can carry or prove the state transition.
 - Use typed verdict/concern fields for blocker truth. Do not encode route decisions only in narrative validator-report prose.
@@ -125,8 +133,8 @@ Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate sch
 
 ## Governance Stabilization Duty [CX-AUTH-003]
 
-- Integration Validator stabilizes final-lane governance paperwork by actively striving to make brittle final review, merge, contained-main, terminal closeout, Task Board, and sync-to-main transitions more mechanical and aligned with the authoritative PASS/FAIL decision.
-- Do not depend on Orchestrator babysitting to discover missing terminal projection or closeout provenance. If the product verdict is clear but governance settlement debt remains, classify it as debt, name the owning artifact/helper, and use the closeout/sync surface you own or report the exact Orchestrator-owned repair.
+- Integration Validator stabilizes final-lane governance paperwork by making final review, product merge, contained-main, terminal closeout and Task Board transitions mechanical and aligned with the authoritative PASS/FAIL decision; governance stays in the kernel.
+- If the product verdict is clear but governance settlement debt remains, classify it as debt, name the owning artifact/helper, and use the kernel closeout surface you own or report the exact Orchestrator-owned repair.
 - Keep final-lane blockers in typed verdict/concern fields and closeout records. Narrative validator report prose must project that truth, not become the only place route or settlement decisions exist.
 - Declare Integration-Validator-owned governance refactor or closeout-surface repair work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
 - Coder is not a governance settlement actor after final review. Product remediation may route to Coder after a FAIL, but governance paperwork/tooling repair routes through the owning non-Coder role.
@@ -225,13 +233,13 @@ Before merge, verify no build/test/tool artifacts have leaked into the repo:
 
 ### 6. Merge to Main on PASS
 
-After PASS verdict, artifact hygiene check, and closeout truth sync:
-- Perform the merge/containment of the approved commit range into local `main`
+After PASS verdict, artifact hygiene check and kernel closeout truth reconciliation:
+- Perform the authorized product-only merge/containment of the approved commit range into local `main`; reject governance paths from the integration change.
 - Verify the merge is clean (no conflicts, no unrelated changes)
-- Record `CONTAINED_IN_MAIN <MERGED_MAIN_SHA>` in the typed closeout record (`TERMINAL_CLOSEOUT_RECORD.json`)
-- Synchronize governance kernel to main branch (sync script deleted 2026-09-23; sync by hand with explicit paths) [CX-113]
-- Push to `origin/main` after the sync succeeds
-- This is the Integration Validator's default responsibility. The Orchestrator MAY execute this mechanical sync/push path only when explicitly instructed by the Operator.
+- Record `CONTAINED_IN_MAIN <MERGED_MAIN_SHA>` in the kernel typed closeout record (`TERMINAL_CLOSEOUT_RECORD.json`).
+- Governance-to-main copying, robocopy, synchronization and commits are retired [CX-113]; preserve live governance and closeout state in the kernel.
+- Push the independently approved product integration to `origin/main` after required product integration proof and closeout conditions pass.
+- The Integration Validator retains independent product judgment and authorized integration duties; the former Orchestrator governance-sync exception is retired.
 
 ### 7. Evaluate and Improve (Post-Mortem)
 
@@ -278,18 +286,18 @@ After verdict and merge:
 
 - Launch authority: `ORCHESTRATOR_ONLY`
 - Control mode: `STEERABLE` by the Orchestrator
-- Local branch: `main` (operates from `handshake_main`)
-- Local worktree: `../handshake_main`
+- Startup branch: `gov_kernel` in `wt-gov-kernel`; assigned product review and authorized integration operations use their declared product branches.
+- Startup worktree: `wt-gov-kernel`; review the assigned active WP worktree and use `handshake_main` only for authorized product integration.
 - Validators MUST NOT create or switch to a new worktree unless explicit Operator authorization for worktree creation is present in the current turn.
 - Governance authority root: `wt-gov-kernel/.GOV` (kernel, NOT `handshake_main/.GOV`)
 - Session thread: **fresh per launch** â€” no thread resume, no accumulated context
 
 ## Topology
 
-- The Integration Validator operates from `handshake_main` on branch `main`.
-- Governance authority is kernel-rooted: `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`
-- `handshake_main/.GOV` is a synced mirror for backup/visibility only, NOT the authoritative governance surface.
-- The coder's work is visible via the WP feature branch, accessible from `handshake_main` via git.
+- Start in `wt-gov-kernel`, read its root authority and inspect the assigned active WP product worktree; active product work is canonical there and `main` may lag.
+- Read live kernel governance directly; preserve `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV` when running in a product worktree. No `.GOV/` junction is required or created.
+- Existing product-local `.GOV/` files are tolerated legacy content, not authority or a mirror to refresh. Do not copy, robocopy or synchronize governance into `main`.
+- Inspect the approved WP feature-branch candidate, then execute authorized product-only integration from `handshake_main` on `main`; do not substitute stale main product state for active WP work.
 
 ## Safety: Data-Loss Prevention (HARD RULE)
 

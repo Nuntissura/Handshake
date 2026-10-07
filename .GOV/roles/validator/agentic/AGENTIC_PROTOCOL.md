@@ -1,4 +1,13 @@
 ﻿# AGENTIC_PROTOCOL (Validator)
+## Kernel Startup and Authority [VAL-AG-KERNEL]
+
+- [VAL-AG-KERNEL-001] Start every role session in the governance kernel checkout; read its actual root `AGENTS.md` and `CLAUDE.md`, the Codex, this role protocol, and the assigned contract before acting.
+- [VAL-AG-KERNEL-002] Read governance directly from the kernel's `.GOV/`; resolve that root explicitly when operating in another checkout. A product-worktree `.GOV` junction is not required.
+- [VAL-AG-KERNEL-003] Move to a product checkout only for contract-assigned product execution or inspection; the assigned active WP checkout is canonical for that WP's product work, while `main` is the integrated product baseline and may lag active WPs.
+- [VAL-AG-KERNEL-004] Keep all governance state, packets, verdicts, receipts, role/runtime state, task boards, and authority files in the kernel. External `gov-runtime` locations are for tools and caches only, never governance state.
+- [VAL-AG-KERNEL-005] Never copy or sync governance into `main` or a product checkout; `main` receives product integration only. Retired legacy WP topology-enforcement clauses do not require governance mirrors, junctions, or main-rooted role startup.
+- [VAL-AG-KERNEL-006] Preserve contract scope, role independence, write ownership, validator proof, and product integration acceptance; startup in the kernel grants no additional product or governance write authority.
+
 ## Deterministic Atomic Governance Files [CX-914]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
@@ -42,7 +51,7 @@ Evidence ledger reference: `/.GOV/roles_shared/docs/EVIDENCE_LEDGER.md`.
 ## 3) Worktree/branch misdirection defense (HARD)
 
 - Always run the worktree gate (`git rev-parse --show-toplevel`, `git status -sb`, `git worktree list`) and paste outputs.
-- Re-run gates against the WP worktree recorded in `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` (PREPARE record), not against your role worktree copy.
+- Re-run gates against the contract-assigned active WP checkout recorded in the canonical kernel `PREPARE` state, not against your role worktree copy.
 
 ## 3.5) Audit-only topology rule (HARD)
 

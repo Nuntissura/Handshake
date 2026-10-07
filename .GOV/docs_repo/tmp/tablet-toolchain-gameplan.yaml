@@ -1,0 +1,21 @@
+schema_version: handshake.gameplan.v1
+template_version: 1
+kind: gameplan
+instance_policy:
+  omit_empty_optional_fields: true
+  policy_lives_in_rule_refs_not_instance_fields: true
+  schema_ref: repo-governance/schemas/gameplan.schema.yaml
+rule_refs: []
+writing: 'no prose; terse fragments; determinism > grammar; verb object [op value]'
+precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; correct the step'
+scope: session
+assignment: TABLET-TOOLCHAIN-DOWNLOADS
+parent: null
+generation: 7
+expensive_actions: []
+steps:
+- {id: GP-001, role: any, at: before_round, do: verify approved tablet artifact root exists, check: {type: file, path: ../Handshake_Artifacts/WP-KERNEL-012/tablet-toolchain/downloads, exists: true}, source: Operator approved tablet artifact root, state: retired}
+- {id: GP-002, role: any, at: before_round, do: verify downloads disk free >= 20 GiB, check: {type: cmd, argv: [python, -c, 'import shutil,sys; sys.exit(0 if shutil.disk_usage("../Handshake_Artifacts").free >= 20*1024**3 else 1)'], expect_exit: 0}, source: 'risk: downloads exceed disk capacity', state: active}
+- {id: GP-003, role: any, at: before_round, do: require valid uppercase assignment ID, check: {type: file, path: .GOV/docs_repo/tmp/tablet-toolchain-gameplan.yaml, contains: TABLET-TOOLCHAIN-DOWNLOADS}, source: init rejected lowercase assignment, state: active}
+- {id: GP-004, role: any, at: before_round, do: verify approved downloads directory exists, check: {type: cmd, argv: [python, -c, 'import pathlib,sys; sys.exit(0 if pathlib.Path("../Handshake_Artifacts/WP-KERNEL-012/tablet-toolchain/downloads").is_dir() else 1)'], expect_exit: 0}, source: file check rejected existing directory, state: active}
+- {id: GP-005, role: any, at: before_round, do: verify operator-created gov-runtime directory exists, check: {type: cmd, argv: [python, -c, 'import pathlib,sys; sys.exit(0 if pathlib.Path("../gov-runtime").is_dir() else 1)'], expect_exit: 0}, source: Operator designated installed repo tools root, state: active}

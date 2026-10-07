@@ -61,7 +61,7 @@
   },
   "citation_kinds": {
     "codex": "rule ID in .GOV/codex/Handshake_Codex_v1.4.md (CX-*)",
-    "agents": "section anchor in ../handshake_main/AGENTS.md",
+    "agents": "section anchor in AGENTS.md at the live governance-kernel root",
     "role_protocol": "named section in .GOV/roles/<role>/*_PROTOCOL.md",
     "global": "rule ID in user global ~/.claude/CLAUDE.md ([GLOBAL-*])",
     "reset_brief": "section anchor in .GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md",
@@ -861,7 +861,7 @@
           "parallel_agents"
         ]
       },
-      "required_action": "Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (anything belonging under gov_runtime/, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not.",
+      "required_action": "Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (kernel-owned governance state, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not.",
       "evidence_kind": "per_owner_cleanup_record_and_artifact_root_boundary_scan",
       "citations": [
         {

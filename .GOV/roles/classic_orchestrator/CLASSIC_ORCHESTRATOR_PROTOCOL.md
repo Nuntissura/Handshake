@@ -1,4 +1,13 @@
 ﻿# CLASSIC_ORCHESTRATOR_PROTOCOL
+## Kernel Startup and Authority [CO-KERNEL]
+
+- [CO-KERNEL-001] Start every role session in the governance kernel checkout; read its actual root `AGENTS.md` and `CLAUDE.md`, the Codex, this role protocol, and the assigned contract before acting.
+- [CO-KERNEL-002] Read governance directly from the kernel's `.GOV/`; resolve that root explicitly when operating in another checkout. A product-worktree `.GOV` junction is not required.
+- [CO-KERNEL-003] Move to a product checkout only for contract-assigned product execution or inspection; the assigned active WP checkout is canonical for that WP's product work, while `main` is the integrated product baseline and may lag active WPs.
+- [CO-KERNEL-004] Keep all governance state, packets, verdicts, receipts, role/runtime state, task boards, and authority files in the kernel. External `gov-runtime` locations are for tools and caches only, never governance state.
+- [CO-KERNEL-005] Never copy or sync governance into `main` or a product checkout; `main` receives product integration only. Retired legacy WP topology-enforcement clauses do not require governance mirrors, junctions, or main-rooted role startup.
+- [CO-KERNEL-006] Preserve contract scope, role independence, write ownership, validator proof, and product integration acceptance; startup in the kernel grants no additional product or governance write authority.
+
 ## Deterministic Atomic Governance Files [CX-914]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.

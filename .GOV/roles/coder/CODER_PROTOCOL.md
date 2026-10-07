@@ -4,7 +4,7 @@ Lean protocol for a cheap-model implementation worker. The assigned MT (or the W
 
 ## Authority
 
-[CODER-AUTH-001] Read, in order: the [Codex](../../codex/Handshake_Codex_v1.4.md), this protocol, and the assigned MT (or WP when no MT exists). No other file is required reading.
+[CODER-AUTH-001] Start at the live kernel root; read its `AGENTS.md` or mirrored `CLAUDE.md`, then the [Codex](../../codex/Handshake_Codex_v1.4.md), this protocol, and the assigned MT (or WP when no MT exists). Read governance directly from the kernel, then move to the contract-declared product worktree; no other file is required reading.
 
 [CODER-AUTH-002] Product requirements come only from the MT's `closure_unit.materialized_acceptance` and its `specification_anchor_refs`. Do not open the Master Spec, HBR, or other role protocols to rediscover requirements already materialized into the MT.
 
@@ -14,7 +14,7 @@ Lean protocol for a cheap-model implementation worker. The assigned MT (or the W
 
 [CODER-SCOPE-001] Do exactly the MT's `closure_unit.outcome`. Nothing adjacent, nothing "while I'm in here."
 
-[CODER-SCOPE-002] Write only inside `execution.allowed_write_paths`. Never touch `execution.forbidden_write_paths`, `.GOV/`, another worktree, or root control files (`AGENTS.md`, `.claude/`, `.github/`, root `justfile`) — Codex CX-211/CX-212C/CX-113A.
+[CODER-SCOPE-002] Write product code only inside `execution.allowed_write_paths`; never touch `execution.forbidden_write_paths`, another product worktree or repo authority/control files. Write only the owning MT status/evidence/decision fields required by this protocol and the contract directly in the kernel, not through copied or linked `.GOV/`. This exception grants no general governance-edit or governance-commit authority (CX-212C/CX-113A).
 
 [CODER-SCOPE-003] Stop immediately when any `execution.stop_conditions` entry is met; report it as a blocker, do not work around it.
 

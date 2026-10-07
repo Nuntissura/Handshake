@@ -63,7 +63,7 @@ If the planned change touches product code or the Master Spec, stop and use the 
    - Record dependencies, evidence IDs, primary surfaces, and the exit signal.
 4. Apply the governance change.
    - Edit the relevant governance docs or records.
-   - If `AGENTS.md` must change, do that work from `handshake_main` on local `main`; do not author those files from `wt-gov-kernel` or a WP worktree.
+   - Author root `AGENTS.md` and its semantically aligned `CLAUDE.md` directly in `wt-gov-kernel` on `gov_kernel` (CX-113A); do not propagate governance into main or WP worktrees.
 5. Record the applied changes.
    - Add a changelog entry in `REPO_GOVERNANCE_CHANGELOG.md` with a stable `CHANGESET_ID`.
 6. Sync any affected projections.

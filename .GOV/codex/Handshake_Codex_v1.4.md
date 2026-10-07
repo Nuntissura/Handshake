@@ -26,11 +26,21 @@
 
 [CX-AUTH-005] Role retirement: in every role protocol, template and record, superseded or retired entries are non-authoritative; current shared rules always outrank them.
 
+[CX-AUTH-006] Just scripts and recipes are retired by Operator instruction.
+
+[CX-AUTH-007] Do not require Just or restore deleted Just scripts, recipes or helpers as prerequisites.
+
+[CX-AUTH-008] Treat legacy launcher references to retired Just scripts and recipes as stale; do not classify their absence as a migration defect.
+
 ## Product boundaries
 
 [CX-003-VIS] Build one handmade, user-owned, local-first, AI-native creative and execution workspace with interconnected surfaces and libraries, shared typed state, and parallel model/Operator work. Reuse current Handshake implementations unless inspected evidence justifies replacement.
 
 [CX-008-VIS] Handshake is a native Rust application, not an Electron or webview shell. Embedded webviews belong only to the in-app browser. Older React/Tauri shell assumptions do not authorize new GUI work.
+
+[CX-PLATFORM-001] Support development on both the Windows x64 desktop PC and the Windows ARM Surface tablet.
+
+[CX-PLATFORM-002] Prioritize product target platforms in this order: x64 first, then ARM processors, then macOS, then Linux.
 
 [CX-503R] SurrealDB/EventLedger is the exclusive Handshake database authority, including runtime, tests, proof and future self-governance. Do not introduce or preserve SQLite/PostgreSQL connectivity, import, reconciliation, dual authority, fallback, cache, fixture, compatibility or temporary-adapter paths. Use fresh Handshake-managed SurrealDB state and SurrealKit rollouts.
 
@@ -52,15 +62,27 @@
 
 ## Repo ownership and safety
 
+[CX-START-001] Every role and protocol starts in the live governance-kernel root, reads its root `AGENTS.md` or mirrored `CLAUDE.md`, then the shared Codex, assigned role protocol and applicable WP/MT contracts. Read HBR and spec as required by that role and contract.
+
+[CX-START-002] Resolve the live kernel root before product execution and retain direct access to its `.GOV/`; use `HANDSHAKE_GOV_ROOT` for consumers needing an explicit governance directory. Resolve shared paths relative to that verified root, not the current product working directory.
+
+[CX-START-003] Move to the WP/MT-declared product worktree only for assigned implementation or validation. Kernel-first startup does not expand write permissions, grant merge authority or remove independent validation.
+
+[CX-GOV-001] Keep all repo paperwork, authority, workflow and task/session/validation state in the live kernel. External `gov-runtime` is for machine-local tools and caches, not authoritative repo-governance state; the owning protocol/contract declares kernel state paths.
+
+[CX-GOV-002] `.GOV` junction creation, restoration and enforcement, main-authored root authority, governance mirrors on main and gov-to-main copy/sync are retired for every role, including already-active legacy WPs. Existing links/copies are non-authoritative compatibility residue; do not delete them without scoped authorization.
+
+[CX-GOV-003] This Operator-adopted topology and startup transition applies to active WPs without changing their product scope, pinned acceptance criteria, recorded evidence or verdicts. No folder rename, branch reseed or physical worktree migration is implied.
+
 [CX-211] Handshake product code and runtime must not read or write `.GOV/`; repo governance and the shipped product are separate systems.
 
-[CX-212C] `.GOV/` in `wt-gov-kernel` on `gov_kernel` is live shared repo authority. Product code must not be authored there. Product implementation belongs in the assigned WP worktree/branch; governance edits belong in the kernel, never through a product worktree junction.
+[CX-212C] `.GOV/` in `wt-gov-kernel` on `gov_kernel` is live shared repo authority. Product code must not be authored there. Product implementation belongs in the assigned WP worktree/branch; governance reads and authorized edits address the kernel directly, never a product-worktree junction or copied governance tree.
 
 [CX-212F] Commit governance on `gov_kernel` and product changes on the assigned product branch. Never include `.GOV/` files in feature-branch commits.
 
-[CX-113] `main` is the sole canonical integrated branch; `user_ilja` and `gov_kernel` are backup branches. Never merge `gov_kernel` into `main`; governance reaches main through the controlled `.GOV/` sync path owned by the integration role.
+[CX-113] `main` holds integrated product code and may remain stale while work is active. The WP-declared worktree/branch is canonical for its active product work; `gov_kernel` is canonical for live repo governance. Never merge `gov_kernel` into `main` or copy, robocopy or sync governance into `main`.
 
-[CX-113A] Canonical root control files are authored from `handshake_main` on local `main`. Kernel-local governance launchers do not transfer that authority to other worktrees.
+[CX-113A] Author and commit repo authority and workflow control files in `wt-gov-kernel` on `gov_kernel`. Its root `AGENTS.md` and `CLAUDE.md` are real, semantically aligned files, never links to main. Product build configuration remains in the assigned product worktree.
 
 [CX-112] Never delete protected branches `main`, `user_ilja`, `gov_kernel` or permanent worktrees `handshake_main`, `wt-ilja`, `wt-gov-kernel`.
 
@@ -74,7 +96,7 @@
 
 [CX-118] Broad cleanup/sync requests do not authorize deletion or branch movement beyond the approved assignment or the owned-artifact cleanup in [CX-984-006]. For other targets, present exact object types and consequences and obtain explicit approval; changed targets require fresh approval.
 
-[CX-122] Never run `git worktree remove` on a worktree that still holds its `.GOV/` junction, and never delete worktree directories recursively. Deletion needs the Operator-approved target list and exactly these steps: (1) `fsutil reparsepoint query "<wt>\.GOV"` shows `Mount Point`, otherwise STOP and ask the Operator; (2) the gov kernel has no uncommitted work; (3) `cmd /c rmdir "<wt>\.GOV"` with no `/s`; (4) `wt-gov-kernel\.GOV\codex\Handshake_Codex_v1.4.md` still exists; (5) `git worktree remove <wt>`. Never use `rmdir /s`, `rm -rf`, `del` or `Remove-Item` on a worktree or its `.GOV`. Any failure: STOP, no manual cleanup.
+[CX-122] Never run `git worktree remove` while a legacy `.GOV/` junction remains attached, and never delete worktree directories recursively. Deletion requires the Operator-approved target list, preserved state under CX-114/119, and verified path types. If `.GOV` is a junction, require `fsutil reparsepoint query "<wt>\.GOV"` to show `Mount Point`, require no uncommitted kernel work, detach only that link with `cmd /c rmdir "<wt>\.GOV"` without `/s`, and verify the kernel Codex still exists before `git worktree remove <wt>`. An absent `.GOV` requires no link detachment; preserve an ordinary `.GOV` directory's contents before removal. Never use `rmdir /s`, `rm -rf`, `del` or `Remove-Item` on a worktree or its `.GOV`. Unknown reparse types or any failure: STOP, no manual cleanup.
 
 [CX-GIT-001] No agent, test or tool creates a worktree or branch, directly or indirectly. Compare the worktree and branch inventory before and after every run; a new entry is a defect of that run, the verdict names the offending test, and the stray ref is removed by native Git after the preservation check.
 
@@ -162,7 +184,7 @@
 
 [CX-STATUS-003] Verdict vocabulary: a verdict decision is passed, failed, inconclusive or blocked. Status labels ([CX-STATUS-001]) derive from it: passed -> PASS_Vn; failed -> FAIL_Vn; inconclusive -> status unchanged, submission retained, exact blocker recorded; blocked -> BLOCKED ([CX-STATUS-002]). NEEDS_NEW_APPROACH is a counter outcome ([CX-EXEC-015]), never a decision. Legacy decisions pass, fail and PARTIAL (read as inconclusive) stay in historic records; do not rewrite them.
 
-[CX-GP-001] Every active WP keeps a gameplan at `.GOV/task_packets/<WP>/gameplan.yaml` (MT-specific steps in `gameplans/<MT>.yaml` with the WP gameplan as parent), created and edited only with the `gameplan` skill; a `.gameplan-active` pointer to it sits at the root of every worktree where builds or rounds run. Before dispatch, submit, a validation round, a verdict and a merge, the acting role runs `gameplan check --role <role> --at <moment>`; a failing step is fixed, never bypassed, and the global hook enforces the check for gated commands. After a mistake, an infrastructure failure or a wasted round, a step naming the cause is added before the next attempt. The gameplan holds preparation checks only; this Codex, the role protocols, the WP contract and the MT JSON win on conflict, and the step is corrected. Applies to WPs activated after this rule; WP-KERNEL-012 only by Operator decision ([CX-GOV-PIN-001]).
+[CX-GP-001] Every active WP keeps a gameplan at `.GOV/task_packets/<WP>/gameplan.yaml` (MT-specific steps in `gameplans/<MT>.yaml` with the WP gameplan as parent), created and edited only with the `gameplan` skill; a `.gameplan-active` pointer at every build/round worktree root resolves directly to that gameplan in the live kernel, without requiring a `.GOV` junction. Before dispatch, submit, a validation round, a verdict and a merge, the acting role runs `gameplan check --role <role> --at <moment>`; a failing step is fixed, never bypassed, and the global hook enforces the check for gated commands. After a mistake, an infrastructure failure or a wasted round, a step naming the cause is added before the next attempt. The gameplan holds preparation checks only; this Codex, the role protocols, the WP contract and the MT JSON win on conflict, and the step is corrected. Applies to WPs activated after this rule; WP-KERNEL-012 only by Operator decision ([CX-GOV-PIN-001]).
 
 [CX-GP-002] One gameplan per WP, shared by all agents; MT gameplans inherit via parent ([CX-GP-001]). Each agent sets env `GAMEPLAN_ROLE=<its role>` before gated commands; the hook then evaluates only that role's steps plus role `any`; unset evaluates all roles (fail-closed). Role-scoped confirm steps are confirmed with `gameplan confirm --by <role> --id <ids>`; a confirmation's `by` equals the step role. Every write carries the gameplan generation; on a generation conflict re-read and retry, never overwrite. The retry guard is shared per gameplan. Roles: orchestrator, kernel_builder (skill alias of builder), coder, wp_validator, integration_validator, activation_manager.
 

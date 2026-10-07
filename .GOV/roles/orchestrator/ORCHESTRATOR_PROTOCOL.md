@@ -1,4 +1,12 @@
 ﻿# ORCHESTRATOR_PROTOCOL 
+
+## Kernel-Rooted Startup and Ownership
+
+- [ORC-KERNEL-001] Start in the `wt-gov-kernel` root; read its root `AGENTS.md` and `CLAUDE.md`, then the applicable Codex, role protocol and assigned contracts. Read live governance directly from that kernel; do not require or create product-worktree `.GOV/` junctions.
+- [ORC-KERNEL-002] The assigned active WP worktree and branch are canonical for that WP product work. `main` is the product-only integrated target and may lag active WPs; do not refresh or replace active work from `main` without the applicable contract and authorization.
+- [ORC-KERNEL-003] Keep all governance authority, paperwork, workflow, communication, task and session state in the kernel. External `gov-runtime/` is for tools and caches only; product build/test artifacts retain their declared external artifact roots.
+- [ORC-KERNEL-004] Do not copy, robocopy, synchronize or commit governance into `main`. Legacy active WP layouts are tolerated without junction enforcement or automatic topology repair; their local governance copies are non-authoritative.
+
 ## Deterministic Atomic Governance Files [CX-914]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
@@ -110,13 +118,13 @@ Canonical contracts the Orchestrator plans and routes against (typed JSON is aut
 
 ## Permanent Branch + Backup Model (HARD)
 
-- `main` is the only canonical integrated branch on disk and on GitHub.
+- `main` is the product-only canonical integrated branch on disk and on GitHub; it may lag active WPs.
 - Permanent protected branches: `main`, `user_ilja`, `gov_kernel`.
 - Permanent protected worktrees: `handshake_main`, `wt-ilja`, `wt-gov-kernel`.
 - `user_ilja` and `gov_kernel` on GitHub are backup branches, not integration branches.
-- Permanent non-main worktrees (`wt-ilja`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
-- `gov_kernel` MUST NOT be merged into `main`. `.GOV/` changes reach `main` through the gov-to-main sync (sync script deleted 2026-09-23; sync by hand with explicit paths) [CX-113].
-- Root-level repo control files inherited from `main`, currently `AGENTS.md`, are main-only authoring surfaces. If that file needs changes, make that edit in `handshake_main` on local `main`, commit it on `main`, and then reseed/refresh the permanent non-main worktrees from `main`. Do not author or commit those files from WP worktrees.
+- Active WP product work remains on its assigned worktree/branch; initialization and refresh honor the approved packet baseline rather than assuming current `main` contains active work.
+- `gov_kernel` MUST NOT be merged into `main`; governance stays in the kernel and is never synchronized into the product-only integrated target [CX-113].
+- Root governance authority files `AGENTS.md` and `CLAUDE.md` are authored in the kernel. Do not propagate governance authority by reseeding product worktrees from `main`.
 - Before destructive or state-hiding local git actions, first push the committed state to the matching backup branch.
 - If a role reports formatter spillover or scope cleanup after a broad formatter, treat `git restore` as a destructive/state-hiding repair. The mechanical path is: identify the exact spillover files, preserve committed state if possible, emit/record a typed blocker, and require explicit approval before any worktree rewrite.
 - Before deleting local branches or worktrees, make an out-of-repo backup copy first.
@@ -128,8 +136,8 @@ Canonical contracts the Orchestrator plans and routes against (typed JSON is aut
 - Broad requests like "clean up branches" are insufficient. Present a deterministic list of exact actions + exact targets first.
 - For that most recently presented action/target list, the only valid approval replies are `approved` or `proceed`. If the list changes, ask again.
 - Run `git worktree list` and `git branch -a` before asking for approval so the exact targets are visible.
-- For assistant-driven worktree deletion, after `approved` or `proceed` on the presented list, detach the `.GOV/` junction, then run `git worktree remove <path>`.
-- **FORBIDDEN: `git worktree remove` (raw) [CX-122].** Non-main worktrees hold a `.GOV/` directory junction to `wt-gov-kernel/.GOV/`; raw removal follows it and destroys the real governance files. Delete a worktree only with exactly these steps: (1) `fsutil reparsepoint query "<wt>\.GOV"` shows `Mount Point`, otherwise STOP and ask the Operator; (2) the gov kernel has no uncommitted work; (3) `cmd /c rmdir "<wt>\.GOV"` with no `/s`; (4) `wt-gov-kernel\.GOV\codex\Handshake_Codex_v1.4.md` still exists; (5) `git worktree remove <wt>`. Never use `rmdir /s`, `rm -rf`, `del` or `Remove-Item` on a worktree or its `.GOV`. Any failure: STOP, no manual cleanup.
+- For assistant-driven worktree deletion, obtain `approved` or `proceed` for the exact presented targets, then follow current Codex CX-122 with the actual inspected topology.
+- **FORBIDDEN: `git worktree remove` (raw) [CX-122].** Inspect legacy links before an authorized removal and protect their targets; absence of a `.GOV/` junction is valid and never requires creating one. Do not delete shared governance through a product worktree. Any failure: STOP, no manual cleanup.
 - If worktree deletion fails, stop. Do not fall back to manual filesystem cleanup (`rm -rf`, `Remove-Item`, `del`).
 
 ## Repo Boundary Rules (HARD)
@@ -145,7 +153,7 @@ See also:
 - `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
 - `/.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` â€” append-only shared memory of recurring repo bad habits and tooling rules
 
-**Governance Kernel [CX-212C]:** `/.GOV/` is a live junction to the governance kernel worktree â€” edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. `wt-gov-kernel` on `gov_kernel` is the Orchestrator's default live execution surface. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The orchestrator MAY write governance edits to the kernel directly; during active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Root-level repo control files are different: `AGENTS.md` is authored in `handshake_main` on local `main`, then propagated outward by canonical refresh/reseed. Synchronizing governance to main (sync script deleted 2026-09-23; sync by hand with explicit paths) is the Integration Validator's default responsibility before pushing to `origin/main`, but the Orchestrator MAY execute that mechanical sync/push path when the Operator explicitly instructs it to do so under [CX-113]. See Codex CX-212C, CX-212F and CX-113 above for the full governance kernel architecture.
+**Governance Kernel [CX-212C]:** Apply ORC-KERNEL-001 through ORC-KERNEL-004. Governance changes are authored and committed in `wt-gov-kernel` on `gov_kernel`, never on product branches [CX-212F]. Product integration and independent verdict authority remain unchanged; neither creates a governance-to-main sync duty or exception.
 
 ## Inter-Role Wire Discipline [CX-914] (HARD)
 
@@ -159,7 +167,7 @@ While a governed role session is active, the Orchestrator MUST NOT rebuild or mu
 
 - External build, test, and tool outputs stay under `../Handshake_Artifacts/` [CX-984-001]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
 - Repo-local `target/` directories are workflow-invalid residue; before claiming clean governance/product state this is checked by reading the artifact (check script deleted 2026-09-23).
-- Product runtime state should default to the external sibling root `gov_runtime/`.
+- Governance runtime state stays in the kernel; external `gov-runtime/` holds tools and caches only. Product runtime state follows the approved product contract and does not become repo-governance state.
 - Do not treat repo-root `data/` or `.handshake/` as the template for new runtime work.
 
 ## Current Execution Policy (Additional LAW)
@@ -184,9 +192,9 @@ While a governed role session is active, the Orchestrator MUST NOT rebuild or mu
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, pre-launch governance authoring MUST run through the governed Activation Manager lane. For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch belongs to `CLASSIC_ORCHESTRATOR`.
 - Headless-only launch policy: governed role starts and steering MUST NOT focus VS Code terminals, Windows Terminal, or any visible repair window. `VSCODE_PLUGIN` is disabled for governed launches.
 - The VS Code bridge launch queue is legacy/read-only for old records; new governed role launches must not queue it:
-  - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
-- For the governed `INTEGRATION_VALIDATOR` lane, the Orchestrator MUST preserve kernel governance authority even though execution occurs from `handshake_main`: launch/control requests must carry `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`, and any lane that resolves live authority from `handshake_main/.GOV` is misconfigured and must be repaired before closeout.
-- `handshake_main/.GOV` is only the synced main-branch mirror. It is not the live authority surface for orchestrator-managed integration validation, even immediately after the gov-to-main sync.
+  - Legacy external queue records are historical; new session state belongs in the kernel.
+- For the governed `INTEGRATION_VALIDATOR` lane, launch from the kernel root and preserve `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV` when executing in assigned product or integration worktrees. Any lane resolving live authority from a product-local `.GOV/` is misconfigured.
+- Existing `handshake_main/.GOV` content is legacy and non-authoritative; do not refresh, sync or rely on it.
 - Closeout must reclaim only the hidden repair processes the governed session batch created: inspect the process tree and stop orphaned children you launched.
 - Host-load stance: assume the machine is under heavy load. Shell/plugin timeouts are advisory symptoms, not authoritative workflow truth; inspect runtime/session artifacts before counting a timeout as a real failed attempt.
 
@@ -194,7 +202,7 @@ While a governed role session is active, the Orchestrator MUST NOT rebuild or mu
 
 - Treat role workflow paths as repo-relative placeholders.
 - When recording WP assignment, `worktree_dir` must be repo-relative, for example `../wt-WP-...`.
-- Operator-facing commands, protocol examples, packet fields, diagnostics, and monitor output MUST emit repo-relative or workspace-relative paths only, never absolute host paths. Use forms like `.GOV/...`, `../wt-...`, `../handshake_main`, and `../gov_runtime/...`.
+- Operator-facing commands, protocol examples, packet fields, diagnostics and monitor output MUST emit repo-relative or workspace-relative paths only, never absolute host paths. Use `.GOV/...` for kernel governance state, `../wt-...` and `../handshake_main` for product work, and external tool/cache paths only for tools/caches.
 - Absolute paths may be resolved internally by scripts for filesystem access, but they are implementation detail only. If an orchestrator-facing surface prints any host-specific absolute path form, treat that as governance drift and repair the emitting surface.
 - If any doc or tool suggests a drive-specific path, treat it as a governance bug and fix the governance surface.
 
@@ -320,8 +328,8 @@ Write sequence:
   - for terminal non-PASS closeout, support-surface drift such as route residue, closeout provenance drift, or active-topology artifact hygiene debt must be repaired as settlement work and MUST NOT trigger a fresh product-judgment loop by themselves
   - when `execution_state.authority` disagrees with packet/task-board closeout publication, treat the packet/task-board artifact as the drift owner and repair that artifact rather than trusting stale packet prose
   - candidate-target proof must still match the signed artifact exactly; contained local-main closure may differ only when conflict resolution stays within the signed file surface and the governed closeout proof still passes
-  - contained-main harmonization is a final-lane activity owned by `INTEGRATION_VALIDATOR` (or another explicitly reassigned governed actor), and successful closeout sync must leave machine-readable provenance in `TERMINAL_CLOSEOUT_RECORD.json`
-  - if final-lane closeout is attempted from a role-locked orchestrator/kernel surface, from a non-final validator lane, or with `HANDSHAKE_GOV_ROOT` still resolving to `handshake_main/.GOV`, treat that as `WORKFLOW_INVALIDITY` (`ROLE_BOUNDARY_BREACH`, `FINAL_LANE_AUTHORITY_VIOLATION`, or `FINAL_LANE_GOV_ROOT_VIOLATION`) and repair the lane before any packet/task-board/runtime promotion
+  - contained-main harmonization remains a final-lane activity owned by `INTEGRATION_VALIDATOR` (or another explicitly reassigned governed actor); kernel closeout must leave machine-readable provenance in `TERMINAL_CLOSEOUT_RECORD.json`
+  - final-lane closeout by a non-final-validator actor or with `HANDSHAKE_GOV_ROOT` resolving to `handshake_main/.GOV` is `WORKFLOW_INVALIDITY` (`ROLE_BOUNDARY_BREACH`, `FINAL_LANE_AUTHORITY_VIOLATION`, or `FINAL_LANE_GOV_ROOT_VIOLATION`); kernel-rooted startup by the authorized Integration Validator is valid and does not relax role boundaries
   This keeps closeout truth synchronized and reduces orchestrator repair work.
 - **Terminal auto-cleanup [CX-503D / RGF-95]:** Reclaim only the hidden repair processes the governed session batch launched; never touch other apps or processes. Inspect the process tree and stop orphaned children you launched.
 
@@ -331,7 +339,7 @@ Write sequence:
 - When more than one Coder is active, use one worktree per active WP.
 - Treat each active WP's `IN_SCOPE_PATHS` as an exclusive file-lock set.
 - Coders may commit freely on their WP branch.
-- Validators own final validation-backed merge authority to `main` for product changes. An explicit Operator-directed `sync-gov-to-main` or `origin/main` push executed by the Orchestrator is mechanical topology/governance execution, not validator technical authority.
+- Validators own final validation-backed merge authority to `main` for product changes. Orchestrator mechanical product push actions require explicit Operator direction and never grant validator technical authority; governance-to-main sync is retired.
 - In this repo topology, final product containment is not an ordinary raw `git merge` happy path. The governed `INTEGRATION_VALIDATOR` lane owns the copy-based / contained-main reconciliation into `handshake_main/main` plus the final packet/task-board/runtime truth sync. The Orchestrator must not substitute a raw merge for that governed final-lane activity.
 
 ## Worktree + Branch Gate (BLOCKING)
@@ -483,7 +491,7 @@ Resume rule:
   - `RUNTIME_STATUS.json` for structured liveness
 - These artifacts support both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED`.
 - They never override packet truth. If they conflict with the packet, the packet wins.
-- Volatile session/topology/WP-communication runtime state lives under the external repo-governance runtime root (`../gov_runtime/`), including shared runtime state under `../gov_runtime/roles_shared/`.
+- Session/topology/WP-communication runtime state lives in the kernel; legacy external state paths require kernel-rooted resolution before new writes and never justify a governance mirror in a product worktree.
 
 ## Deterministic Helpers
 
@@ -531,7 +539,7 @@ Legacy flat compatibility:
 - `.GOV/task_packets/WP-{ID}.md`
 - `.GOV/refinements/WP-{ID}.md`
 
-[CX-113] Work packets and refinements are committed on `gov_kernel`, not on WP feature branches. Coders do not commit `.GOV/` files on `feat/WP-*` branches â€” the governance kernel is the single source of truth, accessed via junction.
+[CX-113] Work packets and refinements are committed on `gov_kernel`, not on WP feature branches. Coders do not commit `.GOV/` files on `feat/WP-*`; read the governance kernel directly as the single source of truth, without a junction.
 
 ## Current Orchestrator Workflow (Authoritative)
 
@@ -746,31 +754,31 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 ## Worktree Budget (HARD RULE)
 
 - Maximum WP-specific worktrees per WP: 1 .
-- The Coder and WP Validator share the same worktree (`wtc-*` on `feat/WP-*`). The per-MT stop pattern is driven by MT JSON status and verdict fields: the coder sets `READY_FOR_VALIDATION`, the WP Validator writes the verdict, and the coder resumes. Governance uses the `.GOV/` junction to the kernel.
+- The Coder and WP Validator share the assigned product worktree (`wtc-*` on `feat/WP-*`). The per-MT stop pattern is driven by kernel MT JSON status and verdict fields: the coder sets `READY_FOR_VALIDATION`, the WP Validator writes the verdict, and the coder resumes. Both read governance directly from the kernel.
 - **Session Context Rotation:** If a Coder or WP Validator session exceeds its token budget, the Orchestrator should close the session and start a fresh one. The new session receives the startup prompt plus current MT context â€” no need to replay prior MT history. This prevents the context bloat observed in prior runs.
-- The Integration Validator operates from `handshake_main` on branch `main` â€” no WP-specific worktree.
+- The Integration Validator starts in the kernel, inspects the assigned WP canonical product worktree, and executes approved product integration in `handshake_main` on `main`; no extra WP-specific worktree is implied.
 - Do not create ad-hoc temp worktrees (detached checkouts, merge worktrees, revalidation worktrees) outside the governed naming scheme.
 - After a WP reaches VALIDATED or MERGED, require governed cleanup of WP-specific worktrees before starting new WPs.
 - All worktrees must be created under the shared worktree root. Off-root worktree creation is forbidden.
 
 ## WP Worktree Creation Rules [CX-113] (HARD RULE)
 
-- WP worktrees (`wtc-*`) MUST NOT retain a git-tracked `/.GOV/` directory. Legacy `wtv-*` worktrees from the old 2-per-WP model are cleanup candidates.
+- New WP worktrees contain product work, not governance authority. Existing active WP layouts may retain legacy files without automatic cleanup or junction enforcement; read live governance from the kernel.
 - Generic pre-packet worktree creation may seed from `main`, but governed coder worktree creation or reseed after packet creation MUST honor the packet baseline (`MERGE_BASE_SHA`) instead of moving local `main`.
 - Dirty existing WP worktrees must fail closed for governed reuse or reseed; do not silently reuse a dirty worktree as the coder or validator execution surface.
-- After `git worktree add`, the creator MUST:
-  1. Remove the inherited `/.GOV/` directory from the new worktree.
-  2. Create a junction (`mklink /J` on Windows, symlink on Unix) from `/.GOV/` to `../wt-gov-kernel/.GOV`.
-- This ensures WP worktrees always read live governance from the kernel and never have a stale `/.GOV/` copy.
+- After authorized creation, bind the assigned product worktree to live kernel authority through direct reads and the declared governance-root setting.
+- Do not create a `.GOV/` junction or automatically delete inherited legacy files.
+- Retired: the former mandatory `mklink /J` or symlink step has no authority, including for existing active WPs.
+- Live kernel reads replace the former product-worktree governance-link requirement.
 
-## Gov-to-Main Sync Responsibility [CX-113] (HARD RULE)
+## Retired Gov-to-Main Sync Responsibility [CX-113]
 
-- The gov-to-main sync copies the governance kernel `/.GOV/` into `handshake_main` and commits it (sync script deleted 2026-09-23; sync by hand with explicit paths).
-- The sync must run from committed kernel truth. If `wt-gov-kernel/.GOV` is dirty, fix or commit `gov_kernel` first; do not mirror an uncommitted kernel snapshot into `main`.
-- This is the Integration Validator's default responsibility, to be run before pushing to `origin/main`.
-- The Orchestrator MAY run the gov-to-main sync and push `origin/main` only when explicitly instructed by the Operator.
-- That Orchestrator exception is mechanical execution only. It does not grant final technical verdict authority or permission to invent a new product merge decision.
-- The `main` worktree retains a real (non-junction) `/.GOV/` copy as a stable backup.
+Retired: governance-to-main copying, robocopy, synchronization, commit and mirror duties are non-authoritative. Apply ORC-KERNEL-004.
+- Governance state stays in the kernel, whether committed or still being authored; never mirror it into `main`.
+- No role has a default governance-to-main synchronization duty.
+- The former Orchestrator mechanical sync exception is retired.
+- Independent final technical verdict and authorized product merge/push boundaries remain unchanged.
+- Existing main governance copies are legacy, non-authoritative and must not be refreshed.
 
 ## Notification System (HARD RULE â€” Message Delivery)
 
@@ -800,8 +808,8 @@ Do not:
 Do:
 - keep refinement, packet, traceability, build-order, and Task Board aligned
 - use the current packet template
-- keep external session/topology/WP-communication runtime state under the repo-governance runtime root (`../gov_runtime/`), including shared runtime state under `../gov_runtime/roles_shared/`
-- keep role-owned state under `../gov_runtime/roles/orchestrator/runtime/`
+- keep session/topology/WP-communication runtime state in the kernel
+- keep role-owned governance state in the kernel role-owned surface; external `gov-runtime/` is tools/cache only
 - stop and escalate when tooling or docs conflict with active law
 - verify direct coder<->WP Validator communication is happening before allowing handoff
 - enforce worktree budget limits per WP

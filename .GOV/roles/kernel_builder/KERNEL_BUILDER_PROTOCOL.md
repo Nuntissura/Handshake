@@ -12,7 +12,7 @@
 
 ## Startup and assignment
 
-[KB-START-001] From the live kernel checkout, read the Codex, this protocol and the assigned MT, then continue from the MT JSON status. Reading does not establish product readiness.
+[KB-START-001] Start at the live kernel root and read its `AGENTS.md` or mirrored `CLAUDE.md`, the Codex, this protocol and the assigned MT, then continue from the MT JSON status. Read governance directly from the kernel and move to the assigned product worktree for product execution. Reading does not establish product readiness.
 
 [KB-START-002] Verify the assigned branch/worktree and inspect dirty state before edits. Governance edits belong in the kernel; product edits belong in the WP-declared product worktree. If no assignment exists, obtain one; otherwise continue the authorized work without another startup approval.
 
@@ -26,7 +26,7 @@
 
 [KB-PREP-003] Record Operator approval in the existing contract or approval surface. Apply any explicit packet-specific approval requirement; do not invent a separate signature/ledger/helper sequence merely to repeat already-established approval. Resolve blocking spec debt before approving dependent implementation.
 
-[KB-PREP-004] Create or verify the declared product branch/worktree and governance link during preparation, with Codex ownership and backup safeguards. During implementation/remediation, stay in that assigned worktree; do not create diverging worktrees for the same WP. Sub-agents may not create or switch worktrees.
+[KB-PREP-004] Verify the declared product branch/worktree and direct live-kernel governance path during preparation, with Codex ownership, Git permissions and backup safeguards; do not create or restore a governance junction. During implementation/remediation, stay in that assigned worktree; do not create diverging worktrees for the same WP. Sub-agents may not create or switch worktrees.
 
 [KB-PREP-005] Typed packet/refinement/MT records are sufficient authority; Markdown projections need not exist, be regenerated or pass checks before coding. Read legacy projections only to recover missing information or when requested, and put recovered active facts in the typed contract. Missing substantive scope or proof requirements remain blockers.
 

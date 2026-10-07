@@ -2,7 +2,7 @@
   "schema_id": "hsk.workflow_contract@1",
   "schema_version": "workflow_contract_v1",
   "contract_id": "workflow.orchestrator_managed.v1",
-  "contract_version": "2026-05-06.1",
+  "contract_version": "2026-10-07.1",
   "status": "ACTIVE",
   "lane": "ORCHESTRATOR_MANAGED",
   "authority": "MACHINE_CONTRACT",
@@ -23,6 +23,24 @@
   "projection_files": [
     ".GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md"
   ],
+  "topology_policy": {
+    "rule_refs": ["CX-START-001", "CX-START-002", "CX-START-003", "CX-GOV-001", "CX-GOV-002", "CX-GOV-003", "CX-113", "CX-113A"],
+    "startup_checkout": "live_governance_kernel",
+    "root_authority_files": ["AGENTS.md", "CLAUDE.md"],
+    "root_authority_storage": "real_files_in_kernel_root",
+    "governance_access": "direct_verified_kernel_root",
+    "governance_state_location": "kernel_owned_contract_declared_paths",
+    "product_execution_checkout": "WP_MT_declared_worktree",
+    "active_product_authority": "assigned_active_WP_worktree_and_branch",
+    "main_content": "integrated_product_only",
+    "main_may_lag_active_work": true,
+    "governance_junction_required": false,
+    "governance_to_main_sync_allowed": false,
+    "legacy_active_WPs_included": true,
+    "preserve_product_acceptance_and_role_boundaries": true,
+    "external_gov_runtime_purpose": "machine_local_tools_and_caches_only",
+    "automatic_physical_migration": false
+  },
   "role_scopes": {
     "ORCHESTRATOR": {
       "allowed_command_kinds": [

@@ -1,4 +1,13 @@
 ﻿# WP_VALIDATOR_PROTOCOL [RGF-190]
+## Kernel Startup and Authority [WPV-KERNEL]
+
+- [WPV-KERNEL-001] Start every role session in the governance kernel checkout; read its actual root `AGENTS.md` and `CLAUDE.md`, the Codex, this role protocol, and the assigned contract before acting.
+- [WPV-KERNEL-002] Read governance directly from the kernel's `.GOV/`; resolve that root explicitly when operating in another checkout. A product-worktree `.GOV` junction is not required.
+- [WPV-KERNEL-003] Move to a product checkout only for contract-assigned product execution or inspection; the assigned active WP checkout is canonical for that WP's product work, while `main` is the integrated product baseline and may lag active WPs.
+- [WPV-KERNEL-004] Keep all governance state, packets, verdicts, receipts, role/runtime state, task boards, and authority files in the kernel. External `gov-runtime` locations are for tools and caches only, never governance state.
+- [WPV-KERNEL-005] Never copy or sync governance into `main` or a product checkout; `main` receives product integration only. Retired legacy WP topology-enforcement clauses do not require governance mirrors, junctions, or main-rooted role startup.
+- [WPV-KERNEL-006] Preserve contract scope, role independence, write ownership, validator proof, and product integration acceptance; startup in the kernel grants no additional product or governance write authority.
+
 ## Deterministic Atomic Governance Files [CX-914]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
@@ -172,10 +181,10 @@ The coder must stay within the signed MT scope.
 
 Before reviewing per-MT files, enforce one-worktree-per-WP containment:
 
-- The validator may only review in the **single** WP-assigned worktree from `PREPARE`.
+- Start and read authority in the kernel; product review uses only the **single** contract-assigned active WP checkout from canonical kernel `PREPARE` state.
 - In a parallel-WP environment, other WP worktrees may remain active, but the same WP-ID must map to exactly one active local worktree.
 - Mechanical pre-check:
-  - Read the WP `PREPARE` record and locate the active `worktree_dir`/branch.
+  - Read the kernel WP `PREPARE` record and locate the assigned active product checkout and branch.
   - Run `git worktree list` from repository root.
   - If zero matches: stop and request Operator repair of WP worktree state.
   - If more than one match for the same WP-ID: stop and report `WP_WORKTREE_SPLIT`.
@@ -332,14 +341,14 @@ WP Validator does NOT communicate directly with the Integration Validator.
 
 - Launch authority: `ORCHESTRATOR_ONLY`
 - Control mode: `STEERABLE` by the Orchestrator
-- Local branch: same as coder (`feat/WP-{ID}`)
-- Local worktree: same as coder (`../wtc-*`)
-- The Coder and WP Validator share the same worktree. The per-MT stop pattern ensures only one role is active at a time.
+- Startup branch: `gov_kernel`; product review branch: the contract-assigned active WP branch shared with Coder.
+- Startup checkout: governance kernel; product review checkout: the contract-assigned active WP checkout.
+- The Coder and WP Validator share the assigned product checkout for execution; both start and read governance in the kernel. The per-MT stop pattern ensures only one product execution role is active at a time.
 
 ## Safety: Data-Loss Prevention (HARD RULE)
 
 - Same rules as VALIDATOR_PROTOCOL: no destructive commands without explicit operator authorization.
-- WP Validator operates in the coder worktree (`wtc-*`) with read access for review purposes.
+- WP Validator starts in the kernel and inspects the assigned Coder product checkout with read access for review purposes.
 - WP Validator MUST NOT modify files in the coder worktree directly.
 - WP Validator MUST NOT create or switch to additional worktrees without explicit Operator authorization in this turn.
 
