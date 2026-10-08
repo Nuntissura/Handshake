@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 470
+generation: 471
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -385,3 +385,4 @@ steps:
 - {id: GP-364, role: wp_validator, at: before_round, do: verify MT168 three timing tests retain success medians and contracted1200s per-test timeout, check: {type: confirm}, source: 'prep: default successful output hid MT168 medians;300s below own1200s timing contract', state: active}
 - {id: GP-365, role: wp_validator, at: before_verdict, do: verify runtime claims bind own candidate JUnit; source findings bind own frozen-candidate proof, check: {type: confirm}, source: CXVAL009 allows source FAIL; GP033 unconditional JUnit blocked independent source findings, state: active}
 - {id: GP-366, role: wp_validator, at: before_verdict, do: verify controller confirmation note is one line <=120 chars, check: {type: confirm}, source: 'infra: confirmation rejected over120char note; source verdict not applied', state: active}
+- {id: GP-367, role: wp_validator, at: before_verdict, do: verify governance JSON reads use explicit UTF8 and preserved historical values equal baseline, check: {type: confirm}, source: 'infra: default cp1252 read corrupted8historical MT111 strings; restore exact UTF8 values', state: active}

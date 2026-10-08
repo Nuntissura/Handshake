@@ -887,8 +887,8 @@
     "resolves_finding": "N1B-P3-F111 (validation_v1.independent_findings) AUTHZ_STATUS_CONTRACT_DRIFT_401_VS_403",
     "question": "MT-111 AC-111-2 and AC-111-4 (step 5) pin 401 HSK-401-FR-SESSION for a Flight Recorder request without a session token; the C-prime backend returns 403 HSK-403-PROTECTED-RESOURCE. Which is the contract?",
     "spec_basis": [
-      "Master Spec v02.206 Â§2.3.13.12.3 Authorization law (7): \"Denials MUST use constant-shape responses where practical so counts, identifiers, names, paths, thumbnails, timing, search facets, error variants, logs, or diagnostics do not reveal that a restricted resource exists.\" (02-system-architecture.md)",
-      "Master Spec v02.206 Â§2.3.13.12.3 (2)+(6): every request authorizes Principal+session+action+exact resource; deny-by-default on every executable backend boundary. Â§2.3.13.12.4: Flight Recorder tables are protected resources and cannot become side-channel bypasses.",
+      "Master Spec v02.206 §2.3.13.12.3 Authorization law (7): \"Denials MUST use constant-shape responses where practical so counts, identifiers, names, paths, thumbnails, timing, search facets, error variants, logs, or diagnostics do not reveal that a restricted resource exists.\" (02-system-architecture.md)",
+      "Master Spec v02.206 §2.3.13.12.3 (2)+(6): every request authorizes Principal+session+action+exact resource; deny-by-default on every executable backend boundary. §2.3.13.12.4: Flight Recorder tables are protected resources and cannot become side-channel bypasses.",
       "Codex [CX-132C] HARD_DENY_BY_DEFAULT_ACROSS_ALL_BOUNDARIES: missing/invalid/stale session context MUST deny (satisfied by both codes; does not choose the number).",
       "The spec does NOT pin the numeric HTTP status for a missing credential; it pins the SHAPE (constant, non-distinguishing). A distinct 401 variant ahead of the protected-resource layer would be a second denial shape."
     ],
@@ -897,14 +897,14 @@
       "The backend in-crate tests already pin the constant denial for the no-credential case: flight_recorder.rs ~4276 asserts \"POST runtime_chat_event without binding\" -> StatusCode::FORBIDDEN + HSK-403-PROTECTED-RESOURCE \"must use the constant protected-resource denial\"; ~4970 asserts unscoped/blank-scope reads -> 403 HSK-403-PROTECTED-RESOURCE.",
       "History: 2e28ff91 feat: MT-109 enforce protected resource grants; ecc2444c fix(MT-109): enforce record-user resource authority. MT-111 AC-111-2 was authored 2026-08-05 against the pre-authority-layer recorder middleware."
     ],
-    "ruling": "SPEC WINS -> 403 HSK-403-PROTECTED-RESOURCE (constant-shape denial) is the contract for a Flight Recorder request that carries no/invalid session token, on both the ingest and the scoped-read side. This is NOT the spec-silent branch: Â§2.3.13.12.3(7) governs the denial shape, and the product authority layer plus its own pinned tests implement it. The 401 HSK-401-FR-SESSION wording in MT-111 AC-111-2 / AC-111-4 step 5 and in the flight_recorder.rs module doc-comment (line 10) is stale drift from before the protected-resource layer.",
+    "ruling": "SPEC WINS -> 403 HSK-403-PROTECTED-RESOURCE (constant-shape denial) is the contract for a Flight Recorder request that carries no/invalid session token, on both the ingest and the scoped-read side. This is NOT the spec-silent branch: §2.3.13.12.3(7) governs the denial shape, and the product authority layer plus its own pinned tests implement it. The 401 HSK-401-FR-SESSION wording in MT-111 AC-111-2 / AC-111-4 step 5 and in the flight_recorder.rs module doc-comment (line 10) is stale drift from before the protected-resource layer.",
     "required_changes": [
       "MT-111 contract: AC-111-2 and AC-111-4 step 5 are read as \"receives the constant protected-resource denial 403 HSK-403-PROTECTED-RESOURCE and is surfaced to the operator as a typed error rather than a silent drop\". The fail-closed intent and the typed-error surfacing requirement are unchanged; only the status/code literal is corrected. (Amendment recorded here; scope.acceptance_criteria text is preserved as authored.)",
       "src/frontend/handshake_native/tests/test_flight_recorder_authz.rs steps 1 and 5 (lines ~103-120, ~187-200): expect 403 + HSK-403-PROTECTED-RESOURCE. Routed into the F403 native-unblock builder round together with N1B-P3-F403 (native proof support must obtain a real credential via the /authority/session exchange; it must NOT weaken the authority layer).",
       "src/backend/handshake_core/src/api/flight_recorder.rs: correct the stale module doc (line 10) and remove or re-wire the now-dead unauthenticated_recorder() so the code carries one denial contract. Backend side, same builder round.",
       "No middleware reorder. Do NOT introduce a 401 ahead of authorize_request."
     ],
-    "operator_override": "The Operator may override this ruling; if overridden to 401, the backend in-crate 403 pins at flight_recorder.rs ~4276/~4970 and the constant-shape clause Â§2.3.13.12.3(7) must be reconciled first.",
+    "operator_override": "The Operator may override this ruling; if overridden to 401, the backend in-crate 403 pins at flight_recorder.rs ~4276/~4970 and the constant-shape clause §2.3.13.12.3(7) must be reconciled first.",
     "status_effect": "lifecycle.status stays BLOCKED_ON_DEPENDENCY (N1B-P3-F403 unresolved). F111 is RESOLVED_BY_RULING pending the code changes above."
   },
   "remediation_v1": {
@@ -992,7 +992,7 @@
     ],
     "ruling_401_vs_403_confirmed": {
       "operator_semantics": "Operator 2026-09-22 (relayed in the KERNEL_BUILDER-C1 brief): 401 = no valid authentication, 403 = authenticated but not permitted; keep the authority gate strict.",
-      "master_spec_clause": "Master Spec v02.206 Â§2.3.13.12.3 Authorization law (7) (02-system-architecture.md): 'Denials MUST use constant-shape responses where practical so counts, identifiers, names, paths, thumbnails, timing, search facets, error variants, logs, or diagnostics do not reveal that a restricted resource exists.' + (2)/(6) deny-by-default per request. The spec pins denial SHAPE, not the numeric status.",
+      "master_spec_clause": "Master Spec v02.206 §2.3.13.12.3 Authorization law (7) (02-system-architecture.md): 'Denials MUST use constant-shape responses where practical so counts, identifiers, names, paths, thumbnails, timing, search facets, error variants, logs, or diagnostics do not reveal that a restricted resource exists.' + (2)/(6) deny-by-default per request. The spec pins denial SHAPE, not the numeric status.",
       "reconciliation": "A uniform 401 emitted before any resource resolution (same body for every unauthenticated request, regardless of resource) discloses nothing about resource existence, so the Operator semantics satisfy (7). This supersedes ruling_401_vs_403_2026_09_17 (IV on delegation, which chose 403) for the Flight Recorder route group; AC-111-2 / AC-111-4 step 5 (401 HSK-401-FR-SESSION) stand as authored and test_flight_recorder_authz already expects 401.",
       "scope_of_change": "Flight Recorder route group only (api/flight_recorder.rs authorize_flight_recorder_request). Other protected routes still return the constant 403 for unauthenticated requests (api/authority.rs authorize_request); aligning them is a broader Operator scope item."
     },
@@ -1003,7 +1003,7 @@
         "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/03-native-emitter-roundtrip.log: three production-emitter events (undo_fired, canvas_node_placed, document_saved) now persist with server-derived principal attribution (runtime-18 missing document_saved resolved by 456dc63a receipt_session_id); failed at canonical FR open with 401 because CanonicalArgusDriver::bind_in_current_app_data republished the shared native binding with a different token, invalidating the channel-bound account session",
         "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/06-native-emitter-roundtrip.log: after the Argus fix, open/refresh render exact rows; bounded-failure step expected stale text 'error sending request' but the account context correctly refuses a different origin ('Authenticated backend origin mismatch')",
         "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/08 and 10: full V4 matrix (open, refresh, bounded failure, failed retry, recovery) passes; failure moves to the test's own workspace cleanup (403)",
-        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/12-native-emitter-roundtrip.log: cleanup 403 root-caused to C1-FDELETE (statement 16); stopped per brief Â§4 / CX-EXEC-003"
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/12-native-emitter-roundtrip.log: cleanup 403 root-caused to C1-FDELETE (statement 16); stopped per brief §4 / CX-EXEC-003"
       ]
     },
     "recommended_validation": [
@@ -1042,7 +1042,7 @@
     "date": "2026-09-22",
     "decided_by": "OPERATOR (relayed by the Integration Validator orchestrator, round 2)",
     "text": "C1-FDELETE: deleting a workspace CASCADES to its rich documents, their version history and its Canvas boards. Only an owner/admin (capability-gated) may do it, and it emits an auditable Flight Recorder event. Version history stays immutable while the workspace exists; only whole-workspace deletion removes it.",
-    "spec_basis": "No explicit Master Spec clause for this case (recorded as an Operator decision). Related: capability-gated auditable deletion (07-6 roadmap Â§11.5.12 reference; LM-RLS-001 admin role) and the ON DELETE CASCADE pattern for workspace-owned records."
+    "spec_basis": "No explicit Master Spec clause for this case (recorded as an Operator decision). Related: capability-gated auditable deletion (07-6 roadmap §11.5.12 reference; LM-RLS-001 admin role) and the ON DELETE CASCADE pattern for workspace-owned records."
   },
   "remediation_v4": {
     "session": "KERNEL_BUILDER-C1",
@@ -1117,7 +1117,7 @@
         ]
       },
       "R5": {
-        "apphost": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/92-rep-r5-apphost.log: still red at test_app_host_mount.rs:571 status=None, resolver_ready=true (click waits for Click action now). Agent correction: regressed between ba03f563 and c792b8a2; suspects MT-111 1236078e AccountUi::show top panel (local_account.rs:366 via app.rs:36028), per-frame bind_authenticated_context (app.rs:36077) or account gate (app.rs:36052) swallowing the menu click â€” UNVERIFIED.",
+        "apphost": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/92-rep-r5-apphost.log: still red at test_app_host_mount.rs:571 status=None, resolver_ready=true (click waits for Click action now). Agent correction: regressed between ba03f563 and c792b8a2; suspects MT-111 1236078e AccountUi::show top panel (local_account.rs:366 via app.rs:36028), per-frame bind_authenticated_context (app.rs:36077) or account gate (app.rs:36052) swallowing the menu click — UNVERIFIED.",
         "ckc_save": "Root cause found and fixed in R1 commit: the save transaction hid the old projection (hash-equality select filter) and re-created it (loom_blocks already exists -> 500 = C1-SAVE-500). Writer branch added to loom_blocks select/update. Native re-run pending (validator).",
         "canvas_text_card": "see R2",
         "tag_hub": "see R1"
