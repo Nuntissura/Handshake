@@ -1081,7 +1081,7 @@ impl RuntimeChatLedgerTransport {
 
     /// MT-111: the ingest route is WORKSPACE-SCOPED.
     ///
-    /// MT-109 removed the unauthenticated unscoped `POST /api/flight_recorder/native_editor_event`
+    /// MT-109 removed the unauthenticated unscoped native-editor ingestion route
     /// and replaced it with `POST /api/workspaces/{workspace_id}/flight_recorder/native_editor_event`,
     /// so the PATH itself is the workspace authority and is validated against a real canonical
     /// workspace row before any durable write. The old unscoped URL no longer exists, so continuing to

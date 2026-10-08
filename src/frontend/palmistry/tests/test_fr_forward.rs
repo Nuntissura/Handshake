@@ -35,7 +35,7 @@ use palmistry::fr_forward::{
 };
 
 /// WP-KERNEL-012 MT-115: the path the AC-013-3 STUB serves. It is a TEST-LOCAL constant on purpose.
-/// MT-109 removed the unscoped `/api/flight_recorder/runtime_chat_event` the production module used
+/// MT-109 removed the unscoped runtime-chat ingestion route the production module used
 /// to export, and nothing has replaced it, so there is no product route to reference here. The stub
 /// models the FUTURE WP-KERNEL-016 survivor ingestion shape; naming it locally keeps that clearly a
 /// test fixture rather than a claim that the product exposes this route.

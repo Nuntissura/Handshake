@@ -8,7 +8,7 @@
 //!
 //! # WP-KERNEL-012 MT-115 — THE ROUTE THIS MODULE TARGETED NO LONGER EXISTS
 //!
-//! MT-109 removed the unscoped `POST /api/flight_recorder/runtime_chat_event` and replaced the whole
+//! MT-109 removed unscoped runtime-chat ingestion and replaced the whole
 //! flight-recorder route group with workspace-scoped, capability-gated routes that require a live
 //! native-MCP session credential. Palmistry has no workspace id and, by design, runs when the app is
 //! frozen or dead — exactly when no live binding can exist. It therefore satisfies neither half of
@@ -19,7 +19,7 @@
 //!
 //! # The formerly-existing route (historical, kept for the closed-schema evidence below)
 //!
-//! `POST /api/flight_recorder/runtime_chat_event` WAS the FR ingestion endpoint. The in-repo
+//! The unscoped runtime-chat ingestion route WAS the FR ingestion endpoint. The in-repo
 //! reference for its EXACT accepted body shape + requirements is
 //! `handshake_native/src/event_emitter.rs` (the MT-036 `RuntimeChatLedgerTransport`), which posts to
 //! exactly this route and documents (verified against `src/backend/handshake_core`):
@@ -60,7 +60,7 @@ use crate::survivor_store::SurvivorRecord;
 
 // ── WP-KERNEL-012 MT-115: the removed route constant ──────────────────────────────────────────────
 //
-// This module used to export `FR_ROUTE_PATH = "/api/flight_recorder/runtime_chat_event"`, described as
+// This module used to export `FR_ROUTE_PATH` for unscoped runtime-chat ingestion, described as
 // "the EXISTING verified FR ingestion endpoint". WP-KERNEL-012 MT-109 DELETED that route. The
 // flight-recorder route group is now workspace-scoped and capability-gated:
 // `POST /api/workspaces/{workspace_id}/flight_recorder/runtime_chat_event`, behind fail-closed

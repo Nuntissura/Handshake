@@ -1104,7 +1104,7 @@ settings-editor-flight-recorder-posture: Flight Recorder has no dedicated prefer
 Ingestion is workspace-scoped and capability-gated: the shell posts to \
 POST /api/workspaces/{workspace_id}/flight_recorder/native_editor_event with the same \
 x-hsk-session-token native-MCP credential, and the path segment is the workspace authority. The \
-unscoped POST /api/flight_recorder/native_editor_event route no longer exists. \
+unscoped native-editor ingestion route no longer exists. \
 The native POST envelope is closed: schema_version=hsk.native_editor@0.1; event_id=non-nil UUID; \
 ts_utc=RFC3339; kind=one accepted action; pane_id=non-empty string; \
 actor_id, actor_kind and workspace_id are NOT client authority - each is optional and, when present, \

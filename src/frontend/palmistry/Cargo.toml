@@ -84,8 +84,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # - `dirs` 5: the PORTABLE per-user data dir for the durable survivor store
 #   (`dirs::data_local_dir()/handshake/palmistry/survivors/`), the SAME convention as MT-083's crash dir.
 dirs = "5"
-# - `reqwest` 0.12 (blocking + rustls): the FORWARDER posts the survivor record to the EXISTING verified
-#   Flight Recorder route `POST /api/flight_recorder/runtime_chat_event` (reuse-via-API; the FR is
+# - `reqwest` 0.12 (blocking + rustls): the FORWARDER uses an explicitly bound
+#   Flight Recorder ingestion route; production has no bound route (reuse-via-API; the FR is
 #   forbidden_paths). The BLOCKING client is used because the forward runs on Palmistry's own recovery
 #   thread (no tokio runtime in this watcher binary), with a bounded connect+read timeout so a dead/absent
 #   FR can never hang the watcher. `default-features=false` + rustls-tls matches handshake-native's pin
