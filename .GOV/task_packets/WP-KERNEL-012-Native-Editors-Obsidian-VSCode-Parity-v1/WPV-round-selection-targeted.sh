@@ -1,8 +1,8 @@
 # WPV fresh full own MT-111 acceptance selection after the approved manual/version repair.
 # Six named cases satisfy the own runtime floor; independent verdict follows the contract.
-ROUND_SELECTION_SHA=062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb
+ROUND_SELECTION_SHA=6fc38af7ceb822ae87e425d510d44c1d509b40e5
 ROUND_SELECTION_MODE=targeted
-ROUND_SELECTION_OUTPUT_SUFFIX=-mt111-r2
+ROUND_SELECTION_OUTPUT_SUFFIX=-mt111-r3
 CORE_SKIP=1
 CORE_LIB=0
 CORE_TESTS=()

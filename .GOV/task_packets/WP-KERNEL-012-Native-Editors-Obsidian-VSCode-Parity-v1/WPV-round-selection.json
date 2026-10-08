@@ -1,10 +1,10 @@
 {
   "schema": "hsk.validator_round_selection@1",
-  "candidate": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+  "candidate": "6fc38af7ceb822ae87e425d510d44c1d509b40e5",
   "mode": "targeted",
   "selection_file": "WPV-round-selection-targeted.sh",
-  "output_suffix": "-mt111-r2",
-  "runner_output_suffix": "-targeted-mt111-r2",
+  "output_suffix": "-mt111-r3",
+  "runner_output_suffix": "-targeted-mt111-r3",
   "covers": [
     "MT-111"
   ],
@@ -25,7 +25,7 @@
   "proof_basis": "Fresh complete own MT111 PC11101-05 runtime floor after canonical UserManual version change; exact native library1 plus3 integration targets; independent WP Validator acceptance remains required",
   "backend_required": true,
   "prior_proof_reuse": {
-    "runtime": "NONE for MT111 own six cases; all rerun fresh on062bf candidate",
+    "runtime": "NONE for MT111 own six cases; all rerun fresh on6fc38 candidate",
     "prior_frozen_inputs": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/ready13-1ad04e43-before-mt111-062bf554/manifest.json",
     "unchanged_mt170": "Historical accepted source/results/producer metadata retained; backend byte mismatch disposition owned by WPV"
   },
