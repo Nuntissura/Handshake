@@ -25,7 +25,7 @@
   "title": "B9-MT-136-Port-The-Storage-Layer-Off-sqlx-Onto-The-Embedded-SurrealDB-Store",
   "group": "B9",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-10-01T20:40:00Z",
+  "updated_at_utc": "2026-10-08T23:07:25.505220+00:00",
   "validation_shared_union_ec596eec": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "decision": "inconclusive",
@@ -245,18 +245,18 @@
       "reason": "Core proof_b source-upsert consumer depends on changed storage/surreal/knowledge.rs",
       "round_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"
     },
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V8",
     "depends_on": [],
     "blocks": [],
-    "active": true,
-    "validator_verdict": "FAIL_V7",
-    "completed_by": null,
+    "active": false,
+    "validator_verdict": "PASS_V8",
+    "completed_by": "WP_VALIDATOR-20261008-MT136-X64-ARMHOST",
     "claimed_by": "KERNEL_BUILDER-20261008-MT136",
     "claimed_at_utc": "2026-10-08T20:48:44.092765Z",
     "ready_for_validation_at_utc": "2026-10-08T20:48:44.092765Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20261008-MT136",
-    "proof_status": "IMPLEMENTER_STATIC_GREEN_RUNTIME_PENDING",
-    "post_implementation_adversarial_review_status": "NO_BLOCKING_FINDING_MT136_0C63",
+    "proof_status": "PASS_INDEPENDENT_WPV_SOURCE_CHECK_RUNTIME_11_OF_11",
+    "post_implementation_adversarial_review_status": "NO_BLOCKING_FINDING_MT136_0C63_INDEPENDENT_WPV",
     "ready_for_validation_summary": "Pushed one-file approved SUPPRESS manifest repair 0c63e656; rustfmt2021 and scoped diff checks PASS with unchanged input digests; independent buddy source review has no blocking finding; before_submit PASS11/11. No Cargo/runtime acceptance claimed. FAIL_V7/history retained; WPV owns exact full MT136 proof.",
     "validation_boundary": "KERNEL_BUILDER issues no official PASS verdict. Only an Operator-assigned WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 to COMPLETED.",
     "evidence": {
@@ -282,10 +282,10 @@
       "still_blocked_on": "Schema coverage. The remaining five modules (fems_memory 72, knowledge_crdt 46, knowledge_memory 33, knowledge_retrieval 9, block_view_outbox 9) need tables that schema.surql does not yet define. A dedicated schema lane is extending the source-forward wave to add them.",
       "remaining_work": "The KnowledgeStore trait (~180 methods) has no implementor. impl KnowledgeStore for SurrealDatabase is the single largest remaining item and is what the entire knowledge API layer is waiting on; the API modules are already re-typed to consume &dyn KnowledgeStore."
     },
-    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
-    "validated_at_utc": "2026-10-08T17:48:01.143141Z",
-    "validated_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
-    "next_actor": "WP_VALIDATOR: validate pushed0c63e656 exact MT136 contract; runtime/persistence proof pending",
+    "validated_by": "WP_VALIDATOR-20261008-MT136-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T23:07:25.505220+00:00",
+    "validated_commit": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+    "next_actor": "ORCHESTRATOR: independently inspect MT136 PASS_V8; no further MT136 repair required",
     "blocked_on": null,
     "previous_implementer_readiness_20260823": {
       "ready_for_validation_at_utc": "2026-08-23T14:40:52Z",
@@ -303,7 +303,8 @@
           "concurrency_and_failure_lifecycle:APPROVE"
         ]
       }
-    }
+    },
+    "current_verdict_ref": "validation_runtime_20261008_0c63e656_mt136"
   },
   "scope": {
     "summary": "Port the storage modules off sqlx onto the embedded SurrealDB store. These modules were helpers of the deleted PostgresDatabase and account for 463 of the errors: storage/knowledge.rs (184), storage/fems_memory.rs (72), storage/knowledge_crdt.rs (46), plus knowledge_memory, knowledge_retrieval, kb003_storage, block_view_outbox, calendar, retention and loom. Decide per module whether it is ported into storage/surreal/ or deleted as dead PostgreSQL implementation detail: storage/loom.rs and storage/retention.rs currently have ZERO external consumers while storage/knowledge.rs has 39, so they are not all the same case. EVIDENCE: Measured from a full cargo check of handshake_core after the physical PostgreSQL removal on 2026-08-16 (log Handshake_Artifacts/handshake-test/wp012-surreal-breakage-20260816T033259Z.log): 1716 errors across 119 files. Root causes: 1493 unresolved sqlx, 152 missing migrations .sql include_bytes (since restored), 51 deleted-postgres-module references, 20 other. SEAM: The Database trait has 201 methods: 108 required and 93 with default bodies (88 of those return StorageError::NotImplemented and 5 are supports_ capability flags). storage/surreal/database.rs already implements all 108 required methods and compiles clean; 106 currently return NotImplemented. storage/surreal/schema.surql already defines 121 tables, 1414 fields and 347 indexes, and storage/surreal/documents.rs, blocks.rs, workspaces.rs and preferences.rs already implement 36 working functions - use those as the implementation pattern. Decrement DECLARED_NOT_IMPLEMENTED in database.rs in the SAME change that ports each method; the not_implemented_surface_is_declared test enforces it.",
@@ -1440,9 +1441,186 @@
         },
         "compile": "NOT_RUN by implementer per live Operator dispatch; WPV owns required warm compile proof",
         "runtime": "UNVALIDATED; static/source review never independent acceptance"
+      },
+      {
+        "proof_id": "PR-WP012-MT136-WPV-20261008-0C63-SOURCE",
+        "command": "rg -n -i sqlx ../wtc-WP-KERNEL-012/src/backend/handshake_core/src/storage",
+        "cwd": ".",
+        "commit": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-20261008-MT136-X64-ARMHOST",
+        "target_dir": "WP-KERNEL-012/MT-170/wpv/target",
+        "started_utc": "2026-10-08T21:19:54.507648+00:00",
+        "finished_utc": "2026-10-08T21:19:54.577324+00:00",
+        "exit_code": 1,
+        "result_line": "",
+        "log_path": "WP-KERNEL-012/MT-170/wpv/logs/mt136-source-census-0c63e656.json",
+        "covers": [
+          "MT-136",
+          "AC-136-1"
+        ]
+      },
+      {
+        "proof_id": "PR-WP012-MT136-WPV-20261008-0C63-PT1361",
+        "command": "\"C:\\Users\\iljas\\.rustup\\toolchains\\1.97.1-x86_64-pc-windows-msvc\\bin\\cargo.exe\" check --locked -j 1 --lib --config \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-backend-profile.toml\" --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current/src/backend/handshake_core",
+        "commit": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-20261008-MT136-X64-ARMHOST",
+        "target_dir": "WP-KERNEL-012/MT-170/wpv/target",
+        "started_utc": "2026-10-08T21:09:34.3072985Z",
+        "finished_utc": "2026-10-08T22:06:46.0438341Z",
+        "exit_code": 0,
+        "result_line": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 57m 11s",
+        "log_path": "WP-KERNEL-012/MT-170/wpv/logs/core-check-lib-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-targeted-mt136.log",
+        "features": [
+          "app-runtime",
+          "surreal-test-support",
+          "test-utils"
+        ],
+        "covers": [
+          "MT-136",
+          "PT-136-1",
+          "AC-136-1"
+        ]
+      },
+      {
+        "cwd": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current/src/backend/handshake_core",
+        "commit": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-20261008-MT136-X64-ARMHOST",
+        "target_dir": "WP-KERNEL-012/MT-170/wpv/target",
+        "features": [
+          "app-runtime",
+          "surreal-test-support",
+          "test-utils"
+        ],
+        "proof_id": "PR-WP012-MT136-WPV-20261008-0C63-BUILD",
+        "command": "\"C:\\Users\\iljas\\.rustup\\toolchains\\1.97.1-x86_64-pc-windows-msvc\\bin\\cargo.exe\" test --locked -j 1 --no-run -v --config \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-backend-profile.toml\" --features app-runtime,surreal-test-support,test-utils --lib --test memory_capsule_recorder_surreal_tests",
+        "started_utc": "2026-10-08T22:06:49.6417095Z",
+        "finished_utc": "2026-10-08T22:57:52.8896799Z",
+        "exit_code": 0,
+        "result_line": "Finished `test` profile [unoptimized + debuginfo] target(s) in 51m 02s",
+        "log_path": "WP-KERNEL-012/MT-170/wpv/logs/core-build-v-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-targeted-mt136.log",
+        "covers": [
+          "MT-136",
+          "CORE-BUILD"
+        ]
+      },
+      {
+        "cwd": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current/src/backend/handshake_core",
+        "commit": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-20261008-MT136-X64-ARMHOST",
+        "target_dir": "WP-KERNEL-012/MT-170/wpv/target",
+        "features": [
+          "app-runtime",
+          "surreal-test-support",
+          "test-utils"
+        ],
+        "proof_id": "PR-WP012-MT136-WPV-20261008-0C63-PT1362-3",
+        "command": "\"C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\tools\\cargo-nextest\\0.9.146\\cargo-nextest.exe\" nextest run --locked --no-fail-fast --config \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-backend-profile.toml\" --config-file \"C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/nextest-core.toml\" --features app-runtime,surreal-test-support,test-utils -E \"(binary_id(=handshake_core) & test(/^(storage::surreal::mt136_database_surface_proof_a::mt136_database_surface_proof_a|storage::surreal::mt136_database_surface_proof_b::mt136_database_surface_proof_b|storage::surreal::mt136_database_surface_proof_c::tests::uncovered_database_methods_use_real_durable_surreal_state|storage::surreal::database::not_implemented_surface::not_implemented_surface_is_declared|storage::surreal::mt136_kernel_action_submitter_proof::tests::submitter_contract)$/)) | binary_id(=handshake_core::memory_capsule_recorder_surreal_tests)\" --lib --test memory_capsule_recorder_surreal_tests",
+        "started_utc": "2026-10-08T22:58:09.0670319Z",
+        "finished_utc": "2026-10-08T23:00:00.3897199Z",
+        "exit_code": 0,
+        "result_line": "Summary [  99.850s] 11 tests run: 11 passed, 2195 skipped",
+        "log_path": "WP-KERNEL-012/MT-170/wpv/logs/union-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-mt136.stderr.log",
+        "covers": [
+          "MT-136",
+          "PT-136-2",
+          "PT-136-3",
+          "AC-136-2",
+          "AC-136-4",
+          "SUBMITTER-BOUNDARY"
+        ]
       }
     ],
-    "latest_verdict_ref": "validation_runtime_20261008_1ad04e43_core"
+    "latest_verdict_ref": "validation_runtime_20261008_0c63e656_mt136",
+    "running_record_mt136_20261008": {
+      "schema_id": "hsk.validation_round_running@1",
+      "state": "CLOSED_GREEN",
+      "recorded_at_utc": "2026-10-08T21:06:31.687426Z",
+      "validator": "WP_VALIDATOR-20261008-MT136-X64-ARMHOST",
+      "candidate": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+      "tree": "70bbc5e7722f89dd5f9977ec69aa3222076b915b",
+      "wrapper_pid": 17896,
+      "wrapper_start_utc": "2026-10-08T20:55:32.8908730Z",
+      "observer_pid": 30060,
+      "observer_start_utc": "2026-10-08T20:55:32.7286612Z",
+      "identity_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-mt136.identity.json",
+      "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+      "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current",
+      "inputs": {
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "7d41f6fa397547af66e5893de08f5bb25c1c8a206b787872816ae270923c956c",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "22cb6df61a11ec5ab12f84583ea62e5424db9c99c35100d2b45b98aca0c62df9",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection-targeted.sh": "31769e2ff6a85ee45938bcd8d10f7de8c3b1244e6a9794a83b6064891e1e8bf3",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-metadata.py": "cc32bd2680ded760ef6974a0ea3818a1a6fd5f330ff0ea768ac9f175b2b6b871",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-refresh.sh": "304f8fd40a1b02c71d77c9055c179818f2c835697365ab662df983286fb61d3b",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-verify.py": "0c6800b4906f8d59c6c2fc3ebfcba1dbca555c4079ad01e4277e36aaa695d174",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest-core.toml": "522fb158b73b5501edd4e8ac5c4a8a38fedfbaedadf1c1cb7a0518fbb95fc262",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest.toml": "790f1077eaba5580d2ba8732e0d2ffed8ea1b5dd4badefc2b8da07c6fb0da91f",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.json": "1e3c50403642d784f95297a52c527303b5fac87e833077828ab82dacae0eb451",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-observer.ps1": "48fd59064cd89afa5e543679d3330363da22bdd8742617b7a626620175a7dead",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1": "68b6b8889d6cf5849d6e57ce9375e084bd99e20db0a26a5d02f2f621fbd61bbd"
+      },
+      "proof_scope": "Literal PT1361 cargo check --lib; exact11 named CORE cases; no native/backend/extracted selection",
+      "gate_before_round": "PASS114/114",
+      "gate_before_dispatch": "PASS35/35",
+      "runtime": "COMPLETED_GREEN",
+      "release_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-mt136.release",
+      "released_at_utc": "2026-10-08T21:08:01.0433499Z",
+      "free_commit_at_release_bytes": 29853208576,
+      "buddy_final_review": "NO_BLOCKING_FINDING; actual12hashes/PID/start/CIM/resource/isolation independently inspected",
+      "core_check_lib": {
+        "state": "COMPLETED",
+        "proof_record_ref": "validation.proof_records[proof_id=PR-WP012-MT136-WPV-20261008-0C63-PT1361]",
+        "log_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/core-check-lib-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-targeted-mt136.log",
+        "log_sha256": "30ff179df750c7e42a9cd81bb0ac5782d5e493c66f3ae1481400a4efafccd6c3",
+        "execution_capture_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/core-check-lib-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-targeted-mt136.execution.json",
+        "execution_capture_sha256": "c5249cb87fb5bc75635f588cde48154175cf003f97953c916a1e01091221380f",
+        "numeric_exit_code": 0,
+        "numeric_exit_code_evidence": "Frozen runner uses set -euo pipefail; required check pipeline completed with Finished dev and reached post-check cap guard and focused build. Captured external Process.ExitCode was null and is retained unchanged in execution artifact.",
+        "state_boundary": "PT1361 compile complete only; eleven runtime cases NOT_COMPLETE"
+      },
+      "current_phase": "COMPLETED",
+      "core_test_build": {
+        "state": "COMPLETED",
+        "pid": 36980,
+        "parent_pid": 50024,
+        "started_utc": "2026-10-08T22:06:49.6417095Z",
+        "execution_capture_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/core-build-v-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-targeted-mt136.execution.json",
+        "numeric_exit_code_capture": "Retained native handle kernel32 GetExitCodeProcess",
+        "finished_utc": "2026-10-08T22:57:52.8896799Z",
+        "numeric_exit_code": 0,
+        "proof_record_ref": "PR-WP012-MT136-WPV-20261008-0C63-BUILD"
+      },
+      "completed_at_utc": "2026-10-08T23:00:00.7714646Z",
+      "exit_record_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-mt136.exit.json",
+      "frozen_hash_match_count": 12,
+      "core_runtime": {
+        "state": "COMPLETED",
+        "pid": 31096,
+        "started_utc": "2026-10-08T22:58:09.0670319Z",
+        "finished_utc": "2026-10-08T23:00:00.3897199Z",
+        "numeric_exit_code": 0,
+        "selected": 11,
+        "passed": 11,
+        "failed": 0,
+        "errors": 0,
+        "selected_skipped": 0,
+        "filtered_cases": 2195,
+        "proof_record_ref": "PR-WP012-MT136-WPV-20261008-0C63-PT1362-3"
+      }
+    }
   },
   "validation_runtime_20261008_1ad04e43_core": {
     "schema_id": "hsk.mt_validation_verdict@1",
@@ -1554,7 +1732,7 @@
       "Remaining own contract/HBR floors decided by independent WPV; no unrelated MT failures inherited"
     ],
     "readiness": "READY_FOR_VALIDATION_IMPLEMENTATION_ONLY",
-    "next_actor": "WP_VALIDATOR: exact eleven-case MT136 proof plus PT1361 compile; no independent PASS yet",
+    "next_actor": "ORCHESTRATOR: independently inspect MT136 PASS_V8; no further MT136 repair required",
     "completed_product_candidate": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
     "candidate_tree": "70bbc5e7722f89dd5f9977ec69aa3222076b915b",
     "changed_paths": [
@@ -1608,7 +1786,7 @@
     },
     "running_record": {
       "schema_id": "hsk.validation_round_running@1",
-      "state": "PASSIVE_AWAITING_RELEASE",
+      "state": "CLOSED_GREEN",
       "recorded_at_utc": "2026-10-08T21:06:31.687426Z",
       "validator": "WP_VALIDATOR-20261008-MT136-X64-ARMHOST",
       "candidate": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
@@ -1637,7 +1815,328 @@
       "proof_scope": "Literal PT1361 cargo check --lib; exact11 named CORE cases; no native/backend/extracted selection",
       "gate_before_round": "PASS114/114",
       "gate_before_dispatch": "PASS35/35",
-      "runtime": "NOT_RUN"
+      "runtime": "COMPLETED_GREEN",
+      "release_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-mt136.release",
+      "released_at_utc": "2026-10-08T21:08:01.0433499Z",
+      "free_commit_at_release_bytes": 29853208576,
+      "buddy_final_review": "NO_BLOCKING_FINDING; actual12hashes/PID/start/CIM/resource/isolation independently inspected",
+      "core_check_lib": {
+        "state": "COMPLETED",
+        "proof_record_ref": "validation.proof_records[proof_id=PR-WP012-MT136-WPV-20261008-0C63-PT1361]",
+        "log_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/core-check-lib-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-targeted-mt136.log",
+        "log_sha256": "30ff179df750c7e42a9cd81bb0ac5782d5e493c66f3ae1481400a4efafccd6c3",
+        "execution_capture_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/core-check-lib-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-targeted-mt136.execution.json",
+        "execution_capture_sha256": "c5249cb87fb5bc75635f588cde48154175cf003f97953c916a1e01091221380f",
+        "numeric_exit_code": 0,
+        "numeric_exit_code_evidence": "Frozen runner uses set -euo pipefail; required check pipeline completed with Finished dev and reached post-check cap guard and focused build. Captured external Process.ExitCode was null and is retained unchanged in execution artifact.",
+        "state_boundary": "PT1361 compile complete only; eleven runtime cases NOT_COMPLETE"
+      },
+      "current_phase": "COMPLETED",
+      "core_test_build": {
+        "state": "COMPLETED",
+        "pid": 36980,
+        "parent_pid": 50024,
+        "started_utc": "2026-10-08T22:06:49.6417095Z",
+        "execution_capture_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/core-build-v-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-targeted-mt136.execution.json",
+        "numeric_exit_code_capture": "Retained native handle kernel32 GetExitCodeProcess",
+        "finished_utc": "2026-10-08T22:57:52.8896799Z",
+        "numeric_exit_code": 0,
+        "proof_record_ref": "PR-WP012-MT136-WPV-20261008-0C63-BUILD"
+      },
+      "completed_at_utc": "2026-10-08T23:00:00.7714646Z",
+      "exit_record_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-mt136.exit.json",
+      "frozen_hash_match_count": 12,
+      "core_runtime": {
+        "state": "COMPLETED",
+        "pid": 31096,
+        "started_utc": "2026-10-08T22:58:09.0670319Z",
+        "finished_utc": "2026-10-08T23:00:00.3897199Z",
+        "numeric_exit_code": 0,
+        "selected": 11,
+        "passed": 11,
+        "failed": 0,
+        "errors": 0,
+        "selected_skipped": 0,
+        "filtered_cases": 2195,
+        "proof_record_ref": "PR-WP012-MT136-WPV-20261008-0C63-PT1362-3"
+      }
+    },
+    "source_inspection": {
+      "state": "closed",
+      "candidate": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+      "artifact": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt136-source-0c63e656.json",
+        "bytes": 9201,
+        "sha256": "69ff0ba552c1ef3dd37ece3053462f1569862482a97a72cf737fff5553acd551"
+      },
+      "result": "PASS_SOURCE_STATIC_ONLY",
+      "runtime": "NOT_COMPLETE",
+      "source_census": "Storage sqlx0 (rg exit1), DECLARED_NOT_IMPLEMENTED0; retained real module consumers including grouped reexports/retention startup",
+      "review": "Independent WPV direct producer/replay/atomic/catalog and source-floor inspection; buddy actual same-candidate diff+consumer lens no blocking finding",
+      "proof_record_id": "PR-WP012-MT136-WPV-20261008-0C63-SOURCE",
+      "record_shape_authority": "Pinned896f4e15 PROOF_RECORD.schema.json; required/property/enum/pattern/relative-path constraints manually inspected and asserted; no formal JSONSchema validation claimed"
     }
+  },
+  "validation_runtime_20261008_0c63e656_mt136": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "passed",
+    "verdict": "PASS_V8",
+    "validated_by": "WP_VALIDATOR-20261008-MT136-X64-ARMHOST",
+    "candidate_commit": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+    "candidate_tree": "70bbc5e7722f89dd5f9977ec69aa3222076b915b",
+    "started_at": "2026-10-08T22:58:09.0670319Z",
+    "completed_at": "2026-10-08T23:00:00.3897199Z",
+    "proof_record_ids": [
+      "PR-WP012-MT136-WPV-20261008-0C63-SOURCE",
+      "PR-WP012-MT136-WPV-20261008-0C63-PT1361",
+      "PR-WP012-MT136-WPV-20261008-0C63-BUILD",
+      "PR-WP012-MT136-WPV-20261008-0C63-PT1362-3"
+    ],
+    "frozen_input_sha256": {
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "7d41f6fa397547af66e5893de08f5bb25c1c8a206b787872816ae270923c956c",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "22cb6df61a11ec5ab12f84583ea62e5424db9c99c35100d2b45b98aca0c62df9",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection-targeted.sh": "31769e2ff6a85ee45938bcd8d10f7de8c3b1244e6a9794a83b6064891e1e8bf3",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-metadata.py": "cc32bd2680ded760ef6974a0ea3818a1a6fd5f330ff0ea768ac9f175b2b6b871",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-refresh.sh": "304f8fd40a1b02c71d77c9055c179818f2c835697365ab662df983286fb61d3b",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-verify.py": "0c6800b4906f8d59c6c2fc3ebfcba1dbca555c4079ad01e4277e36aaa695d174",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest-core.toml": "522fb158b73b5501edd4e8ac5c4a8a38fedfbaedadf1c1cb7a0518fbb95fc262",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest.toml": "790f1077eaba5580d2ba8732e0d2ffed8ea1b5dd4badefc2b8da07c6fb0da91f",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.json": "1e3c50403642d784f95297a52c527303b5fac87e833077828ab82dacae0eb451",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-observer.ps1": "48fd59064cd89afa5e543679d3330363da22bdd8742617b7a626620175a7dead",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1": "68b6b8889d6cf5849d6e57ce9375e084bd99e20db0a26a5d02f2f621fbd61bbd"
+    },
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-core-targeted-mt136.xml",
+    "artifacts": [
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-core-targeted-mt136.xml",
+        "bytes": 2744,
+        "sha256": "abc3e8f397536c490956f5df382a96ba8579e41aa348ca3c81be0461fd2f52c7"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-mt136.stdout.log",
+        "bytes": 420481,
+        "sha256": "597c08eb9ffd7d4026a952d3752c4fe80aec143254af52c3da629d28c72ae0ce"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-mt136.stderr.log",
+        "bytes": 45300,
+        "sha256": "dde09d1663719add317ba2359d872f9ca7c392016e3731b21e83936ad22b2d09"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-mt136.identity.json",
+        "bytes": 4312,
+        "sha256": "d5efc34ea97470ff78df7db1cfcdfb8c0c2ef4dd7386fc5c820b909994b13531"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-mt136.exit.json",
+        "bytes": 3158,
+        "sha256": "bd463729a41b035d9d96d8d39c76b12700df152a4f526db102ed1efa204d7e50"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-mt136.observations.jsonl",
+        "bytes": 471600,
+        "sha256": "6c02fe170b19de92730895d033dcc52d6d1fb9e0b3818c3d54b1bf16d0748c70"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/core-build-v-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-targeted-mt136.log",
+        "bytes": 358111,
+        "sha256": "e93f3bad13a726f27a272839c1431bb663f5d79c86f79addce128136dfc9b991"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/core-build-v-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-targeted-mt136.execution.json",
+        "bytes": 1039,
+        "sha256": "dc0828ce28c7021ac7ac5e5339c72985cdcf724c07f875c8f38dd92e28d10df4"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/core-runtime-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-targeted-mt136.execution.json",
+        "bytes": 1756,
+        "sha256": "0fbb6feed8bcd2ee76461326031aeda1f1e8e931ad501aaad538d544d3d82a61"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/core-check-lib-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-targeted-mt136.log",
+        "bytes": 50919,
+        "sha256": "30ff179df750c7e42a9cd81bb0ac5782d5e493c66f3ae1481400a4efafccd6c3"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/core-check-lib-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-targeted-mt136.execution.json",
+        "bytes": 887,
+        "sha256": "c5249cb87fb5bc75635f588cde48154175cf003f97953c916a1e01091221380f"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt136-source-0c63e656.json",
+        "bytes": 9201,
+        "sha256": "69ff0ba552c1ef3dd37ece3053462f1569862482a97a72cf737fff5553acd551"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt136-source-census-0c63e656.json",
+        "bytes": 438,
+        "sha256": "19d1afc57a2b8325142e91a54a0eb12779e2151735a8cf4b5f384072b1636835"
+      }
+    ],
+    "runtime_result": {
+      "run_id": "12c0357c-7054-4574-98ce-0f4e9d7a0320",
+      "selected": 11,
+      "passed": 11,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "filtered_not_selected": 2195,
+      "seconds": 99.85,
+      "cases": [
+        {
+          "target": "handshake_core",
+          "name": "storage::surreal::database::not_implemented_surface::not_implemented_surface_is_declared",
+          "seconds": 0.113,
+          "result": "PASS"
+        },
+        {
+          "target": "handshake_core",
+          "name": "storage::surreal::mt136_database_surface_proof_a::mt136_database_surface_proof_a",
+          "seconds": 15.79,
+          "result": "PASS"
+        },
+        {
+          "target": "handshake_core",
+          "name": "storage::surreal::mt136_database_surface_proof_b::mt136_database_surface_proof_b",
+          "seconds": 15.608,
+          "result": "PASS"
+        },
+        {
+          "target": "handshake_core",
+          "name": "storage::surreal::mt136_database_surface_proof_c::tests::uncovered_database_methods_use_real_durable_surreal_state",
+          "seconds": 16.437,
+          "result": "PASS"
+        },
+        {
+          "target": "handshake_core",
+          "name": "storage::surreal::mt136_kernel_action_submitter_proof::tests::submitter_contract",
+          "seconds": 3.703,
+          "result": "PASS"
+        },
+        {
+          "target": "handshake_core::memory_capsule_recorder_surreal_tests",
+          "name": "capsule_builder_injector_recorder_and_ipc_compose_over_embedded_surreal",
+          "seconds": 9.504,
+          "result": "PASS"
+        },
+        {
+          "target": "handshake_core::memory_capsule_recorder_surreal_tests",
+          "name": "capsule_recorder_dedup_collapses_duplicate_submissions",
+          "seconds": 9.525,
+          "result": "PASS"
+        },
+        {
+          "target": "handshake_core::memory_capsule_recorder_surreal_tests",
+          "name": "capsule_recorder_persists_via_kernel_action_catalog_against_embedded_store",
+          "seconds": 8.368,
+          "result": "PASS"
+        },
+        {
+          "target": "handshake_core::memory_capsule_recorder_surreal_tests",
+          "name": "capsule_suppression_and_flight_recorder_evidence_survive_store_reopen",
+          "seconds": 3.677,
+          "result": "PASS"
+        },
+        {
+          "target": "handshake_core::memory_capsule_recorder_surreal_tests",
+          "name": "memory_ipc_list_and_get_round_trips_via_surreal_store",
+          "seconds": 8.227,
+          "result": "PASS"
+        },
+        {
+          "target": "handshake_core::memory_capsule_recorder_surreal_tests",
+          "name": "memory_ipc_suppression_persists_through_surreal_store_durably",
+          "seconds": 8.876,
+          "result": "PASS"
+        }
+      ]
+    },
+    "runtime_reuse": "NONE; fresh literal check and exact eleven selected cases on current candidate",
+    "checks": [
+      {
+        "check_id": "AC-136-1/PT-136-1",
+        "result": "PASS",
+        "evidence": "Storage source census0 expected rgexit1; literal cargo check --lib exit0/Finished; no sqlx errors"
+      },
+      {
+        "check_id": "AC-136-2/PT-136-3",
+        "result": "PASS",
+        "evidence": "DECLARED_NOT_IMPLEMENTED0; declaration guard and all3surface plus6capsule cases currentGREEN"
+      },
+      {
+        "check_id": "AC-136-3",
+        "result": "PASS",
+        "evidence": "Closed source artifact real consumers including grouped type reexports, Janitor startup, active API/store callsites; independently corroborated by buddy"
+      },
+      {
+        "check_id": "AC-136-4/PT-136-2",
+        "result": "PASS",
+        "evidence": "Real disk close/reopen in ABC, submitter and capsule persistence; three former suppressionREDs nowGREEN"
+      },
+      {
+        "check_id": "HBR-MAN-001/HBR-MAN-004",
+        "result": "NOT_APPLICABLE_TO_NEW_GUIDANCE",
+        "evidence_ref": "remediation_20261008_capsule_suppression.user_manual_applicability",
+        "scope": "Current approved private restoration only; broadtrigger assessed/predicatefalse, no pure-governance exemption or waiver"
+      },
+      {
+        "check_id": "GUI/ARGUS",
+        "result": "NOT_APPLICABLE",
+        "evidence_ref": "gui_obligation",
+        "scope": "No new operator-visible surface"
+      }
+    ],
+    "failure_kind": null,
+    "failure_class": null,
+    "remediation_required": [],
+    "unmet_required_proof": [],
+    "resource_observations": {
+      "samples": 213,
+      "max_sampled_wp_bytes": 105253801899,
+      "min_sampled_free_commit_bytes": 4521545728,
+      "gci_error_rows": 0,
+      "cap_bytes": 160000000000,
+      "reserve_boundary": "10GB pre-launch admission only; runtime low sample retained, no runtime kill floor"
+    },
+    "adversarial_review": {
+      "source": "Independent producer/replay/data-contract and failure-lifecycle lenses; unchanged exclusion for other actions/catalog rejection/atomic append/idempotency compared with exactdiff",
+      "runtime": "Existing submitter_contract negative/catalog/replay/conflict/promotion controls plus real capsuleFR/EventLedger durable reopen currentGREEN",
+      "buddy": "NO_BLOCKING_FINDING: exactdiff/source+SOURCE/PT1361+closedBUILD/runtime records;13artifacthashes/12bindings/exact11floor/history independently inspected"
+    },
+    "diagnostic_tiers": {
+      "tier1": "Real capsule Flight Recorder/EventLedger suppression record survives close/reopen in selected capsule_suppression_and_flight_recorder_evidence_survive_store_reopen; exact typed FR-EVT-CAPSULE-SUPPRESSED identity asserted",
+      "tier2": "No UI/Palmistry operator-surface change by sole private producer diff; no new tier2 evidence claimed",
+      "tier3": "No watcher/analyzer/API diagnostic behavior changed; no new tier3 obligation triggered"
+    },
+    "scope_limit": "Only MT136; no whole-WP/native/integration verdict; retained old FAIL_V7/history and MT111/170PASS proof; no current runtime reuse",
+    "validated_at_utc": "2026-10-08T23:07:25.505220+00:00",
+    "gameplan": {
+      "before_dispatch": "PASS35/35",
+      "before_round": "PASS75/75 inside actual wrapper; independent wildcardpreparationPASS114/114",
+      "before_verdict": "PASS14/14 at current0c63",
+      "authority": "Existing gameplan controller; no bypass"
+    },
+    "preserved": {
+      "prior_verdict": "validation_runtime_20261008_1ad04e43_core FAIL_V7 retained byte-semantically",
+      "prior_proof_prefix": "All prior validation.proof_records retained unchanged",
+      "other_mts": "MT111PASS_V4 and MT170PASS_V2 unchanged; no adjacent verdicts",
+      "retention_ref": "remediation_20261008_capsule_suppression.prior_proof_preservation"
+    },
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT136-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-WPV-PASS_V8-20261008",
+        "at_utc": "2026-10-08T23:07:25.505220+00:00",
+        "decision": "passed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT136-0c63e656c96c75fefbea00eb776c9cf1cc2d0f76-WPV-PASS_V8-20261008",
+        "at_utc": "2026-10-08T23:07:25.505220+00:00",
+        "decision": "passed",
+        "state_effect": "One READY_FOR_VALIDATION->PASS_V8 transition; exact current0c63 ownsource/check/eleven-case floor met"
+      }
+    ]
   }
 }

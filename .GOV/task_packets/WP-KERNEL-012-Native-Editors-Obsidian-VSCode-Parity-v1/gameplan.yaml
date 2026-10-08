@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 496
+generation: 497
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -406,3 +406,4 @@ steps:
 - {id: GP-385, role: wp_validator, at: before_round, do: verify storage Surreal module paths via inventory and actual surreal.rs declarations, check: {type: confirm}, source: 'infra: MT136 source read guessed storage/surreal/mod.rs; actual module root is surreal.rs', state: active}
 - {id: GP-386, role: wp_validator, at: before_round, do: verify observer identity field names from actual JSON before PID lookup, check: {type: confirm}, source: 'infra: MT136 metadata queried absent observer_pid; actual observer identity key is pid', state: active}
 - {id: GP-387, role: orchestrator, at: before_dispatch, do: verify controller flags and exact artifact suffix from help and inventory before preparation reads, check: {type: confirm}, source: 'infra: MT136 root used --moment instead of --at and guessed absent ready.json before actual identity inventory read', state: active}
+- {id: GP-388, role: wp_validator, at: before_round, do: verify source metadata reads use inert file line ranges before matching executable command tokens, check: {type: confirm}, source: 'infra: inline selector text triggered global20s gate budget during metadata-only source read', state: active}
