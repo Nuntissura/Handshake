@@ -41,19 +41,19 @@
       "reason": "Core proof_b source-upsert consumer depends on changed storage/surreal/knowledge.rs",
       "round_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"
     },
-    "status": "FAIL_V7",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [],
     "active": true,
     "validator_verdict": "FAIL_V7",
     "completed_by": null,
-    "claimed_by": "KERNEL_BUILDER-20260818-130753",
-    "claimed_at_utc": "2026-08-18T13:30:00Z",
-    "ready_for_validation_at_utc": "2026-08-23T14:40:52Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260818-130753",
-    "proof_status": "PASS_V4_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
-    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V4_TWO_LENS_INDEPENDENT_REVIEW_PASS_2026-08-23",
-    "ready_for_validation_summary": "Exact frozen candidate 3dd353e8a7caf8618f7b9b9fe3405b14f00efb116c883434fa45478c32732766 passes the MT-136 SurrealDB-only storage surface runner, Database not-implemented guard, real embedded close/reopen durability proofs, UserManual self-consistency 12/12, MT-254 real-backend Playwright 1/1, zero-sqlx storage scan, scoped diff checks, and cargo check --lib. Two independent adversarial reviews approved the exact candidate through contract/data-semantics and concurrency/failure-lifecycle lenses. Official validator verdict remains unset and completed_by remains null. The overbroad all-targets audit remains red only on legacy PostgreSQL/sqlx test harnesses assigned to MT-141; no PostgreSQL fallback was restored.",
+    "claimed_by": "KERNEL_BUILDER-20261008-MT136",
+    "claimed_at_utc": "2026-10-08T20:48:44.092765Z",
+    "ready_for_validation_at_utc": "2026-10-08T20:48:44.092765Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20261008-MT136",
+    "proof_status": "IMPLEMENTER_STATIC_GREEN_RUNTIME_PENDING",
+    "post_implementation_adversarial_review_status": "NO_BLOCKING_FINDING_MT136_0C63",
+    "ready_for_validation_summary": "Pushed one-file approved SUPPRESS manifest repair 0c63e656; rustfmt2021 and scoped diff checks PASS with unchanged input digests; independent buddy source review has no blocking finding; before_submit PASS11/11. No Cargo/runtime acceptance claimed. FAIL_V7/history retained; WPV owns exact full MT136 proof.",
     "validation_boundary": "KERNEL_BUILDER issues no official PASS verdict. Only an Operator-assigned WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 to COMPLETED.",
     "evidence": {
       "candidate_sha256": "3dd353e8a7caf8618f7b9b9fe3405b14f00efb116c883434fa45478c32732766",
@@ -81,8 +81,25 @@
     "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
     "validated_at_utc": "2026-10-08T17:48:01.143141Z",
     "validated_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
-    "next_actor": "ORCHESTRATOR: retain failure; MT111 is the sole selected repair",
-    "blocked_on": null
+    "next_actor": "WP_VALIDATOR: validate pushed0c63e656 exact MT136 contract; runtime/persistence proof pending",
+    "blocked_on": null,
+    "previous_implementer_readiness_20260823": {
+      "ready_for_validation_at_utc": "2026-08-23T14:40:52Z",
+      "ready_for_validation_by": "KERNEL_BUILDER-20260818-130753",
+      "proof_status": "PASS_V4_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+      "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V4_TWO_LENS_INDEPENDENT_REVIEW_PASS_2026-08-23",
+      "ready_for_validation_summary": "Exact frozen candidate 3dd353e8a7caf8618f7b9b9fe3405b14f00efb116c883434fa45478c32732766 passes the MT-136 SurrealDB-only storage surface runner, Database not-implemented guard, real embedded close/reopen durability proofs, UserManual self-consistency 12/12, MT-254 real-backend Playwright 1/1, zero-sqlx storage scan, scoped diff checks, and cargo check --lib. Two independent adversarial reviews approved the exact candidate through contract/data-semantics and concurrency/failure-lifecycle lenses. Official validator verdict remains unset and completed_by remains null. The overbroad all-targets audit remains red only on legacy PostgreSQL/sqlx test harnesses assigned to MT-141; no PostgreSQL fallback was restored.",
+      "evidence": {
+        "candidate_sha256": "3dd353e8a7caf8618f7b9b9fe3405b14f00efb116c883434fa45478c32732766",
+        "candidate_boundary": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136-candidate-boundary.json",
+        "proof_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/handshake-test/mt136-final-20260823",
+        "scope_waiver_id": "BCW-mt5puti9",
+        "adversarial_reviews": [
+          "contract_and_data_semantics:APPROVE",
+          "concurrency_and_failure_lifecycle:APPROVE"
+        ]
+      }
+    }
   },
   "scope": {
     "summary": "Port the storage modules off sqlx onto the embedded SurrealDB store. These modules were helpers of the deleted PostgresDatabase and account for 463 of the errors: storage/knowledge.rs (184), storage/fems_memory.rs (72), storage/knowledge_crdt.rs (46), plus knowledge_memory, knowledge_retrieval, kb003_storage, block_view_outbox, calendar, retention and loom. Decide per module whether it is ported into storage/surreal/ or deleted as dead PostgreSQL implementation detail: storage/loom.rs and storage/retention.rs currently have ZERO external consumers while storage/knowledge.rs has 39, so they are not all the same case. EVIDENCE: Measured from a full cargo check of handshake_core after the physical PostgreSQL removal on 2026-08-16 (log Handshake_Artifacts/handshake-test/wp012-surreal-breakage-20260816T033259Z.log): 1716 errors across 119 files. Root causes: 1493 unresolved sqlx, 152 missing migrations .sql include_bytes (since restored), 51 deleted-postgres-module references, 20 other. SEAM: The Database trait has 201 methods: 108 required and 93 with default bodies (88 of those return StorageError::NotImplemented and 5 are supports_ capability flags). storage/surreal/database.rs already implements all 108 required methods and compiles clean; 106 currently return NotImplemented. storage/surreal/schema.surql already defines 121 tables, 1414 fields and 347 indexes, and storage/surreal/documents.rs, blocks.rs, workspaces.rs and preferences.rs already implement 36 working functions - use those as the implementation pattern. Decrement DECLARED_NOT_IMPLEMENTED in database.rs in the SAME change that ports each method; the not_implemented_surface_is_declared test enforces it.",
@@ -396,7 +413,22 @@
     "coder_session": null,
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": null,
+    "kernel_builder": {
+      "mt_id": "MT-136",
+      "worktree": "../wtc-WP-KERNEL-012",
+      "branch": "feat/WP-KERNEL-012",
+      "candidate_commit": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+      "candidate_tree": "70bbc5e7722f89dd5f9977ec69aa3222076b915b",
+      "changed_paths": [
+        "src/backend/handshake_core/src/memory/persistence.rs"
+      ],
+      "remediation_ref": "MT-136.json#remediation_20261008_capsule_suppression",
+      "proof_ref": "validation.proof_records[PR-WP012-MT136-KB-20261008-0C63-STATIC]",
+      "status": "READY_FOR_VALIDATION",
+      "next_actor": "WP_VALIDATOR",
+      "runtime_acceptance": "PENDING"
+    }
   },
   "validation_shared_union_ee9efaba": {
     "schema_id": "hsk.mt_validation_verdict@1",
@@ -1172,6 +1204,38 @@
           ]
         },
         "scope_limit": "Closed CORE JUnit only; NATIVE/current union still running; no live final-stream hash, no inferred failure cause, no whole-WP verdict"
+      },
+      {
+        "id": "PR-WP012-MT136-KB-20261008-0C63-STATIC",
+        "check_id": "MT136-APPROVED-MINIMUM-STATIC",
+        "executor": "KERNEL_BUILDER-20261008-MT136",
+        "executor_role": "KERNEL_BUILDER",
+        "covers": [
+          "MT-136"
+        ],
+        "commit": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+        "tree": "70bbc5e7722f89dd5f9977ec69aa3222076b915b",
+        "command": "rustfmt --edition2021 --check approved persistence.rs; git diff --check scopedpath; normalized Git blob binding",
+        "result": "PASS_STATIC",
+        "exit_code": 0,
+        "input_digest_before": {
+          "src/backend/handshake_core/src/memory/persistence.rs": "09c5acf0dacbb2552033322b8c699a68ffcf672ce966056293b514bbab172d09",
+          "src/backend/handshake_core/src/memory/ipc.rs": "29145fa4c1d700f6180dce869c79d5883ebbe65db15c8c7ae5a28303bf98234a",
+          "src/backend/handshake_core/Cargo.toml": "68dee1852524c5b2daaa7620c1dbd7ad4ccbdddad1dddb97e991f60ad2993981"
+        },
+        "input_digest_after": {
+          "src/backend/handshake_core/src/memory/persistence.rs": "09c5acf0dacbb2552033322b8c699a68ffcf672ce966056293b514bbab172d09",
+          "src/backend/handshake_core/src/memory/ipc.rs": "29145fa4c1d700f6180dce869c79d5883ebbe65db15c8c7ae5a28303bf98234a",
+          "src/backend/handshake_core/Cargo.toml": "68dee1852524c5b2daaa7620c1dbd7ad4ccbdddad1dddb97e991f60ad2993981"
+        },
+        "input_digest_unchanged": true,
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-136/kb/static-capsule-suppression-20261008.json",
+          "bytes": 3514,
+          "sha256": "e73bfe4cdfe380124b161ba447ef489b43c39b3c2c9648197752131ecc65c354"
+        },
+        "compile": "NOT_RUN by implementer per live Operator dispatch; WPV owns required warm compile proof",
+        "runtime": "UNVALIDATED; static/source review never independent acceptance"
       }
     ],
     "latest_verdict_ref": "validation_runtime_20261008_1ad04e43_core"
@@ -1243,5 +1307,100 @@
         "state_effect": "One READY_FOR_VALIDATION -> FAIL_V7 transition from closed independent CORE JUnit"
       }
     ]
+  },
+  "remediation_20261008_capsule_suppression": {
+    "schema_id": "hsk.mt_remediation@1",
+    "recorded_at_utc": "2026-10-08T20:40:54.514607Z",
+    "recorded_by": "KERNEL_BUILDER-20261008-MT136",
+    "batch_owner": "MT-136",
+    "covered_mts": [
+      "MT-136"
+    ],
+    "predecessor_failure_ref": "MT-136.json#validation_runtime_20261008_1ad04e43_core",
+    "base_candidate": "6fc38af7ceb822ae87e425d510d44c1d509b40e5",
+    "operator_decision": {
+      "status": "GRANTED_OPERATOR",
+      "answer_verbatim": "extra scope approved; start remediating the mt untill it can be validated PASS",
+      "relayed_by": "ORCHESTRATOR root",
+      "approved_ancillary_paths": [
+        "src/backend/handshake_core/src/memory/persistence.rs"
+      ],
+      "scope_limit": "MT136 minimum durable capsule suppression repair only; no other MT, security or acceptance change"
+    },
+    "diagnosis": {
+      "state": "SOURCE_VERIFIED_RUNTIME_REPAIR_UNVALIDATED",
+      "source_refs": [
+        "src/backend/handshake_core/src/memory/ipc.rs:181-190,359-372,384-396",
+        "src/backend/handshake_core/src/memory/persistence.rs:188-220,238-245,388-401,863-874"
+      ],
+      "finding": "SUPPRESS carries an updated complete capsule record, but the manifest producer whitelists only RECORD. SUPPRESS appends the action alone while replay reads canonical manifest records; exact durable comparison reports the three recorded suppression mismatches."
+    },
+    "intended_change": "Whitelist only RECORD and SUPPRESS for the existing validated atomic action-plus-manifest append; keep all other actions excluded, manifest idempotency/correlation and exact durable comparison unchanged",
+    "ownership": {
+      "product": [
+        "src/backend/handshake_core/src/memory/persistence.rs"
+      ],
+      "governance": "MT-136.json implementer record; WPV retains gameplan and runtime/verdict ownership"
+    },
+    "implementer_checks": "Cheap source, owning-edition rustfmt and scoped diff checks only; Operator dispatch assigns all Cargo/runtime to WPV",
+    "runtime_required": [
+      "PT-136-1 literal storage zero-sqlx compile floor (WPV proposed same warm CORE_CHECK_LIB integration)",
+      "Six existing memory_capsule_recorder_surreal_tests cases including three original suppression REDs and real close/reopen",
+      "Library database surface A/B/C, declared NotImplemented guard and kernel submitter_contract (catalog/idempotency/promotion-gate negatives and real reopen)",
+      "Remaining own contract/HBR floors decided by independent WPV; no unrelated MT failures inherited"
+    ],
+    "readiness": "READY_FOR_VALIDATION_IMPLEMENTATION_ONLY",
+    "next_actor": "WP_VALIDATOR: exact eleven-case MT136 proof plus PT1361 compile; no independent PASS yet",
+    "completed_product_candidate": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+    "candidate_tree": "70bbc5e7722f89dd5f9977ec69aa3222076b915b",
+    "changed_paths": [
+      "src/backend/handshake_core/src/memory/persistence.rs"
+    ],
+    "diffstat": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 3
+    },
+    "committed_source_binding": {
+      "git_blob": "0e12471cec56affc7da145adc9be81c271e7967a",
+      "normalized_working_blob": "0e12471cec56affc7da145adc9be81c271e7967a",
+      "raw_sha256": "09c5acf0dacbb2552033322b8c699a68ffcf672ce966056293b514bbab172d09",
+      "matches_static_input": true
+    },
+    "cheap_proof_ref": "validation.proof_records[PR-WP012-MT136-KB-20261008-0C63-STATIC]",
+    "buddy_review": {
+      "reviewer": "mt170_buddy",
+      "result": "NO_BLOCKING_FINDING",
+      "actual_candidate": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+      "scope": "One changed producer whitelist; exact capsule target, same-ID suppression payload, catalog-before-atomic-append, manifest idempotency/correlation and durable equality retained; unknown/idempotency/other-action negative paths unchanged",
+      "runtime": "UNVALIDATED"
+    },
+    "user_manual_applicability": {
+      "HBR-MAN-001": "No changed callable action, schema, payload, usage, navigation or recovery contract; private restoration of already-required durable SUPPRESS state, no version/surface change",
+      "HBR-MAN-004": {
+        "disposition": "APPLICABILITY_NOT_TRIGGERED_FOR_NEW_GUIDANCE",
+        "broad_trigger_assessed": true,
+        "applicability_predicate_for_new_guidance": false,
+        "reason": "Product behavior restoration is within the broad trigger. Public IPC/action/schema/payload/result/invocation/promotion/recovery contract is unchanged; private producer fulfills existing generic durability/replay guidance. No new user instruction is changed by the sole source diff.",
+        "pure_governance_not_applicable_clause_invoked": false,
+        "pinned_rule_retained": true,
+        "waiver": false,
+        "future_boundary": "New usage or recovery guidance would require same-change manual update; this is not a blanket bug-fix exception"
+      },
+      "manual_source": "src/backend/handshake_core/src/user_manual/seed.rs",
+      "fresh_manual_runtime": "Not claimed by implementer"
+    },
+    "gameplan": {
+      "on_resume": "PASS3/3",
+      "before_submit": "PASS11/11",
+      "candidate": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76"
+    },
+    "prior_proof_preservation": {
+      "manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt111-6fc38af7-before-mt136-0c63e656/manifest.json",
+      "sha256": "0285b812bf5ef0c8ecdd1024974433dcf1889d08bbe26e8509a016e287a6bd83",
+      "producer": "WP_VALIDATOR",
+      "scope": "14 additive copies:12 prior consumed inputs, old source identity, accepted6fc backend; old results/history unchanged",
+      "buddy_verification": "Pending independent copy check at this implementer record; WPV owns admission"
+    }
   }
 }
