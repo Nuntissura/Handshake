@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 442
+generation: 445
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -361,7 +361,7 @@ steps:
 - {id: GP-340, role: builder, at: before_round, do: verify metadata reads use inert tools and do not name runtime command tokens as property expressions, check: {type: confirm}, source: 'infra: profile property projection named test runner token and read-only metadata hit wildcard hook', state: active}
 - {id: GP-341, role: builder, at: before_round, do: verify current WPV child sets its actual role before gate, check: {type: file, path: ../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/launch.ps1, contains: GAMEPLAN_ROLE = 'wp_validator'}, source: 'GP022/135/136/205 retired: no D: Builder or lint retry; WPV checksum and child-role gates replace old prep', state: active}
 - {id: GP-342, role: builder, at: before_round, do: verify source metadata paths from actual file inventory before reads, check: {type: confirm}, source: 'infra: guessed native and helper paths were absent; rg inventory resolves frontend and account_session_support', state: active}
-- {id: GP-343, role: wp_validator, at: before_round, do: verify commit admission reserve 12000000000 bytes for current session; j1 and fresh launch check, check: {type: confirm}, source: Operator Allow a 12 GB reserve for this session; GP198 historical20GB retained; no measured-safe claim, state: active}
+- {id: GP-343, role: wp_validator, at: before_round, do: verify commit admission reserve 12000000000 bytes for current session; j1 and fresh launch check, check: {type: confirm}, source: Operator Allow a 12 GB reserve for this session; GP198 historical20GB retained; no measured-safe claim, state: retired}
 - {id: GP-344, role: wp_validator, at: before_round, do: verify exact process start by typed DateTime equality and actual CIM command line, check: {type: confirm}, source: 'infra: CIM truncates100ns; JSON auto-DateTime needs typed equality; two prelaunch guards refused mutation', state: active}
 - {id: GP-345, role: wp_validator, at: before_round, do: verify MSVC x64 link first and Git Unix find and sort before Windows system tools, check: {type: confirm}, source: 'infra: first actual runner exited1 before Cargo because Windows find.exe handled Unix -type and -printf', state: active}
 - {id: GP-346, role: wp_validator, at: before_round, do: verify PowerShell named parameters include spaces and observer restart command resolves exact Sha argument, check: {type: confirm}, source: 'infra: missing spaces in Depth100 and Sha4eeb rejected metadata-write and passive observer before Cargo', state: active}
@@ -370,3 +370,5 @@ steps:
 - {id: GP-349, role: wp_validator, at: before_round, do: verify failing RocksDB source and header compiler paths fit Windows limit before warm resume, check: {type: confirm}, source: 'infra: first cold core failed101; intact cachedRocksDB260-264char paths raise C1083 in MSVC', state: active}
 - {id: GP-350, role: wp_validator, at: before_round, do: verify Cargo metadata uses x64 platform filter when offline cache omits Android dependency, check: {type: confirm}, source: 'infra: offline metadata requested uncached Android dependency; x64 filter exits0 without fetch or compile', state: active}
 - {id: GP-351, role: wp_validator, at: before_round, do: verify Start-Process quoted script path is one parenthesized argument string, check: {type: confirm}, source: 'infra: unparenthesized quoted-path concatenation in ArgumentList array inserted spaces and script lookup failed', state: active}
+- {id: GP-352, role: wp_validator, at: before_round, do: verify prior interrupted jobs absent and new host context identified before one same-target retry, check: {type: confirm}, source: 'infra: wrapper and observer absent without exit/error near Codex restart; termination initiator UNVERIFIED', state: active}
+- {id: GP-353, role: wp_validator, at: before_round, do: verify current session launch reserve10000000000 bytes; j1 and fresh memory check before Cargo, check: {type: confirm}, source: Operator exact10GB nextlaunch decision; GP343 historical12GB preserved; no measuredsafe or runtimekill claim, state: active}
