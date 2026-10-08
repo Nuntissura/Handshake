@@ -1,35 +1,35 @@
 {
   "schema": "hsk.validator_round_selection@1",
-  "candidate": "6fc38af7ceb822ae87e425d510d44c1d509b40e5",
+  "candidate": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
   "mode": "targeted",
   "selection_file": "WPV-round-selection-targeted.sh",
-  "output_suffix": "-mt111-r3",
-  "runner_output_suffix": "-targeted-mt111-r3",
+  "output_suffix": "-mt136",
+  "runner_output_suffix": "-targeted-mt136",
   "covers": [
-    "MT-111"
+    "MT-136"
   ],
   "owning_mt": "MT-170",
-  "core_skip": true,
-  "core_lib": false,
-  "core_targets": [],
-  "core_filter": "",
-  "native_lib": true,
-  "native_targets": [
-    "test_flight_recorder_authz",
-    "test_event_emitter",
-    "test_manual_content"
+  "core_skip": false,
+  "core_lib": true,
+  "core_targets": [
+    "memory_capsule_recorder_surreal_tests"
   ],
-  "native_filter": "(binary_id(=handshake-native) & test(=event_emitter::tests::ingest_url_is_workspace_scoped_from_the_event)) | (binary_id(=handshake-native::test_flight_recorder_authz) & test(=mt111_flight_recorder_authorization_boundary_real_surrealdb)) | (binary_id(=handshake-native::test_event_emitter) & test(/^(post_body_matches_verified_native_editor_schema|ingest_url_is_workspace_scoped_and_credential_comes_from_the_on_disk_binding|event_emitter_native_editor_round_trip)$/)) | (binary_id(=handshake-native::test_manual_content) & test(=mt104_topics_exist_and_include_no_context_runtime_facts))",
+  "core_filter": "(binary_id(=handshake_core) & test(/^(storage::surreal::mt136_database_surface_proof_a::mt136_database_surface_proof_a|storage::surreal::mt136_database_surface_proof_b::mt136_database_surface_proof_b|storage::surreal::mt136_database_surface_proof_c::tests::uncovered_database_methods_use_real_durable_surreal_state|storage::surreal::database::not_implemented_surface::not_implemented_surface_is_declared|storage::surreal::mt136_kernel_action_submitter_proof::tests::submitter_contract)$/)) | binary_id(=handshake_core::memory_capsule_recorder_surreal_tests)",
+  "native_lib": false,
+  "native_targets": [],
+  "native_filter": "",
   "extracted_crates": [],
-  "named_case_count": 6,
-  "proof_basis": "Fresh complete own MT111 PC11101-05 runtime floor after canonical UserManual version change; exact native library1 plus3 integration targets; independent WP Validator acceptance remains required",
-  "backend_required": true,
+  "named_case_count": 11,
+  "proof_basis": "Fresh complete own MT136: six real embedded capsule cases (original three suppression REDs included), five exact library A/B/C/declaration/submitter proofs, and literal PT1361 cargo check --lib; independent WPV owns acceptance",
+  "backend_required": false,
   "prior_proof_reuse": {
-    "runtime": "NONE for MT111 own six cases; all rerun fresh on6fc38 candidate",
-    "prior_frozen_inputs": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/ready13-1ad04e43-before-mt111-062bf554/manifest.json",
-    "unchanged_mt170": "Historical accepted source/results/producer metadata retained; backend byte mismatch disposition owned by WPV"
+    "runtime": "NONE for MT136 own eleven cases; all execute fresh on0c63e656 candidate",
+    "prior_frozen_inputs": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt111-6fc38af7-before-mt136-0c63e656/manifest.json",
+    "retained_passes": "Earlier MT111/MT170 candidate proof and history remain retained; this selection credits no new cross-candidate runtime reuse"
   },
   "profile": "Existing x64 MSVC Rust1.97.1 jobs1/incremental0/line-tables-only/Surreal allow-list O2/GPU1 and native integration,integration_tests,wgpu_screenshots unchanged",
   "artifact_owner": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv",
-  "cap_bytes": 160000000000
+  "cap_bytes": 160000000000,
+  "core_check_lib": true,
+  "native_skip": true
 }

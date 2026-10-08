@@ -355,6 +355,9 @@ if [[ -z "$MODE" || "$MODE" = targeted ]]; then
 fi
 # A targeted selection may set CORE_SKIP=1 (native-only phase after a passing core phase; orchestrator cadence 2026-10-02).
 CORE_SKIP="${CORE_SKIP:-0}"
+CORE_CHECK_LIB="${CORE_CHECK_LIB:-0}"
+[[ "$CORE_CHECK_LIB" = 0 || "$CORE_CHECK_LIB" = 1 ]] || { echo "[run-round] FATAL: CORE_CHECK_LIB must be 0 or 1"; exit 2; }
+[[ "$CORE_CHECK_LIB" != 1 || "$CORE_SKIP" != 1 ]] || { echo "[run-round] FATAL: CORE_CHECK_LIB requires the enabled core phase"; exit 2; }
 [[ "$CORE_SKIP" = 1 && "$MODE" != targeted && "$MODE" != backend-opt-diag ]] && { echo "[run-round] FATAL: CORE_SKIP only allowed in targeted mode"; exit 2; }
 NATIVE_JUNIT_NAME="junit-$SHA-native$OUT_SUFFIX.xml"
 if [[ "$MODE" = backend-opt-diag ]]; then
@@ -387,6 +390,13 @@ fi
 BUILD_START_MARKER="$LANE/tmp/build-start-$SHA"
 touch "$BUILD_START_MARKER"
 if [[ "$CORE_SKIP" != 1 ]]; then
+if [[ "$CORE_CHECK_LIB" = 1 ]]; then
+CORE_CHECK_LOG="$LANE/logs/core-check-lib-$SHA$OUT_SUFFIX.log"
+echo "[run-round] core_check_lib config_sha256=$BACKEND_PROFILE_SHA256 log=$CORE_CHECK_LOG"
+( cd "$EXPORT/src/backend/handshake_core" && \
+  cargo check --locked -j 1 --lib --config "$BACKEND_PROFILE_CONFIG" --features app-runtime,surreal-test-support,test-utils ) 2>&1 | tee "$CORE_CHECK_LOG"
+check_target_cap
+fi
 echo "[run-round] building core union"
 # -j 1: handshake_core lib and lib-test compiled in parallel hit rustc-LLVM out of memory on 1f4e0f69
 # (2026-09-30, host shared with foreign builds); build them one at a time.
