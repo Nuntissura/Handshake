@@ -1,6 +1,16 @@
 {
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
+  "operator_acceptance_disposition_20261008": {
+    "decision_id": "WP012-MT170-HISTORICAL-MISS-ACCEPTED-20261008",
+    "authorized_by": "OPERATOR",
+    "operator_quote": "Accept the historical miss; retain it and validate remaining proof.",
+    "scope": "AC-170-1 historical pre-edit chronology only; retained NOT_SATISFIED history is accepted without retrospective proof",
+    "remaining_proof": "MT-170 semantic, privacy, typed diagnostic and document/backlink checks plus original full MT-046 PC-046-01 IC01-05 and PC-046-03 IC10-14 remain required",
+    "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+    "historical_verdict_ref": "validation_v1",
+    "source_review": "Kernel Builder and independent buddy inspected unchanged pushed candidate; no blocking source finding; no new product edit or duplicate compile required"
+  },
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
@@ -20,7 +30,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-06T06:43:44.625585Z",
+  "updated_at_utc": "2026-10-08T08:56:36.4142565Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -253,8 +263,8 @@
     }
   },
   "lifecycle": {
-    "status": "BLOCKED",
-    "blocked_on": "Earlier 4b8d, 984238, 42754a06, 656110ee and be669520 attempts remain preserved history, including be669 run 9ba0a8677e294c9bbbab6642763e3d46 CLOSED RED before scenario on manifest drift. Prior c1f8d7cdf272bd34a8168979574f05ecfad7353e/tree b6f697fa4f7595588a2691daab461b122f32eddb run ccbd772247ff4430bb11ff4f3b276e49 is CLOSED RED at startup before the backlink ACL scenario: HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6, observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976. Original selected test result: 1 selected, 0 passed, 1 failed, 28 filtered; JUnit SHA256 c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73. The one narrow fresh-Mem MT139 schema-info measurement completed on 2026-10-06: observed 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976 versus expected f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6. The selected measurement assertion was RED. The measured pin-only correction is pushed as candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661. Original focused follow-up run 1c9de898c10b43e5ad81987eab5e0101 CLOSED focused GREEN at 2026-10-06T04:56:27.0441941Z: the selected test passed (1 passed, 0 failed, 28 filtered), JUnit SHA256 fabdb58079f8c0a867ae717c07b8141f1724fb08cd46b9a0292aea425ba355ee and exit-record SHA256 db2f49d9324e8c24abdd54221bebfce525c0c443b77fe56c0a5bcf060a3a5504. The stderr includes the fixture’s expected HSK-403-PROTECTED-RESOURCE denial for the update-only target-read control; the test asserts source-save success, retained textual backlink, and zero Loom projection for that unreadable target. Exact outputs and the final observer snapshot are recorded in original_focused_proof_20261006. Current candidate Builder compile CHECK-08 passed --lib --tests with unchanged input digests. Independent single-MT verdict is INCONCLUSIVE; MT170 remains BLOCKED. AC-170-1 requires an explicit acceptance disposition; the existing document/backlink and original full MT-046 PC-046-01 (IC01–05) and PC-046-03 (IC10–14) proof remain unclosed. Late CREATE race remains UNEXERCISED; no new seam or waiver.",
+    "status": "READY_FOR_VALIDATION",
+    "blocked_on": null,
     "depends_on": [],
     "blocks": [
       "MT-046"
@@ -263,15 +273,15 @@
     "validator_verdict": "INCONCLUSIVE",
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "OPERATOR: provide an explicit acceptance disposition for AC-170-1; its missed pre-edit chronology cannot be retroactively satisfied. Existing document/backlink coverage and the original full MT-046 PC-046-01 (IC01–05) and PC-046-03 (IC10–14) selections remain unclosed. No downstream run is authorized by this single-MT verdict; preserve BLOCKED and the retained focused GREEN.",
+    "next_actor": "WP_VALIDATOR: execute exact remaining MT170 document/backlink and original PC04601/03 proof on pushed4eeb; operator accepted historical AC1701 miss, chronology retained",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
     ],
-  "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
-  "candidate_tree": "02dcf0fd0f7c107104997c6a7dd0e78223ebd661",
+    "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+    "candidate_tree": "02dcf0fd0f7c107104997c6a7dd0e78223ebd661",
     "status_before_ready": "BLOCKED",
-  "pushed_verified": "Current product candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661 is clean and pushed. Its only product diff updates EXPECTED_SCHEMA_INFO_SHA256/comment to fresh-Mem value 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976; other pins and historical/C2 entries remain unchanged. Original focused MT170 follow-up 1c9de898c10b43e5ad81987eab5e0101 passed the selected test on pushed candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661. JUnit shows 1 passed, 0 failed, 28 filtered; exact output hashes are in original_focused_proof_20261006. This focused GREEN is retained and reused. Current candidate Builder compile CHECK-08 passed --lib --tests; independent single-MT verdict is INCONCLUSIVE and overall status remains BLOCKED. Historical AC-170-1 acceptance disposition and remaining original runtime coverage are outstanding.",
+    "pushed_verified": "Current product candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661 is clean and pushed. Its only product diff updates EXPECTED_SCHEMA_INFO_SHA256/comment to fresh-Mem value 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976; other pins and historical/C2 entries remain unchanged. Original focused MT170 follow-up 1c9de898c10b43e5ad81987eab5e0101 passed the selected test on pushed candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661. JUnit shows 1 passed, 0 failed, 28 filtered; exact output hashes are in original_focused_proof_20261006. This focused GREEN is retained and reused. Current candidate Builder compile CHECK-08 passed --lib --tests; independent single-MT verdict is INCONCLUSIVE and overall status remains BLOCKED. Historical AC-170-1 acceptance disposition and remaining original runtime coverage are outstanding.",
     "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20261002",
     "selection_note": {
@@ -760,7 +770,42 @@
         ],
         "scope_limit": "Compile only; no runtime/test or lint PASS, no MT verdict or READY/COMPLETED claim. Historical AC-170-1 NOT_SATISFIED and late CREATE race UNEXERCISED remain unchanged. Product/GOV code untouched; original focused GREEN reused."
       }
-    ]
+    ],
+    "running_record_20261008": {
+      "schema_id": "hsk.validation_running_record@1",
+      "state": "running",
+      "phase": "prelaunch_resource_admission",
+      "executor": "WP_VALIDATOR-20261008-MT170-X64-ARMHOST",
+      "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+      "candidate_tree": "02dcf0fd0f7c107104997c6a7dd0e78223ebd661",
+      "covered_mts": [
+        "MT-170"
+      ],
+      "command": "C:\\Users\\iljas\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe -NoProfile -NonInteractive -File C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1",
+      "entrypoint": ".GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh",
+      "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+      "started_at_utc": "2026-10-08T08:43:44.4644754Z",
+      "expected_outputs": [
+        "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.stdout.log",
+        "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.stderr.log",
+        "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.exit.json"
+      ],
+      "wrapper_identity": {
+        "pid": 23504,
+        "command_line": "C:\\Users\\iljas\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe -NoProfile -NonInteractive -File C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1",
+        "start_utc": "2026-10-08T08:43:44.4644754Z"
+      },
+      "frozen_input_sha256": {
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "663aa520cb2531deb209b19344e1619851e160f7544fe130f7757757ad680e6e",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "2e33665f7b50e269639cf17aeebf5aa2c57190454910882083714b63e69f88d7",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.sh": "817e34a4eac6905afca5b6662911baa71c816aecd09641210430344f6d6892bc",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c"
+      },
+      "scope": "Fresh MT170+existing document/backlink tests; original full PC04601 IC01-05 and PC04603 IC10-14; no whole-MT046/WP verdict",
+      "historical_disposition_ref": "operator_acceptance_disposition_20261008",
+      "canary": "NOT_APPLICABLE_PER_PINNED_WP_AUTHORITY",
+      "result": "NOT_YET_RUN"
+    }
   },
   "schema_info_measurement_20261006": {
     "candidate_commit": "c1f8d7cdf272bd34a8168979574f05ecfad7353e",
@@ -772,16 +817,58 @@
     "observed_sha256": "14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976",
     "expected_sha256": "f18ba68981dc2ab4d2bd1ead281e8e4af9a92eda7cc02b4b25a9e4dcb4d84bf6",
     "completed_utc": "2026-10-06T03:31:53.3573665Z",
-    "junit": {"path": "logs/junit-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.xml", "bytes": 2204, "sha256": "05bf6d3330629d66dff0e06ab2f8347c37d1736db5e4950cc6a560907b0c875c"},
-    "exit_record": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.exit.json", "bytes": 817, "sha256": "4186126d746e714611721c6a9802d2f879fa1fefc0b1664e9a5a68804b1be40d", "bash_exit_code": 0, "nextest_exit_code": 100},
-    "stdout": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.stdout.log", "bytes": 56174, "sha256": "65dc6d67aea83f4d28f5d2f886c444142145987bb3e1180d2e0b9c2ea5de0f12"},
-    "stderr": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.stderr.log", "bytes": 31557, "sha256": "d22274885dc37362a08717aa1da424a24009392480c78bbbce4133753388a458"},
-    "runtime_identity": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.identity.json", "bytes": 2023, "sha256": "fca3ca23c2c51803efbd42a22ab19d202e028e5f871a7a83d15be474440a4586"},
-    "observer_identity": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.observer.identity.json", "bytes": 632, "sha256": "6bfd9f67134da3449e95a7c86be27a11cefdd8e8cbe12c5e50d99570cb695a8c"},
-    "observer_rows": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.observations.jsonl", "bytes": 25632, "sha256": "0cc543fd9f43d304401f7330fe33c8c47df4d5ca82c00548c06c84d88caf6bd4", "last_poll": 35, "last_observation_utc": "2026-10-06T03:32:23.7190247Z", "exit_record_present": true, "owned_processes": []},
-    "ready_snapshot": {"path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.supervisor.ready.json", "bytes": 2160, "sha256": "cdfc36a69ef7307c422d89608a3924685dc4859ba589345733b3767af1467aa2"},
-    "originals_restored": {"selector_sha256": "d3ca61d25989fab26031342094855339cd21f151ad9a20f8e69b458a7f10d0dc", "junit_sha256": "c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73"}
-  },  "authored_by": "KERNEL_BUILDER-20261002",
+    "junit": {
+      "path": "logs/junit-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.xml",
+      "bytes": 2204,
+      "sha256": "05bf6d3330629d66dff0e06ab2f8347c37d1736db5e4950cc6a560907b0c875c"
+    },
+    "exit_record": {
+      "path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.exit.json",
+      "bytes": 817,
+      "sha256": "4186126d746e714611721c6a9802d2f879fa1fefc0b1664e9a5a68804b1be40d",
+      "bash_exit_code": 0,
+      "nextest_exit_code": 100
+    },
+    "stdout": {
+      "path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.stdout.log",
+      "bytes": 56174,
+      "sha256": "65dc6d67aea83f4d28f5d2f886c444142145987bb3e1180d2e0b9c2ea5de0f12"
+    },
+    "stderr": {
+      "path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.stderr.log",
+      "bytes": 31557,
+      "sha256": "d22274885dc37362a08717aa1da424a24009392480c78bbbce4133753388a458"
+    },
+    "runtime_identity": {
+      "path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.identity.json",
+      "bytes": 2023,
+      "sha256": "fca3ca23c2c51803efbd42a22ab19d202e028e5f871a7a83d15be474440a4586"
+    },
+    "observer_identity": {
+      "path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.observer.identity.json",
+      "bytes": 632,
+      "sha256": "6bfd9f67134da3449e95a7c86be27a11cefdd8e8cbe12c5e50d99570cb695a8c"
+    },
+    "observer_rows": {
+      "path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.observations.jsonl",
+      "bytes": 25632,
+      "sha256": "0cc543fd9f43d304401f7330fe33c8c47df4d5ca82c00548c06c84d88caf6bd4",
+      "last_poll": 35,
+      "last_observation_utc": "2026-10-06T03:32:23.7190247Z",
+      "exit_record_present": true,
+      "owned_processes": []
+    },
+    "ready_snapshot": {
+      "path": "logs/targeted-c1f8-mt139-7d6bd524587449abb7cc7a748f5d1ed0-measurement.supervisor.ready.json",
+      "bytes": 2160,
+      "sha256": "cdfc36a69ef7307c422d89608a3924685dc4859ba589345733b3767af1467aa2"
+    },
+    "originals_restored": {
+      "selector_sha256": "d3ca61d25989fab26031342094855339cd21f151ad9a20f8e69b458a7f10d0dc",
+      "junit_sha256": "c1b1ec3de6ae977b4b30eda641b0162b1e0e9b499665ea09e2899a8b7c5dde73"
+    }
+  },
+  "authored_by": "KERNEL_BUILDER-20261002",
   "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-167 narrow-MT shape",
   "implementation_record": {
     "owning_module_evidence": null,
@@ -2203,7 +2290,7 @@
           "consumed_bytes": 813,
           "consumed_sha256": "86689377e4fd3d4b9cea5903b6247a62c5caed1be12ce1131cf6c421583b1b82",
           "issued_at_utc": "2026-10-05T05:54:20.1191704Z",
-          "bash_started_at_utc": "2026-10-05T05:55:31.5346530Z"
+          "bash_started_at_utc": "2026-10-05T05:55:31.534653Z"
         },
         "control_identity": {
           "ready_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/targeted-70da366a3391206b2fba86f721c1095ea48a373e.supervisor-13135d69e0fa4fb4b2fe8c6cc64926f1.ready.json",
@@ -2213,10 +2300,10 @@
             "sha256": "af7259c0505e6fde047958d627466694abc619964f849a62fda3a4d379b182e1"
           },
           "supervisor_pid": 8424,
-          "supervisor_start_utc": "2026-10-05T05:40:03.6909670Z",
+          "supervisor_start_utc": "2026-10-05T05:40:03.690967Z",
           "bash_pid": 26396,
           "observer_pid": 256080,
-          "observer_start_utc": "2026-10-05T05:38:48.1848480Z",
+          "observer_start_utc": "2026-10-05T05:38:48.184848Z",
           "receipt_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/wpv-source-bound-metadata-70da-13135d69e0fa4fb4b2fe8c6cc64926f1.json",
           "receipt_bytes": 4826,
           "receipt_sha256": "de9e5700323b8947a2670de899088c0c519f8a463eaa7dcd210efc69409a6c1a",
@@ -2440,7 +2527,7 @@
           "supervisor_start_utc": "2026-10-05T19:47:43.7753973Z",
           "bash_pid": 242044,
           "observer_pid": 197180,
-          "completed_utc": "2026-10-05T20:41:30.6657060Z",
+          "completed_utc": "2026-10-05T20:41:30.665706Z",
           "result": {
             "test_name": "handshake_core::knowledge_documents_api_tests::mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge",
             "core_nextest_exit_code": 100,
@@ -2617,7 +2704,7 @@
           "followup_attempt_656110ee_f5d3098717ef4c63820f1ccc08265641_20261005": {
             "candidate_commit": "656110ee043fb153faefa49fd187b0dcf8d6f0eb",
             "candidate_tree": "dc3c0c396967bfcdd88edee3d013a7da4b34ec4c",
-    "gameplan_generation_at_release": 366,
+            "gameplan_generation_at_release": 366,
             "run_id": "f5d3098717ef4c63820f1ccc08265641",
             "selector_sha256": "e3f6aa3850ba7cc290104c01f2129958b9dd42af723929cf3f0a3a5a5ed5a2f2",
             "launcher_sha256": "a31d23891460c323a098e8946d96885e4a47f293206e53257cc54359e0f4a182",
@@ -2655,7 +2742,7 @@
               "same_workspace_readable_count": 1,
               "same_workspace_unreadable_count": 0,
               "same_workspace_standalone_grant_readable_count": 0,
-      "initial_positive_resolver_observation_count": 2,
+              "initial_positive_resolver_observation_count": 2,
               "interpretation": "Canonical effective resolver readability was true while the raw SQL grant helper was false; the source-save 403 occurs later, and its cause is not established by these diagnostics."
             },
             "artifacts": {
@@ -4365,7 +4452,7 @@
       {
         "event": "accepted",
         "idempotency_key": "MT170-4eeb3531-single-mt-inconclusive-20261006",
-        "at_utc": "2026-10-06T06:42:33.104100Z",
+        "at_utc": "2026-10-06T06:42:33.1041Z",
         "decision": "inconclusive"
       },
       {

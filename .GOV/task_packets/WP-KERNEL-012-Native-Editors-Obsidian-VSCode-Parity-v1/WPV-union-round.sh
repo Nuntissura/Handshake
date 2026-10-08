@@ -33,23 +33,36 @@ MODE="${2:-}"
 OUT_SUFFIX=""; [[ "$MODE" = targeted ]] && OUT_SUFFIX="-targeted"
 NATIVE_SKIP=0; [[ "$MODE" = core-only || "$MODE" = mt164-capture ]] && NATIVE_SKIP=1
 echo "[run-round] mode=${MODE:-full}"
-LANE="D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x"
-TARGET="C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52"
-# The C: grant covers only this build target; source archives are target inputs.
-EXPORT_ROOT="$TARGET"
-WORKTREE="D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1"
-NEXTEST="D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/tools/cargo-nextest/0.9.146/cargo-nextest.exe"
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+GOV_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd -P)"
+PROJECT_ROOT="$(dirname "$GOV_ROOT")"
+HOST_PROFILE="$PROJECT_ROOT/gov-runtime/host-profile-wp012.json"
+[[ -f "$HOST_PROFILE" ]] || { echo "[run-round] FATAL: declared host profile missing: $HOST_PROFILE"; exit 2; }
+eval "$(python - "$HOST_PROFILE" <<'PY'
+import json, shlex, sys
+p = json.load(open(sys.argv[1], encoding='utf-8-sig'))
+for k in ('LANE', 'TARGET', 'WORKTREE', 'NEXTEST', 'ARTIFACT_ROOT', 'WP_CAP_BYTES'):
+    print(k + '=' + shlex.quote(str(p[k])))
+for k, v in p['env'].items():
+    print(('HOST_NATIVE_PATH' if k == 'PATH' else 'export ' + k) + '=' + shlex.quote(str(v)))
+PY
+)"
+export PATH="$(cygpath -p -u "$HOST_NATIVE_PATH")"
+[[ -d "$ARTIFACT_ROOT" ]] || { echo "[run-round] FATAL: designated artifact root absent"; exit 2; }
+[[ "$LANE" == "$ARTIFACT_ROOT/WP-KERNEL-012/MT-170/"* && "$TARGET" == "$LANE/target" ]] \
+  || { echo "[run-round] FATAL: host output is outside assigned MT owner"; exit 2; }
+EXPORT_ROOT="$LANE"
 
 check_target_cap() {
   local bytes free_kib
-  bytes="$(find "$TARGET" -type f -printf '%s\n' | awk '{sum += $1} END {printf "%.0f", sum}')"
+  bytes="$(find "$ARTIFACT_ROOT/WP-KERNEL-012" -type f -printf '%s\n' | awk '{sum += $1} END {printf "%.0f", sum}')"
   free_kib="$(df -Pk "$TARGET" | awk 'NR == 2 {print $4}')"
   [[ "$bytes" =~ ^[0-9]+$ && "$free_kib" =~ ^[0-9]+$ ]] || {
-    echo "[run-round] FATAL: cannot measure C: target size or free space"; exit 2;
+    echo "[run-round] FATAL: cannot measure WP size or free space"; exit 2;
   }
-  echo "[run-round] C: target bytes=$bytes cap=150000000000 free_kib=$free_kib floor_kib=187500000"
-  (( bytes <= 150000000000 && free_kib >= 187500000 )) || {
-    echo "[run-round] FATAL: C: target cap or free-space floor exceeded"; exit 2;
+  echo "[run-round] WP bytes=$bytes cap=$WP_CAP_BYTES free_kib=$free_kib floor_kib=52428800"
+  (( bytes <= WP_CAP_BYTES && free_kib >= 52428800 )) || {
+    echo "[run-round] FATAL: WP cap or free-space floor exceeded"; exit 2;
   }
 }
 
@@ -155,7 +168,7 @@ export CARGO_PROFILE_DEV_DEBUG=line-tables-only
 export CARGO_PROFILE_TEST_DEBUG=line-tables-only
 export CARGO_INCREMENTAL=0
 export HANDSHAKE_PROOF_SOURCE_SHA="$SHA"
-export HANDSHAKE_ARTIFACTS_ROOT="D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts"
+export HANDSHAKE_ARTIFACTS_ROOT="$ARTIFACT_ROOT"
 # HANDSHAKE_ARTIFACTS_ROOT alone resolves to a 2-component path
 # (Handshake_Artifacts/wp-kernel-012) which FAILS canonical_handshake_artifact_boundary
 # in tests/backend_proof_support/mod.rs (requires ["wp-kernel-012"],
@@ -173,18 +186,28 @@ mkdir -p "$HANDSHAKE_TEST_STAGE_BINDING_ROOT"
 # (2026-09-24) failed 31 native tests on exactly this mismatch (mod.rs:814).
 # Build the backend binary directly into its final D:-side location so no
 # separate copy step is needed.
-export HSK_TEST_BACKEND_TARGET_ROOT="$LANE/backend-bin"
+export HSK_TEST_BACKEND_TARGET_ROOT="$TARGET"
 export HSK_TEST_BACKEND_BIN="$HSK_TEST_BACKEND_TARGET_ROOT/debug/handshake_core.exe"
 export HANDSHAKE_TEST_SURREAL_SYNC=never
 export SURREAL_DATASTORE_SYNC=never
 export HANDSHAKE_SURREAL_TEST_STORE_ROOT="$LANE/runtime"
-export HANDSHAKE_GPU_SCREENSHOT="${HANDSHAKE_GPU_SCREENSHOT:-1}"   # this host has a real GPU (MT-124 GREEN GPU proof, 2026-08-18); default 1 per IV 2026-09-24
+# GPU selection is explicit in the machine-local profile; selected MT-170 proof uses headless egui/AccessKit.
+export HANDSHAKE_GPU_SCREENSHOT="${HANDSHAKE_GPU_SCREENSHOT:?host profile must select screenshot mode}"
 # atelier_surreal_support/mod.rs:39 requires an isolated HANDSHAKE_WORKSPACE_ROOT
 # ("native artifact fixtures require an isolated HANDSHAKE_WORKSPACE_ROOT");
 # run50 (2026-09-24) failed 3 atelier_stealth_window_tests without this set.
 export HANDSHAKE_WORKSPACE_ROOT="$OWNER_ROOT/workspace-root"
 mkdir -p "$HANDSHAKE_WORKSPACE_ROOT"
 
+# Resolve the selected targets before any unrelated fixture setup.
+CORE_TESTS=(); NATIVE_TESTS=()
+if [[ -z "$MODE" || "$MODE" = targeted ]]; then
+  EARLY_SELECTION="$SCRIPT_DIR/WPV-round-selection.sh"
+  [[ "$MODE" = targeted ]] && EARLY_SELECTION="$SCRIPT_DIR/WPV-round-selection-targeted.sh"
+  source "$EARLY_SELECTION"
+  [[ "${ROUND_SELECTION_SHA:-}" = "$SHA" ]] || { echo "[run-round] FATAL: selection candidate mismatch"; exit 2; }
+fi
+if [[ " ${CORE_TESTS[*]} " == *" model_session_scheduler_tests "* ]]; then
 # MT-165 disposable session-worktree repo (Operator decision WP012-MT165-DISPOSABLE-GIT-REPO-20260930).
 # Session-worktree code runs `git -C <repo> worktree add|remove` where <repo> is fixed at compile time:
 # CARGO_MANIFEST_DIR/../../.. (workflows.rs repo_root_from_manifest_dir; api/jobs.rs and
@@ -250,6 +273,7 @@ git -C "$EXPORT" -c core.longpaths=true fetch -q --depth=1 --no-tags \
 git -C "$EXPORT" update-ref --no-deref HEAD "$SHA"
 [ "$(git -C "$EXPORT" rev-parse HEAD)" = "$SHA" ] || { echo "[run-round] FATAL: session repo HEAD is not the candidate"; exit 2; }
 echo "[run-round] session git repo $SESSION_GIT_DIR HEAD=$SHA; HANDSHAKE_SESSION_WORKTREE_ROOT=$HANDSHAKE_SESSION_WORKTREE_ROOT" | tee -a "$SESSION_GIT_LOG"
+fi
 
 # 2. Build core union (--no-run), native union (--no-run), and the backend
 #    binary, one cargo invocation per crate, no timeout wrapper.
@@ -318,7 +342,8 @@ fi
 NATIVE_TARGET_ARGS=(); [[ "$NATIVE_LIB" = 1 ]] && NATIVE_TARGET_ARGS=(--lib)
 for t in "${NATIVE_TESTS[@]}"; do NATIVE_TARGET_ARGS+=(--test "$t"); done
 
-core_test_args=(); for t in "${CORE_TESTS[@]}"; do core_test_args+=(--test "$t"); done
+core_test_args=(); [[ "${CORE_LIB:-1}" = 1 ]] && core_test_args+=(--lib)
+for t in "${CORE_TESTS[@]}"; do core_test_args+=(--test "$t"); done
 CORE_JUNIT_NAME="junit-$SHA-core$OUT_SUFFIX.xml"
 if [[ "$MODE" = mt164-capture ]]; then
   CAPTURE_MARKER="$LANE/MT164-CAPTURE-${SHA:0:8}.started"
@@ -341,7 +366,7 @@ echo "[run-round] building core union"
 CORE_BUILD_LOG="$LANE/logs/core-build-v-$SHA$OUT_SUFFIX.log"
 echo "[run-round] build_profile line=core-test config_sha256=$BACKEND_PROFILE_SHA256 (dev/test + 8-crate opt-level 2) log=$CORE_BUILD_LOG"
 ( cd "$EXPORT/src/backend/handshake_core" && \
-  cargo test --locked -j 1 --no-run -v --config "$BACKEND_PROFILE_CONFIG" --lib --features app-runtime,surreal-test-support,test-utils "${core_test_args[@]}" ) 2>&1 | tee "$CORE_BUILD_LOG"
+  cargo test --locked -j 1 --no-run -v --config "$BACKEND_PROFILE_CONFIG" --features app-runtime,surreal-test-support,test-utils "${core_test_args[@]}" ) 2>&1 | tee "$CORE_BUILD_LOG"
 check_test_profile core "$CORE_BUILD_LOG" 1
 check_target_cap
 fi
@@ -351,7 +376,7 @@ echo "[run-round] building native union"
 NATIVE_BUILD_LOG="$LANE/logs/native-build-$SHA$OUT_SUFFIX.log"
 echo "[run-round] build_profile line=native-test config_sha256=$BACKEND_PROFILE_SHA256 (inert: handshake_native graph has no surrealdb crate) log=$NATIVE_BUILD_LOG"
 ( cd "$EXPORT/src/frontend/handshake_native" && \
-  cargo test --locked -j 2 --no-run --config "$BACKEND_PROFILE_CONFIG" --features integration,integration_tests,wgpu_screenshots "${NATIVE_TARGET_ARGS[@]}" ) 2>&1 | tee "$NATIVE_BUILD_LOG"
+  cargo test --locked -j 1 --no-run --config "$BACKEND_PROFILE_CONFIG" --features integration,integration_tests,wgpu_screenshots "${NATIVE_TARGET_ARGS[@]}" ) 2>&1 | tee "$NATIVE_BUILD_LOG"
 if grep -Eq '^ *Compiling (surrealdb|surrealdb-[a-z-]+) v' "$NATIVE_BUILD_LOG"; then
   echo "[run-round] INVALID_CONFIG native build compiled an allow-listed surrealdb crate (expected inert)"; exit 5
 fi
@@ -364,7 +389,7 @@ for crate in "${EXTRACTED_CRATES[@]}"; do
   EXTRACTED_BUILD_LOG="$LANE/logs/extracted-build-v-$crate-$SHA$OUT_SUFFIX.log"
   echo "[run-round] build_profile line=extracted-test:$crate config_sha256=$BACKEND_PROFILE_SHA256 log=$EXTRACTED_BUILD_LOG"
   ( cd "$EXPORT/src/backend/$crate" && \
-    cargo test --locked -j 2 --no-run -v --config "$BACKEND_PROFILE_CONFIG" --lib --features surreal-test-support ) 2>&1 | tee "$EXTRACTED_BUILD_LOG"
+    cargo test --locked -j 1 --no-run -v --config "$BACKEND_PROFILE_CONFIG" --lib --features surreal-test-support ) 2>&1 | tee "$EXTRACTED_BUILD_LOG"
   check_test_profile "extracted:$crate" "$EXTRACTED_BUILD_LOG" 0
   check_target_cap
 done
@@ -373,13 +398,13 @@ if [[ "$NATIVE_SKIP" != 1 ]]; then
 echo "[run-round] building backend binary for HSK_TEST_BACKEND_BIN"
 echo "[run-round] build_profile line=backend config_sha256=$BACKEND_PROFILE_SHA256 (dev + 8-crate opt-level 2, -j 2)"
 ( cd "$EXPORT/src/backend/handshake_core" && \
-  cargo build --locked -j 2 --config "$BACKEND_PROFILE_CONFIG" --target-dir "$HSK_TEST_BACKEND_TARGET_ROOT" --bin handshake_core --features app-runtime,surreal-test-support )
+  cargo build --locked -j 1 --config "$BACKEND_PROFILE_CONFIG" --target-dir "$HSK_TEST_BACKEND_TARGET_ROOT" --bin handshake_core --features app-runtime,surreal-test-support,test-utils )
 check_target_cap
 [ -f "$HSK_TEST_BACKEND_BIN" ] || { echo "[run-round] FATAL: backend bin not found at $HSK_TEST_BACKEND_BIN"; exit 3; }
 
 if [[ "$MODE" = backend-opt-diag ]]; then
   echo "[run-round] backend-opt-diag: native nextest MT-008 preflight skipped (would build unselected binaries)"
-else
+elif [[ " ${NATIVE_TESTS[*]} " == *" test_code_nav_client "* || " ${NATIVE_TESTS[*]} " == *" test_completion_hover_accesskit "* ]]; then
 # Validate the changed native config against the just-built union binaries
 # before any test executes. This is the same candidate/build, not a separate
 # per-MT build or proof run.
@@ -455,7 +480,7 @@ set +e
 ( cd "$EXPORT/src/backend/handshake_core" && \
   "$NEXTEST" nextest run --locked --no-fail-fast --config "$BACKEND_PROFILE_CONFIG" \
     --config-file "$LANE/nextest-core.toml" \
-    --features app-runtime,surreal-test-support,test-utils -E "$CORE_FILTER" --lib "${core_test_args[@]}" )
+    --features app-runtime,surreal-test-support,test-utils -E "$CORE_FILTER" "${core_test_args[@]}" )
 CORE_NEXTEST_EXIT=$?
 set -e
 if [[ "$CORE_NEXTEST_EXIT" != 0 && "$CORE_NEXTEST_EXIT" != 100 ]]; then

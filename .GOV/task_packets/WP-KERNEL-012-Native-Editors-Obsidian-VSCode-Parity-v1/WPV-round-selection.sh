@@ -1,9 +1,10 @@
-# WPV round selection for candidate 4d0da14584dc63e676a322527091caa933c4fc82 (generated; named MT proof tests only, CX-EXEC-014).
-# Reuse basis: native non-live proof tests that passed in validator unions 9191e8b5cf459f0056f64153634046b5c52ab646,c19203484a0cc975fd8917a32c827babeab0548c,f4e6690633b6c5e19c2b76b614b328212743771d,5da8b75a0211aa607ea430a6764770709915f80e,d9ce6017e91430c69d410b555bd79fd5f6916926 (newest first) with unchanged inputs.
-ROUND_SELECTION_SHA=4d0da14584dc63e676a322527091caa933c4fc82
-CORE_TESTS=(loom_daily_journal_tests loom_transclusion_tests loom_media_tiers_tests project_wiki_drift_tests mt167_code_nav_index_cost_tests knowledge_code_index_tests knowledge_code_nav_api_tests)
-CORE_FILTER='(binary_id(=handshake_core) & (test(=api::loom::tests::mt153_loom_route_family_authority_matrix) | test(=api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows) | test(=api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit) | test(=api::workspaces::tests::mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default) | test(=api::loom::tests::mt153_owner_workspace_delete_removes_saved_view) | test(=api::loom::tests::mt027_block_view_publication_survives_outage_restart_races_and_retention) | test(/^storage::surreal::mt136_database_surface_proof_(a|b|c)::/) | test(/^user_manual::/) | test(/^api::code_nav_index::code_nav_index_account_tests::/))) | binary_id(=handshake_core::loom_daily_journal_tests) | binary_id(=handshake_core::loom_transclusion_tests) | binary_id(=handshake_core::loom_media_tiers_tests) | binary_id(=handshake_core::project_wiki_drift_tests) | binary_id(=handshake_core::mt167_code_nav_index_cost_tests) | binary_id(=handshake_core::knowledge_code_index_tests) | binary_id(=handshake_core::knowledge_code_nav_api_tests)'
-NATIVE_TESTS=(test_author_id_budget test_block_collection_view test_calendar_interop test_canvas_board test_completion_hover_accesskit test_fems_interop_proofs test_manual_content test_other_pillar_interop_proofs test_stage_interop)
-NATIVE_LIB=1
-NATIVE_FILTER='binary_id(=handshake-native) | binary_id(=handshake-native::test_author_id_budget) | binary_id(=handshake-native::test_block_collection_view) | binary_id(=handshake-native::test_calendar_interop) | (binary_id(=handshake-native::test_canvas_board) & (test(=canvas_board_live_surrealdb_self_seeds_mounted_round_trip))) | (binary_id(=handshake-native::test_completion_hover_accesskit) & (test(=ac005_live_backend_completion_reaches_accesskit_and_stale_gutter) | test(=ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc))) | binary_id(=handshake-native::test_fems_interop_proofs) | binary_id(=handshake-native::test_manual_content) | binary_id(=handshake-native::test_other_pillar_interop_proofs) | binary_id(=handshake-native::test_stage_interop)'
-EXTRACTED_CRATES=()
+# MT-170 remaining acceptance, including original full MT-046 PC-046-01/03.
+ROUND_SELECTION_SHA=4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e
+ROUND_SELECTION_MODE=full
+CORE_LIB=0
+CORE_TESTS=(knowledge_documents_api_tests)
+CORE_FILTER='binary_id(=handshake_core::knowledge_documents_api_tests) & (test(=mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge) | test(=mt032_rich_documents_are_addressable_and_target_backlinks_are_inbound) | test(=mt032_save_delete_and_backlink_rebuild_delete_races_do_not_resurrect))'
+NATIVE_TESTS=(test_interconnect_ckc_to_note test_interconnect_loom_backlink_search)
+NATIVE_LIB=0
+NATIVE_FILTER='(binary_id(=handshake-native::test_interconnect_ckc_to_note) | binary_id(=handshake-native::test_interconnect_loom_backlink_search)) & test(/^interconnect_/)'
+EXTRACTED_CRATES=(handshake_document)

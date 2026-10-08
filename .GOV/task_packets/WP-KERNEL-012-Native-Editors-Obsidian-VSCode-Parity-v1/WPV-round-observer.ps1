@@ -23,10 +23,12 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
-$Lane = 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x'
-$Target = 'C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target-r52'
-$ProcDump = 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/tools/sysinternals-procdump/2026-09-23/procdump64.exe'
-$StopBytes = 147000000000
+$projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../..'))
+$hostProfile = Get-Content -LiteralPath (Join-Path $projectRoot 'gov-runtime/host-profile-wp012.json') -Raw | ConvertFrom-Json
+$Lane = $hostProfile.LANE
+$Target = Join-Path $hostProfile.ARTIFACT_ROOT 'WP-KERNEL-012'
+$ProcDump = Join-Path $projectRoot 'gov-runtime/tools/sysinternals/procdump/procdump64.exe'
+$StopBytes = [int64]$hostProfile.WP_CAP_BYTES - 2000000000
 $SpinCpuRatio = 0.8
 $SpinTestCpuMaxS = 1.0
 $SpinWriteMaxBytes = 20KB
@@ -228,7 +230,7 @@ while ($true) {
             $commitSampleErrorType = $_.Exception.GetType().FullName
         }
         $commitSampleUtc = [DateTime]::UtcNow.ToString('o')
-        Write-Obs ([ordered]@{ utc = $now.ToString('o'); poll = $poll; candidate = $Sha; C_bytes = $bytes; gci_errors = @($gciErr).Count; stop_bytes = $StopBytes; cap_bytes = 150000000000
+        Write-Obs ([ordered]@{ utc = $now.ToString('o'); poll = $poll; candidate = $Sha; C_bytes = $bytes; gci_errors = @($gciErr).Count; stop_bytes = $StopBytes; cap_bytes = [int64]$hostProfile.WP_CAP_BYTES
                 headroom_to_stop = $StopBytes - $bytes; stop_exceeded = $exceeded; processes = $processes; logs = $logs; exit_record_present = $done
                 commit_sample_utc = $commitSampleUtc; commit_sample_available = $commitSampleAvailable; commit_sample_error_type = $commitSampleErrorType
                 commit_limit_bytes = $commitLimitBytes; committed_bytes = $committedBytes; free_commit_bytes = $freeCommitBytes

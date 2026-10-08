@@ -1,140 +1,32 @@
 {
-  "candidate": "4d0da14584dc63e676a322527091caa933c4fc82",
-  "prior_native_proof": "9191e8b5cf459f0056f64153634046b5c52ab646,c19203484a0cc975fd8917a32c827babeab0548c,f4e6690633b6c5e19c2b76b614b328212743771d,5da8b75a0211aa607ea430a6764770709915f80e,d9ce6017e91430c69d410b555bd79fd5f6916926",
-  "changed_native_test_bins": [
-    "test_manual_content"
+  "schema": "hsk.validator_round_selection@1",
+  "candidate": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+  "covers": [
+    "MT-170"
   ],
-  "native_src_changed": false,
-  "planned_native_tests_estimate": 70,
-  "core_lib": [
-    "api::loom::tests::mt153_loom_route_family_authority_matrix",
-    "api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows",
-    "api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit",
-    "api::workspaces::tests::mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default",
-    "api::loom::tests::mt153_owner_workspace_delete_removes_saved_view",
-    "api::loom::tests::mt027_block_view_publication_survives_outage_restart_races_and_retention"
+  "owning_mt": "MT-170",
+  "core_lib": false,
+  "core_named": [
+    "mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge",
+    "mt032_rich_documents_are_addressable_and_target_backlinks_are_inbound",
+    "mt032_save_delete_and_backlink_rebuild_delete_races_do_not_resurrect"
   ],
-  "core_whole": [
-    "loom_daily_journal_tests",
-    "loom_transclusion_tests",
-    "loom_media_tiers_tests",
-    "project_wiki_drift_tests",
-    "mt167_code_nav_index_cost_tests",
-    "knowledge_code_index_tests",
-    "knowledge_code_nav_api_tests"
+  "core_targets": [
+    "knowledge_documents_api_tests"
   ],
-  "core_partial": {
-    "lib": [
-      "mt136_database_surface_proof_(a|b|c)::* (MT-136)",
-      "user_manual::* (MT-153 user_manual_obligation: seed.rs changed)"
-    ],
-    "loom_block_collection_views_tests": "MT027_CORE exact 6"
-  },
-  "intersection": {
-    "candidate": "4d0da14584dc63e676a322527091caa933c4fc82",
-    "rule": "CX-VAL-002",
-    "diff_9191e8b5": [
-      "src/backend/handshake_core/Cargo.toml",
-      "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
-      "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs",
-      "src/frontend/handshake_native/tests/test_manual_content.rs"
-    ],
-    "per_mt": {
-      "MT-167": {
-        "intersection": [
-          "src/backend/handshake_core/Cargo.toml",
-          "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
-          "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs",
-          "src/frontend/handshake_native/tests/test_manual_content.rs"
-        ],
-        "decision": "run AC-167-3 timing (mt167_code_nav_index_median_within_spec_baseline) + MT-167-EQUAL-COUNTS (mt167_batch_and_per_file_writer_produce_equal_rows) = whole mt167_code_nav_index_cost_tests; existing code-nav / knowledge-code-index tests: whole knowledge_code_index_tests, whole knowledge_code_nav_api_tests, lib api::code_nav_index::code_nav_index_account_tests::*; MT-167-DOWNSTREAM (named by MT-167 contract): MT-008 PC-008-05 (test_completion_hover_accesskit ac005/ac006), MT-064 PC-064-04 + MT-065 PC-065-01 (test_fems_interop_proofs whole); MT-167-BUILDER-COMPILE / OWNING-MODULE-EVIDENCE: implementer records"
-      },
-      "MT-143": {
-        "intersection": [
-          "src/backend/handshake_core/Cargo.toml",
-          "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
-          "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs",
-          "src/frontend/handshake_native/tests/test_manual_content.rs"
-        ],
-        "decision": "run PC-143-01/02 test_calendar_interop whole (31), PC-143-04 test_stage_interop whole, PC-143-05 test_other_pillar_interop_proofs whole, PC-143-06 test_author_id_budget whole, PC-143-07 native lib whole, AC-143-3 test_manual_content whole (new mt143 test; file changed)"
-      },
-      "MT-129": {
-        "intersection": [
-          "src/backend/handshake_core/Cargo.toml",
-          "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
-          "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs",
-          "src/frontend/handshake_native/tests/test_manual_content.rs"
-        ],
-        "decision": "PT-129-2: test_block_collection_view whole with HANDSHAKE_ARGUS_BINDING_ROOT unset (the union env never sets it); backend binary changed"
-      },
-      "MT-153": {
-        "intersection": [
-          "src/backend/handshake_core/Cargo.toml",
-          "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
-          "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs",
-          "src/frontend/handshake_native/tests/test_manual_content.rs"
-        ],
-        "decision": "runtime floor re-run (handshake_core lib/backend changed: engine.rs): route matrix, mounted creates, workspace delete 2, saved-view delete, mt027 outbox test, loom targets, user_manual, BCV live, canvas live; pins reused (schema unchanged: [])"
-      },
-      "MT-122": {
-        "decision": "run test_manual_content whole (file changed + live backend changed) and PC-122-05 (in test_author_id_budget whole); reuse non-live PC-122-01..04 (native lib src unchanged since d9ce6017: []) and test_manual_pane_editors (e4566f11)"
-      },
-      "MT-136": {
-        "decision": "run surface proofs a/b/c (handshake_core lib changed)"
-      },
-      "MT-079": {
-        "decision": "reuse d9ce6017 23/23 (native lib src and its test files unchanged: [])"
-      },
-      "MT-154/157/158/159": {
-        "decision": "pin proofs reused 5da8b75a (schema unchanged)"
-      },
-      "MT-155": {
-        "decision": "READY; owned_files api/kernel.rs, kernel/product_screenshot_capture.rs, tests/mt155_*: not in this diff; prior record 37ee7c5b"
-      },
-      "MT-027": {
-        "decision": "PASS_V18; not re-proven"
-      },
-      "MT-042": {
-        "decision": "PASS_V13; not re-proven"
-      },
-      "MT-008/MT-064/MT-065": {
-        "decision": "BLOCKED; their PCs run only as MT-167-DOWNSTREAM evidence (Codex :161), not as their own evidence"
-      }
-    }
-  },
-  "native_whole_binaries": [
-    "lib",
-    "test_author_id_budget",
-    "test_block_collection_view",
-    "test_calendar_interop",
-    "test_fems_interop_proofs",
-    "test_manual_content",
-    "test_other_pillar_interop_proofs",
-    "test_stage_interop"
+  "native_targets": [
+    "test_interconnect_ckc_to_note",
+    "test_interconnect_loom_backlink_search"
   ],
-  "per_mt": {
-    "MT-122": {
-      "run": [
-        "test_author_id_budget::mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
-        "test_manual_content::*"
-      ],
-      "reuse": [
-        "lib::find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane (d9ce6017)",
-        "lib::find_in_files::tests::mt119_saved_search_controls_stay_inside_the_find_pane (d9ce6017)",
-        "test_find_in_files::find_in_files_screenshot (d9ce6017)",
-        "test_find_in_files::find_in_files_screenshot_long_title_narrow_pane_mt122 (d9ce6017)",
-        "lib::find_in_files::tests::mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize (d9ce6017)",
-        "lib::find_in_files::tests::mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity (d9ce6017)",
-        "lib::find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token (d9ce6017)"
-      ]
-    },
-    "MT-153": {
-      "run": [
-        "test_block_collection_view::block_collection_views_live_surrealdb_self_seed_full_round_trip",
-        "test_canvas_board::canvas_board_live_surrealdb_self_seeds_mounted_round_trip"
-      ],
-      "reuse": []
-    }
-  },
-  "notes": []
+  "native_filter": "interconnect_",
+  "native_expected_count": 10,
+  "extracted_crates": [
+    "handshake_document"
+  ],
+  "proof_basis": "MT-170.proof.checks plus retained validation_v1 required original PC-046-01/03 selections",
+  "historical_acceptance_ref": "MT-170.json#operator_acceptance_disposition_20261008",
+  "prior_proof_reuse": "NOT_REUSED: prior hashed logs and JUnit absent on new host",
+  "profile": "x64 MSVC Rust1.97.1; jobs1; incremental0; line-tables-only; Surreal allow-list O2 as approved20261001",
+  "artifact_owner": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv",
+  "cap_bytes": 160000000000
 }
