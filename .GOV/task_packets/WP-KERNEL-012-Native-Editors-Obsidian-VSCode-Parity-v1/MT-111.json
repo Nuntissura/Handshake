@@ -132,114 +132,121 @@
     "status": "ACCEPTED by orchestrator as Option A (2026-10-01); MT-111 set READY_FOR_VALIDATION"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
-    "blocked_on": null,
-    "ready_for_validation_transition_20261001": {
-      "at_utc": "2026-10-01T18:29:18Z",
-      "by": "KERNEL_BUILDER lane B (orchestrator Option A)",
-      "from_status": "BLOCKED",
-      "prior_blocked_on": "MT-036",
-      "reason": "blocker MT-036 is PASS_V10 (MT-036.json#validation_round_bd8c7532: test_event_emitter 11/11 incl event_emitter_native_editor_round_trip, the test that failed here at test_event_emitter.rs:2768)",
-      "diagnosis_ref": "MT-111.json#ac_111_4_proof_analysis_20261001 (AC-111-4 runtime proof = PC-111-04 mounted pane open against the real backend; mapping for the validator to decide; Option B additive live assertion recorded as fallback)",
-      "product_change": "none; candidate is the next round's frozen head (current product tip 4d0da145)",
-      "gameplan": "kernel_builder before_submit PASS 2/2 at product 4d0da145",
-      "round_note": "enters the NEXT union round; round 4d0da145 is frozen"
-    },
-    "active": false,
-    "depends_on": [
-      "MT-109"
-    ],
-    "blocks": [
-      "MT-066"
-    ],
-    "validator_verdict": "FAIL_V2",
-    "claimed_by": null,
-    "completed_by": null,
-    "created_by": "KERNEL_BUILDER-20260805-054937",
-    "creation_reason": "MT-109 hardened the flight-recorder route group (fail-closed capability middleware, server-derived actor/workspace attribution, workspace-partitioned idempotency) and REMOVED the unauthenticated unscoped ingestion routes, replacing them with POST /workspaces/:workspace_id/flight_recorder/{native_editor_event,runtime_chat_event}. src/frontend/** is a FORBIDDEN path for MT-109, so its frontend callers were left pointing at routes that no longer exist or now return 403. KERNEL_BUILDER independently CONFIRMED the break rather than accepting it on report: src/frontend/handshake_native/src/event_emitter.rs:964 still formats {base}/api/flight_recorder/native_editor_event, and src/frontend/handshake_native/src/app.rs:26219 still issues an unscoped GET {base}/api/flight_recorder. Neither sends the x-hsk-session-token the new middleware requires. This MT exists so the break is not lost per the Operator standing rule that a discovered gap outside the current MT is deferred to a future MT in the same work packet.",
-    "scope_expansion_2026_08_05": {
-      "by": "KERNEL_BUILDER-20260805-054937",
-      "reason": "The MT-027 sub-agent discovered, while working, that the recorder read path is now gated on a real native-MCP session token bound to an on-disk binding file, and was checking whether the frontend exposes that binding so its test could present it HONESTLY. That is direct MT-109 fallout affecting TEST harnesses, not just product callers, so MT-111 scope is widened to cover it rather than leaving each MT to improvise a workaround or quietly weaken the gate.",
-      "risk_if_ignored": "Every MT whose proof reads the Flight Recorder would independently hit a 401 and be tempted to bypass the authorization that MT-109 just installed - silently undoing a real security fix in the name of getting a proof green."
-    },
-    "kernel_builder_partial_implementation_2026_08_05": {
-      "by": "KERNEL_BUILDER-20260805-054937",
-      "at_utc": "2026-08-05T19:07:25.807Z",
-      "done": [
-        "AC-111-1 (partial): src/frontend/handshake_native/src/event_emitter.rs no longer posts to the REMOVED unscoped route. fn url() was replaced by fn url_for(&self, event) building POST {base}/api/workspaces/{workspace_id}/flight_recorder/native_editor_event, taking the workspace from the EVENT rather than from construction time because one transport instance serves whichever workspace an event belongs to. The post() call site now uses url_for(&event). The module doc header was corrected in the same change so it no longer documents the retired unscoped route.",
-        "cargo check --lib => exit 0, zero errors, zero new warnings."
-      ],
-      "remaining": [
-        "AC-111-2: the transport does not yet send the native-MCP session binding token header that the MT-109 middleware requires, so these posts will currently receive 401 HSK-401-FR-SESSION. A missing token must surface as a typed operator-visible error rather than a silent drop.",
-        "AC-111-3: confirm the client no longer sends client-authored actor_id/actor_kind/workspace_id as AUTHORITY. build_post_body still stamps actor_id, actor_kind and workspace_id; under the MT-109 contract these are optional and must EXACTLY match the authenticated context or be omitted for the server to fill. Decide and prove which.",
-        "AC-111-4: app.rs:26219 still issues an unscoped GET /api/flight_recorder, which now requires fr.read.global - granted to NO profile - so it will always 403. It must send an explicit ?wsid= scope.",
-        "AC-111-5: live runtime proof against a real backend and real PostgreSQL, including the 401 and 403 negatives.",
-        "AC-111-6: manual_content_editors.rs flight_recorder_body() around line 1015 still documents the retired unscoped GET contract.",
-        "AC-111-7: test harnesses that READ the Flight Recorder must present a genuine binding (discovered by the MT-027 agent)."
-      ],
-      "note": "Implemented directly by KERNEL_BUILDER on a file no running sub-agent owns, to close the most clearly-broken half of a REAL runtime break: with the unscoped route deleted, every native-editor event would otherwise stop reaching the Flight Recorder silently."
-    },
-    "critical_path_note": "ELEVATED TO CRITICAL PATH 2026-08-05: MT-066 live_route_round_trip_real_pg cannot pass until this MT makes the native emitter present its binding token. Proven at runtime: POST /api/workspaces/{id}/flight_recorder/native_editor_event without a token returns 401 HSK-401-FR-SESSION, so the mounted native app can no longer write its own Flight Recorder events and the awaited route FR row never lands.",
-    "ready_for_validation_v4_at_utc": "2026-08-05T23:19:13.141Z",
-    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260805-054937",
-    "remediation_v4": {
-      "schema_id": "hsk.mt_remediation_evidence@1",
-      "remediated_at_utc": "2026-08-05T23:19:13.141Z",
-      "remediated_by": "KERNEL_BUILDER-20260805-054937",
-      "previous_status": "READY_FOR_DEV",
-      "purpose": "Repair the REAL runtime break created when MT-109 correctly removed the unauthenticated unscoped flight-recorder routes: the mounted native app could no longer write its own Flight Recorder events.",
-      "token_contract": {
-        "which": "The token field of the canonical on-disk binding at crate::mcp::binding_path() - the exact file handshake_core capture_context reads. The in-process mcp_token was DELIBERATELY not used: if another instance republished the canonical file, the in-process copy is stale while the backend only consults the file.",
-        "refresh": "No cache. Re-read on EVERY request, resolved as late as possible inside the async POST body on the off-frame dispatch worker (never the egui frame thread). Publication is an atomic replace, so a rebind with a new port/token/owning process is picked up by the very next event with no invalidation logic.",
-        "absence": "Typed EmitError::MissingSessionBinding{path,reason}; the POST is NOT attempted. It lands in the shared ErrorRing and renders as flight-recorder.emit-error-{index} with an AccessKit value, and record_emit_failure_diagnostic gets a distinct Tier-2 kind. A rejected credential is EmitError::SessionRejected{status,error_code} carrying the exact HSK-4xx-FR-* code. Never a silent drop.",
-        "identity": "build_post_body now OMITS actor_id, actor_kind and workspace_id entirely - the path segment carries the workspace, the binding carries the actor, and the server fills both. event.actor_id/event.workspace_id remain local routing and diagnostic identity only."
-      },
-      "live_proof": "test_flight_recorder_authz against a real backend and real PostgreSQL: 12 passed / 0 failed (132.90s), final re-run 1 passed. The binding is published through the product own mcp::write_binding with a real PID and OS birth identity - not a mock.",
-      "negatives_proven_live": [
-        "POST without header => 401 HSK-401-FR-SESSION",
-        "GET without header => 401",
-        "actor_id mismatch with a VALID token => 403 HSK-403-FR-ACTOR-SPOOF, and the scoped read confirms NO durable row",
-        "body workspace_id != path => 403 HSK-403-FR-WORKSPACE, no durable row",
-        "unscoped GET WITH a valid credential => 403 HSK-403-FR-CAPABILITY (fr.read.global granted to no profile)",
-        "empty binding root => typed EmitError::MissingSessionBinding surfaced in the operator-visible error ring",
-        "POSITIVE: production emitter lands a durable row read back via ?wsid= with server-derived actor_id (handshake-native: prefix), different from the caller actor and from DEFAULT_ACTOR_ID, payload.workspace_id equal to the path workspace"
-      ],
-      "mt066_blocker_status": "MECHANISM CLEARED, END-TO-END RUN NOT YET EXECUTED. The named failure - RuntimeChatLedgerTransport::post sending only .json(&body), giving 401 so the FR row never landed - is fixed and proven live. MT-066 wait_for_native_fr already presents live_binding_session_token() and its mounted app publishes a real binding before the route action, which the per-request re-read picks up. live_route_round_trip_real_pg could NOT be run because it aborts at test_stage_interop.rs:956 refusing dirty relevant source, and committing would have swept MT-079 and MT-029 in-flight work into this commit. The confirmation run must happen after the worktree is committed and clean.",
-      "second_mt109_fallout_found_and_fixed": "DISCLOSED out-of-AC unblocking work per GLOBAL-SCOPE-005. MT-066 harness LiveWorkspaceGuard::cleanup_native_fr_ledger builds keys native-editor-fr-{pending,complete}:{event_id}, but MT-109 partitioned those keys as ...:{workspace_id}:{client_event_id} AND the FR row event_id is now the workspace-scoped DERIVED uuid rather than the client id - so its cleanup would delete NOTHING and then fail finish_and_assert_zero. Minimal additive fix in test_stage_interop.rs: track_native_fr also records payload.client_event_id and the cleanup names both key spellings, still scoped to its own event ids. COMPILE-VERIFIED ONLY - the MT-066 lane must confirm at runtime.",
-      "disclosed_gaps": [
-        "PALMISTRY still targets the removed unscoped route (src/frontend/palmistry/fr_forward.rs:52 FR_ROUTE_PATH). Outside MT-111 allowed_paths and NOT a mechanical rename: Palmistry is an out-of-process watcher with no workspace id and no native-MCP binding, so it cannot satisfy either half of the new contract. It already returns a typed SchemaIncompatible blocker deferred to WP-KERNEL-016, so nothing regressed into silence, but the constant is now dead. Needs its own MT and a design decision. -> tracked as MT-115.",
-        "AC-111-7 complete in MECHANISM, partial in APPLICATION. The canonical shared helper exists and is applied to test_flight_recorder_authz and test_event_emitter. Seven other suites still read the recorder with NO credential and will 401: test_calendar_interop (4 sites), test_ckc_embed (1), test_e7_swarm_edit_proof (1), test_fems_interop_proofs (5 of 7), test_locus_interop (1), test_other_pillar_interop_proofs (6), test_code_note_cross_ref (2, stub server). Each needs RealNativeMcpBinding::publish() BEFORE its backend selection - suite-specific ordering the agent could not verify without running seven heavy live proofs. It chose to REPORT rather than make unverifiable edits across seven other MTs proofs, which is the right call. -> tracked as MT-115.",
-        "document_saved FR events now require the save receipt ledger actor_id to equal the server-derived handshake-native:{pid}:{fingerprint} (validate_document_save_receipt, flight_recorder.rs:897), but the frontend save path sends its own x-hsk-actor-id, so document_saved native-editor events will likely 400 HSK-400-INVALID-EVENT. Not on MT-066 path and not covered by any AC-111-*, so not chased - but it is a REAL MT-109 consequence needing an owner. -> tracked as MT-115."
-      ],
-      "kb_ready_checklist_receipt": {
-        "verdict": "PASS",
-        "blockers": 0
-      },
-      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
-    },
-    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
-    "validated_at_utc": "2026-10-08T16:59:02.694177Z",
-    "validated_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
-    "next_actor": "WP_VALIDATOR: validate pushed MT111 candidate062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb with fresh own six-case targeted proof; historical1ad records and MT170PASS retained",
-    "ready_for_validation_transition_2": {
-      "at_utc": "2026-09-23T23:43:15.504Z",
-      "by": "INTEGRATION_VALIDATOR on Operator direction 2026-09-24 (remediated MTs are READY_FOR_VALIDATION)",
-      "from_status": "BLOCKED_ON_DEPENDENCY",
-      "prior_validator_verdict": "FAIL_V1",
-      "reason": "remediation_v4 newer than last validation"
-    },
-    "prior_validator_verdict": "BLOCKED",
-    "ready_for_validation_transition_20261008": {
-      "by": "KERNEL_BUILDER-20261008-MT111-MANUAL",
-      "at_utc": "2026-10-08T18:33:01.236244Z",
-      "from_status": "FAIL_V2",
-      "candidate_commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
-      "candidate_tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
-      "reason": "Pushed newer minimal product repair, exact Operator version exception, stable static proof and independent buddy source review",
-      "proof_ref": "PR-WP012-MT111-KB-20261008-062BF-STATIC",
-      "runtime_state": "PENDING_WP_VALIDATOR"
-    }
+  "status": "FAIL_V3",
+  "blocked_on": null,
+  "ready_for_validation_transition_20261001": {
+    "at_utc": "2026-10-01T18:29:18Z",
+    "by": "KERNEL_BUILDER lane B (orchestrator Option A)",
+    "from_status": "BLOCKED",
+    "prior_blocked_on": "MT-036",
+    "reason": "blocker MT-036 is PASS_V10 (MT-036.json#validation_round_bd8c7532: test_event_emitter 11/11 incl event_emitter_native_editor_round_trip, the test that failed here at test_event_emitter.rs:2768)",
+    "diagnosis_ref": "MT-111.json#ac_111_4_proof_analysis_20261001 (AC-111-4 runtime proof = PC-111-04 mounted pane open against the real backend; mapping for the validator to decide; Option B additive live assertion recorded as fallback)",
+    "product_change": "none; candidate is the next round's frozen head (current product tip 4d0da145)",
+    "gameplan": "kernel_builder before_submit PASS 2/2 at product 4d0da145",
+    "round_note": "enters the NEXT union round; round 4d0da145 is frozen"
   },
+  "active": false,
+  "depends_on": [
+    "MT-109"
+  ],
+  "blocks": [
+    "MT-066"
+  ],
+  "validator_verdict": "FAIL_V3",
+  "claimed_by": null,
+  "completed_by": null,
+  "created_by": "KERNEL_BUILDER-20260805-054937",
+  "creation_reason": "MT-109 hardened the flight-recorder route group (fail-closed capability middleware, server-derived actor/workspace attribution, workspace-partitioned idempotency) and REMOVED the unauthenticated unscoped ingestion routes, replacing them with POST /workspaces/:workspace_id/flight_recorder/{native_editor_event,runtime_chat_event}. src/frontend/** is a FORBIDDEN path for MT-109, so its frontend callers were left pointing at routes that no longer exist or now return 403. KERNEL_BUILDER independently CONFIRMED the break rather than accepting it on report: src/frontend/handshake_native/src/event_emitter.rs:964 still formats {base}/api/flight_recorder/native_editor_event, and src/frontend/handshake_native/src/app.rs:26219 still issues an unscoped GET {base}/api/flight_recorder. Neither sends the x-hsk-session-token the new middleware requires. This MT exists so the break is not lost per the Operator standing rule that a discovered gap outside the current MT is deferred to a future MT in the same work packet.",
+  "scope_expansion_2026_08_05": {
+    "by": "KERNEL_BUILDER-20260805-054937",
+    "reason": "The MT-027 sub-agent discovered, while working, that the recorder read path is now gated on a real native-MCP session token bound to an on-disk binding file, and was checking whether the frontend exposes that binding so its test could present it HONESTLY. That is direct MT-109 fallout affecting TEST harnesses, not just product callers, so MT-111 scope is widened to cover it rather than leaving each MT to improvise a workaround or quietly weaken the gate.",
+    "risk_if_ignored": "Every MT whose proof reads the Flight Recorder would independently hit a 401 and be tempted to bypass the authorization that MT-109 just installed - silently undoing a real security fix in the name of getting a proof green."
+  },
+  "kernel_builder_partial_implementation_2026_08_05": {
+    "by": "KERNEL_BUILDER-20260805-054937",
+    "at_utc": "2026-08-05T19:07:25.807Z",
+    "done": [
+      "AC-111-1 (partial): src/frontend/handshake_native/src/event_emitter.rs no longer posts to the REMOVED unscoped route. fn url() was replaced by fn url_for(&self, event) building POST {base}/api/workspaces/{workspace_id}/flight_recorder/native_editor_event, taking the workspace from the EVENT rather than from construction time because one transport instance serves whichever workspace an event belongs to. The post() call site now uses url_for(&event). The module doc header was corrected in the same change so it no longer documents the retired unscoped route.",
+      "cargo check --lib => exit 0, zero errors, zero new warnings."
+    ],
+    "remaining": [
+      "AC-111-2: the transport does not yet send the native-MCP session binding token header that the MT-109 middleware requires, so these posts will currently receive 401 HSK-401-FR-SESSION. A missing token must surface as a typed operator-visible error rather than a silent drop.",
+      "AC-111-3: confirm the client no longer sends client-authored actor_id/actor_kind/workspace_id as AUTHORITY. build_post_body still stamps actor_id, actor_kind and workspace_id; under the MT-109 contract these are optional and must EXACTLY match the authenticated context or be omitted for the server to fill. Decide and prove which.",
+      "AC-111-4: app.rs:26219 still issues an unscoped GET /api/flight_recorder, which now requires fr.read.global - granted to NO profile - so it will always 403. It must send an explicit ?wsid= scope.",
+      "AC-111-5: live runtime proof against a real backend and real PostgreSQL, including the 401 and 403 negatives.",
+      "AC-111-6: manual_content_editors.rs flight_recorder_body() around line 1015 still documents the retired unscoped GET contract.",
+      "AC-111-7: test harnesses that READ the Flight Recorder must present a genuine binding (discovered by the MT-027 agent)."
+    ],
+    "note": "Implemented directly by KERNEL_BUILDER on a file no running sub-agent owns, to close the most clearly-broken half of a REAL runtime break: with the unscoped route deleted, every native-editor event would otherwise stop reaching the Flight Recorder silently."
+  },
+  "critical_path_note": "ELEVATED TO CRITICAL PATH 2026-08-05: MT-066 live_route_round_trip_real_pg cannot pass until this MT makes the native emitter present its binding token. Proven at runtime: POST /api/workspaces/{id}/flight_recorder/native_editor_event without a token returns 401 HSK-401-FR-SESSION, so the mounted native app can no longer write its own Flight Recorder events and the awaited route FR row never lands.",
+  "ready_for_validation_v4_at_utc": "2026-08-05T23:19:13.141Z",
+  "ready_for_validation_v4_by": "KERNEL_BUILDER-20260805-054937",
+  "remediation_v4": {
+    "schema_id": "hsk.mt_remediation_evidence@1",
+    "remediated_at_utc": "2026-08-05T23:19:13.141Z",
+    "remediated_by": "KERNEL_BUILDER-20260805-054937",
+    "previous_status": "READY_FOR_DEV",
+    "purpose": "Repair the REAL runtime break created when MT-109 correctly removed the unauthenticated unscoped flight-recorder routes: the mounted native app could no longer write its own Flight Recorder events.",
+    "token_contract": {
+      "which": "The token field of the canonical on-disk binding at crate::mcp::binding_path() - the exact file handshake_core capture_context reads. The in-process mcp_token was DELIBERATELY not used: if another instance republished the canonical file, the in-process copy is stale while the backend only consults the file.",
+      "refresh": "No cache. Re-read on EVERY request, resolved as late as possible inside the async POST body on the off-frame dispatch worker (never the egui frame thread). Publication is an atomic replace, so a rebind with a new port/token/owning process is picked up by the very next event with no invalidation logic.",
+      "absence": "Typed EmitError::MissingSessionBinding{path,reason}; the POST is NOT attempted. It lands in the shared ErrorRing and renders as flight-recorder.emit-error-{index} with an AccessKit value, and record_emit_failure_diagnostic gets a distinct Tier-2 kind. A rejected credential is EmitError::SessionRejected{status,error_code} carrying the exact HSK-4xx-FR-* code. Never a silent drop.",
+      "identity": "build_post_body now OMITS actor_id, actor_kind and workspace_id entirely - the path segment carries the workspace, the binding carries the actor, and the server fills both. event.actor_id/event.workspace_id remain local routing and diagnostic identity only."
+    },
+    "live_proof": "test_flight_recorder_authz against a real backend and real PostgreSQL: 12 passed / 0 failed (132.90s), final re-run 1 passed. The binding is published through the product own mcp::write_binding with a real PID and OS birth identity - not a mock.",
+    "negatives_proven_live": [
+      "POST without header => 401 HSK-401-FR-SESSION",
+      "GET without header => 401",
+      "actor_id mismatch with a VALID token => 403 HSK-403-FR-ACTOR-SPOOF, and the scoped read confirms NO durable row",
+      "body workspace_id != path => 403 HSK-403-FR-WORKSPACE, no durable row",
+      "unscoped GET WITH a valid credential => 403 HSK-403-FR-CAPABILITY (fr.read.global granted to no profile)",
+      "empty binding root => typed EmitError::MissingSessionBinding surfaced in the operator-visible error ring",
+      "POSITIVE: production emitter lands a durable row read back via ?wsid= with server-derived actor_id (handshake-native: prefix), different from the caller actor and from DEFAULT_ACTOR_ID, payload.workspace_id equal to the path workspace"
+    ],
+    "mt066_blocker_status": "MECHANISM CLEARED, END-TO-END RUN NOT YET EXECUTED. The named failure - RuntimeChatLedgerTransport::post sending only .json(&body), giving 401 so the FR row never landed - is fixed and proven live. MT-066 wait_for_native_fr already presents live_binding_session_token() and its mounted app publishes a real binding before the route action, which the per-request re-read picks up. live_route_round_trip_real_pg could NOT be run because it aborts at test_stage_interop.rs:956 refusing dirty relevant source, and committing would have swept MT-079 and MT-029 in-flight work into this commit. The confirmation run must happen after the worktree is committed and clean.",
+    "second_mt109_fallout_found_and_fixed": "DISCLOSED out-of-AC unblocking work per GLOBAL-SCOPE-005. MT-066 harness LiveWorkspaceGuard::cleanup_native_fr_ledger builds keys native-editor-fr-{pending,complete}:{event_id}, but MT-109 partitioned those keys as ...:{workspace_id}:{client_event_id} AND the FR row event_id is now the workspace-scoped DERIVED uuid rather than the client id - so its cleanup would delete NOTHING and then fail finish_and_assert_zero. Minimal additive fix in test_stage_interop.rs: track_native_fr also records payload.client_event_id and the cleanup names both key spellings, still scoped to its own event ids. COMPILE-VERIFIED ONLY - the MT-066 lane must confirm at runtime.",
+    "disclosed_gaps": [
+      "PALMISTRY still targets the removed unscoped route (src/frontend/palmistry/fr_forward.rs:52 FR_ROUTE_PATH). Outside MT-111 allowed_paths and NOT a mechanical rename: Palmistry is an out-of-process watcher with no workspace id and no native-MCP binding, so it cannot satisfy either half of the new contract. It already returns a typed SchemaIncompatible blocker deferred to WP-KERNEL-016, so nothing regressed into silence, but the constant is now dead. Needs its own MT and a design decision. -> tracked as MT-115.",
+      "AC-111-7 complete in MECHANISM, partial in APPLICATION. The canonical shared helper exists and is applied to test_flight_recorder_authz and test_event_emitter. Seven other suites still read the recorder with NO credential and will 401: test_calendar_interop (4 sites), test_ckc_embed (1), test_e7_swarm_edit_proof (1), test_fems_interop_proofs (5 of 7), test_locus_interop (1), test_other_pillar_interop_proofs (6), test_code_note_cross_ref (2, stub server). Each needs RealNativeMcpBinding::publish() BEFORE its backend selection - suite-specific ordering the agent could not verify without running seven heavy live proofs. It chose to REPORT rather than make unverifiable edits across seven other MTs proofs, which is the right call. -> tracked as MT-115.",
+      "document_saved FR events now require the save receipt ledger actor_id to equal the server-derived handshake-native:{pid}:{fingerprint} (validate_document_save_receipt, flight_recorder.rs:897), but the frontend save path sends its own x-hsk-actor-id, so document_saved native-editor events will likely 400 HSK-400-INVALID-EVENT. Not on MT-066 path and not covered by any AC-111-*, so not chased - but it is a REAL MT-109 consequence needing an owner. -> tracked as MT-115."
+    ],
+    "kb_ready_checklist_receipt": {
+      "verdict": "PASS",
+      "blockers": 0
+    },
+    "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
+  },
+  "validated_by": "WP_VALIDATOR-20261008-MT111-X64-ARMHOST",
+  "validated_at_utc": "2026-10-08T19:28:25.644965Z",
+  "validated_commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+  "next_actor": "ORCHESTRATOR: resolve literal PT1112 seven documentary occurrences only; all six current runtime proofs GREEN",
+  "ready_for_validation_transition_2": {
+    "at_utc": "2026-09-23T23:43:15.504Z",
+    "by": "INTEGRATION_VALIDATOR on Operator direction 2026-09-24 (remediated MTs are READY_FOR_VALIDATION)",
+    "from_status": "BLOCKED_ON_DEPENDENCY",
+    "prior_validator_verdict": "FAIL_V1",
+    "reason": "remediation_v4 newer than last validation"
+  },
+  "prior_validator_verdict": "BLOCKED",
+  "ready_for_validation_transition_20261008": {
+    "by": "KERNEL_BUILDER-20261008-MT111-MANUAL",
+    "at_utc": "2026-10-08T18:33:01.236244Z",
+    "from_status": "FAIL_V2",
+    "candidate_commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+    "candidate_tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+    "reason": "Pushed newer minimal product repair, exact Operator version exception, stable static proof and independent buddy source review",
+    "proof_ref": "PR-WP012-MT111-KB-20261008-062BF-STATIC",
+    "runtime_state": "PENDING_WP_VALIDATOR"
+  },
+  "validation_transition_20261008_mt111_r2": {
+    "at_utc": "2026-10-08T19:28:25.644965Z",
+    "from_status": "READY_FOR_VALIDATION",
+    "to_status": "FAIL_V3",
+    "verdict_ref": "validation_runtime_20261008_062bf554_mt111",
+    "idempotency_key": "MT111-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-WPV-FAIL_V3-20261008"
+  }
+},
   "scope": {
     "summary": "Rewire every Handshake frontend caller of the flight-recorder API onto the MT-109 workspace-scoped, capability-gated routes, sending the native-MCP session binding token, and stop sending client-authored actor/workspace identity that the backend now derives and rejects on mismatch.",
     "allowed_paths": [
@@ -1640,9 +1647,405 @@
         "runtime": "NOT_RUN by builder; no integration PASS"
       },
       "scope_limit": "Implementer static/source proof only; no runtime PASS or independent acceptance verdict"
+    },
+    {
+      "executor": "WP_VALIDATOR-20261008-MT111-X64-ARMHOST",
+      "covers": [
+        "MT-111"
+      ],
+      "commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+      "tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+      "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current",
+      "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+      "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb targeted",
+      "frozen_input_ref": "validation.running_record_mt111_20261008.frozen_input_sha256",
+      "features_config": "integration,integration_tests,wgpu_screenshots;GPU1;locked;j1;serial owned live backend;actualbackend current062;noCORE/extracted",
+      "id": "PR-WP012-MT111-WPV-20261008-062BF-R2-BUILD",
+      "phase": "BUILD",
+      "started_at_utc": "2026-10-08T19:10:03.7569970Z",
+      "completed_at_utc": "2026-10-08T19:22:41.9678328Z",
+      "exit_code": 0,
+      "result": "PASS",
+      "artifacts": [
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.exit.json",
+          "bytes": 3161,
+          "sha256": "fdc7463fd59e238590470c79f6141ad7b3e4fb6400c86b60b15aa48c27937345"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.identity.json",
+          "bytes": 4322,
+          "sha256": "e5a7f9d0c46e1a449bd57488bc00f7e313128eefb2e7c6fb0082c6bb002e92d3"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.stdout.log",
+          "bytes": 6970,
+          "sha256": "06bcceac0535fe809371c8ad34a9bf449492092514b5442a9195b6a5e3ce9be3"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.stderr.log",
+          "bytes": 35330,
+          "sha256": "9eefd7c9d24c8abeb02242591124ff274768054b3905385ce0696bca4adc60c9"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.observations.jsonl",
+          "bytes": 61661,
+          "sha256": "7616cbf5034a59bc8b94ba81c3e6aad8aaa48190366dd9cfcabff3ad2db2af9c"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/native-build-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-targeted-mt111-r2.log",
+          "bytes": 1354,
+          "sha256": "dad07eb65a076a7980f019c0b31cdd2e9272804de392738bf40e2adcfefc53e6"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/export-current-metadata-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-full-004ecef4831040dfb900fa2941c156a2-after.json",
+          "bytes": 1983350,
+          "sha256": "c3a0cb5eacec1a9cb2ec9afc1b8ebde7517a0f9a3e0d4806904314dc92ba1ad6"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/export-current-metadata-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-full-004ecef4831040dfb900fa2941c156a2-before.json",
+          "bytes": 914368,
+          "sha256": "bf67e146d401ce3ba51e72eb2c97f6c0bcb20e88c1fb78dd7b78108af063d7b8"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/export-current-metadata-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-full-004ecef4831040dfb900fa2941c156a2-compare.json",
+          "bytes": 538954,
+          "sha256": "c217719952d9d3257ac5e14f5b582f48f3a459bb6688aa142e52a52a0ef7988a"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current.identity",
+          "bytes": 345,
+          "sha256": "639af0365108d9d5511e8fd03bb0538fc83d29275899bb4d90d0d811547238bd"
+        }
+      ],
+      "binaries": [
+        {
+          "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target/debug/deps/handshake_native-30d3f6e9428dd192.exe",
+          "bytes": 92945408,
+          "sha256": "23d75ed443abbdee5f51f53c9b8d3697991135aadc098cb86ff8925944682cc7"
+        },
+        {
+          "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target/debug/deps/test_event_emitter-968090f048fc147d.exe",
+          "bytes": 67947008,
+          "sha256": "08d828f825a0e3e2a5531bcbff3a8b7d48bb08eb98d44dcd967fcea07f9ef603"
+        },
+        {
+          "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target/debug/deps/test_flight_recorder_authz-17b83a997c3f0f1f.exe",
+          "bytes": 10930688,
+          "sha256": "262c247afb0596c1f76e5e7b860183978bab1669363d04dee14f4fe3f46d0440"
+        },
+        {
+          "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target/debug/deps/test_manual_content-2d41009ce44528bf.exe",
+          "bytes": 82703872,
+          "sha256": "9b3e521bfd189ea1d531f5e7cf69a8bb4479853dff754eb5dfd9eb5411d484a7"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target/debug/handshake_core.exe",
+          "bytes": 282144768,
+          "sha256": "b079a4bf09207b2b5a14ee532cd00e440b89cc8f184391c6ddfcfd4eef3a6b45"
+        }
+      ],
+      "rebuild_accounting": {
+        "compiled_crates": 6,
+        "relinked_test_binaries": 6,
+        "backend_bin_relinked": 1,
+        "reason": "Required VPX011 full export-only recovery touched source; registry/C++ dependencies remain warm"
+      }
+    },
+    {
+      "executor": "WP_VALIDATOR-20261008-MT111-X64-ARMHOST",
+      "covers": [
+        "MT-111"
+      ],
+      "commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+      "tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+      "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current",
+      "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+      "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb targeted",
+      "frozen_input_ref": "validation.running_record_mt111_20261008.frozen_input_sha256",
+      "features_config": "integration,integration_tests,wgpu_screenshots;GPU1;locked;j1;serial owned live backend;actualbackend current062;noCORE/extracted",
+      "id": "PR-WP012-MT111-WPV-20261008-062BF-R2-PC-111-01",
+      "check_id": "PC-111-01",
+      "phase": "NATIVE",
+      "started_at_utc": "2026-10-08T19:21:17.424000Z",
+      "completed_at_utc": "2026-10-08T19:22:41.9678328Z",
+      "exit_code": 0,
+      "result": "PASS_CURRENT_RUNTIME",
+      "artifact": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-native-targeted-mt111-r2.xml",
+        "bytes": 1837,
+        "sha256": "c1164ca5689304c5ef654ebe14a9b7d4ae1b0e267aed21a0239a1637c57a2b75"
+      },
+      "acceptance_refs": [
+        "AC-111-1",
+        "AC-111-2",
+        "AC-111-3",
+        "AC-111-4",
+        "AC-111-5",
+        "AC-111-7"
+      ],
+      "cases": [
+        {
+          "name": "mt111_flight_recorder_authorization_boundary_real_surrealdb",
+          "classname": "handshake-native::test_flight_recorder_authz",
+          "timestamp": "2026-10-08T21:22:27.402+02:00",
+          "time": "14.152",
+          "result": "PASS"
+        }
+      ],
+      "executed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "run_id": "e62a17a9-2be0-4df9-8b83-ff800c1c4904",
+      "shared_round_proof_ref": "PR-WP012-MT111-WPV-20261008-062BF-R2-BUILD",
+      "source_identity_sha256": "639af0365108d9d5511e8fd03bb0538fc83d29275899bb4d90d0d811547238bd"
+    },
+    {
+      "executor": "WP_VALIDATOR-20261008-MT111-X64-ARMHOST",
+      "covers": [
+        "MT-111"
+      ],
+      "commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+      "tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+      "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current",
+      "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+      "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb targeted",
+      "frozen_input_ref": "validation.running_record_mt111_20261008.frozen_input_sha256",
+      "features_config": "integration,integration_tests,wgpu_screenshots;GPU1;locked;j1;serial owned live backend;actualbackend current062;noCORE/extracted",
+      "id": "PR-WP012-MT111-WPV-20261008-062BF-R2-PC-111-02",
+      "check_id": "PC-111-02",
+      "phase": "NATIVE",
+      "started_at_utc": "2026-10-08T19:21:17.424000Z",
+      "completed_at_utc": "2026-10-08T19:22:41.9678328Z",
+      "exit_code": 0,
+      "result": "PASS_CURRENT_RUNTIME",
+      "artifact": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-native-targeted-mt111-r2.xml",
+        "bytes": 1837,
+        "sha256": "c1164ca5689304c5ef654ebe14a9b7d4ae1b0e267aed21a0239a1637c57a2b75"
+      },
+      "acceptance_refs": [
+        "AC-111-1",
+        "AC-111-2",
+        "AC-111-3"
+      ],
+      "cases": [
+        {
+          "name": "ingest_url_is_workspace_scoped_and_credential_comes_from_the_on_disk_binding",
+          "classname": "handshake-native::test_event_emitter",
+          "timestamp": "2026-10-08T21:22:27.210+02:00",
+          "time": "0.098",
+          "result": "PASS"
+        },
+        {
+          "name": "post_body_matches_verified_native_editor_schema",
+          "classname": "handshake-native::test_event_emitter",
+          "timestamp": "2026-10-08T21:22:27.309+02:00",
+          "time": "0.093",
+          "result": "PASS"
+        }
+      ],
+      "executed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "run_id": "e62a17a9-2be0-4df9-8b83-ff800c1c4904",
+      "shared_round_proof_ref": "PR-WP012-MT111-WPV-20261008-062BF-R2-BUILD",
+      "source_identity_sha256": "639af0365108d9d5511e8fd03bb0538fc83d29275899bb4d90d0d811547238bd"
+    },
+    {
+      "executor": "WP_VALIDATOR-20261008-MT111-X64-ARMHOST",
+      "covers": [
+        "MT-111"
+      ],
+      "commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+      "tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+      "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current",
+      "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+      "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb targeted",
+      "frozen_input_ref": "validation.running_record_mt111_20261008.frozen_input_sha256",
+      "features_config": "integration,integration_tests,wgpu_screenshots;GPU1;locked;j1;serial owned live backend;actualbackend current062;noCORE/extracted",
+      "id": "PR-WP012-MT111-WPV-20261008-062BF-R2-PC-111-03",
+      "check_id": "PC-111-03",
+      "phase": "NATIVE",
+      "started_at_utc": "2026-10-08T19:21:17.424000Z",
+      "completed_at_utc": "2026-10-08T19:22:41.9678328Z",
+      "exit_code": 0,
+      "result": "PASS_CURRENT_RUNTIME",
+      "artifact": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-native-targeted-mt111-r2.xml",
+        "bytes": 1837,
+        "sha256": "c1164ca5689304c5ef654ebe14a9b7d4ae1b0e267aed21a0239a1637c57a2b75"
+      },
+      "acceptance_refs": [
+        "AC-111-1"
+      ],
+      "cases": [
+        {
+          "name": "event_emitter::tests::ingest_url_is_workspace_scoped_from_the_event",
+          "classname": "handshake-native",
+          "timestamp": "2026-10-08T21:21:17.451+02:00",
+          "time": "0.110",
+          "result": "PASS"
+        }
+      ],
+      "executed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "run_id": "e62a17a9-2be0-4df9-8b83-ff800c1c4904",
+      "shared_round_proof_ref": "PR-WP012-MT111-WPV-20261008-062BF-R2-BUILD",
+      "source_identity_sha256": "639af0365108d9d5511e8fd03bb0538fc83d29275899bb4d90d0d811547238bd"
+    },
+    {
+      "executor": "WP_VALIDATOR-20261008-MT111-X64-ARMHOST",
+      "covers": [
+        "MT-111"
+      ],
+      "commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+      "tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+      "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current",
+      "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+      "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb targeted",
+      "frozen_input_ref": "validation.running_record_mt111_20261008.frozen_input_sha256",
+      "features_config": "integration,integration_tests,wgpu_screenshots;GPU1;locked;j1;serial owned live backend;actualbackend current062;noCORE/extracted",
+      "id": "PR-WP012-MT111-WPV-20261008-062BF-R2-PC-111-04",
+      "check_id": "PC-111-04",
+      "phase": "NATIVE",
+      "started_at_utc": "2026-10-08T19:21:17.424000Z",
+      "completed_at_utc": "2026-10-08T19:22:41.9678328Z",
+      "exit_code": 0,
+      "result": "PASS_CURRENT_RUNTIME",
+      "artifact": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-native-targeted-mt111-r2.xml",
+        "bytes": 1837,
+        "sha256": "c1164ca5689304c5ef654ebe14a9b7d4ae1b0e267aed21a0239a1637c57a2b75"
+      },
+      "acceptance_refs": [
+        "AC-111-4",
+        "AC-111-5",
+        "AC-111-7"
+      ],
+      "cases": [
+        {
+          "name": "event_emitter_native_editor_round_trip",
+          "classname": "handshake-native::test_event_emitter",
+          "timestamp": "2026-10-08T21:21:17.561+02:00",
+          "time": "69.648",
+          "result": "PASS"
+        }
+      ],
+      "executed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "run_id": "e62a17a9-2be0-4df9-8b83-ff800c1c4904",
+      "shared_round_proof_ref": "PR-WP012-MT111-WPV-20261008-062BF-R2-BUILD",
+      "source_identity_sha256": "639af0365108d9d5511e8fd03bb0538fc83d29275899bb4d90d0d811547238bd"
+    },
+    {
+      "executor": "WP_VALIDATOR-20261008-MT111-X64-ARMHOST",
+      "covers": [
+        "MT-111"
+      ],
+      "commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+      "tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+      "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current",
+      "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+      "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb targeted",
+      "frozen_input_ref": "validation.running_record_mt111_20261008.frozen_input_sha256",
+      "features_config": "integration,integration_tests,wgpu_screenshots;GPU1;locked;j1;serial owned live backend;actualbackend current062;noCORE/extracted",
+      "id": "PR-WP012-MT111-WPV-20261008-062BF-R2-PC-111-05",
+      "check_id": "PC-111-05",
+      "phase": "NATIVE",
+      "started_at_utc": "2026-10-08T19:21:17.424000Z",
+      "completed_at_utc": "2026-10-08T19:22:41.9678328Z",
+      "exit_code": 0,
+      "result": "PASS_CURRENT_RUNTIME",
+      "artifact": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-native-targeted-mt111-r2.xml",
+        "bytes": 1837,
+        "sha256": "c1164ca5689304c5ef654ebe14a9b7d4ae1b0e267aed21a0239a1637c57a2b75"
+      },
+      "acceptance_refs": [
+        "AC-111-6"
+      ],
+      "cases": [
+        {
+          "name": "mt104_topics_exist_and_include_no_context_runtime_facts",
+          "classname": "handshake-native::test_manual_content",
+          "timestamp": "2026-10-08T21:22:41.556+02:00",
+          "time": "0.124",
+          "result": "PASS"
+        }
+      ],
+      "executed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "run_id": "e62a17a9-2be0-4df9-8b83-ff800c1c4904",
+      "shared_round_proof_ref": "PR-WP012-MT111-WPV-20261008-062BF-R2-BUILD",
+      "source_identity_sha256": "639af0365108d9d5511e8fd03bb0538fc83d29275899bb4d90d0d811547238bd"
+    },
+    {
+      "executor": "WP_VALIDATOR-20261008-MT111-X64-ARMHOST",
+      "covers": [
+        "MT-111"
+      ],
+      "commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+      "tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+      "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current",
+      "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+      "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb targeted",
+      "frozen_input_ref": "validation.running_record_mt111_20261008.frozen_input_sha256",
+      "features_config": "integration,integration_tests,wgpu_screenshots;GPU1;locked;j1;serial owned live backend;actualbackend current062;noCORE/extracted",
+      "id": "PR-WP012-MT111-WPV-20261008-062BF-R2-SOURCE",
+      "phase": "SOURCE",
+      "started_at_utc": "2026-10-08T19:28:25.644965Z",
+      "completed_at_utc": "2026-10-08T19:28:25.644965Z",
+      "exit_code": 0,
+      "result": "FAIL_LITERAL_ACCEPTANCE",
+      "artifact": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/source-findings-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.json",
+        "bytes": 2880,
+        "sha256": "962c01a4b77721e99b9a79876d9a73de37ae5fa18a2f8f1a84a39a549cc3bfe3"
+      },
+      "checks": [
+        {
+          "id": "PT-111-2",
+          "expected": "zero literal retired-path occurrences in src/frontend/**",
+          "actual_literal_occurrences": 7,
+          "executable_calls": 0,
+          "matches": [
+            "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb:src/frontend/handshake_native/src/event_emitter.rs:1084:    /// MT-109 removed the unauthenticated unscoped `POST /api/flight_recorder/native_editor_event`",
+            "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb:src/frontend/handshake_native/src/manual_content_editors.rs:1107:unscoped POST /api/flight_recorder/native_editor_event route no longer exists. \\",
+            "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb:src/frontend/palmistry/Cargo.toml:88:#   Flight Recorder route `POST /api/flight_recorder/runtime_chat_event` (reuse-via-API; the FR is",
+            "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb:src/frontend/palmistry/src/fr_forward.rs:11://! MT-109 removed the unscoped `POST /api/flight_recorder/runtime_chat_event` and replaced the whole",
+            "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb:src/frontend/palmistry/src/fr_forward.rs:22://! `POST /api/flight_recorder/runtime_chat_event` WAS the FR ingestion endpoint. The in-repo",
+            "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb:src/frontend/palmistry/src/fr_forward.rs:63:// This module used to export `FR_ROUTE_PATH = \"/api/flight_recorder/runtime_chat_event\"`, described as",
+            "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb:src/frontend/palmistry/tests/test_fr_forward.rs:38:/// MT-109 removed the unscoped `/api/flight_recorder/runtime_chat_event` the production module used"
+          ],
+          "classification": "documentary comments/manual only; no executable-path defect claimed",
+          "result": "FAIL_LITERAL_ACCEPTANCE",
+          "authority": "MT-111.scope.acceptance_criteria[0];scope.proof_targets[1]",
+          "prior_census_ref": "remediation_plan_20261001_laneb.gaps_and_intended_fix[0]",
+          "buddy_independent_review": "Same seven literal hits; builder census is not Operator waiver/replacement acceptance"
+        },
+        {
+          "id": "MT111-MANUAL-DENIAL-CODE",
+          "result": "PASS",
+          "actual": "Current manual exact-resource broker403 HSK-403-PROTECTED-RESOURCE matches current backend/authz assertion; missing session401 retained"
+        },
+        {
+          "id": "HBR-MAN-001-VERSION",
+          "result": "PASS",
+          "actual": "Authorized canonical USER_MANUAL_VERSION2.0.5->2.0.6; paired manual+assertion same candidate; legacyversion and seedcontent unchanged"
+        }
+      ]
     }
   ],
-  "latest_verdict_ref": "validation_source_20261008_1ad04e43",
+  "latest_verdict_ref": "validation_runtime_20261008_062bf554_mt111",
   "running_record_mt111_20261008": {
     "executor": "WP_VALIDATOR-20261008-MT111-X64-ARMHOST",
     "candidate_commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
@@ -1664,7 +2067,7 @@
     "backend_required": true,
     "runtime_proof_reuse": "NONE: changed canonical version is consumed during backend startup; prior record lacked relevant-input path sets",
     "scope_limit": "Fresh own MT111 six cases only; prior MT170 PASS and READY13 results retained; no other failed MT repair or whole-WP verdict",
-    "state": "RUNNING",
+    "state": "CLOSED_RUNTIME_GREEN_ACCEPTANCE_FAIL",
     "attempt": 2,
     "prior_attempts": [
       {
@@ -1845,7 +2248,7 @@
       "buddy_actual_release_review": "NO_BLOCKING_FINDING"
     },
     "cargo_started": true,
-    "runtime_result": "PENDING",
+    "runtime_result": "PASS6/6",
     "source_refresh": {
       "mode": "full",
       "state": "METADATA_COMPARE_PASS",
@@ -1862,7 +2265,115 @@
       },
       "preservation_manifest_sha256": "aeb6319cd03df01c1fae8e7de5a44b9ba5017d9f2cbe8def99e5931b61cd6444",
       "buddy_verification": "182/182 file hashes, sizes, mtimes;7167 tracked metadata;13/13 retained input copies match"
-    }
+    },
+    "completed_at_utc": "2026-10-08T19:22:41.9678328Z",
+    "exit_code": 0,
+    "native_exit_code": 0,
+    "runtime_run_id": "e62a17a9-2be0-4df9-8b83-ff800c1c4904",
+    "junit": {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-native-targeted-mt111-r2.xml",
+      "bytes": 1837,
+      "sha256": "c1164ca5689304c5ef654ebe14a9b7d4ae1b0e267aed21a0239a1637c57a2b75"
+    },
+    "closed_artifacts": [
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.exit.json",
+        "bytes": 3161,
+        "sha256": "fdc7463fd59e238590470c79f6141ad7b3e4fb6400c86b60b15aa48c27937345"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.identity.json",
+        "bytes": 4322,
+        "sha256": "e5a7f9d0c46e1a449bd57488bc00f7e313128eefb2e7c6fb0082c6bb002e92d3"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.stdout.log",
+        "bytes": 6970,
+        "sha256": "06bcceac0535fe809371c8ad34a9bf449492092514b5442a9195b6a5e3ce9be3"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.stderr.log",
+        "bytes": 35330,
+        "sha256": "9eefd7c9d24c8abeb02242591124ff274768054b3905385ce0696bca4adc60c9"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.observations.jsonl",
+        "bytes": 61661,
+        "sha256": "7616cbf5034a59bc8b94ba81c3e6aad8aaa48190366dd9cfcabff3ad2db2af9c"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/native-build-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-targeted-mt111-r2.log",
+        "bytes": 1354,
+        "sha256": "dad07eb65a076a7980f019c0b31cdd2e9272804de392738bf40e2adcfefc53e6"
+      }
+    ],
+    "source_metadata_artifacts": [
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/export-current-metadata-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-full-004ecef4831040dfb900fa2941c156a2-after.json",
+        "bytes": 1983350,
+        "sha256": "c3a0cb5eacec1a9cb2ec9afc1b8ebde7517a0f9a3e0d4806904314dc92ba1ad6"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/export-current-metadata-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-full-004ecef4831040dfb900fa2941c156a2-before.json",
+        "bytes": 914368,
+        "sha256": "bf67e146d401ce3ba51e72eb2c97f6c0bcb20e88c1fb78dd7b78108af063d7b8"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/export-current-metadata-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-full-004ecef4831040dfb900fa2941c156a2-compare.json",
+        "bytes": 538954,
+        "sha256": "c217719952d9d3257ac5e14f5b582f48f3a459bb6688aa142e52a52a0ef7988a"
+      }
+    ],
+    "export_identity": {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current.identity",
+      "bytes": 345,
+      "sha256": "639af0365108d9d5511e8fd03bb0538fc83d29275899bb4d90d0d811547238bd"
+    },
+    "binary_artifacts": [
+      {
+        "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target/debug/deps/handshake_native-30d3f6e9428dd192.exe",
+        "bytes": 92945408,
+        "sha256": "23d75ed443abbdee5f51f53c9b8d3697991135aadc098cb86ff8925944682cc7"
+      },
+      {
+        "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target/debug/deps/test_event_emitter-968090f048fc147d.exe",
+        "bytes": 67947008,
+        "sha256": "08d828f825a0e3e2a5531bcbff3a8b7d48bb08eb98d44dcd967fcea07f9ef603"
+      },
+      {
+        "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target/debug/deps/test_flight_recorder_authz-17b83a997c3f0f1f.exe",
+        "bytes": 10930688,
+        "sha256": "262c247afb0596c1f76e5e7b860183978bab1669363d04dee14f4fe3f46d0440"
+      },
+      {
+        "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target/debug/deps/test_manual_content-2d41009ce44528bf.exe",
+        "bytes": 82703872,
+        "sha256": "9b3e521bfd189ea1d531f5e7cf69a8bb4479853dff754eb5dfd9eb5411d484a7"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target/debug/handshake_core.exe",
+        "bytes": 282144768,
+        "sha256": "b079a4bf09207b2b5a14ee532cd00e440b89cc8f184391c6ddfcfd4eef3a6b45"
+      }
+    ],
+    "source_census_artifact": {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/source-findings-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.json",
+      "bytes": 2880,
+      "sha256": "962c01a4b77721e99b9a79876d9a73de37ae5fa18a2f8f1a84a39a549cc3bfe3"
+    },
+    "resource_samples": {
+      "max_sampled_wp_bytes": 90726628482,
+      "min_sampled_free_commit_bytes": 22165004288,
+      "errors": 0
+    },
+    "rebuild_accounting": {
+      "compiled_crates": 6,
+      "relinked_test_binaries": 6,
+      "backend_bin_relinked": 1,
+      "reason": "Required VPX011 full export-only recovery touched source; registry/C++ dependencies remain warm"
+    },
+    "result": "FAIL_LITERAL_PT1112_ONLY",
+    "next_action": "Steering role resolves exact seven documentary retired-path occurrences; preserve all six fresh GREEN results"
   }
 },
   "validation_source_20261008_1ad04e43": {
@@ -2147,5 +2658,147 @@
     "runtime_state": "PENDING_WP_VALIDATOR",
     "next_actor": "WP_VALIDATOR",
     "integration_note": "Current origin/main76591388 merge-tree exit1 only AGENTS.md/CLAUDE.md conflicts; no integration runtime proof or integration PASS claimed"
+  },
+  "validation_runtime_20261008_062bf554_mt111": {
+  "schema_id": "hsk.mt_validation_verdict@1",
+  "decision": "failed",
+  "verdict": "FAIL_V3",
+  "validated_by": "WP_VALIDATOR-20261008-MT111-X64-ARMHOST",
+  "validated_at_utc": "2026-10-08T19:28:25.644965Z",
+  "candidate_commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+  "candidate_tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+  "started_at": "2026-10-08T19:10:03.7569970Z",
+  "completed_at": "2026-10-08T19:22:41.9678328Z",
+  "proof_record_ids": [
+    "PR-WP012-MT111-WPV-20261008-062BF-R2-BUILD",
+    "PR-WP012-MT111-WPV-20261008-062BF-R2-PC-111-01",
+    "PR-WP012-MT111-WPV-20261008-062BF-R2-PC-111-02",
+    "PR-WP012-MT111-WPV-20261008-062BF-R2-PC-111-03",
+    "PR-WP012-MT111-WPV-20261008-062BF-R2-PC-111-04",
+    "PR-WP012-MT111-WPV-20261008-062BF-R2-PC-111-05",
+    "PR-WP012-MT111-WPV-20261008-062BF-R2-SOURCE"
+  ],
+  "results_ref": "validation.running_record_mt111_20261008",
+  "runtime_result": "PASS6/6",
+  "runtime_reuse": "NONE;fresh six-case proof on current candidate",
+  "checks": [
+    {
+      "check_id": "PC-111-01",
+      "result": "PASS_CURRENT_RUNTIME"
+    },
+    {
+      "check_id": "PC-111-02",
+      "result": "PASS_CURRENT_RUNTIME"
+    },
+    {
+      "check_id": "PC-111-03",
+      "result": "PASS_CURRENT_RUNTIME"
+    },
+    {
+      "check_id": "PC-111-04",
+      "result": "PASS_CURRENT_RUNTIME"
+    },
+    {
+      "check_id": "PC-111-05",
+      "result": "PASS_CURRENT_RUNTIME"
+    },
+    {
+      "check_id": "PT-111-2",
+      "result": "FAIL",
+      "failure_kind": "product",
+      "expected": "zero literal occurrences",
+      "actual": "seven documentary occurrences; zero executable calls",
+      "artifact_ref": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/source-findings-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.json",
+        "bytes": 2880,
+        "sha256": "962c01a4b77721e99b9a79876d9a73de37ae5fa18a2f8f1a84a39a549cc3bfe3"
+      }
+    }
+  ],
+  "failure_kind": "product",
+  "failure_class": "MT111_LITERAL_RETIRED_PATH_CENSUS_NONZERO",
+  "remediation_required": [
+    {
+      "failed_acceptance_refs": [
+        "AC-111-1",
+        "PT-111-2"
+      ],
+      "failed_check_refs": [
+        "PT-111-2"
+      ],
+      "repair_direction": "Resolve exact seven documentary strings through authorized documentation cleanup or explicit governing acceptance disposition; no runtime/security defect inferred",
+      "artifact_refs": [
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/source-findings-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111-r2.json",
+          "bytes": 2880,
+          "sha256": "962c01a4b77721e99b9a79876d9a73de37ae5fa18a2f8f1a84a39a549cc3bfe3"
+        }
+      ]
+    }
+  ],
+  "gameplan": {
+    "before_verdict": "PASS12/12"
+  },
+  "preserved": "All historical verdicts/sourceFAIL/approval and first preCargo failure retained; six current GREEN remain valid; MT170PASS and other READY13 dispositions unchanged",
+  "verdict_events": [
+    {
+      "event": "accepted",
+      "idempotency_key": "MT111-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-WPV-FAIL_V3-20261008",
+      "at_utc": "2026-10-08T19:28:25.644965Z",
+      "decision": "failed"
+    },
+    {
+      "event": "completed",
+      "idempotency_key": "MT111-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-WPV-FAIL_V3-20261008",
+      "at_utc": "2026-10-08T19:28:25.644965Z",
+      "decision": "failed",
+      "state_effect": "One READY_FOR_VALIDATION->FAIL_V3 transition for literal source acceptance only; six fresh runtime cases GREEN"
+    }
+  ],
+  "scope_limit": "MT111 only; no whole-WP verdict/other MT repair; no hidden waiver or literal-zero claim",
+  "adversarial_review": {
+    "risk": "MEDIUM: existing version-startup consumer; manual/authz producer-consumer consistency",
+    "DIFF_ATTACK_SURFACES": [
+      "manual403 code can contradict authenticated broker",
+      "canonical version participates in backend startupseed"
+    ],
+    "INDEPENDENT_CHECKS_RUN": [
+      "Exact current broker/authz/manual comparison",
+      "Immutable candidate seven-hit census versus literal own floor",
+      "All12 frozeninputs and7167 source metadata proof independently read"
+    ],
+    "COUNTERFACTUAL_CHECKS": [
+      "Reverting manual_content_editors::flight_recorder_body code would teach wrong authenticated-denial response",
+      "Reverting USER_MANUAL_VERSION2.0.6 would leave required paired version bump absent"
+    ],
+    "BOUNDARY_PROBES": [
+      "Fresh mounted pane scoped-read real-backend roundtrip",
+      "Fresh authenticated request broker negatives and no-write assertions"
+    ],
+    "NEGATIVE_PATH_CHECKS": [
+      "Missing session401;spoof/workspace403/no-write;unscoped authenticatedprotected403"
+    ],
+    "INDEPENDENT_FINDINGS": [
+      "Seven documentary retired-path occurrences prevent literalPT1112 PASS"
+    ],
+    "RESIDUAL_UNCERTAINTY": [
+      "sccache daemon warning cause UNVERIFIED; direct localcompiler+freshtests completed0",
+      "No integration or wholeWP verdict"
+    ]
+  },
+  "diagnostic_tiers": {
+    "Tier1": {
+      "outcome": "WIRED",
+      "reason": "Fresh realbackend EventLedger/FlightRecorder roundtrip with server attribution"
+    },
+    "Tier2": {
+      "outcome": "WIRED",
+      "reason": "Production ErrorRing typed missing/rejected binding negatives and mounted pane diagnostics; unchanged wiring"
+    },
+    "Tier3": {
+      "outcome": "DEFERRED",
+      "reason": "Existing MT111 lifecycle.remediation_v4.disclosed_gaps explicitly assigns Palmistry compatibility to MT115/WP016; this manual-only repair changes no watcher wiring"
+    }
   }
+}
 }
