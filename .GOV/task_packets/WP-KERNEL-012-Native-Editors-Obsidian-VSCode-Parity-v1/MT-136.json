@@ -34,12 +34,18 @@
   },
   "validation_v7": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","verdict":null,"validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:54:37Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-136.scope.acceptance_criteria/proof_targets and own proof/ proof_commands","junit_provenance":{"native_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","core_sha256":"CD420357013FF59A89EA4440C394A8951404DD3700A75D7D066C385D118B7897","freshness":"Both export-local/copy match and after own invocation marker; full49e archive"},"exact_proof_gaps":["PT-136-3 not_implemented_surface_is_declared not selected","PT-136-2/AC-136-4 genuine disk store close/reopen not established by A/B/C","Prior validation_v6 capsule3/3 lacks recorded relevant-input-path proof for reuse"],"status_effect":"READY_FOR_VALIDATION and null validator_verdict unchanged; submission retained; no infrastructure-driven transition","reuse_disposition":"No unrecorded relevant-input-path/static/special proof reuse credited","runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"One final union consumed; no additional test/build/probe to fill gaps","verdict_events":[{"event":"accepted","idempotency_key":"MT-136-49eac54e-union-inconclusive-v7","at_utc":"2026-09-26T15:54:37Z","payload_ref":"MT-136.json#validation_v7","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT-136-49eac54e-union-inconclusive-v7","at_utc":"2026-09-26T15:56:26Z","state_ref":"MT-136.json#lifecycle","decision":"inconclusive","state_observed":"READY_FOR_VALIDATION; validator_verdict null; submission retained"}]},
   "lifecycle": {
-    "candidate_invalidation_49eac54e": {"candidate_sha":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","prior_status":"PASS_V6","authority":"CX-VAL-009/CX-VAL-010; Operator final union dispatch","reason":"Core proof_b source-upsert consumer depends on changed storage/surreal/knowledge.rs","round_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"},
-    "status": "READY_FOR_VALIDATION",
+    "candidate_invalidation_49eac54e": {
+      "candidate_sha": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
+      "prior_status": "PASS_V6",
+      "authority": "CX-VAL-009/CX-VAL-010; Operator final union dispatch",
+      "reason": "Core proof_b source-upsert consumer depends on changed storage/surreal/knowledge.rs",
+      "round_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/union-freeze-49eac54e.json"
+    },
+    "status": "FAIL_V7",
     "depends_on": [],
     "blocks": [],
     "active": true,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V7",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260818-130753",
     "claimed_at_utc": "2026-08-18T13:30:00Z",
@@ -71,7 +77,12 @@
       "unblocked_since": "The dominant blocker at the time of that pass - the sealed SurrealDataContext exposing only upsert_one and select_one - has since been REMOVED by the KERNEL_BUILDER. storage/surreal.rs now also provides select_all, delete_one, query_values, query_first, execute_returning and create_if_absent, all compiling clean. The next pass on this MT should therefore no longer be blocked on query expressiveness.",
       "still_blocked_on": "Schema coverage. The remaining five modules (fems_memory 72, knowledge_crdt 46, knowledge_memory 33, knowledge_retrieval 9, block_view_outbox 9) need tables that schema.surql does not yet define. A dedicated schema lane is extending the source-forward wave to add them.",
       "remaining_work": "The KnowledgeStore trait (~180 methods) has no implementor. impl KnowledgeStore for SurrealDatabase is the single largest remaining item and is what the entire knowledge API layer is waiting on; the API modules are already re-typed to consume &dyn KnowledgeStore."
-    }
+    },
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T17:48:01.143141Z",
+    "validated_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "next_actor": "ORCHESTRATOR: retain failure; MT111 is the sole selected repair",
+    "blocked_on": null
   },
   "scope": {
     "summary": "Port the storage modules off sqlx onto the embedded SurrealDB store. These modules were helpers of the deleted PostgresDatabase and account for 463 of the errors: storage/knowledge.rs (184), storage/fems_memory.rs (72), storage/knowledge_crdt.rs (46), plus knowledge_memory, knowledge_retrieval, kb003_storage, block_view_outbox, calendar, retention and loom. Decide per module whether it is ported into storage/surreal/ or deleted as dead PostgreSQL implementation detail: storage/loom.rs and storage/retention.rs currently have ZERO external consumers while storage/knowledge.rs has 39, so they are not all the same case. EVIDENCE: Measured from a full cargo check of handshake_core after the physical PostgreSQL removal on 2026-08-16 (log Handshake_Artifacts/handshake-test/wp012-surreal-breakage-20260816T033259Z.log): 1716 errors across 119 files. Root causes: 1493 unresolved sqlx, 152 missing migrations .sql include_bytes (since restored), 51 deleted-postgres-module references, 20 other. SEAM: The Database trait has 201 methods: 108 required and 93 with default bodies (88 of those return StorageError::NotImplemented and 5 are supports_ capability flags). storage/surreal/database.rs already implements all 108 required methods and compiles clean; 106 currently return NotImplemented. storage/surreal/schema.surql already defines 121 tables, 1414 fields and 347 indexes, and storage/surreal/documents.rs, blocks.rs, workspaces.rs and preferences.rs already implement 36 working functions - use those as the implementation pattern. Decrement DECLARED_NOT_IMPLEMENTED in database.rs in the SAME change that ports each method; the not_implemented_surface_is_declared test enforces it.",
@@ -1064,6 +1075,172 @@
         "at_utc": "2026-10-01T20:40:00Z",
         "decision": "inconclusive",
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
+      }
+    ]
+  },
+  "validation": {
+    "proof_records": [
+      {
+        "id": "PR-WP012-MT136-WPV-20261008-1AD-READY13-CORE",
+        "check_id": "PT-136-2/AC-136-2/AC-136-4",
+        "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+        "covers": [
+          "MT-136"
+        ],
+        "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+        "command": "Independent current READY13 union CORE run, exact frozen checked-in selector; no-fail-fast, locked, one job, serial isolated real embedded Surreal stores",
+        "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+        "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
+        "started_at_utc": "2026-10-08T17:07:51.147000Z",
+        "completed_at_utc": "2026-10-08T17:27:02.447000Z",
+        "exit_code": 100,
+        "result": "FAIL_RUNTIME",
+        "failure_kind": "product",
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-core-ready13.xml",
+          "bytes": 108991,
+          "sha256": "305783e3852d271a0565056921a8019570f5e08578f98fe4f9319948050138fd"
+        },
+        "frozen_input_sha256": {
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "c5a1214b63b937b46f5dbac6fd45540c8e711b470cdb17ebee54ac252717810e",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "60ed0efa67c9eebed9573d805011c8f88f96f86929b76dbbfa8b5044fbe4412e",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.sh": "9ae30d5dd6cecde87f395451285c749fee20e5a6494736ae994ba4e519957a0d",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-metadata.py": "cc32bd2680ded760ef6974a0ea3818a1a6fd5f330ff0ea768ac9f175b2b6b871",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-refresh.sh": "304f8fd40a1b02c71d77c9055c179818f2c835697365ab662df983286fb61d3b",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-verify.py": "0c6800b4906f8d59c6c2fc3ebfcba1dbca555c4079ad01e4277e36aaa695d174",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest-core.toml": "522fb158b73b5501edd4e8ac5c4a8a38fedfbaedadf1c1cb7a0518fbb95fc262",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest.toml": "790f1077eaba5580d2ba8732e0d2ffed8ea1b5dd4badefc2b8da07c6fb0da91f",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.json": "5de0cc28d6a457efd895eeb2a702f239f2181f4f31863bd27bbfeccc7b7c9a8f",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-observer.ps1": "48fd59064cd89afa5e543679d3330363da22bdd8742617b7a626620175a7dead",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1": "3ff49443204c768e68ff46cb4555bc1a1149368ffd9f3969434e68720b385065"
+        },
+        "features_config": "core app-runtime,surreal-test-support,test-utils; current frozen config; MT168 timing1200s and final success output; MT167720s; x64 Rust1.97.1; j1 incremental0 line-tables-only",
+        "junit": {
+          "run_id": "aeed74e6-bed9-4897-bbeb-ec432bf74688",
+          "shared_total": 222,
+          "shared_passed": 216,
+          "shared_failed": 6,
+          "shared_errors": 0,
+          "shared_selected_skipped": 0,
+          "mapped_count": 6,
+          "mapped_failed": 3,
+          "cases": [
+            {
+              "target": "handshake_core::memory_capsule_recorder_surreal_tests",
+              "name": "capsule_builder_injector_recorder_and_ipc_compose_over_embedded_surreal",
+              "seconds": 8.977,
+              "result": "FAIL",
+              "failure": "thread 'capsule_builder_injector_recorder_and_ipc_compose_over_embedded_surreal' (47848) panicked at tests\\memory_capsule_recorder_surreal_tests.rs:458:10:\nsuppress_item: Store { message: \"memory capsule durable state does not match submitted state\" }\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+              "failure_kind": "product"
+            },
+            {
+              "target": "handshake_core::memory_capsule_recorder_surreal_tests",
+              "name": "capsule_recorder_dedup_collapses_duplicate_submissions",
+              "seconds": 8.449,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core::memory_capsule_recorder_surreal_tests",
+              "name": "capsule_recorder_persists_via_kernel_action_catalog_against_embedded_store",
+              "seconds": 7.848,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core::memory_capsule_recorder_surreal_tests",
+              "name": "capsule_suppression_and_flight_recorder_evidence_survive_store_reopen",
+              "seconds": 2.78,
+              "result": "FAIL",
+              "failure": "thread 'capsule_suppression_and_flight_recorder_evidence_survive_store_reopen' (48688) panicked at tests\\memory_capsule_recorder_surreal_tests.rs:109:10:\ndurably suppress capsule item: Store { message: \"memory capsule durable state does not match submitted state\" }\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+              "failure_kind": "product"
+            },
+            {
+              "target": "handshake_core::memory_capsule_recorder_surreal_tests",
+              "name": "memory_ipc_list_and_get_round_trips_via_surreal_store",
+              "seconds": 7.943,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core::memory_capsule_recorder_surreal_tests",
+              "name": "memory_ipc_suppression_persists_through_surreal_store_durably",
+              "seconds": 7.92,
+              "result": "FAIL",
+              "failure": "thread 'memory_ipc_suppression_persists_through_surreal_store_durably' (39160) panicked at tests\\memory_capsule_recorder_surreal_tests.rs:327:10:\nsuppress_item: Store { message: \"memory capsule durable state does not match submitted state\" }\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+              "failure_kind": "product"
+            }
+          ]
+        },
+        "scope_limit": "Closed CORE JUnit only; NATIVE/current union still running; no live final-stream hash, no inferred failure cause, no whole-WP verdict"
+      }
+    ],
+    "latest_verdict_ref": "validation_runtime_20261008_1ad04e43_core"
+  },
+  "validation_runtime_20261008_1ad04e43_core": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V7",
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T17:48:01.143141Z",
+    "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+    "started_at": "2026-10-08T17:07:51.147000Z",
+    "completed_at": "2026-10-08T17:27:02.447000Z",
+    "proof_record_ids": [
+      "PR-WP012-MT136-WPV-20261008-1AD-READY13-CORE"
+    ],
+    "results_ref": "validation.proof_records[PR-WP012-MT136-WPV-20261008-1AD-READY13-CORE]",
+    "failure_kind": "product",
+    "failure_class": "MT136-CAPSULE-DURABLE-STATE-MISMATCH",
+    "checks": [
+      {
+        "check_id": "PT-136-2/AC-136-2/AC-136-4",
+        "result": "FAIL",
+        "acceptance_refs": [
+          "AC-136-2",
+          "AC-136-4"
+        ],
+        "expected": "Submitted capsule suppression state and correlated evidence persist through real embedded store close/reopen",
+        "failed_cases": [
+          "capsule_builder_injector_recorder_and_ipc_compose_over_embedded_surreal",
+          "capsule_suppression_and_flight_recorder_evidence_survive_store_reopen",
+          "memory_ipc_suppression_persists_through_surreal_store_durably"
+        ]
+      }
+    ],
+    "remediation_required": [
+      {
+        "failure_kind": "product",
+        "failure_class": "MT136-CAPSULE-DURABLE-STATE-MISMATCH",
+        "failed_check_refs": [
+          "PT-136-2/AC-136-2/AC-136-4"
+        ],
+        "artifact_refs": [
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-core-ready13.xml"
+        ],
+        "repair_direction": "Restore exact durable capsule submission/persistence round-trip; actual underlying cause is UNVERIFIED; no repair selected"
+      }
+    ],
+    "runtime_state": "CORE_COMPLETE_NATIVE_RUNNING",
+    "unclosed_proof": "Native/current round and any own build/static/clippy/visual/historical floor remain explicit and uncredited; no extra run authorized",
+    "gameplan": {
+      "before_verdict": "PASS12/12",
+      "closed_artifacts_only": true
+    },
+    "scope_limit": "Actual own current-candidate product failure; shared unrelated failures are not inherited; MT111 remains the only selected repair",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT136-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-READY13-CORE-FAIL_V7-20261008",
+        "at_utc": "2026-10-08T17:48:01.143141Z",
+        "decision": "failed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT136-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-READY13-CORE-FAIL_V7-20261008",
+        "at_utc": "2026-10-08T17:48:01.143141Z",
+        "decision": "failed",
+        "state_effect": "One READY_FOR_VALIDATION -> FAIL_V7 transition from closed independent CORE JUnit"
       }
     ]
   }

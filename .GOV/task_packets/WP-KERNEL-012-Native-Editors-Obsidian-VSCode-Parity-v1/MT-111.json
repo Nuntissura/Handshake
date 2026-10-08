@@ -1477,6 +1477,20 @@
         "decision": "failed",
         "state_effect": "One lifecycle transition READY_FOR_VALIDATION -> FAIL_V2 from independent closed source proof; runtime NOT_COMPLETE"
       }
-    ]
+    ],
+    "decision_request": {
+      "status": "PENDING_OPERATOR",
+      "requested_by": "ORCHESTRATOR",
+      "required_change": "src/backend/handshake_core/src/user_manual/mod.rs:65 USER_MANUAL_VERSION2.0.5 ->2.0.6 only",
+      "basis": [
+        "HBR-MAN-001",
+        "Master Spec10.15.7:8162-8163"
+      ],
+      "conflict": "MT111 forbidden_paths includes backend/**; no explicit existing exception found",
+      "concrete_reviewed_change": "Two native manual/assertion files reviewed and cheap checks passed; version line remains untouched",
+      "operator_answer": null,
+      "grant": false,
+      "scope_limit": "Exact one-line version exception only; historical operator_decision unchanged; frozen1ad run/inputs untouched"
+    }
   }
 }

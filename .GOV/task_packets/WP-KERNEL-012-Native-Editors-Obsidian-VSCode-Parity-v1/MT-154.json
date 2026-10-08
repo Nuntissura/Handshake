@@ -195,8 +195,116 @@
           "MT-159"
         ],
         "owning_mt": "MT-154"
+      },
+      {
+        "id": "PR-WP012-MT154-WPV-20261008-1AD-READY13-CORE",
+        "check_id": "MT-154-PIN-CONFIRM",
+        "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+        "covers": [
+          "MT-154"
+        ],
+        "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+        "command": "Independent current READY13 union CORE run, exact frozen checked-in selector; no-fail-fast, locked, one job, serial isolated real embedded Surreal stores",
+        "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+        "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
+        "started_at_utc": "2026-10-08T17:07:51.147000Z",
+        "completed_at_utc": "2026-10-08T17:27:02.447000Z",
+        "exit_code": 100,
+        "result": "FAIL_RUNTIME",
+        "failure_kind": "product",
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-core-ready13.xml",
+          "bytes": 108991,
+          "sha256": "305783e3852d271a0565056921a8019570f5e08578f98fe4f9319948050138fd"
+        },
+        "frozen_input_sha256": {
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "c5a1214b63b937b46f5dbac6fd45540c8e711b470cdb17ebee54ac252717810e",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "60ed0efa67c9eebed9573d805011c8f88f96f86929b76dbbfa8b5044fbe4412e",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.sh": "9ae30d5dd6cecde87f395451285c749fee20e5a6494736ae994ba4e519957a0d",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-metadata.py": "cc32bd2680ded760ef6974a0ea3818a1a6fd5f330ff0ea768ac9f175b2b6b871",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-refresh.sh": "304f8fd40a1b02c71d77c9055c179818f2c835697365ab662df983286fb61d3b",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-verify.py": "0c6800b4906f8d59c6c2fc3ebfcba1dbca555c4079ad01e4277e36aaa695d174",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest-core.toml": "522fb158b73b5501edd4e8ac5c4a8a38fedfbaedadf1c1cb7a0518fbb95fc262",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest.toml": "790f1077eaba5580d2ba8732e0d2ffed8ea1b5dd4badefc2b8da07c6fb0da91f",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.json": "5de0cc28d6a457efd895eeb2a702f239f2181f4f31863bd27bbfeccc7b7c9a8f",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-observer.ps1": "48fd59064cd89afa5e543679d3330363da22bdd8742617b7a626620175a7dead",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1": "3ff49443204c768e68ff46cb4555bc1a1149368ffd9f3969434e68720b385065"
+        },
+        "features_config": "core app-runtime,surreal-test-support,test-utils; current frozen config; MT168 timing1200s and final success output; MT167720s; x64 Rust1.97.1; j1 incremental0 line-tables-only",
+        "junit": {
+          "run_id": "aeed74e6-bed9-4897-bbeb-ec432bf74688",
+          "shared_total": 222,
+          "shared_passed": 216,
+          "shared_failed": 6,
+          "shared_errors": 0,
+          "shared_selected_skipped": 0,
+          "mapped_count": 9,
+          "mapped_failed": 1,
+          "cases": [
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive",
+              "seconds": 0.186,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+              "seconds": 3.947,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic",
+              "seconds": 0.779,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin",
+              "seconds": 3.23,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection",
+              "seconds": 4.185,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic",
+              "seconds": 14.556,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+              "seconds": 3.394,
+              "result": "FAIL",
+              "failure": "thread 'storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current' (29936) panicked at src\\storage\\surreal\\schema.rs:10393:14:\nupgrade exact predecessor: Database(Error { code: -32003, message: \"The query was not executed due to a failed transaction\", details: Query(Some(NotExecuted)), cause: None })\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+              "failure_kind": "product"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::schema::tests::canvas_receipt_revision_158_upgrade_requires_exact_catalog_and_restarts_current",
+              "seconds": 5.808,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::schema::tests::standalone_loom_revision_159_upgrade_requires_exact_catalog_and_restarts_current",
+              "seconds": 5.745,
+              "result": "PASS"
+            }
+          ]
+        },
+        "scope_limit": "Closed CORE JUnit only; NATIVE/current union still running; no live final-stream hash, no inferred failure cause, no whole-WP verdict"
       }
-    ]
+    ],
+    "latest_verdict_ref": "validation_runtime_20261008_1ad04e43_core"
   },
   "paperwork_reconciliation_20260928": {
     "id": "WP012-MT154-PAPERWORK-20260928",
@@ -643,17 +751,17 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-153"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V3",
+    "validator_verdict": "FAIL_V4",
     "prior_validator_verdict": "FAIL_V1",
-    "next_actor": "WP_VALIDATOR (next frozen round: native drain and static checks decide the verdict)",
-    "validated_by": "WP_VALIDATOR-20260929-MT164-ROUND",
-    "validated_at_utc": "2026-09-29T14:31:39Z",
+    "next_actor": "ORCHESTRATOR: retain failure; MT111 is the sole selected repair",
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T17:48:01.143141Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T10:03:00.000Z",
@@ -672,7 +780,8 @@
       "at_utc": "2026-09-23T23:52:39.079Z",
       "candidate_sha": "fe0949d8953cad7334c943a1cf39b82dd6185f06"
     },
-    "blocked_on": null
+    "blocked_on": null,
+    "validated_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557"
   },
   "closure_unit": {
     "outcome": "Every non-Loom route row in scope.routes (calendar, stage, atelier/intake, canvases, flight recorder, preferences, locus, kernel trace projection, knowledge CRDT/ingestion/memory/retrieval, workspace delete residuals) runs under the authenticated account session with least-privilege permissions or is explicitly decision-gated; plus four residual defects are fixed: the native create-note drain, root-written receipts, the revision-158/159 predecessor-checksum tests, and the workspace-delete guard residue.",
@@ -3846,5 +3955,70 @@
     "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
     "verdict_labelling": "every verdict records the backend build profile",
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
+  },
+  "validation_runtime_20261008_1ad04e43_core": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V4",
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T17:48:01.143141Z",
+    "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+    "started_at": "2026-10-08T17:07:51.147000Z",
+    "completed_at": "2026-10-08T17:27:02.447000Z",
+    "proof_record_ids": [
+      "PR-WP012-MT154-WPV-20261008-1AD-READY13-CORE"
+    ],
+    "results_ref": "validation.proof_records[PR-WP012-MT154-WPV-20261008-1AD-READY13-CORE]",
+    "failure_kind": "product",
+    "failure_class": "CURRENT-SCHEMA-PREDECESSOR-UPGRADE-TRANSACTION-FAIL",
+    "checks": [
+      {
+        "check_id": "MT-154-PIN-CONFIRM",
+        "result": "FAIL",
+        "acceptance_refs": [
+          "schema re-pin"
+        ],
+        "expected": "stdout contains 'running 9 tests' and 'test result: ok. 9 passed; 0 failed' and process exit 0",
+        "failed_cases": [
+          "storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current"
+        ]
+      }
+    ],
+    "remediation_required": [
+      {
+        "failure_kind": "product",
+        "failure_class": "CURRENT-SCHEMA-PREDECESSOR-UPGRADE-TRANSACTION-FAIL",
+        "failed_check_refs": [
+          "MT-154-PIN-CONFIRM"
+        ],
+        "artifact_refs": [
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-core-ready13.xml"
+        ],
+        "repair_direction": "Required exact-predecessor upgrade must succeed; retain -32003 transaction diagnostic, underlying transaction cause UNVERIFIED; no repair selected"
+      }
+    ],
+    "runtime_state": "CORE_COMPLETE_NATIVE_RUNNING",
+    "unclosed_proof": "Native/current round and any own build/static/clippy/visual/historical floor remain explicit and uncredited; no extra run authorized",
+    "gameplan": {
+      "before_verdict": "PASS12/12",
+      "closed_artifacts_only": true
+    },
+    "scope_limit": "Actual own current-candidate product failure; shared unrelated failures are not inherited; MT111 remains the only selected repair",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT154-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-READY13-CORE-FAIL_V4-20261008",
+        "at_utc": "2026-10-08T17:48:01.143141Z",
+        "decision": "failed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT154-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-READY13-CORE-FAIL_V4-20261008",
+        "at_utc": "2026-10-08T17:48:01.143141Z",
+        "decision": "failed",
+        "state_effect": "One READY_FOR_VALIDATION -> FAIL_V4 transition from closed independent CORE JUnit"
+      }
+    ]
   }
 }

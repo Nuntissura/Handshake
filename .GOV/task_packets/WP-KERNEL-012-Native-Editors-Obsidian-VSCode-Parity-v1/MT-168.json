@@ -624,6 +624,187 @@
         },
         "runtime_state": "NOT_COMPLETE",
         "scope_limit": "Closed independent source proof only; no runtime result or final hash of a live union stream"
+      },
+      {
+        "id": "PR-WP012-MT168-WPV-20261008-1AD-READY13-CORE",
+        "check_id": "MT-168-VALIDATOR-AUTHORITY/MT-168-VALIDATOR-TIMING/MT-168-DOWNSTREAM",
+        "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+        "command": "Independent current READY13 union CORE run, exact frozen checked-in selector; no-fail-fast, locked, one job, serial isolated real embedded Surreal stores",
+        "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+        "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
+        "started_at_utc": "2026-10-08T17:07:51.147000Z",
+        "completed_at_utc": "2026-10-08T17:27:02.447000Z",
+        "exit_code": 100,
+        "result": "FAIL_RUNTIME",
+        "failure_kind": "product",
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-core-ready13.xml",
+          "bytes": 108991,
+          "sha256": "305783e3852d271a0565056921a8019570f5e08578f98fe4f9319948050138fd"
+        },
+        "frozen_input_sha256": {
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "c5a1214b63b937b46f5dbac6fd45540c8e711b470cdb17ebee54ac252717810e",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "60ed0efa67c9eebed9573d805011c8f88f96f86929b76dbbfa8b5044fbe4412e",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.sh": "9ae30d5dd6cecde87f395451285c749fee20e5a6494736ae994ba4e519957a0d",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-metadata.py": "cc32bd2680ded760ef6974a0ea3818a1a6fd5f330ff0ea768ac9f175b2b6b871",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-refresh.sh": "304f8fd40a1b02c71d77c9055c179818f2c835697365ab662df983286fb61d3b",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-verify.py": "0c6800b4906f8d59c6c2fc3ebfcba1dbca555c4079ad01e4277e36aaa695d174",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest-core.toml": "522fb158b73b5501edd4e8ac5c4a8a38fedfbaedadf1c1cb7a0518fbb95fc262",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest.toml": "790f1077eaba5580d2ba8732e0d2ffed8ea1b5dd4badefc2b8da07c6fb0da91f",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.json": "5de0cc28d6a457efd895eeb2a702f239f2181f4f31863bd27bbfeccc7b7c9a8f",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-observer.ps1": "48fd59064cd89afa5e543679d3330363da22bdd8742617b7a626620175a7dead",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1": "3ff49443204c768e68ff46cb4555bc1a1149368ffd9f3969434e68720b385065"
+        },
+        "features_config": "core app-runtime,surreal-test-support,test-utils; current frozen config; MT168 timing1200s and final success output; MT167720s; x64 Rust1.97.1; j1 incremental0 line-tables-only",
+        "junit": {
+          "run_id": "aeed74e6-bed9-4897-bbeb-ec432bf74688",
+          "shared_total": 222,
+          "shared_passed": 216,
+          "shared_failed": 6,
+          "shared_errors": 0,
+          "shared_selected_skipped": 0,
+          "mapped_count": 21,
+          "mapped_failed": 2,
+          "cases": [
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::access_space_switch_is_same_account_only_and_drops_old_space_grants",
+              "seconds": 0.557,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::authority_checks_cost_is_independent_of_unrelated_grant_rows",
+              "seconds": 3.071,
+              "result": "FAIL",
+              "failure": "thread 'storage::surreal::resource_authority_tests::authority_checks_cost_is_independent_of_unrelated_grant_rows' (9776) panicked at src\\storage\\surreal\\resource_authority_tests.rs:4296:9:\nassertion `left == right` failed: workspace_delete_guard sample 0 must delete the authorized row\n  left: 0\n right: 1\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\nError: Custom { kind: Other, error: \"resource-authority test body panicked: assertion `left == right` failed: workspace_delete_guard sample 0 must delete the authorized row\\n  left: 0\\n right: 1\" }",
+              "failure_kind": "product"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::cross_account_and_capability_without_grant_fail_closed",
+              "seconds": 0.537,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::direct_record_user_foreign_table_operations_are_default_deny",
+              "seconds": 1.041,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_default_deny",
+              "seconds": 13.951,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::document_receipt_create_first_preserves_authorized_replay_and_denial",
+              "seconds": 3.811,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::exact_capability_and_grant_are_both_required_and_revocation_is_immediate",
+              "seconds": 0.716,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::expired_session_fails_closed",
+              "seconds": 0.538,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::explicit_session_credentials_are_one_time_revocable_and_channel_bound",
+              "seconds": 0.564,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_grant_count",
+              "seconds": 5.766,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::grant_check_cost_is_independent_of_unrelated_grant_rows",
+              "seconds": 6.42,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::grant_without_delegated_capability_is_denied",
+              "seconds": 0.532,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::loom_block_and_source_read_cost_is_independent_of_unrelated_grant_rows",
+              "seconds": 6.065,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::memory_source_reads_require_exact_grants_and_preserve_derived_origin",
+              "seconds": 4.371,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::production_resource_authority_schema_bootstraps_on_embedded_surrealdb_3_2",
+              "seconds": 0.67,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::reconciliation_requires_explicit_service_identity_and_workspace_grant",
+              "seconds": 0.637,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::resource_authority_failure_paths_preserve_body_and_cleanup_errors",
+              "seconds": 0.635,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::resource_select_and_ledger_access_cost_is_independent_of_grant_count",
+              "seconds": 6.057,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::revoked_session_and_disabled_account_fail_closed",
+              "seconds": 0.552,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core",
+              "name": "storage::surreal::resource_authority_tests::two_account_two_space_resource_broker_and_record_user_boundary_fail_closed",
+              "seconds": 1.088,
+              "result": "PASS"
+            },
+            {
+              "target": "handshake_core::mt167_code_nav_index_cost_tests",
+              "name": "mt167_code_nav_index_median_within_spec_baseline",
+              "seconds": 178.568,
+              "result": "FAIL",
+              "failure": "thread 'mt167_code_nav_index_median_within_spec_baseline' (27008) panicked at tests\\mt167_code_nav_index_cost_tests.rs:264:9:\nmt008-fixture: median 13.9328861s must meet the 5s target: [8.5491979s, 11.1501701s, 13.9328861s, 16.2463536s, 18.9394987s]\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+              "failure_kind": "product"
+            }
+          ]
+        },
+        "scope_limit": "Closed CORE JUnit only; NATIVE/current union still running; no live final-stream hash, no inferred failure cause, no whole-WP verdict"
       }
     ],
     "running_record_ready13_20261008": {
@@ -1081,6 +1262,61 @@
         "decision": "failed",
         "state_effect": "One lifecycle transition READY_FOR_VALIDATION -> FAIL_V1 from independent closed source proof; runtime NOT_COMPLETE"
       }
-    ]
+    ],
+    "runtime_supplement_ref": "validation_runtime_20261008_1ad04e43_core"
+  },
+  "validation_runtime_20261008_1ad04e43_core": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T17:48:01.143141Z",
+    "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+    "started_at": "2026-10-08T17:07:51.147000Z",
+    "completed_at": "2026-10-08T17:27:02.447000Z",
+    "proof_record_ids": [
+      "PR-WP012-MT168-WPV-20261008-1AD-READY13-CORE"
+    ],
+    "results_ref": "validation.proof_records[PR-WP012-MT168-WPV-20261008-1AD-READY13-CORE]",
+    "failure_kind": "product",
+    "failure_class": "MT168-WORKSPACE-DELETE-GUARD-NONVACUOUS-FAIL",
+    "checks": [
+      {
+        "check_id": "MT-168-VALIDATOR-AUTHORITY/MT-168-VALIDATOR-TIMING/MT-168-DOWNSTREAM",
+        "result": "FAIL",
+        "acceptance_refs": [
+          "AC-168-4",
+          "AC-168-5"
+        ],
+        "expected": "All authority/timing assertions pass, authorized guard sample deletes exactly one row, downstream median recorded",
+        "failed_cases": [
+          "storage::surreal::resource_authority_tests::authority_checks_cost_is_independent_of_unrelated_grant_rows",
+          "mt167_code_nav_index_median_within_spec_baseline"
+        ]
+      }
+    ],
+    "remediation_required": [
+      {
+        "failure_kind": "product",
+        "failure_class": "MT168-WORKSPACE-DELETE-GUARD-NONVACUOUS-FAIL",
+        "failed_check_refs": [
+          "MT-168-VALIDATOR-AUTHORITY/MT-168-VALIDATOR-TIMING/MT-168-DOWNSTREAM"
+        ],
+        "artifact_refs": [
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-core-ready13.xml"
+        ],
+        "repair_direction": "Correct actual authorized workspace deletion guard failure and inspect downstream timing independently; no causal linkage to AC1683 source gap inferred; no repair selected"
+      }
+    ],
+    "runtime_state": "CORE_COMPLETE_NATIVE_RUNNING",
+    "unclosed_proof": "Native/current round and any own build/static/clippy/visual/historical floor remain explicit and uncredited; no extra run authorized",
+    "gameplan": {
+      "before_verdict": "PASS12/12",
+      "closed_artifacts_only": true
+    },
+    "scope_limit": "Actual own current-candidate product failure; shared unrelated failures are not inherited; MT111 remains the only selected repair",
+    "state_effect": "Supplement prior source FAIL_V1; no second lifecycle transition or failed-round counter",
+    "verdict_events": []
   }
 }
