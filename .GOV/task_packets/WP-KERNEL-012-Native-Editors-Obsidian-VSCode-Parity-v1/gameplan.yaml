@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 472
+generation: 475
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -387,3 +387,6 @@ steps:
 - {id: GP-366, role: wp_validator, at: before_verdict, do: verify controller confirmation note is one line <=120 chars, check: {type: confirm}, source: 'infra: confirmation rejected over120char note; source verdict not applied', state: active}
 - {id: GP-367, role: wp_validator, at: before_verdict, do: verify governance JSON reads use explicit UTF8 and preserved historical values equal baseline, check: {type: confirm}, source: 'infra: default cp1252 read corrupted8historical MT111 strings; restore exact UTF8 values', state: active}
 - {id: GP-368, role: any, at: before_round, do: verify cumulative FAIL|TIMEOUT scan precedes lastPASS progress summaries, check: {type: confirm}, source: 'infra: mixed PASS/FAIL tail hid an earlier FAIL in root progress summary', state: active}
+- {id: GP-369, role: builder, at: before_submit, do: verify source-status foreach results assigned before pipeline and parsed read succeeds, check: {type: confirm}, source: 'infra: MT111 cheap status read foreach-to-pipeline PS ParserError before execution', state: active}
+- {id: GP-370, role: builder, at: before_submit, do: verify controller confirmation note length <=120 before call, check: {type: confirm}, source: 'infra: MT111 before_submit confirmation note rejected at >120 chars', state: active}
+- {id: GP-371, role: builder, at: before_submit, do: verify Git blob binding separately from raw workspace CRLF static input hashes, check: {type: confirm}, source: 'infra: MT111 raw working-copy hash differed from Git LF blob despite clean tree', state: active}

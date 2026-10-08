@@ -22,7 +22,7 @@
   "title": "B3-MT-111-Frontend-FlightRecorder-Callers-To-Workspace-Scoped-Authorized-Routes",
   "group": "B-Backend-Contract",
   "created_at_utc": "2026-08-05T12:42:00.438Z",
-  "updated_at_utc": "2026-10-08T16:59:02.694177Z",
+  "updated_at_utc": "2026-10-08T18:33:01.236244Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -132,7 +132,7 @@
     "status": "ACCEPTED by orchestrator as Option A (2026-10-01); MT-111 set READY_FOR_VALIDATION"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION",
     "blocked_on": null,
     "ready_for_validation_transition_20261001": {
       "at_utc": "2026-10-01T18:29:18Z",
@@ -220,7 +220,7 @@
     "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
     "validated_at_utc": "2026-10-08T16:59:02.694177Z",
     "validated_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
-    "next_actor": "ORCHESTRATOR: deliberate and select only one failed MT for repair; active1ad union continues",
+    "next_actor": "WP_VALIDATOR: validate pushed MT111 candidate062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb with fresh own six-case targeted proof; historical1ad records and MT170PASS retained",
     "ready_for_validation_transition_2": {
       "at_utc": "2026-09-23T23:43:15.504Z",
       "by": "INTEGRATION_VALIDATOR on Operator direction 2026-09-24 (remediated MTs are READY_FOR_VALIDATION)",
@@ -228,7 +228,17 @@
       "prior_validator_verdict": "FAIL_V1",
       "reason": "remediation_v4 newer than last validation"
     },
-    "prior_validator_verdict": "BLOCKED"
+    "prior_validator_verdict": "BLOCKED",
+    "ready_for_validation_transition_20261008": {
+      "by": "KERNEL_BUILDER-20261008-MT111-MANUAL",
+      "at_utc": "2026-10-08T18:33:01.236244Z",
+      "from_status": "FAIL_V2",
+      "candidate_commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+      "candidate_tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+      "reason": "Pushed newer minimal product repair, exact Operator version exception, stable static proof and independent buddy source review",
+      "proof_ref": "PR-WP012-MT111-KB-20261008-062BF-STATIC",
+      "runtime_state": "PENDING_WP_VALIDATOR"
+    }
   },
   "scope": {
     "summary": "Rewire every Handshake frontend caller of the flight-recorder API onto the MT-109 workspace-scoped, capability-gated routes, sending the native-MCP session binding token, and stop sending client-authored actor/workspace identity that the backend now derives and rejects on mismatch.",
@@ -1537,6 +1547,99 @@
           }
         ],
         "scope_limit": "Own contract mapping only; wrapper exit0 is closure, native runner100 is retained; no whole-WP PASS or inferred underlying failure cause"
+      },
+      {
+        "id": "PR-WP012-MT111-KB-20261008-062BF-STATIC",
+        "check_id": "MT111-MANUAL-REMEDIATION-STATIC",
+        "executor": "KERNEL_BUILDER-20261008-MT111-MANUAL",
+        "executor_role": "KERNEL_BUILDER",
+        "covers": [
+          "MT-111"
+        ],
+        "commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+        "tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+        "command": [
+          "C:/Users/iljas/.rustup/toolchains/1.97.1-x86_64-pc-windows-msvc/bin/rustfmt.exe --edition 2021 --check --config skip_children=true src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/tests/test_manual_content.rs src/backend/handshake_core/src/user_manual/mod.rs",
+          "git diff --check"
+        ],
+        "recorded_at_utc": "2026-10-08T18:33:01.236244Z",
+        "exit_code": 0,
+        "result": "STATIC_PASS",
+        "artifacts": [
+          {
+            "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-111/kb/static-20261008T182616Z.json",
+            "bytes": 3754,
+            "sha256": "c8b48abcc616ce66d448b95123c4f4833f52ae056b09463488097dfaed822269"
+          }
+        ],
+        "input_digest_before_after": {
+          "before": [
+            {
+              "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+              "sha256": "26c1d4dc7bf5b72abb9165c2ca349f9a76f4ed386a1deea5531f3bc9ff677efb"
+            },
+            {
+              "path": "src/frontend/handshake_native/tests/test_manual_content.rs",
+              "sha256": "de717c7808632c0fc21dd694869aa5aaadfa6df9533b0c2f14b1c8c61ef8bde2"
+            },
+            {
+              "path": "src/backend/handshake_core/src/user_manual/mod.rs",
+              "sha256": "ac5dbbb35c442fe10c8240e05fd1f214ecf0ba596cb3ff8986a563956eaae1b6"
+            }
+          ],
+          "after": [
+            {
+              "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+              "sha256": "26c1d4dc7bf5b72abb9165c2ca349f9a76f4ed386a1deea5531f3bc9ff677efb"
+            },
+            {
+              "path": "src/frontend/handshake_native/tests/test_manual_content.rs",
+              "sha256": "de717c7808632c0fc21dd694869aa5aaadfa6df9533b0c2f14b1c8c61ef8bde2"
+            },
+            {
+              "path": "src/backend/handshake_core/src/user_manual/mod.rs",
+              "sha256": "ac5dbbb35c442fe10c8240e05fd1f214ecf0ba596cb3ff8986a563956eaae1b6"
+            }
+          ],
+          "unchanged": true
+        },
+        "committed_input_binding": [
+          {
+            "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+            "workspace_sha256": "26c1d4dc7bf5b72abb9165c2ca349f9a76f4ed386a1deea5531f3bc9ff677efb",
+            "committed_blob_sha256": "83aa666eb37b10f8b6430cfd2c5de880c698a5ddb96405b9b43b94dbcc689f73",
+            "normalization": "Git CRLF-to-LF only; exact normalized bytes match"
+          },
+          {
+            "path": "src/frontend/handshake_native/tests/test_manual_content.rs",
+            "workspace_sha256": "de717c7808632c0fc21dd694869aa5aaadfa6df9533b0c2f14b1c8c61ef8bde2",
+            "committed_blob_sha256": "b29b276567c54a3a54f66c78226cb8886450425b829079a7cee12220456e2b2c",
+            "normalization": "Git CRLF-to-LF only; exact normalized bytes match"
+          },
+          {
+            "path": "src/backend/handshake_core/src/user_manual/mod.rs",
+            "workspace_sha256": "ac5dbbb35c442fe10c8240e05fd1f214ecf0ba596cb3ff8986a563956eaae1b6",
+            "committed_blob_sha256": "6f99dc7a16870c2a91fc28b54cfe225f87f36c7449626e3a6fa79dcecc371ef9",
+            "normalization": "Git CRLF-to-LF only; exact normalized bytes match"
+          }
+        ],
+        "buddy_review": {
+          "reviewer": "mt170_buddy",
+          "result": "NO_BLOCKING_FINDING",
+          "scope": "actual three-file patch plus GRANTED_OPERATOR record; no runtime PASS"
+        },
+        "gameplan_before_submit": "PASS11/11 at062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+        "integration_source_check": {
+          "main_commit": "7659138874df91ae258839a7fbd72cc894459fae",
+          "merge_base": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+          "merge_tree_exit": 1,
+          "conflicted_paths": [
+            "AGENTS.md",
+            "CLAUDE.md"
+          ],
+          "runtime": "NOT_RUN by builder; no integration PASS"
+        },
+        "scope_limit": "Implementer static/source proof only; no runtime PASS or independent acceptance verdict"
       }
     ],
     "latest_verdict_ref": "validation_source_20261008_1ad04e43"
@@ -1797,5 +1900,31 @@
     "verdict_events": [],
     "retained_failure_ref": "validation_source_20261008_1ad04e43",
     "unclosed_proof": "Own5 runtime commands/6cases GREEN; old manual test does not verify omitted/blank workspace denial truth; exact wrong shipped manual remains FAIL_V2; canonical version path exception PENDING_OPERATOR"
+  },
+  "remediation_20261008_manual": {
+    "by": "KERNEL_BUILDER-20261008-MT111-MANUAL",
+    "at_utc": "2026-10-08T18:33:01.236244Z",
+    "batch_owner": "MT-111",
+    "covered_mts": [
+      "MT-111"
+    ],
+    "recorded_failure_ref": "validation_source_20261008_1ad04e43",
+    "operator_authorization_ref": "validation_source_20261008_1ad04e43.decision_request",
+    "candidate_commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+    "candidate_tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+    "status": "READY_FOR_VALIDATION",
+    "changed_paths": [
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_manual_content.rs",
+      "src/backend/handshake_core/src/user_manual/mod.rs"
+    ],
+    "repair": "Correct authenticated omitted/blank wsid manual denial to exact-resource broker403 HSK-403-PROTECTED-RESOURCE; pin broker/code in existing manual consistency case; canonical USER_MANUAL_VERSION2.0.5->2.0.6 only",
+    "preserved": "Invalid-session401, scoped authz/security behavior, legacy MANUAL_VERSION, seed content, frozen1ad READY13 inputs and prior MT170PASS",
+    "static_proof_ref": "PR-WP012-MT111-KB-20261008-062BF-STATIC",
+    "buddy_review": "NO_BLOCKING_FINDING on exact authorized three-file diff and GRANTED_OPERATOR record",
+    "required_runtime_proof": "Fresh own six MT111 cases under existing targeted validator route; WPV owns execution and proof reuse disposition",
+    "runtime_state": "PENDING_WP_VALIDATOR",
+    "next_actor": "WP_VALIDATOR",
+    "integration_note": "Current origin/main76591388 merge-tree exit1 only AGENTS.md/CLAUDE.md conflicts; no integration runtime proof or integration PASS claimed"
   }
 }
