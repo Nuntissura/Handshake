@@ -30,7 +30,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-08T10:41:37.001781Z",
+  "updated_at_utc": "2026-10-08T13:45:14.302629Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -270,20 +270,21 @@
       "MT-046"
     ],
     "active": true,
-    "validator_verdict": "INCONCLUSIVE",
-    "claimed_by": "KERNEL_BUILDER-20261002",
+    "validator_verdict": "FAIL",
+    "claimed_by": "KERNEL_BUILDER-20261008-MT170",
     "completed_by": null,
-    "next_actor": "WP_VALIDATOR: execute exact remaining MT170 document/backlink and original PC04601/03 proof on pushed4eeb; operator accepted historical AC1701 miss, chronology retained",
+    "next_actor": "WP_VALIDATOR: run required original3core+10native+document warm bundle on pushed1ad04e431; exact three-file repair and buddy review recorded; prior runtimeRED and chronology retained",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-046.json#diagnosis_20261001_bd8c7532"
     ],
-    "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
-    "candidate_tree": "02dcf0fd0f7c107104997c6a7dd0e78223ebd661",
+    "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
     "status_before_ready": "BLOCKED",
-    "pushed_verified": "Current product candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661 is clean and pushed. Its only product diff updates EXPECTED_SCHEMA_INFO_SHA256/comment to fresh-Mem value 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976; other pins and historical/C2 entries remain unchanged. Original focused MT170 follow-up 1c9de898c10b43e5ad81987eab5e0101 passed the selected test on pushed candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661. JUnit shows 1 passed, 0 failed, 28 filtered; exact output hashes are in original_focused_proof_20261006. This focused GREEN is retained and reused. Current candidate Builder compile CHECK-08 passed --lib --tests; independent single-MT verdict is INCONCLUSIVE and overall status remains BLOCKED. Historical AC-170-1 acceptance disposition and remaining original runtime coverage are outstanding.",
-    "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20261002",
+    "pushed_verified": "Product1ad04e431fa1c8a6b71533122bdfd532111a0557/tree ba224d2b3983016dc8894a1f22e92f186f350afc is clean and pushed on feat/WP-KERNEL-012. Exact three-file repair, staticPASS and independent source reviews recorded in runtime_remediation_20261008. No current compile/runtimePASS claimed; WPV owns expensive required proof. Original4eeb runtimeRED and all chronology retained.",
+    "prior_pushed_verified_20261006": "Current product candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661 is clean and pushed. Its only product diff updates EXPECTED_SCHEMA_INFO_SHA256/comment to fresh-Mem value 14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976; other pins and historical/C2 entries remain unchanged. Original focused MT170 follow-up 1c9de898c10b43e5ad81987eab5e0101 passed the selected test on pushed candidate 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e/tree 02dcf0fd0f7c107104997c6a7dd0e78223ebd661. JUnit shows 1 passed, 0 failed, 28 filtered; exact output hashes are in original_focused_proof_20261006. This focused GREEN is retained and reused. Current candidate Builder compile CHECK-08 passed --lib --tests; independent single-MT verdict is INCONCLUSIVE and overall status remains BLOCKED. Historical AC-170-1 acceptance disposition and remaining original runtime coverage are outstanding.",
+    "ready_for_validation_at_utc": "2026-10-08T13:31:20Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20261008-MT170",
     "selection_note": {
       "MT-168": [
         "handshake_core lib resource_authority_tests (whole, incl. grant_check_cost_is_independent_of_unrelated_grant_rows, authority_checks_cost_is_independent_of_unrelated_grant_rows, loom_block_and_source_read_cost_is_independent_of_unrelated_grant_rows, MT-164/MT-166 cost tests)",
@@ -343,7 +344,8 @@
       }
     ],
     "direct_blocker_scope_exception_ref": "direct_blocker_remediation_20261004",
-    "profile_alignment_scope_exception_ref": "profile_alignment_remediation_20261005"
+    "profile_alignment_scope_exception_ref": "profile_alignment_remediation_20261005",
+    "runtime_blocker_scope_exception_ref": "runtime_remediation_20261008"
   },
   "gui_obligation": {
     "operator_surface_required": false,
@@ -415,7 +417,7 @@
     {
       "tier": "FLIGHT_RECORDER_EVENTLEDGER",
       "status": "UNCHANGED",
-      "reason": "Index-run receipts keep their current EventLedger shape; spec §2.3.14.4.6 FR latency logging is not widened by this MT."
+      "reason": "Index-run receipts keep their current EventLedger shape; spec Â§2.3.14.4.6 FR latency logging is not widened by this MT."
     },
     {
       "tier": "INTERNAL_DIAGNOSTICS",
@@ -465,7 +467,7 @@
   "group": "E8",
   "spec_basis": {
     "kind": "remediation_derived_mt",
-    "note": "Created to own recorded validator failures/diagnoses that had no owning MT; CX-SPEC-TRUTH-001 activation gate does not apply to remediation work. Downstream timing baseline: Master Spec v02.206 §2.3.14.17.3 (02-system-architecture.md:4470-4478) as quoted in MT-167.json#spec_basis."
+    "note": "Created to own recorded validator failures/diagnoses that had no owning MT; CX-SPEC-TRUTH-001 activation gate does not apply to remediation work. Downstream timing baseline: Master Spec v02.206 Â§2.3.14.17.3 (02-system-architecture.md:4470-4478) as quoted in MT-167.json#spec_basis."
   },
   "hbr_swarm_allocation": "Backlink projection serves cross-pillar navigation for parallel agents; no new swarm surface; no waiver.",
   "operator_decision": {
@@ -806,8 +808,8 @@
     ],
     "running_record_20261008": {
       "schema_id": "hsk.validation_running_record@1",
-      "state": "waiting",
-      "phase": "current_host_context_one_warm_retry_prelaunch",
+      "state": "closed",
+      "phase": "required_runtime_failed",
       "executor": "WP_VALIDATOR-20261008-MT170-X64-ARMHOST",
       "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
       "candidate_tree": "02dcf0fd0f7c107104997c6a7dd0e78223ebd661",
@@ -840,14 +842,30 @@
       "scope": "Fresh MT170+existing document/backlink tests; original full PC04601 IC01-05 and PC04603 IC10-14; no whole-MT046/WP verdict",
       "historical_disposition_ref": "operator_acceptance_disposition_20261008",
       "canary": "NOT_APPLICABLE_PER_PINNED_WP_AUTHORITY",
-      "result": "NOT_RUN; waiting release after current hashes/gate/admission",
+      "result": "FAIL_REQUIRED_RUNTIME_AND_DOCUMENT_NOT_RUN",
       "admission": {
         "decision_ref": "operator_session_memory_disposition_20261008.subsequent_launch_disposition",
         "reserve_bytes": 10000000000,
-        "result": "requires fresh check at release and after gate"
+        "free_commit_bytes": 35052249088,
+        "sampled_at_utc": "2026-10-08T10:43:30.2930656Z"
       },
       "cargo_home": "C:/Projects/LLMPRO~1/HANDSH~3/HANDSH~3/WP-KER~1/MT-170/wpv/CARGO-~1",
-      "previous_failure_ref": "validation.infrastructure_attempts_20261008#MT170-CORE-COMPILE-02-HOST-INTERRUPTION"
+      "previous_failure_ref": "validation.infrastructure_attempts_20261008#MT170-CORE-COMPILE-02-HOST-INTERRUPTION",
+      "bash_identity": {
+        "pid": 4004,
+        "start_utc": "2026-10-08T10:43:35.7468503Z",
+        "command_line": "C:/Program Files/Git/bin/bash.exe \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e"
+      },
+      "current_build_identity": {
+        "pid": 33076,
+        "start_utc": "2026-10-08T10:44:53.6011137Z",
+        "command_line": "\"C:\\Users\\iljas\\.rustup\\toolchains\\1.97.1-x86_64-pc-windows-msvc\\bin\\cargo.exe\" test --locked -j 1 --no-run -v --config \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-backend-profile.toml\" --features app-runtime,surreal-test-support,test-utils --test knowledge_documents_api_tests",
+        "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+        "log": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\core-build-v-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.log"
+      },
+      "completed_at_utc": "2026-10-08T13:11:25.1320562Z",
+      "runtime_failure_ref": "validation.runtime_failures_20261008#MT170-RUNTIME-20261008-4EEB-RED",
+      "exit_code": 4
     },
     "infrastructure_attempts_20261008": [
       {
@@ -1048,6 +1066,391 @@
         "last_observer_freecommit": 38847184896,
         "gameplan_step": "GP-352",
         "retry_disposition": "Root/buddy authorize one changed-host-context retry; cause not proven fixed; samewarmtarget/export/cache retained"
+      }
+    ],
+    "runtime_failures_20261008": [
+      {
+        "id": "MT170-RUNTIME-20261008-4EEB-RED",
+        "check_id": "MT-170-VALIDATOR",
+        "executor": "WP_VALIDATOR-20261008-MT170-X64-ARMHOST",
+        "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+        "candidate_tree": "02dcf0fd0f7c107104997c6a7dd0e78223ebd661",
+        "completed_at_utc": "2026-10-08T13:11:25.1320562Z",
+        "result": "FAIL_REQUIRED_RUNTIME_AND_DOCUMENT_NOT_RUN",
+        "wrapper_exit_code": 4,
+        "core": {
+          "nextest_exit_code": 100,
+          "tests": [
+            {
+              "binary": "handshake_core::knowledge_documents_api_tests",
+              "name": "mt032_rich_documents_are_addressable_and_target_backlinks_are_inbound",
+              "result": "FAIL",
+              "seconds": "14.603",
+              "diagnostic": "thread 'mt032_rich_documents_are_addressable_and_target_backlinks_are_inbound' (31868) panicked at tests\\knowledge_documents_api_tests.rs:1153:5:\nassertion failed: renamed_target_inbound[\"backlinks\"].as_array().expect(\"renamed target backlinks\").iter().any(|row|\n        row[\"source_document_id\"] == a_id && row[\"target\"] == b_id)\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace"
+            },
+            {
+              "binary": "handshake_core::knowledge_documents_api_tests",
+              "name": "mt032_save_delete_and_backlink_rebuild_delete_races_do_not_resurrect",
+              "result": "PASS",
+              "seconds": "9.018",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake_core::knowledge_documents_api_tests",
+              "name": "mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge",
+              "result": "PASS",
+              "seconds": "16.698",
+              "diagnostic": null
+            }
+          ],
+          "junit": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e-core.xml",
+            "sha256": "d80919bfbd2579938926f9e3571af3af63bff5e1af7ade1303b136dece3cdbbb"
+          }
+        },
+        "native": {
+          "nextest_exit_code": 100,
+          "selected_total": 42,
+          "required_tests": [
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_ic01_ckc_image_into_note",
+              "result": "PASS",
+              "seconds": "23.862",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_ic02_ckc_video_into_note",
+              "result": "PASS",
+              "seconds": "22.343",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_ic03_ckc_moodboard_on_canvas",
+              "result": "PASS",
+              "seconds": "18.102",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_ic04_ckc_character_wikilink_backlink",
+              "result": "PASS",
+              "seconds": "20.310",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_ic05_route_selection_to_stage",
+              "result": "PASS",
+              "seconds": "1.437",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_ic10_backlink_cross_surface",
+              "result": "FAIL",
+              "seconds": "33.647",
+              "diagnostic": "thread 'interconnect_ic10_backlink_cross_surface' (29916) panicked at tests\\test_interconnect_loom_backlink_search.rs:293:5:\nassertion `left == right` failed: IC-10: missing target fails closed\n  left: 403\n right: 404\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\nINFO: preserving incomplete MT-045 failure diagnostic source root C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/e\\wp-kernel-012\\backend-runtime\\r-ba3ad9886c6b6c80\\s-f0c00e434f8080d0\\d1c1cf01-bea7-41a2-b9ab-6c57edd8273f"
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_ic11_search_v2_across_surfaces",
+              "result": "PASS",
+              "seconds": "19.342",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_ic12_graph_cross_surface_edges",
+              "result": "PASS",
+              "seconds": "21.593",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_ic13_ai_link_suggestion",
+              "result": "PASS",
+              "seconds": "19.858",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_ic14_quick_switcher_both_editors",
+              "result": "PASS",
+              "seconds": "18.560",
+              "diagnostic": null
+            }
+          ],
+          "incidental_helper_tests": [
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::backend_binary_guard_tests::accepts_canonical_wp_mt_owner_backend_target",
+              "result": "PASS",
+              "seconds": "0.087",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_binary_outside_declared_target",
+              "result": "PASS",
+              "seconds": "0.094",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_repo_local_target",
+              "result": "PASS",
+              "seconds": "0.098",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_stale_backend_binary",
+              "result": "PASS",
+              "seconds": "0.105",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_target_outside_artifact_root",
+              "result": "PASS",
+              "seconds": "0.106",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::attached_backend_failure_is_never_represented_as_owned_or_terminated",
+              "result": "PASS",
+              "seconds": "1.653",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::complete_success_publication_removes_runtime_run_and_scenario_hierarchy",
+              "result": "PASS",
+              "seconds": "0.187",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::post_reap_containment_accepts_owned_store_and_rejects_escaped_data_dir",
+              "result": "PASS",
+              "seconds": "0.154",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_deletes_workspace_then_reaps_and_publishes_actual_exit",
+              "result": "FAIL",
+              "seconds": "0.121",
+              "diagnostic": "thread 'interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_deletes_workspace_then_reaps_and_publishes_actual_exit' (46304) panicked at tests\\interconnect_support\\..\\backend_proof_support\\mod.rs:3930:50:\nrestrict live success runtime source: \"icacls failed for C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/e\\\\wp-kernel-012\\\\backend-runtime\\\\public-success-api-eb2912dcdcb346be90e6fa28769f6a6d-run\\\\public-success-api-eb2912dcdcb346be90e6fa28769f6a6d-scenario\\\\3475b36edbbd4c3e868c583bc9e6137e with exit code: 3: C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/e\\\\wp-kernel-012\\\\backend-runtime\\\\public-success-api-eb2912dcdcb346be90e6fa28769f6a6d-run\\\\public-success-api-eb2912dcdcb346be90e6fa28769f6a6d-scenario\\\\3475b36edbbd4c3e868c583bc9e6137e: The system cannot find the path specified.\"\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace"
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_preserves_before_missing_owned_child_error",
+              "result": "PASS",
+              "seconds": "0.273",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_preserves_before_missing_runtime_root_error",
+              "result": "PASS",
+              "seconds": "0.186",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_preserves_sources_when_publication_errors",
+              "result": "FAIL",
+              "seconds": "0.125",
+              "diagnostic": "thread 'interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_preserves_sources_when_publication_errors' (47020) panicked at tests\\interconnect_support\\..\\backend_proof_support\\mod.rs:3930:50:\nrestrict live success runtime source: \"icacls failed for C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/e\\\\wp-kernel-012\\\\backend-runtime\\\\public-success-error-7f771ac5e93043caa7671f89e4b54187-run\\\\public-success-error-7f771ac5e93043caa7671f89e4b54187-scenario\\\\b32cc0d297504f92bfe22155d317e70a with exit code: 3: C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/e\\\\wp-kernel-012\\\\backend-runtime\\\\public-success-error-7f771ac5e93043caa7671f89e4b54187-run\\\\public-success-error-7f771ac5e93043caa7671f89e4b54187-scenario\\\\b32cc0d297504f92bfe22155d317e70a: The system cannot find the path specified.\"\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace"
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_retains_workspace_identity_and_retries_delete_after_non_success",
+              "result": "PASS",
+              "seconds": "0.215",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::retained_failure_receipt_is_contained_and_hash_bound",
+              "result": "PASS",
+              "seconds": "0.233",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::secure_mt045_evidence_publication_is_atomic_hash_bound_and_contained",
+              "result": "PASS",
+              "seconds": "0.216",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_ckc_to_note",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::unreadable_file_yields_typed_partial_receipt_and_preserves_originals",
+              "result": "PASS",
+              "seconds": "0.218",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::backend_binary_guard_tests::accepts_canonical_wp_mt_owner_backend_target",
+              "result": "PASS",
+              "seconds": "0.090",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_binary_outside_declared_target",
+              "result": "PASS",
+              "seconds": "0.094",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_repo_local_target",
+              "result": "PASS",
+              "seconds": "0.093",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_stale_backend_binary",
+              "result": "PASS",
+              "seconds": "0.091",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::backend_binary_guard_tests::rejects_target_outside_artifact_root",
+              "result": "PASS",
+              "seconds": "0.092",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::attached_backend_failure_is_never_represented_as_owned_or_terminated",
+              "result": "PASS",
+              "seconds": "1.672",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::complete_success_publication_removes_runtime_run_and_scenario_hierarchy",
+              "result": "PASS",
+              "seconds": "0.216",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::post_reap_containment_accepts_owned_store_and_rejects_escaped_data_dir",
+              "result": "PASS",
+              "seconds": "0.152",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_deletes_workspace_then_reaps_and_publishes_actual_exit",
+              "result": "FAIL",
+              "seconds": "0.139",
+              "diagnostic": "thread 'interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_deletes_workspace_then_reaps_and_publishes_actual_exit' (48228) panicked at tests\\interconnect_support\\..\\backend_proof_support\\mod.rs:3930:50:\nrestrict live success runtime source: \"icacls failed for C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/e\\\\wp-kernel-012\\\\backend-runtime\\\\public-success-api-78c77b8920f24904906cf51a947a7845-run\\\\public-success-api-78c77b8920f24904906cf51a947a7845-scenario\\\\f9ff0f045c4346f0a11b9df138242c47 with exit code: 3: C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/e\\\\wp-kernel-012\\\\backend-runtime\\\\public-success-api-78c77b8920f24904906cf51a947a7845-run\\\\public-success-api-78c77b8920f24904906cf51a947a7845-scenario\\\\f9ff0f045c4346f0a11b9df138242c47: The system cannot find the path specified.\"\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace"
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_preserves_before_missing_owned_child_error",
+              "result": "PASS",
+              "seconds": "0.261",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_preserves_before_missing_runtime_root_error",
+              "result": "PASS",
+              "seconds": "0.205",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_preserves_sources_when_publication_errors",
+              "result": "FAIL",
+              "seconds": "0.120",
+              "diagnostic": "thread 'interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_preserves_sources_when_publication_errors' (52088) panicked at tests\\interconnect_support\\..\\backend_proof_support\\mod.rs:3930:50:\nrestrict live success runtime source: \"icacls failed for C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/e\\\\wp-kernel-012\\\\backend-runtime\\\\public-success-error-2a3f3adbb3474a78b363438a11bf3b67-run\\\\public-success-error-2a3f3adbb3474a78b363438a11bf3b67-scenario\\\\45e9e90780df42a1b7ffb1abcd1a6f93 with exit code: 3: C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/e\\\\wp-kernel-012\\\\backend-runtime\\\\public-success-error-2a3f3adbb3474a78b363438a11bf3b67-run\\\\public-success-error-2a3f3adbb3474a78b363438a11bf3b67-scenario\\\\45e9e90780df42a1b7ffb1abcd1a6f93: The system cannot find the path specified.\"\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace"
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::public_success_api_retains_workspace_identity_and_retries_delete_after_non_success",
+              "result": "PASS",
+              "seconds": "0.189",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::retained_failure_receipt_is_contained_and_hash_bound",
+              "result": "PASS",
+              "seconds": "0.214",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::secure_mt045_evidence_publication_is_atomic_hash_bound_and_contained",
+              "result": "PASS",
+              "seconds": "0.205",
+              "diagnostic": null
+            },
+            {
+              "binary": "handshake-native::test_interconnect_loom_backlink_search",
+              "name": "interconnect_support::backend_proof_support::failure_diagnostic_tests::unreadable_file_yields_typed_partial_receipt_and_preserves_originals",
+              "result": "PASS",
+              "seconds": "0.200",
+              "diagnostic": null
+            }
+          ],
+          "junit": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e-native.xml",
+            "sha256": "d9eef45c533405bb9b7a243b92f3f00be0330308ce17fa55b5408fcb31d38582"
+          },
+          "selection_diagnosis": "test(/^interconnect_/) also matched interconnect_support module self-tests; original PC04601/03 evidence and MT170 validation_v1 require IC01-05 and IC10-14, preserved exactly",
+          "scope_review": "Independent buddy opened MT046 PC04601/03 evidence and MT170 validation_v1/disposition; four helper failures retained outside pinned MT170 proof; do not claim helpers fixed"
+        },
+        "document": {
+          "nextest_exit_code": 96,
+          "result": "NOT_RUN",
+          "diagnostic": "Core config override indexes1/2 require absent mt167_code_nav_index_cost_tests and knowledge_documents_api_tests binaries in handshake_document package",
+          "required_remediation": "Use package-applicable nextest configuration retaining one test thread, same timeout and JUnit, without unrelated binary overrides"
+        },
+        "outputs": {
+          ".stdout.log": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.stdout.log",
+            "sha256": "3c1f53a6fd179d329d58feea2bf53c724ed9bb50104e09f9f10aea97461bc07c"
+          },
+          ".stderr.log": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.stderr.log",
+            "sha256": "f941bb6dd690c8b51b5cb7f7d98132bd80f140f13abce042859d9347ae384e21"
+          },
+          ".exit.json": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.exit.json",
+            "sha256": "ad1caa6fdaadaa1b9ac91d55dd18afe6d9ce08e563b40e03ffa803606f47766d"
+          }
+        },
+        "minimum_product_remediation": [
+          {
+            "test": "mt032_rich_documents_are_addressable_and_target_backlinks_are_inbound",
+            "source": "handshake-core/tests/knowledge_documents_api_tests.rs:1153",
+            "observed": "Renamed target inbound backlinks did not contain source a_id with target b_id",
+            "required": "Restore authoritative renamed-target inbound backlink behavior without weakening target READ or privacy checks"
+          },
+          {
+            "test": "interconnect_ic10_backlink_cross_surface",
+            "source": "app-native/tests/test_interconnect_loom_backlink_search.rs:293",
+            "observed": "Missing target response403; expected404",
+            "required": "Resolve exact missing-target negative contract while preserving fail-closed authorization; no expectation weakening without authority"
+          }
+        ],
+        "preservation": "All original outputs and warm target/cache/export retained; no helper repair or behavior waiver"
       }
     ]
   },
@@ -4677,8 +5080,8 @@
         "check_id": "MT-170-DOWNSTREAM",
         "result": "NOT_RUN_UNCLOSED",
         "required_selections": [
-          "MT-046 PC-046-01: test_interconnect_ckc_to_note interconnect_ (IC01–05)",
-          "MT-046 PC-046-03: test_interconnect_loom_backlink_search interconnect_ (IC10–14)"
+          "MT-046 PC-046-01: test_interconnect_ckc_to_note interconnect_ (IC01â€“05)",
+          "MT-046 PC-046-03: test_interconnect_loom_backlink_search interconnect_ (IC10â€“14)"
         ],
         "reason": "These results cannot resolve the immutable AC-170-1 acceptance blocker."
       }
@@ -4735,5 +5138,131 @@
       "runtime_kill_floor": false,
       "mitigation": "Single job;30s owned process/commit observation;WP160GBcap/158GBstop;no foreign process changes"
     }
+  },
+  "runtime_remediation_20261008": {
+    "id": "MT170-REMEDIATE-20261008-REQUIRED-RUNTIME",
+    "failure_ref": "validation.runtime_failures_20261008#MT170-RUNTIME-20261008-4EEB-RED",
+    "owner": "KERNEL_BUILDER",
+    "batch_owner": "MT-170",
+    "covered_mts": [
+      "MT-170"
+    ],
+    "state": "IMPLEMENTED_READY_FOR_VALIDATION_UNVALIDATED",
+    "authorization_basis": [
+      "Live Operator: only work/test what is blocking or failing; do not stop before MT170 validated PASS",
+      "WP_VALIDATOR_PROTOCOL.md:167-178 legitimate ancillary path flagged/allowed with explicit justification",
+      "KERNEL_BUILDER_PROTOCOL.md KB-IMPL-003 exact recorded failure remediation; KB-PREP-003 reuse existing approval"
+    ],
+    "product_paths": [
+      "src/backend/handshake_document/src/surreal.rs (existing callback argument, canonical current-context read for verified rich-backed row; both readable gates retained)",
+      "src/backend/handshake_core/src/storage/surreal/knowledge.rs (existing DocumentQuery callback implementation derives exact RichDocument versus LoomBlock resource kind from verified resolver class)",
+      "src/frontend/handshake_native/tests/test_interconnect_loom_backlink_search.rs (IC10 missing-target assertion/body only)"
+    ],
+    "core_security_constraints": [
+      "Some(true) requires current record-user context and exact protected resource Read/fs.read; no SELECT-only/live_ids fallback",
+      "Same-workspace SELECT visibility plus schema-backed same-ID rich-document projection identity; no request supplied authority bit",
+      "Retain Some(false), legacy None SQL behavior, live/readable separation, prior fallback readable gate and projection readable gate",
+      "No schema, grants, resource module, profile registry, privileged read or new policy exception"
+    ],
+    "core_authority_anchors": [
+      "MT170-PR-003/004",
+      "src/backend/handshake_core/src/api/loom.rs:608-618 RichDocument protects same-id projection",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql:471-472 same-id/workspace/note linkage"
+    ],
+    "native_scope_flag": {
+      "path": "src/frontend/handshake_native/tests/test_interconnect_loom_backlink_search.rs",
+      "classification": "LEGITIMATE_ANCILLARY_BLOCKING_TEST",
+      "justification": "Required original PC04603 IC10 is blocked solely by stale404 expectation; current MT153 and SPEC constant403 protected-resource denial is preserved and assertion/body strengthened; no product route/security or acceptance weakening",
+      "required_coder_justification": true,
+      "existing_forbidden_path_exception_scope": "This IC10 assertion/body only; all other frontend product scope remains forbidden"
+    },
+    "buddy_review": "Builder and independent buddy inspected current-context exact-kind mechanism; actual changed diff still requires buddy review",
+    "proof_boundary": "After scoped pushed candidate and buddy cheap checks, WPV runs original3core+10native+document minimum warm bundle; all historical known failures preserved",
+    "implementation": {
+      "recorded_at_utc": "2026-10-08T13:27:21Z",
+      "owner": "KERNEL_BUILDER-20261008-MT170",
+      "state": "READY_FOR_VALIDATION_UNVALIDATED",
+      "product_worktree": "../wtc-WP-KERNEL-012",
+      "product_branch": "feat/WP-KERNEL-012",
+      "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+      "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+      "changed_files": [
+        "src/backend/handshake_document/src/surreal.rs",
+        "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+        "src/frontend/handshake_native/tests/test_interconnect_loom_backlink_search.rs"
+      ],
+      "change": "The existing canonical read callback receives only the same-workspace SELECT row's derived rich-document class and authorizes exact RichDocument or LoomBlock Read/fs.read with current record-user credentials. Some(false), legacy None, denied/error handling and both readable gates remain unchanged. IC10 retains positive backlink and cleanup proof, asserts403 and the entire constant protected-resource denial body, and records its error code.",
+      "ancillary_path_justification": "The one required IC10 negative assertion was stale against current MT153/SPEC authorization-before-lookup and existence-nondisclosure rules. Only that assertion/body and its existing receipt were corrected; no frontend behavior, helper, route, schema or grant changed.",
+      "static_evidence": [
+        {
+          "command": "rustfmt --check --edition 2021 <the three changed Rust files>",
+          "result": "PASS_EXIT_0",
+          "basis": "Each owning Cargo.toml declares edition2021; exact rustfmt1.97.1 x64 executable used"
+        },
+        {
+          "command": "git diff --check; git diff --cached --check",
+          "result": "PASS_EXIT_0"
+        },
+        {
+          "command": "git commit with three explicit product paths; git push origin feat/WP-KERNEL-012; git status --short",
+          "result": "COMMITTED_PUSH_EXIT_0_CLEAN",
+          "diff": "3 files;27 insertions;7 deletions; no .GOV path"
+        }
+      ],
+      "independent_buddy_review": {
+        "reviewer": "mt170_buddy",
+        "result": "SOURCE_NO_BLOCKING_FINDINGS",
+        "checks": "Opened actual three-file diff, sole callback/caller/implementation, same-ID/workspace/note schema assertion and Loom resource-kind mapping; checked Some(false)/None, absent context/default trait/Denied, same-workspace predicate, live/readable separation and both readable gates; IC10 full constant-denial body and cleanup retained",
+        "counterfactuals": "live_ids-only fallback admits memory/UPDATE-visible resources without exact fs.read Read; removing same-workspace predicate can authorize foreign candidates",
+        "runtime_limit": "RichDocument callback and restored rename behavior remain unproven until WPV runtime"
+      },
+      "wpv_source_review": "Independent WPV opened the same diff and reported no blocking source finding; runtime acceptance remains required",
+      "compile_runtime": "NOT_RUN_BY_BUILDER: live Operator assigns expensive Cargo builds/tests exclusively to WP Validator; required original3core+10native+document warm proof remains pending",
+      "argus_user_manual": "NOT_APPLICABLE_TO_THIS_REMEDIATION: internal authorization correction and existing negative test only; no shipped GUI/help flow changed",
+      "gameplan": "kernel_builder before_submit PASS8/8 at1ad04e431; current exact source/format/export-error checks evidenced; obsolete GP212 parser submission moment retired by WPV with runtime parser gate retained",
+      "next_actor": "WP_VALIDATOR; retain all original RED and chronology artifacts; validate exact pushed candidate with unchanged warm target/cache"
+    }
+  },
+  "harness_recovery_20261008": {
+    "id": "MT170-HARNESS-20261008-MINIMUM-RETRY",
+    "causes": [
+      "handshake_document nextest exit96: binary-specific core override operators do not exist in package",
+      "Broad interconnect prefix selected32 incidental duplicated helpers instead of10 pinned scenarios",
+      "Pureconfiguration preparation blocked on futurewrapper obligations before actual wrapper can exist"
+    ],
+    "changes": [
+      "Only2 canonical core config filters use test expressions; timeout/one-thread/JUnit/focused-success output retained",
+      "Native anchored IC01-05/IC10-14 expression matches exactly10 actualJUnit names; originalhelperRED history retained",
+      "Existing launcher hashes2 additional actually consumed configuration files, nineinputs total",
+      "Same freshwrapper/hash and typedstart/CIM obligations GP357/358 moved to before_dispatch; mandatorycheck afterrelease/hashreread beforeunchangedbefore_round/competingjob/fresh10GB/Cargo"
+    ],
+    "retired_inapplicable_steps": {
+      "GP212": "Builder product-only submission hasno PowerShellparser action; WPV Parser preflight retained",
+      "GP231": "Six-test pinrecovery phase ended; current3core+10native+document selected; no newpinproofclaim",
+      "GP302": "Legacy A/B metadata lookup child/PPID absent from direct ownedlauncher",
+      "GP306": "Legacy auditcandidate-launcher argv producer absent",
+      "GP307": "Legacy audit stdinLF handshake absent",
+      "GP322": "Legacy stage29699 nonproducer confirmation chain absent",
+      "GP187": "Fixedlaunch.ps1 uses actualGitfullSHA/outputprefix/argv; candidatefilename producer absent",
+      "GP239": "Legacy wholeparentenvdigest producer absent; actualprofileenv JSONhash retained; no inheritedenvdigestclaim"
+    },
+    "preserved_configs": [
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/nextest-core-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.toml",
+        "sha256": "ecdecd8d2658e38254337f8451991dc525fb33f806b0b05fd00f5322a57abd29"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/nextest-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.toml",
+        "sha256": "790f1077eaba5580d2ba8732e0d2ffed8ea1b5dd4badefc2b8da07c6fb0da91f"
+      }
+    ],
+    "old_launcher_raw_snapshot": {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/launch-before-config-gate-20261008.ps1",
+      "sha256": "3774809fed818c79e7a81b4c10900051c751dfba7defb102abb668bb7557cc72"
+    },
+    "new_core_config_sha256": "46f273f6bdfb95c4f35f96e4181f202c7c97a58706d574f48334973a0c21b708",
+    "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "buddy_review": "Actual2filter/selector diff reviewed independently; finalwrittenlauncher/realpassivewrapper review pending",
+    "runtime": "NOT_RUN_ON_NEW_CANDIDATE"
   }
 }

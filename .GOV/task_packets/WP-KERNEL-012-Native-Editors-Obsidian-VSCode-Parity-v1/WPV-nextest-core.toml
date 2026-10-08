@@ -10,12 +10,12 @@ success-output = "final"
 # MT-167 AC-167-3: print the MT167_TIMING / MT167_TIMING_SUMMARY lines on success, and allow the full
 # 1 warm-up + 5 timed requests x 2 shapes (each request bounded at 45 s by the test) before terminating.
 [[profile.default.overrides]]
-filter = 'binary(=mt167_code_nav_index_cost_tests)'
+filter = 'test(/^mt167_/)'
 success-output = "final"
 slow-timeout = { period = "60s", terminate-after = 12 }
 
 [[profile.default.overrides]]
-filter = 'binary(=knowledge_documents_api_tests) & test(=mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge)'
+filter = 'test(=mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge)'
 success-output = "final"
 
 [profile.default.junit]
