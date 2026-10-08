@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-08T16:28:19.205128Z",
+  "updated_at_utc": "2026-10-08T16:59:02.694177Z",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -226,7 +226,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "blocked_on": null,
     "depends_on": [],
     "blocks": [
@@ -234,10 +234,10 @@
       "MT-169"
     ],
     "active": true,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V1",
     "claimed_by": "KERNEL_BUILDER-20261002",
     "completed_by": null,
-    "next_actor": "WP_VALIDATOR union round (MT-168 + MT-170 together)",
+    "next_actor": "ORCHESTRATOR: deliberate and select only one failed MT for repair; active1ad union continues",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-153.json#analysis_20261001_step1_w_scans_ownership",
@@ -264,7 +264,11 @@
       ],
       "extra_build_proof_proposal": "R6 counterfactual: revert 2ad00add+6846e7d4 and run the MT-168 cost tests (expected fail) - declare in extra_build_proofs if the validator adopts it"
     },
-    "gameplan": "kernel_builder before_submit PASS 2/2 at 280ef985 (GP-023 cmd; GP-158 confirmed: loom_store/api loom untouched, tag-edge permission branch byte-equal)"
+    "gameplan": "kernel_builder before_submit PASS 2/2 at 280ef985 (GP-023 cmd; GP-158 confirmed: loom_store/api loom untouched, tag-edge permission branch byte-equal)",
+    "prior_validator_verdict": null,
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T16:59:02.694177Z",
+    "validated_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557"
   },
   "scope": {
     "summary": "Make grant checks and W resource/grant scans index-served (key-first all-AND lookups with bare LET params; new parent_resource_id index) so their cost is independent of other workspaces' rows; semantics unchanged.",
@@ -383,7 +387,7 @@
     {
       "tier": "FLIGHT_RECORDER_EVENTLEDGER",
       "status": "UNCHANGED",
-      "reason": "Index-run receipts keep their current EventLedger shape; spec \u00c2\u00a72.3.14.4.6 FR latency logging is not widened by this MT."
+      "reason": "Index-run receipts keep their current EventLedger shape; spec Â§2.3.14.4.6 FR latency logging is not widened by this MT."
     },
     {
       "tier": "INTERNAL_DIAGNOSTICS",
@@ -437,7 +441,7 @@
   "group": "E5",
   "spec_basis": {
     "kind": "remediation_derived_mt",
-    "note": "Created to own recorded validator failures/diagnoses that had no owning MT; CX-SPEC-TRUTH-001 activation gate does not apply to remediation work. Downstream timing baseline: Master Spec v02.206 \u00c2\u00a72.3.14.17.3 (02-system-architecture.md:4470-4478) as quoted in MT-167.json#spec_basis."
+    "note": "Created to own recorded validator failures/diagnoses that had no owning MT; CX-SPEC-TRUTH-001 activation gate does not apply to remediation work. Downstream timing baseline: Master Spec v02.206 Â§2.3.14.17.3 (02-system-architecture.md:4470-4478) as quoted in MT-167.json#spec_basis."
   },
   "hbr_swarm_allocation": "Grant-check cost independent of other workspaces' rows is what lets parallel agents/workspaces coexist; no new swarm surface; no waiver.",
   "operator_decision": {
@@ -568,6 +572,58 @@
         "log_sha256": "62a0db27a245cdbe3b2d1dfc595fe10f83f1e21a37dd1db623c8f45e85f0bea1",
         "input_digest_before_after": "equal (resource_authority_tests.rs, knowledge_documents_api_tests.rs)",
         "command": "same as PR-WP012-MT168-KB-CHECK-01"
+      },
+      {
+        "id": "PR-WP012-MT168-WPV-20261008-1AD-SOURCE",
+        "check_id": "MT-168-BARE-PARAM-W-LOOKUPS",
+        "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+        "command": "git show <frozenSHA>:<each of4 exact source paths>; git rev-parse <frozenSHA>:<path>; direct AC1116/AC1683 comparison",
+        "started_at_utc": "2026-10-08T16:54:26.989997Z",
+        "completed_at_utc": "2026-10-08T16:54:27.459250Z",
+        "exit_code": 0,
+        "result": "FAIL_PRODUCT_SOURCE",
+        "failure_kind": "product",
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/source-findings-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.json",
+          "bytes": 8859,
+          "sha256": "e9087ce63805778832f5c70291093d8d799b848b430e663854925c2e55f96d85"
+        },
+        "checks": [
+          {
+            "check_id": "MT-168-BARE-PARAM-W-LOOKUPS",
+            "failure_kind": "product",
+            "failure_class": "MT168-W-LOOKUP-BARE-PARAM-CONTRACT-GAP",
+            "acceptance_refs": [
+              "AC-168-3"
+            ],
+            "actual": "Contracted per-block/entity lookups retain field-path keys ($block.block_id/$entity.entity_key), without LET-bound bare key params",
+            "expected": "Contracted per-block/entity (resource_kind,external_resource_id) keys compare LET-bound bare params",
+            "sources": [
+              "schema"
+            ],
+            "runtime_state": "No runtime table-scan, performance or semantic failure inferred; current runtime incomplete"
+          }
+        ],
+        "source_blobs": {
+          "schema": {
+            "path": "src/backend/handshake_core/src/storage/surreal/schema.surql",
+            "git_ref": "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/backend/handshake_core/src/storage/surreal/schema.surql",
+            "blob_id": "eab282505ba243dab87adb8d164ef9f4c2fd5861",
+            "sha256": "50394566996175d7397b6cc7a9233085195d9634db88238c811360b94924bc23",
+            "lines": [
+              7025,
+              7031
+            ],
+            "excerpt": "7025:     LET $workspace_delete_rows_12 = SELECT * FROM knowledge_entities WHERE workspace_id = $workspace;\n7026:     FOR $entity IN $workspace_delete_rows_12 {\n7027:         IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {\n7028:             LET $entity_block = type::record('loom_blocks', $entity.entity_key);\n7029:             LET $view_entity = IF record::exists($entity_block) { $entity_block.content_type = 'view_def' AND $entity_block.workspace_id = $workspace } ELSE { $entity.detection_provenance.content_type = 'view_def' AND array::len(SELECT id FROM protected_resources WHERE resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key) = 0 };\n7030:             IF !$view_entity AND array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };\n7031:         } ELSE IF $entity.primary_source_id = NONE OR $entity.primary_source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($entity.primary_source_id), 'delete', 'fs.write') { RETURN false; };"
+          }
+        },
+        "runtime_state": "NOT_COMPLETE",
+        "scope_limit": "Closed independent source proof only; no runtime result or final hash of a live union stream"
       }
     ],
     "running_record_ready13_20261008": {
@@ -736,7 +792,8 @@
         "command": "cargo test --locked -j1 --no-run -v --config WPV-backend-profile.toml --features app-runtime,surreal-test-support,test-utils --lib +21 named integration targets",
         "source_guard": "same1ad incremental deleted0/extracted0;7167 tracked/observed metadata verified"
       }
-    }
+    },
+    "latest_verdict_ref": "validation_source_20261008_1ad04e43"
   },
   "authored_by": "KERNEL_BUILDER-20261002",
   "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-167 narrow-MT shape",
@@ -942,5 +999,88 @@
     "ac_text_deviation": "AC-168-6 says 'one SCHEMA_REVISION bump'; the in-place re-pin follows the established packet practice instead",
     "recorded_at_utc": "2026-10-02T17:20:00Z",
     "by": "KERNEL_BUILDER-20261002"
+  },
+  "validation_source_20261008_1ad04e43": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T16:59:02.694177Z",
+    "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+    "started_at": "2026-10-08T16:54:26.989997Z",
+    "completed_at": "2026-10-08T16:59:02.694177Z",
+    "results_ref": "validation.proof_records[PR-WP012-MT168-WPV-20261008-1AD-SOURCE]",
+    "proof_record_ids": [
+      "PR-WP012-MT168-WPV-20261008-1AD-SOURCE"
+    ],
+    "artifact_ref": {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/source-findings-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.json",
+      "bytes": 8859,
+      "sha256": "e9087ce63805778832f5c70291093d8d799b848b430e663854925c2e55f96d85"
+    },
+    "checks": [
+      {
+        "check_id": "MT-168-BARE-PARAM-W-LOOKUPS",
+        "failure_kind": "product",
+        "failure_class": "MT168-W-LOOKUP-BARE-PARAM-CONTRACT-GAP",
+        "acceptance_refs": [
+          "AC-168-3"
+        ],
+        "actual": "Contracted per-block/entity lookups retain field-path keys ($block.block_id/$entity.entity_key), without LET-bound bare key params",
+        "expected": "Contracted per-block/entity (resource_kind,external_resource_id) keys compare LET-bound bare params",
+        "sources": [
+          "schema"
+        ],
+        "runtime_state": "No runtime table-scan, performance or semantic failure inferred; current runtime incomplete",
+        "result": "FAIL"
+      }
+    ],
+    "failure_kind": "product",
+    "failure_class": "MT168-W-LOOKUP-BARE-PARAM-CONTRACT-GAP",
+    "runtime_state": "NOT_COMPLETE",
+    "runtime_results_ref": "MT-168.json#validation.running_record_ready13_20261008",
+    "unclosed_proof": "All pending own runtime checks remain uncredited; current immutable1ad union continues unchanged",
+    "remediation_required": [
+      {
+        "failure_kind": "product",
+        "failure_class": "MT168-W-LOOKUP-BARE-PARAM-CONTRACT-GAP",
+        "failed_acceptance_refs": [
+          "AC-168-3"
+        ],
+        "failed_check_refs": [
+          "MT-168-BARE-PARAM-W-LOOKUPS"
+        ],
+        "artifact_refs": [
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/source-findings-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.json"
+        ],
+        "affected_code_refs": [
+          "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/backend/handshake_core/src/storage/surreal/schema.surql"
+        ],
+        "repair_direction": "Bind contracted block/entity resource keys to bare LET params; preserve exact grant, rowset and denial semantics"
+      }
+    ],
+    "independent_review": "WPV opened exact candidate sources/contract; buddy independently reconciled source, root directly read finding; no waiver",
+    "gameplan": {
+      "before_verdict": "PASS11/11",
+      "source_binding_step": "GP-365",
+      "retained_runtime_obligation": "Every runtime claim requires own candidate JUnit; no live final-log digest claimed"
+    },
+    "scope_limit": "Source-only product FAIL; no runtime/performance failure or PASS inferred. Later1ad runtime may supplement this record without a second lifecycle effect. No repair selected by WPV.",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT168-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-SOURCE-FAIL_V1-20261008",
+        "at_utc": "2026-10-08T16:59:02.694177Z",
+        "decision": "failed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT168-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-SOURCE-FAIL_V1-20261008",
+        "at_utc": "2026-10-08T16:59:02.694177Z",
+        "decision": "failed",
+        "state_effect": "One lifecycle transition READY_FOR_VALIDATION -> FAIL_V1 from independent closed source proof; runtime NOT_COMPLETE"
+      }
+    ]
   }
 }

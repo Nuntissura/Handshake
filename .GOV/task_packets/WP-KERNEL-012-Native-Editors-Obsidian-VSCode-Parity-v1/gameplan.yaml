@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 467
+generation: 470
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -51,7 +51,7 @@ steps:
 - {id: GP-030, role: wp_validator, at: before_round, do: confirm one union round covers every READY MT and no per-MT test runs, check: {type: confirm}, source: 'CX-VAL-001/FL2: Operator one-union instruction', state: retired}
 - {id: GP-031, role: wp_validator, at: before_round, do: confirm no canary_check gate applies to this pinned WP, check: {type: confirm}, source: 'operator: WP-012 excludes canary_check (W12-D05/CX-GOV-PIN-001)', state: retired}
 - {id: GP-032, role: wp_validator, at: before_verdict, do: confirm a BLOCKED status names blocked_on and is not challenged, check: {type: confirm}, source: 'CX-STATUS-001/FL15/FL17/FL30: independent validator classifies', state: active}
-- {id: GP-033, role: wp_validator, at: before_verdict, do: confirm the verdict uses only this round's own JUnit for this candidate SHA, check: {type: confirm}, source: 'W12-E01/E02/FL7/FL8: exact export/binary provenance required', state: active}
+- {id: GP-033, role: wp_validator, at: before_verdict, do: confirm the verdict uses only this round's own JUnit for this candidate SHA, check: {type: confirm}, source: 'W12-E01/E02/FL7/FL8: exact export/binary provenance required', state: retired}
 - {id: GP-034, role: integration_validator, at: before_merge, do: confirm extra_build_proofs run only at the WP-end grouped boundary, check: {type: confirm}, source: 'W12-F01/FL10/FL14: contract-declared end-of-WP builds only', state: retired}
 - {id: GP-035, role: integration_validator, at: before_merge, do: confirm every required MT independently passed before integration review, check: {type: confirm}, source: 'W12-F01/CX-503B1: no PASS on pending or blocked required rows', state: retired}
 - {id: GP-036, role: wp_validator, at: before_round, do: forbid timeout wrapper line in run-round.sh; comments excluded, check: {type: cmd, argv: [python, -c, 'import re,sys;t=open(sys.argv[1],encoding=''utf-8'',errors=''replace'').read();sys.exit(1 if re.search(r''^[ \t]*timeout[ \t]+[0-9]'',t,re.M) else 0)', ../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/run-round.sh], expect_exit: 0}, source: 'replaces GP-007 (comment false positive); FL: run 44 killed by timeout 3600', state: retired}
@@ -383,3 +383,5 @@ steps:
 - {id: GP-362, role: wp_validator, at: before_round, do: verify READY13 own core21 and native16 selections retain all named proof and exclude incidental helpers, check: {type: confirm}, source: 'prep: MT170-only IC selector obsolete; READY13 own contracts require shared runtime union', state: active}
 - {id: GP-363, role: wp_validator, at: before_dispatch, do: verify same-SHA proof suffix preserves prior MT170 bytes and guard allows fresh outer and observer outputs, check: {type: confirm}, source: 'prep: same-SHA output collision; broad guard also rejected current outer and observer files', state: active}
 - {id: GP-364, role: wp_validator, at: before_round, do: verify MT168 three timing tests retain success medians and contracted1200s per-test timeout, check: {type: confirm}, source: 'prep: default successful output hid MT168 medians;300s below own1200s timing contract', state: active}
+- {id: GP-365, role: wp_validator, at: before_verdict, do: verify runtime claims bind own candidate JUnit; source findings bind own frozen-candidate proof, check: {type: confirm}, source: CXVAL009 allows source FAIL; GP033 unconditional JUnit blocked independent source findings, state: active}
+- {id: GP-366, role: wp_validator, at: before_verdict, do: verify controller confirmation note is one line <=120 chars, check: {type: confirm}, source: 'infra: confirmation rejected over120char note; source verdict not applied', state: active}

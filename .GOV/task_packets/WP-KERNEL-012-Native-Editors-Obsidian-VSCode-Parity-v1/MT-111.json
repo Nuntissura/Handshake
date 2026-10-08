@@ -22,7 +22,7 @@
   "title": "B3-MT-111-Frontend-FlightRecorder-Callers-To-Workspace-Scoped-Authorized-Routes",
   "group": "B-Backend-Contract",
   "created_at_utc": "2026-08-05T12:42:00.438Z",
-  "updated_at_utc": "2026-10-01T18:29:18Z",
+  "updated_at_utc": "2026-10-08T16:59:02.694177Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -30,7 +30,63 @@
   "markdown_projection": {
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
-  "validation_v2": {"schema_id":"hsk.mt_validation_verdict@1","decision":"blocked","verdict":"BLOCKED","validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:51:00Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","junit_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","blocker_kind":"dependency","blocked_on_mt_ref":"MT-036.json","blocking_mt_refs":["MT-036.json"],"basis":"Same required emission proof completed functional assertions then failed workspace DELETE cleanup recorded in MT036; no authorization semantic failure inferred","required_test_observations":[{"test":"event_emitter_native_editor_round_trip","target":"handshake-native::test_event_emitter","message":"thread 'event_emitter_native_editor_round_trip' (187508) panicked at tests\\test_event_emitter.rs:2768:14","elapsed_seconds":129.675,"failure_kind":"product","attribution":"Recorded in blocking owning MT, not new remediation here","artifact_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#event_emitter_native_editor_round_trip"}],"remaining_proof_gaps":[{"ac":"AC-111-1","reason":"PT-111-2 'zero references to removed unscoped paths in src/frontend/**' is a grep proof"},{"ac":"AC-111-4","reason":"no test drives app.rs's own FR pane read with ?wsid="}],"runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"Same single union; no rerun while dependency open; no own remediation or PASS","verdict_events":[{"event":"accepted","idempotency_key":"MT-111-49eac54e-union-blocked-v2","at_utc":"2026-09-26T15:51:00Z","payload_ref":"MT-111.json#validation_v2","decision":"blocked"},{"event":"completed","idempotency_key":"MT-111-49eac54e-union-blocked-v2","at_utc":"2026-09-26T15:53:23Z","state_ref":"MT-111.json#lifecycle","decision":"blocked"}]},
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "blocked",
+    "verdict": "BLOCKED",
+    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
+    "validated_at_utc": "2026-09-26T15:51:00Z",
+    "candidate_commit": "49eac54e03d2a94abf5aa3ced025e2947f9adc8b",
+    "started_at": "2026-09-26T12:09:56.9854857Z",
+    "completed_at": "2026-09-26T15:40:57.0864701Z",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml",
+    "junit_sha256": "B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C",
+    "blocker_kind": "dependency",
+    "blocked_on_mt_ref": "MT-036.json",
+    "blocking_mt_refs": [
+      "MT-036.json"
+    ],
+    "basis": "Same required emission proof completed functional assertions then failed workspace DELETE cleanup recorded in MT036; no authorization semantic failure inferred",
+    "required_test_observations": [
+      {
+        "test": "event_emitter_native_editor_round_trip",
+        "target": "handshake-native::test_event_emitter",
+        "message": "thread 'event_emitter_native_editor_round_trip' (187508) panicked at tests\\test_event_emitter.rs:2768:14",
+        "elapsed_seconds": 129.675,
+        "failure_kind": "product",
+        "attribution": "Recorded in blocking owning MT, not new remediation here",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml#event_emitter_native_editor_round_trip"
+      }
+    ],
+    "remaining_proof_gaps": [
+      {
+        "ac": "AC-111-1",
+        "reason": "PT-111-2 'zero references to removed unscoped paths in src/frontend/**' is a grep proof"
+      },
+      {
+        "ac": "AC-111-4",
+        "reason": "no test drives app.rs's own FR pane read with ?wsid="
+      }
+    ],
+    "runtime_provenance_ref": "MT-032.json#validation_v11.input_provenance",
+    "attempt_disposition": "Same single union; no rerun while dependency open; no own remediation or PASS",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT-111-49eac54e-union-blocked-v2",
+        "at_utc": "2026-09-26T15:51:00Z",
+        "payload_ref": "MT-111.json#validation_v2",
+        "decision": "blocked"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT-111-49eac54e-union-blocked-v2",
+        "at_utc": "2026-09-26T15:53:23Z",
+        "state_ref": "MT-111.json#lifecycle",
+        "decision": "blocked"
+      }
+    ]
+  },
   "remediation_plan_20261001_laneb": {
     "schema_id": "hsk.mt_remediation_handoff@1",
     "by": "KERNEL_BUILDER lane B (WP-KERNEL-012, orchestrator-steered)",
@@ -76,7 +132,7 @@
     "status": "ACCEPTED by orchestrator as Option A (2026-10-01); MT-111 set READY_FOR_VALIDATION"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V2",
     "blocked_on": null,
     "ready_for_validation_transition_20261001": {
       "at_utc": "2026-10-01T18:29:18Z",
@@ -96,7 +152,7 @@
     "blocks": [
       "MT-066"
     ],
-    "validator_verdict": "BLOCKED",
+    "validator_verdict": "FAIL_V2",
     "claimed_by": null,
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
@@ -161,17 +217,18 @@
       },
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
     },
-    "validated_by": "WP_VALIDATOR-SOL-MEDIUM",
-    "validated_at_utc": "2026-09-26T15:51:00Z",
-    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "WP_VALIDATOR",
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T16:59:02.694177Z",
+    "validated_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "next_actor": "ORCHESTRATOR: deliberate and select only one failed MT for repair; active1ad union continues",
     "ready_for_validation_transition_2": {
       "at_utc": "2026-09-23T23:43:15.504Z",
       "by": "INTEGRATION_VALIDATOR on Operator direction 2026-09-24 (remediated MTs are READY_FOR_VALIDATION)",
       "from_status": "BLOCKED_ON_DEPENDENCY",
       "prior_validator_verdict": "FAIL_V1",
       "reason": "remediation_v4 newer than last validation"
-    }
+    },
+    "prior_validator_verdict": "BLOCKED"
   },
   "scope": {
     "summary": "Rewire every Handshake frontend caller of the flight-recorder API onto the MT-109 workspace-scoped, capability-gated routes, sending the native-MCP session binding token, and stop sending client-authored actor/workspace identity that the backend now derives and rejects on mismatch.",
@@ -830,8 +887,8 @@
     "resolves_finding": "N1B-P3-F111 (validation_v1.independent_findings) AUTHZ_STATUS_CONTRACT_DRIFT_401_VS_403",
     "question": "MT-111 AC-111-2 and AC-111-4 (step 5) pin 401 HSK-401-FR-SESSION for a Flight Recorder request without a session token; the C-prime backend returns 403 HSK-403-PROTECTED-RESOURCE. Which is the contract?",
     "spec_basis": [
-      "Master Spec v02.206 §2.3.13.12.3 Authorization law (7): \"Denials MUST use constant-shape responses where practical so counts, identifiers, names, paths, thumbnails, timing, search facets, error variants, logs, or diagnostics do not reveal that a restricted resource exists.\" (02-system-architecture.md)",
-      "Master Spec v02.206 §2.3.13.12.3 (2)+(6): every request authorizes Principal+session+action+exact resource; deny-by-default on every executable backend boundary. §2.3.13.12.4: Flight Recorder tables are protected resources and cannot become side-channel bypasses.",
+      "Master Spec v02.206 Â§2.3.13.12.3 Authorization law (7): \"Denials MUST use constant-shape responses where practical so counts, identifiers, names, paths, thumbnails, timing, search facets, error variants, logs, or diagnostics do not reveal that a restricted resource exists.\" (02-system-architecture.md)",
+      "Master Spec v02.206 Â§2.3.13.12.3 (2)+(6): every request authorizes Principal+session+action+exact resource; deny-by-default on every executable backend boundary. Â§2.3.13.12.4: Flight Recorder tables are protected resources and cannot become side-channel bypasses.",
       "Codex [CX-132C] HARD_DENY_BY_DEFAULT_ACROSS_ALL_BOUNDARIES: missing/invalid/stale session context MUST deny (satisfied by both codes; does not choose the number).",
       "The spec does NOT pin the numeric HTTP status for a missing credential; it pins the SHAPE (constant, non-distinguishing). A distinct 401 variant ahead of the protected-resource layer would be a second denial shape."
     ],
@@ -840,14 +897,14 @@
       "The backend in-crate tests already pin the constant denial for the no-credential case: flight_recorder.rs ~4276 asserts \"POST runtime_chat_event without binding\" -> StatusCode::FORBIDDEN + HSK-403-PROTECTED-RESOURCE \"must use the constant protected-resource denial\"; ~4970 asserts unscoped/blank-scope reads -> 403 HSK-403-PROTECTED-RESOURCE.",
       "History: 2e28ff91 feat: MT-109 enforce protected resource grants; ecc2444c fix(MT-109): enforce record-user resource authority. MT-111 AC-111-2 was authored 2026-08-05 against the pre-authority-layer recorder middleware."
     ],
-    "ruling": "SPEC WINS -> 403 HSK-403-PROTECTED-RESOURCE (constant-shape denial) is the contract for a Flight Recorder request that carries no/invalid session token, on both the ingest and the scoped-read side. This is NOT the spec-silent branch: §2.3.13.12.3(7) governs the denial shape, and the product authority layer plus its own pinned tests implement it. The 401 HSK-401-FR-SESSION wording in MT-111 AC-111-2 / AC-111-4 step 5 and in the flight_recorder.rs module doc-comment (line 10) is stale drift from before the protected-resource layer.",
+    "ruling": "SPEC WINS -> 403 HSK-403-PROTECTED-RESOURCE (constant-shape denial) is the contract for a Flight Recorder request that carries no/invalid session token, on both the ingest and the scoped-read side. This is NOT the spec-silent branch: Â§2.3.13.12.3(7) governs the denial shape, and the product authority layer plus its own pinned tests implement it. The 401 HSK-401-FR-SESSION wording in MT-111 AC-111-2 / AC-111-4 step 5 and in the flight_recorder.rs module doc-comment (line 10) is stale drift from before the protected-resource layer.",
     "required_changes": [
       "MT-111 contract: AC-111-2 and AC-111-4 step 5 are read as \"receives the constant protected-resource denial 403 HSK-403-PROTECTED-RESOURCE and is surfaced to the operator as a typed error rather than a silent drop\". The fail-closed intent and the typed-error surfacing requirement are unchanged; only the status/code literal is corrected. (Amendment recorded here; scope.acceptance_criteria text is preserved as authored.)",
       "src/frontend/handshake_native/tests/test_flight_recorder_authz.rs steps 1 and 5 (lines ~103-120, ~187-200): expect 403 + HSK-403-PROTECTED-RESOURCE. Routed into the F403 native-unblock builder round together with N1B-P3-F403 (native proof support must obtain a real credential via the /authority/session exchange; it must NOT weaken the authority layer).",
       "src/backend/handshake_core/src/api/flight_recorder.rs: correct the stale module doc (line 10) and remove or re-wire the now-dead unauthenticated_recorder() so the code carries one denial contract. Backend side, same builder round.",
       "No middleware reorder. Do NOT introduce a 401 ahead of authorize_request."
     ],
-    "operator_override": "The Operator may override this ruling; if overridden to 401, the backend in-crate 403 pins at flight_recorder.rs ~4276/~4970 and the constant-shape clause §2.3.13.12.3(7) must be reconciled first.",
+    "operator_override": "The Operator may override this ruling; if overridden to 401, the backend in-crate 403 pins at flight_recorder.rs ~4276/~4970 and the constant-shape clause Â§2.3.13.12.3(7) must be reconciled first.",
     "status_effect": "lifecycle.status stays BLOCKED_ON_DEPENDENCY (N1B-P3-F403 unresolved). F111 is RESOLVED_BY_RULING pending the code changes above."
   },
   "remediation_v1": {
@@ -935,7 +992,7 @@
     ],
     "ruling_401_vs_403_confirmed": {
       "operator_semantics": "Operator 2026-09-22 (relayed in the KERNEL_BUILDER-C1 brief): 401 = no valid authentication, 403 = authenticated but not permitted; keep the authority gate strict.",
-      "master_spec_clause": "Master Spec v02.206 §2.3.13.12.3 Authorization law (7) (02-system-architecture.md): 'Denials MUST use constant-shape responses where practical so counts, identifiers, names, paths, thumbnails, timing, search facets, error variants, logs, or diagnostics do not reveal that a restricted resource exists.' + (2)/(6) deny-by-default per request. The spec pins denial SHAPE, not the numeric status.",
+      "master_spec_clause": "Master Spec v02.206 Â§2.3.13.12.3 Authorization law (7) (02-system-architecture.md): 'Denials MUST use constant-shape responses where practical so counts, identifiers, names, paths, thumbnails, timing, search facets, error variants, logs, or diagnostics do not reveal that a restricted resource exists.' + (2)/(6) deny-by-default per request. The spec pins denial SHAPE, not the numeric status.",
       "reconciliation": "A uniform 401 emitted before any resource resolution (same body for every unauthenticated request, regardless of resource) discloses nothing about resource existence, so the Operator semantics satisfy (7). This supersedes ruling_401_vs_403_2026_09_17 (IV on delegation, which chose 403) for the Flight Recorder route group; AC-111-2 / AC-111-4 step 5 (401 HSK-401-FR-SESSION) stand as authored and test_flight_recorder_authz already expects 401.",
       "scope_of_change": "Flight Recorder route group only (api/flight_recorder.rs authorize_flight_recorder_request). Other protected routes still return the constant 403 for unauthenticated requests (api/authority.rs authorize_request); aligning them is a broader Operator scope item."
     },
@@ -946,7 +1003,7 @@
         "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/03-native-emitter-roundtrip.log: three production-emitter events (undo_fired, canvas_node_placed, document_saved) now persist with server-derived principal attribution (runtime-18 missing document_saved resolved by 456dc63a receipt_session_id); failed at canonical FR open with 401 because CanonicalArgusDriver::bind_in_current_app_data republished the shared native binding with a different token, invalidating the channel-bound account session",
         "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/06-native-emitter-roundtrip.log: after the Argus fix, open/refresh render exact rows; bounded-failure step expected stale text 'error sending request' but the account context correctly refuses a different origin ('Authenticated backend origin mismatch')",
         "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/08 and 10: full V4 matrix (open, refresh, bounded failure, failed retry, recovery) passes; failure moves to the test's own workspace cleanup (403)",
-        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/12-native-emitter-roundtrip.log: cleanup 403 root-caused to C1-FDELETE (statement 16); stopped per brief §4 / CX-EXEC-003"
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/12-native-emitter-roundtrip.log: cleanup 403 root-caused to C1-FDELETE (statement 16); stopped per brief Â§4 / CX-EXEC-003"
       ]
     },
     "recommended_validation": [
@@ -985,7 +1042,7 @@
     "date": "2026-09-22",
     "decided_by": "OPERATOR (relayed by the Integration Validator orchestrator, round 2)",
     "text": "C1-FDELETE: deleting a workspace CASCADES to its rich documents, their version history and its Canvas boards. Only an owner/admin (capability-gated) may do it, and it emits an auditable Flight Recorder event. Version history stays immutable while the workspace exists; only whole-workspace deletion removes it.",
-    "spec_basis": "No explicit Master Spec clause for this case (recorded as an Operator decision). Related: capability-gated auditable deletion (07-6 roadmap §11.5.12 reference; LM-RLS-001 admin role) and the ON DELETE CASCADE pattern for workspace-owned records."
+    "spec_basis": "No explicit Master Spec clause for this case (recorded as an Operator decision). Related: capability-gated auditable deletion (07-6 roadmap Â§11.5.12 reference; LM-RLS-001 admin role) and the ON DELETE CASCADE pattern for workspace-owned records."
   },
   "remediation_v4": {
     "session": "KERNEL_BUILDER-C1",
@@ -1060,7 +1117,7 @@
         ]
       },
       "R5": {
-        "apphost": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/92-rep-r5-apphost.log: still red at test_app_host_mount.rs:571 status=None, resolver_ready=true (click waits for Click action now). Agent correction: regressed between ba03f563 and c792b8a2; suspects MT-111 1236078e AccountUi::show top panel (local_account.rs:366 via app.rs:36028), per-frame bind_authenticated_context (app.rs:36077) or account gate (app.rs:36052) swallowing the menu click — UNVERIFIED.",
+        "apphost": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/92-rep-r5-apphost.log: still red at test_app_host_mount.rs:571 status=None, resolver_ready=true (click waits for Click action now). Agent correction: regressed between ba03f563 and c792b8a2; suspects MT-111 1236078e AccountUi::show top panel (local_account.rs:366 via app.rs:36028), per-frame bind_authenticated_context (app.rs:36077) or account gate (app.rs:36052) swallowing the menu click â€” UNVERIFIED.",
         "ckc_save": "Root cause found and fixed in R1 commit: the save transaction hid the old projection (hash-equality select filter) and re-created it (loom_blocks already exists -> 500 = C1-SAVE-500). Writer branch added to loom_blocks select/update. Native re-run pending (validator).",
         "canvas_text_card": "see R2",
         "tag_hub": "see R1"
@@ -1247,5 +1304,179 @@
     "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
     "verdict_labelling": "every verdict records the backend build profile",
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
+  },
+  "validation": {
+    "proof_records": [
+      {
+        "id": "PR-WP012-MT111-WPV-20261008-1AD-SOURCE",
+        "check_id": "MT-111-MANUAL-DENIAL-CODE",
+        "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+        "covers": [
+          "MT-111"
+        ],
+        "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+        "command": "git show <frozenSHA>:<each of4 exact source paths>; git rev-parse <frozenSHA>:<path>; direct AC1116/AC1683 comparison",
+        "started_at_utc": "2026-10-08T16:54:26.989997Z",
+        "completed_at_utc": "2026-10-08T16:54:27.459250Z",
+        "exit_code": 0,
+        "result": "FAIL_PRODUCT_SOURCE",
+        "failure_kind": "product",
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/source-findings-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.json",
+          "bytes": 8859,
+          "sha256": "e9087ce63805778832f5c70291093d8d799b848b430e663854925c2e55f96d85"
+        },
+        "checks": [
+          {
+            "check_id": "MT-111-MANUAL-DENIAL-CODE",
+            "failure_kind": "product",
+            "failure_class": "MT111-MANUAL-PROTECTED-RESOURCE-DENIAL-DRIFT",
+            "acceptance_refs": [
+              "AC-111-6",
+              "HBR-MAN-001",
+              "HBR-MAN-003"
+            ],
+            "actual": "Mounted FlightRecorder manual documents HSK-403-FR-CAPABILITY for valid-session omitted/blank wsid",
+            "expected": "Canonical exact-resource broker/authz contract denies this read with HSK-403-PROTECTED-RESOURCE",
+            "sources": [
+              "manual",
+              "authz",
+              "broker"
+            ],
+            "runtime_state": "Current READY13 runtime incomplete; no test result claimed"
+          }
+        ],
+        "source_blobs": {
+          "manual": {
+            "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+            "git_ref": "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/frontend/handshake_native/src/manual_content_editors.rs",
+            "blob_id": "03d57600662b0b527d653fff9ee1ad5931195cf4",
+            "sha256": "ef443be21f254bea48503315059ca15d4bee7651106800850cb6b812357524f6",
+            "lines": [
+              1083,
+              1089
+            ],
+            "excerpt": "1083: carrying the per-session native-MCP token read fresh from the on-disk binding \\\n1084: {local_app_data}/handshake/swarm_mcp_binding.json. A missing, malformed, or stale binding fails closed \\\n1085: with 401 HSK-401-FR-SESSION and the pane shows the typed failure at flight-recorder.load-failure; it \\\n1086: never renders an empty pane as if no events existed. An omitted or blank wsid escalates to the \\\n1087: fr.read.global capability, which is granted to NO profile and therefore always returns 403 \\\n1088: HSK-403-FR-CAPABILITY, so the shell refuses to issue an unscoped read and reports that no active \\\n1089: workspace is bound. While that one bounded request is active, flight-recorder.loading-status is the \\"
+          },
+          "authz": {
+            "path": "src/frontend/handshake_native/tests/test_flight_recorder_authz.rs",
+            "git_ref": "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/frontend/handshake_native/tests/test_flight_recorder_authz.rs",
+            "blob_id": "7aaf572b951a39e10166e9851be3baa1768f2bfa",
+            "sha256": "c5d1a4ac8af7a75dc485e18bce5b1c3c34d5a345bc1ce82cc10e6d18e67c2e16",
+            "lines": [
+              172,
+              179
+            ],
+            "excerpt": "172:     });\n173:     assert_eq!(\n174:         status, 403,\n175:         \"AC-111-4: an unscoped read escalates to fr.read.global, which no profile holds\"\n176:     );\n177:     assert_eq!(body[\"error\"], \"HSK-403-PROTECTED-RESOURCE\");\n178: \n179:     // â”€â”€ Step 5 (AC-111-2 negative, read side): a scoped read without a credential -> 401 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€"
+          },
+          "broker": {
+            "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+            "git_ref": "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/backend/handshake_core/src/api/flight_recorder.rs",
+            "blob_id": "1988b8d248c2a351bb27c99dba04d3e585694694",
+            "sha256": "ac4cf9e013b9921f73e9fd099e496ccb7de952115aba6241a833fb34aa0642b5",
+            "lines": [
+              394,
+              452
+            ],
+            "excerpt": "394:     // An omitted selector is still sent through the broker as a non-existent exact resource so\n395:     // the denial is durable and constant-shape rather than becoming an unaudited early return.\n396:     let workspace_id = workspace_id.unwrap_or_else(|| \"__unscoped__\".to_owned());\n397:     let action = if request.method() == Method::GET {\n398:         crate::storage::surreal::resource_authority::ResourceAction::Read\n399:     } else {\n400:         crate::storage::surreal::resource_authority::ResourceAction::Create\n401:     };\n402:     // MT-111 AC-111-2 (Operator ruling 2026-09-22): 401 = no valid authentication, 403 =\n403:     // authenticated but not permitted. Authenticate the session before any resource resolution, so\n404:     // a missing, malformed, forged, revoked, expired, or disabled session is one uniform 401 that\n405:     // cannot disclose whether the selected recorder resource exists (Master Spec Â§2.3.13.12.3(7)).\n406:     // The gate is unchanged: an authenticated caller still passes the full ResourceBroker check.\n407:     if crate::api::authority::authenticated_session_credentials(&state, request.headers())\n408:         .await\n409:         .is_err()\n410:     {\n411:         if record_flight_recorder_capability_decision(\n412:             &state,\n413:             None,\n414:             capability_id,\n415:             \"deny\",\n416:             Some(workspace_id.clone()),\n417:         )\n418:         .await\n419:         .is_err()\n420:         {\n421:             return audit_failed_closed().into_response();\n422:         }\n423:         return unauthenticated_recorder().into_response();\n424:     }\n425:     let authority = match crate::api::authority::authorize_request(\n426:         &state,\n427:         request.headers(),\n428:         capability_id,\n429:         crate::storage::surreal::resource_authority::ResourceKind::FlightRecorder,\n430:         &workspace_id,\n431:         action,\n432:     )\n433:     .await\n434:     {\n435:         Ok(authority) => authority,\n436:         Err(error) => {\n437:             if record_flight_recorder_capability_decision(\n438:                 &state,\n439:                 None,\n440:                 capability_id,\n441:                 \"deny\",\n442:                 Some(workspace_id.clone()),\n443:             )\n444:             .await\n445:             .is_err()\n446:             {\n447:                 return audit_failed_closed().into_response();\n448:             }\n449:             return error.into_response();\n450:         }\n451:     };\n452:     let ctx = authority.capture_context();"
+          }
+        },
+        "runtime_state": "NOT_COMPLETE",
+        "scope_limit": "Closed independent source proof only; no runtime result or final hash of a live union stream"
+      }
+    ],
+    "latest_verdict_ref": "validation_source_20261008_1ad04e43"
+  },
+  "validation_source_20261008_1ad04e43": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V2",
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T16:59:02.694177Z",
+    "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+    "started_at": "2026-10-08T16:54:26.989997Z",
+    "completed_at": "2026-10-08T16:59:02.694177Z",
+    "results_ref": "validation.proof_records[PR-WP012-MT111-WPV-20261008-1AD-SOURCE]",
+    "proof_record_ids": [
+      "PR-WP012-MT111-WPV-20261008-1AD-SOURCE"
+    ],
+    "artifact_ref": {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/source-findings-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.json",
+      "bytes": 8859,
+      "sha256": "e9087ce63805778832f5c70291093d8d799b848b430e663854925c2e55f96d85"
+    },
+    "checks": [
+      {
+        "check_id": "MT-111-MANUAL-DENIAL-CODE",
+        "failure_kind": "product",
+        "failure_class": "MT111-MANUAL-PROTECTED-RESOURCE-DENIAL-DRIFT",
+        "acceptance_refs": [
+          "AC-111-6",
+          "HBR-MAN-001",
+          "HBR-MAN-003"
+        ],
+        "actual": "Mounted FlightRecorder manual documents HSK-403-FR-CAPABILITY for valid-session omitted/blank wsid",
+        "expected": "Canonical exact-resource broker/authz contract denies this read with HSK-403-PROTECTED-RESOURCE",
+        "sources": [
+          "manual",
+          "authz",
+          "broker"
+        ],
+        "runtime_state": "Current READY13 runtime incomplete; no test result claimed",
+        "result": "FAIL"
+      }
+    ],
+    "failure_kind": "product",
+    "failure_class": "MT111-MANUAL-PROTECTED-RESOURCE-DENIAL-DRIFT",
+    "runtime_state": "NOT_COMPLETE",
+    "runtime_results_ref": "MT-168.json#validation.running_record_ready13_20261008",
+    "unclosed_proof": "All pending own runtime checks remain uncredited; current immutable1ad union continues unchanged",
+    "remediation_required": [
+      {
+        "failure_kind": "product",
+        "failure_class": "MT111-MANUAL-PROTECTED-RESOURCE-DENIAL-DRIFT",
+        "failed_acceptance_refs": [
+          "AC-111-6",
+          "HBR-MAN-001",
+          "HBR-MAN-003"
+        ],
+        "failed_check_refs": [
+          "MT-111-MANUAL-DENIAL-CODE"
+        ],
+        "artifact_refs": [
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/source-findings-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.json"
+        ],
+        "affected_code_refs": [
+          "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/frontend/handshake_native/src/manual_content_editors.rs",
+          "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/frontend/handshake_native/tests/test_flight_recorder_authz.rs",
+          "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/backend/handshake_core/src/api/flight_recorder.rs"
+        ],
+        "repair_direction": "Correct FlightRecorder manual to HSK-403-PROTECTED-RESOURCE; preserve scoped authentication and denial gates"
+      }
+    ],
+    "independent_review": "WPV opened exact candidate sources/contract; buddy independently reconciled source, root directly read finding; no waiver",
+    "gameplan": {
+      "before_verdict": "PASS11/11",
+      "source_binding_step": "GP-365",
+      "retained_runtime_obligation": "Every runtime claim requires own candidate JUnit; no live final-log digest claimed"
+    },
+    "scope_limit": "Source-only product FAIL; no runtime/performance failure or PASS inferred. Later1ad runtime may supplement this record without a second lifecycle effect. No repair selected by WPV.",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT111-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-SOURCE-FAIL_V2-20261008",
+        "at_utc": "2026-10-08T16:59:02.694177Z",
+        "decision": "failed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT111-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-SOURCE-FAIL_V2-20261008",
+        "at_utc": "2026-10-08T16:59:02.694177Z",
+        "decision": "failed",
+        "state_effect": "One lifecycle transition READY_FOR_VALIDATION -> FAIL_V2 from independent closed source proof; runtime NOT_COMPLETE"
+      }
+    ]
   }
 }
