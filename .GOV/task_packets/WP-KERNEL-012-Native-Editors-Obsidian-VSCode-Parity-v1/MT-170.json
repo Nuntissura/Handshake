@@ -6418,7 +6418,26 @@
       },
       "cause": "WPV-export-refresh.sh107-119 republishes the mutable export-current.identity after every verified refresh; frozen input archive preserved consumed inputs but did not include this output identity.",
       "independent_review": "WPV rehashed18 unique accepted artifacts17match; buddy independently observed the same sole mismatch, opened original stdout7-17 and current identity; root directly inspected both and adopted this narrow disposition.",
-      "scope_limit": "No original artifact reconstruction, expected hash replacement, lifecycle change, new runtime proof, current18/18 claim, active-run input/config change or retest."
+      "scope_limit": "No original artifact reconstruction, expected hash replacement, lifecycle change, new runtime proof, current18/18 claim, active-run input/config change or retest.",
+      "later_backend_retention_reinspection_before_mt111": {
+        "observed_at_utc": "2026-10-08T18:42:28.570213Z",
+        "original_artifact_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target/debug/handshake_core.exe",
+        "original_expected_bytes": 283394560,
+        "original_expected_sha256": "09cf70c7ac751df4702f2ed112d540db5d0994d9d44e346f273da2df1a20ebb8",
+        "current_bytes": 283394560,
+        "current_sha256": "78707ce3a8baf9c7b47e60df1d2bcf75295bfc85ef9861b0bcf0ac5c4a604827",
+        "original_binary_availability": "NOT_FOUND_WITHIN_INSPECTED_BOUNDS",
+        "inspection_bounds": "Current named backend path + direct target/debug/deps/handshake_core-*.exe inventory: exactly1 file,321223168B; no283394560B candidate; no broader cache hunt",
+        "cause_evidence": "Closed READY13 stdout records backend_bin_relinked=1; exact mechanism of byte difference not independently attributed",
+        "preserved_current_copy": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/ready13-1ad04e43-before-mt111-062bf554/backend-ready13-current-78707ce3.exe",
+          "bytes": 283394560,
+          "sha256": "78707ce3a8baf9c7b47e60df1d2bcf75295bfc85ef9861b0bcf0ac5c4a604827",
+          "label": "READY13-era current producer; NOT original MT170 accepted binary"
+        },
+        "independent_review": "WPV independently hashed actual current backend and additive copy; buddy independently hashed current binary and bounded direct-deps availability; ORCHESTRATOR adopted exact retention-loss disposition",
+        "state_effect": "Historical16:37 observation, original expected hashes, PASS_V2 and54 original runtime results/source/logs/JUnits remain unchanged; no original-byte reconstruction, relabeling, expected-hash replacement, retest or current all-artifact hash-match claim"
+      }
     }
   }
 }

@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 475
+generation: 480
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -380,9 +380,9 @@ steps:
 - {id: GP-359, role: wp_validator, at: before_round, do: verify pushed minimal canonical READ and IC10 constant-denial repairs reviewed before same warm required proof, check: {type: confirm}, source: 'fail: renamedtarget inbound assertion missing and IC10 expected404 against canonical403; no READ gate waiver', state: active}
 - {id: GP-360, role: wp_validator, at: before_round, do: verify distinct outer and inner stdio paths; archive stream hashes after owned passive writer closes, check: {type: confirm}, source: 'prep: wrapper41412 sharedinnerstdio and lockedlivehash; preservedidentity then reapedownedpassivewriter', state: active}
 - {id: GP-361, role: wp_validator, at: before_round, do: verify owned passive identity and runtimechildabsence; wait exit before archive stream hashes, check: {type: confirm}, source: 'prep: allchildguard rejected ownconhost40180; immediatepostStop hash raced async stream closure', state: active}
-- {id: GP-362, role: wp_validator, at: before_round, do: verify READY13 own core21 and native16 selections retain all named proof and exclude incidental helpers, check: {type: confirm}, source: 'prep: MT170-only IC selector obsolete; READY13 own contracts require shared runtime union', state: active}
+- {id: GP-362, role: wp_validator, at: before_round, do: verify READY13 own core21 and native16 selections retain all named proof and exclude incidental helpers, check: {type: confirm}, source: 'prep: MT170-only IC selector obsolete; READY13 own contracts require shared runtime union', state: retired}
 - {id: GP-363, role: wp_validator, at: before_dispatch, do: verify same-SHA proof suffix preserves prior MT170 bytes and guard allows fresh outer and observer outputs, check: {type: confirm}, source: 'prep: same-SHA output collision; broad guard also rejected current outer and observer files', state: active}
-- {id: GP-364, role: wp_validator, at: before_round, do: verify MT168 three timing tests retain success medians and contracted1200s per-test timeout, check: {type: confirm}, source: 'prep: default successful output hid MT168 medians;300s below own1200s timing contract', state: active}
+- {id: GP-364, role: wp_validator, at: before_round, do: verify MT168 three timing tests retain success medians and contracted1200s per-test timeout, check: {type: confirm}, source: 'prep: default successful output hid MT168 medians;300s below own1200s timing contract', state: retired}
 - {id: GP-365, role: wp_validator, at: before_verdict, do: verify runtime claims bind own candidate JUnit; source findings bind own frozen-candidate proof, check: {type: confirm}, source: CXVAL009 allows source FAIL; GP033 unconditional JUnit blocked independent source findings, state: active}
 - {id: GP-366, role: wp_validator, at: before_verdict, do: verify controller confirmation note is one line <=120 chars, check: {type: confirm}, source: 'infra: confirmation rejected over120char note; source verdict not applied', state: active}
 - {id: GP-367, role: wp_validator, at: before_verdict, do: verify governance JSON reads use explicit UTF8 and preserved historical values equal baseline, check: {type: confirm}, source: 'infra: default cp1252 read corrupted8historical MT111 strings; restore exact UTF8 values', state: active}
@@ -390,3 +390,6 @@ steps:
 - {id: GP-369, role: builder, at: before_submit, do: verify source-status foreach results assigned before pipeline and parsed read succeeds, check: {type: confirm}, source: 'infra: MT111 cheap status read foreach-to-pipeline PS ParserError before execution', state: active}
 - {id: GP-370, role: builder, at: before_submit, do: verify controller confirmation note length <=120 before call, check: {type: confirm}, source: 'infra: MT111 before_submit confirmation note rejected at >120 chars', state: active}
 - {id: GP-371, role: builder, at: before_submit, do: verify Git blob binding separately from raw workspace CRLF static input hashes, check: {type: confirm}, source: 'infra: MT111 raw working-copy hash differed from Git LF blob despite clean tree', state: active}
+- {id: GP-372, role: wp_validator, at: before_round, do: 'verify MT111 exact6 own cases, no CORE or extracted, paired truthful manual and canonical version change', check: {type: confirm}, source: MT111 sourceFAIL wrong broker denial; changed version startup consumer requires fresh own proof, state: active}
+- {id: GP-373, role: wp_validator, at: before_round, do: verify source metadata paths come from tracked file inventory rather than module-name inference, check: {type: confirm}, source: 'infra: knowledge_documents_api_tests.rs inferred under src/api but file is a tests target', state: active}
+- {id: GP-374, role: wp_validator, at: before_dispatch, do: verify release identity start preserves typed DateTime ticks without a string Parse roundtrip, check: {type: confirm}, source: 'infra: ConvertFrom-Json DateTime was stringified by Parse and lost subsecond ticks; no release created', state: active}

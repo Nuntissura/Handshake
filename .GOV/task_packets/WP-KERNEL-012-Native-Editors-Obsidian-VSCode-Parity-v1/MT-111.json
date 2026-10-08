@@ -1316,334 +1316,401 @@
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
   },
   "validation": {
-    "proof_records": [
-      {
-        "id": "PR-WP012-MT111-WPV-20261008-1AD-SOURCE",
-        "check_id": "MT-111-MANUAL-DENIAL-CODE",
-        "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
-        "covers": [
-          "MT-111"
-        ],
-        "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
-        "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
-        "command": "git show <frozenSHA>:<each of4 exact source paths>; git rev-parse <frozenSHA>:<path>; direct AC1116/AC1683 comparison",
-        "started_at_utc": "2026-10-08T16:54:26.989997Z",
-        "completed_at_utc": "2026-10-08T16:54:27.459250Z",
-        "exit_code": 0,
-        "result": "FAIL_PRODUCT_SOURCE",
-        "failure_kind": "product",
-        "artifact": {
-          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/source-findings-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.json",
-          "bytes": 8859,
-          "sha256": "e9087ce63805778832f5c70291093d8d799b848b430e663854925c2e55f96d85"
-        },
-        "checks": [
-          {
-            "check_id": "MT-111-MANUAL-DENIAL-CODE",
-            "failure_kind": "product",
-            "failure_class": "MT111-MANUAL-PROTECTED-RESOURCE-DENIAL-DRIFT",
-            "acceptance_refs": [
-              "AC-111-6",
-              "HBR-MAN-001",
-              "HBR-MAN-003"
-            ],
-            "actual": "Mounted FlightRecorder manual documents HSK-403-FR-CAPABILITY for valid-session omitted/blank wsid",
-            "expected": "Canonical exact-resource broker/authz contract denies this read with HSK-403-PROTECTED-RESOURCE",
-            "sources": [
-              "manual",
-              "authz",
-              "broker"
-            ],
-            "runtime_state": "Current READY13 runtime incomplete; no test result claimed"
-          }
-        ],
-        "source_blobs": {
-          "manual": {
-            "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
-            "git_ref": "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/frontend/handshake_native/src/manual_content_editors.rs",
-            "blob_id": "03d57600662b0b527d653fff9ee1ad5931195cf4",
-            "sha256": "ef443be21f254bea48503315059ca15d4bee7651106800850cb6b812357524f6",
-            "lines": [
-              1083,
-              1089
-            ],
-            "excerpt": "1083: carrying the per-session native-MCP token read fresh from the on-disk binding \\\n1084: {local_app_data}/handshake/swarm_mcp_binding.json. A missing, malformed, or stale binding fails closed \\\n1085: with 401 HSK-401-FR-SESSION and the pane shows the typed failure at flight-recorder.load-failure; it \\\n1086: never renders an empty pane as if no events existed. An omitted or blank wsid escalates to the \\\n1087: fr.read.global capability, which is granted to NO profile and therefore always returns 403 \\\n1088: HSK-403-FR-CAPABILITY, so the shell refuses to issue an unscoped read and reports that no active \\\n1089: workspace is bound. While that one bounded request is active, flight-recorder.loading-status is the \\"
-          },
-          "authz": {
-            "path": "src/frontend/handshake_native/tests/test_flight_recorder_authz.rs",
-            "git_ref": "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/frontend/handshake_native/tests/test_flight_recorder_authz.rs",
-            "blob_id": "7aaf572b951a39e10166e9851be3baa1768f2bfa",
-            "sha256": "c5d1a4ac8af7a75dc485e18bce5b1c3c34d5a345bc1ce82cc10e6d18e67c2e16",
-            "lines": [
-              172,
-              179
-            ],
-            "excerpt": "172:     });\n173:     assert_eq!(\n174:         status, 403,\n175:         \"AC-111-4: an unscoped read escalates to fr.read.global, which no profile holds\"\n176:     );\n177:     assert_eq!(body[\"error\"], \"HSK-403-PROTECTED-RESOURCE\");\n178: \n179:     // â”€â”€ Step 5 (AC-111-2 negative, read side): a scoped read without a credential -> 401 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€"
-          },
-          "broker": {
-            "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
-            "git_ref": "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/backend/handshake_core/src/api/flight_recorder.rs",
-            "blob_id": "1988b8d248c2a351bb27c99dba04d3e585694694",
-            "sha256": "ac4cf9e013b9921f73e9fd099e496ccb7de952115aba6241a833fb34aa0642b5",
-            "lines": [
-              394,
-              452
-            ],
-            "excerpt": "394:     // An omitted selector is still sent through the broker as a non-existent exact resource so\n395:     // the denial is durable and constant-shape rather than becoming an unaudited early return.\n396:     let workspace_id = workspace_id.unwrap_or_else(|| \"__unscoped__\".to_owned());\n397:     let action = if request.method() == Method::GET {\n398:         crate::storage::surreal::resource_authority::ResourceAction::Read\n399:     } else {\n400:         crate::storage::surreal::resource_authority::ResourceAction::Create\n401:     };\n402:     // MT-111 AC-111-2 (Operator ruling 2026-09-22): 401 = no valid authentication, 403 =\n403:     // authenticated but not permitted. Authenticate the session before any resource resolution, so\n404:     // a missing, malformed, forged, revoked, expired, or disabled session is one uniform 401 that\n405:     // cannot disclose whether the selected recorder resource exists (Master Spec Â§2.3.13.12.3(7)).\n406:     // The gate is unchanged: an authenticated caller still passes the full ResourceBroker check.\n407:     if crate::api::authority::authenticated_session_credentials(&state, request.headers())\n408:         .await\n409:         .is_err()\n410:     {\n411:         if record_flight_recorder_capability_decision(\n412:             &state,\n413:             None,\n414:             capability_id,\n415:             \"deny\",\n416:             Some(workspace_id.clone()),\n417:         )\n418:         .await\n419:         .is_err()\n420:         {\n421:             return audit_failed_closed().into_response();\n422:         }\n423:         return unauthenticated_recorder().into_response();\n424:     }\n425:     let authority = match crate::api::authority::authorize_request(\n426:         &state,\n427:         request.headers(),\n428:         capability_id,\n429:         crate::storage::surreal::resource_authority::ResourceKind::FlightRecorder,\n430:         &workspace_id,\n431:         action,\n432:     )\n433:     .await\n434:     {\n435:         Ok(authority) => authority,\n436:         Err(error) => {\n437:             if record_flight_recorder_capability_decision(\n438:                 &state,\n439:                 None,\n440:                 capability_id,\n441:                 \"deny\",\n442:                 Some(workspace_id.clone()),\n443:             )\n444:             .await\n445:             .is_err()\n446:             {\n447:                 return audit_failed_closed().into_response();\n448:             }\n449:             return error.into_response();\n450:         }\n451:     };\n452:     let ctx = authority.capture_context();"
-          }
-        },
-        "runtime_state": "NOT_COMPLETE",
-        "scope_limit": "Closed independent source proof only; no runtime result or final hash of a live union stream"
+  "proof_records": [
+    {
+      "id": "PR-WP012-MT111-WPV-20261008-1AD-SOURCE",
+      "check_id": "MT-111-MANUAL-DENIAL-CODE",
+      "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+      "covers": [
+        "MT-111"
+      ],
+      "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+      "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+      "command": "git show <frozenSHA>:<each of4 exact source paths>; git rev-parse <frozenSHA>:<path>; direct AC1116/AC1683 comparison",
+      "started_at_utc": "2026-10-08T16:54:26.989997Z",
+      "completed_at_utc": "2026-10-08T16:54:27.459250Z",
+      "exit_code": 0,
+      "result": "FAIL_PRODUCT_SOURCE",
+      "failure_kind": "product",
+      "artifact": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/source-findings-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.json",
+        "bytes": 8859,
+        "sha256": "e9087ce63805778832f5c70291093d8d799b848b430e663854925c2e55f96d85"
       },
-      {
-        "id": "PR-WP012-MT111-WPV-20261008-1AD-READY13-NATIVE",
-        "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
-        "covers": [
-          "MT-111"
-        ],
-        "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
-        "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
-        "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 1ad04e431fa1c8a6b71533122bdfd532111a0557",
-        "phase": "NATIVE",
-        "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
-        "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
-        "started_at_utc": "2026-10-08T17:27:29.898Z",
-        "completed_at_utc": "2026-10-08T18:00:00.899Z",
-        "exit_code": 100,
-        "result": "PASS_MAPPED_RUNTIME",
-        "artifact": {
-          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-native-ready13.xml",
-          "bytes": 443115,
-          "sha256": "953f87ccc1c8b3bcefdc96c48be4d02670ac4b50bcb3657db3d75db5aba5e193"
+      "checks": [
+        {
+          "check_id": "MT-111-MANUAL-DENIAL-CODE",
+          "failure_kind": "product",
+          "failure_class": "MT111-MANUAL-PROTECTED-RESOURCE-DENIAL-DRIFT",
+          "acceptance_refs": [
+            "AC-111-6",
+            "HBR-MAN-001",
+            "HBR-MAN-003"
+          ],
+          "actual": "Mounted FlightRecorder manual documents HSK-403-FR-CAPABILITY for valid-session omitted/blank wsid",
+          "expected": "Canonical exact-resource broker/authz contract denies this read with HSK-403-PROTECTED-RESOURCE",
+          "sources": [
+            "manual",
+            "authz",
+            "broker"
+          ],
+          "runtime_state": "Current READY13 runtime incomplete; no test result claimed"
+        }
+      ],
+      "source_blobs": {
+        "manual": {
+          "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+          "git_ref": "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/frontend/handshake_native/src/manual_content_editors.rs",
+          "blob_id": "03d57600662b0b527d653fff9ee1ad5931195cf4",
+          "sha256": "ef443be21f254bea48503315059ca15d4bee7651106800850cb6b812357524f6",
+          "lines": [
+            1083,
+            1089
+          ],
+          "excerpt": "1083: carrying the per-session native-MCP token read fresh from the on-disk binding \\\n1084: {local_app_data}/handshake/swarm_mcp_binding.json. A missing, malformed, or stale binding fails closed \\\n1085: with 401 HSK-401-FR-SESSION and the pane shows the typed failure at flight-recorder.load-failure; it \\\n1086: never renders an empty pane as if no events existed. An omitted or blank wsid escalates to the \\\n1087: fr.read.global capability, which is granted to NO profile and therefore always returns 403 \\\n1088: HSK-403-FR-CAPABILITY, so the shell refuses to issue an unscoped read and reports that no active \\\n1089: workspace is bound. While that one bounded request is active, flight-recorder.loading-status is the \\"
         },
-        "frozen_input_ref": "MT-168.json#validation.running_record_ready13_20261008.frozen_input_sha256",
-        "junit": {
-          "run_id": "ab9cbe58-79a5-421e-b8a4-14a2ced439b9",
-          "shared_executed": 2315,
-          "shared_passed": 2312,
-          "shared_failed": 2,
-          "shared_timeouts": 1,
-          "shared_errors": 0,
-          "shared_selected_skipped": 0,
-          "runner_filtered": 302
+        "authz": {
+          "path": "src/frontend/handshake_native/tests/test_flight_recorder_authz.rs",
+          "git_ref": "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/frontend/handshake_native/tests/test_flight_recorder_authz.rs",
+          "blob_id": "7aaf572b951a39e10166e9851be3baa1768f2bfa",
+          "sha256": "c5d1a4ac8af7a75dc485e18bce5b1c3c34d5a345bc1ce82cc10e6d18e67c2e16",
+          "lines": [
+            172,
+            179
+          ],
+          "excerpt": "172:     });\n173:     assert_eq!(\n174:         status, 403,\n175:         \"AC-111-4: an unscoped read escalates to fr.read.global, which no profile holds\"\n176:     );\n177:     assert_eq!(body[\"error\"], \"HSK-403-PROTECTED-RESOURCE\");\n178: \n179:     // â”€â”€ Step 5 (AC-111-2 negative, read side): a scoped read without a credential -> 401 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€"
         },
-        "features_config": "integration,integration_tests,wgpu_screenshots; GPU1; locked; one job; serial isolated owned live backend; scoped credentials cleanup",
-        "checks": [
-          {
-            "check_id": "PC-111-01",
-            "acceptance_refs": [
-              "AC-111-1",
-              "AC-111-2",
-              "AC-111-3",
-              "AC-111-4",
-              "AC-111-5",
-              "AC-111-7"
-            ],
-            "result": "PASS_CURRENT_RUNTIME",
-            "executed": 1,
-            "passed": 1,
-            "failed": 0,
-            "timeouts": 0,
-            "cases": [
-              {
-                "target": "handshake-native::test_flight_recorder_authz",
-                "name": "mt111_flight_recorder_authorization_boundary_real_surrealdb",
-                "seconds": 13.626,
-                "started_at": "2026-10-08T19:56:45.771+02:00",
-                "result": "PASS"
-              }
-            ]
-          },
-          {
-            "check_id": "PC-111-02",
-            "acceptance_refs": [
-              "AC-111-1",
-              "AC-111-2",
-              "AC-111-3"
-            ],
-            "result": "PASS_CURRENT_RUNTIME",
-            "executed": 2,
-            "passed": 2,
-            "failed": 0,
-            "timeouts": 0,
-            "cases": [
-              {
-                "target": "handshake-native::test_event_emitter",
-                "name": "post_body_matches_verified_native_editor_schema",
-                "seconds": 0.094,
-                "started_at": "2026-10-08T19:36:39.159+02:00",
-                "result": "PASS"
-              },
-              {
-                "target": "handshake-native::test_event_emitter",
-                "name": "ingest_url_is_workspace_scoped_and_credential_comes_from_the_on_disk_binding",
-                "seconds": 0.096,
-                "started_at": "2026-10-08T19:36:39.061+02:00",
-                "result": "PASS"
-              }
-            ]
-          },
-          {
-            "check_id": "PC-111-03",
-            "acceptance_refs": [
-              "AC-111-1"
-            ],
-            "result": "PASS_CURRENT_RUNTIME",
-            "executed": 1,
-            "passed": 1,
-            "failed": 0,
-            "timeouts": 0,
-            "cases": [
-              {
-                "target": "handshake-native",
-                "name": "event_emitter::tests::ingest_url_is_workspace_scoped_from_the_event",
-                "seconds": 0.095,
-                "started_at": "2026-10-08T19:29:06.207+02:00",
-                "result": "PASS"
-              }
-            ]
-          },
-          {
-            "check_id": "PC-111-04",
-            "acceptance_refs": [
-              "AC-111-4",
-              "AC-111-5",
-              "AC-111-7"
-            ],
-            "result": "PASS_CURRENT_RUNTIME",
-            "executed": 1,
-            "passed": 1,
-            "failed": 0,
-            "timeouts": 0,
-            "cases": [
-              {
-                "target": "handshake-native::test_event_emitter",
-                "name": "event_emitter_native_editor_round_trip",
-                "seconds": 76.91,
-                "started_at": "2026-10-08T19:35:22.151+02:00",
-                "result": "PASS"
-              }
-            ]
-          },
-          {
-            "check_id": "PC-111-05",
-            "acceptance_refs": [
-              "AC-111-6"
-            ],
-            "result": "PASS_CURRENT_RUNTIME",
-            "executed": 1,
-            "passed": 1,
-            "failed": 0,
-            "timeouts": 0,
-            "cases": [
-              {
-                "target": "handshake-native::test_manual_content",
-                "name": "mt104_topics_exist_and_include_no_context_runtime_facts",
-                "seconds": 0.088,
-                "started_at": "2026-10-08T19:57:04.951+02:00",
-                "result": "PASS"
-              }
-            ]
-          }
-        ],
-        "scope_limit": "Own contract mapping only; wrapper exit0 is closure, native runner100 is retained; no whole-WP PASS or inferred underlying failure cause"
+        "broker": {
+          "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+          "git_ref": "1ad04e431fa1c8a6b71533122bdfd532111a0557:src/backend/handshake_core/src/api/flight_recorder.rs",
+          "blob_id": "1988b8d248c2a351bb27c99dba04d3e585694694",
+          "sha256": "ac4cf9e013b9921f73e9fd099e496ccb7de952115aba6241a833fb34aa0642b5",
+          "lines": [
+            394,
+            452
+          ],
+          "excerpt": "394:     // An omitted selector is still sent through the broker as a non-existent exact resource so\n395:     // the denial is durable and constant-shape rather than becoming an unaudited early return.\n396:     let workspace_id = workspace_id.unwrap_or_else(|| \"__unscoped__\".to_owned());\n397:     let action = if request.method() == Method::GET {\n398:         crate::storage::surreal::resource_authority::ResourceAction::Read\n399:     } else {\n400:         crate::storage::surreal::resource_authority::ResourceAction::Create\n401:     };\n402:     // MT-111 AC-111-2 (Operator ruling 2026-09-22): 401 = no valid authentication, 403 =\n403:     // authenticated but not permitted. Authenticate the session before any resource resolution, so\n404:     // a missing, malformed, forged, revoked, expired, or disabled session is one uniform 401 that\n405:     // cannot disclose whether the selected recorder resource exists (Master Spec Â§2.3.13.12.3(7)).\n406:     // The gate is unchanged: an authenticated caller still passes the full ResourceBroker check.\n407:     if crate::api::authority::authenticated_session_credentials(&state, request.headers())\n408:         .await\n409:         .is_err()\n410:     {\n411:         if record_flight_recorder_capability_decision(\n412:             &state,\n413:             None,\n414:             capability_id,\n415:             \"deny\",\n416:             Some(workspace_id.clone()),\n417:         )\n418:         .await\n419:         .is_err()\n420:         {\n421:             return audit_failed_closed().into_response();\n422:         }\n423:         return unauthenticated_recorder().into_response();\n424:     }\n425:     let authority = match crate::api::authority::authorize_request(\n426:         &state,\n427:         request.headers(),\n428:         capability_id,\n429:         crate::storage::surreal::resource_authority::ResourceKind::FlightRecorder,\n430:         &workspace_id,\n431:         action,\n432:     )\n433:     .await\n434:     {\n435:         Ok(authority) => authority,\n436:         Err(error) => {\n437:             if record_flight_recorder_capability_decision(\n438:                 &state,\n439:                 None,\n440:                 capability_id,\n441:                 \"deny\",\n442:                 Some(workspace_id.clone()),\n443:             )\n444:             .await\n445:             .is_err()\n446:             {\n447:                 return audit_failed_closed().into_response();\n448:             }\n449:             return error.into_response();\n450:         }\n451:     };\n452:     let ctx = authority.capture_context();"
+        }
       },
-      {
-        "id": "PR-WP012-MT111-KB-20261008-062BF-STATIC",
-        "check_id": "MT111-MANUAL-REMEDIATION-STATIC",
-        "executor": "KERNEL_BUILDER-20261008-MT111-MANUAL",
-        "executor_role": "KERNEL_BUILDER",
-        "covers": [
-          "MT-111"
-        ],
-        "commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
-        "tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
-        "command": [
-          "C:/Users/iljas/.rustup/toolchains/1.97.1-x86_64-pc-windows-msvc/bin/rustfmt.exe --edition 2021 --check --config skip_children=true src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/tests/test_manual_content.rs src/backend/handshake_core/src/user_manual/mod.rs",
-          "git diff --check"
-        ],
-        "recorded_at_utc": "2026-10-08T18:33:01.236244Z",
-        "exit_code": 0,
-        "result": "STATIC_PASS",
-        "artifacts": [
-          {
-            "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-111/kb/static-20261008T182616Z.json",
-            "bytes": 3754,
-            "sha256": "c8b48abcc616ce66d448b95123c4f4833f52ae056b09463488097dfaed822269"
-          }
-        ],
-        "input_digest_before_after": {
-          "before": [
-            {
-              "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
-              "sha256": "26c1d4dc7bf5b72abb9165c2ca349f9a76f4ed386a1deea5531f3bc9ff677efb"
-            },
-            {
-              "path": "src/frontend/handshake_native/tests/test_manual_content.rs",
-              "sha256": "de717c7808632c0fc21dd694869aa5aaadfa6df9533b0c2f14b1c8c61ef8bde2"
-            },
-            {
-              "path": "src/backend/handshake_core/src/user_manual/mod.rs",
-              "sha256": "ac5dbbb35c442fe10c8240e05fd1f214ecf0ba596cb3ff8986a563956eaae1b6"
-            }
+      "runtime_state": "NOT_COMPLETE",
+      "scope_limit": "Closed independent source proof only; no runtime result or final hash of a live union stream"
+    },
+    {
+      "id": "PR-WP012-MT111-WPV-20261008-1AD-READY13-NATIVE",
+      "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+      "covers": [
+        "MT-111"
+      ],
+      "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+      "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+      "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 1ad04e431fa1c8a6b71533122bdfd532111a0557",
+      "phase": "NATIVE",
+      "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
+      "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+      "started_at_utc": "2026-10-08T17:27:29.898Z",
+      "completed_at_utc": "2026-10-08T18:00:00.899Z",
+      "exit_code": 100,
+      "result": "PASS_MAPPED_RUNTIME",
+      "artifact": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-native-ready13.xml",
+        "bytes": 443115,
+        "sha256": "953f87ccc1c8b3bcefdc96c48be4d02670ac4b50bcb3657db3d75db5aba5e193"
+      },
+      "frozen_input_ref": "MT-168.json#validation.running_record_ready13_20261008.frozen_input_sha256",
+      "junit": {
+        "run_id": "ab9cbe58-79a5-421e-b8a4-14a2ced439b9",
+        "shared_executed": 2315,
+        "shared_passed": 2312,
+        "shared_failed": 2,
+        "shared_timeouts": 1,
+        "shared_errors": 0,
+        "shared_selected_skipped": 0,
+        "runner_filtered": 302
+      },
+      "features_config": "integration,integration_tests,wgpu_screenshots; GPU1; locked; one job; serial isolated owned live backend; scoped credentials cleanup",
+      "checks": [
+        {
+          "check_id": "PC-111-01",
+          "acceptance_refs": [
+            "AC-111-1",
+            "AC-111-2",
+            "AC-111-3",
+            "AC-111-4",
+            "AC-111-5",
+            "AC-111-7"
           ],
-          "after": [
+          "result": "PASS_CURRENT_RUNTIME",
+          "executed": 1,
+          "passed": 1,
+          "failed": 0,
+          "timeouts": 0,
+          "cases": [
             {
-              "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
-              "sha256": "26c1d4dc7bf5b72abb9165c2ca349f9a76f4ed386a1deea5531f3bc9ff677efb"
-            },
-            {
-              "path": "src/frontend/handshake_native/tests/test_manual_content.rs",
-              "sha256": "de717c7808632c0fc21dd694869aa5aaadfa6df9533b0c2f14b1c8c61ef8bde2"
-            },
-            {
-              "path": "src/backend/handshake_core/src/user_manual/mod.rs",
-              "sha256": "ac5dbbb35c442fe10c8240e05fd1f214ecf0ba596cb3ff8986a563956eaae1b6"
+              "target": "handshake-native::test_flight_recorder_authz",
+              "name": "mt111_flight_recorder_authorization_boundary_real_surrealdb",
+              "seconds": 13.626,
+              "started_at": "2026-10-08T19:56:45.771+02:00",
+              "result": "PASS"
             }
-          ],
-          "unchanged": true
+          ]
         },
-        "committed_input_binding": [
+        {
+          "check_id": "PC-111-02",
+          "acceptance_refs": [
+            "AC-111-1",
+            "AC-111-2",
+            "AC-111-3"
+          ],
+          "result": "PASS_CURRENT_RUNTIME",
+          "executed": 2,
+          "passed": 2,
+          "failed": 0,
+          "timeouts": 0,
+          "cases": [
+            {
+              "target": "handshake-native::test_event_emitter",
+              "name": "post_body_matches_verified_native_editor_schema",
+              "seconds": 0.094,
+              "started_at": "2026-10-08T19:36:39.159+02:00",
+              "result": "PASS"
+            },
+            {
+              "target": "handshake-native::test_event_emitter",
+              "name": "ingest_url_is_workspace_scoped_and_credential_comes_from_the_on_disk_binding",
+              "seconds": 0.096,
+              "started_at": "2026-10-08T19:36:39.061+02:00",
+              "result": "PASS"
+            }
+          ]
+        },
+        {
+          "check_id": "PC-111-03",
+          "acceptance_refs": [
+            "AC-111-1"
+          ],
+          "result": "PASS_CURRENT_RUNTIME",
+          "executed": 1,
+          "passed": 1,
+          "failed": 0,
+          "timeouts": 0,
+          "cases": [
+            {
+              "target": "handshake-native",
+              "name": "event_emitter::tests::ingest_url_is_workspace_scoped_from_the_event",
+              "seconds": 0.095,
+              "started_at": "2026-10-08T19:29:06.207+02:00",
+              "result": "PASS"
+            }
+          ]
+        },
+        {
+          "check_id": "PC-111-04",
+          "acceptance_refs": [
+            "AC-111-4",
+            "AC-111-5",
+            "AC-111-7"
+          ],
+          "result": "PASS_CURRENT_RUNTIME",
+          "executed": 1,
+          "passed": 1,
+          "failed": 0,
+          "timeouts": 0,
+          "cases": [
+            {
+              "target": "handshake-native::test_event_emitter",
+              "name": "event_emitter_native_editor_round_trip",
+              "seconds": 76.91,
+              "started_at": "2026-10-08T19:35:22.151+02:00",
+              "result": "PASS"
+            }
+          ]
+        },
+        {
+          "check_id": "PC-111-05",
+          "acceptance_refs": [
+            "AC-111-6"
+          ],
+          "result": "PASS_CURRENT_RUNTIME",
+          "executed": 1,
+          "passed": 1,
+          "failed": 0,
+          "timeouts": 0,
+          "cases": [
+            {
+              "target": "handshake-native::test_manual_content",
+              "name": "mt104_topics_exist_and_include_no_context_runtime_facts",
+              "seconds": 0.088,
+              "started_at": "2026-10-08T19:57:04.951+02:00",
+              "result": "PASS"
+            }
+          ]
+        }
+      ],
+      "scope_limit": "Own contract mapping only; wrapper exit0 is closure, native runner100 is retained; no whole-WP PASS or inferred underlying failure cause"
+    },
+    {
+      "id": "PR-WP012-MT111-KB-20261008-062BF-STATIC",
+      "check_id": "MT111-MANUAL-REMEDIATION-STATIC",
+      "executor": "KERNEL_BUILDER-20261008-MT111-MANUAL",
+      "executor_role": "KERNEL_BUILDER",
+      "covers": [
+        "MT-111"
+      ],
+      "commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+      "tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+      "command": [
+        "C:/Users/iljas/.rustup/toolchains/1.97.1-x86_64-pc-windows-msvc/bin/rustfmt.exe --edition 2021 --check --config skip_children=true src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/tests/test_manual_content.rs src/backend/handshake_core/src/user_manual/mod.rs",
+        "git diff --check"
+      ],
+      "recorded_at_utc": "2026-10-08T18:33:01.236244Z",
+      "exit_code": 0,
+      "result": "STATIC_PASS",
+      "artifacts": [
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-111/kb/static-20261008T182616Z.json",
+          "bytes": 3754,
+          "sha256": "c8b48abcc616ce66d448b95123c4f4833f52ae056b09463488097dfaed822269"
+        }
+      ],
+      "input_digest_before_after": {
+        "before": [
           {
             "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
-            "workspace_sha256": "26c1d4dc7bf5b72abb9165c2ca349f9a76f4ed386a1deea5531f3bc9ff677efb",
-            "committed_blob_sha256": "83aa666eb37b10f8b6430cfd2c5de880c698a5ddb96405b9b43b94dbcc689f73",
-            "normalization": "Git CRLF-to-LF only; exact normalized bytes match"
+            "sha256": "26c1d4dc7bf5b72abb9165c2ca349f9a76f4ed386a1deea5531f3bc9ff677efb"
           },
           {
             "path": "src/frontend/handshake_native/tests/test_manual_content.rs",
-            "workspace_sha256": "de717c7808632c0fc21dd694869aa5aaadfa6df9533b0c2f14b1c8c61ef8bde2",
-            "committed_blob_sha256": "b29b276567c54a3a54f66c78226cb8886450425b829079a7cee12220456e2b2c",
-            "normalization": "Git CRLF-to-LF only; exact normalized bytes match"
+            "sha256": "de717c7808632c0fc21dd694869aa5aaadfa6df9533b0c2f14b1c8c61ef8bde2"
           },
           {
             "path": "src/backend/handshake_core/src/user_manual/mod.rs",
-            "workspace_sha256": "ac5dbbb35c442fe10c8240e05fd1f214ecf0ba596cb3ff8986a563956eaae1b6",
-            "committed_blob_sha256": "6f99dc7a16870c2a91fc28b54cfe225f87f36c7449626e3a6fa79dcecc371ef9",
-            "normalization": "Git CRLF-to-LF only; exact normalized bytes match"
+            "sha256": "ac5dbbb35c442fe10c8240e05fd1f214ecf0ba596cb3ff8986a563956eaae1b6"
           }
         ],
-        "buddy_review": {
-          "reviewer": "mt170_buddy",
-          "result": "NO_BLOCKING_FINDING",
-          "scope": "actual three-file patch plus GRANTED_OPERATOR record; no runtime PASS"
+        "after": [
+          {
+            "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+            "sha256": "26c1d4dc7bf5b72abb9165c2ca349f9a76f4ed386a1deea5531f3bc9ff677efb"
+          },
+          {
+            "path": "src/frontend/handshake_native/tests/test_manual_content.rs",
+            "sha256": "de717c7808632c0fc21dd694869aa5aaadfa6df9533b0c2f14b1c8c61ef8bde2"
+          },
+          {
+            "path": "src/backend/handshake_core/src/user_manual/mod.rs",
+            "sha256": "ac5dbbb35c442fe10c8240e05fd1f214ecf0ba596cb3ff8986a563956eaae1b6"
+          }
+        ],
+        "unchanged": true
+      },
+      "committed_input_binding": [
+        {
+          "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+          "workspace_sha256": "26c1d4dc7bf5b72abb9165c2ca349f9a76f4ed386a1deea5531f3bc9ff677efb",
+          "committed_blob_sha256": "83aa666eb37b10f8b6430cfd2c5de880c698a5ddb96405b9b43b94dbcc689f73",
+          "normalization": "Git CRLF-to-LF only; exact normalized bytes match"
         },
-        "gameplan_before_submit": "PASS11/11 at062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
-        "integration_source_check": {
-          "main_commit": "7659138874df91ae258839a7fbd72cc894459fae",
-          "merge_base": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
-          "merge_tree_exit": 1,
-          "conflicted_paths": [
-            "AGENTS.md",
-            "CLAUDE.md"
-          ],
-          "runtime": "NOT_RUN by builder; no integration PASS"
+        {
+          "path": "src/frontend/handshake_native/tests/test_manual_content.rs",
+          "workspace_sha256": "de717c7808632c0fc21dd694869aa5aaadfa6df9533b0c2f14b1c8c61ef8bde2",
+          "committed_blob_sha256": "b29b276567c54a3a54f66c78226cb8886450425b829079a7cee12220456e2b2c",
+          "normalization": "Git CRLF-to-LF only; exact normalized bytes match"
         },
-        "scope_limit": "Implementer static/source proof only; no runtime PASS or independent acceptance verdict"
-      }
+        {
+          "path": "src/backend/handshake_core/src/user_manual/mod.rs",
+          "workspace_sha256": "ac5dbbb35c442fe10c8240e05fd1f214ecf0ba596cb3ff8986a563956eaae1b6",
+          "committed_blob_sha256": "6f99dc7a16870c2a91fc28b54cfe225f87f36c7449626e3a6fa79dcecc371ef9",
+          "normalization": "Git CRLF-to-LF only; exact normalized bytes match"
+        }
+      ],
+      "buddy_review": {
+        "reviewer": "mt170_buddy",
+        "result": "NO_BLOCKING_FINDING",
+        "scope": "actual three-file patch plus GRANTED_OPERATOR record; no runtime PASS"
+      },
+      "gameplan_before_submit": "PASS11/11 at062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+      "integration_source_check": {
+        "main_commit": "7659138874df91ae258839a7fbd72cc894459fae",
+        "merge_base": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+        "merge_tree_exit": 1,
+        "conflicted_paths": [
+          "AGENTS.md",
+          "CLAUDE.md"
+        ],
+        "runtime": "NOT_RUN by builder; no integration PASS"
+      },
+      "scope_limit": "Implementer static/source proof only; no runtime PASS or independent acceptance verdict"
+    }
+  ],
+  "latest_verdict_ref": "validation_source_20261008_1ad04e43",
+  "running_record_mt111_20261008": {
+    "state": "RELEASED",
+    "executor": "WP_VALIDATOR-20261008-MT111-X64-ARMHOST",
+    "candidate_commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+    "candidate_tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
+    "mode": "targeted",
+    "covered_mts": [
+      "MT-111"
     ],
-    "latest_verdict_ref": "validation_source_20261008_1ad04e43"
-  },
+    "artifact_owner": "MT-170/wpv shared exclusive warm owner",
+    "named_case_count": 6,
+    "core_skip": true,
+    "extracted_crates": [],
+    "native_targets": [
+      "lib",
+      "test_flight_recorder_authz",
+      "test_event_emitter",
+      "test_manual_content"
+    ],
+    "backend_required": true,
+    "runtime_proof_reuse": "NONE: changed canonical version is consumed during backend startup; prior record lacked relevant-input path sets",
+    "released_at_utc": "2026-10-08T18:53:35.1294980Z",
+    "wrapper_pid": 26880,
+    "observer_pid": 31716,
+    "wrapper_start_utc": "2026-10-08T18:47:41.5305241Z",
+    "fresh_admission": {
+      "released_at": "2026-10-08T18:53:35.1294980Z",
+      "candidate": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+      "wrapper_pid": 26880,
+      "observer_pid": 31716,
+      "free_commit_bytes": 36340412416,
+      "competing_compilers": 0,
+      "input_hashes_match": 12,
+      "reserve_bytes": 10000000000,
+      "mode": "targeted",
+      "covered_mts": [
+        "MT-111"
+      ]
+    },
+    "frozen_input_sha256": {
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "c5a1214b63b937b46f5dbac6fd45540c8e711b470cdb17ebee54ac252717810e",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "c708ea07d6fd2da4ce9d40282597df2f89a9be7b87da40f12fc8387d606f5260",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection-targeted.sh": "085fe73c6c09c6eb265e0e001dfdfe2a5d717acc52c8e4ee1aaec14812842fe1",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-metadata.py": "cc32bd2680ded760ef6974a0ea3818a1a6fd5f330ff0ea768ac9f175b2b6b871",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-refresh.sh": "304f8fd40a1b02c71d77c9055c179818f2c835697365ab662df983286fb61d3b",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-verify.py": "0c6800b4906f8d59c6c2fc3ebfcba1dbca555c4079ad01e4277e36aaa695d174",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest-core.toml": "522fb158b73b5501edd4e8ac5c4a8a38fedfbaedadf1c1cb7a0518fbb95fc262",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest.toml": "790f1077eaba5580d2ba8732e0d2ffed8ea1b5dd4badefc2b8da07c6fb0da91f",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.json": "daabf362da5609d4c45d3320ce84af5fa86d501b3d45825047c0e1fd1c19d97b",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-observer.ps1": "48fd59064cd89afa5e543679d3330363da22bdd8742617b7a626620175a7dead",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1": "68b6b8889d6cf5849d6e57ce9375e084bd99e20db0a26a5d02f2f621fbd61bbd"
+    },
+    "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current",
+    "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+    "round_prefix": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111",
+    "expected_junit": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-native-targeted-mt111.xml",
+    "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/ready13-1ad04e43-before-mt111-062bf554/manifest.json",
+    "gameplan": {
+      "wp_validator_before_dispatch": "PASS33/33",
+      "wp_validator_before_round": "PASS70/70",
+      "all_roles_before_round": "PASS109/109",
+      "buddy_actual_release_review": "NO_BLOCKING_FINDING"
+    },
+    "result": "PENDING_RUNTIME",
+    "scope_limit": "Fresh own MT111 six cases only; prior MT170 PASS and READY13 results retained; no other failed MT repair or whole-WP verdict"
+  }
+},
   "validation_source_20261008_1ad04e43": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "decision": "failed",
