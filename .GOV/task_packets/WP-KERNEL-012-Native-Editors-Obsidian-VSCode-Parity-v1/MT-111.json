@@ -1632,7 +1632,7 @@
       }
     ],
     "decision_request": {
-      "status": "PENDING_OPERATOR",
+      "status": "GRANTED_OPERATOR",
       "requested_by": "ORCHESTRATOR",
       "required_change": "src/backend/handshake_core/src/user_manual/mod.rs:65 USER_MANUAL_VERSION2.0.5 ->2.0.6 only",
       "basis": [
@@ -1641,9 +1641,25 @@
       ],
       "conflict": "MT111 forbidden_paths includes backend/**; no explicit existing exception found",
       "concrete_reviewed_change": "Two native manual/assertion files reviewed and cheap checks passed; version line remains untouched",
-      "operator_answer": null,
-      "grant": false,
-      "scope_limit": "Exact one-line version exception only; historical operator_decision unchanged; frozen1ad run/inputs untouched"
+      "operator_answer": "Ok let's remediate mt 111, so it can pass",
+      "grant": true,
+      "scope_limit": "Previously presented exact one-line backend exception plus reviewed native manual/assertion repair only; no other backend edits, acceptance waivers or historical operator_decision changes",
+      "pending_request_preserved": {
+        "status": "PENDING_OPERATOR",
+        "required_change": "src/backend/handshake_core/src/user_manual/mod.rs:65 USER_MANUAL_VERSION2.0.5 ->2.0.6 only",
+        "conflict": "MT111 forbidden_paths includes backend/**; no explicit existing exception found",
+        "concrete_reviewed_change": "Two native manual/assertion files reviewed and cheap checks passed; version line remains untouched",
+        "operator_answer": null,
+        "grant": false
+      },
+      "approved_at_utc": "2026-10-08T18:22:11.860287Z",
+      "approved_by": "Operator, live session instruction relayed by ORCHESTRATOR",
+      "authorized_paths": [
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_manual_content.rs",
+        "src/backend/handshake_core/src/user_manual/mod.rs"
+      ],
+      "authorized_backend_diff": "USER_MANUAL_VERSION2.0.5 ->2.0.6 only"
     }
   },
   "validation_runtime_20261008_1ad04e43_native": {
