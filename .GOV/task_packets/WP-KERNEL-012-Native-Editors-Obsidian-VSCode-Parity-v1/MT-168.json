@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-02T17:20:00Z",
+  "updated_at_utc": "2026-10-08T16:23:36.153027Z",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -383,7 +383,7 @@
     {
       "tier": "FLIGHT_RECORDER_EVENTLEDGER",
       "status": "UNCHANGED",
-      "reason": "Index-run receipts keep their current EventLedger shape; spec §2.3.14.4.6 FR latency logging is not widened by this MT."
+      "reason": "Index-run receipts keep their current EventLedger shape; spec \u00c2\u00a72.3.14.4.6 FR latency logging is not widened by this MT."
     },
     {
       "tier": "INTERNAL_DIAGNOSTICS",
@@ -437,7 +437,7 @@
   "group": "E5",
   "spec_basis": {
     "kind": "remediation_derived_mt",
-    "note": "Created to own recorded validator failures/diagnoses that had no owning MT; CX-SPEC-TRUTH-001 activation gate does not apply to remediation work. Downstream timing baseline: Master Spec v02.206 §2.3.14.17.3 (02-system-architecture.md:4470-4478) as quoted in MT-167.json#spec_basis."
+    "note": "Created to own recorded validator failures/diagnoses that had no owning MT; CX-SPEC-TRUTH-001 activation gate does not apply to remediation work. Downstream timing baseline: Master Spec v02.206 \u00c2\u00a72.3.14.17.3 (02-system-architecture.md:4470-4478) as quoted in MT-167.json#spec_basis."
   },
   "hbr_swarm_allocation": "Grant-check cost independent of other workspaces' rows is what lets parallel agents/workspaces coexist; no new swarm surface; no waiver.",
   "operator_decision": {
@@ -569,7 +569,148 @@
         "input_digest_before_after": "equal (resource_authority_tests.rs, knowledge_documents_api_tests.rs)",
         "command": "same as PR-WP012-MT168-KB-CHECK-01"
       }
-    ]
+    ],
+    "running_record_ready13_20261008": {
+      "schema_id": "hsk.validator_running_record@1",
+      "state": "running",
+      "phase": "frozen_pre_release",
+      "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+      "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+      "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+      "covered_mts": [
+        "MT-079",
+        "MT-111",
+        "MT-121",
+        "MT-122",
+        "MT-136",
+        "MT-143",
+        "MT-153",
+        "MT-154",
+        "MT-155",
+        "MT-157",
+        "MT-158",
+        "MT-159",
+        "MT-168"
+      ],
+      "command": [
+        "C:/Program Files/Git/bin/bash.exe",
+        "C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+        "1ad04e431fa1c8a6b71533122bdfd532111a0557"
+      ],
+      "entrypoint_commit": "94254579e08bc120221a67134c7cceab5a3c0aed",
+      "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+      "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current",
+      "started_at_utc": "2026-10-08T16:20:36.5606451Z",
+      "wrapper_identity": {
+        "state": "running",
+        "candidate": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "covered_mts": [
+          "MT-079",
+          "MT-111",
+          "MT-121",
+          "MT-122",
+          "MT-136",
+          "MT-143",
+          "MT-153",
+          "MT-154",
+          "MT-155",
+          "MT-157",
+          "MT-158",
+          "MT-159",
+          "MT-168"
+        ],
+        "output_suffix": "-ready13",
+        "wrapper_pid": 9772,
+        "start_utc": "2026-10-08T16:20:36.5606451Z",
+        "command_line": "C:\\Users\\iljas\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe -NoProfile -NonInteractive -File C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1",
+        "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+        "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current",
+        "outputs": [
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.stdout.log",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.stderr.log"
+        ],
+        "inputs": {
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "c5a1214b63b937b46f5dbac6fd45540c8e711b470cdb17ebee54ac252717810e",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "60ed0efa67c9eebed9573d805011c8f88f96f86929b76dbbfa8b5044fbe4412e",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.sh": "9ae30d5dd6cecde87f395451285c749fee20e5a6494736ae994ba4e519957a0d",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-metadata.py": "cc32bd2680ded760ef6974a0ea3818a1a6fd5f330ff0ea768ac9f175b2b6b871",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-refresh.sh": "304f8fd40a1b02c71d77c9055c179818f2c835697365ab662df983286fb61d3b",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-verify.py": "0c6800b4906f8d59c6c2fc3ebfcba1dbca555c4079ad01e4277e36aaa695d174",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest-core.toml": "522fb158b73b5501edd4e8ac5c4a8a38fedfbaedadf1c1cb7a0518fbb95fc262",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest.toml": "790f1077eaba5580d2ba8732e0d2ffed8ea1b5dd4badefc2b8da07c6fb0da91f",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.json": "5de0cc28d6a457efd895eeb2a702f239f2181f4f31863bd27bbfeccc7b7c9a8f",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-observer.ps1": "48fd59064cd89afa5e543679d3330363da22bdd8742617b7a626620175a7dead",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1": "3ff49443204c768e68ff46cb4555bc1a1149368ffd9f3969434e68720b385065"
+        }
+      },
+      "observer_identity": {
+        "pid": 33836,
+        "start_utc": "2026-10-08T16:20:19.4905114Z",
+        "candidate": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "kind": "union",
+        "output_suffix": "-ready13",
+        "owner": "wp_validator",
+        "purpose": "capacity, owned process observations, BACKEND_CPU_SPIN capture",
+        "script": "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-observer.ps1",
+        "stop_bytes": 158000000000,
+        "ready": true,
+        "spin_trigger": "backend dCPU >= 0.8*dt AND test dCPU < 1 s AND backend dWrite < 20480 B on 2 consecutive polls; once"
+      },
+      "frozen_input_sha256": {
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "c5a1214b63b937b46f5dbac6fd45540c8e711b470cdb17ebee54ac252717810e",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "60ed0efa67c9eebed9573d805011c8f88f96f86929b76dbbfa8b5044fbe4412e",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.sh": "9ae30d5dd6cecde87f395451285c749fee20e5a6494736ae994ba4e519957a0d",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-metadata.py": "cc32bd2680ded760ef6974a0ea3818a1a6fd5f330ff0ea768ac9f175b2b6b871",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-refresh.sh": "304f8fd40a1b02c71d77c9055c179818f2c835697365ab662df983286fb61d3b",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-verify.py": "0c6800b4906f8d59c6c2fc3ebfcba1dbca555c4079ad01e4277e36aaa695d174",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest-core.toml": "522fb158b73b5501edd4e8ac5c4a8a38fedfbaedadf1c1cb7a0518fbb95fc262",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest.toml": "790f1077eaba5580d2ba8732e0d2ffed8ea1b5dd4badefc2b8da07c6fb0da91f",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.json": "5de0cc28d6a457efd895eeb2a702f239f2181f4f31863bd27bbfeccc7b7c9a8f",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-observer.ps1": "48fd59064cd89afa5e543679d3330363da22bdd8742617b7a626620175a7dead",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1": "3ff49443204c768e68ff46cb4555bc1a1149368ffd9f3969434e68720b385065"
+      },
+      "canary": "NOT_APPLICABLE_PER_PINNED_WP_AUTHORITY; existing adopted WP route retained, current HBR placeholders not invented",
+      "admission_reserve_bytes": 10000000000,
+      "output_suffix": "-ready13",
+      "expected_outputs": [
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.stdout.log",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.stderr.log",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.exit.json",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-core-ready13.xml",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-native-ready13.xml"
+      ],
+      "gameplan": {
+        "before_dispatch": "PASS32/32",
+        "before_round": "PASS69/69"
+      },
+      "affected_pass_disposition": {
+        "pin": "packet.governance_pin896f4e15; current inspected post-pin adoption preserves settled verdicts",
+        "product_diff_from_completed_current_mt170": "empty: 1ad04..1ad04",
+        "status_effect": "No additional PASS reopened; product and current MT170 asserted behavior unchanged",
+        "MT-170": "Retain PASS_V2 and exact54 GREEN; original consumed inputs archived via selection.prior_proof_reuse.frozen_inputs",
+        "MT-032": "Current affected save/backlink cases reuse completed same1ad MT1703core proof; no fresh full MT032 verdict claimed",
+        "MT-164_MT-166": "Settled verdicts retained per pin and explicit newMT168 capability ownership; old medians are not claimed current, current whole authority/timing selected for168"
+      },
+      "proof_scope": {
+        "core_targets": 21,
+        "core_lib": "selected actual authority/schema/workspace/kernel/debug/MT136/manual modules",
+        "native_targets": 16,
+        "native_lib": "full product scenario library per MT143",
+        "incidental_helpers": "Excluded root and nested backend_proof_support/failure_diagnostic_tests; no own13 requirement; prior MT170 REDs retained",
+        "extracted_crates": [],
+        "native_gpu": "1; actual frames must be opened before visual acceptance",
+        "MT170_reuse_ref": "MT-170.json#validation_v2 and prior_proof_reuse frozen_inputs"
+      },
+      "unclosed_boundary_floors": {
+        "MT-079": "Latest validation_round_9e4bee34 retains AC0797/8 WP-end build/full(~90bin)/clippy gaps; not waived",
+        "MT-122_MT-143": "Independent reverted RED and MT143 per-frame BEFORE proof not credited by a normal GREEN run",
+        "MT-153_MT-154_MT-155_MT-157": "Own CHECK-TESTS and changed-line clippy WP-end floors retained",
+        "MT-158_MT-159": "Own feature A/B/C compile and changed-line clippy/check WP-end floors retained"
+      },
+      "scope_limit": "Independent per-MT validation only; no whole-WP PASS, merge, broader helper repair, or product repair selection before actual verdicts"
+    }
   },
   "authored_by": "KERNEL_BUILDER-20261002",
   "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-167 narrow-MT shape",
