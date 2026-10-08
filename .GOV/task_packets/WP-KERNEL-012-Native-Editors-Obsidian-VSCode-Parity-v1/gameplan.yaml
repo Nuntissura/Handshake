@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 432
+generation: 435
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -216,7 +216,7 @@ steps:
 - {id: GP-195, role: wp_validator, at: before_dispatch, do: verify unchanged profile evidence is reused and actual effective hash is required before launch, check: {type: confirm}, source: 'infra: redundant combined profile read matched runner-name hook and exceeded20s before execution', state: retired}
 - {id: GP-196, role: orchestrator, at: on_resume, do: verify status recount selects exact MT-NNN.json records before reading lifecycle.status, check: {type: confirm}, source: 'infra: MT-*.json included supplemental MT-136-candidate-boundary.json without lifecycle', state: active}
 - {id: GP-197, role: orchestrator, at: on_resume, do: verify controller path with spaces is one quoted argument or one subprocess argv item, check: {type: confirm}, source: 'infra: unquoted controller path split at Ilja Smets and failed before body', state: active}
-- {id: GP-198, role: wp_validator, at: before_round, do: verify commit free >= 20000000000 bytes before launch; core union build -j 1, check: {type: confirm}, source: Operator 2026-10-04 lower it and continue; ROOT-selected 20 GB policy supersedes GP-154, state: active}
+- {id: GP-198, role: wp_validator, at: before_round, do: verify commit free >= 20000000000 bytes before launch; core union build -j 1, check: {type: confirm}, source: Operator 2026-10-04 lower it and continue; ROOT-selected 20 GB policy supersedes GP-154, state: retired}
 - {id: GP-199, role: orchestrator, at: before_dispatch, do: verify dispatched helper path is read from the actual WP packet and consumer before edits, check: {type: confirm}, source: 'infra: .GOV/WP shorthand was dispatched instead of the existing packet observer path', state: active}
 - {id: GP-200, role: wp_validator, at: before_round, do: verify observer rejects null commit counters before numeric casts and labels extrema as sampled, check: {type: confirm}, source: 'review: null CommittedBytes cast to zero could fabricate available telemetry and a zero baseline', state: active}
 - {id: GP-201, role: wp_validator, at: before_dispatch, do: verify confirmation note length <= 120 chars before the controller call, check: {type: confirm}, source: 'infra: observer source confirmation note exceeded 120 chars and was rejected before mutation', state: active}
@@ -361,3 +361,5 @@ steps:
 - {id: GP-340, role: builder, at: before_round, do: verify metadata reads use inert tools and do not name runtime command tokens as property expressions, check: {type: confirm}, source: 'infra: profile property projection named test runner token and read-only metadata hit wildcard hook', state: active}
 - {id: GP-341, role: builder, at: before_round, do: verify current WPV child sets its actual role before gate, check: {type: file, path: ../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/launch.ps1, contains: GAMEPLAN_ROLE = 'wp_validator'}, source: 'GP022/135/136/205 retired: no D: Builder or lint retry; WPV checksum and child-role gates replace old prep', state: active}
 - {id: GP-342, role: builder, at: before_round, do: verify source metadata paths from actual file inventory before reads, check: {type: confirm}, source: 'infra: guessed native and helper paths were absent; rg inventory resolves frontend and account_session_support', state: active}
+- {id: GP-343, role: wp_validator, at: before_round, do: verify commit admission reserve 12000000000 bytes for current session; j1 and fresh launch check, check: {type: confirm}, source: Operator Allow a 12 GB reserve for this session; GP198 historical20GB retained; no measured-safe claim, state: active}
+- {id: GP-344, role: wp_validator, at: before_round, do: verify exact process start by typed DateTime equality and actual CIM command line, check: {type: confirm}, source: 'infra: CIM truncates100ns; JSON auto-DateTime needs typed equality; two prelaunch guards refused mutation', state: active}
