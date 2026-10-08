@@ -376,7 +376,7 @@
     "work_branch": "feat/WP-KERNEL-012",
     "base_commit": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
     "base_note": "Created from canonical main HEAD (97a22310, handshake_main) which contains the merged WP-KERNEL-011 shell (src/frontend, 111 files). The wt-gov-kernel clone's local main/origin-tracking are stale at d07cffcf (d07cffcf is a clean ancestor of 97a22310); base passed as the explicit canonical-main commit because of that clone staleness. Operator rule honored: base = main code side + gov_kernel .GOV junction; never another WP branch.",
-    "worktree_dir": "../wtc-native-editors-v1",
+    "worktree_dir": "../wtc-WP-KERNEL-012",
     "remote_backup_branch": "feat/WP-KERNEL-012",
     "worktree_status": "CREATED_SIBLING_GOV_SYMLINK_OK",
     "worktree_notes": "git worktree add -b feat/WP-KERNEL-012 ../wtc-native-editors-v1 97a22310; .GOV junction -> wt-gov-kernel/.GOV verified (Handshake_Codex_v1.4.md visible); 111 src/frontend files present. worktree-add exited 1 ONLY on the artifact-hygiene preflight (managed_pgdata noncanonical artifact dir under ../Handshake_Artifacts - the same pre-existing managed-Postgres allowlist quirk as WP-011; worktree + junction were created before that gate). No product code committed on the branch yet.",
