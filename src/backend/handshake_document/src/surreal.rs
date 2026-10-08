@@ -19,7 +19,11 @@ pub trait DocumentQuery: Send + Sync {
         workspace_id: &str,
     ) -> StorageResult<SurrealValueData>;
 
-    async fn authorize_loom_block_read(&self, _block_id: &str) -> StorageResult<bool> {
+    async fn authorize_loom_block_read(
+        &self,
+        _block_id: &str,
+        _rich_document_backed: bool,
+    ) -> StorageResult<bool> {
         Ok(false)
     }
 
@@ -422,10 +426,12 @@ pub async fn resolve_backlink_rows(
         if let Ok(rows) = &candidate_result {
             for (index, row) in rows.iter().enumerate() {
                 if profile_can_read_fs == Some(true)
-                    && row.standalone_candidate
                     && record_key(row.workspace_id.clone())? == workspace_key
                 {
-                    match storage.authorize_loom_block_read(&row.block_id).await {
+                    match storage
+                        .authorize_loom_block_read(&row.block_id, !row.standalone_candidate)
+                        .await
+                    {
                         Ok(readable) => readability_results.push((index, readable)),
                         Err(error) => {
                             readability_error = Some(error);

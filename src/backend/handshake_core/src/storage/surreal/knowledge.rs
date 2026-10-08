@@ -6672,7 +6672,11 @@ impl handshake_document::surreal::DocumentQuery for SurrealStorage {
         .map(SurrealValue::into_value)
     }
 
-    async fn authorize_loom_block_read(&self, block_id: &str) -> StorageResult<bool> {
+    async fn authorize_loom_block_read(
+        &self,
+        block_id: &str,
+        rich_document_backed: bool,
+    ) -> StorageResult<bool> {
         let Some(scope) = super::current_record_user_scope() else {
             return Ok(false);
         };
@@ -6680,7 +6684,11 @@ impl handshake_document::surreal::DocumentQuery for SurrealStorage {
             session_token: scope.session_token,
             channel_binding_hash: scope.channel_binding_hash,
             capability_id: "fs.read".to_owned(),
-            resource_kind: super::resource_authority::ResourceKind::LoomBlock,
+            resource_kind: if rich_document_backed {
+                super::resource_authority::ResourceKind::RichDocument
+            } else {
+                super::resource_authority::ResourceKind::LoomBlock
+            },
             external_resource_id: block_id.to_owned(),
             action: super::resource_authority::ResourceAction::Read,
         };

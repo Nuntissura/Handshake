@@ -287,10 +287,15 @@ fn interconnect_ic10_backlink_cross_surface() {
         "IC-10: GET /loom/blocks/{loom_b}/backlinks contains loom_A after note A is saved"
     );
     let save_event_id = linked.save_receipt_event_id;
-    let negative_status = be.get_status(&format!(
+    let (negative_status, negative_body) = be.get_json_response(&format!(
         "/workspaces/{ws}/loom/blocks/BLK-ic10-missing/backlinks"
     ));
-    assert_eq!(negative_status, 404, "IC-10: missing target fails closed");
+    assert_eq!(negative_status, 403, "IC-10: missing target fails closed");
+    assert_eq!(
+        negative_body,
+        serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
+        "IC-10: missing target retains the constant protected-resource denial"
+    );
 
     let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
     let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{loom_b}"));
@@ -302,6 +307,7 @@ fn interconnect_ic10_backlink_cross_surface() {
         "target_block_id": loom_b,
         "event_ledger_event_id": save_event_id,
         "negative_missing_target_status": negative_status,
+        "negative_missing_target_error": negative_body["error"],
     }));
     println!("IC-10 LIVE-SURREALDB PASS: backlinks of loom_B contain loom_A after save (save-calls-backlink CTRL-2 ok)");
 }
