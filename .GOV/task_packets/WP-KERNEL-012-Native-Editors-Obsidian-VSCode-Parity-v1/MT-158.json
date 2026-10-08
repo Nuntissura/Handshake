@@ -873,7 +873,381 @@
     "out_of_contract_edits": "none beyond MT-158 allowed_write_paths (jobs.rs create/resume/CreateJobRequest + JobRouteError for the route error type; workflows.rs run_child_locus_operation only).",
     "updated_at_utc": "2026-09-23T16:38:01.974Z"
   },
-  "validation": {},
+  "validation": {
+    "proof_records": [
+      {
+        "id": "PR-WP012-MT158-WPV-20261008-1AD-READY13-CORE",
+        "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+        "covers": [
+          "MT-158"
+        ],
+        "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+        "command": "Own required acceptance CORE cases within frozen current READY13 union; locked no-fail-fast serial real embedded Surreal runtime",
+        "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
+        "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+        "exit_code": 100,
+        "result": "PASS_MAPPED_RUNTIME_SHARED_ROUND_HAS_UNRELATED_FAILURES",
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-core-ready13.xml",
+          "bytes": 108991,
+          "sha256": "305783e3852d271a0565056921a8019570f5e08578f98fe4f9319948050138fd"
+        },
+        "frozen_input_sha256": {
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "c5a1214b63b937b46f5dbac6fd45540c8e711b470cdb17ebee54ac252717810e",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "60ed0efa67c9eebed9573d805011c8f88f96f86929b76dbbfa8b5044fbe4412e",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.sh": "9ae30d5dd6cecde87f395451285c749fee20e5a6494736ae994ba4e519957a0d",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-metadata.py": "cc32bd2680ded760ef6974a0ea3818a1a6fd5f330ff0ea768ac9f175b2b6b871",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-refresh.sh": "304f8fd40a1b02c71d77c9055c179818f2c835697365ab662df983286fb61d3b",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-verify.py": "0c6800b4906f8d59c6c2fc3ebfcba1dbca555c4079ad01e4277e36aaa695d174",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest-core.toml": "522fb158b73b5501edd4e8ac5c4a8a38fedfbaedadf1c1cb7a0518fbb95fc262",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest.toml": "790f1077eaba5580d2ba8732e0d2ffed8ea1b5dd4badefc2b8da07c6fb0da91f",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.json": "5de0cc28d6a457efd895eeb2a702f239f2181f4f31863bd27bbfeccc7b7c9a8f",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-observer.ps1": "48fd59064cd89afa5e543679d3330363da22bdd8742617b7a626620175a7dead",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1": "3ff49443204c768e68ff46cb4555bc1a1149368ffd9f3969434e68720b385065"
+        },
+        "junit_run_id": "aeed74e6-bed9-4897-bbeb-ec432bf74688",
+        "checks": [
+          {
+            "check_id": "MT-158-PINS",
+            "result": "PASS_CURRENT_RUNTIME",
+            "cases": [
+              {
+                "target": "handshake_core",
+                "name": "storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive",
+                "seconds": 0.186
+              },
+              {
+                "target": "handshake_core",
+                "name": "storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic",
+                "seconds": 14.556
+              },
+              {
+                "target": "handshake_core",
+                "name": "storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic",
+                "seconds": 0.779
+              },
+              {
+                "target": "handshake_core",
+                "name": "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin",
+                "seconds": 3.23
+              },
+              {
+                "target": "handshake_core",
+                "name": "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+                "seconds": 3.947
+              },
+              {
+                "target": "handshake_core",
+                "name": "storage::surreal::schema::tests::schema_delta_upgrade_statements_re_emit_every_mt154_delta",
+                "seconds": 1.031
+              }
+            ]
+          },
+          {
+            "check_id": "MT-158-ISOLATION",
+            "result": "PASS_CURRENT_RUNTIME",
+            "cases": [
+              {
+                "target": "handshake_core::mt154_non_loom_route_authority_tests",
+                "name": "mt158_locus_job_rows_are_private_to_the_creating_account",
+                "seconds": 3.813
+              },
+              {
+                "target": "handshake_core::mt154_non_loom_route_authority_tests",
+                "name": "mt158_locus_jobs_require_account_session",
+                "seconds": 3.851
+              }
+            ]
+          },
+          {
+            "check_id": "MT-158-REGRESSION",
+            "result": "PASS_CURRENT_RUNTIME",
+            "cases": [
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "closeout_posture_artifact_lifecycle_clears_stale_state_through_production_helper",
+                "seconds": 0.159
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "closeout_posture_artifact_lifecycle_runs_before_validation_gate_in_production_wrapper",
+                "seconds": 0.13
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "closeout_posture_not_written_when_validation_fails_for_unrelated_reason",
+                "seconds": 0.057
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "closeout_projection_requires_gate_evidence_and_owner_truth",
+                "seconds": 0.043
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "dcc_software_delivery_projection_surface_keeps_runtime_authority",
+                "seconds": 0.043
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_bind_session_normalizes_and_deduplicates_session_ids",
+                "seconds": 4.831
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_create_and_close_wp_emit_structured_work_packet_packet_and_summary_with_profile_extension",
+                "seconds": 4.178
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait",
+                "seconds": 3.308
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_register_mts_emits_structured_micro_task_packet_and_summary_with_research_profile_extension",
+                "seconds": 3.161
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_register_mts_rejects_family_illegal_summary_next_action",
+                "seconds": 3.086
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_register_mts_rejects_unregistered_summary_next_action",
+                "seconds": 3.119
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_register_mts_returns_machine_readable_validation_for_incompatible_profile_extension",
+                "seconds": 3.056
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_register_mts_returns_machine_readable_validation_for_summary_detail_drift",
+                "seconds": 3.057
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_register_mts_returns_machine_readable_validation_for_unknown_profile_extension_schema",
+                "seconds": 3.011
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_register_mts_returns_machine_readable_validation_for_unknown_schema_version",
+                "seconds": 3.015
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_schema_registry_rejects_unregistered_allowed_action_ids",
+                "seconds": 3.156
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_sync_task_board_emits_structured_index_and_view",
+                "seconds": 3.131
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_sync_task_board_validation_reports_authority_scope_drift",
+                "seconds": 3.088
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_task_board_validation_reports_authoritative_row_drift",
+                "seconds": 3.122
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_written_micro_task_summary_validation_reports_authority_scope_drift",
+                "seconds": 3.044
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_written_work_packet_summary_validation_rejects_family_illegal_next_action",
+                "seconds": 2.947
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "locus_written_work_packet_summary_validation_rejects_unregistered_next_action",
+                "seconds": 3.098
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "micro_task_executor_completes_single_mt_and_emits_events",
+                "seconds": 4.601
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "micro_task_executor_emits_model_swap_events_on_model_change",
+                "seconds": 5.253
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "micro_task_executor_emits_model_swap_failed_when_policy_disallows_swaps",
+                "seconds": 4.133
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "micro_task_executor_emits_model_swap_runtime_failure_and_rollback_when_fallback_allows",
+                "seconds": 5.255
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "micro_task_executor_emits_model_swap_timeout_and_rollback_on_runtime_timeout",
+                "seconds": 5.201
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "micro_task_executor_escalates_and_hard_gates_after_budget_exhaustion",
+                "seconds": 4.264
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "micro_task_executor_generates_distillation_candidate_after_escalation_success",
+                "seconds": 5.409
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "micro_task_executor_persists_locus_lifecycle_and_session_occupancy",
+                "seconds": 5.001
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "micro_task_executor_rejects_legacy_workflow_run_job_kind_contract",
+                "seconds": 2.904
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "micro_task_executor_resumes_from_pause_and_emits_workflow_recovery",
+                "seconds": 4.463
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "micro_task_executor_spec_router_creates_locus_work_packet_when_routing_metadata_present",
+                "seconds": 3.26
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "production_clears_workflow_run_lifecycle_record_for_non_software_delivery_summary",
+                "seconds": 0.038
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "production_clears_workflow_run_lifecycle_record_on_validation_failure",
+                "seconds": 0.036
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "production_finalize_emits_software_delivery_projection_surface_with_overlay",
+                "seconds": 0.066
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "production_projection_falls_back_to_queued_instruction_for_stable_ids",
+                "seconds": 0.061
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "production_projection_reaches_approval_wait_from_canonical_summary_alone",
+                "seconds": 0.051
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "production_projection_reaches_canceled_from_canonical_summary_alone",
+                "seconds": 0.058
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "production_projection_reaches_failed_from_canonical_summary_alone",
+                "seconds": 0.059
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "production_projection_reaches_settled_from_canonical_summary_alone",
+                "seconds": 0.048
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "production_writes_workflow_run_lifecycle_record_before_projection_surface",
+                "seconds": 0.058
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "projection_emitter_respects_seeded_lifecycle_override_for_approval_wait",
+                "seconds": 0.049
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "projection_emitter_respects_seeded_lifecycle_override_for_failed",
+                "seconds": 0.051
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "projection_emitter_respects_seeded_lifecycle_override_for_settled",
+                "seconds": 0.046
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "projection_surface_exposes_claim_and_queued_instruction_ids",
+                "seconds": 0.036
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "projection_surface_previews_governed_action_before_mutation",
+                "seconds": 0.04
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "role_mailbox_software_delivery_triage_remains_advisory",
+                "seconds": 0.063
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "task_board_software_delivery_production_validation_rejects_stale_runtime_truth",
+                "seconds": 0.036
+              },
+              {
+                "target": "handshake_core::micro_task_executor_tests",
+                "name": "task_board_software_delivery_projection_cannot_override_runtime_truth",
+                "seconds": 0.033
+              },
+              {
+                "target": "handshake_core::mt151_early_lock_release_race_tests",
+                "name": "dependency_adds_that_would_form_a_cycle_admit_one_without_the_static_lock",
+                "seconds": 3.542
+              },
+              {
+                "target": "handshake_core::mt151_early_lock_release_race_tests",
+                "name": "folder_reparents_that_would_form_a_cycle_admit_one_without_the_static_lock",
+                "seconds": 3.283
+              },
+              {
+                "target": "handshake_core::mt151_early_lock_release_race_tests",
+                "name": "journal_get_or_create_admits_one_block_per_date_without_the_static_lock",
+                "seconds": 2.706
+              },
+              {
+                "target": "handshake_core::wp_kernel_012_native_editor_routes_tests",
+                "name": "route1_locus_micro_task_resolve",
+                "seconds": 4.282
+              },
+              {
+                "target": "handshake_core::wp_kernel_012_native_editor_routes_tests",
+                "name": "route1_locus_work_packet_resolve",
+                "seconds": 3.592
+              }
+            ]
+          }
+        ],
+        "scope_limit": "Own mapped cases passed; no current own product defect inferred from unrelated shared failures; no whole-floor PASS"
+      }
+    ],
+    "latest_verdict_ref": "validation_runtime_20261008_1ad04e43_core"
+  },
   "validation_v1_partial": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "partial": true,
@@ -1605,5 +1979,386 @@
     "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
     "verdict_labelling": "every verdict records the backend build profile",
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
+  },
+  "validation_runtime_20261008_1ad04e43_core": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "verdict": null,
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T17:52:10.794137Z",
+    "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+    "proof_record_ids": [
+      "PR-WP012-MT158-WPV-20261008-1AD-READY13-CORE"
+    ],
+    "results_ref": "validation.proof_records[PR-WP012-MT158-WPV-20261008-1AD-READY13-CORE]",
+    "checks": [
+      {
+        "check_id": "MT-158-CHECK-SETS",
+        "result": "UNCLOSED",
+        "reason": "No current independent required command/changed-input reuse proof in this batch; selected test compilation is not the entire declared build/static/clippy floor"
+      },
+      {
+        "check_id": "MT-158-CLIPPY",
+        "result": "UNCLOSED",
+        "reason": "No current independent required command/changed-input reuse proof in this batch; selected test compilation is not the entire declared build/static/clippy floor"
+      },
+      {
+        "check_id": "MT-158-PINS",
+        "result": "PASS_CURRENT_RUNTIME",
+        "cases": [
+          {
+            "target": "handshake_core",
+            "name": "storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive",
+            "seconds": 0.186
+          },
+          {
+            "target": "handshake_core",
+            "name": "storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic",
+            "seconds": 14.556
+          },
+          {
+            "target": "handshake_core",
+            "name": "storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic",
+            "seconds": 0.779
+          },
+          {
+            "target": "handshake_core",
+            "name": "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin",
+            "seconds": 3.23
+          },
+          {
+            "target": "handshake_core",
+            "name": "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+            "seconds": 3.947
+          },
+          {
+            "target": "handshake_core",
+            "name": "storage::surreal::schema::tests::schema_delta_upgrade_statements_re_emit_every_mt154_delta",
+            "seconds": 1.031
+          }
+        ]
+      },
+      {
+        "check_id": "MT-158-ISOLATION",
+        "result": "PASS_CURRENT_RUNTIME",
+        "cases": [
+          {
+            "target": "handshake_core::mt154_non_loom_route_authority_tests",
+            "name": "mt158_locus_job_rows_are_private_to_the_creating_account",
+            "seconds": 3.813
+          },
+          {
+            "target": "handshake_core::mt154_non_loom_route_authority_tests",
+            "name": "mt158_locus_jobs_require_account_session",
+            "seconds": 3.851
+          }
+        ]
+      },
+      {
+        "check_id": "MT-158-REGRESSION",
+        "result": "PASS_CURRENT_RUNTIME",
+        "cases": [
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "closeout_posture_artifact_lifecycle_clears_stale_state_through_production_helper",
+            "seconds": 0.159
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "closeout_posture_artifact_lifecycle_runs_before_validation_gate_in_production_wrapper",
+            "seconds": 0.13
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "closeout_posture_not_written_when_validation_fails_for_unrelated_reason",
+            "seconds": 0.057
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "closeout_projection_requires_gate_evidence_and_owner_truth",
+            "seconds": 0.043
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "dcc_software_delivery_projection_surface_keeps_runtime_authority",
+            "seconds": 0.043
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_bind_session_normalizes_and_deduplicates_session_ids",
+            "seconds": 4.831
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_create_and_close_wp_emit_structured_work_packet_packet_and_summary_with_profile_extension",
+            "seconds": 4.178
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait",
+            "seconds": 3.308
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_register_mts_emits_structured_micro_task_packet_and_summary_with_research_profile_extension",
+            "seconds": 3.161
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_register_mts_rejects_family_illegal_summary_next_action",
+            "seconds": 3.086
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_register_mts_rejects_unregistered_summary_next_action",
+            "seconds": 3.119
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_register_mts_returns_machine_readable_validation_for_incompatible_profile_extension",
+            "seconds": 3.056
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_register_mts_returns_machine_readable_validation_for_summary_detail_drift",
+            "seconds": 3.057
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_register_mts_returns_machine_readable_validation_for_unknown_profile_extension_schema",
+            "seconds": 3.011
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_register_mts_returns_machine_readable_validation_for_unknown_schema_version",
+            "seconds": 3.015
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_schema_registry_rejects_unregistered_allowed_action_ids",
+            "seconds": 3.156
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_sync_task_board_emits_structured_index_and_view",
+            "seconds": 3.131
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_sync_task_board_validation_reports_authority_scope_drift",
+            "seconds": 3.088
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_task_board_validation_reports_authoritative_row_drift",
+            "seconds": 3.122
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_written_micro_task_summary_validation_reports_authority_scope_drift",
+            "seconds": 3.044
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_written_work_packet_summary_validation_rejects_family_illegal_next_action",
+            "seconds": 2.947
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "locus_written_work_packet_summary_validation_rejects_unregistered_next_action",
+            "seconds": 3.098
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "micro_task_executor_completes_single_mt_and_emits_events",
+            "seconds": 4.601
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "micro_task_executor_emits_model_swap_events_on_model_change",
+            "seconds": 5.253
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "micro_task_executor_emits_model_swap_failed_when_policy_disallows_swaps",
+            "seconds": 4.133
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "micro_task_executor_emits_model_swap_runtime_failure_and_rollback_when_fallback_allows",
+            "seconds": 5.255
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "micro_task_executor_emits_model_swap_timeout_and_rollback_on_runtime_timeout",
+            "seconds": 5.201
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "micro_task_executor_escalates_and_hard_gates_after_budget_exhaustion",
+            "seconds": 4.264
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "micro_task_executor_generates_distillation_candidate_after_escalation_success",
+            "seconds": 5.409
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "micro_task_executor_persists_locus_lifecycle_and_session_occupancy",
+            "seconds": 5.001
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "micro_task_executor_rejects_legacy_workflow_run_job_kind_contract",
+            "seconds": 2.904
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "micro_task_executor_resumes_from_pause_and_emits_workflow_recovery",
+            "seconds": 4.463
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "micro_task_executor_spec_router_creates_locus_work_packet_when_routing_metadata_present",
+            "seconds": 3.26
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "production_clears_workflow_run_lifecycle_record_for_non_software_delivery_summary",
+            "seconds": 0.038
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "production_clears_workflow_run_lifecycle_record_on_validation_failure",
+            "seconds": 0.036
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "production_finalize_emits_software_delivery_projection_surface_with_overlay",
+            "seconds": 0.066
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "production_projection_falls_back_to_queued_instruction_for_stable_ids",
+            "seconds": 0.061
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "production_projection_reaches_approval_wait_from_canonical_summary_alone",
+            "seconds": 0.051
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "production_projection_reaches_canceled_from_canonical_summary_alone",
+            "seconds": 0.058
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "production_projection_reaches_failed_from_canonical_summary_alone",
+            "seconds": 0.059
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "production_projection_reaches_settled_from_canonical_summary_alone",
+            "seconds": 0.048
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "production_writes_workflow_run_lifecycle_record_before_projection_surface",
+            "seconds": 0.058
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "projection_emitter_respects_seeded_lifecycle_override_for_approval_wait",
+            "seconds": 0.049
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "projection_emitter_respects_seeded_lifecycle_override_for_failed",
+            "seconds": 0.051
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "projection_emitter_respects_seeded_lifecycle_override_for_settled",
+            "seconds": 0.046
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "projection_surface_exposes_claim_and_queued_instruction_ids",
+            "seconds": 0.036
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "projection_surface_previews_governed_action_before_mutation",
+            "seconds": 0.04
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "role_mailbox_software_delivery_triage_remains_advisory",
+            "seconds": 0.063
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "task_board_software_delivery_production_validation_rejects_stale_runtime_truth",
+            "seconds": 0.036
+          },
+          {
+            "target": "handshake_core::micro_task_executor_tests",
+            "name": "task_board_software_delivery_projection_cannot_override_runtime_truth",
+            "seconds": 0.033
+          },
+          {
+            "target": "handshake_core::mt151_early_lock_release_race_tests",
+            "name": "dependency_adds_that_would_form_a_cycle_admit_one_without_the_static_lock",
+            "seconds": 3.542
+          },
+          {
+            "target": "handshake_core::mt151_early_lock_release_race_tests",
+            "name": "folder_reparents_that_would_form_a_cycle_admit_one_without_the_static_lock",
+            "seconds": 3.283
+          },
+          {
+            "target": "handshake_core::mt151_early_lock_release_race_tests",
+            "name": "journal_get_or_create_admits_one_block_per_date_without_the_static_lock",
+            "seconds": 2.706
+          },
+          {
+            "target": "handshake_core::wp_kernel_012_native_editor_routes_tests",
+            "name": "route1_locus_micro_task_resolve",
+            "seconds": 4.282
+          },
+          {
+            "target": "handshake_core::wp_kernel_012_native_editor_routes_tests",
+            "name": "route1_locus_work_packet_resolve",
+            "seconds": 3.592
+          }
+        ]
+      }
+    ],
+    "exact_proof_gaps": [
+      "MT-158-CHECK-SETS",
+      "MT-158-CLIPPY"
+    ],
+    "state_unchanged": true,
+    "status_effect": "READY_FOR_VALIDATION retained; no PASS or new FAIL without complete own floor/product failure",
+    "reuse_disposition": "No unverifiable earlier changed-line/static/build proof credited; current own runtime binds immutable1ad; MT158/159 own6pins exclude exact-predecessor and no own MT167 timing floor",
+    "scope_limit": "Independent own-runtime result; native union continues; no extra Cargo requested; only MT111 selected for repair",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT158-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-READY13-CORE-INCONCLUSIVE-20261008",
+        "at_utc": "2026-10-08T17:52:10.794137Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT158-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-READY13-CORE-INCONCLUSIVE-20261008",
+        "at_utc": "2026-10-08T17:52:10.794137Z",
+        "decision": "inconclusive",
+        "state_effect": "No lifecycle transition; own required build/static/clippy floor remains unclosed"
+      }
+    ]
   }
 }
