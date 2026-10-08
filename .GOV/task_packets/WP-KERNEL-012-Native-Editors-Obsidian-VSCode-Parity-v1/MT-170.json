@@ -6369,6 +6369,56 @@
         "decision": "passed",
         "state_effect": "One applied lifecycle transition READY_FOR_VALIDATION -> PASS_V2; this completion appends only, no second state effect"
       }
-    ]
+    ],
+    "artifact_preservation_20261008": {
+      "recorded_at_utc": "2026-10-08T16:37:07.085045Z",
+      "disposition": "Original PASS_V2 and all54 runtime cases retained; original export identity remains captured verbatim in accepted hashed stdout. The mutable export-current.identity path now carries the later same-candidate READY13 refresh provenance.",
+      "current_reinspection": {
+        "unique_artifacts": 18,
+        "hash_matches": 17,
+        "sole_mismatch_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current.identity",
+        "original_expected_sha256": "e3c668f03a533ebd80a1336311aa95fabcdcab23c12c10d279357539d3b14845",
+        "current_sha256": "b28481486cf27aeb2fa0de3b7a98fc5fc75f3e9cbdf189daf1c3b633310b3094"
+      },
+      "original_identity_capture": {
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-1ad04e431fa1c8a6b71533122bdfd532111a0557.stdout.log",
+          "bytes": 348596,
+          "sha256": "4763a6ad0ef1d462aa1f15ddd59dce5547e2a03de2909fdca7c35a007945bf51"
+        },
+        "lines": [
+          7,
+          17
+        ],
+        "contents_ref": "validation.proof_records[PR-WP012-MT170-WPV-20261008-1AD-BUILD].export_identity",
+        "captured_identity_digest_matches_original_expected": true
+      },
+      "unchanged_source_identity": {
+        "candidate_sha": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "tree_id": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+        "file_count": "7167",
+        "manifest_sha256": "e2028e5ae6bef8271081a343a68c7cde1b34a759f0a1005abd7b4fe473f031de",
+        "schema": "handshake.wpv.export-identity@1",
+        "refresh_mode": "incremental",
+        "state": "complete"
+      },
+      "changed_refresh_provenance": {
+        "previous_sha": {
+          "original": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+          "current": "1ad04e431fa1c8a6b71533122bdfd532111a0557"
+        },
+        "refresh_seconds": {
+          "original": "68",
+          "current": "71"
+        },
+        "refreshed_utc": {
+          "original": "2026-10-08T13:58:20Z",
+          "current": "2026-10-08T16:26:26Z"
+        }
+      },
+      "cause": "WPV-export-refresh.sh107-119 republishes the mutable export-current.identity after every verified refresh; frozen input archive preserved consumed inputs but did not include this output identity.",
+      "independent_review": "WPV rehashed18 unique accepted artifacts17match; buddy independently observed the same sole mismatch, opened original stdout7-17 and current identity; root directly inspected both and adopted this narrow disposition.",
+      "scope_limit": "No original artifact reconstruction, expected hash replacement, lifecycle change, new runtime proof, current18/18 claim, active-run input/config change or retest."
+    }
   }
 }

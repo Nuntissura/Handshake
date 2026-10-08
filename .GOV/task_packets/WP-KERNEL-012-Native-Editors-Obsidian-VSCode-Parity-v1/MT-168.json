@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-08T16:23:36.153027Z",
+  "updated_at_utc": "2026-10-08T16:28:19.205128Z",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -573,7 +573,7 @@
     "running_record_ready13_20261008": {
       "schema_id": "hsk.validator_running_record@1",
       "state": "running",
-      "phase": "frozen_pre_release",
+      "phase": "core_union_build",
       "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
       "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
       "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
@@ -642,6 +642,11 @@
           "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.json": "5de0cc28d6a457efd895eeb2a702f239f2181f4f31863bd27bbfeccc7b7c9a8f",
           "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-observer.ps1": "48fd59064cd89afa5e543679d3330363da22bdd8742617b7a626620175a7dead",
           "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1": "3ff49443204c768e68ff46cb4555bc1a1149368ffd9f3969434e68720b385065"
+        },
+        "bash": {
+          "pid": 22784,
+          "start_utc": "2026-10-08T16:25:08.2163551Z",
+          "command_line": "C:/Program Files/Git/bin/bash.exe \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 1ad04e431fa1c8a6b71533122bdfd532111a0557"
         }
       },
       "observer_identity": {
@@ -709,7 +714,28 @@
         "MT-153_MT-154_MT-155_MT-157": "Own CHECK-TESTS and changed-line clippy WP-end floors retained",
         "MT-158_MT-159": "Own feature A/B/C compile and changed-line clippy/check WP-end floors retained"
       },
-      "scope_limit": "Independent per-MT validation only; no whole-WP PASS, merge, broader helper repair, or product repair selection before actual verdicts"
+      "scope_limit": "Independent per-MT validation only; no whole-WP PASS, merge, broader helper repair, or product repair selection before actual verdicts",
+      "release_at_utc": "2026-10-08T16:24:54.2402851Z",
+      "admission": {
+        "sample_utc": "2026-10-08T16:24:54.2402851Z",
+        "free_commit_bytes": 19286585344,
+        "reserve_bytes": 10000000000,
+        "competing_compilers": 0,
+        "input_hash_mismatches": 0,
+        "typed_wrapper_start_match": true
+      },
+      "buddy_release_review": "NO_BLOCKING_FINDING: independent actual12/12hashes, PID/start/CIM/covers13, distinctouterlogs and currentobserver",
+      "gate_results": {
+        "actual_wrapper_before_dispatch": "PASS32/32",
+        "actual_wrapper_before_round": "PASS69/69"
+      },
+      "current_build_identity": {
+        "proxy_pid": 30560,
+        "cargo_pid": 5616,
+        "start_utc": "2026-10-08T16:26:32.026251Z",
+        "command": "cargo test --locked -j1 --no-run -v --config WPV-backend-profile.toml --features app-runtime,surreal-test-support,test-utils --lib +21 named integration targets",
+        "source_guard": "same1ad incremental deleted0/extracted0;7167 tracked/observed metadata verified"
+      }
     }
   },
   "authored_by": "KERNEL_BUILDER-20261002",
