@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 461
+generation: 463
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -378,3 +378,5 @@ steps:
 - {id: GP-357, role: wp_validator, at: before_dispatch, do: 'verify current detached wrapper identity and frozen profile, selector, entrypoint and consumed configuration digests', check: {type: confirm}, source: 'prep: GP332 before_round blocked configcopy before finalwrapper existed; same obligation retained beforeCargo', state: active}
 - {id: GP-358, role: wp_validator, at: before_dispatch, do: verify exact wrapper process start by typed DateTime equality and actual CIM command line, check: {type: confirm}, source: 'prep: GP344 wrapper identity absent during configcopy; mandatory finalwrapper check retained beforeCargo', state: active}
 - {id: GP-359, role: wp_validator, at: before_round, do: verify pushed minimal canonical READ and IC10 constant-denial repairs reviewed before same warm required proof, check: {type: confirm}, source: 'fail: renamedtarget inbound assertion missing and IC10 expected404 against canonical403; no READ gate waiver', state: active}
+- {id: GP-360, role: wp_validator, at: before_round, do: verify distinct outer and inner stdio paths; archive stream hashes after owned passive writer closes, check: {type: confirm}, source: 'prep: wrapper41412 sharedinnerstdio and lockedlivehash; preservedidentity then reapedownedpassivewriter', state: active}
+- {id: GP-361, role: wp_validator, at: before_round, do: verify owned passive identity and runtimechildabsence; wait exit before archive stream hashes, check: {type: confirm}, source: 'prep: allchildguard rejected ownconhost40180; immediatepostStop hash raced async stream closure', state: active}

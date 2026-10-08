@@ -30,7 +30,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-08T13:47:50.087509Z",
+  "updated_at_utc": "2026-10-08T13:56:15.251035Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -820,10 +820,10 @@
       "entrypoint": ".GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh",
       "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
       "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current",
-      "started_at_utc": "2026-10-08T13:45:52.7981336Z",
+      "started_at_utc": "2026-10-08T13:54:34.9467408Z",
       "wrapper_identity": {
-        "pid": 41412,
-        "start_utc": "2026-10-08T13:45:52.7981336Z",
+        "pid": 34144,
+        "start_utc": "2026-10-08T13:54:34.9467408Z",
         "command_line": "C:\\Users\\iljas\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe -NoProfile -NonInteractive -File C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1"
       },
       "observer_identity": {
@@ -856,10 +856,14 @@
         "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557.exit.json"
       ],
       "historical_disposition_ref": "operator_acceptance_disposition_20261008",
-      "result": "RUNTIME_NOT_RUN; actual before_dispatch31/31 and allrole before_round105/105 PASS; release awaits independentfinalwrapperreview",
+      "result": "RUNTIME_NOT_RUN; actual replacementwrapper34144 distinct outerstdio; before_dispatch31/31 and allrolebefore_round107/107 PASS; finalbuddyreview then freshadmission/release",
       "preserved_failure_ref": "validation.runtime_failures_20261008#MT170-RUNTIME-20261008-4EEB-RED",
       "canary": "NOT_APPLICABLE_PER_PINNED_WP_AUTHORITY",
-      "admission_reserve_bytes": 10000000000
+      "admission_reserve_bytes": 10000000000,
+      "outer_stdio": {
+        "stdout": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557.wrapper.stdout.log",
+        "stderr": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557.wrapper.stderr.log"
+      }
     },
     "infrastructure_attempts_20261008": [
       {
@@ -5320,6 +5324,35 @@
     "new_core_config_sha256": "46f273f6bdfb95c4f35f96e4181f202c7c97a58706d574f48334973a0c21b708",
     "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
     "buddy_review": "Actual2filter/selector diff reviewed independently; finalwrittenlauncher/realpassivewrapper review pending",
-    "runtime": "NOT_RUN_ON_NEW_CANDIDATE"
+    "runtime": "NOT_RUN_ON_NEW_CANDIDATE",
+    "stdio_replacement": {
+      "old_owned_wrapper": 41412,
+      "new_owned_wrapper": 34144,
+      "cause": "Outer and inner redirects target same files; installedPowerShell7.6.5 uses FileMode.Create, so overlapping producers maytruncate/overwrite; no Cargo sharingviolationclaim",
+      "preserved": [
+        {
+          "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557.unreleased-41412.identity.json",
+          "sha256": "6573c600e278cda89156effcaeb41f88fff682b2a5f39252bc7f74ca7f4c2d60"
+        },
+        {
+          "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557.unreleased-41412.stdout.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557.unreleased-41412.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "ownership": "Old41412 typedstart/CIM, absentBash/release and onlyownedconhost40180 established before stoppingparent; both fullygonebefore streamhashes",
+      "preparation_corrections": [
+        "Get-FileHash rejected livewriter; preserveidentityfirst and verifyloghashesafteractualwriterexit",
+        "Zeroallchildren guard rejected currentownedconhost; runtimechildabsence retained, observedconsole allowed"
+      ],
+      "scope": "Caller-only distinctouterwrapperlogpaths; ninefrozeninputs/source/target/cache unchanged",
+      "outer_stdio": {
+        "stdout": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557.wrapper.stdout.log",
+        "stderr": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557.wrapper.stderr.log"
+      }
+    }
   }
 }
