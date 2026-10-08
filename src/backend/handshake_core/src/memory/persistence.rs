@@ -13,7 +13,7 @@ use super::hygiene::{
     MEMORY_HYGIENE_SOURCE_COMPONENT,
 };
 use super::injection::{CapsuleFlightRecorderEvent, FemsFlightRecorder, FemsFlightRecorderError};
-use super::ipc::{MemoryCapsuleIpcStore, MemoryIpcError};
+use super::ipc::{MemoryCapsuleIpcStore, MemoryIpcError, MEMORY_CAPSULE_SUPPRESS_ACTION_ID};
 use super::pinned_core::{
     action_id_for_pin_state, fr_event_for_pin_state, pin_submission, PinError, PinReceipt,
     PinSubmitter, PinnedItem, MEMORY_PIN_AGGREGATE_TYPE, MEMORY_PIN_MANIFEST_AGGREGATE_ID,
@@ -864,12 +864,15 @@ fn build_capsule_manifest_event(
     submission: &KernelActionSubmission,
 ) -> Result<Option<NewKernelEvent>, KernelActionRejection> {
     let target = primary_action_target(submission)?;
-    // Only the capsule RECORD action carries a complete `record` to project into
+    // Capsule RECORD and SUPPRESS actions carry a complete `record` to project into
     // the manifest. Other capsule-targeted actions (outcome attachment, pin,
     // hygiene) legitimately target the capsule aggregate without one, so they
     // append their catalog event alone (MT-141 V2-R5 item 313).
     if target.target_kind != MEMORY_CAPSULE_AGGREGATE_TYPE
-        || submission.request.action_id != MEMORY_CAPSULE_RECORD_ACTION_ID
+        || !matches!(
+            submission.request.action_id.as_str(),
+            MEMORY_CAPSULE_RECORD_ACTION_ID | MEMORY_CAPSULE_SUPPRESS_ACTION_ID
+        )
     {
         return Ok(None);
     }
