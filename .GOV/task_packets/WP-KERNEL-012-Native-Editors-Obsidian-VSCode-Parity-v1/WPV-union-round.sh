@@ -43,11 +43,14 @@ import json, shlex, sys
 p = json.load(open(sys.argv[1], encoding='utf-8-sig'))
 for k in ('LANE', 'TARGET', 'WORKTREE', 'NEXTEST', 'ARTIFACT_ROOT', 'WP_CAP_BYTES'):
     print(k + '=' + shlex.quote(str(p[k])))
+print('ROUND_OUTPUT_SUFFIX=' + shlex.quote(str(p.get('ROUND_OUTPUT_SUFFIX', ''))))
 for k, v in p['env'].items():
     print(('HOST_NATIVE_PATH' if k == 'PATH' else 'export ' + k) + '=' + shlex.quote(str(v)))
 PY
 )"
 export PATH="$(cygpath -p -u "$HOST_NATIVE_PATH")"
+[[ "$ROUND_OUTPUT_SUFFIX" =~ ^(-[a-z0-9]+)*$ ]] || { echo "[run-round] FATAL: unsafe round output suffix"; exit 2; }
+OUT_SUFFIX="$OUT_SUFFIX$ROUND_OUTPUT_SUFFIX"
 [[ -d "$ARTIFACT_ROOT" ]] || { echo "[run-round] FATAL: designated artifact root absent"; exit 2; }
 [[ "$LANE" == "$ARTIFACT_ROOT/WP-KERNEL-012/MT-170/"* && "$TARGET" == "$LANE/target" ]] \
   || { echo "[run-round] FATAL: host output is outside assigned MT owner"; exit 2; }
@@ -128,6 +131,11 @@ check_test_profile() {
 check_target_cap
 
 mkdir -p "$LANE/logs" "$LANE/tmp" "$LANE/runtime" "$LANE/workspace"
+if [[ -n "$ROUND_OUTPUT_SUFFIX" ]]; then
+  for output in "$LANE"/logs/*"$SHA$OUT_SUFFIX".log "$LANE"/junit-"$SHA"*"$OUT_SUFFIX".xml; do
+    [[ ! -e "$output" ]] || { echo "[run-round] FATAL: prior round output exists: $output"; exit 2; }
+  done
+fi
 
 # 1. Stable round source path ([VPX-011], Operator 2026-10-01 "WP-012 scripts now"; CX-VAL-007):
 #    one fixed per-owner export-current, refreshed in place to the frozen candidate (changed files only,
@@ -224,6 +232,7 @@ if [[ -z "$MODE" || "$MODE" = targeted ]]; then
   [[ "$MODE" = targeted ]] && EARLY_SELECTION="$SCRIPT_DIR/WPV-round-selection-targeted.sh"
   source "$EARLY_SELECTION"
   [[ "${ROUND_SELECTION_SHA:-}" = "$SHA" ]] || { echo "[run-round] FATAL: selection candidate mismatch"; exit 2; }
+  [[ "${ROUND_SELECTION_OUTPUT_SUFFIX:-}" = "$ROUND_OUTPUT_SUFFIX" ]] || { echo "[run-round] FATAL: selection output suffix mismatch"; exit 2; }
 fi
 if [[ " ${CORE_TESTS[*]} " == *" model_session_scheduler_tests "* ]]; then
 # MT-165 disposable session-worktree repo (Operator decision WP012-MT165-DISPOSABLE-GIT-REPO-20260930).
@@ -241,7 +250,7 @@ if [[ " ${CORE_TESTS[*]} " == *" model_session_scheduler_tests "* ]]; then
 # A force-killed script (TerminateProcess) cannot run the trap; the validator then cleans by hand.
 SESSION_GIT_DIR="$LANE/sg/${SHA:0:8}.git"
 export HANDSHAKE_SESSION_WORKTREE_ROOT="$LANE/sg/${SHA:0:8}-wt"
-SESSION_GIT_LOG="$LANE/logs/session-git-$SHA.log"
+SESSION_GIT_LOG="$LANE/logs/session-git-$SHA$OUT_SUFFIX.log"
 RECYCLE_HELPER="$(dirname "$(readlink -f "$0")")/WPV-recycle.ps1"
 [ -f "$RECYCLE_HELPER" ] || { echo "[run-round] FATAL: recycle helper missing: $RECYCLE_HELPER"; exit 2; }
 [[ "$SESSION_GIT_DIR" == "$HANDSHAKE_ARTIFACTS_ROOT/WP-KERNEL-012/"* ]] || { echo "[run-round] FATAL: session git dir outside WP artifact root"; exit 2; }
@@ -249,7 +258,7 @@ RECYCLE_HELPER="$(dirname "$(readlink -f "$0")")/WPV-recycle.ps1"
 [ ! -e "$SESSION_GIT_DIR" ] && [ ! -e "$HANDSHAKE_SESSION_WORKTREE_ROOT" ] \
   || { echo "[run-round] FATAL: prior session git dir or root preserved for review under $LANE/sg"; exit 2; }
 mkdir -p "$LANE/sg"
-SESSION_GIT_MARKER="$LANE/tmp/session-git-start-$SHA"
+SESSION_GIT_MARKER="$LANE/tmp/session-git-start-$SHA$OUT_SUFFIX"
 touch "$SESSION_GIT_MARKER"
 session_git_cleanup() {
   local rc=$?
@@ -485,7 +494,7 @@ if [[ "$CORE_SKIP" = 1 ]]; then
 else
 echo "[run-round] nextest CORE run"
 CORE_JUNIT="$EXPORT/src/backend/handshake_core/target/nextest/default/junit.xml"
-CORE_JUNIT_MARKER="$LANE/tmp/core-junit-start-$SHA"
+CORE_JUNIT_MARKER="$LANE/tmp/core-junit-start-$SHA$OUT_SUFFIX"
 touch "$CORE_JUNIT_MARKER"
 # nextest exits non-zero (100) whenever any test fails, even with --no-fail-fast
 # letting the full suite run to completion; that non-zero exit is expected and
@@ -526,7 +535,7 @@ if [[ "$NATIVE_SKIP" = 1 ]]; then
 else
 echo "[run-round] nextest NATIVE run (excluding duplicated failure_diagnostic_tests except $OWNER_BIN)"
 NATIVE_JUNIT="$EXPORT/src/frontend/handshake_native/target/nextest/default/junit.xml"
-NATIVE_JUNIT_MARKER="$LANE/tmp/native-junit-start-$SHA"
+NATIVE_JUNIT_MARKER="$LANE/tmp/native-junit-start-$SHA$OUT_SUFFIX"
 touch "$NATIVE_JUNIT_MARKER"
 if [[ "$MODE" = backend-opt-diag ]]; then
   (set -o noclobber; date -u +%Y-%m-%dT%H:%M:%SZ > "$LANE/BACKEND-OPT-DIAG-${SHA:0:8}.started") || exit 2
@@ -562,7 +571,7 @@ EXTRACTED_RESULTS=()
 for crate in "${EXTRACTED_CRATES[@]}"; do
   echo "[run-round] nextest extracted $crate unit run"
   CRATE_JUNIT="$EXPORT/src/backend/$crate/target/nextest/default/junit.xml"
-  CRATE_JUNIT_MARKER="$LANE/tmp/$crate-junit-start-$SHA"
+  CRATE_JUNIT_MARKER="$LANE/tmp/$crate-junit-start-$SHA$OUT_SUFFIX"
   touch "$CRATE_JUNIT_MARKER"
   set +e
   ( cd "$EXPORT/src/backend/$crate" && \
@@ -593,4 +602,4 @@ if [[ "${CORE_INVALID:-0}" == 1 || "${NATIVE_INVALID:-0}" == 1 || "$EXTRACTED_IN
   echo "[run-round] INVALID_ROUND_RESULT core_exit=$CORE_NEXTEST_EXIT native_exit=$NATIVE_NEXTEST_EXIT extracted_invalid=$EXTRACTED_INVALID extracted=${EXTRACTED_RESULTS[*]}"
   exit 4
 fi
-echo "[run-round] done. junit: $LANE/$CORE_JUNIT_NAME , $LANE/$NATIVE_JUNIT_NAME , $LANE/junit-$SHA-handshake_document.xml , $LANE/junit-$SHA-handshake_storage_support.xml (core_exit=$CORE_NEXTEST_EXIT native_exit=$NATIVE_NEXTEST_EXIT extracted=${EXTRACTED_RESULTS[*]})"
+echo "[run-round] done. junit: $LANE/$CORE_JUNIT_NAME , $LANE/$NATIVE_JUNIT_NAME , $LANE/junit-$SHA-handshake_document$OUT_SUFFIX.xml , $LANE/junit-$SHA-handshake_storage_support$OUT_SUFFIX.xml (core_exit=$CORE_NEXTEST_EXIT native_exit=$NATIVE_NEXTEST_EXIT extracted=${EXTRACTED_RESULTS[*]})"

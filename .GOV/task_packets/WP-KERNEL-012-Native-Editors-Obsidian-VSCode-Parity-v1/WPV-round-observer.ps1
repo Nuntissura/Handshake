@@ -26,6 +26,8 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../..'))
 $hostProfile = Get-Content -LiteralPath (Join-Path $projectRoot 'gov-runtime/host-profile-wp012.json') -Raw | ConvertFrom-Json
 $Lane = $hostProfile.LANE
+$roundOutputSuffix = [string]$hostProfile.ROUND_OUTPUT_SUFFIX
+if ($roundOutputSuffix -notmatch '^(-[a-z0-9]+)*$') { throw 'unsafe round output suffix' }
 $Target = Join-Path $hostProfile.ARTIFACT_ROOT 'WP-KERNEL-012'
 $ProcDump = Join-Path $projectRoot 'gov-runtime/tools/sysinternals/procdump/procdump64.exe'
 $StopBytes = [int64]$hostProfile.WP_CAP_BYTES - 2000000000
@@ -97,10 +99,10 @@ public static class WpvIoC {
   [DllImport("kernel32.dll", SetLastError=true)] public static extern bool GetProcessIoCounters(IntPtr h, out IO_COUNTERS c);
 }
 "@
-$prefix = Join-Path $Lane "logs/$Kind-$Sha"
+$prefix = Join-Path $Lane "logs/$Kind-$Sha$roundOutputSuffix"
 $obsFile = "$prefix.observations.jsonl"
 $self = Get-Process -Id $PID
-[ordered]@{ pid = $PID; start_utc = $self.StartTime.ToUniversalTime().ToString('o'); candidate = $Sha; kind = $Kind; owner = 'wp_validator'
+[ordered]@{ pid = $PID; start_utc = $self.StartTime.ToUniversalTime().ToString('o'); candidate = $Sha; kind = $Kind; output_suffix = $roundOutputSuffix; owner = 'wp_validator'
     purpose = 'capacity, owned process observations, BACKEND_CPU_SPIN capture'; script = $PSCommandPath; stop_bytes = $StopBytes; ready = $true
     spin_trigger = "backend dCPU >= $SpinCpuRatio*dt AND test dCPU < $SpinTestCpuMaxS s AND backend dWrite < $SpinWriteMaxBytes B on $SpinConsecutive consecutive polls; once" } |
     ConvertTo-Json | Set-Content -LiteralPath "$prefix.observer.identity.json" -Encoding utf8NoBOM
