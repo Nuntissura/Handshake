@@ -1,11 +1,14 @@
-# WPV targeted evidence selection for the MT-170 current-state resolver diagnostic.
-# This is procedural recovery evidence for AC-170-1 only; it is not acceptance or a verdict.
-ROUND_SELECTION_SHA=4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e
+# WPV fresh full own MT-111 acceptance selection after the approved manual/version repair.
+# Six named cases satisfy the own runtime floor; independent verdict follows the contract.
+ROUND_SELECTION_SHA=062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb
 ROUND_SELECTION_MODE=targeted
-NATIVE_SKIP=1
-CORE_TESTS=(knowledge_documents_api_tests)
-CORE_FILTER='(binary_id(=handshake_core::knowledge_documents_api_tests) & test(=mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge))'
-NATIVE_TESTS=()
-NATIVE_LIB=0
-NATIVE_FILTER=''
+ROUND_SELECTION_OUTPUT_SUFFIX=-mt111
+CORE_SKIP=1
+CORE_LIB=0
+CORE_TESTS=()
+CORE_FILTER=''
+NATIVE_SKIP=0
+NATIVE_TESTS=(test_flight_recorder_authz test_event_emitter test_manual_content)
+NATIVE_LIB=1
+NATIVE_FILTER='(binary_id(=handshake-native) & test(=event_emitter::tests::ingest_url_is_workspace_scoped_from_the_event)) | (binary_id(=handshake-native::test_flight_recorder_authz) & test(=mt111_flight_recorder_authorization_boundary_real_surrealdb)) | (binary_id(=handshake-native::test_event_emitter) & test(/^(post_body_matches_verified_native_editor_schema|ingest_url_is_workspace_scoped_and_credential_comes_from_the_on_disk_binding|event_emitter_native_editor_round_trip)$/)) | (binary_id(=handshake-native::test_manual_content) & test(=mt104_topics_exist_and_include_no_context_runtime_facts))'
 EXTRACTED_CRATES=()
