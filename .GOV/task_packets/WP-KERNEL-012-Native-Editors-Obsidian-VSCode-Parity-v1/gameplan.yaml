@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 480
+generation: 481
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -393,3 +393,4 @@ steps:
 - {id: GP-372, role: wp_validator, at: before_round, do: 'verify MT111 exact6 own cases, no CORE or extracted, paired truthful manual and canonical version change', check: {type: confirm}, source: MT111 sourceFAIL wrong broker denial; changed version startup consumer requires fresh own proof, state: active}
 - {id: GP-373, role: wp_validator, at: before_round, do: verify source metadata paths come from tracked file inventory rather than module-name inference, check: {type: confirm}, source: 'infra: knowledge_documents_api_tests.rs inferred under src/api but file is a tests target', state: active}
 - {id: GP-374, role: wp_validator, at: before_dispatch, do: verify release identity start preserves typed DateTime ticks without a string Parse roundtrip, check: {type: confirm}, source: 'infra: ConvertFrom-Json DateTime was stringified by Parse and lost subsecond ticks; no release created', state: active}
+- {id: GP-375, role: wp_validator, at: before_round, do: verify disposable export has no generated mex_shell outputs before source snapshot and preserve any found bytes, check: {type: confirm}, source: 'infra: strict062 metadata guard extra_before under data/mex_shell/ops; Cargo never started', state: active}

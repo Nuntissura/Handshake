@@ -1644,7 +1644,7 @@
   ],
   "latest_verdict_ref": "validation_source_20261008_1ad04e43",
   "running_record_mt111_20261008": {
-    "state": "RELEASED",
+    "state": "CLOSED_PRE_CARGO_PROOF_FAILURE",
     "executor": "WP_VALIDATOR-20261008-MT111-X64-ARMHOST",
     "candidate_commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
     "candidate_tree": "86eb930e9a6edc45c9b52bce0c7c74a2422c9208",
@@ -1707,8 +1707,62 @@
       "all_roles_before_round": "PASS109/109",
       "buddy_actual_release_review": "NO_BLOCKING_FINDING"
     },
-    "result": "PENDING_RUNTIME",
-    "scope_limit": "Fresh own MT111 six cases only; prior MT170 PASS and READY13 results retained; no other failed MT repair or whole-WP verdict"
+    "result": "INFRA_SOURCE_EXPORT_GUARD",
+    "scope_limit": "Fresh own MT111 six cases only; prior MT170 PASS and READY13 results retained; no other failed MT repair or whole-WP verdict",
+    "completed_at_utc": "2026-10-08T18:53:59.5563210Z",
+    "exit_code": 2,
+    "cargo_started": false,
+    "runtime_result": "NOT_RUN",
+    "failure": "182 untracked generated data/mex_shell/ops files inside disposable export; strict before/after comparison yields364extra findings; no exclusions or weak proof adopted",
+    "classified_tracked_paths": {
+      "unchanged": 7164,
+      "modified": 3,
+      "total": 7167
+    },
+    "closed_artifacts": [
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111.exit.json",
+        "bytes": 3158,
+        "sha256": "1101091c7cea006e2786c6e5090cca9808fa5ee72b57f8bc1f9a96ea4017d130"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111.stdout.log",
+        "bytes": 5506,
+        "sha256": "c4f452d2cdebbc722c1366c4880e9544542cfa6d97e4ef98b5c6e229780e2918"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111.identity.json",
+        "bytes": 4313,
+        "sha256": "4ad590741f69c1f2c2fbfd00a151054b0df7954e59c74d740642a591fae9495f"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-mt111.observations.jsonl",
+        "bytes": 15711,
+        "sha256": "9441ea88cd67d31bf36db4dcd123532cd639cc99f37ba72ece50d6959d97f03f"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/export-current-metadata-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-incremental-a82aade936ad4e3c90c708b1c1886e62-after.json",
+        "bytes": 2018272,
+        "sha256": "4438787f4020c5cfb4af233945a74db864ac23ea66adb30f0d56b7a270bd280b"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/export-current-metadata-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-incremental-a82aade936ad4e3c90c708b1c1886e62-before.json",
+        "bytes": 2018272,
+        "sha256": "37fe3dd4dd0e3ff6b81b9309d6093ce46ccf0088aa0b8ac87e29bf0525627bb9"
+      },
+      {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/export-current-metadata-062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb-incremental-a82aade936ad4e3c90c708b1c1886e62-compare.json",
+        "bytes": 635227,
+        "sha256": "7dba4fe31fcba483c4e0266a0aa065b20b2dca13f7602be43a6761d559eb69b5"
+      }
+    ],
+    "preparation_cause_step": "GP-375",
+    "next_action": "Buddy-reviewed minimum owned generated-output preservation/relocation and canonical identity recovery; same warm target/cache and own6 proof only"
   }
 },
   "validation_source_20261008_1ad04e43": {
