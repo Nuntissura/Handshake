@@ -1083,9 +1083,9 @@ is behind fail-closed capability middleware, so the shell also sends the x-hsk-s
 carrying the per-session native-MCP token read fresh from the on-disk binding \
 {local_app_data}/handshake/swarm_mcp_binding.json. A missing, malformed, or stale binding fails closed \
 with 401 HSK-401-FR-SESSION and the pane shows the typed failure at flight-recorder.load-failure; it \
-never renders an empty pane as if no events existed. An omitted or blank wsid escalates to the \
-fr.read.global capability, which is granted to NO profile and therefore always returns 403 \
-HSK-403-FR-CAPABILITY, so the shell refuses to issue an unscoped read and reports that no active \
+never renders an empty pane as if no events existed. With a valid session, an omitted or blank wsid \
+is denied by the exact-resource broker with 403 HSK-403-PROTECTED-RESOURCE, so the shell refuses \
+to issue an unscoped read and reports that no active \
 workspace is bound. While that one bounded request is active, flight-recorder.loading-status is the \
 readable JSON loading authority with its exact active_request_generation. A Refresh pressed while a GET is active remains queued and runs after that \
 delivery; it does not start an unbounded parallel fetch or leave a perpetual spinner. The workspace filter \
