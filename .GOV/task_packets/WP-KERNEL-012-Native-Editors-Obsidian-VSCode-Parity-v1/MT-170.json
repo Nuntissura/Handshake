@@ -30,7 +30,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-08T09:06:32.9125508Z",
+  "updated_at_utc": "2026-10-08T09:25:30.7190017Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -774,7 +774,7 @@
     "running_record_20261008": {
       "schema_id": "hsk.validation_running_record@1",
       "state": "running",
-      "phase": "prelaunch_resource_admission",
+      "phase": "prelaunch_admission_after_narrow_infrastructure_repairs",
       "executor": "WP_VALIDATOR-20261008-MT170-X64-ARMHOST",
       "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
       "candidate_tree": "02dcf0fd0f7c107104997c6a7dd0e78223ebd661",
@@ -784,22 +784,25 @@
       "command": "C:\\Users\\iljas\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe -NoProfile -NonInteractive -File C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1",
       "entrypoint": ".GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh",
       "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
-      "started_at_utc": "2026-10-08T09:04:37.7279468Z",
+      "started_at_utc": "2026-10-08T09:25:00.2529701Z",
       "expected_outputs": [
         "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.stdout.log",
         "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.stderr.log",
         "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.exit.json"
       ],
       "wrapper_identity": {
-        "start_utc": "2026-10-08T09:04:37.7279468Z",
         "command_line": "C:\\Users\\iljas\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe -NoProfile -NonInteractive -File C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1",
-        "pid": 36392
+        "pid": 29324,
+        "start_utc": "2026-10-08T09:25:00.2529701Z"
       },
       "frozen_input_sha256": {
-        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "663aa520cb2531deb209b19344e1619851e160f7544fe130f7757757ad680e6e",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "bf528dbeb69f3f5e00a1f6ebf30ca1b52b6ddd145f241b2a2237640d8d43493d",
         "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "f831d9212fe28b2aa2800721eba739a8d203b2f071bb26a8bab6831e5bff821a",
         "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.sh": "817e34a4eac6905afca5b6662911baa71c816aecd09641210430344f6d6892bc",
-        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c"
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-metadata.py": "cc32bd2680ded760ef6974a0ea3818a1a6fd5f330ff0ea768ac9f175b2b6b871",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-refresh.sh": "304f8fd40a1b02c71d77c9055c179818f2c835697365ab662df983286fb61d3b",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-verify.py": "0c6800b4906f8d59c6c2fc3ebfcba1dbca555c4079ad01e4277e36aaa695d174"
       },
       "scope": "Fresh MT170+existing document/backlink tests; original full PC04601 IC01-05 and PC04603 IC10-14; no whole-MT046/WP verdict",
       "historical_disposition_ref": "operator_acceptance_disposition_20261008",
@@ -825,6 +828,32 @@
         "classification": "INFRASTRUCTURE_BEFORE_CARGO",
         "cause": "Windows find.exe selected before Git Unix find because appended Git PATH came after System32",
         "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e"
+      },
+      {
+        "remediation": "Existing helper normalizes Windows root; preserves full file/path/time guard; native fullWP cap traversal replaces5m51 GNU traversal",
+        "id": "MT170-PRELAUNCH-02-LONG-PATH-METADATA",
+        "cause": "Native Python metadata lstat ordinary266char path WinError3; extended namespace reads same213byte tracked file",
+        "classification": "INFRASTRUCTURE_BEFORE_CARGO",
+        "cargo_executions": 0,
+        "canonical_exact_file_check": "Buddy inspected213byte gitarchive match and stat/relative metadata; no new product/source test claim",
+        "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e",
+        "evidence_prefix": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.attempt2",
+        "exit_code": 2,
+        "gameplan_steps": [
+          "GP-347",
+          "GP-348"
+        ],
+        "completed_at_utc": "2026-10-08T09:14:56.2500314Z",
+        "independent_recovery": {
+          "observed_files": 7167,
+          "comparison_log": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\metadata-wpv-recovery-d69dded2f42d4dbe9f0e26d9b96c579d-compare.json",
+          "after_log": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\metadata-wpv-recovery-d69dded2f42d4dbe9f0e26d9b96c579d-after.json",
+          "failures": 0,
+          "comparison_sha256": "05d313d1391fc70f48fcd410bf32c8107dbc907f7c083d0b7baa4f09a468b752",
+          "tracked_files": 7167,
+          "after_sha256": "a7718a9cb463dd0464868d1d25468e463ac73c951fb6940a44264e29868dde60",
+          "classification_count": 7167
+        }
       }
     ]
   },

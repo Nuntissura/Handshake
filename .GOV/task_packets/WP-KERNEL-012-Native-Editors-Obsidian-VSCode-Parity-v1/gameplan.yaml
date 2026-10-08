@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 437
+generation: 439
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -365,3 +365,5 @@ steps:
 - {id: GP-344, role: wp_validator, at: before_round, do: verify exact process start by typed DateTime equality and actual CIM command line, check: {type: confirm}, source: 'infra: CIM truncates100ns; JSON auto-DateTime needs typed equality; two prelaunch guards refused mutation', state: active}
 - {id: GP-345, role: wp_validator, at: before_round, do: verify MSVC x64 link first and Git Unix find and sort before Windows system tools, check: {type: confirm}, source: 'infra: first actual runner exited1 before Cargo because Windows find.exe handled Unix -type and -printf', state: active}
 - {id: GP-346, role: wp_validator, at: before_round, do: verify PowerShell named parameters include spaces and observer restart command resolves exact Sha argument, check: {type: confirm}, source: 'infra: missing spaces in Depth100 and Sha4eeb rejected metadata-write and passive observer before Cargo', state: active}
+- {id: GP-347, role: wp_validator, at: before_round, do: verify metadata helper uses Windows extended export root and retains exact7167 path and timestamp comparison, check: {type: confirm}, source: 'infra: ordinary266char lstat WinError3 with LongPathsEnabled0; independent extended-path stat and archive hash match', state: active}
+- {id: GP-348, role: wp_validator, at: before_round, do: verify native fullWP cap traversal raises errors and sums regular files; preserve160GB and diskfloor, check: {type: confirm}, source: 'infra: GNU complete capscan5m51; native observer2s; replace only cap function traversal with same scope', state: active}

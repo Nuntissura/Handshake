@@ -36,6 +36,10 @@ def excluded(rel):
 
 
 def observed_files(root):
+    if os.name == "nt":
+        root = os.path.abspath(root)
+        if not root.startswith("\\\\?\\"):
+            root = "\\\\?\\UNC\\" + root[2:] if root.startswith("\\\\") else "\\\\?\\" + root
     found = {}
     if not os.path.isdir(root):
         return found

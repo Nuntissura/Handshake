@@ -55,7 +55,25 @@ EXPORT_ROOT="$LANE"
 
 check_target_cap() {
   local bytes free_kib
-  bytes="$(find "$ARTIFACT_ROOT/WP-KERNEL-012" -type f -printf '%s\n' | awk '{sum += $1} END {printf "%.0f", sum}')"
+  bytes="$(python - "$ARTIFACT_ROOT/WP-KERNEL-012" <<'PY_CAP'
+import os, stat, sys
+root = os.path.abspath(sys.argv[1])
+if os.name == 'nt':
+    slash = chr(92)
+    prefix = slash * 2 + '?' + slash
+    if not root.startswith(prefix):
+        root = prefix + 'UNC' + slash + root[2:] if root.startswith(slash * 2) else prefix + root
+def fail(exc):
+    raise exc
+total = 0
+for directory, _, files in os.walk(root, followlinks=False, onerror=fail):
+    for name in files:
+        entry = os.lstat(os.path.join(directory, name))
+        if stat.S_ISREG(entry.st_mode):
+            total += entry.st_size
+print(total)
+PY_CAP
+)"
   free_kib="$(df -Pk "$TARGET" | awk 'NR == 2 {print $4}')"
   [[ "$bytes" =~ ^[0-9]+$ && "$free_kib" =~ ^[0-9]+$ ]] || {
     echo "[run-round] FATAL: cannot measure WP size or free space"; exit 2;
@@ -83,7 +101,7 @@ BACKEND_PROFILE_TOML="$(dirname "$(readlink -f "$0")")/WPV-backend-profile.toml"
 [ -f "$BACKEND_PROFILE_TOML" ] || { echo "[run-round] FATAL: backend profile config missing: $BACKEND_PROFILE_TOML"; exit 2; }
 BACKEND_PROFILE_CONFIG="$(cygpath -m "$BACKEND_PROFILE_TOML")"
 BACKEND_PROFILE_SHA256="$(sha256sum "$BACKEND_PROFILE_TOML" | cut -c1-64)"
-echo "[run-round] backend_build_profile=dev+dep-opt2 config=$BACKEND_PROFILE_CONFIG sha256=$BACKEND_PROFILE_SHA256 decision=WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001 jobs=2"
+echo "[run-round] backend_build_profile=dev+dep-opt2 config=$BACKEND_PROFILE_CONFIG sha256=$BACKEND_PROFILE_SHA256 decision=WP012-OPERATOR-DEBUG-BACKEND-DEP-OPT-APPROVED-20261001 jobs=1"
 # Test builds use the same config (Operator decision WP012-OPERATOR-MT167-OPTIMIZE-TEST-DB-20261001). Proof is read
 # from the verbose build log, not assumed: every allow-listed crate rustc compiled must carry -C opt-level=2 and
 # handshake_core must not; in the core build every allow-listed crate must be compiled at O2 or Fresh (fingerprint
@@ -396,7 +414,7 @@ done
 
 if [[ "$NATIVE_SKIP" != 1 ]]; then
 echo "[run-round] building backend binary for HSK_TEST_BACKEND_BIN"
-echo "[run-round] build_profile line=backend config_sha256=$BACKEND_PROFILE_SHA256 (dev + 8-crate opt-level 2, -j 2)"
+echo "[run-round] build_profile line=backend config_sha256=$BACKEND_PROFILE_SHA256 (dev + 8-crate opt-level 2, -j 1)"
 ( cd "$EXPORT/src/backend/handshake_core" && \
   cargo build --locked -j 1 --config "$BACKEND_PROFILE_CONFIG" --target-dir "$HSK_TEST_BACKEND_TARGET_ROOT" --bin handshake_core --features app-runtime,surreal-test-support,test-utils )
 check_target_cap
