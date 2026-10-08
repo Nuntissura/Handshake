@@ -2,7 +2,7 @@
 # Six named cases satisfy the own runtime floor; independent verdict follows the contract.
 ROUND_SELECTION_SHA=062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb
 ROUND_SELECTION_MODE=targeted
-ROUND_SELECTION_OUTPUT_SUFFIX=-mt111
+ROUND_SELECTION_OUTPUT_SUFFIX=-mt111-r2
 CORE_SKIP=1
 CORE_LIB=0
 CORE_TESTS=()

@@ -3,8 +3,8 @@
   "candidate": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
   "mode": "targeted",
   "selection_file": "WPV-round-selection-targeted.sh",
-  "output_suffix": "-mt111",
-  "runner_output_suffix": "-targeted-mt111",
+  "output_suffix": "-mt111-r2",
+  "runner_output_suffix": "-targeted-mt111-r2",
   "covers": [
     "MT-111"
   ],
