@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 435
+generation: 437
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -363,3 +363,5 @@ steps:
 - {id: GP-342, role: builder, at: before_round, do: verify source metadata paths from actual file inventory before reads, check: {type: confirm}, source: 'infra: guessed native and helper paths were absent; rg inventory resolves frontend and account_session_support', state: active}
 - {id: GP-343, role: wp_validator, at: before_round, do: verify commit admission reserve 12000000000 bytes for current session; j1 and fresh launch check, check: {type: confirm}, source: Operator Allow a 12 GB reserve for this session; GP198 historical20GB retained; no measured-safe claim, state: active}
 - {id: GP-344, role: wp_validator, at: before_round, do: verify exact process start by typed DateTime equality and actual CIM command line, check: {type: confirm}, source: 'infra: CIM truncates100ns; JSON auto-DateTime needs typed equality; two prelaunch guards refused mutation', state: active}
+- {id: GP-345, role: wp_validator, at: before_round, do: verify MSVC x64 link first and Git Unix find and sort before Windows system tools, check: {type: confirm}, source: 'infra: first actual runner exited1 before Cargo because Windows find.exe handled Unix -type and -printf', state: active}
+- {id: GP-346, role: wp_validator, at: before_round, do: verify PowerShell named parameters include spaces and observer restart command resolves exact Sha argument, check: {type: confirm}, source: 'infra: missing spaces in Depth100 and Sha4eeb rejected metadata-write and passive observer before Cargo', state: active}

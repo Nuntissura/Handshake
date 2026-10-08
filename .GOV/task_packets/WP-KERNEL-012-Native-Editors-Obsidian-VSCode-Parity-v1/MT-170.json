@@ -30,7 +30,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-170",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-08T09:01:37.2201082Z",
+  "updated_at_utc": "2026-10-08T09:06:32.9125508Z",
   "identity": {
     "mt_id": "MT-170",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -784,20 +784,20 @@
       "command": "C:\\Users\\iljas\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe -NoProfile -NonInteractive -File C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1",
       "entrypoint": ".GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh",
       "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
-      "started_at_utc": "2026-10-08T09:01:06.454386Z",
+      "started_at_utc": "2026-10-08T09:04:37.7279468Z",
       "expected_outputs": [
         "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.stdout.log",
         "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.stderr.log",
         "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.exit.json"
       ],
       "wrapper_identity": {
+        "start_utc": "2026-10-08T09:04:37.7279468Z",
         "command_line": "C:\\Users\\iljas\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe -NoProfile -NonInteractive -File C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch.ps1",
-        "pid": 30132,
-        "start_utc": "2026-10-08T09:01:06.454386Z"
+        "pid": 36392
       },
       "frozen_input_sha256": {
         "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "663aa520cb2531deb209b19344e1619851e160f7544fe130f7757757ad680e6e",
-        "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "c00168d5514be6e1d7bdd3db2dab3dfe5a56dc126b5998f33fd8ca15af599be9",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "f831d9212fe28b2aa2800721eba739a8d203b2f071bb26a8bab6831e5bff821a",
         "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.sh": "817e34a4eac6905afca5b6662911baa71c816aecd09641210430344f6d6892bc",
         "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c"
       },
@@ -811,7 +811,22 @@
         "free_commit_bytes": 13067288576,
         "reserve_bytes": 12000000000
       }
-    }
+    },
+    "infrastructure_attempts_20261008": [
+      {
+        "remediation": "MSVC HostARM64/x64 first;Git usr/bin before rest Windows PATH;actual Bash link/cl/find/sort and x64Rust verified",
+        "evidence_prefix": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e.attempt1",
+        "started_at_utc": "2026-10-08T09:02:14.1651822Z",
+        "id": "MT170-PRELAUNCH-01-FIND-COLLISION",
+        "completed_at_utc": "2026-10-08T09:02:19.1398268Z",
+        "gameplan_step": "GP-345",
+        "cargo_executions": 0,
+        "exit_code": 1,
+        "classification": "INFRASTRUCTURE_BEFORE_CARGO",
+        "cause": "Windows find.exe selected before Git Unix find because appended Git PATH came after System32",
+        "candidate_commit": "4eeb3531d439daccc68d2e8bcf3d4b6b2a02a20e"
+      }
+    ]
   },
   "schema_info_measurement_20261006": {
     "candidate_commit": "c1f8d7cdf272bd34a8168979574f05ecfad7353e",
