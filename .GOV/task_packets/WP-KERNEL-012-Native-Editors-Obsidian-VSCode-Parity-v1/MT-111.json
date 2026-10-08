@@ -2800,5 +2800,37 @@
       "reason": "Existing MT111 lifecycle.remediation_v4.disclosed_gaps explicitly assigns Palmistry compatibility to MT115/WP016; this manual-only repair changes no watcher wiring"
     }
   }
+},
+  "remediation_documentary_census_20261008": {
+  "recorded_failure_ref": "validation_runtime_20261008_062bf554_mt111",
+  "recorded_source_artifact": "validation.running_record_mt111_20261008.source_census_artifact",
+  "status": "DOC_PREPARATION_AUTHORIZED_VERSION_PENDING",
+  "owner": "KERNEL_BUILDER-20261008-MT111-MANUAL",
+  "authorized_preparation": "ORCHESTRATOR directs only seven documentary wording replacements under HBR-STOP-005; no executable routing, authz, config or seed-content changes",
+  "allowed_native_paths": [
+    "src/frontend/handshake_native/src/event_emitter.rs",
+    "src/frontend/handshake_native/src/manual_content_editors.rs"
+  ],
+  "ancillary_nonforbidden_paths": [
+    "src/frontend/palmistry/Cargo.toml",
+    "src/frontend/palmistry/src/fr_forward.rs",
+    "src/frontend/palmistry/tests/test_fr_forward.rs"
+  ],
+  "necessity": "Literal AC1111/PT1112 grep floor fails solely on seven documentary removed-path strings; these exact five files contain all seven hits",
+  "scope_observation": "Three Palmistry files outside MT111 allowed_paths; documentation only. HBR-STOP-005 requires full end disclosure/waiver; WP Validator protocol substantial-scope (>2) concern remains pending Operator disposition",
+  "operator_waiver_status": "PENDING; no waiver/grant inferred",
+  "version_decision_request": {
+    "status": "PENDING_OPERATOR",
+    "required_change": "src/backend/handshake_core/src/user_manual/mod.rs USER_MANUAL_VERSION2.0.6->2.0.7 only",
+    "basis": [
+      "HBR-MAN-001",
+      "Master Spec10.15.7"
+    ],
+    "conflict": "backend/** explicitly forbidden; prior Operator exact grant only2.0.5->2.0.6",
+    "grant": false,
+    "operator_answer": null
+  },
+  "preservation": "Closed062 six GREEN and all old source/history/provenance remain intact; no next-candidate runtime claim",
+  "next_actor": "KERNEL_BUILDER prepares five documentary paths and independent buddy review; hold backendversion line and expensive tests until exact disposition"
 }
 }
