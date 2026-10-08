@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 484
+generation: 486
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -397,3 +397,5 @@ steps:
 - {id: GP-376, role: wp_validator, at: before_dispatch, do: verify full generated-output inventory count and namespaces before classifying sampled source-guard output, check: {type: confirm}, source: 'infra: truncated extra-file stdout named only24mex_shell;158micro_task_executor files also exist', state: active}
 - {id: GP-377, role: wp_validator, at: before_round, do: verify profile output suffix via actual root ROUND_OUTPUT_SUFFIX field rather than env mapping, check: {type: confirm}, source: 'infra: cheap r2 assertion queried profile env suffix after writes; actual suffix is a root field', state: active}
 - {id: GP-378, role: wp_validator, at: before_round, do: verify MT contract and round artifact names from actual file inventory before metadata reads, check: {type: confirm}, source: 'infra: resume guessed microtasks MT path and release.json extension; actual contract at WP root and release no extension', state: active}
+- {id: GP-379, role: wp_validator, at: before_round, do: verify frontend retired-path literal occurrences equal zero before MT111 proof, check: {type: cmd, argv: [git, -C, ../wtc-WP-KERNEL-012, grep, -n, -F, -e, /api/flight_recorder/native_editor_event, -e, /api/flight_recorder/runtime_chat_event, --, src/frontend], expect_exit: 1, timeout_seconds: 10}, source: 'fail:062 six GREEN followed by PT1112 seven documentary hits; executable-only census did not satisfy literal floor', state: active}
+- {id: GP-380, role: wp_validator, at: before_dispatch, do: verify multi-ID confirmation note length <=120 before controller call, check: {type: confirm}, source: 'infra: r3 first grouped confirmation note exceeded120; later groups succeeded; no Cargo started', state: active}
