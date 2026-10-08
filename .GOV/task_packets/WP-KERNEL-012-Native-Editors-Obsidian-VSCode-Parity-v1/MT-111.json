@@ -218,8 +218,8 @@
     "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
   },
   "validated_by": "WP_VALIDATOR-20261008-MT111-X64-ARMHOST",
-  "validated_at_utc": "2026-10-08T19:28:25.644965Z",
-  "validated_commit": "062bf5542c743ea9a1dc33d1ac8fa0d7b7576acb",
+  "validated_at_utc": "2026-10-08T20:14:11.929383+00:00",
+  "validated_commit": "6fc38af7ceb822ae87e425d510d44c1d509b40e5",
   "next_actor": "ORCHESTRATOR: MT111 PASS_V4; other READY13 outcomes unchanged",
   "ready_for_validation_transition_2": {
     "at_utc": "2026-09-23T23:43:15.504Z",
