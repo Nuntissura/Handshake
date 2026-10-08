@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 439
+generation: 442
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -367,3 +367,6 @@ steps:
 - {id: GP-346, role: wp_validator, at: before_round, do: verify PowerShell named parameters include spaces and observer restart command resolves exact Sha argument, check: {type: confirm}, source: 'infra: missing spaces in Depth100 and Sha4eeb rejected metadata-write and passive observer before Cargo', state: active}
 - {id: GP-347, role: wp_validator, at: before_round, do: verify metadata helper uses Windows extended export root and retains exact7167 path and timestamp comparison, check: {type: confirm}, source: 'infra: ordinary266char lstat WinError3 with LongPathsEnabled0; independent extended-path stat and archive hash match', state: active}
 - {id: GP-348, role: wp_validator, at: before_round, do: verify native fullWP cap traversal raises errors and sums regular files; preserve160GB and diskfloor, check: {type: confirm}, source: 'infra: GNU complete capscan5m51; native observer2s; replace only cap function traversal with same scope', state: active}
+- {id: GP-349, role: wp_validator, at: before_round, do: verify failing RocksDB source and header compiler paths fit Windows limit before warm resume, check: {type: confirm}, source: 'infra: first cold core failed101; intact cachedRocksDB260-264char paths raise C1083 in MSVC', state: active}
+- {id: GP-350, role: wp_validator, at: before_round, do: verify Cargo metadata uses x64 platform filter when offline cache omits Android dependency, check: {type: confirm}, source: 'infra: offline metadata requested uncached Android dependency; x64 filter exits0 without fetch or compile', state: active}
+- {id: GP-351, role: wp_validator, at: before_round, do: verify Start-Process quoted script path is one parenthesized argument string, check: {type: confirm}, source: 'infra: unparenthesized quoted-path concatenation in ArgumentList array inserted spaces and script lookup failed', state: active}
