@@ -883,7 +883,7 @@
         ],
         "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
         "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
-        "command": "Own required acceptance CORE cases within frozen current READY13 union; locked no-fail-fast serial real embedded Surreal runtime",
+        "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 1ad04e431fa1c8a6b71533122bdfd532111a0557",
         "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
         "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
         "exit_code": 100,
@@ -1243,7 +1243,11 @@
             ]
           }
         ],
-        "scope_limit": "Own mapped cases passed; no current own product defect inferred from unrelated shared failures; no whole-floor PASS"
+        "scope_limit": "Own mapped cases passed; no current own product defect inferred from unrelated shared failures; no whole-floor PASS",
+        "phase": "CORE",
+        "started_at_utc": "2026-10-08T17:07:51.147Z",
+        "completed_at_utc": "2026-10-08T17:27:02.447Z",
+        "shared_closed_round_ref": "MT-168.json#validation.running_record_ready13_20261008"
       }
     ],
     "latest_verdict_ref": "validation_runtime_20261008_1ad04e43_core"

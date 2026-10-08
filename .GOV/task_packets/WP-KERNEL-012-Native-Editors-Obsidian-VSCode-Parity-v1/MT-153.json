@@ -2394,6 +2394,64 @@
           ]
         },
         "scope_limit": "Closed CORE JUnit only; NATIVE/current union still running; no live final-stream hash, no inferred failure cause, no whole-WP verdict"
+      },
+      {
+        "id": "PR-WP012-MT153-WPV-20261008-1AD-READY13-NATIVE",
+        "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+        "covers": [
+          "MT-153"
+        ],
+        "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+        "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "phase": "NATIVE",
+        "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
+        "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+        "started_at_utc": "2026-10-08T17:27:29.898Z",
+        "completed_at_utc": "2026-10-08T18:00:00.899Z",
+        "exit_code": 100,
+        "result": "PASS_MAPPED_RUNTIME",
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-native-ready13.xml",
+          "bytes": 443115,
+          "sha256": "953f87ccc1c8b3bcefdc96c48be4d02670ac4b50bcb3657db3d75db5aba5e193"
+        },
+        "frozen_input_ref": "MT-168.json#validation.running_record_ready13_20261008.frozen_input_sha256",
+        "junit": {
+          "run_id": "ab9cbe58-79a5-421e-b8a4-14a2ced439b9",
+          "shared_executed": 2315,
+          "shared_passed": 2312,
+          "shared_failed": 2,
+          "shared_timeouts": 1,
+          "shared_errors": 0,
+          "shared_selected_skipped": 0,
+          "runner_filtered": 302
+        },
+        "features_config": "integration,integration_tests,wgpu_screenshots; GPU1; locked; one job; serial isolated owned live backend; scoped credentials cleanup",
+        "checks": [
+          {
+            "check_id": "MT-153-NATIVE-LOOM",
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 2,
+            "cases": [
+              {
+                "target": "handshake-native::test_block_collection_view",
+                "name": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+                "seconds": 55.937,
+                "started_at": "2026-10-08T19:32:50.810+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_canvas_board",
+                "name": "canvas_board_live_surrealdb_self_seeds_mounted_round_trip",
+                "seconds": 23.877,
+                "started_at": "2026-10-08T19:34:54.747+02:00",
+                "result": "PASS"
+              }
+            ]
+          }
+        ],
+        "scope_limit": "Own contract mapping only; wrapper exit0 is closure, native runner100 is retained; no whole-WP PASS or inferred underlying failure cause"
       }
     ],
     "latest_verdict_ref": "validation_runtime_20261008_1ad04e43_core"
@@ -9101,5 +9159,46 @@
         "state_effect": "One READY_FOR_VALIDATION -> FAIL_V16 transition from closed independent CORE JUnit"
       }
     ]
+  },
+  "validation_runtime_20261008_1ad04e43_native": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V16",
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T18:15:20.700312Z",
+    "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+    "proof_record_ids": [
+      "PR-WP012-MT153-WPV-20261008-1AD-READY13-NATIVE"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-153-NATIVE-LOOM",
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 2,
+        "cases": [
+          {
+            "target": "handshake-native::test_block_collection_view",
+            "name": "block_collection_views_live_surrealdb_self_seed_full_round_trip",
+            "seconds": 55.937,
+            "started_at": "2026-10-08T19:32:50.810+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_canvas_board",
+            "name": "canvas_board_live_surrealdb_self_seeds_mounted_round_trip",
+            "seconds": 23.877,
+            "started_at": "2026-10-08T19:34:54.747+02:00",
+            "result": "PASS"
+          }
+        ]
+      }
+    ],
+    "runtime_state": "CLOSED",
+    "shared_round_ref": "MT-168.json#validation.running_record_ready13_20261008",
+    "state_effect": "Supplement retained independently recorded FAIL; no second lifecycle transition or failed-round counter",
+    "verdict_events": [],
+    "retained_failure_ref": "validation_runtime_20261008_1ad04e43_core",
+    "unclosed_proof": "Required exact-predecessor pin FAIL retained; any own static/build/clippy floor not independently proved remains uncredited"
   }
 }

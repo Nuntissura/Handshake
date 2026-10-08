@@ -1911,5 +1911,405 @@
         "state_effect": "unchanged: READY_FOR_VALIDATION; submission retained"
       }
     ]
+  },
+  "validation": {
+    "proof_records": [
+      {
+        "id": "PR-WP012-MT122-WPV-20261008-1AD-READY13-NATIVE",
+        "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+        "covers": [
+          "MT-122"
+        ],
+        "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+        "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "phase": "NATIVE",
+        "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
+        "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+        "started_at_utc": "2026-10-08T17:27:29.898Z",
+        "completed_at_utc": "2026-10-08T18:00:00.899Z",
+        "exit_code": 100,
+        "result": "INCONCLUSIVE_MAPPED_RUNTIME",
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-native-ready13.xml",
+          "bytes": 443115,
+          "sha256": "953f87ccc1c8b3bcefdc96c48be4d02670ac4b50bcb3657db3d75db5aba5e193"
+        },
+        "frozen_input_ref": "MT-168.json#validation.running_record_ready13_20261008.frozen_input_sha256",
+        "junit": {
+          "run_id": "ab9cbe58-79a5-421e-b8a4-14a2ced439b9",
+          "shared_executed": 2315,
+          "shared_passed": 2312,
+          "shared_failed": 2,
+          "shared_timeouts": 1,
+          "shared_errors": 0,
+          "shared_selected_skipped": 0,
+          "runner_filtered": 302
+        },
+        "features_config": "integration,integration_tests,wgpu_screenshots; GPU1; locked; one job; serial isolated owned live backend; scoped credentials cleanup",
+        "checks": [
+          {
+            "check_id": "PC-122-01",
+            "acceptance_refs": [
+              "AC-122-0",
+              "AC-122-1",
+              "AC-122-4",
+              "AC-122-5"
+            ],
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 1,
+            "passed": 1,
+            "failed": 0,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native",
+                "name": "find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane",
+                "seconds": 0.107,
+                "started_at": "2026-10-08T19:29:13.573+02:00",
+                "result": "PASS"
+              }
+            ]
+          },
+          {
+            "check_id": "PC-122-02",
+            "acceptance_refs": [
+              "AC-122-0"
+            ],
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 1,
+            "passed": 1,
+            "failed": 0,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native",
+                "name": "find_in_files::tests::mt119_saved_search_controls_stay_inside_the_find_pane",
+                "seconds": 0.109,
+                "started_at": "2026-10-08T19:29:13.463+02:00",
+                "result": "PASS"
+              }
+            ]
+          },
+          {
+            "check_id": "PC-122-03",
+            "acceptance_refs": [
+              "AC-122-1",
+              "AC-122-3"
+            ],
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 2,
+            "passed": 2,
+            "failed": 0,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "find_in_files_screenshot",
+                "seconds": 1.237,
+                "started_at": "2026-10-08T19:36:40.390+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "find_in_files_screenshot_long_title_narrow_pane_mt122",
+                "seconds": 0.645,
+                "started_at": "2026-10-08T19:36:41.628+02:00",
+                "result": "PASS"
+              }
+            ]
+          },
+          {
+            "check_id": "PC-122-04",
+            "acceptance_refs": [
+              "AC-122-3"
+            ],
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 3,
+            "passed": 3,
+            "failed": 0,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native",
+                "name": "find_in_files::tests::mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize",
+                "seconds": 0.317,
+                "started_at": "2026-10-08T19:29:13.145+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native",
+                "name": "find_in_files::tests::mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity",
+                "seconds": 0.095,
+                "started_at": "2026-10-08T19:29:12.423+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native",
+                "name": "find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token",
+                "seconds": 0.144,
+                "started_at": "2026-10-08T19:29:12.816+02:00",
+                "result": "PASS"
+              }
+            ]
+          },
+          {
+            "check_id": "PC-122-05",
+            "acceptance_refs": [
+              "AC-122-3"
+            ],
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 1,
+            "passed": 1,
+            "failed": 0,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native::test_author_id_budget",
+                "name": "mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+                "seconds": 20.074,
+                "started_at": "2026-10-08T19:32:30.734+02:00",
+                "result": "PASS"
+              }
+            ]
+          }
+        ],
+        "scope_limit": "Own contract mapping only; wrapper exit0 is closure, native runner100 is retained; no whole-WP PASS or inferred underlying failure cause",
+        "visual_inspection": [
+          {
+            "artifact": {
+              "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-122/MT-122-find-in-files-long-title-420px.png",
+              "bytes": 59974,
+              "sha256": "7203bacadb6638eb612e6502ee9bf86da41b01c960a6f5198fafe6ed858d5f04"
+            },
+            "inspected_by": [
+              "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+              "mt170_buddy",
+              "root"
+            ],
+            "observed": "420x640 long-title ellipsis precedes fully visible [loom_block] badge; readable distinct rows/excerpt, controls wrap within pane",
+            "supports": [
+              "PT-122-1",
+              "AC-122-1 material containment"
+            ],
+            "limits": "No tooltip/full-title recovery/click identity/reverted RED inferred"
+          },
+          {
+            "artifact": {
+              "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-029/MT-029-find-in-files.png",
+              "bytes": 57953,
+              "sha256": "c99af234599a74b8be81c24c5d206ed821015b2b0e867834f74ee8f126fa041d"
+            },
+            "inspected_by": [
+              "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+              "mt170_buddy",
+              "root"
+            ],
+            "observed": "Current AFTER900x760 frame; three separated rows/badges/excerpts and wider controls",
+            "limits": "Current AFTER frame is not historical pre-fix or accepted older baseline proof"
+          }
+        ]
+      }
+    ]
+  },
+  "validation_runtime_20261008_1ad04e43_native": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "verdict": null,
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T18:15:20.700312Z",
+    "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+    "proof_record_ids": [
+      "PR-WP012-MT122-WPV-20261008-1AD-READY13-NATIVE"
+    ],
+    "checks": [
+      {
+        "check_id": "PC-122-01",
+        "acceptance_refs": [
+          "AC-122-0",
+          "AC-122-1",
+          "AC-122-4",
+          "AC-122-5"
+        ],
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native",
+            "name": "find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane",
+            "seconds": 0.107,
+            "started_at": "2026-10-08T19:29:13.573+02:00",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "check_id": "PC-122-02",
+        "acceptance_refs": [
+          "AC-122-0"
+        ],
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native",
+            "name": "find_in_files::tests::mt119_saved_search_controls_stay_inside_the_find_pane",
+            "seconds": 0.109,
+            "started_at": "2026-10-08T19:29:13.463+02:00",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "check_id": "PC-122-03",
+        "acceptance_refs": [
+          "AC-122-1",
+          "AC-122-3"
+        ],
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 2,
+        "passed": 2,
+        "failed": 0,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "find_in_files_screenshot",
+            "seconds": 1.237,
+            "started_at": "2026-10-08T19:36:40.390+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "find_in_files_screenshot_long_title_narrow_pane_mt122",
+            "seconds": 0.645,
+            "started_at": "2026-10-08T19:36:41.628+02:00",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "check_id": "PC-122-04",
+        "acceptance_refs": [
+          "AC-122-3"
+        ],
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 3,
+        "passed": 3,
+        "failed": 0,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native",
+            "name": "find_in_files::tests::mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize",
+            "seconds": 0.317,
+            "started_at": "2026-10-08T19:29:13.145+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native",
+            "name": "find_in_files::tests::mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity",
+            "seconds": 0.095,
+            "started_at": "2026-10-08T19:29:12.423+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native",
+            "name": "find_in_files::tests::mt113_long_query_bookmark_remove_publishes_an_observable_completion_token",
+            "seconds": 0.144,
+            "started_at": "2026-10-08T19:29:12.816+02:00",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "check_id": "PC-122-05",
+        "acceptance_refs": [
+          "AC-122-3"
+        ],
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native::test_author_id_budget",
+            "name": "mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+            "seconds": 20.074,
+            "started_at": "2026-10-08T19:32:30.734+02:00",
+            "result": "PASS"
+          }
+        ]
+      }
+    ],
+    "unclosed_proof": [
+      "Required pre-fix/reverted RED and old accepted baseline comparison remain uncredited",
+      "Current narrow420x640 pixels support containment only; full-title recovery/tooltip and single-click exact identity require their own proof",
+      "Whole Find roundtrip timeout is outside PC12203 screenshot-only scope and is not classified as MT122 failure"
+    ],
+    "runtime_state": "CLOSED",
+    "shared_round_ref": "MT-168.json#validation.running_record_ready13_20261008",
+    "gameplan": {
+      "before_verdict": "PASS12/12",
+      "closed_artifacts_only": true
+    },
+    "scope_limit": "Independent own-MT disposition only; only MT111 selected for repair; no broad prerequisite failure propagation",
+    "visual_inspection": [
+      {
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-122/MT-122-find-in-files-long-title-420px.png",
+          "bytes": 59974,
+          "sha256": "7203bacadb6638eb612e6502ee9bf86da41b01c960a6f5198fafe6ed858d5f04"
+        },
+        "inspected_by": [
+          "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+          "mt170_buddy",
+          "root"
+        ],
+        "observed": "420x640 long-title ellipsis precedes fully visible [loom_block] badge; readable distinct rows/excerpt, controls wrap within pane",
+        "supports": [
+          "PT-122-1",
+          "AC-122-1 material containment"
+        ],
+        "limits": "No tooltip/full-title recovery/click identity/reverted RED inferred"
+      },
+      {
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-029/MT-029-find-in-files.png",
+          "bytes": 57953,
+          "sha256": "c99af234599a74b8be81c24c5d206ed821015b2b0e867834f74ee8f126fa041d"
+        },
+        "inspected_by": [
+          "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+          "mt170_buddy",
+          "root"
+        ],
+        "observed": "Current AFTER900x760 frame; three separated rows/badges/excerpts and wider controls",
+        "limits": "Current AFTER frame is not historical pre-fix or accepted older baseline proof"
+      }
+    ],
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT122-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-READY13-NATIVE-INCONCLUSIVE-20261008",
+        "at_utc": "2026-10-08T18:15:20.700312Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT122-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-READY13-NATIVE-INCONCLUSIVE-20261008",
+        "at_utc": "2026-10-08T18:15:20.700312Z",
+        "decision": "inconclusive",
+        "state_effect": "Lifecycle READY_FOR_VALIDATION unchanged; own acceptance floor unclosed"
+      }
+    ]
   }
 }

@@ -302,6 +302,521 @@
           ]
         },
         "scope_limit": "Closed CORE JUnit only; NATIVE/current union still running; no live final-stream hash, no inferred failure cause, no whole-WP verdict"
+      },
+      {
+        "id": "PR-WP012-MT154-WPV-20261008-1AD-READY13-NATIVE",
+        "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+        "covers": [
+          "MT-154"
+        ],
+        "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+        "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "phase": "NATIVE",
+        "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
+        "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+        "started_at_utc": "2026-10-08T17:27:29.898Z",
+        "completed_at_utc": "2026-10-08T18:00:00.899Z",
+        "exit_code": 100,
+        "result": "PASS_MAPPED_RUNTIME",
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-native-ready13.xml",
+          "bytes": 443115,
+          "sha256": "953f87ccc1c8b3bcefdc96c48be4d02670ac4b50bcb3657db3d75db5aba5e193"
+        },
+        "frozen_input_ref": "MT-168.json#validation.running_record_ready13_20261008.frozen_input_sha256",
+        "junit": {
+          "run_id": "ab9cbe58-79a5-421e-b8a4-14a2ced439b9",
+          "shared_executed": 2315,
+          "shared_passed": 2312,
+          "shared_failed": 2,
+          "shared_timeouts": 1,
+          "shared_errors": 0,
+          "shared_selected_skipped": 0,
+          "runner_filtered": 302
+        },
+        "features_config": "integration,integration_tests,wgpu_screenshots; GPU1; locked; one job; serial isolated owned live backend; scoped credentials cleanup",
+        "checks": [
+          {
+            "check_id": "MT-154-NATIVE-DRAIN",
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 64,
+            "suite_counts": [
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "executed": 45,
+                "passed": 45,
+                "failed": 0,
+                "timeouts": 0
+              },
+              {
+                "target": "handshake-native::test_context_menu",
+                "executed": 11,
+                "passed": 11,
+                "failed": 0,
+                "timeouts": 0
+              },
+              {
+                "target": "handshake-native::test_editor_body_context_menu",
+                "executed": 8,
+                "passed": 8,
+                "failed": 0,
+                "timeouts": 0
+              }
+            ],
+            "cases": [
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "app_host_language_rebind_and_drop_reap_every_real_lsp_process",
+                "seconds": 2.561,
+                "started_at": "2026-10-08T19:31:19.821+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "canned_app_host_lsp_server_main",
+                "seconds": 0.107,
+                "started_at": "2026-10-08T19:31:22.383+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "closing_base_code_tab_sends_didclose_without_reopening_or_saving_it",
+                "seconds": 1.122,
+                "started_at": "2026-10-08T19:31:22.491+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "code_pane_create_note_from_link_routes_through_host_drain",
+                "seconds": 0.584,
+                "started_at": "2026-10-08T19:31:23.614+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "code_pane_undo_dispatches_through_bus",
+                "seconds": 0.634,
+                "started_at": "2026-10-08T19:31:24.199+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "code_ref_stage_two_correlation_is_pane_source_scoped_under_interleaving",
+                "seconds": 1.001,
+                "started_at": "2026-10-08T19:31:24.834+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "dirty_save_close_survives_reorder_and_close_all_resumes_after_discard",
+                "seconds": 0.954,
+                "started_at": "2026-10-08T19:31:25.835+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "duplicate_code_panes_open_navigation_target_only_in_the_exact_origin_pane",
+                "seconds": 0.836,
+                "started_at": "2026-10-08T19:31:26.789+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "editor_action_nodes_present_in_live_shell_tree",
+                "seconds": 0.504,
+                "started_at": "2026-10-08T19:31:27.626+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "editor_mounts_thread_session_context",
+                "seconds": 0.492,
+                "started_at": "2026-10-08T19:31:28.132+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "editors_render_live_in_app_tree_and_screenshot",
+                "seconds": 1.889,
+                "started_at": "2026-10-08T19:31:28.625+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "hidden_rich_tab_create_failure_surfaces_typed_status_once",
+                "seconds": 0.496,
+                "started_at": "2026-10-08T19:31:30.515+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "hidden_rich_tab_reused_existing_is_drained_and_truthfully_opened_by_shell_once",
+                "seconds": 0.488,
+                "started_at": "2026-10-08T19:31:31.012+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "host_save_command_carries_requesting_document_identity",
+                "seconds": 0.916,
+                "started_at": "2026-10-08T19:31:31.500+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "lsp_attach_state_is_typed_after_production_constructor",
+                "seconds": 0.77,
+                "started_at": "2026-10-08T19:31:32.416+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "lsp_attach_state_is_typed_after_runtime_bind",
+                "seconds": 0.193,
+                "started_at": "2026-10-08T19:31:33.187+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "lsp_attach_state_is_visible_in_live_status_tree",
+                "seconds": 0.494,
+                "started_at": "2026-10-08T19:31:33.381+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "lsp_attachment_rebinds_when_resolved_language_changes",
+                "seconds": 0.479,
+                "started_at": "2026-10-08T19:31:33.876+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "lsp_file_backed_document_sync_sends_didopen_didchange_notifications",
+                "seconds": 0.527,
+                "started_at": "2026-10-08T19:31:34.356+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "lsp_file_backed_document_sync_watermark_advances_on_open_and_change",
+                "seconds": 6.498,
+                "started_at": "2026-10-08T19:31:34.885+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "lsp_sync_pumps_inactive_mounted_document_in_a_different_language",
+                "seconds": 0.83,
+                "started_at": "2026-10-08T19:31:41.383+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "managed_surrealdb_code_create_note_opens_exact_durable_rich_document",
+                "seconds": 16.939,
+                "started_at": "2026-10-08T19:31:42.214+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mounted_host_ignores_stale_code_document_completion",
+                "seconds": 0.584,
+                "started_at": "2026-10-08T19:31:59.154+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mounted_host_marks_preframe_file_edit_dirty_and_cancel_or_discard_targets_exact_document",
+                "seconds": 0.845,
+                "started_at": "2026-10-08T19:31:59.738+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mounted_host_opens_cross_file_target_without_replacing_source_document",
+                "seconds": 0.782,
+                "started_at": "2026-10-08T19:32:00.585+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mounted_host_resolves_drive_less_percent_encoded_unicode_file_uri",
+                "seconds": 0.847,
+                "started_at": "2026-10-08T19:32:01.367+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mounted_host_save_failure_is_visible_and_keeps_document_dirty",
+                "seconds": 0.815,
+                "started_at": "2026-10-08T19:32:02.215+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mounted_host_serializes_rapid_saves_and_clears_dirty_only_at_latest_version",
+                "seconds": 0.826,
+                "started_at": "2026-10-08T19:32:03.031+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mounted_host_surfaces_cross_file_load_error_without_mutating_source",
+                "seconds": 0.845,
+                "started_at": "2026-10-08T19:32:03.858+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mounted_tag_event_resolves_canonical_name_to_real_hub_id",
+                "seconds": 0.502,
+                "started_at": "2026-10-08T19:32:04.705+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mt079_code_pane_command_bus_canonical_argus",
+                "seconds": 1.721,
+                "started_at": "2026-10-08T19:32:05.209+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus",
+                "seconds": 3.995,
+                "started_at": "2026-10-08T19:32:06.931+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mt079_mounted_editor_panes_canonical_argus_lifecycle",
+                "seconds": 4.141,
+                "started_at": "2026-10-08T19:32:10.926+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mt079_rich_pending_events_canonical_argus",
+                "seconds": 1.471,
+                "started_at": "2026-10-08T19:32:15.069+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mt125_sourceless_code_targets_use_chosen_workspace_root_never_process_cwd",
+                "seconds": 0.094,
+                "started_at": "2026-10-08T19:32:16.540+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "popout_scoped_command_drain_retains_interleaved_docked_command",
+                "seconds": 0.571,
+                "started_at": "2026-10-08T19:32:16.634+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "reading_mode_toggle_reachable_and_flips_in_mounted_editor",
+                "seconds": 0.521,
+                "started_at": "2026-10-08T19:32:17.206+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "relative_navigation_is_source_anchored_and_late_completion_cannot_refocus_after_round_trip",
+                "seconds": 0.837,
+                "started_at": "2026-10-08T19:32:17.729+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "rich_pending_events_drain_and_route",
+                "seconds": 0.494,
+                "started_at": "2026-10-08T19:32:18.566+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "rich_pending_events_drain_while_document_is_loading",
+                "seconds": 0.485,
+                "started_at": "2026-10-08T19:32:19.061+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "runtime_less_shell_keeps_lsp_not_probed_and_emits_no_status",
+                "seconds": 0.454,
+                "started_at": "2026-10-08T19:32:19.548+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "same_panel_a_b_a_text_cycle_keeps_a_monotonic_save_identity",
+                "seconds": 0.195,
+                "started_at": "2026-10-08T19:32:20.003+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "shell_navigator_opens_mounted_editor_panes",
+                "seconds": 0.187,
+                "started_at": "2026-10-08T19:32:20.199+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "stale_save_completion_cannot_mark_or_close_reopened_document_incarnation",
+                "seconds": 0.914,
+                "started_at": "2026-10-08T19:32:20.388+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "windows_file_uri_resolution_handles_drive_localhost_unc_and_unicode",
+                "seconds": 2.808,
+                "started_at": "2026-10-08T19:32:21.304+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_context_menu",
+                "name": "arrow_down_then_enter_confirms_third_actionable_item",
+                "seconds": 0.199,
+                "started_at": "2026-10-08T19:35:18.625+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_context_menu",
+                "name": "arrow_down_twice_then_enter_dispatches_third_leaf",
+                "seconds": 0.156,
+                "started_at": "2026-10-08T19:35:18.825+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_context_menu",
+                "name": "arrow_up_wraps_to_last_actionable_item",
+                "seconds": 0.092,
+                "started_at": "2026-10-08T19:35:18.981+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_context_menu",
+                "name": "click_away_closes_menu",
+                "seconds": 0.093,
+                "started_at": "2026-10-08T19:35:19.074+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_context_menu",
+                "name": "clicking_item_dispatches_id_and_closes",
+                "seconds": 0.093,
+                "started_at": "2026-10-08T19:35:19.168+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_context_menu",
+                "name": "context_menu_is_closed_by_default",
+                "seconds": 0.078,
+                "started_at": "2026-10-08T19:35:19.273+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_context_menu",
+                "name": "disabled_item_renders_but_does_not_fire",
+                "seconds": 0.095,
+                "started_at": "2026-10-08T19:35:19.352+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_context_menu",
+                "name": "escape_closes_menu_without_action",
+                "seconds": 0.089,
+                "started_at": "2026-10-08T19:35:19.449+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_context_menu",
+                "name": "open_menu_items_are_all_named",
+                "seconds": 0.094,
+                "started_at": "2026-10-08T19:35:19.539+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_context_menu",
+                "name": "secondary_click_opens_menu_with_named_items",
+                "seconds": 0.092,
+                "started_at": "2026-10-08T19:35:19.634+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_context_menu",
+                "name": "submenu_opens_and_child_dispatches",
+                "seconds": 0.093,
+                "started_at": "2026-10-08T19:35:19.728+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_editor_body_context_menu",
+                "name": "create_note_from_link_requires_ready_resolver_and_rejects_existing_title",
+                "seconds": 0.31,
+                "started_at": "2026-10-08T19:35:19.821+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_editor_body_context_menu",
+                "name": "duplicate_alias_live_context_menu_disables_create_and_stages_no_intent",
+                "seconds": 0.422,
+                "started_at": "2026-10-08T19:35:20.132+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_editor_body_context_menu",
+                "name": "duplicate_title_live_context_menu_disables_create_and_stages_no_intent",
+                "seconds": 0.314,
+                "started_at": "2026-10-08T19:35:20.555+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_editor_body_context_menu",
+                "name": "live_editor_body_menu_copy_as_note_reference_is_disabled_for_unsaved_buffer",
+                "seconds": 0.341,
+                "started_at": "2026-10-08T19:35:20.869+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_editor_body_context_menu",
+                "name": "live_editor_body_menu_copy_as_note_reference_stages_the_real_ref",
+                "seconds": 0.25,
+                "started_at": "2026-10-08T19:35:21.211+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_editor_body_context_menu",
+                "name": "live_editor_body_menu_create_note_stages_the_link_title",
+                "seconds": 0.233,
+                "started_at": "2026-10-08T19:35:21.463+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_editor_body_context_menu",
+                "name": "live_editor_body_menu_rename_opens_the_inline_rename_input",
+                "seconds": 0.232,
+                "started_at": "2026-10-08T19:35:21.696+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_editor_body_context_menu",
+                "name": "live_editor_body_right_click_shows_five_typed_entries_plus_copy_ref",
+                "seconds": 0.22,
+                "started_at": "2026-10-08T19:35:21.929+02:00",
+                "result": "PASS"
+              }
+            ]
+          }
+        ],
+        "scope_limit": "Own contract mapping only; wrapper exit0 is closure, native runner100 is retained; no whole-WP PASS or inferred underlying failure cause"
       }
     ],
     "latest_verdict_ref": "validation_runtime_20261008_1ad04e43_core"
@@ -4020,5 +4535,503 @@
         "state_effect": "One READY_FOR_VALIDATION -> FAIL_V4 transition from closed independent CORE JUnit"
       }
     ]
+  },
+  "validation_runtime_20261008_1ad04e43_native": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V4",
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T18:15:20.700312Z",
+    "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+    "proof_record_ids": [
+      "PR-WP012-MT154-WPV-20261008-1AD-READY13-NATIVE"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-154-NATIVE-DRAIN",
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 64,
+        "suite_counts": [
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "executed": 45,
+            "passed": 45,
+            "failed": 0,
+            "timeouts": 0
+          },
+          {
+            "target": "handshake-native::test_context_menu",
+            "executed": 11,
+            "passed": 11,
+            "failed": 0,
+            "timeouts": 0
+          },
+          {
+            "target": "handshake-native::test_editor_body_context_menu",
+            "executed": 8,
+            "passed": 8,
+            "failed": 0,
+            "timeouts": 0
+          }
+        ],
+        "cases": [
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "app_host_language_rebind_and_drop_reap_every_real_lsp_process",
+            "seconds": 2.561,
+            "started_at": "2026-10-08T19:31:19.821+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "canned_app_host_lsp_server_main",
+            "seconds": 0.107,
+            "started_at": "2026-10-08T19:31:22.383+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "closing_base_code_tab_sends_didclose_without_reopening_or_saving_it",
+            "seconds": 1.122,
+            "started_at": "2026-10-08T19:31:22.491+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "code_pane_create_note_from_link_routes_through_host_drain",
+            "seconds": 0.584,
+            "started_at": "2026-10-08T19:31:23.614+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "code_pane_undo_dispatches_through_bus",
+            "seconds": 0.634,
+            "started_at": "2026-10-08T19:31:24.199+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "code_ref_stage_two_correlation_is_pane_source_scoped_under_interleaving",
+            "seconds": 1.001,
+            "started_at": "2026-10-08T19:31:24.834+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "dirty_save_close_survives_reorder_and_close_all_resumes_after_discard",
+            "seconds": 0.954,
+            "started_at": "2026-10-08T19:31:25.835+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "duplicate_code_panes_open_navigation_target_only_in_the_exact_origin_pane",
+            "seconds": 0.836,
+            "started_at": "2026-10-08T19:31:26.789+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "editor_action_nodes_present_in_live_shell_tree",
+            "seconds": 0.504,
+            "started_at": "2026-10-08T19:31:27.626+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "editor_mounts_thread_session_context",
+            "seconds": 0.492,
+            "started_at": "2026-10-08T19:31:28.132+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "editors_render_live_in_app_tree_and_screenshot",
+            "seconds": 1.889,
+            "started_at": "2026-10-08T19:31:28.625+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "hidden_rich_tab_create_failure_surfaces_typed_status_once",
+            "seconds": 0.496,
+            "started_at": "2026-10-08T19:31:30.515+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "hidden_rich_tab_reused_existing_is_drained_and_truthfully_opened_by_shell_once",
+            "seconds": 0.488,
+            "started_at": "2026-10-08T19:31:31.012+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "host_save_command_carries_requesting_document_identity",
+            "seconds": 0.916,
+            "started_at": "2026-10-08T19:31:31.500+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "lsp_attach_state_is_typed_after_production_constructor",
+            "seconds": 0.77,
+            "started_at": "2026-10-08T19:31:32.416+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "lsp_attach_state_is_typed_after_runtime_bind",
+            "seconds": 0.193,
+            "started_at": "2026-10-08T19:31:33.187+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "lsp_attach_state_is_visible_in_live_status_tree",
+            "seconds": 0.494,
+            "started_at": "2026-10-08T19:31:33.381+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "lsp_attachment_rebinds_when_resolved_language_changes",
+            "seconds": 0.479,
+            "started_at": "2026-10-08T19:31:33.876+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "lsp_file_backed_document_sync_sends_didopen_didchange_notifications",
+            "seconds": 0.527,
+            "started_at": "2026-10-08T19:31:34.356+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "lsp_file_backed_document_sync_watermark_advances_on_open_and_change",
+            "seconds": 6.498,
+            "started_at": "2026-10-08T19:31:34.885+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "lsp_sync_pumps_inactive_mounted_document_in_a_different_language",
+            "seconds": 0.83,
+            "started_at": "2026-10-08T19:31:41.383+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "managed_surrealdb_code_create_note_opens_exact_durable_rich_document",
+            "seconds": 16.939,
+            "started_at": "2026-10-08T19:31:42.214+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mounted_host_ignores_stale_code_document_completion",
+            "seconds": 0.584,
+            "started_at": "2026-10-08T19:31:59.154+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mounted_host_marks_preframe_file_edit_dirty_and_cancel_or_discard_targets_exact_document",
+            "seconds": 0.845,
+            "started_at": "2026-10-08T19:31:59.738+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mounted_host_opens_cross_file_target_without_replacing_source_document",
+            "seconds": 0.782,
+            "started_at": "2026-10-08T19:32:00.585+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mounted_host_resolves_drive_less_percent_encoded_unicode_file_uri",
+            "seconds": 0.847,
+            "started_at": "2026-10-08T19:32:01.367+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mounted_host_save_failure_is_visible_and_keeps_document_dirty",
+            "seconds": 0.815,
+            "started_at": "2026-10-08T19:32:02.215+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mounted_host_serializes_rapid_saves_and_clears_dirty_only_at_latest_version",
+            "seconds": 0.826,
+            "started_at": "2026-10-08T19:32:03.031+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mounted_host_surfaces_cross_file_load_error_without_mutating_source",
+            "seconds": 0.845,
+            "started_at": "2026-10-08T19:32:03.858+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mounted_tag_event_resolves_canonical_name_to_real_hub_id",
+            "seconds": 0.502,
+            "started_at": "2026-10-08T19:32:04.705+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mt079_code_pane_command_bus_canonical_argus",
+            "seconds": 1.721,
+            "started_at": "2026-10-08T19:32:05.209+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus",
+            "seconds": 3.995,
+            "started_at": "2026-10-08T19:32:06.931+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mt079_mounted_editor_panes_canonical_argus_lifecycle",
+            "seconds": 4.141,
+            "started_at": "2026-10-08T19:32:10.926+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mt079_rich_pending_events_canonical_argus",
+            "seconds": 1.471,
+            "started_at": "2026-10-08T19:32:15.069+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mt125_sourceless_code_targets_use_chosen_workspace_root_never_process_cwd",
+            "seconds": 0.094,
+            "started_at": "2026-10-08T19:32:16.540+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "popout_scoped_command_drain_retains_interleaved_docked_command",
+            "seconds": 0.571,
+            "started_at": "2026-10-08T19:32:16.634+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "reading_mode_toggle_reachable_and_flips_in_mounted_editor",
+            "seconds": 0.521,
+            "started_at": "2026-10-08T19:32:17.206+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "relative_navigation_is_source_anchored_and_late_completion_cannot_refocus_after_round_trip",
+            "seconds": 0.837,
+            "started_at": "2026-10-08T19:32:17.729+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "rich_pending_events_drain_and_route",
+            "seconds": 0.494,
+            "started_at": "2026-10-08T19:32:18.566+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "rich_pending_events_drain_while_document_is_loading",
+            "seconds": 0.485,
+            "started_at": "2026-10-08T19:32:19.061+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "runtime_less_shell_keeps_lsp_not_probed_and_emits_no_status",
+            "seconds": 0.454,
+            "started_at": "2026-10-08T19:32:19.548+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "same_panel_a_b_a_text_cycle_keeps_a_monotonic_save_identity",
+            "seconds": 0.195,
+            "started_at": "2026-10-08T19:32:20.003+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "shell_navigator_opens_mounted_editor_panes",
+            "seconds": 0.187,
+            "started_at": "2026-10-08T19:32:20.199+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "stale_save_completion_cannot_mark_or_close_reopened_document_incarnation",
+            "seconds": 0.914,
+            "started_at": "2026-10-08T19:32:20.388+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "windows_file_uri_resolution_handles_drive_localhost_unc_and_unicode",
+            "seconds": 2.808,
+            "started_at": "2026-10-08T19:32:21.304+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_context_menu",
+            "name": "arrow_down_then_enter_confirms_third_actionable_item",
+            "seconds": 0.199,
+            "started_at": "2026-10-08T19:35:18.625+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_context_menu",
+            "name": "arrow_down_twice_then_enter_dispatches_third_leaf",
+            "seconds": 0.156,
+            "started_at": "2026-10-08T19:35:18.825+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_context_menu",
+            "name": "arrow_up_wraps_to_last_actionable_item",
+            "seconds": 0.092,
+            "started_at": "2026-10-08T19:35:18.981+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_context_menu",
+            "name": "click_away_closes_menu",
+            "seconds": 0.093,
+            "started_at": "2026-10-08T19:35:19.074+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_context_menu",
+            "name": "clicking_item_dispatches_id_and_closes",
+            "seconds": 0.093,
+            "started_at": "2026-10-08T19:35:19.168+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_context_menu",
+            "name": "context_menu_is_closed_by_default",
+            "seconds": 0.078,
+            "started_at": "2026-10-08T19:35:19.273+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_context_menu",
+            "name": "disabled_item_renders_but_does_not_fire",
+            "seconds": 0.095,
+            "started_at": "2026-10-08T19:35:19.352+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_context_menu",
+            "name": "escape_closes_menu_without_action",
+            "seconds": 0.089,
+            "started_at": "2026-10-08T19:35:19.449+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_context_menu",
+            "name": "open_menu_items_are_all_named",
+            "seconds": 0.094,
+            "started_at": "2026-10-08T19:35:19.539+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_context_menu",
+            "name": "secondary_click_opens_menu_with_named_items",
+            "seconds": 0.092,
+            "started_at": "2026-10-08T19:35:19.634+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_context_menu",
+            "name": "submenu_opens_and_child_dispatches",
+            "seconds": 0.093,
+            "started_at": "2026-10-08T19:35:19.728+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_editor_body_context_menu",
+            "name": "create_note_from_link_requires_ready_resolver_and_rejects_existing_title",
+            "seconds": 0.31,
+            "started_at": "2026-10-08T19:35:19.821+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_editor_body_context_menu",
+            "name": "duplicate_alias_live_context_menu_disables_create_and_stages_no_intent",
+            "seconds": 0.422,
+            "started_at": "2026-10-08T19:35:20.132+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_editor_body_context_menu",
+            "name": "duplicate_title_live_context_menu_disables_create_and_stages_no_intent",
+            "seconds": 0.314,
+            "started_at": "2026-10-08T19:35:20.555+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_editor_body_context_menu",
+            "name": "live_editor_body_menu_copy_as_note_reference_is_disabled_for_unsaved_buffer",
+            "seconds": 0.341,
+            "started_at": "2026-10-08T19:35:20.869+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_editor_body_context_menu",
+            "name": "live_editor_body_menu_copy_as_note_reference_stages_the_real_ref",
+            "seconds": 0.25,
+            "started_at": "2026-10-08T19:35:21.211+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_editor_body_context_menu",
+            "name": "live_editor_body_menu_create_note_stages_the_link_title",
+            "seconds": 0.233,
+            "started_at": "2026-10-08T19:35:21.463+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_editor_body_context_menu",
+            "name": "live_editor_body_menu_rename_opens_the_inline_rename_input",
+            "seconds": 0.232,
+            "started_at": "2026-10-08T19:35:21.696+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_editor_body_context_menu",
+            "name": "live_editor_body_right_click_shows_five_typed_entries_plus_copy_ref",
+            "seconds": 0.22,
+            "started_at": "2026-10-08T19:35:21.929+02:00",
+            "result": "PASS"
+          }
+        ]
+      }
+    ],
+    "runtime_state": "CLOSED",
+    "shared_round_ref": "MT-168.json#validation.running_record_ready13_20261008",
+    "state_effect": "Supplement retained independently recorded FAIL; no second lifecycle transition or failed-round counter",
+    "verdict_events": [],
+    "retained_failure_ref": "validation_runtime_20261008_1ad04e43_core",
+    "unclosed_proof": "Required exact-predecessor pin FAIL retained; any own static/build/clippy floor not independently proved remains uncredited"
   }
 }

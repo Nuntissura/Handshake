@@ -809,8 +809,8 @@
     ],
     "running_record_ready13_20261008": {
       "schema_id": "hsk.validator_running_record@1",
-      "state": "running",
-      "phase": "core_union_build",
+      "state": "closed",
+      "phase": "complete",
       "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
       "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
       "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
@@ -972,7 +972,244 @@
         "start_utc": "2026-10-08T16:26:32.026251Z",
         "command": "cargo test --locked -j1 --no-run -v --config WPV-backend-profile.toml --features app-runtime,surreal-test-support,test-utils --lib +21 named integration targets",
         "source_guard": "same1ad incremental deleted0/extracted0;7167 tracked/observed metadata verified"
-      }
+      },
+      "completed_at_utc": "2026-10-08T18:00:01.2656591Z",
+      "wrapper_exit_code": 0,
+      "wrapper_exit_meaning": "Launcher closure only; both test runners100, no overall PASS",
+      "test_exit_codes": {
+        "core": 100,
+        "native": 100
+      },
+      "input_hash_verification": {
+        "checked_at_utc": "2026-10-08T18:15:20.700312Z",
+        "inputs": 12,
+        "matches": 12,
+        "mismatches": 0
+      },
+      "closed_artifacts": [
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.stdout.log",
+          "bytes": 436632,
+          "sha256": "c9af786a371eabce3caefcea23baf73810f34414dd4887b9e610f48b6c1dd662"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.stderr.log",
+          "bytes": 487438,
+          "sha256": "c7a0d56144f65a47a22a59a9f7a071bda1fd721bfaa1236faa38c2616beeee60"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/union-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.exit.json",
+          "bytes": 3113,
+          "sha256": "6666bbb748a377e1ae66d84db8555fa6572331cdc56a2cb3f3e4da1a9be6b6a0"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-core-ready13.xml",
+          "bytes": 108991,
+          "sha256": "305783e3852d271a0565056921a8019570f5e08578f98fe4f9319948050138fd"
+        },
+        {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-native-ready13.xml",
+          "bytes": 443115,
+          "sha256": "953f87ccc1c8b3bcefdc96c48be4d02670ac4b50bcb3657db3d75db5aba5e193"
+        }
+      ],
+      "results": {
+        "core": {
+          "executed": 222,
+          "passed": 216,
+          "failed": 6,
+          "timeouts": 0,
+          "errors": 0,
+          "selected_skipped": 0,
+          "runner_filtered": 2154
+        },
+        "native": {
+          "executed": 2315,
+          "passed": 2312,
+          "failed": 2,
+          "timeouts": 1,
+          "errors": 0,
+          "selected_skipped": 0,
+          "runner_filtered": 302
+        }
+      },
+      "final_dispositions": {
+        "failed": [
+          "MT-079",
+          "MT-111",
+          "MT-136",
+          "MT-143",
+          "MT-153",
+          "MT-154",
+          "MT-157",
+          "MT-168"
+        ],
+        "inconclusive": [
+          "MT-121",
+          "MT-122",
+          "MT-155",
+          "MT-158",
+          "MT-159"
+        ],
+        "passed": []
+      },
+      "selected_repair": "MT-111 only; canonical version path exception PENDING_OPERATOR; no other product repair selected",
+      "final_observation": {
+        "utc": "2026-10-08T18:00:16.7443777Z",
+        "poll": 179,
+        "candidate": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "C_bytes": 90054079140,
+        "gci_errors": 0,
+        "stop_bytes": 158000000000,
+        "cap_bytes": 160000000000,
+        "headroom_to_stop": 67945920860,
+        "stop_exceeded": false,
+        "processes": [],
+        "logs": [
+          {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.stdout.log",
+            "bytes": 436632,
+            "mtime_utc": "2026-10-08T18:00:01.1396538Z"
+          },
+          {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\union-1ad04e431fa1c8a6b71533122bdfd532111a0557-ready13.stderr.log",
+            "bytes": 487438,
+            "mtime_utc": "2026-10-08T18:00:00.9421876Z"
+          }
+        ],
+        "exit_record_present": true,
+        "commit_sample_utc": "2026-10-08T18:00:18.6168443Z",
+        "commit_sample_available": true,
+        "commit_sample_error_type": null,
+        "commit_limit_bytes": 68191776768,
+        "committed_bytes": 30797881344,
+        "free_commit_bytes": 37393895424,
+        "baseline_committed_bytes": 47338328064,
+        "max_sampled_committed_bytes": 64371572736,
+        "min_sampled_free_commit_bytes": 3820204032
+      },
+      "closed_native_suites": [
+        {
+          "target": "handshake-native",
+          "executed": 2111,
+          "passed": 2109,
+          "failed": 2,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_app_host_mount",
+          "executed": 45,
+          "passed": 45,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_app_host_mount_secondary",
+          "executed": 7,
+          "passed": 7,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_author_id_budget",
+          "executed": 1,
+          "passed": 1,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_block_collection_view",
+          "executed": 1,
+          "passed": 1,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_calendar_interop",
+          "executed": 20,
+          "passed": 20,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_canvas_board",
+          "executed": 1,
+          "passed": 1,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_context_menu",
+          "executed": 11,
+          "passed": 11,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_editor_body_context_menu",
+          "executed": 8,
+          "passed": 8,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_event_emitter",
+          "executed": 3,
+          "passed": 3,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_find_in_files",
+          "executed": 19,
+          "passed": 18,
+          "failed": 0,
+          "timeouts": 1
+        },
+        {
+          "target": "handshake-native::test_flight_recorder_authz",
+          "executed": 1,
+          "passed": 1,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_manual_content",
+          "executed": 43,
+          "passed": 43,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_mcp_snapshot_viewport",
+          "executed": 8,
+          "passed": 8,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_other_pillar_interop_proofs",
+          "executed": 15,
+          "passed": 15,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_stage_interop",
+          "executed": 20,
+          "passed": 20,
+          "failed": 0,
+          "timeouts": 0
+        },
+        {
+          "target": "handshake-native::test_theme",
+          "executed": 1,
+          "passed": 1,
+          "failed": 0,
+          "timeouts": 0
+        }
+      ],
+      "failure_scope": "Preserve6core product assertions,2native product assertions and1native TIMEOUT separately; do not infer underlying causes or propagate non-owned proof failures"
     },
     "latest_verdict_ref": "validation_source_20261008_1ad04e43"
   },

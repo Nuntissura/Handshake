@@ -1237,5 +1237,605 @@
     "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
     "verdict_labelling": "every verdict records the backend build profile",
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
+  },
+  "validation": {
+    "proof_records": [
+      {
+        "id": "PR-WP012-MT121-WPV-20261008-1AD-READY13-NATIVE",
+        "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+        "covers": [
+          "MT-121"
+        ],
+        "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+        "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "phase": "NATIVE",
+        "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
+        "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+        "started_at_utc": "2026-10-08T17:27:29.898Z",
+        "completed_at_utc": "2026-10-08T18:00:00.899Z",
+        "exit_code": 100,
+        "result": "INCONCLUSIVE_MAPPED_RUNTIME",
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-native-ready13.xml",
+          "bytes": 443115,
+          "sha256": "953f87ccc1c8b3bcefdc96c48be4d02670ac4b50bcb3657db3d75db5aba5e193"
+        },
+        "frozen_input_ref": "MT-168.json#validation.running_record_ready13_20261008.frozen_input_sha256",
+        "junit": {
+          "run_id": "ab9cbe58-79a5-421e-b8a4-14a2ced439b9",
+          "shared_executed": 2315,
+          "shared_passed": 2312,
+          "shared_failed": 2,
+          "shared_timeouts": 1,
+          "shared_errors": 0,
+          "shared_selected_skipped": 0,
+          "runner_filtered": 302
+        },
+        "features_config": "integration,integration_tests,wgpu_screenshots; GPU1; locked; one job; serial isolated owned live backend; scoped credentials cleanup",
+        "checks": [
+          {
+            "check_id": "PC-121-01",
+            "acceptance_refs": [
+              "AC-121-1",
+              "AC-121-2",
+              "AC-121-4"
+            ],
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 8,
+            "passed": 8,
+            "failed": 0,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native::test_mcp_snapshot_viewport",
+                "name": "mt121_headless_capture_declares_the_documented_fallback_viewport",
+                "seconds": 0.621,
+                "started_at": "2026-10-08T19:57:07.128+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_mcp_snapshot_viewport",
+                "name": "mt121_published_bounds_lie_within_the_declared_live_viewport",
+                "seconds": 0.569,
+                "started_at": "2026-10-08T19:57:07.751+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_mcp_snapshot_viewport",
+                "name": "mt121_published_bounds_match_the_rendered_frame_for_a_real_surface",
+                "seconds": 0.295,
+                "started_at": "2026-10-08T19:57:08.320+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_mcp_snapshot_viewport",
+                "name": "mt121_repeat_headless_capture_does_not_launder_the_fallback_into_a_live_claim",
+                "seconds": 0.246,
+                "started_at": "2026-10-08T19:57:08.616+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_mcp_snapshot_viewport",
+                "name": "mt135_closed_context_menu_is_absent_from_the_published_snapshot",
+                "seconds": 0.393,
+                "started_at": "2026-10-08T19:57:08.863+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_mcp_snapshot_viewport",
+                "name": "mt135_manual_agent_tool_reference_matches_capture_pass_truth",
+                "seconds": 0.375,
+                "started_at": "2026-10-08T19:57:09.257+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_mcp_snapshot_viewport",
+                "name": "mt135_memory_backed_context_menu_is_visible_to_the_sized_capture_pass",
+                "seconds": 0.315,
+                "started_at": "2026-10-08T19:57:09.634+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_mcp_snapshot_viewport",
+                "name": "mt135_projected_context_menu_bounds_match_the_rendered_frame_inside_the_viewport",
+                "seconds": 0.316,
+                "started_at": "2026-10-08T19:57:09.950+02:00",
+                "result": "PASS"
+              }
+            ]
+          },
+          {
+            "check_id": "PC-121-02",
+            "acceptance_refs": [
+              "AC-121-3"
+            ],
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 1,
+            "passed": 1,
+            "failed": 0,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native",
+                "name": "find_in_files::tests::mt113_mt029_exact_reversibility_contract_is_unchanged",
+                "seconds": 0.091,
+                "started_at": "2026-10-08T19:29:13.054+02:00",
+                "result": "PASS"
+              }
+            ]
+          },
+          {
+            "check_id": "PC-121-03",
+            "acceptance_refs": [
+              "AC-121-3"
+            ],
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 1,
+            "passed": 1,
+            "failed": 0,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native::test_author_id_budget",
+                "name": "mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+                "seconds": 20.074,
+                "started_at": "2026-10-08T19:32:30.734+02:00",
+                "result": "PASS"
+              }
+            ]
+          },
+          {
+            "check_id": "PC-121-04",
+            "acceptance_refs": [
+              "AC-121-3"
+            ],
+            "result": "TIMEOUT",
+            "executed": 19,
+            "passed": 18,
+            "failed": 0,
+            "timeouts": 1,
+            "cases": [
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "accesskit_result_ids_are_utf8_injective_and_exactly_reversible",
+                "seconds": 0.121,
+                "started_at": "2026-10-08T19:36:39.254+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "accesskit_tree_has_all_contract_author_ids",
+                "seconds": 0.715,
+                "started_at": "2026-10-08T19:36:39.376+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "bookmark_save_request_wraps_blob",
+                "seconds": 0.113,
+                "started_at": "2026-10-08T19:36:40.091+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "document_id_extraction_krd_prefix",
+                "seconds": 0.091,
+                "started_at": "2026-10-08T19:36:40.206+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "every_find_in_files_result_kind_resolves_to_its_dedicated_production_route",
+                "seconds": 0.092,
+                "started_at": "2026-10-08T19:36:40.298+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "find_in_files_screenshot",
+                "seconds": 1.237,
+                "started_at": "2026-10-08T19:36:40.390+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "find_in_files_screenshot_long_title_narrow_pane_mt122",
+                "seconds": 0.645,
+                "started_at": "2026-10-08T19:36:41.628+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_roundtrip",
+                "seconds": 1200.056,
+                "started_at": "2026-10-08T19:36:42.274+02:00",
+                "result": "TIMEOUT",
+                "failure": "thread 'find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_roundtrip' (32344) panicked at tests\\test_find_in_files.rs:1615:33:\nmanaged graph-search 1 failed: http: error sending request for url (http://127.0.0.1:50145/workspaces/01a11c96-e829-7523-af98-0cbbe1fa9404/loom/graph-search?q=MT029_FIND_mt029-25792-1791481014308329200&limit=500&offset=0&source_kinds=document) [kind=timeout; reqwest::Error { kind: Request, url: \"http://127.0.0.1:50145/workspaces/01a11c96-e829-7523-af98-0cbbe1fa9404/loom/graph-search?q=MT029_FIND_mt029-25792-1791481014308329200&limit=500&offset=0&source_kinds=document\", source: TimedOut }]\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+                "failure_type": "test timeout"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "graph_search_paginates_past_ten_thousand_until_the_canonical_short_page",
+                "seconds": 0.419,
+                "started_at": "2026-10-08T19:56:42.336+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "pane_opens_via_registry_and_renders_real_panel",
+                "seconds": 0.556,
+                "started_at": "2026-10-08T19:56:42.757+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "preview_and_apply_gating",
+                "seconds": 0.438,
+                "started_at": "2026-10-08T19:56:43.314+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "replace_preserves_non_text_nodes_and_walks_code",
+                "seconds": 0.111,
+                "started_at": "2026-10-08T19:56:43.752+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "replacement_set_value_is_rejected_while_apply_is_in_flight",
+                "seconds": 0.352,
+                "started_at": "2026-10-08T19:56:43.864+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "search_page_query_uses_verified_params",
+                "seconds": 0.086,
+                "started_at": "2026-10-08T19:56:44.218+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "stale_result_guard_blocks_preview",
+                "seconds": 0.099,
+                "started_at": "2026-10-08T19:56:44.304+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "text_inputs_advertise_and_apply_canonical_set_value",
+                "seconds": 0.344,
+                "started_at": "2026-10-08T19:56:44.403+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "toggle_buttons_flip_state",
+                "seconds": 0.333,
+                "started_at": "2026-10-08T19:56:44.749+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "two_registry_find_panes_keep_state_and_author_ids_isolated",
+                "seconds": 0.376,
+                "started_at": "2026-10-08T19:56:45.083+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_find_in_files",
+                "name": "typed_find_open_request_uses_origin_and_rejects_stale_authority",
+                "seconds": 0.311,
+                "started_at": "2026-10-08T19:56:45.460+02:00",
+                "result": "PASS"
+              }
+            ]
+          }
+        ],
+        "scope_limit": "Own contract mapping only; wrapper exit0 is closure, native runner100 is retained; no whole-WP PASS or inferred underlying failure cause"
+      }
+    ]
+  },
+  "validation_runtime_20261008_1ad04e43_native": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "inconclusive",
+    "verdict": null,
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T18:15:20.700312Z",
+    "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+    "proof_record_ids": [
+      "PR-WP012-MT121-WPV-20261008-1AD-READY13-NATIVE"
+    ],
+    "checks": [
+      {
+        "check_id": "PC-121-01",
+        "acceptance_refs": [
+          "AC-121-1",
+          "AC-121-2",
+          "AC-121-4"
+        ],
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 8,
+        "passed": 8,
+        "failed": 0,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native::test_mcp_snapshot_viewport",
+            "name": "mt121_headless_capture_declares_the_documented_fallback_viewport",
+            "seconds": 0.621,
+            "started_at": "2026-10-08T19:57:07.128+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_mcp_snapshot_viewport",
+            "name": "mt121_published_bounds_lie_within_the_declared_live_viewport",
+            "seconds": 0.569,
+            "started_at": "2026-10-08T19:57:07.751+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_mcp_snapshot_viewport",
+            "name": "mt121_published_bounds_match_the_rendered_frame_for_a_real_surface",
+            "seconds": 0.295,
+            "started_at": "2026-10-08T19:57:08.320+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_mcp_snapshot_viewport",
+            "name": "mt121_repeat_headless_capture_does_not_launder_the_fallback_into_a_live_claim",
+            "seconds": 0.246,
+            "started_at": "2026-10-08T19:57:08.616+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_mcp_snapshot_viewport",
+            "name": "mt135_closed_context_menu_is_absent_from_the_published_snapshot",
+            "seconds": 0.393,
+            "started_at": "2026-10-08T19:57:08.863+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_mcp_snapshot_viewport",
+            "name": "mt135_manual_agent_tool_reference_matches_capture_pass_truth",
+            "seconds": 0.375,
+            "started_at": "2026-10-08T19:57:09.257+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_mcp_snapshot_viewport",
+            "name": "mt135_memory_backed_context_menu_is_visible_to_the_sized_capture_pass",
+            "seconds": 0.315,
+            "started_at": "2026-10-08T19:57:09.634+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_mcp_snapshot_viewport",
+            "name": "mt135_projected_context_menu_bounds_match_the_rendered_frame_inside_the_viewport",
+            "seconds": 0.316,
+            "started_at": "2026-10-08T19:57:09.950+02:00",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "check_id": "PC-121-02",
+        "acceptance_refs": [
+          "AC-121-3"
+        ],
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native",
+            "name": "find_in_files::tests::mt113_mt029_exact_reversibility_contract_is_unchanged",
+            "seconds": 0.091,
+            "started_at": "2026-10-08T19:29:13.054+02:00",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "check_id": "PC-121-03",
+        "acceptance_refs": [
+          "AC-121-3"
+        ],
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native::test_author_id_budget",
+            "name": "mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query",
+            "seconds": 20.074,
+            "started_at": "2026-10-08T19:32:30.734+02:00",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "check_id": "PC-121-04",
+        "acceptance_refs": [
+          "AC-121-3"
+        ],
+        "result": "TIMEOUT",
+        "executed": 19,
+        "passed": 18,
+        "failed": 0,
+        "timeouts": 1,
+        "cases": [
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "accesskit_result_ids_are_utf8_injective_and_exactly_reversible",
+            "seconds": 0.121,
+            "started_at": "2026-10-08T19:36:39.254+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "accesskit_tree_has_all_contract_author_ids",
+            "seconds": 0.715,
+            "started_at": "2026-10-08T19:36:39.376+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "bookmark_save_request_wraps_blob",
+            "seconds": 0.113,
+            "started_at": "2026-10-08T19:36:40.091+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "document_id_extraction_krd_prefix",
+            "seconds": 0.091,
+            "started_at": "2026-10-08T19:36:40.206+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "every_find_in_files_result_kind_resolves_to_its_dedicated_production_route",
+            "seconds": 0.092,
+            "started_at": "2026-10-08T19:36:40.298+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "find_in_files_screenshot",
+            "seconds": 1.237,
+            "started_at": "2026-10-08T19:36:40.390+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "find_in_files_screenshot_long_title_narrow_pane_mt122",
+            "seconds": 0.645,
+            "started_at": "2026-10-08T19:36:41.628+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_roundtrip",
+            "seconds": 1200.056,
+            "started_at": "2026-10-08T19:36:42.274+02:00",
+            "result": "TIMEOUT",
+            "failure": "thread 'find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_roundtrip' (32344) panicked at tests\\test_find_in_files.rs:1615:33:\nmanaged graph-search 1 failed: http: error sending request for url (http://127.0.0.1:50145/workspaces/01a11c96-e829-7523-af98-0cbbe1fa9404/loom/graph-search?q=MT029_FIND_mt029-25792-1791481014308329200&limit=500&offset=0&source_kinds=document) [kind=timeout; reqwest::Error { kind: Request, url: \"http://127.0.0.1:50145/workspaces/01a11c96-e829-7523-af98-0cbbe1fa9404/loom/graph-search?q=MT029_FIND_mt029-25792-1791481014308329200&limit=500&offset=0&source_kinds=document\", source: TimedOut }]\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+            "failure_type": "test timeout"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "graph_search_paginates_past_ten_thousand_until_the_canonical_short_page",
+            "seconds": 0.419,
+            "started_at": "2026-10-08T19:56:42.336+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "pane_opens_via_registry_and_renders_real_panel",
+            "seconds": 0.556,
+            "started_at": "2026-10-08T19:56:42.757+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "preview_and_apply_gating",
+            "seconds": 0.438,
+            "started_at": "2026-10-08T19:56:43.314+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "replace_preserves_non_text_nodes_and_walks_code",
+            "seconds": 0.111,
+            "started_at": "2026-10-08T19:56:43.752+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "replacement_set_value_is_rejected_while_apply_is_in_flight",
+            "seconds": 0.352,
+            "started_at": "2026-10-08T19:56:43.864+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "search_page_query_uses_verified_params",
+            "seconds": 0.086,
+            "started_at": "2026-10-08T19:56:44.218+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "stale_result_guard_blocks_preview",
+            "seconds": 0.099,
+            "started_at": "2026-10-08T19:56:44.304+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "text_inputs_advertise_and_apply_canonical_set_value",
+            "seconds": 0.344,
+            "started_at": "2026-10-08T19:56:44.403+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "toggle_buttons_flip_state",
+            "seconds": 0.333,
+            "started_at": "2026-10-08T19:56:44.749+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "two_registry_find_panes_keep_state_and_author_ids_isolated",
+            "seconds": 0.376,
+            "started_at": "2026-10-08T19:56:45.083+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_find_in_files",
+            "name": "typed_find_open_request_uses_origin_and_rejects_stale_authority",
+            "seconds": 0.311,
+            "started_at": "2026-10-08T19:56:45.460+02:00",
+            "result": "PASS"
+          }
+        ]
+      }
+    ],
+    "unclosed_proof": [
+      "PC12104 whole Find binary TIMEOUT1200.056s; transport timeout alone does not establish product or host cause",
+      "Preserved pre-fix RED, BEFORE geometry and bounds-versus-rendered-frame evidence remain uncredited",
+      "Unchanged role/value/tree-shape baseline and historical material render comparison remain unclosed"
+    ],
+    "runtime_state": "CLOSED",
+    "shared_round_ref": "MT-168.json#validation.running_record_ready13_20261008",
+    "gameplan": {
+      "before_verdict": "PASS12/12",
+      "closed_artifacts_only": true
+    },
+    "scope_limit": "Independent own-MT disposition only; only MT111 selected for repair; no broad prerequisite failure propagation",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT121-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-READY13-NATIVE-INCONCLUSIVE-20261008",
+        "at_utc": "2026-10-08T18:15:20.700312Z",
+        "decision": "inconclusive"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT121-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-READY13-NATIVE-INCONCLUSIVE-20261008",
+        "at_utc": "2026-10-08T18:15:20.700312Z",
+        "decision": "inconclusive",
+        "state_effect": "Lifecycle READY_FOR_VALIDATION unchanged; own acceptance floor unclosed"
+      }
+    ]
   }
 }

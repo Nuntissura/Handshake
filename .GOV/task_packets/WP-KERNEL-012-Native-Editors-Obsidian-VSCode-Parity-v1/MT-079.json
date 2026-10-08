@@ -28,7 +28,7 @@
   },
   "validation_v8": {"schema_id":"hsk.mt_validation_verdict@1","decision":"inconclusive","verdict":null,"validated_by":"WP_VALIDATOR-SOL-MEDIUM","validated_at_utc":"2026-09-26T15:54:37Z","candidate_commit":"49eac54e03d2a94abf5aa3ced025e2947f9adc8b","started_at":"2026-09-26T12:09:56.9854857Z","completed_at":"2026-09-26T15:40:57.0864701Z","results_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/junit-49eac54e03d2a94abf5aa3ced025e2947f9adc8b-native.xml","source_of_truth":"MT-079.scope.acceptance_criteria/proof_targets and own proof/ proof_commands","junit_provenance":{"native_sha256":"B435DAD2C6647E7D50C7083D035D43B61B864B0AE7B09D42095263EAD08D3F9C","core_sha256":"CD420357013FF59A89EA4440C394A8951404DD3700A75D7D066C385D118B7897","freshness":"Both export-local/copy match and after own invocation marker; full49e archive"},"exact_proof_gaps":["AC-079-8 requires bare app lib+bins build, clean clippy and full-suite no-regression; this frozen union is not all90bins and has44 native failures","AC-079-7 own no-new-backend/no-SQLite diff/grep proof not reconciled"],"status_effect":"READY_FOR_VALIDATION and null validator_verdict unchanged; submission retained; no infrastructure-driven transition","reuse_disposition":"No unrecorded relevant-input-path/static/special proof reuse credited","runtime_provenance_ref":"MT-032.json#validation_v11.input_provenance","attempt_disposition":"One final union consumed; no additional test/build/probe to fill gaps","verdict_events":[{"event":"accepted","idempotency_key":"MT-079-49eac54e-union-inconclusive-v8","at_utc":"2026-09-26T15:54:37Z","payload_ref":"MT-079.json#validation_v8","decision":"inconclusive"},{"event":"completed","idempotency_key":"MT-079-49eac54e-union-inconclusive-v8","at_utc":"2026-09-26T15:56:26Z","state_ref":"MT-079.json#lifecycle","decision":"inconclusive","state_observed":"READY_FOR_VALIDATION; validator_verdict null; submission retained"}]},
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V8",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt079",
       "mode": "VERIFY_AND_PROVE",
@@ -54,10 +54,10 @@
       "MT-070",
       "MT-071"
     ],
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V8",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-C7V-20260923-2345",
-    "validated_at_utc": "2026-09-23T23:38:21.613Z",
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T18:15:20.700312Z",
     "ready_for_validation_at_utc": "2026-09-22T20:51:09.293Z",
     "ready_for_validation_by": "KERNEL_BUILDER-C1",
     "remediation_v3_in_progress": false,
@@ -99,8 +99,8 @@
       },
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
     },
-    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "WP_VALIDATOR",
+    "validated_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "next_actor": "KERNEL_BUILDER",
     "status_before_remediation_v7": "FAIL_V6",
     "ready_for_validation_transition": {
       "at_utc": "2026-09-23T23:27:08.158Z",
@@ -3388,5 +3388,663 @@
     "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
     "verdict_labelling": "every verdict records the backend build profile",
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
+  },
+  "validation": {
+    "proof_records": [
+      {
+        "id": "PR-WP012-MT079-WPV-20261008-1AD-READY13-NATIVE",
+        "executor": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+        "covers": [
+          "MT-079"
+        ],
+        "commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+        "command": "bash \"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh\" 1ad04e431fa1c8a6b71533122bdfd532111a0557",
+        "phase": "NATIVE",
+        "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
+        "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+        "started_at_utc": "2026-10-08T17:27:29.898Z",
+        "completed_at_utc": "2026-10-08T18:00:00.899Z",
+        "exit_code": 100,
+        "result": "FAIL_RUNTIME",
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-1ad04e431fa1c8a6b71533122bdfd532111a0557-native-ready13.xml",
+          "bytes": 443115,
+          "sha256": "953f87ccc1c8b3bcefdc96c48be4d02670ac4b50bcb3657db3d75db5aba5e193"
+        },
+        "frozen_input_ref": "MT-168.json#validation.running_record_ready13_20261008.frozen_input_sha256",
+        "junit": {
+          "run_id": "ab9cbe58-79a5-421e-b8a4-14a2ced439b9",
+          "shared_executed": 2315,
+          "shared_passed": 2312,
+          "shared_failed": 2,
+          "shared_timeouts": 1,
+          "shared_errors": 0,
+          "shared_selected_skipped": 0,
+          "runner_filtered": 302
+        },
+        "features_config": "integration,integration_tests,wgpu_screenshots; GPU1; locked; one job; serial isolated owned live backend; scoped credentials cleanup",
+        "checks": [
+          {
+            "check_id": "PC-079-01",
+            "acceptance_refs": [
+              "AC-079-1",
+              "AC-079-2",
+              "AC-079-3",
+              "AC-079-4",
+              "AC-079-5"
+            ],
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 7,
+            "passed": 7,
+            "failed": 0,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "editors_render_live_in_app_tree_and_screenshot",
+                "seconds": 1.889,
+                "started_at": "2026-10-08T19:31:28.625+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "editor_mounts_thread_session_context",
+                "seconds": 0.492,
+                "started_at": "2026-10-08T19:31:28.132+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "code_pane_undo_dispatches_through_bus",
+                "seconds": 0.634,
+                "started_at": "2026-10-08T19:31:24.199+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "shell_navigator_opens_mounted_editor_panes",
+                "seconds": 0.187,
+                "started_at": "2026-10-08T19:32:20.199+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "rich_pending_events_drain_and_route",
+                "seconds": 0.494,
+                "started_at": "2026-10-08T19:32:18.566+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "rich_pending_events_drain_while_document_is_loading",
+                "seconds": 0.485,
+                "started_at": "2026-10-08T19:32:19.061+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mounted_tag_event_resolves_canonical_name_to_real_hub_id",
+                "seconds": 0.502,
+                "started_at": "2026-10-08T19:32:04.705+02:00",
+                "result": "PASS"
+              }
+            ]
+          },
+          {
+            "check_id": "PC-079-02",
+            "acceptance_refs": [
+              "AC-079-1",
+              "AC-079-3",
+              "AC-079-4",
+              "AC-079-5"
+            ],
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 4,
+            "passed": 4,
+            "failed": 0,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mt079_mounted_editor_panes_canonical_argus_lifecycle",
+                "seconds": 4.141,
+                "started_at": "2026-10-08T19:32:10.926+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus",
+                "seconds": 3.995,
+                "started_at": "2026-10-08T19:32:06.931+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mt079_code_pane_command_bus_canonical_argus",
+                "seconds": 1.721,
+                "started_at": "2026-10-08T19:32:05.209+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount",
+                "name": "mt079_rich_pending_events_canonical_argus",
+                "seconds": 1.471,
+                "started_at": "2026-10-08T19:32:15.069+02:00",
+                "result": "PASS"
+              }
+            ]
+          },
+          {
+            "check_id": "PC-079-03",
+            "acceptance_refs": [
+              "AC-079-2",
+              "AC-079-5"
+            ],
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 4,
+            "passed": 4,
+            "failed": 0,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native",
+                "name": "editor_pane_factories::tests::session_context_is_bound_only_with_workspace_and_runtime",
+                "seconds": 0.095,
+                "started_at": "2026-10-08T19:29:04.447+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native",
+                "name": "editor_pane_factories::tests::code_mount_pane_type_and_unbound_stays_unwired",
+                "seconds": 0.171,
+                "started_at": "2026-10-08T19:29:03.389+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native",
+                "name": "editor_pane_factories::tests::code_mount_threads_runtime_and_workspace_when_bound",
+                "seconds": 0.17,
+                "started_at": "2026-10-08T19:29:03.561+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native",
+                "name": "editor_pane_factories::tests::rich_mount_threads_context_and_drains_events",
+                "seconds": 0.093,
+                "started_at": "2026-10-08T19:29:04.353+02:00",
+                "result": "PASS"
+              }
+            ]
+          },
+          {
+            "check_id": "PC-079-04",
+            "acceptance_refs": [
+              "AC-079-6",
+              "AC-079-7"
+            ],
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 7,
+            "passed": 7,
+            "failed": 0,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native::test_app_host_mount_secondary",
+                "name": "secondary_panes_render_live_in_app_tree_and_screenshot",
+                "seconds": 2.534,
+                "started_at": "2026-10-08T19:32:28.200+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount_secondary",
+                "name": "canvas_resize_event_routes_to_host",
+                "seconds": 1.164,
+                "started_at": "2026-10-08T19:32:24.113+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount_secondary",
+                "name": "graph_depth_changed_requeries_with_new_backlink_depth",
+                "seconds": 0.496,
+                "started_at": "2026-10-08T19:32:26.687+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount_secondary",
+                "name": "outgoing_links_click_routes_to_nav",
+                "seconds": 0.482,
+                "started_at": "2026-10-08T19:32:27.184+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount_secondary",
+                "name": "relevant_memory_shows_endpoint_missing_empty_state",
+                "seconds": 0.532,
+                "started_at": "2026-10-08T19:32:27.667+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount_secondary",
+                "name": "code_text_node_exposes_swarm_edit_actions",
+                "seconds": 0.969,
+                "started_at": "2026-10-08T19:32:25.278+02:00",
+                "result": "PASS"
+              },
+              {
+                "target": "handshake-native::test_app_host_mount_secondary",
+                "name": "code_text_setvalue_dispatch_mutates_buffer",
+                "seconds": 0.438,
+                "started_at": "2026-10-08T19:32:26.248+02:00",
+                "result": "PASS"
+              }
+            ]
+          },
+          {
+            "check_id": "PC-079-05",
+            "acceptance_refs": [
+              "AC-079-7"
+            ],
+            "result": "PASS_CURRENT_RUNTIME",
+            "executed": 1,
+            "passed": 1,
+            "failed": 0,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native::test_theme",
+                "name": "no_hardcoded_color32_outside_theme_module",
+                "seconds": 0.938,
+                "started_at": "2026-10-08T19:59:59.958+02:00",
+                "result": "PASS"
+              }
+            ]
+          },
+          {
+            "check_id": "AC-079-8/PT-079-F",
+            "result": "FAIL",
+            "executed": 2111,
+            "passed": 2109,
+            "failed": 2,
+            "timeouts": 0,
+            "cases": [
+              {
+                "target": "handshake-native",
+                "name": "mcp::binding::tests::relative_dot_mixed_separator_long_publish_normalizes_and_cleans_up",
+                "seconds": 0.123,
+                "started_at": "2026-10-08T19:29:54.550+02:00",
+                "result": "FAIL",
+                "failure": "thread 'mcp::binding::tests::relative_dot_mixed_separator_long_publish_normalizes_and_cleans_up' (28148) panicked at src\\mcp\\binding.rs:1344:14:\npublish through relative dot-segment mixed-separator long root: BindingError(\"icacls rejected owner-only ACL for ./binding-test-2240-1791480594577619300-0/.\\\\discarded\\\\..\\\\live\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\handshake with status exit code: 3\")\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+                "failure_type": "test failure with exit code 101"
+              },
+              {
+                "target": "handshake-native",
+                "name": "mcp::binding::tests::write_binding_survives_a_root_past_the_legacy_max_path_limit",
+                "seconds": 0.161,
+                "started_at": "2026-10-08T19:29:54.863+02:00",
+                "result": "FAIL",
+                "failure": "thread 'mcp::binding::tests::write_binding_survives_a_root_past_the_legacy_max_path_limit' (30056) panicked at src\\mcp\\binding.rs:1179:14:\nMT-129: publishing under a >MAX_PATH root must succeed: BindingError(\"icacls rejected owner-only ACL for C:\\\\Projects\\\\LLM Projects\\\\handshake-desktop\\\\Handshake_Artifacts\\\\WP-KERNEL-012\\\\MT-170\\\\wpv\\\\tmp\\\\hsk_mt129_20776\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\handshake\\\\swarm_mcp_binding.20776.1791480594932436800.tmp with status exit code: 3\")\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+                "failure_type": "test failure with exit code 101"
+              }
+            ]
+          }
+        ],
+        "scope_limit": "Own contract mapping only; wrapper exit0 is closure, native runner100 is retained; no whole-WP PASS or inferred underlying failure cause",
+        "failure_kind": "product",
+        "visual_inspection": [
+          {
+            "artifact": {
+              "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-079/MT-079-editors-mounted-live.png",
+              "bytes": 206356,
+              "sha256": "75ca359b06344237193c8c08d3cf57bdc2749407dc2fbc748aafa680dca05a94"
+            },
+            "inspected_by": [
+              "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+              "mt170_buddy",
+              "root"
+            ],
+            "observed": "1400x900 real syntax-coloured fn main/outline and rich Heading One/Hello world",
+            "supports": [
+              "AC-079-1 material frame"
+            ],
+            "limits": "Narrow/clipped code column and floating Propose to Memory overlay; typed login-required/LOCAL-ONLY/EndpointMissing notices; no full readability, control visibility or authenticated mount claim"
+          }
+        ]
+      }
+    ]
+  },
+  "validation_runtime_20261008_1ad04e43_native": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V8",
+    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+    "validated_at_utc": "2026-10-08T18:15:20.700312Z",
+    "candidate_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "candidate_tree": "ba224d2b3983016dc8894a1f22e92f186f350afc",
+    "proof_record_ids": [
+      "PR-WP012-MT079-WPV-20261008-1AD-READY13-NATIVE"
+    ],
+    "checks": [
+      {
+        "check_id": "PC-079-01",
+        "acceptance_refs": [
+          "AC-079-1",
+          "AC-079-2",
+          "AC-079-3",
+          "AC-079-4",
+          "AC-079-5"
+        ],
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 7,
+        "passed": 7,
+        "failed": 0,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "editors_render_live_in_app_tree_and_screenshot",
+            "seconds": 1.889,
+            "started_at": "2026-10-08T19:31:28.625+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "editor_mounts_thread_session_context",
+            "seconds": 0.492,
+            "started_at": "2026-10-08T19:31:28.132+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "code_pane_undo_dispatches_through_bus",
+            "seconds": 0.634,
+            "started_at": "2026-10-08T19:31:24.199+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "shell_navigator_opens_mounted_editor_panes",
+            "seconds": 0.187,
+            "started_at": "2026-10-08T19:32:20.199+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "rich_pending_events_drain_and_route",
+            "seconds": 0.494,
+            "started_at": "2026-10-08T19:32:18.566+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "rich_pending_events_drain_while_document_is_loading",
+            "seconds": 0.485,
+            "started_at": "2026-10-08T19:32:19.061+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mounted_tag_event_resolves_canonical_name_to_real_hub_id",
+            "seconds": 0.502,
+            "started_at": "2026-10-08T19:32:04.705+02:00",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "check_id": "PC-079-02",
+        "acceptance_refs": [
+          "AC-079-1",
+          "AC-079-3",
+          "AC-079-4",
+          "AC-079-5"
+        ],
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 4,
+        "passed": 4,
+        "failed": 0,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mt079_mounted_editor_panes_canonical_argus_lifecycle",
+            "seconds": 4.141,
+            "started_at": "2026-10-08T19:32:10.926+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus",
+            "seconds": 3.995,
+            "started_at": "2026-10-08T19:32:06.931+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mt079_code_pane_command_bus_canonical_argus",
+            "seconds": 1.721,
+            "started_at": "2026-10-08T19:32:05.209+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount",
+            "name": "mt079_rich_pending_events_canonical_argus",
+            "seconds": 1.471,
+            "started_at": "2026-10-08T19:32:15.069+02:00",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "check_id": "PC-079-03",
+        "acceptance_refs": [
+          "AC-079-2",
+          "AC-079-5"
+        ],
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 4,
+        "passed": 4,
+        "failed": 0,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native",
+            "name": "editor_pane_factories::tests::session_context_is_bound_only_with_workspace_and_runtime",
+            "seconds": 0.095,
+            "started_at": "2026-10-08T19:29:04.447+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native",
+            "name": "editor_pane_factories::tests::code_mount_pane_type_and_unbound_stays_unwired",
+            "seconds": 0.171,
+            "started_at": "2026-10-08T19:29:03.389+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native",
+            "name": "editor_pane_factories::tests::code_mount_threads_runtime_and_workspace_when_bound",
+            "seconds": 0.17,
+            "started_at": "2026-10-08T19:29:03.561+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native",
+            "name": "editor_pane_factories::tests::rich_mount_threads_context_and_drains_events",
+            "seconds": 0.093,
+            "started_at": "2026-10-08T19:29:04.353+02:00",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "check_id": "PC-079-04",
+        "acceptance_refs": [
+          "AC-079-6",
+          "AC-079-7"
+        ],
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 7,
+        "passed": 7,
+        "failed": 0,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native::test_app_host_mount_secondary",
+            "name": "secondary_panes_render_live_in_app_tree_and_screenshot",
+            "seconds": 2.534,
+            "started_at": "2026-10-08T19:32:28.200+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount_secondary",
+            "name": "canvas_resize_event_routes_to_host",
+            "seconds": 1.164,
+            "started_at": "2026-10-08T19:32:24.113+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount_secondary",
+            "name": "graph_depth_changed_requeries_with_new_backlink_depth",
+            "seconds": 0.496,
+            "started_at": "2026-10-08T19:32:26.687+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount_secondary",
+            "name": "outgoing_links_click_routes_to_nav",
+            "seconds": 0.482,
+            "started_at": "2026-10-08T19:32:27.184+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount_secondary",
+            "name": "relevant_memory_shows_endpoint_missing_empty_state",
+            "seconds": 0.532,
+            "started_at": "2026-10-08T19:32:27.667+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount_secondary",
+            "name": "code_text_node_exposes_swarm_edit_actions",
+            "seconds": 0.969,
+            "started_at": "2026-10-08T19:32:25.278+02:00",
+            "result": "PASS"
+          },
+          {
+            "target": "handshake-native::test_app_host_mount_secondary",
+            "name": "code_text_setvalue_dispatch_mutates_buffer",
+            "seconds": 0.438,
+            "started_at": "2026-10-08T19:32:26.248+02:00",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "check_id": "PC-079-05",
+        "acceptance_refs": [
+          "AC-079-7"
+        ],
+        "result": "PASS_CURRENT_RUNTIME",
+        "executed": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native::test_theme",
+            "name": "no_hardcoded_color32_outside_theme_module",
+            "seconds": 0.938,
+            "started_at": "2026-10-08T19:59:59.958+02:00",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "check_id": "AC-079-8/PT-079-F",
+        "result": "FAIL",
+        "executed": 2111,
+        "passed": 2109,
+        "failed": 2,
+        "timeouts": 0,
+        "cases": [
+          {
+            "target": "handshake-native",
+            "name": "mcp::binding::tests::relative_dot_mixed_separator_long_publish_normalizes_and_cleans_up",
+            "seconds": 0.123,
+            "started_at": "2026-10-08T19:29:54.550+02:00",
+            "result": "FAIL",
+            "failure": "thread 'mcp::binding::tests::relative_dot_mixed_separator_long_publish_normalizes_and_cleans_up' (28148) panicked at src\\mcp\\binding.rs:1344:14:\npublish through relative dot-segment mixed-separator long root: BindingError(\"icacls rejected owner-only ACL for ./binding-test-2240-1791480594577619300-0/.\\\\discarded\\\\..\\\\live\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\handshake with status exit code: 3\")\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+            "failure_type": "test failure with exit code 101"
+          },
+          {
+            "target": "handshake-native",
+            "name": "mcp::binding::tests::write_binding_survives_a_root_past_the_legacy_max_path_limit",
+            "seconds": 0.161,
+            "started_at": "2026-10-08T19:29:54.863+02:00",
+            "result": "FAIL",
+            "failure": "thread 'mcp::binding::tests::write_binding_survives_a_root_past_the_legacy_max_path_limit' (30056) panicked at src\\mcp\\binding.rs:1179:14:\nMT-129: publishing under a >MAX_PATH root must succeed: BindingError(\"icacls rejected owner-only ACL for C:\\\\Projects\\\\LLM Projects\\\\handshake-desktop\\\\Handshake_Artifacts\\\\WP-KERNEL-012\\\\MT-170\\\\wpv\\\\tmp\\\\hsk_mt129_20776\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\mt129_depth_segment\\\\handshake\\\\swarm_mcp_binding.20776.1791480594932436800.tmp with status exit code: 3\")\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+            "failure_type": "test failure with exit code 101"
+          }
+        ]
+      }
+    ],
+    "unclosed_proof": [
+      "AC0798 broader full(~90bin) build/lib+bins/bare-app/changed-line-clippy floor remains unclosed",
+      "AC0797 diff/static no-endpoint/no-SQLite requirements not replaced by focused GREEN",
+      "Opened mounted PNG proves real code/rich content only; clipped code pane and overlay limit readability/toolbar proof; no overall GUI-clean claim"
+    ],
+    "runtime_state": "CLOSED",
+    "shared_round_ref": "MT-168.json#validation.running_record_ready13_20261008",
+    "gameplan": {
+      "before_verdict": "PASS12/12",
+      "closed_artifacts_only": true
+    },
+    "scope_limit": "Independent own-MT disposition only; only MT111 selected for repair; no broad prerequisite failure propagation",
+    "visual_inspection": [
+      {
+        "artifact": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-079/MT-079-editors-mounted-live.png",
+          "bytes": 206356,
+          "sha256": "75ca359b06344237193c8c08d3cf57bdc2749407dc2fbc748aafa680dca05a94"
+        },
+        "inspected_by": [
+          "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
+          "mt170_buddy",
+          "root"
+        ],
+        "observed": "1400x900 real syntax-coloured fn main/outline and rich Heading One/Hello world",
+        "supports": [
+          "AC-079-1 material frame"
+        ],
+        "limits": "Narrow/clipped code column and floating Propose to Memory overlay; typed login-required/LOCAL-ONLY/EndpointMissing notices; no full readability, control visibility or authenticated mount claim"
+      }
+    ],
+    "failure_kind": "product",
+    "failure_class": "NATIVE-FULL-LIB-ACL-PUBLISH-ASSERTION-FAIL",
+    "remediation_required": [
+      {
+        "failed_check_refs": [
+          "AC-079-8/PT-079-F"
+        ],
+        "failure_kind": "product",
+        "required_behavior": "Required full native product library must be green; preserve current2 ACL publish assertion failures; underlying exit3 cause UNVERIFIED; no repair selected"
+      }
+    ],
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT079-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-READY13-NATIVE-FAIL_V8-20261008",
+        "at_utc": "2026-10-08T18:15:20.700312Z",
+        "decision": "failed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT079-1ad04e431fa1c8a6b71533122bdfd532111a0557-WPV-READY13-NATIVE-FAIL_V8-20261008",
+        "at_utc": "2026-10-08T18:15:20.700312Z",
+        "decision": "failed",
+        "state_effect": "One READY_FOR_VALIDATION -> FAIL_V8 transition from independent closed required native proof"
+      }
+    ]
   }
 }
