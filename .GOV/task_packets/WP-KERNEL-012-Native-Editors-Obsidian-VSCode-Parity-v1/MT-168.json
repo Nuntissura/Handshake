@@ -1064,6 +1064,30 @@
           "before_submit": "PASS11/11"
         },
         "exclusive_target_released_to": "WP_VALIDATOR"
+      },
+      {
+        "id": "PR-WP012-MT168-WPV-INTERRUPTED-20261009-D4B-R9",
+        "check_id": "MT-168-INDEPENDENT-ACCEPTANCE",
+        "executor": "WP_VALIDATOR-retained-wpv-WP-KERNEL-012",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "d4b630a4f4ae3e3f3cedf179bbf637ffb8c29e08",
+        "tree": "775ee5ba4f2862b66e585c5eeea8207e04946cc3",
+        "recorded_at_utc": "2026-10-09T11:46:22.249378+00:00",
+        "result": "INCOMPLETE_INTERRUPTED",
+        "wrapper_exit_code": null,
+        "core_nextest_exit_code": null,
+        "runtime_result": "NOT_OBSERVED",
+        "junit_observed": false,
+        "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-d4b630a-engine-r9-interrupted/manifest.corrected.json",
+        "preservation_manifest_sha256": "8f7b191bc3f3024473f0adba728d380db5e4ad0303e9500cdb1a7e5904070eb6",
+        "input_binding": "WPV rehashed original13 inputs unchanged before writes; root independently verified20 original input/output copies. Current product clean d4b/tree775ee5 and matching remote re-read after Desktop restart.",
+        "observed_stop": "Old wrapper/observer/Bash/Cargo/compiler absent; no numeric exit artifact. Last stdout11:37:55Z was integration compile invocation. Reused38812 is a different conhost and was untouched.",
+        "selector_defect": "Integration filter omitted package prefix; preserved51c selector proves handshake_core::mt167_code_nav_index_cost_tests. Planning3 did not prove selected3; no account or MT167 runtime result observed.",
+        "recovery": "Same d4 candidate/source/compiler/profile/cache; correct existing SH/JSON binary ID and output suffixr10, then all3 still-unproven cases. Mandatory r8 compile and original34aa/51c green bindings retained.",
+        "superseded_artifact": "Original manifest.json retained; explicit corrected manifest supersedes its log-array construction failure.",
+        "status_effect": "NONE; lifecycle FAIL_V1 retained until independent full acceptance"
       }
     ],
     "running_record_ready13_20261008": {
@@ -1822,7 +1846,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "ENGINE_V3_COMPILE_PASS_AFFECTED_RUNTIME_PENDING",
+    "state": "ENGINE_V3_COMPILE_PASS_AFFECTED_R10_PREPARED",
     "candidate_commit": "d4b630a4f4ae3e3f3cedf179bbf637ffb8c29e08",
     "candidate_tree": "775ee5ba4f2862b66e585c5eeea8207e04946cc3",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -1858,7 +1882,7 @@
       "Historical PRE162 reconstruction static gap retained; no historical repin",
       "MT168-DOWNSTREAM observation remains false: MT167 equal-row case times out before full equality proof; median14.4494677s exceeds5s and measured code-index projection elapsed time grows across samples; residual cause UNVERIFIED, no MT167 verdict rewrite"
     ],
-    "next_actor": "Retained WPV owns exclusive warm target for affected mounted account and both MT167 runtime cases; fresh d4b mandatory compile numeric0 and target release closed",
+    "next_actor": "Retained WPV resumes corrected all3 affected cases on the preserved warm target after root input-write closure; fresh d4b mandatory compile numeric0 remains valid",
     "preservation_checkpoints": [
       {
         "commit": "817bd35cfae235e754e0d6e447fda2cf137578ab",
@@ -2030,7 +2054,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Fresh d4b mandatory builder compile PASS numeric0, all6 frozen inputs unchanged and target released. Prepared affected3 selection must produce independent mounted account and both MT167 runtime proof, including complete equal rows and recorded non-growing projection medians. Original34aa exact163 and original51c unaffected greens retain original bindings after completed WPV reconciliation; private controls remain diagnostic only.",
+    "next_dependency": "R9 interrupted after Desktop restart with UNKNOWN numeric exit and no observed runtime/JUnit; original20 copies preserved. Corrected package-qualified r10 selector must prove all3 affected cases, complete equal rows and recorded non-growing projection medians using same warm target and unchanged d4 source/compiler/profile. Fresh r8 compile PASS, original34aa exact163 and original51c unaffected greens retain verified original bindings; private controls remain diagnostic only.",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",

@@ -3,8 +3,8 @@
   "candidate": "d4b630a4f4ae3e3f3cedf179bbf637ffb8c29e08",
   "mode": "targeted",
   "selection_file": "WPV-round-selection-targeted.sh",
-  "output_suffix": "-mt168-engine-r9",
-  "runner_output_suffix": "-targeted-mt168-engine-r9",
+  "output_suffix": "-mt168-engine-r10",
+  "runner_output_suffix": "-targeted-mt168-engine-r10",
   "covers": [
     "MT-168"
   ],
@@ -14,7 +14,7 @@
   "core_targets": [
     "mt167_code_nav_index_cost_tests"
   ],
-  "core_filter": "(binary_id(=handshake_core) & test(=api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete)) | binary_id(=mt167_code_nav_index_cost_tests)",
+  "core_filter": "(binary_id(=handshake_core) & test(=api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete)) | binary_id(=handshake_core::mt167_code_nav_index_cost_tests)",
   "native_lib": false,
   "native_targets": [],
   "native_filter": "none()",

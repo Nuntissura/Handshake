@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 512
+generation: 515
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -421,3 +421,6 @@ steps:
 - {id: GP-400, role: wp_validator, at: before_round, do: verify private native capture suppresses void task output and returns one numeric exit, check: {type: confirm}, source: 'infra: private PS capture returned VoidTaskResult objects with exit1; no query ran', state: active}
 - {id: GP-401, role: wp_validator, at: before_round, do: verify direct record-set table filter uses bound IDs before fetch; missing IDs match original empty result, check: {type: confirm}, source: 'fail: private r2 missing record gave NONE to record::table(id); original SELECT returned empty', state: active}
 - {id: GP-402, role: any, at: before_round, do: verify all execution input writes close before wrapper freeze and remain closed through numeric exit, check: {type: confirm}, source: 'infra: root MT168 diagnostic write overlapped r6 wrapper freeze; launch rejected before Cargo', state: active}
+- {id: GP-403, role: wp_validator, at: before_round, do: verify integration binary IDs include the actual package prefix from preserved runner metadata, check: {type: confirm}, source: 'infra: r9 filter omitted handshake_core:: before mt167 target; planned3 did not prove selected3', state: active}
+- {id: GP-404, role: wp_validator, at: before_round, do: verify interrupted run ownership from fresh PID identity and preserve unknown exit plus original inputs before restart, check: {type: confirm}, source: 'infra: r9 processes absent after Desktop restart with no exit; stale38812 now belongs to conhost', state: active}
+- {id: GP-405, role: wp_validator, at: before_round, do: verify preservation artifact arrays resolve individual files and every copied hash before writing the manifest, check: {type: confirm}, source: 'infra: r9 first manifest array construction failed for logs; corrected20-file manifest independently rehashed', state: active}
