@@ -1,137 +1,210 @@
 {
- "schema_id": "hsk.activation_readiness@1",
- "wp_id": "WP-KERNEL-STUDIO",
- "generated_at_utc": "2026-07-09T00:00:00Z",
- "state_source": "RECOMPUTED_FROM_GREENROOM_SPEC_DERIVATION",
- "verdict": "READY_FOR_OPERATOR_REVIEW_OF_SPEC_PROPOSAL",
- "ready_for_downstream_launch": "NO",
- "ready_for_downstream_launch_reason": "Master Spec v02.206 is promoted and spec-bundle-check passes. The microtask set is spec-derived and the round-trip check passes both directions against the promoted bundle. Colour accuracy is now specified end to end for photo, video and print. What remains is packet lifecycle, not spec work: this is still a STUB, so promote it to an official packet, register it in BUILD_ORDER and the traceability registry, then create the worktree and branch. The colour-management engine gate recorded above must be tested before the colour microtasks activate.",
- "user_signature": "ilja090720260901",
- "prepared_artifacts": {
-  "spec_merge": {
-   "status": "COMPLETE",
-   "spec_version": "v02.200",
-   "section": "14 (Studio -- Unified Creative Suite), 24 sub-sections 14.1-14.24, ~626 [STU-*] normative anchors",
-   "sole_authority": true,
-   "no_sidecars": true,
-   "appendix_rows": "FEAT-STUDIO-*(12), PRIM-Studio*(38), IMX-STUDIO-*(3), feature_links(12)",
-   "spec_checks": "spec-current-check PASS, spec-bundle-check PASS (debt/eof-appendices/growth-discipline/governance-reference), validator-spec-regression PASS, self-consistency PASS",
-   "commit": "9752d85f (merge), f880e9a4 (MTs), v02.200 hardening pending"
+  "schema_id": "hsk.activation_readiness@1",
+  "wp_id": "WP-KERNEL-STUDIO",
+  "generated_at_utc": "2026-07-09T00:00:00Z",
+  "state_source": "CURRENT_AUTHORITY_BRANCH_AND_PREPARATION_REPASS",
+  "verdict": "REPASS_PREPARED_FOR_OPERATOR_REVIEW_NOT_EXECUTABLE",
+  "ready_for_downstream_launch": "NO",
+  "ready_for_downstream_launch_reason": "Current NON_EXECUTION stub and previous MTs remain. Operator requested modular crates/native format; exact spec enrichment/owned capability and build-budget review precede dependent implementation. New asset worktree exists. Current research is source/design evidence, not fresh runtime/visual/parity proof. .lrcat importer has a bounded policy decision affecting that adapter.",
+  "user_signature": "ilja090720260901",
+  "prepared_artifacts": {
+    "spec_merge": {
+      "status": "COMPLETE",
+      "spec_version": "v02.200",
+      "section": "14 (Studio -- Unified Creative Suite), 24 sub-sections 14.1-14.24, ~626 [STU-*] normative anchors",
+      "sole_authority": true,
+      "no_sidecars": true,
+      "appendix_rows": "FEAT-STUDIO-*(12), PRIM-Studio*(38), IMX-STUDIO-*(3), feature_links(12)",
+      "spec_checks": "spec-current-check PASS, spec-bundle-check PASS (debt/eof-appendices/growth-discipline/governance-reference), validator-spec-regression PASS, self-consistency PASS",
+      "commit": "9752d85f (merge), f880e9a4 (MTs), v02.200 hardening pending",
+      "claim_posture": "Historical dated prep assertion, not freshly rerun current spec/runtime proof. Current authority resolves v02.206."
+    },
+    "wp_stub": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
+    "refinement": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
+    "microtask_contracts": {
+      "count": 5484,
+      "index": ".GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json",
+      "basis": "Freshly inspected typed index totals:509 legacy_patched plus4975 spec-derived units. Declarative count is not implemented or validated parity.",
+      "status": "PREPARATION_RETAINED; implementing module ownership and changed acceptance need reconciliation before activation."
+    }
   },
-  "wp_stub": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
-  "refinement": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
-  "microtask_contracts": {
-   "count": 509,
-   "id_range": "MT-001..MT-560 (contiguous within domain ranges; some ranges left headroom below their ceiling)",
-   "gui_mt_count": 292,
-   "observable_runtime_mt_count": 501,
-   "open_contract_point_blocked_mts": 6,
-   "index": ".GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json",
-   "domains": {
-    "foundation": "MT-001..020 (20)",
-    "raster": "MT-021..067 (47)",
-    "vector": "MT-081..138 (58)",
-    "layout": "MT-141..190 (50)",
-    "typography": "MT-191..230 (40)",
-    "color": "MT-231..260 (30)",
-    "effects": "MT-261..305 (45)",
-    "design_system": "MT-321..367 (47)",
-    "prototype": "MT-371..400 (30)",
-    "raw": "MT-411..432 (22)",
-    "interop": "MT-441..480 (40)",
-    "automation": "MT-481..520 (40)",
-    "whiteboard": "MT-521..540 (20)",
-    "cross_cutting": "MT-541..560 (20; incl. STU-CON-007 universal conformance gates MT-556..560)"
-   },
-   "universal_conformance_gates": {
-    "clause": "[STU-CON-007] universal command contract (v02.200): every Studio tool/command/primitive in 14.4-14.15 MUST be model-invokable + parallel-safe + deterministic + visually-verifiable.",
-    "gates": "MT-556 determinism/promotion-equivalence, MT-557 parallel-safety (CRDT+lease+idempotent-promotion), MT-558 visual-verifiability (RenderHarness+Argus), MT-559 model-invokability (typed command API), MT-560 aggregate STU-CON-007 closeout gate.",
-    "domain_conformance_mts": "each domain closure MT (MT-021/067,138,190,230,260,301,340,386,432,480,520,540) enumerates all four properties and depends on MT-556..560."
-   }
+  "microtask_granularity": "NO_UPPER_COUNT_BIAS; each MT narrow, no-context-implementable, small/fast-model-sized, independently reviewable + crash-recoverable; foundation MTs own shared schema/engines and later MTs depend on them; every MT carries clause + spec_anchor + code_surfaces + expected_tests(>=1 runtime proof) + depends_on + risk_if_missed + gui_obligation + user_manual_obligation + hbr + red_team.",
+  "local_branch": "codex/handshake-studio-assets",
+  "local_worktree_dir": "Resolve branch through git worktree list --porcelain (managed attached worktree).",
+  "gov_kernel_link": "NOT_REQUIRED; direct live-kernel reads via verified HANDSHAKE_GOV_ROOT.",
+  "remote_backup_branch": "origin/codex/handshake-studio-assets (NOT_CREATED; no new product commits)",
+  "backup_push_status": "NOT_REQUIRED_YET_FOR_UNCHANGED_PRODUCT_BASE",
+  "health_checks": {
+    "fresh_product_build": "NOT_RUN",
+    "fresh_product_runtime": "NOT_RUN",
+    "adobe_gui_differential": "NOT_INSPECTED_NATIVE_CONTROL_UNAVAILABLE",
+    "source_design_review": "Specialist cross-reviews recorded in repass artifacts; no validator acceptance verdict.",
+    "static_artifact_validation": "JSON parser reads succeeded for current reference/contract files; git diff --check clean. Source/runtime/GUI acceptance NOT_RUN."
+  },
+  "hbr_applicability": {
+    "pillars": [
+      "INT",
+      "SWARM",
+      "VIS",
+      "QUIET",
+      "MAN",
+      "STOP",
+      "PRIV",
+      "COMPART",
+      "COMPONENT"
+    ],
+    "int_009_three_tier": "Proposal ports only this session; per-module posture requires fresh real consumers/wire evidence. Historic preparation statements are not current WIRED proof.",
+    "coverage": "292 GUI MTs carry HBR-VIS/HBR-MAN; 501 observable-runtime MTs carry HBR-INT-009 three-tier posture; parallel/quiet MTs carry HBR-SWARM/HBR-QUIET; universal conformance gates MT-556..560 carry HBR-SWARM/HBR-VIS/HBR-INT"
+  },
+  "outstanding_issues": [
+    "Open contract points [STU-CON-006] (redo depth, event granularity/coalescing, auto-accept policy, raster authority storage shape, FR-EVT-STUDIO-* registration, plugin capability schema) MUST be resolved before their implementing MTs (MT-509, 545, 552-555) harden - tracked as spec-debt.",
+    "Prerequisite gate [STU-ARC-006]: kernel baseline (sandbox, PromotionGate, CRDT, native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) must be stable before Studio product implementation begins."
+  ],
+  "next_orchestrator_action": "Review repass entrypoint and concrete spec deltas. Next session: publish approved enrichment copy-first, reconcile typed existing WP/MT owners without losing scope/IDs, settle build budgets and activate foundation assets in assigned codex/handshake-studio-assets worktree. Do not create another Studio worktree or launch code from reference research alone.",
+  "updated_at_utc": "2026-10-09T17:00:42Z",
+  "greenroom_fold": {
+    "at": "2026-09-04T20:08:34+00:00",
+    "microtasks_total": 5484,
+    "legacy_patched": 509,
+    "spec_derived_added": 4975,
+    "backup_of_previous_packet": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\greenroom_backups\\WP-KERNEL-STUDIO-before-greenroom-fold-20260904-220828",
+    "reports": [
+      "_greenroom_20260903\\spec_update\\proposed-bundle\\spec-roundtrip-report.json",
+      "_greenroom_20260903\\spec_update\\spec-ledger-reconciliation.json",
+      "_greenroom_20260903\\spec_update\\research\\cmm-implementation-research.json"
+    ]
+  },
+  "colour_accuracy_resolution": {
+    "at": "2026-09-04T20:09:36+00:00",
+    "approved_by": "ilja040920261532",
+    "gaps_closed": [
+      {
+        "gap": "display device characterisation",
+        "anchors": "STU-COL-300..308",
+        "posture": "Studio consumes display profiles and does not measure them. Per-monitor OS profile read and reacted to on change, user-supplied ICC display profiles, correct behaviour when monitors differ, an explicit unmanaged state, and the active profile exposed in Argus. Hardware calibration is an optional out-of-process adapter lane, not a required capability."
+      },
+      {
+        "gap": "ACES scene-linear default",
+        "anchors": "STU-COL-310..317",
+        "posture": "Delivered through the OCIO v2 requirement already in the module. The document records which config and version it was authored against so a grade is reproducible."
+      },
+      {
+        "gap": "testable colour accuracy",
+        "anchors": "STU-COL-320..326",
+        "posture": "CIEDE2000 with per-path tolerances and a golden patch corpus. Before this the spec required correct colour but stated no number, so no validator could gate it."
+      },
+      {
+        "gap": "video scopes and legal range",
+        "anchors": "STU-COL-330..337",
+        "posture": "Waveform, parade, vectorscope and histogram specified as a colour-analysis contract measured relative to the timeline working space, with legal-range checking. 14.25 points at it via the non-yielding cross-reference STU-VID-105."
+      },
+      {
+        "gap": "total ink coverage",
+        "anchors": "STU-LAY-250..254",
+        "posture": "Limit declaration sites and precedence, evaluation on composed separated device values, a typed violation finding, and published limits recorded as reference rather than as a Studio default."
+      },
+      {
+        "gap": "transform determinism",
+        "anchors": "STU-COL-350..355",
+        "posture": "Materialisation is scalar, SIMD-disabled and bit-identical; application may use SIMD and the GPU under a stated tolerance. The interpolation rule is now part of the transform cache key, so a CPU proof render and a GPU viewport can no longer disagree while claiming the same transform."
+      }
+    ],
+    "open_gate": {
+      "item": "ICC Output-class (prtr) B2A evaluation in the candidate colour-management module",
+      "why": "The recommended pure-Rust engine documents Display-class coverage; Output class is what CMYK separation and soft-proofing need. The API exposes ProfileClass and a full LUT family so the machinery appears present, but this was not established from documentation.",
+      "status": "HARD PREDECESSOR - must be tested against a real Output-class profile before the colour work is authored. Failure changes the engine recommendation."
+    },
+    "research_record": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/research/cmm-implementation-research.json (28 sources)"
+  },
+  "historical_readiness_before_2026_10_09": {
+    "record_id": "STUDIO-READINESS-HISTORY-20261009",
+    "note": "Prior dated assertions retained as historical inputs, not fresh verified proof.",
+    "verdict": "READY_FOR_OPERATOR_REVIEW_OF_SPEC_PROPOSAL",
+    "ready_for_downstream_launch_reason": "Master Spec v02.206 is promoted and spec-bundle-check passes. The microtask set is spec-derived and the round-trip check passes both directions against the promoted bundle. Colour accuracy is now specified end to end for photo, video and print. What remains is packet lifecycle, not spec work: this is still a STUB, so promote it to an official packet, register it in BUILD_ORDER and the traceability registry, then create the worktree and branch. The colour-management engine gate recorded above must be tested before the colour microtasks activate.",
+    "local_branch": "feat/WP-KERNEL-STUDIO (NOT CREATED - next session)",
+    "local_worktree_dir": "wtc-studio (NOT CREATED - next session)",
+    "gov_kernel_link": "NOT_CHECKED (worktree not created)",
+    "remote_backup_branch": "origin/WP-KERNEL-STUDIO (created at activation)",
+    "health_checks": {
+      "spec_current_check": "PASS",
+      "spec_bundle_check": "PASS",
+      "validator_spec_regression": "PASS",
+      "mt_index_integrity": "PASS (509 MTs, 0 dep errors, 0 dupes, 6 intentional open-contract-point blockers)"
+    },
+    "next_orchestrator_action": "Review prepared bundle; NEXT SESSION: resolve [STU-CON-006] open points, promote stub -> official packet, create wtc-studio worktree + feat/WP-KERNEL-STUDIO branch, then launch KERNEL_BUILDER/Coder implementation.",
+    "state_source": "RECOMPUTED_FROM_GREENROOM_SPEC_DERIVATION"
+  },
+  "preparation_repass_2026_10_09": {
+    "schema_id": "hsk.studio_preparation_amendment@1",
+    "amendment_id": "STUDIO-PREP-AMENDMENT-20261009",
+    "updated_at": "2026-10-09T17:00:42Z",
+    "approval": {
+      "source": "Live Operator messages 2026-10-09",
+      "scope": "Research/design repass, agent swarm and separate Studio asset worktree; implementation starts in a new session.",
+      "signature": "No new USER_SIGNATURE invented; historic signatures retained."
+    },
+    "research_entrypoint": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/preparation.json",
+    "engineering": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/engineering.json",
+    "ui": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/ui-and-design-workflows.json",
+    "media": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/media-photo-workflows.json",
+    "native_document": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/native-document-and-interop.json",
+    "next_session": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/build-policy-and-next-session.json",
+    "current_spec": "v02.206 via SPEC_CURRENT.md",
+    "worktree": {
+      "branch": "codex/handshake-studio-assets",
+      "baseline": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "locator": "git worktree list --porcelain; refs/heads/codex/handshake-studio-assets",
+      "status": "CREATED_ATTACHED_CLEAN; no product implementation",
+      "governance": "Direct verified gov_kernel via HANDSHAKE_GOV_ROOT; no copied/junctioned .GOV authority."
+    },
+    "effective_operator_scope": {
+      "modularity": "Supersedes prior planning shorthand of one studio-engine with many independent owned engine/UI/interop crates; exact spec enrichment proposed, not published.",
+      "native_format": "Supersedes prior planning non-goal of a new on-disk format: native portable .handshake design requested; live authority stays Surreal/EventLedger/CRDT; exact spec enrichment proposed.",
+      "timeline": "Existing §14.25/26/27 retained; STU-VID-001 supersedes early STU-OVR-015. No current video exclusion.",
+      "lightroom": "Classic/desktop RAW and catalog included. Native .lrcat decoding policy conflict remains open.",
+      "ai": "All vendor AI/generative implementation excluded.",
+      "interop": "Adobe opening/conversion remains full target with typed partial/unsupported gaps; no full-parity claim.",
+      "assets": "One reusable canonical mechanic per panel/control capability, multiple bindable instances; same descriptor drives UI/Argus/manual.",
+      "models": "Production Argus inspection/steering/render outcome, privacy, quiet operation and parallel agent views mandatory per module.",
+      "diagnostics": "Per-module FR/internal_diagnostics/Palmistry integration contracts proposed; no WIRED claim in preparation."
+    },
+    "preservation": "All prior domain scope, MT IDs/acceptance and prep retained, including Affinity, web/Dreamweaver, CJK/RTL/ME, prepress/color and output accessibility. 5484 MT records are preparation, not implementation proof.",
+    "activation": "NON_EXECUTION remains; exact spec/contract/capability/build-budget decisions precede dependent coding next session.",
+    "open_decision_refs": [
+      "STUDIO-SPEC-DELTA-001",
+      "STUDIO-SPEC-DELTA-002",
+      "STUDIO-SPEC-DELTA-003",
+      "STUDIO-SPEC-DELTA-004"
+    ],
+    "collaborative_docs": ".GOV/docs_repo/studio-collaboration-2026-10-09/session.json"
+  },
+  "historical_microtask_metadata_before_2026_10_09": {
+    "count": 509,
+    "id_range": "MT-001..MT-560 (contiguous within domain ranges; some ranges left headroom below their ceiling)",
+    "gui_mt_count": 292,
+    "observable_runtime_mt_count": 501,
+    "open_contract_point_blocked_mts": 6,
+    "index": ".GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json",
+    "domains": {
+      "foundation": "MT-001..020 (20)",
+      "raster": "MT-021..067 (47)",
+      "vector": "MT-081..138 (58)",
+      "layout": "MT-141..190 (50)",
+      "typography": "MT-191..230 (40)",
+      "color": "MT-231..260 (30)",
+      "effects": "MT-261..305 (45)",
+      "design_system": "MT-321..367 (47)",
+      "prototype": "MT-371..400 (30)",
+      "raw": "MT-411..432 (22)",
+      "interop": "MT-441..480 (40)",
+      "automation": "MT-481..520 (40)",
+      "whiteboard": "MT-521..540 (20)",
+      "cross_cutting": "MT-541..560 (20; incl. STU-CON-007 universal conformance gates MT-556..560)"
+    },
+    "universal_conformance_gates": {
+      "clause": "[STU-CON-007] universal command contract (v02.200): every Studio tool/command/primitive in 14.4-14.15 MUST be model-invokable + parallel-safe + deterministic + visually-verifiable.",
+      "gates": "MT-556 determinism/promotion-equivalence, MT-557 parallel-safety (CRDT+lease+idempotent-promotion), MT-558 visual-verifiability (RenderHarness+Argus), MT-559 model-invokability (typed command API), MT-560 aggregate STU-CON-007 closeout gate.",
+      "domain_conformance_mts": "each domain closure MT (MT-021/067,138,190,230,260,301,340,386,432,480,520,540) enumerates all four properties and depends on MT-556..560."
+    }
   }
- },
- "microtask_granularity": "NO_UPPER_COUNT_BIAS; each MT narrow, no-context-implementable, small/fast-model-sized, independently reviewable + crash-recoverable; foundation MTs own shared schema/engines and later MTs depend on them; every MT carries clause + spec_anchor + code_surfaces + expected_tests(>=1 runtime proof) + depends_on + risk_if_missed + gui_obligation + user_manual_obligation + hbr + red_team.",
- "local_branch": "feat/WP-KERNEL-STUDIO (NOT CREATED - next session)",
- "local_worktree_dir": "wtc-studio (NOT CREATED - next session)",
- "gov_kernel_link": "NOT_CHECKED (worktree not created)",
- "remote_backup_branch": "origin/WP-KERNEL-STUDIO (created at activation)",
- "backup_push_status": "NOT_REQUIRED_YET",
- "health_checks": {
-  "spec_current_check": "PASS",
-  "spec_bundle_check": "PASS",
-  "validator_spec_regression": "PASS",
-  "mt_index_integrity": "PASS (509 MTs, 0 dep errors, 0 dupes, 6 intentional open-contract-point blockers)"
- },
- "hbr_applicability": {
-  "pillars": [
-   "INT",
-   "SWARM",
-   "VIS",
-   "QUIET",
-   "MAN",
-   "STOP"
-  ],
-  "int_009_three_tier": "Flight Recorder WIRED at build (FR-EVT-STUDIO-*); internal_diagnostics + Palmistry DEFERRED-until-shipped (WP-KERNEL-012/016) with typed reason on every observable-runtime MT",
-  "coverage": "292 GUI MTs carry HBR-VIS/HBR-MAN; 501 observable-runtime MTs carry HBR-INT-009 three-tier posture; parallel/quiet MTs carry HBR-SWARM/HBR-QUIET; universal conformance gates MT-556..560 carry HBR-SWARM/HBR-VIS/HBR-INT"
- },
- "outstanding_issues": [
-  "Open contract points [STU-CON-006] (redo depth, event granularity/coalescing, auto-accept policy, raster authority storage shape, FR-EVT-STUDIO-* registration, plugin capability schema) MUST be resolved before their implementing MTs (MT-509, 545, 552-555) harden - tracked as spec-debt.",
-  "Prerequisite gate [STU-ARC-006]: kernel baseline (sandbox, PromotionGate, CRDT, native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) must be stable before Studio product implementation begins."
- ],
- "next_orchestrator_action": "Review prepared bundle; NEXT SESSION: resolve [STU-CON-006] open points, promote stub -> official packet, create wtc-studio worktree + feat/WP-KERNEL-STUDIO branch, then launch KERNEL_BUILDER/Coder implementation.",
- "updated_at_utc": "2026-09-04T20:09:36+00:00",
- "greenroom_fold": {
-  "at": "2026-09-04T20:08:34+00:00",
-  "microtasks_total": 5484,
-  "legacy_patched": 509,
-  "spec_derived_added": 4975,
-  "backup_of_previous_packet": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\greenroom_backups\\WP-KERNEL-STUDIO-before-greenroom-fold-20260904-220828",
-  "reports": [
-   "_greenroom_20260903\\spec_update\\proposed-bundle\\spec-roundtrip-report.json",
-   "_greenroom_20260903\\spec_update\\spec-ledger-reconciliation.json",
-   "_greenroom_20260903\\spec_update\\research\\cmm-implementation-research.json"
-  ]
- },
- "colour_accuracy_resolution": {
-  "at": "2026-09-04T20:09:36+00:00",
-  "approved_by": "ilja040920261532",
-  "gaps_closed": [
-   {
-    "gap": "display device characterisation",
-    "anchors": "STU-COL-300..308",
-    "posture": "Studio consumes display profiles and does not measure them. Per-monitor OS profile read and reacted to on change, user-supplied ICC display profiles, correct behaviour when monitors differ, an explicit unmanaged state, and the active profile exposed in Argus. Hardware calibration is an optional out-of-process adapter lane, not a required capability."
-   },
-   {
-    "gap": "ACES scene-linear default",
-    "anchors": "STU-COL-310..317",
-    "posture": "Delivered through the OCIO v2 requirement already in the module. The document records which config and version it was authored against so a grade is reproducible."
-   },
-   {
-    "gap": "testable colour accuracy",
-    "anchors": "STU-COL-320..326",
-    "posture": "CIEDE2000 with per-path tolerances and a golden patch corpus. Before this the spec required correct colour but stated no number, so no validator could gate it."
-   },
-   {
-    "gap": "video scopes and legal range",
-    "anchors": "STU-COL-330..337",
-    "posture": "Waveform, parade, vectorscope and histogram specified as a colour-analysis contract measured relative to the timeline working space, with legal-range checking. 14.25 points at it via the non-yielding cross-reference STU-VID-105."
-   },
-   {
-    "gap": "total ink coverage",
-    "anchors": "STU-LAY-250..254",
-    "posture": "Limit declaration sites and precedence, evaluation on composed separated device values, a typed violation finding, and published limits recorded as reference rather than as a Studio default."
-   },
-   {
-    "gap": "transform determinism",
-    "anchors": "STU-COL-350..355",
-    "posture": "Materialisation is scalar, SIMD-disabled and bit-identical; application may use SIMD and the GPU under a stated tolerance. The interpolation rule is now part of the transform cache key, so a CPU proof render and a GPU viewport can no longer disagree while claiming the same transform."
-   }
-  ],
-  "open_gate": {
-   "item": "ICC Output-class (prtr) B2A evaluation in the candidate colour-management module",
-   "why": "The recommended pure-Rust engine documents Display-class coverage; Output class is what CMYK separation and soft-proofing need. The API exposes ProfileClass and a full LUT family so the machinery appears present, but this was not established from documentation.",
-   "status": "HARD PREDECESSOR - must be tested against a real Output-class profile before the colour work is authored. Failure changes the engine recommendation."
-  },
-  "research_record": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/research/cmm-implementation-research.json (28 sources)"
- }
 }

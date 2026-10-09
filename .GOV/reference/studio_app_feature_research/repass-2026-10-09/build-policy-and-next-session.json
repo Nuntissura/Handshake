@@ -1,0 +1,222 @@
+{
+  "schema_id": "hsk.studio_build_and_next_session_proposal@1",
+  "file_id": "STUDIO-REPASS-20261009-NEXT",
+  "updated_at": "2026-10-09T17:00:42Z",
+  "wp_id": "WP-KERNEL-STUDIO",
+  "status": "PREPARATION_ONLY_IMPLEMENTATION_NEXT_SESSION",
+  "authority": "Current Codex/HBR and approved WP/MT contracts; this proposal does not activate any MT.",
+  "baseline": {
+    "governance_branch": "gov_kernel",
+    "governance_commit": "63bc51cee22dab55a306c9b96fa5a519804dae49",
+    "product_branch": "feat/WP-KERNEL-012",
+    "product_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "studio_branch": "codex/handshake-studio-assets",
+    "worktree_discovery": "git worktree list --porcelain; resolve refs/heads/codex/handshake-studio-assets",
+    "governance_discovery": "HANDSHAKE_GOV_ROOT points to verified live gov_kernel root; do not trust copied .GOV in product checkout.",
+    "artifact_root": "Verified sibling Handshake_Artifacts beside live governance root; resolve dynamically/owner configuration because managed Studio worktree is on a different disk.",
+    "toolchain": "WP012 rust-toolchain.toml pins 1.97.1; installed availability/Studio compile compatibility not verified by execution.",
+    "current_machine": "Fresh RuntimeInformation and Win32_Processor reads report x64, AMD Ryzen 9 5950X, Architecture=9. Prior ARM Surface development remains required separately; no ARM target runtime proof performed."
+  },
+  "spec_amendments": [
+    {
+      "id": "STUDIO-SPEC-DELTA-001",
+      "anchors": [
+        "STU-ARC-001",
+        "STU-ARC-002",
+        "STU-ARC-006"
+      ],
+      "current": "Core binding plus single standalone studio-engine in monorepo workspace; kernel stability gates integrated implementation.",
+      "proposal": "Multiple named owned build units in an independently selectable Studio asset workspace; pure engine/document/control leaves exclude handshake_core/native/SurrealDB. Retain later kernel binding and integrated prerequisite gate. Facade may compose providers but never require every engine.",
+      "detail": "engineering.json#proposed_architecture",
+      "state": "Exact enrichment proposal for operator review; user modularity direction recorded."
+    },
+    {
+      "id": "STUDIO-SPEC-DELTA-002",
+      "anchors": [
+        "STU-IO-001",
+        "STU-OVR-002"
+      ],
+      "current": "No bespoke native on-disk container.",
+      "proposal": "Permit .handshake portable typed mixed-graph snapshots; retain source-format import/edit-preserve/export/round-trip commitments and live Surreal/EventLedger/CRDT authority.",
+      "detail": "native-document-and-interop.json",
+      "state": "Exact format design proposed; no implementation or spec publication."
+    },
+    {
+      "id": "STUDIO-SPEC-DELTA-003",
+      "anchors": [
+        "CX-503R",
+        "STU-OVR-003",
+        "STU-IO-166"
+      ],
+      "current": "No SQLite import/adapter paths.",
+      "proposal": "Operator decision required for read-only Lightroom .lrcat binary/page parsing. Narrow exception would allow bounded input decoding only and prohibit alternate runtime/catalog/cache authority.",
+      "detail": "media-photo-workflows.json; native-document-and-interop.json",
+      "state": "OPEN; affects catalog importer only, not disjoint engine/UI preparation."
+    },
+    {
+      "id": "STUDIO-SPEC-DELTA-004",
+      "anchors": [
+        "STU-MDL-*",
+        "STU-SHL-*",
+        "ARGUS-004",
+        "HBR-INT-009"
+      ],
+      "current": "Existing canonical assets, Argus methods and host diagnostics are present as source contracts; extension seam is design-only.",
+      "proposal": "Preserve existing names/owners, add typed ParamSpec/TemporalState inspection and revision-bound render receipts/per-agent view scopes, define actual host adapter consumers and diagnostic follow-up per module.",
+      "detail": "ui-and-design-workflows.json; engineering.json",
+      "state": "Resolve exact wire version/attribution (actual client_session_id vs documented agent_label), scope and consumers before integration; do not invent a second Argus/manual/ledger."
+    }
+  ],
+  "product_layout": {
+    "proposed_root": "studio-assets/",
+    "manifest": "Independent virtual workspace and lockfile with lightweight default-members; root manifest must not add this closure to kernel default build.",
+    "package_roots": "One module root per engineering.json node; feature implementation files stay under its declared owning root.",
+    "host_adapter": "Later integration-only owned package; no isolated default target depends on it.",
+    "harness": "Development desktop/headless executable showcasing reusable Studio assets. It is not a separate shipped application/suite and uses the same controls/command/render contracts as later embedding.",
+    "new_capability_gate": "Reuse current primitive/capability owner first; unresolved new primitive IDs and duplicate owners block activation under HBR-COMPONENT-002.",
+    "supporting_owner_dispositions": [
+      {
+        "id": "STUDIO-OWNER-PDF",
+        "scope": "PDF object/edit/annotation/forms/redaction/signature/accessibility/preflight/export",
+        "proposed_owner": "hsk-studio-press (new proposed optional build unit; existing PDF import adapters consume its typed ports)",
+        "status": "BOUNDARY_REVIEW_REQUIRED",
+        "reason": "Vector PDF import cannot own full PDF workflow semantics; PdfCraft source-drill informs exact decomposition."
+      },
+      {
+        "id": "STUDIO-OWNER-WEB",
+        "scope": "Preserved STU-WEB visual/code/DOM/templates/responsive preview",
+        "proposed_owner": "hsk-studio-web (proposed adapter/presenter build unit)",
+        "status": "BOUNDARY_REVIEW_REQUIRED",
+        "reason": "Reuse lowest native source-editor/preview mechanics through ports; standalone targets cannot depend on complete native shell."
+      },
+      {
+        "id": "STUDIO-OWNER-AUTOMATION",
+        "scope": "StudioCommand registry/macros/deterministic batch/plugin capability and job delivery",
+        "proposed_owner": "Accord owns schemas; Session owns dispatch/proposals/Job Runtime ports; domain leaves implement semantic commands.",
+        "status": "PROPOSED_NO_NEW_DUPLICATE_RUNTIME",
+        "reason": "Preserve prior automation MT scope without another external automation server or private job queue."
+      },
+      {
+        "id": "STUDIO-OWNER-CATALOG",
+        "scope": "Collections/selections/virtual copies/relink/browser/thumbnail/source byte references",
+        "proposed_owner": "Existing CKC/PRIM-ArtifactService authority; Folio stores document links, Develop recipes, Session resolves catalog/job ports.",
+        "status": "EXISTING_OWNER_REQUIRED",
+        "reason": "STU-ASSET-004 forbids Studio private catalog/index/watchers/cache/CAS; standalone providers are transient explicit fixtures, not a shipped second store."
+      }
+    ]
+  },
+  "build_controls": [
+    {
+      "id": "STUDIO-BUILD-001",
+      "action": "Bind each implementing MT to exactly one execution.module_ref; WP architecture_binding names roots, dependency directions, boundary_change and build budgets.",
+      "rule": "HBR-COMPART-001"
+    },
+    {
+      "id": "STUDIO-BUILD-002",
+      "action": "Check exact manifest/feature dependency closure before first focused compile. Accord/Folio exclude GUI/GPU/DB/codecs; isolated harness excludes core/native/Surreal/RocksDB; kernel bindings are opt-in separate target.",
+      "rule": "HBR-COMPART-001"
+    },
+    {
+      "id": "STUDIO-BUILD-003",
+      "action": "Use a stable per-owner source path, changed-file refresh with fresh mtimes and candidate commit/tree/file-count/manifest digests. Do not cold-start a new source path for every candidate.",
+      "rule": "GLOBAL-VALIDATION-023–025"
+    },
+    {
+      "id": "STUDIO-BUILD-004",
+      "action": "Set explicit owner/target/toolchain/profile scoped CARGO_TARGET_DIR under resolved external artifact root from the first compile. Do not inherit WP012's relative shared target path from the managed C-drive worktree. Maintain owner cleanup and parent backstop per HBR-SWARM-006; retain only explicitly approved warm compiler/source caches and pending independent-review evidence. Runtime state/governance documentation stays outside artifact outputs.",
+      "rule": "HBR-SWARM-005/006"
+    },
+    {
+      "id": "STUDIO-BUILD-005",
+      "action": "Measure focused cold/warm compile timings, peak memory, rebuilt crates, cache hits/misses and relinked binaries at stable input. Settle numeric build-budget review from exact baseline; no unmeasured speedup claims.",
+      "rule": "HBR-COMPART-002"
+    },
+    {
+      "id": "STUDIO-BUILD-006",
+      "action": "Reuse existing cache/tools; inspect current local settings before selecting incremental developer lane versus sccache shared-cache lane. Mozilla documents incremental Rust disables cacheability; do not blindly enable both or purge warm artifacts.",
+      "sources": [
+        "https://github.com/mozilla/sccache/blob/main/docs/Rust.md",
+        "https://doc.rust-lang.org/cargo/reference/profiles.html#incremental"
+      ]
+    },
+    {
+      "id": "STUDIO-BUILD-007",
+      "action": "Resolve features deliberately. Resolver 3 is a candidate for the Studio workspace, not an automatic project-wide upgrade; Cargo can unify features across selected members, so heavy adapters must not leak into cheap targets.",
+      "sources": [
+        "https://doc.rust-lang.org/cargo/reference/resolver.html",
+        "https://doc.rust-lang.org/cargo/reference/workspaces.html"
+      ]
+    },
+    {
+      "id": "STUDIO-BUILD-008",
+      "action": "Batch compatible focused checks once per affected package with isolated mutable prerequisites; schedule compiler concurrency from actual host/resource budgets and owned target dirs; avoid repeated broad workspace builds.",
+      "rule": "CX-VAL-001; GLOBAL-VALIDATION"
+    },
+    {
+      "id": "STUDIO-BUILD-009",
+      "action": "Verify exact x86_64 Windows product binaries and declared GPU/codec/font paths independently. ARM64 portable source/component proof is separate. SIMD dispatch needs scalar reference; no unconditional x86 instruction assumptions.",
+      "rule": "Exact task acceptance and cross-platform proof"
+    },
+    {
+      "id": "STUDIO-BUILD-010",
+      "action": "Required GPU or external-oracle proof fails/records dependency when absent, never silently skips to PASS. Build-only/readiness evidence cannot replace actual runtime render/edit/save/export proof.",
+      "rule": "CX-EXEC-014; HBR-VIS"
+    }
+  ],
+  "module_hbr_contract": {
+    "INT": "Every observable behavior records FR/business-event, internal_diagnostics and Palmistry posture. Typed sinks/ports are proposed now, host consumers required later; WIRED only after real wire proof. Internal telemetry contains allowlisted mechanism/counter/error data, never project pixels/text.",
+    "SWARM": "Actor/request/client_session_id, task scope, deterministic command IDs, idempotency, base revisions, lease resources, conflict/cancel/recovery and per-agent view/selection. Agent navigation cannot move operator focus.",
+    "VIS": "Argus inspect/click/set_value/screenshot cover every real UI/control and re-observe exact changed result. PNG receipts bind revision/render/frame/profile/proxy/grants. Headless APIs complement actual GUI proof.",
+    "QUIET": "No unrequested foreground window, focus or keyboard capture; bounded headless work, controlled explicit GUI capture only.",
+    "MAN": "One shipped dual-audience UserManual generated/bound to canonical command/UI descriptors; actual startup/invocation, schemas, grants, recovery, primitives/APIs and diagnostic evidence. No second ModelManual.",
+    "STOP": "Current process ownership and authority boundaries; no process disruption of operator/other-session apps.",
+    "PRIV": "Default-deny Principal/AccessSpace/grants across originals, intermediate resources, linked assets, thumbnails, exports, caches, traces, model observations and revocation; recipient reauthorization on native import.",
+    "COMPART": "Owned crate DAG and measured rebuild closure; boundary/budget review where violated.",
+    "COMPONENT": "One canonical mechanic/capability owner. Configure/extend shared panel/field/swatch/menu/gizmo/time property asset before adding a sibling."
+  },
+  "next_session_sequence": [
+    {
+      "id": "STUDIO-NEXT-001",
+      "scope": "All previous parity scope retained",
+      "action": "Read current gov_kernel authority and exact Studio preparation files; independently refresh branch identities and verify assigned worktree before implementation."
+    },
+    {
+      "id": "STUDIO-NEXT-002",
+      "scope": "Only spec/contract preparation",
+      "action": "Review concrete modularity/native-format proposals and .lrcat decision; publish explicitly approved enrichment copy-first to the next spec bundle using the current governed spec workflow."
+    },
+    {
+      "id": "STUDIO-NEXT-003",
+      "scope": "Activation",
+      "action": "Promote/update the existing NON_EXECUTION Studio stub using typed WP/refinement/MT templates; retain old MT IDs and acceptance, reconcile changed code surfaces/owners and previously conflated capability rows. Record current approval and unresolved items without forging a new signature. Hydrate exact Studio runner/canary/implementer proof commands from the activated MT; existing HBR REPLACE_ME fields are not runnable commands. Check current gameplan before costly work."
+    },
+    {
+      "id": "STUDIO-NEXT-004",
+      "scope": "Foundation assets",
+      "action": "Select unblocked foundation MTs for Accord/Folio/Observe, native package port and reusable Controls/descriptor proof; assign disjoint file ownership, minimal isolated target closure and common review boundary."
+    },
+    {
+      "id": "STUDIO-NEXT-005",
+      "scope": "First integrated Studio asset proof",
+      "action": "Implement an actual focused raster/vector mixed-document vertical slice with reusable panel instances, inspectable/editable ParamSpec, real rendered output, saved/reopened native snapshot and cancellation/recovery. Keep other domains in declared roadmap, not dropped."
+    },
+    {
+      "id": "STUDIO-NEXT-006",
+      "scope": "Parallel source development and independent proof",
+      "action": "Run permitted implementer static compile then push exact candidate. Independent validator runs grouped acceptance for behavior, negative/persistence/grants/Argus/concurrency and rebuild closure on declared x64 target; no duplicate leaf test rounds."
+    },
+    {
+      "id": "STUDIO-NEXT-007",
+      "scope": "All suite domains and imports",
+      "action": "Continue existing domain MTs mapped to modular owners and source-adoption gaps; kernel embedding, FR/native Argus/manual/Palmistry consumers follow separate integration proof once WP012 baseline is usable."
+    }
+  ],
+  "activation_blockers": [
+    "Current Studio remains NON_EXECUTION; design proposals do not authorize Rust implementation.",
+    "Exact spec deltas and module/build-budget/capability-owner review must be resolved for dependent foundation work.",
+    "Existing STU-CON-006 open points need resolution before their affected MTs, not all disjoint work.",
+    "Adobe GUI references and proprietary decoder fixtures remain missing runtime acceptance inputs; source review cannot clear them.",
+    "Supporting PDF/web/automation/catalog capability-owner mappings require concrete primitive/root binding before their affected MTs; preserve scope while resolving boundary."
+  ],
+  "scope_not_reduced": "All requested non-AI parity domains remain committed scope; sequence is implementation dependency order, not prioritization or removal."
+}

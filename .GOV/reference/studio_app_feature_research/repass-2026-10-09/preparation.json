@@ -1,0 +1,288 @@
+{
+  "schema_id": "hsk.studio_preparation_repass@1",
+  "file_id": "STUDIO-REPASS-20261009-PREPARATION",
+  "file_kind": "research-and-architecture-proposal",
+  "updated_at": "2026-10-09T17:40:27.293666+00:00",
+  "wp_id": "WP-KERNEL-STUDIO",
+  "status": "RESEARCH_PREPARED_IMPLEMENTATION_NOT_STARTED",
+  "authority": "REFERENCE_ONLY; governed stub remains NON_EXECUTION",
+  "intent": [
+    {
+      "id": "STUDIO-REQ-001",
+      "operator_phrase": "pull the complete repo from github first",
+      "disposition": "DONE",
+      "evidence": "All remote heads and tags fetched; non-shallow/non-promisor repository. gov_kernel 63bc51cee22dab55a306c9b96fa5a519804dae49 and feat/WP-KERNEL-012 292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4 matched independent fresh ls-remote reads."
+    },
+    {
+      "id": "STUDIO-REQ-002",
+      "operator_phrase": "run kbstart.cmd follow its rules and instructions",
+      "disposition": "Launcher attempted; direct governed startup followed",
+      "evidence": ".GOV/operator/scripts/kbstart.cmd failed No justfile found; KB-START-003 permits direct authority reads. No retired Just helper revived."
+    },
+    {
+      "id": "STUDIO-REQ-003",
+      "operator_phrase": "create a new worktree for all the assets for handshake studio",
+      "disposition": "DONE",
+      "evidence": "Managed attached worktree on local branch codex/handshake-studio-assets, baseline WP012 292d7a1c; locate via git worktree list --porcelain by branch. No .GOV junction created or governance copied."
+    },
+    {
+      "id": "STUDIO-REQ-004",
+      "operator_phrase": "then in a new session we will start building this studio asset",
+      "disposition": "Preserved",
+      "evidence": "This session is research/design/preparation. No Studio Rust/UI implementation, build/test or acceptance claim."
+    },
+    {
+      "id": "STUDIO-REQ-005",
+      "operator_phrase": "a single handshake studio crate is a fail, i want modular code",
+      "disposition": "Concrete proposed multi-crate DAG; spec amendment needed",
+      "evidence": "engineering.json; STUDIO-SPEC-DELTA-001. Pure leaves separate from aggregate host; crate count itself not acceptance."
+    },
+    {
+      "id": "STUDIO-REQ-006",
+      "operator_phrase": "start modularising both product code as handshake features",
+      "disposition": "Engineering source audit and boundary extraction proposal",
+      "evidence": "Existing multi-workspace packages inspected; heavy core and native shell integration dependencies cannot enter Studio's isolated development closure."
+    },
+    {
+      "id": "STUDIO-REQ-007",
+      "operator_phrase": "full working photoshop, figma, illustrator, indesign, premiere, aftereffects etc",
+      "disposition": "Full non-AI parity target preserved; workflow and source gaps explicit",
+      "evidence": "ui-and-design-workflows.json, media-photo-workflows.json, pdfcraft-source-audit.json; old Affinity/Dreamweaver/web/whiteboard prep retained."
+    },
+    {
+      "id": "STUDIO-REQ-008",
+      "operator_phrase": "Lightroom should also be included",
+      "disposition": "Classic/desktop catalog and RAW/develop scope retained",
+      "evidence": "media-photo-workflows.json; no-SQLite catalog importer conflict explicitly open."
+    },
+    {
+      "id": "STUDIO-REQ-009",
+      "operator_phrase": "yes expand scope with time line editting",
+      "disposition": "Preserved existing current scope",
+      "evidence": "STU-VID-001 supersedes early STU-OVR-015; Studio owns sequences, motion and composition; engine.director consumes output."
+    },
+    {
+      "id": "STUDIO-REQ-010",
+      "operator_phrase": "do not care about adobe ai implementation or features",
+      "disposition": "Excluded",
+      "evidence": "No rebuilding vendor AI/generative features; preserve non-AI professional tools, deterministic algorithms and optional existing Handshake provider integration boundaries."
+    },
+    {
+      "id": "STUDIO-REQ-011",
+      "operator_phrase": "interchangable workflows inside a single document",
+      "disposition": "Unified typed graph proposal",
+      "evidence": "native-document-and-interop.json; one graph identity and command registry across views; no separate branded apps."
+    },
+    {
+      "id": "STUDIO-REQ-012",
+      "operator_phrase": "a handshake native fileformat should be created",
+      "disposition": "Concrete .handshake container proposal",
+      "evidence": "native-document-and-interop.json; STUDIO-SPEC-DELTA-002. Live SurrealDB authority retained, portable native snapshot proposed."
+    },
+    {
+      "id": "STUDIO-REQ-013",
+      "operator_phrase": "adobe files to also open inside handshake and converted to a handshake format",
+      "disposition": "Per-format editable/partial/opaque/rejected conversion contract",
+      "evidence": "native-document-and-interop.json; all binary/private format gaps remain scope, no silent flatten or unsupported success."
+    },
+    {
+      "id": "STUDIO-REQ-014",
+      "operator_phrase": "own rust engines if possible ... open source rust projects we can fork and rebuild",
+      "disposition": "Source-level candidate audit complete as planning deliverable",
+      "evidence": "PhotoCraft/VectorCraft/DesignCraft/FilmCraft/LightCraft/EffectCraft/PdfCraft source reviews pinned by commit; SoundCraft adjacent DSP review. No fork or wholesale vendoring performed."
+    },
+    {
+      "id": "STUDIO-REQ-015",
+      "operator_phrase": "fitting handshake themed name",
+      "disposition": "Proposed names only",
+      "evidence": "engineering.json identifies thematic build-unit families while preserving existing canonical feature/tool/panel names and semantic IDs."
+    },
+    {
+      "id": "STUDIO-REQ-016",
+      "operator_phrase": "full suite dev team with researchers, coders, gui ... backend ... modularity",
+      "disposition": "Three specialist teams plus root synthesis and cross-review",
+      "evidence": "engineering.json, ui-and-design-workflows.json, media-photo-workflows.json, pdfcraft-source-audit.json; shared deliverable reviewed, no governed coder/validator acceptance implied."
+    },
+    {
+      "id": "STUDIO-REQ-017",
+      "operator_phrase": "multiple large scale professional workflows",
+      "disposition": "End-to-end scenario registry",
+      "evidence": "UI/design and media/photo workflows plus supplementary PDF/web scenarios; scales are proposed acceptance corpora, not completed parity proof."
+    },
+    {
+      "id": "STUDIO-REQ-018",
+      "operator_phrase": "user manual for humans and models ... primitives or apis",
+      "disposition": "Same-descriptor UserManual contract",
+      "evidence": "ui-and-design-workflows.json; same-change shipped UserManual including invocation, failures/recovery, grants, diagnostics and actual API/Argus paths."
+    },
+    {
+      "id": "STUDIO-REQ-019",
+      "operator_phrase": "follow build rules ... arm surface ... product x64 ... warm cargo/cache/bundling",
+      "disposition": "Build topology and target-specific proof proposal",
+      "evidence": "engineering.json; build-policy-and-next-session.json. No cache/toolchain/profile change this session; x64 GPU/runtime proof cannot be replaced by ARM host component checks."
+    },
+    {
+      "id": "STUDIO-REQ-020",
+      "operator_phrase": "not a saas ... desktop ... functionality ... good ui design",
+      "disposition": "Native desktop information architecture",
+      "evidence": "ui-and-design-workflows.json; single local workspace, dense professional controls, keyboard/pen accessibility, quiet agents and full capabilities independent of cloud."
+    },
+    {
+      "id": "STUDIO-REQ-021",
+      "operator_phrase": "do not create panels over and over ... single panel asset and reuse",
+      "disposition": "Canonical shared asset ownership",
+      "evidence": "ui-and-design-workflows.json; panel host and shared fields/swatches/menu mechanics bind multiple instances to semantic domains without losing simultaneous panels."
+    },
+    {
+      "id": "STUDIO-REQ-022",
+      "operator_phrase": "flight recorder ... internal diagnostic ... argus ... palmistry ... connect ... each sub module/crate",
+      "disposition": "Thin host ports and per-module diagnostic posture",
+      "evidence": "engineering.json and UI Argus extension proposal; live consumers required before WIRED, no copied diagnostic implementations."
+    },
+    {
+      "id": "STUDIO-REQ-023",
+      "operator_phrase": "Argus ... eyes of the models ... real world users ... visually inspect outcome",
+      "disposition": "Shipped production model visibility and steering requirement",
+      "evidence": "ui-and-design-workflows.json; structured inspect/action/PNG receipts identify document revision, render epoch, frame/time/profile/crop/proxy status, granted scope and actor."
+    },
+    {
+      "id": "STUDIO-REQ-024",
+      "operator_phrase": "parallel work by agent swarms ... all work should have argus elements",
+      "disposition": "Per-agent views, resource leases and deterministic proposals",
+      "evidence": "ui-and-design-workflows.json and engineering.json; preserve shared CRDT authority, separate local view/selection, conflict-safe raster/sequence promotion and attribution."
+    },
+    {
+      "id": "STUDIO-REQ-025",
+      "operator_phrase": "full adobe suite installed on disk ... inspect code, gui",
+      "disposition": "Installed versions/resources inspected; native GUI NOT_INSPECTED",
+      "evidence": "ui-and-design-workflows.json; installed shipped code/resources differ from proprietary application engine source. Native computer APIs disabled; GUI differential matrix remains required."
+    }
+  ],
+  "preservation": {
+    "prior_research": ".GOV/reference/studio_app_feature_research/index.yaml and 00..66 inventories; no deletion or silent narrowing",
+    "prior_preparation": ".GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json and _greenroom_20260903; 5484 MT records retained, count not readiness",
+    "carried_forward": [
+      "58 July parity gaps and 41 workflow needs/86 bridge opportunities as prior recorded research, not verified closure.",
+      "Affinity Photo/Designer/Publisher, web-authoring/Dreamweaver, whiteboard/design systems, prototyping, motion/timeline/compositing.",
+      "CJK/RTL/ME typography, output accessibility beyond baseline incumbents, prepress/color accuracy, deterministic automation, local desktop scope."
+    ],
+    "known_debt": "Normalized-label deduplication can conflate semantically different commands. Preserve original per-app identities; reconcile capability IDs by domain/kind/semantics before MT activation. Current prepared MTs are not rewritten mechanically from new crate names."
+  },
+  "deliverables": [
+    {
+      "id": "STUDIO-REPASS-2026-10-09-ENGINEERING",
+      "path": "engineering.json",
+      "owner": "studio_engineering"
+    },
+    {
+      "id": "STUI-REPASS-20261009",
+      "path": "ui-and-design-workflows.json",
+      "owner": "studio_ui"
+    },
+    {
+      "id": "STUDIO-REPASS-20261009-MEDIA",
+      "path": "media-photo-workflows.json",
+      "owner": "studio_media"
+    },
+    {
+      "id": "STUDIO-REPASS-20261009-DOCUMENT",
+      "path": "native-document-and-interop.json",
+      "owner": "root"
+    },
+    {
+      "id": "STUDIO-REPASS-20261009-PDF",
+      "path": "pdfcraft-source-audit.json",
+      "owner": "root"
+    },
+    {
+      "id": "STUDIO-REPASS-20261009-NEXT",
+      "path": "build-policy-and-next-session.json",
+      "owner": "root"
+    },
+    {
+      "id": "STUDIO-REPASS-20261009-WORKFLOW-SUPPLEMENT",
+      "path": "supplementary-workflows.json",
+      "owner": "root"
+    },
+    {
+      "id": "STUDIO-REPASS-HANDSHAKE-ROOT-DRILL-20261009",
+      "path": "handshake-root-drill.json",
+      "owner": "kernel_root_drill",
+      "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF"
+    },
+    {
+      "id": "STUDIO-DRILL-PHOTOCRAFT-20261009",
+      "path": "photocraft-root-drill.json",
+      "owner": "photocraft_root_drill",
+      "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF"
+    },
+    {
+      "id": "STUDIO-DRILL-VECTOR-DESIGN-20261009",
+      "path": "vector-design-root-drill.json",
+      "owner": "vector_design_root_drill",
+      "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF"
+    }
+  ],
+  "claims": {
+    "achieved": "Repository refresh, isolated assigned worktree, source-backed research and architecture proposals.",
+    "not_claimed": [
+      "Implemented Studio assets/crates/native format",
+      "Adobe GUI fidelity or full editable import parity",
+      "Build-time improvement or cache tuning proven",
+      "HBR diagnostic/Argus integration WIRED",
+      "MT activation, validator PASS or integration readiness"
+    ]
+  },
+  "collaboration_workspace": ".GOV/docs_repo/studio-collaboration-2026-10-09/session.json",
+  "source_cache_manifest": ".GOV/docs_repo/studio-collaboration-2026-10-09/source-cache-manifest.json",
+  "extended_operator_requirements": [
+    {
+      "id": "STUDIO-REQ-026",
+      "operator_phrase": "many more [subagents] up to15max",
+      "disposition": "Specialist rotations under verified four active runtime slots; three simultaneous subagents plus root.",
+      "evidence": "collaboration session agent ownership and completed/pending drill inventory."
+    },
+    {
+      "id": "STUDIO-REQ-027",
+      "operator_phrase": "deep code base drilling ... rootlevel",
+      "disposition": "Active full-source crate/module and function execution-path drill across Handshake and Craft projects; not finished yet.",
+      "evidence": "Tracked collaboration session and source-cache manifest; exact inspection ceiling per report."
+    },
+    {
+      "id": "STUDIO-REQ-028",
+      "operator_phrase": "download the craft rust projects in gov-runtime",
+      "disposition": "Pinned complete commit archives authorized into ignored runtime tool/source cache; metadata/hashes tracked in kernel.",
+      "evidence": "source-cache-manifest.json; git history/runtime proof separate."
+    },
+    {
+      "id": "STUDIO-REQ-029",
+      "operator_phrase": "docs, in gov kernel ... not [ignored] runtime",
+      "disposition": "Collaboration/recovery documentation in .GOV/docs_repo/studio-collaboration-2026-10-09.",
+      "evidence": "No documentation saved into prior empty runtime docs directories."
+    },
+    {
+      "id": "STUDIO-REQ-030",
+      "operator_phrase": "update the gameplan so we can recover",
+      "disposition": "Added tracked session/source/worktree/restart discipline and cause-specific inspection recovery checks.",
+      "evidence": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml; gameplan before_dispatch passed 8/8 before source acquisition."
+    }
+  ],
+  "deep_source_drill": {
+    "phase": "IN_PROGRESS",
+    "completed": [
+      "handshake-root-drill.json",
+      "photocraft-root-drill.json",
+      "vector-design-root-drill.json"
+    ],
+    "active": [
+      "argus-diagnostics-root-drill.json",
+      "light-effect-root-drill.json",
+      "filmcraft-root-drill.json"
+    ],
+    "pending": [
+      "pdf-audio-root-drill.json",
+      "cross-source ownership/adoption reconciliation"
+    ],
+    "claim_limit": "Complete archive/member inventory plus selected exact execution-chain inspection; no assertion every source line was read, no compiled graph, runtime, GUI or parity verdict."
+  }
+}

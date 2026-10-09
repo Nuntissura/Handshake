@@ -1,0 +1,74 @@
+{
+  "schema_id": "hsk.studio_supplementary_workflows@1",
+  "file_id": "STUDIO-REPASS-20261009-WORKFLOW-SUPPLEMENT",
+  "updated_at": "2026-10-09T17:00:42Z",
+  "authority": "REFERENCE_ONLY",
+  "status": "PROPOSED_ACCEPTANCE_SCENARIOS_NOT_IMPLEMENTED",
+  "workflows": [
+    {
+      "id": "STUDIO-WF-PDF-001",
+      "name": "Accessible technical-publication and controlled print-delivery review",
+      "scope": "Acrobat/PDF professional review complements existing InDesign/layout and press workflow requirements; no unrelated product expansion.",
+      "scale": "Proposed corpus: 500-page multilingual technical manual, many linked references, structured tables, tagged figures, annotations and multiple output profiles.",
+      "steps": [
+        "Import canonical PDF/native stories/assets with editability report.",
+        "Review/annotate revision-specific pages, compare structured changes and rendered output, correct reading order/table/tag findings.",
+        "Apply output-profile-specific preflight and manage signatures/encryption explicitly.",
+        "Sanitize/redact through full rewrite when selected; discard hidden originals/history from that output only.",
+        "Export, reopen independently and inspect content/structure/render and raw decompressed bytes."
+      ],
+      "handoff": "Same approved native stories/figures feed screen/press/digital outputs; review comments bind stable revision/object identities rather than stale pixel coordinates.",
+      "failures": [
+        "Perfect-looking page with inaccessible semantic reading order",
+        "Redacted bytes retained in incremental revisions or embedded original",
+        "Signed file invalidated without explicit finding",
+        "Unrecognized spot/overprint or font subset"
+      ],
+      "controls": [
+        "Independent conformity validators and manual output reading-order checks",
+        "Explicit full-rewrite export route and byte/image residue inspection",
+        "Typed signature status and immutable-original retention choice",
+        "Versioned profile/transform and glyph fixtures"
+      ],
+      "sources": [
+        "pdfcraft-source-audit.json",
+        "ui-and-design-workflows.json"
+      ]
+    },
+    {
+      "id": "STUDIO-WF-WEB-001",
+      "name": "Reusable design-system to accessible local web-authoring delivery",
+      "scope": "Preserves existing STU-WEB/Dreamweaver prep; published result may be a website while Studio itself remains native desktop.",
+      "scale": "Proposed corpus: 200-page site, linked graphics/components, 10 locale variants and responsive viewport targets.",
+      "steps": [
+        "Open local HTML/CSS/JS/site assets in existing native editor capability.",
+        "Bind shared Studio vector/raster assets and design tokens to DOM/CSS output with source relation receipts.",
+        "Inspect DOM and rendered preview with shared properties panel and model-readable target IDs.",
+        "Apply responsive media queries, reusable templates/library content and semantic/accessibility checks.",
+        "Review local Git branch changes using existing editor/Git owners; export selected canonical site assets and staging package.",
+        "Publish only through explicitly authorized optional deployment adapter, with no required hosted dependency."
+      ],
+      "handoff": "Native visual assets, component tokens and code views share an asset identity; DOM edits do not reimplement WP012 source-editor or filesystem mechanics.",
+      "failures": [
+        "Preview correct at one viewport but broken at constrained sizes",
+        "Export updates only visible/loaded pages",
+        "Unsafe embedded script accesses filesystem",
+        "Unreviewed Git/deploy actions"
+      ],
+      "controls": [
+        "Bounded sandboxed preview and exact canonical scope counts",
+        "Explicit grants and source-to-output mapping",
+        "Responsive/accessibility/RTL workflow output proof",
+        "Reuse existing Git/code-editing/publishing authority and permission boundary"
+      ],
+      "sources": [
+        {
+          "url": "https://helpx.adobe.com/dreamweaver/desktop/set-up-sites/git-support.html",
+          "checked": "Official Git workflow and navigation to local-site/responsive/DOM/templates/preview documentation"
+        },
+        ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md"
+      ]
+    }
+  ],
+  "proof_status": "No website/editor/PDF implementation or runtime proof in this session."
+}

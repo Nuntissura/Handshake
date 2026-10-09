@@ -1,0 +1,43 @@
+schema_version: handshake.gameplan.v1
+template_version: 1
+kind: gameplan
+instance_policy:
+  omit_empty_optional_fields: true
+  policy_lives_in_rule_refs_not_instance_fields: true
+  schema_ref: repo-governance/schemas/gameplan.schema.yaml
+rule_refs: []
+writing: 'no prose; terse fragments; determinism > grammar; verb object [op value]'
+precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; correct the step'
+scope: session
+assignment: STUDIO-PREPARATION
+parent: null
+generation: 25
+expensive_actions: []
+steps:
+- {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
+- {id: GP-002, role: any, at: on_resume, do: confirm statuses recounted from source records; memory counts == 0, check: {type: confirm}, source: 'preset:resume', state: active}
+- {id: GP-003, role: any, at: on_resume, do: confirm half-written records finished before new work, check: {type: confirm}, source: 'preset:resume', state: active}
+- {id: GP-004, role: builder, at: any, do: verify kernel branch == gov_kernel, check: {type: git, branch: gov_kernel}, source: CX-212C; studio sync assignment, state: active}
+- {id: GP-005, role: builder, at: before_merge, do: verify tracked kernel files clean, check: {type: git, clean: true, include_untracked: false}, source: preserve existing untracked sync checklist, state: active}
+- {id: GP-006, role: builder, at: before_merge, do: verify tracked WP012 files clean, check: {type: git, repo: ../wtc-native-editors-v1, clean: true, include_untracked: false}, source: Operator requested latest WP012 product baseline, state: active}
+- {id: GP-007, role: builder, at: before_merge, do: verify kernel HEAD preserved on remote ancestry, check: {type: cmd, argv: [git, merge-base, --is-ancestor, HEAD, origin/gov_kernel], expect_exit: 0}, source: CX-114; remote contains current committed state, state: active}
+- {id: GP-008, role: builder, at: before_merge, do: verify WP012 HEAD preserved on remote ancestry, check: {type: cmd, argv: [git, -C, ../wtc-native-editors-v1, merge-base, --is-ancestor, HEAD, origin/feat/WP-KERNEL-012], expect_exit: 0}, source: CX-114; remote contains current committed state, state: active}
+- {id: GP-009, role: builder, at: any, do: confirm bulk source writes use file tool or stdin, check: {type: confirm}, source: 'infra: source snapshot shell command exceeded Windows CreateProcess limit', state: active}
+- {id: GP-010, role: builder, at: on_resume, do: verify collaborative session record exists, check: {type: file, path: .GOV/docs_repo/studio-collaboration-2026-10-09/session.json, exists: true}, source: 'Operator: tracked collaborative docs and recovery', state: active}
+- {id: GP-011, role: builder, at: on_resume, do: verify pinned full-source manifest exists, check: {type: file, path: .GOV/docs_repo/studio-collaboration-2026-10-09/source-cache-manifest.json, exists: true}, source: 'Operator: deep root-level code drilling', state: active}
+- {id: GP-012, role: builder, at: before_dispatch, do: verify kernel branch == gov_kernel, check: {type: git, branch: gov_kernel}, source: HSK-START-001, state: active}
+- {id: GP-013, role: builder, at: before_dispatch, do: verify Studio worktree branch remains registered, check: {type: cmd, argv: [git, worktree, list, --porcelain], expect_exit: 0, expect_output: refs/heads/codex/handshake-studio-assets}, source: 'Operator: reuse assigned Studio worktree', state: active}
+- {id: GP-014, role: builder, at: before_dispatch, do: verify full-source provenance record exists, check: {type: file, path: .GOV/docs_repo/studio-collaboration-2026-10-09/source-cache-manifest.json, exists: true}, source: Pinned read-only upstream source cache, state: active}
+- {id: GP-015, role: builder, at: before_dispatch, do: confirm upstream scripts never executed for source inspection, check: {type: confirm}, source: Untrusted source; preparation only, state: active}
+- {id: GP-016, role: builder, at: on_resume, do: verify current Studio stub remains NON_EXECUTION, check: {type: file, path: .GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json, contains: NON_EXECUTION_STUB}, source: KB-PREP-001; implementation next session, state: active}
+- {id: GP-017, role: builder, at: before_submit, do: confirm root-level source maps and cross-review findings reconciled, check: {type: confirm}, source: 'Operator: source drilling deliverable', state: active}
+- {id: GP-018, role: builder, at: any, do: confirm JSON file reads bounded per artifact, check: {type: confirm}, source: 'infra: combined JSON read truncated before parsing', state: active}
+- {id: GP-019, role: builder, at: any, do: confirm file edits use Update File with unique current context, check: {type: confirm}, source: 'infra: apply_patch rejects duplicate same-path operations', state: active}
+- {id: GP-020, role: builder, at: any, do: confirm source reads use explicit UTF-8 decoding, check: {type: confirm}, source: 'infra: Windows cp1252 cannot decode Rust Unicode sources', state: active}
+- {id: GP-021, role: builder, at: any, do: confirm manifest census handles root and workspace globs, check: {type: confirm}, source: 'infra: empty root-relative path and independent fuzz manifests', state: active}
+- {id: GP-022, role: builder, at: any, do: confirm checklist notes stay within 120 chars, check: {type: confirm}, source: 'infra: gameplan confirm rejected overlong note', state: active}
+- {id: GP-023, role: builder, at: any, do: confirm source probe stdout emits UTF-8, check: {type: confirm}, source: 'infra: Windows stdout cp1252 cannot print Unicode source', state: active}
+- {id: GP-024, role: builder, at: any, do: confirm optional regex groups normalized before declaration census, check: {type: confirm}, source: 'infra: nullable regex group caused declaration join failure', state: active}
+- {id: GP-025, role: builder, at: any, do: confirm gameplan moment passed with --at flag, check: {type: confirm}, source: 'infra: positional show moment rejected on resume', state: active}
+- {id: GP-026, role: builder, at: any, do: confirm source paths resolved from manifests and rg --files, check: {type: confirm}, source: 'infra: guessed render/eval crate paths absent', state: active}
+- {id: GP-027, role: builder, at: any, do: confirm artifact counts read from current JSON not prior report, check: {type: confirm}, source: 'infra: Vector execution count asserted 11 then verified 10', state: active}

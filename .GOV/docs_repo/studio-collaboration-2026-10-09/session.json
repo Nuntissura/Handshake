@@ -1,0 +1,78 @@
+{
+  "schema_id": "hsk.studio_research_session@1",
+  "file_id": "STUDIO-COLLAB-20261009",
+  "updated_at": "2026-10-09T17:40:27.293666+00:00",
+  "wp_id": "WP-KERNEL-STUDIO",
+  "scope": "Preparation/research/design only; full user parity target preserved; implementation new session.",
+  "authority_entrypoint": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
+  "research_entrypoint": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/preparation.json",
+  "gameplan": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
+  "source_manifest": ".GOV/docs_repo/studio-collaboration-2026-10-09/source-cache-manifest.json",
+  "runtime_concurrency": "Four active slots including root; rotate specialist agents, up to three simultaneously.",
+  "completed": [
+    "Fresh gov_kernel and WP012 remote baseline, independent equality reads",
+    "Managed codex/handshake-studio-assets worktree from WP012; no product code changed",
+    "Initial engineering/UI/media/PDF source reviews and cross-reviews, native format/build proposals",
+    "Prior Studio scope/5484 MTs preserved, typed readiness remains non-executable",
+    "Full pinned source archives acquired and safely extracted for PhotoCraft/VectorCraft/DesignCraft/PdfCraft/SoundCraft; root archive/hash/file-count reads recorded."
+  ],
+  "current_phase": "FULL_ROOT_LEVEL_SOURCE_DRILL",
+  "remaining": [
+    {
+      "id": "STUDIO-DRILL-HANDSHAKE",
+      "owner": "kernel_root_drill",
+      "output": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/handshake-root-drill.json",
+      "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF"
+    },
+    {
+      "id": "STUDIO-DRILL-PHOTO",
+      "owner": "photocraft_root_drill",
+      "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF",
+      "focus": "PhotoCraft full crate/module maps and pixel/edit/save/render/import execution"
+    },
+    {
+      "id": "STUDIO-DRILL-VECTOR-DESIGN",
+      "owner": "vector_design_root_drill",
+      "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF",
+      "focus": "VectorCraft/DesignCraft geometry/shaping/layout/style/interop execution roots"
+    },
+    {
+      "id": "STUDIO-DRILL-FILM",
+      "owner": "vector_design_root_drill",
+      "status": "RUNNING",
+      "focus": "FilmCraft codec/sequence/media/delivery execution and realtime boundaries"
+    },
+    {
+      "id": "STUDIO-DRILL-LIGHT-EFFECT",
+      "owner": "photocraft_root_drill",
+      "status": "RUNNING",
+      "focus": "LightCraft raw/develop/catalog and EffectCraft eval/render/keyframes/expression/color roots"
+    },
+    {
+      "id": "STUDIO-DRILL-PDF-AUDIO",
+      "owner": null,
+      "status": "PENDING",
+      "focus": "PdfCraft PDF object/save/forensics/accessibility and SoundCraft stream/mix/DSP/plugin roots"
+    },
+    {
+      "id": "STUDIO-DRILL-ARGUS",
+      "owner": "kernel_root_drill",
+      "status": "RUNNING",
+      "focus": "Handshake actual UI/Argus/diagnostics/manual roots vs reusable capability owners"
+    },
+    {
+      "id": "STUDIO-DRILL-RECONCILIATION",
+      "owner": "root",
+      "status": "PENDING",
+      "focus": "Cross-source canonical owners, pinned version/patch compatibility, explicit missing implementations, verify revised contracts and scoped diff"
+    }
+  ],
+  "restart": "Read gameplan on_resume, session.json, source-cache-manifest.json and current typed Studio amendment. Verify branch/worktree roots and current source cache hashes. Inspect completed output files, do not restart completed research or execute candidate scripts. Resume only pending deep drills; no Rust implementation before current spec/packet activation.",
+  "operator_correction": "Documentation collaboration is in kernel .GOV/docs_repo. Earlier runtime docs path only contains empty directories; no documentation was saved there.",
+  "latest_steering": [
+    "User asks broader specialist team rotation and root-level code drilling",
+    "User authorizes Craft downloads to gitignored runtime source cache",
+    "User corrects collaborative docs to git-tracked gov_kernel docs"
+  ],
+  "gameplan_recovery_checks": "GP010..026 record kernel docs, pinned sources, canonical worktree, non-execution and source-probe/UTF-8/CLI/path preparation"
+}
