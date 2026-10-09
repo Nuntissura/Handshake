@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-09T18:11:08.932519+00:00",
+  "updated_at_utc": "2026-10-09T19:38:56.511161+00:00",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -1463,6 +1463,41 @@
         "covers": [
           "MT-168"
         ]
+      },
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-20261009-85F-R18",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "executor": "KERNEL_BUILDER-20261009-retained-builder",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "85f45913a0c11019b3a49c9f213356d73495e765",
+        "tree": "3d6119409baeff624ff988475ad04606f1bc1fd7",
+        "result": "COMPILE_PASS_NATIVE_CAPTURE",
+        "exit_code": 0,
+        "started_at_utc": "2026-10-09T18:52:57.1418107Z",
+        "completed_at_utc": "2026-10-09T19:34:48.9866651Z",
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/backend-opt-diag-85f45913a0c11019b3a49c9f213356d73495e765-mt168-kb-bounded-r18.exit.json",
+        "command": "cargo check --locked -j1 --config WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-85f4591-mandatory-compile-r18-closed/manifest.json",
+        "preservation_manifest_sha256": "7f367e121496a3d213b562662cc218f4cd76c73eb9fd219f94255c7dbab9d4cd",
+        "input_integrity": {
+          "total": 6,
+          "same": 6,
+          "original_copy_pairs": 39,
+          "verified_by": "new-root independent rehash before canonical mutation"
+        },
+        "outer_result": {
+          "source": "fresh Task Scheduler LastTaskResult",
+          "numeric": 3221225786,
+          "hex": "0xC000013A",
+          "host_exit_artifact_present": false,
+          "cause": "UNVERIFIED",
+          "native_capture_survived": true
+        },
+        "runtime_executed": false,
+        "status_effect": "No independent PASS; fresh original3 acceptance required"
       }
     ],
     "running_record_ready13_20261008": {
@@ -2221,7 +2256,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "BOUNDED_LINK_APPLIED_MANDATORY_COMPILE_PREPARING",
+    "state": "MANDATORY_NATIVE_COMPILE_PASS_PRESERVED_PENDING_SUBMIT",
     "candidate_commit": "85f45913a0c11019b3a49c9f213356d73495e765",
     "candidate_tree": "3d6119409baeff624ff988475ad04606f1bc1fd7",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -2429,7 +2464,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Reviewed zero-EXPLAIN bounded-loop private controls, then Builder exact patch compile/push and independent original3",
+    "next_dependency": "Builder before_submit then independent original3 one compatible warm-target runtime batch",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
@@ -2820,9 +2855,28 @@
       "host_sha256": "981a90ba4e4e2752dc0365ea8fe2094c207888adc2453786c4f7fdc21fda2465",
       "review": "Root and Buddy opened actual source; AST0; r15 derivative only candidate/suffix/capturefilename/round identities",
       "compiler_profile_command_unchanged": true,
-      "status": "PREPARING_NOT_STARTED",
-      "exclusive_target_owner": "KERNEL_BUILDER",
-      "precompile_export_delegate": "WP_VALIDATOR only source export preparation; no runtime or target job"
+      "status": "COMPILE_PASS_NATIVE_CAPTURE",
+      "exclusive_target_owner": "KERNEL_BUILDER_PENDING_SUBMIT",
+      "precompile_export_delegate": "WP_VALIDATOR only source export preparation; no runtime or target job",
+      "native_exit_code": 0,
+      "started_at_utc": "2026-10-09T18:52:57.1418107Z",
+      "completed_at_utc": "2026-10-09T19:34:48.9866651Z",
+      "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-85f4591-mandatory-compile-r18-closed/manifest.json",
+      "preservation_manifest_sha256": "7f367e121496a3d213b562662cc218f4cd76c73eb9fd219f94255c7dbab9d4cd",
+      "input_integrity": {
+        "total": 6,
+        "same": 6,
+        "original_copy_pairs": 39,
+        "verified_by": "new-root independent rehash before canonical mutation"
+      },
+      "outer_result": {
+        "source": "fresh Task Scheduler LastTaskResult",
+        "numeric": 3221225786,
+        "hex": "0xC000013A",
+        "host_exit_artifact_present": false,
+        "cause": "UNVERIFIED",
+        "native_capture_survived": true
+      }
     }
   },
   "mt168_private_query_probe_20261009": {
@@ -2930,7 +2984,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "candidate_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "candidate_commit": "85f45913a0c11019b3a49c9f213356d73495e765",
     "operator_quotes": [
       "rip out those restrictions asap in parallel",
       "start fucking working and do not stop untill the mt gets validated pass.",
@@ -2950,7 +3004,10 @@
       "Independent acceptance, required proof, source scope and historical pins/verdicts unchanged",
       "Single owned job, fixed warm target, process protection and observation retained"
     ],
-    "status_effect": "NONE; FAIL_V1 retained until independent verdict"
+    "status_effect": "NONE; FAIL_V1 retained until independent verdict",
+    "previous_candidate_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "binding_updated_at_utc": "2026-10-09T19:38:56.511161+00:00",
+    "binding_update_reason": "R18 original inputs preserved; exact current MT168 candidate waiver applies to capture/observer/union"
   },
   "operator_decision_request_20261009_exact163_proof": {
     "state": "APPROVED",
@@ -3211,5 +3268,13 @@
       "All historical successful/failed/UNKNOWN proof artifacts"
     ],
     "status_effect": "NONE; component diagnostics cannot substitute original acceptance"
+  },
+  "operator_decision_20261009_continuation": {
+    "decision_ref": "packet.json#operator_decisions_20261009[WP012-OPERATOR-DEFAULT-SCOPE-AND-SUPERVISED-TEAMS-20261009]",
+    "lead": "01a12218-be60-7720-8b59-23e3fae1ac42",
+    "product_writer": "new-root/builder",
+    "independent_validator": "new-root/wpv",
+    "input_release_after_original_preservation": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-85f4591-mandatory-compile-r18-closed/manifest.json",
+    "unrelated_team_notice": "Operator reports different-device WP Stub Studio/docs/spec work; preserve disjoint edits; do not expand MT168"
   }
 }
