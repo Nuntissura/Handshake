@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 23
+generation: 24
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -38,3 +38,4 @@ steps:
 - {id: GP-022, role: builder, at: before_submit, do: confirm complete UTF8 patches + V2 identity.mt_id + original preservation + checkpoint write/hash reread before claim, check: {type: confirm}, source: 'media-failures:truncation,partial-patch,cp1252,async-process,ID-mismatch,argv-limit', state: active}
 - {id: GP-023, role: builder, at: before_submit, do: compare unchanged frozen bytes with staged Git-normalized bytes and retain both hashes, check: {type: confirm}, source: 'infra: core.autocrlf normalized CRLF staged MT33453; only exact configured newline conversion permitted', state: retired}
 - {id: GP-024, role: builder, at: before_round, do: confirm command authors allocated JSON only; embedded future argv executes no product process, check: {type: confirm}, source: 'infra: future argv text selected stale WP012 gate; explicit Studio selector required', state: active}
+- {id: GP-025, role: builder, at: before_submit, do: verify existing contract keys and constraint meanings retained or explicitly mapped before freeze, check: {type: confirm}, source: 'infra: Pigment suffix patches dropped red_team/updated_at_utc and three active AC fields', state: active}

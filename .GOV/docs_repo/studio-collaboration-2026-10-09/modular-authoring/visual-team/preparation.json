@@ -2,7 +2,7 @@
   "schema_id": "hsk.studio_preparation_report@1",
   "file_id": "STUDIO-MODULAR-VISUAL-PREPARATION-20261009",
   "status": "AUTHORING_IN_PROGRESS",
-  "updated_at": "2026-10-10",
+  "updated_at": "2026-10-09T23:32:15.993Z",
   "authority": "Research/proposal report only. Not a contract, template, activation, runtime verdict or new role protocol.",
   "role_basis": [
     "KB-PREP-001",
@@ -611,730 +611,440 @@
     "hbr_version": "1.16.0",
     "changed_files": [
       {
-        "mt_id": "MT-016",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-016.json",
-        "sha256": "ddcd517d9e636e2db4e336533d6510cec01ab4a85208dfd6feb2a9a2524e62d1",
-        "contract_revision": 6,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-016.json",
-        "prior_git_blob_oid": "ce9cd8ba0e7ea191606aa6ba90a06e1d812b24ac"
-      },
-      {
-        "mt_id": "MT-020",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-020.json",
-        "sha256": "c83c7173b4ce6ebd037758484a81a26ff427835e53d7f9fa11dea841ebeb89ce",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-020.json",
-        "prior_git_blob_oid": "1c1f024c8da914e7a4f806c5d50f9e72518c54ea"
-      },
-      {
-        "mt_id": "MT-021",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-021.json",
-        "sha256": "ba3005cd35a6dbfd4bc776ee2022997c0f30c5be45cff432a82b212106659012",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-021.json",
-        "prior_git_blob_oid": "19ba229261c7218062410ece51e59bcf9b2c1977"
-      },
-      {
-        "mt_id": "MT-303",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-303.json",
-        "sha256": "21f76c23647dfc63058ebfc06505604da46dd8d7857aefef8e065cc601cc98e3",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-303.json",
-        "prior_git_blob_oid": "ed363b76cd7768deb5442eb36251148ebf351a30"
-      },
-      {
-        "mt_id": "MT-304",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-304.json",
-        "sha256": "5d3403e659bf3a9a987f4f32389e4e6abd7363d1fd7a62d6dd40ab60ca6ec118",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-304.json",
-        "prior_git_blob_oid": "5f58efee9f8011d1f5ee5b59e142e360360517c2"
-      },
-      {
-        "mt_id": "MT-305",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-305.json",
-        "sha256": "fa160648b9eca1d9bbdfadcba7cca9ea8540b28757123ea2a3974b2bd5a7549e",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-305.json",
-        "prior_git_blob_oid": "99771084f8062962a55304a998219d76b53be3c5"
-      },
-      {
-        "mt_id": "MT-411",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-411.json",
-        "sha256": "fd5d77d95207862912e3861053da7680543044775adf156358861b37625be77e",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-411.json",
-        "prior_git_blob_oid": "2e2cbf7735328668c376bb27b7ef4f457649cd64"
-      },
-      {
-        "mt_id": "MT-412",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-412.json",
-        "sha256": "9fa7454c61693501621fb8f13b10bdb80f135b5173b833af0ec08b1567f5bbbe",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-412.json",
-        "prior_git_blob_oid": "f4e77a4c6fd1751a64622c781774550ff1919916"
-      },
-      {
-        "mt_id": "MT-413",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-413.json",
-        "sha256": "f18de80b5b061e93b8f286a72a7634b0113bf55f86a6576e55f76c3e6daa1687",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-413.json",
-        "prior_git_blob_oid": "27751958198957d6327c410ebe77eefd9a1edfc3"
-      },
-      {
-        "mt_id": "MT-414",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-414.json",
-        "sha256": "72d86fa47979f1ed9af7d6c83164bdaa87bc91d8ff58f65d71e5ef44849dc41f",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-414.json",
-        "prior_git_blob_oid": "07fce278427d55467c76f5ad16c561aeed885508"
-      },
-      {
-        "mt_id": "MT-415",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-415.json",
-        "sha256": "32a4841f100b5b69ec5ccfce97ca42e3d68099bddf42c5e525561f4d006f1f9f",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-415.json",
-        "prior_git_blob_oid": "6a414c313408eb55809e6c931bac76090073216a"
-      },
-      {
-        "mt_id": "MT-416",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-416.json",
-        "sha256": "4432234e4175afff31c39e01ff35d4844a24719f5426fa99f2613f9b0cf6866b",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-416.json",
-        "prior_git_blob_oid": "8b7079fe655009eeb1f7d80ede1243c85dd6aecf"
-      },
-      {
-        "mt_id": "MT-417",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-417.json",
-        "sha256": "d743e85f6e24ed7181d5d56bec1d91ea469e19cea037b79939375dfa42091c5c",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-417.json",
-        "prior_git_blob_oid": "0ec8e62ab08390dc71573eda6541e10b694f5907"
-      },
-      {
-        "mt_id": "MT-418",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-418.json",
-        "sha256": "0393b31d52ebca733fe26df67b3744057c9ebc872f93c10816a089fd160c374d",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-418.json",
-        "prior_git_blob_oid": "26f58db661c0eadd43267c8763af00a5d45eed77"
-      },
-      {
         "mt_id": "MT-419",
         "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-419.json",
-        "sha256": "06ff3b78ce0598d0da8b8525b7a1b11b316e9975d8c321c54827683128d4416d",
-        "contract_revision": 4,
+        "sha256": "bd8a0383658f79bb79879377219835211ca723b14e0ca1726b9bd20aea10e26d",
+        "contract_revision": 5,
         "status": "PENDING",
         "stage": "standalone_source",
         "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-419.json",
         "prior_git_blob_oid": "e0136b655f8be2700105b38e05a9dd4eafc4327b"
       },
       {
-        "mt_id": "MT-420",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-420.json",
-        "sha256": "02d7c8e163dee627989a7248a2bc21df997a227a18fd4c452c4f049234aced69",
+        "mt_id": "MT-421",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-421.json",
+        "sha256": "682c0c297e46e15c7799fed3dec6c9c29771431ea044d69bdf8880d94dc9212d",
         "contract_revision": 4,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-420.json",
-        "prior_git_blob_oid": "19d3749758305d4bc08721865a0019b6ddcc9811"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-421.json",
+        "prior_git_blob_oid": "2c7fa223168dc3b2c20167ecfe90d221b2126748"
       },
       {
-        "mt_id": "MT-287",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-287.json",
-        "sha256": "6458598dd74071d00978c28dd441aeb103017149b8ee2bbdf903c035af387994",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-287.json",
-        "prior_git_blob_oid": "7c73e189a419d49448727bfd0b3ef74950bce33a"
-      },
-      {
-        "mt_id": "MT-288",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-288.json",
-        "sha256": "1e236e6e8db5f96fff439c59d9afe184b72a390de4f930cce17b48838154f74c",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-288.json",
-        "prior_git_blob_oid": "9460dc436844af984970d3834262523bb67b19a3"
-      },
-      {
-        "mt_id": "MT-298",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-298.json",
-        "sha256": "b51cbc3491542a66d254939dd98d3497c05cec9a78fb23897bb6af9c564803f6",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-298.json",
-        "prior_git_blob_oid": "664415f97806df130d4338fd331b2410c51dad6e"
-      },
-      {
-        "mt_id": "MT-30024",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30024.json",
-        "sha256": "6c75f5e066308ecacb2cbde760b48f5506c05c8c99e48d0ed0d19608475b5ed7",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30024.json",
-        "prior_git_blob_oid": "1c1a7667ae157a8b3f3ab96b22be1d92521d1734"
-      },
-      {
-        "mt_id": "MT-30025",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30025.json",
-        "sha256": "0abca1cd67f95c6ea0807d817b7ceaca49008475923d0a6f2c54acaff06c5fe5",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30025.json",
-        "prior_git_blob_oid": "3d9da5a5b870abaedb86d01e3cef6cd3ff3de4e9"
-      },
-      {
-        "mt_id": "MT-30026",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30026.json",
-        "sha256": "6a69dc471c46970ab01e3e9a4f33b4f5e8f051cffe427d532cb59dd397f7e2a5",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30026.json",
-        "prior_git_blob_oid": "de33874268647314c869fd5fdecb0f77b14df208"
-      },
-      {
-        "mt_id": "MT-30028",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30028.json",
-        "sha256": "419c5e9510b93d6d5f71f13352e571d2a4a9af70f39a3abcd17c6d4f1a5c5bc4",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30028.json",
-        "prior_git_blob_oid": "58d301c6833cca3a5cf2fb03220b75cd31a65bf2"
-      },
-      {
-        "mt_id": "MT-30029",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30029.json",
-        "sha256": "faf7df7e59061cea8fac2dd27fbef9cb81c1ddd7fe5f08f5026f33e7bb52a8ec",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30029.json",
-        "prior_git_blob_oid": "8aa59f798ac6273d31c51117fb0bc5050a826df6"
-      },
-      {
-        "mt_id": "MT-30030",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30030.json",
-        "sha256": "65ece72831a2c6fe5ec2aab824dfb5d79859f62d89db54bb4014c7c96d0d1ad2",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30030.json",
-        "prior_git_blob_oid": "6da7243f2060fa2aa05abb68b273c2107b9f2df3"
-      },
-      {
-        "mt_id": "MT-30031",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30031.json",
-        "sha256": "177071c0e307eafa7203c797e774efa5233a0766c71563cd0371493e4d7cd0d3",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30031.json",
-        "prior_git_blob_oid": "dac1ab649da2807a57c1907548d0c167b12a2866"
-      },
-      {
-        "mt_id": "MT-30032",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30032.json",
-        "sha256": "3dbb68b06d388191b72986105cde49654ac9112d117f1cde1a67e80964a19ef5",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30032.json",
-        "prior_git_blob_oid": "33732fe70468e9a83449ef03295c4f670199823f"
-      },
-      {
-        "mt_id": "MT-30033",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30033.json",
-        "sha256": "5e29bf10755cf75797f915fe8444577c23ac469c4a1d74a7478419557485a8ef",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30033.json",
-        "prior_git_blob_oid": "7de4599f61be350d3660bcd7a766adeb7fa75b06"
-      },
-      {
-        "mt_id": "MT-30034",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30034.json",
-        "sha256": "671ef2309c6cbc31a96d13dcebc21779776787df5c19ecf1d608d1c9aca545d1",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30034.json",
-        "prior_git_blob_oid": "184acc7ca6145d3a092c75c98dc5a2de69904d0e"
-      },
-      {
-        "mt_id": "MT-30035",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30035.json",
-        "sha256": "01f48accdda319e49ca50a8f6de06fa2beed9c34dd36f9a7ee4dc6217bb22f4d",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30035.json",
-        "prior_git_blob_oid": "ad34c00f4b8eda2f4d6180eabcf79f1906dbf92e"
-      },
-      {
-        "mt_id": "MT-30036",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30036.json",
-        "sha256": "80e1ecf7e9a1e57f152f1de4dd6a542edc4703187a02d64f144bb3e1409373c3",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30036.json",
-        "prior_git_blob_oid": "e3268dcef51b93ce3df9fe93b7f2e5867b0ab639"
-      },
-      {
-        "mt_id": "MT-30037",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30037.json",
-        "sha256": "cd526c4cf4491ffd526078cf4d79e7c31ea21e271d0b843fff44cff971df6784",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30037.json",
-        "prior_git_blob_oid": "48a82c9d9b3d60d1b665ccc6cbcdf5a6d2324d62"
-      },
-      {
-        "mt_id": "MT-30038",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30038.json",
-        "sha256": "87a0c3a3ee30de2d2d0c37dff4ee17a6be9dae710fd385e4974dd64ba8f141f1",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30038.json",
-        "prior_git_blob_oid": "202f9bfe56fa9ee99eee69dfa869fc1495cabf44"
-      },
-      {
-        "mt_id": "MT-30039",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30039.json",
-        "sha256": "66a145746af2e76aec2b06f5723b1d592a0e9012a60e0941b288eb1a6ca42b1a",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30039.json",
-        "prior_git_blob_oid": "b3d9a404a0a031a1042bc9880c35a3063bdbb329"
-      },
-      {
-        "mt_id": "MT-30040",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30040.json",
-        "sha256": "9446a04e48c51aa55e0d501e2d8db84a97a762aaf4d279d607c3e04fe9628ec6",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30040.json",
-        "prior_git_blob_oid": "87055926e65d09e572d75e72bf5abddc5ae2b1a5"
-      },
-      {
-        "mt_id": "MT-30041",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30041.json",
-        "sha256": "3dc0f1f05b16c45a5868e897adb9736a6d2982df5a75886df55dfb3672a25719",
-        "contract_revision": 3,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30041.json",
-        "prior_git_blob_oid": "6e42377bbebe0386f75f2727c114454974fa71b7"
-      },
-      {
-        "mt_id": "MT-161",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-161.json",
-        "sha256": "7688bf20db6ea75cbcadf2f688735d8dd208b63bd06db80061844e10dbc58637",
+        "mt_id": "MT-422",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-422.json",
+        "sha256": "9dd160439e5b4b1661ee14b9b963ca79afc45d8ffd0a0c4f39131ed229ce19dd",
         "contract_revision": 4,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-161.json",
-        "prior_git_blob_oid": "d5a287eb6f75faafa3027f506a1a6d6dfe006331"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-422.json",
+        "prior_git_blob_oid": "a596bf6f93cef5bfb7b8aac4eb974b443d5fead3"
       },
       {
-        "mt_id": "MT-162",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-162.json",
-        "sha256": "fb806b0630ff9ba008ec9b87dc28b73f7f3b68f2b0b526fa19944d4bab52ab1b",
+        "mt_id": "MT-423",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-423.json",
+        "sha256": "cc76e6d3de43a3efbd41c7c78adc45ba2804b3aa2ae096edec1ccd0225a6fccc",
         "contract_revision": 4,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-162.json",
-        "prior_git_blob_oid": "42a97632a97f1408d3d9aff1656c92601d1016bd"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-423.json",
+        "prior_git_blob_oid": "aafee0f7276e4174e86f72d2af33769eb840413f"
       },
       {
-        "mt_id": "MT-163",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-163.json",
-        "sha256": "f194ad7366998db469d52dafb9d867854a89e9af2dbe371cc87736c6c4d17d21",
+        "mt_id": "MT-424",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-424.json",
+        "sha256": "7bcd5aff293d1d309fb383687360c3637ddfa0015367a9adcda433287e91f484",
         "contract_revision": 4,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-163.json",
-        "prior_git_blob_oid": "c1453b4edae2c648c4be284e7a8749e03bd595e1"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-424.json",
+        "prior_git_blob_oid": "9acd08aaf86f75d9257df198e507780bba9713d9"
       },
       {
-        "mt_id": "MT-164",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-164.json",
-        "sha256": "62940006c38d08a4b1ff84c4dce34fd2b245841c1b443c51cbb4cbe4d0ff1216",
+        "mt_id": "MT-425",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-425.json",
+        "sha256": "fc73d0483da0fbc751eaa659beb946eed340b7010c273878b9cf554a20747565",
         "contract_revision": 4,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-164.json",
-        "prior_git_blob_oid": "bd983007e04f370aef8b948f68bcd8fe5d0b6786"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-425.json",
+        "prior_git_blob_oid": "78be09f7efb770664358fd38f27b632cd5a2b526"
       },
       {
-        "mt_id": "MT-165",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-165.json",
-        "sha256": "feeb69be638ca9b7caf29c341219e2ea637ce77ed4ec37595d1d14eb9266b9c9",
+        "mt_id": "MT-441",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-441.json",
+        "sha256": "d1548ccdf30f1c18191c6e8691b4b9d88c6c8de4405ee551df27a9f563f76f70",
         "contract_revision": 4,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-165.json",
-        "prior_git_blob_oid": "4f7a6d051b29475d9b0573931cf318f77121170c"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-441.json",
+        "prior_git_blob_oid": "7b0d31334ae2389cbe3bb2593448dbabf04e5385"
       },
       {
-        "mt_id": "MT-166",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-166.json",
-        "sha256": "d6746591b4cb3f3c2550b7b53986ef1306a2cde019c653733a9118a17a4b6a23",
+        "mt_id": "MT-446",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-446.json",
+        "sha256": "6ea60b170de6fd1bb845ec868e3d68c06158be095572ab0f71a4ca88524d9384",
         "contract_revision": 4,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-166.json",
-        "prior_git_blob_oid": "84d64cfa1cabe1b32b12ce8bbc18fb511fbde30b"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-446.json",
+        "prior_git_blob_oid": "07fe00a57f5acd7813ce904053925d83e5041fd7"
       },
       {
-        "mt_id": "MT-167",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-167.json",
-        "sha256": "bf1c9095ce96e1c7e505331f424d8fd7fd2c1aeaab9bb4f3f940b2d8c4ada8cc",
+        "mt_id": "MT-457",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-457.json",
+        "sha256": "4d1178af4175ef6bb9292614989030ffd8869b4487a07ca18e128f58746a6636",
         "contract_revision": 4,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-167.json",
-        "prior_git_blob_oid": "19860850a5309a5129c9876c6fd64fba693875a8"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-457.json",
+        "prior_git_blob_oid": "e138a2a0acf961b157401558de8cc881aa7fd285"
       },
       {
-        "mt_id": "MT-168",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-168.json",
-        "sha256": "0d060be89075877cf19c2ae9b87996edecc5af07eaa4c908abde088ea90931a8",
+        "mt_id": "MT-458",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-458.json",
+        "sha256": "511e687b19b4d00329fe44c185e7cd691466d3db57b3f414a9a12510de1e32f6",
         "contract_revision": 4,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-168.json",
-        "prior_git_blob_oid": "05c6c0e1ff582b689ea2f822887916cd88e494c6"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-458.json",
+        "prior_git_blob_oid": "4bfd3de3f6e3fe8f27021ef081f0cfb579c87918"
       },
       {
-        "mt_id": "MT-169",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-169.json",
-        "sha256": "e7ab66a9bcaeb282099089bdb352959b34d521af78fd37ebb41b4964db06e6e8",
+        "mt_id": "MT-462",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-462.json",
+        "sha256": "77ae6379d81df34ff73ebf3e7a5a68f9885a75e909b9cd505406020eb6fe319b",
         "contract_revision": 4,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-169.json",
-        "prior_git_blob_oid": "18e65f5b55b81347df786e983dd521763a0ae383"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-462.json",
+        "prior_git_blob_oid": "899e613071b4d85ad4166b46b0e62138fd34fa65"
       },
       {
-        "mt_id": "MT-170",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-170.json",
-        "sha256": "fa163a3bd1fe5c6942624a929ee3a149dd4c38990f56c22c990ddb16b67d9ada",
+        "mt_id": "MT-463",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-463.json",
+        "sha256": "675e1e278be03d2d3cc14314b865c4f1be685d94c8267e16af388ae2a53683e9",
         "contract_revision": 4,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-170.json",
-        "prior_git_blob_oid": "59f62933ff064c768f076ab39a6fc16ccdc85b2e"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-463.json",
+        "prior_git_blob_oid": "0c6e25c633410f18c2278c39249b6d4dffa6e6cc"
       },
       {
-        "mt_id": "MT-171",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-171.json",
-        "sha256": "caa42c36fe6a94719149d08fe41ff7c6897ac4ddac3fb82cd4abca9183a4286b",
+        "mt_id": "MT-33439",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33439.json",
+        "sha256": "94535919806ef31251d208693e1570e339c6781ea2492b685b608726fe0b091b",
         "contract_revision": 4,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-171.json",
-        "prior_git_blob_oid": "fcb50e293fed7f6526ae2f11521b4f7d7f187116"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-33439.json",
+        "prior_git_blob_oid": "05ac7c6160fc1a45e65f0d9f60a673a7ac366dae"
       },
       {
-        "mt_id": "MT-172",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-172.json",
-        "sha256": "a018e2384a0b24d2cc1cbd588856e0bfcdc0e23edff5c41219b415328b2421b5",
+        "mt_id": "MT-35587",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35587.json",
+        "sha256": "4568082c3b9fd2e26585090d5de3366d65df2588b65fd22f72541a466f829767",
         "contract_revision": 4,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-172.json",
-        "prior_git_blob_oid": "ab188edf63c7c0d6a94eab2cb7f9007a30e9a897"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35587.json",
+        "prior_git_blob_oid": "a20a2a867577357258a3b79d7d981014b873b613"
       },
       {
-        "mt_id": "MT-173",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-173.json",
-        "sha256": "345dccf4d312bb1b7596a562fc1a11c5eb2709a850ebbc2d2b733cb8138431bc",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-173.json",
-        "prior_git_blob_oid": "bfc6e691c213db64f846e0ab5432d1a871d4743f"
-      },
-      {
-        "mt_id": "MT-174",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-174.json",
-        "sha256": "ce5527109ab5f9d6c53ba59184e6c49857ff95b82abb561765e66689a8d8b4c0",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-174.json",
-        "prior_git_blob_oid": "6535f99b1b5938383a25dad21e4bc5e0043dedce"
-      },
-      {
-        "mt_id": "MT-175",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-175.json",
-        "sha256": "8a35e09987da8d3b2a4d9cffba851bb9cbb56ca8b06faa273db1711d005edf93",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-175.json",
-        "prior_git_blob_oid": "bd1b4bdd33fddbb1cb9f41b595fcba14d1980ad7"
-      },
-      {
-        "mt_id": "MT-094",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-094.json",
-        "sha256": "0e550ff51516a88e24f932db28a40ca42cb0ee81ed2eb993d7628e591006db3e",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-094.json",
-        "prior_git_blob_oid": "d06e88c48323045020b57a37ab3cff25206b388a"
-      },
-      {
-        "mt_id": "MT-095",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-095.json",
-        "sha256": "43038832af359d88fd8b2a44db9a71ec0570e60b51233d4241bd071cd1cd02ca",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-095.json",
-        "prior_git_blob_oid": "d2fa0b7ba9c9850692d4581194e82396d121dd6c"
-      },
-      {
-        "mt_id": "MT-096",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-096.json",
-        "sha256": "6252811ca746877ac3affc3427117519e87f94c5a53e337acd93d8b52e36b8d8",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-096.json",
-        "prior_git_blob_oid": "3645e8721a16cdcc35014194b0475dc8be413cd3"
-      },
-      {
-        "mt_id": "MT-097",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-097.json",
-        "sha256": "839207e151455628230d83a853240e98d7d89887f17bdb620f8bbb6ab436fe22",
-        "contract_revision": 4,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-097.json",
-        "prior_git_blob_oid": "23b3bb0489021e9da170c4a2fcc0aeeb7c94078b"
-      },
-      {
-        "mt_id": "MT-098",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-098.json",
-        "sha256": "a9dd79f47a132938890ca266faccf97b414ce1d799990d4ae2bb50e87d944356",
+        "mt_id": "MT-30042",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30042.json",
+        "sha256": "b4844db1692ce6c1291bfdee01641006a91dccaa036358913487f08f4c39d1dc",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-098.json",
-        "prior_git_blob_oid": "e2cddb431544b53895a5edfc08386076fc4c6b23"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30042.json",
+        "prior_git_blob_oid": "bf8c533627c2ff46d00859a24f7dee4081cf1ad2"
       },
       {
-        "mt_id": "MT-099",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-099.json",
-        "sha256": "730e04e3420cfbf5dcf7dedfa262da2450ad02bd3fc5297712c89bd10d0c67be",
+        "mt_id": "MT-30043",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30043.json",
+        "sha256": "ba121ea5a7028f0877cf09714b512839bfa44d89579ce7b002478afdc31376ba",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-099.json",
-        "prior_git_blob_oid": "4b45d378b5492fdb4605c5230270c66999c31fc2"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30043.json",
+        "prior_git_blob_oid": "57af511f43bfa942e2489e87f5ce34d7bd057369"
       },
       {
-        "mt_id": "MT-100",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-100.json",
-        "sha256": "f8a395d4e0a638c61de77f7b8420c7b72bc4f58bde8121f0601a88e5f27f9544",
+        "mt_id": "MT-30044",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30044.json",
+        "sha256": "75be3d9b7de77309fe5031619bff885a8449c2cac2f31bb12054c2a33a66f5d3",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-100.json",
-        "prior_git_blob_oid": "5553533fe5f512822fbf652749c96559161128ed"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30044.json",
+        "prior_git_blob_oid": "0aa94572e3b089b3ebb0e0c38974ed98e75d47d4"
       },
       {
-        "mt_id": "MT-101",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-101.json",
-        "sha256": "70c101e029a90dbcf652d9f8fecf168b6226b317f7f5d4e4816fafa64556cb71",
+        "mt_id": "MT-30045",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30045.json",
+        "sha256": "d3eec761b9c63dd57cedf5980b480d84e0c99f431a3cbbedfd00d106cb0f1b94",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-101.json",
-        "prior_git_blob_oid": "6dc7e2fc2d115295740c87ac8265b4f28275096e"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30045.json",
+        "prior_git_blob_oid": "089e26aeef59ff3590991da33588413af94fe83c"
       },
       {
-        "mt_id": "MT-102",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-102.json",
-        "sha256": "4cd7c0b6ace8cff00113217bfc429bf2e6f14277443ac3a3c97901cbbf78d441",
-        "contract_revision": 5,
-        "status": "PENDING",
-        "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-102.json",
-        "prior_git_blob_oid": "b5e6c8e0b668fd8e236efa6cf16db7c015fc557a"
-      },
-      {
-        "mt_id": "MT-103",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-103.json",
-        "sha256": "50cbcb1d7e90a71e0023eac7a9e23947b264bfae49ca0ee0a6ba685a9c1c7ffe",
+        "mt_id": "MT-30046",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30046.json",
+        "sha256": "4289ebd5253cc81352e6887d65f44a5533fa83277ea1e14ceaefe116dde7faec",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-103.json",
-        "prior_git_blob_oid": "5c3a55b149ecf14d5f5ac08947cc84941b8d9692"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30046.json",
+        "prior_git_blob_oid": "ec9355f52c3da1b69863f95d1c3efbcd40d5ed74"
       },
       {
-        "mt_id": "MT-104",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-104.json",
-        "sha256": "2ff79b0e61462bc95df2cb0fc15a70e3c268c6817f2d4e86c4f46b82539f65cc",
+        "mt_id": "MT-30047",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30047.json",
+        "sha256": "80d895044508e48a63c7e1defb117f55883121e732fd4a2dd32815fb2402289c",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-104.json",
-        "prior_git_blob_oid": "8d8082b9bc5df65fb84a83f8bad3a085614a890c"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30047.json",
+        "prior_git_blob_oid": "869c1205db9c8018290fb022bd656095ff14d9a0"
       },
       {
-        "mt_id": "MT-105",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-105.json",
-        "sha256": "d7178cdafd4fdec030987f65601e29dd885d316fc207ca0e6779d0c56e078d22",
+        "mt_id": "MT-30048",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30048.json",
+        "sha256": "a50294115f88d74843273c2c6e96c174526c1aa9aea479e477646f001a61a845",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-105.json",
-        "prior_git_blob_oid": "65e63aef260ee377d556ffcb3f39a9fd983d4656"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30048.json",
+        "prior_git_blob_oid": "fdea41930dbf7b10a70cc13b75f52125c68a570a"
       },
       {
-        "mt_id": "MT-106",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-106.json",
-        "sha256": "aee4c500be0ab2965c5f61ac3c19d26e4e9ae664f6d2f1f21fd77f5b6b96eef0",
+        "mt_id": "MT-30049",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30049.json",
+        "sha256": "7c33a4a74f9619d1a9de22aa621cd97b2b05d0da8c548acf39ba0dcfd7da20a3",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-106.json",
-        "prior_git_blob_oid": "34e92128a75cc3ed1ac027256f82c53b94bc4f58"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30049.json",
+        "prior_git_blob_oid": "23d18d5689ed6e88ab49f8706aa09ebee90dce03"
       },
       {
-        "mt_id": "MT-107",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-107.json",
-        "sha256": "34cb1f2028447c6662bfbe164d3d8620eb8e66778d7f8ad4f70165ad0d622cc0",
+        "mt_id": "MT-30050",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30050.json",
+        "sha256": "88d383640372571b8f3c75102b31a1d11c6ffcacee56d239f74105c099da8c34",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-107.json",
-        "prior_git_blob_oid": "dfa766fda939a37d921f74e7d2eb4f9b4853a7dc"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30050.json",
+        "prior_git_blob_oid": "e9c46105c174fb734e8bd9eec44e35ea026174ba"
       },
       {
-        "mt_id": "MT-108",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-108.json",
-        "sha256": "91b2984d09a75fb035f9ea4c64cc92cdc8489e8b000d939188202e38d582c97e",
+        "mt_id": "MT-30051",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30051.json",
+        "sha256": "247ec8177aec396ddeeada87c1cc0afef9d15b1fe9d8e8c692f40d3cdc11af55",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-108.json",
-        "prior_git_blob_oid": "2e0297684e22d9021ba1aa9364bca2b967fadb32"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30051.json",
+        "prior_git_blob_oid": "4a438bee9cf7744c99d852110f655e25d7256a05"
       },
       {
-        "mt_id": "MT-109",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-109.json",
-        "sha256": "41bcf158b63598193fd02f673d7607767931bb959b6deb60f78d0fb2f65dda95",
+        "mt_id": "MT-30052",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30052.json",
+        "sha256": "c6d10e98bfb2a1a825652bdc1ec78256899060def2cb54aa319aa6fd57a65a7f",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-109.json",
-        "prior_git_blob_oid": "955bc4f21ab28d056a4b073747644bf6af60d272"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30052.json",
+        "prior_git_blob_oid": "6d713f709562188fab2250e4ea136023146b5cc2"
       },
       {
-        "mt_id": "MT-110",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-110.json",
-        "sha256": "ef4656f62b6645ce3d5851eef2b661c18f808a3db2bdf2352190e09010a4837d",
+        "mt_id": "MT-30053",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30053.json",
+        "sha256": "fe0d5575f184ee8745b455fb11c31ee1c9b943692a96c26599f1fca47e61dfce",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-110.json",
-        "prior_git_blob_oid": "9170818a5d9dafe57f926d9d3823a1022a9fc900"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30053.json",
+        "prior_git_blob_oid": "2a808d7f76882894e14f2dd60fe06e8a2eca82d2"
       },
       {
-        "mt_id": "MT-111",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-111.json",
-        "sha256": "1cec0e046fc0c2dcea792ecc579519c30524e17f754c8400a1e79891c8e43af6",
+        "mt_id": "MT-30054",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30054.json",
+        "sha256": "4aa5cfb3a75de27ef3ce0130d97792d54c233b5ed6d539833e7a98fefc6932f4",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-111.json",
-        "prior_git_blob_oid": "994d4eaf3ea85a6512f24cb83745a6a509a1cf31"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30054.json",
+        "prior_git_blob_oid": "a81331c228fc7074f63641d6ad8d85bccf1f95ff"
       },
       {
-        "mt_id": "MT-112",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-112.json",
-        "sha256": "fe4f4005de99fd96be2e957132b31115ac6df6352ecda88659405028e301dd61",
+        "mt_id": "MT-30055",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30055.json",
+        "sha256": "30d438646c1163ffa911aad1da4a21645fe445835a9929e055e9b5c1594cdadf",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-112.json",
-        "prior_git_blob_oid": "fa4161694011bf4be40bfa4f5bdd7e25eea287e7"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30055.json",
+        "prior_git_blob_oid": "c2ae6863ab803a8636d510bd0c2426b12475e205"
       },
       {
-        "mt_id": "MT-113",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-113.json",
-        "sha256": "38c58c6bce0b14bc04a61c65a739bea639d378122455ca4fb78b0ef40b732410",
+        "mt_id": "MT-30056",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30056.json",
+        "sha256": "d5212068c68310491f184107958ac8528f9ece92c4cbe8770d9a05b8f115c615",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-113.json",
-        "prior_git_blob_oid": "0a799667590de9d24189ed56f17e57b500b3190b"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30056.json",
+        "prior_git_blob_oid": "8097373fe4d03e32c51f6a7348356b4716700ac5"
       },
       {
-        "mt_id": "MT-114",
-        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-114.json",
-        "sha256": "f445688b0962ab406ed417f33cd0e013bf818219c9ec1566d4767df491dee0e4",
+        "mt_id": "MT-30058",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30058.json",
+        "sha256": "5db52dd94719d19f4c1b729a3267a8fb24982ce25612070590a1adf76d61dbc5",
         "contract_revision": 3,
         "status": "PENDING",
         "stage": "standalone_source",
-        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-114.json",
-        "prior_git_blob_oid": "17e64e2953f5cc54901f0538d6acdf2110296197"
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30058.json",
+        "prior_git_blob_oid": "1a76b9fbb6ce66211a398bb84f59240d4cc28961"
+      },
+      {
+        "mt_id": "MT-30059",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30059.json",
+        "sha256": "5e615b45e1c99122c966406715288b27f171ad721ea8ebb12eb4e2d221464c24",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30059.json",
+        "prior_git_blob_oid": "eea92e161e7d796e7989aff12e68ef02d9807b55"
+      },
+      {
+        "mt_id": "MT-30060",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30060.json",
+        "sha256": "120e757e9b52308a3269900df53010fb29b976a55f58d88d90a4da7e7158c458",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30060.json",
+        "prior_git_blob_oid": "4e38e7d6b5d2903e677e6758a1d3dc6d4bc8ab5d"
+      },
+      {
+        "mt_id": "MT-30061",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30061.json",
+        "sha256": "a968e3d6c3331ae947d37b2d28f96c8bc63daf792cc30f82b26bbd475ce47d5b",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30061.json",
+        "prior_git_blob_oid": "7efc5beb736df8af30dec14332663626e8bbeeaa"
+      },
+      {
+        "mt_id": "MT-30062",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30062.json",
+        "sha256": "d4d8a2885bf361789d92aba15406196fbafdfef42acc7cd21e022d7e5ffad19b",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30062.json",
+        "prior_git_blob_oid": "570c5c7f0b6aff61c6b2764e00193df203377ac4"
+      },
+      {
+        "mt_id": "MT-30063",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30063.json",
+        "sha256": "695ab7751a3b9d0784975d727e9fce51c5bda71eeba9a3de26e67dac3c5ba643",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30063.json",
+        "prior_git_blob_oid": "1041820306d1e8e8e18f06304752bb5bbea435c9"
+      },
+      {
+        "mt_id": "MT-30064",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30064.json",
+        "sha256": "ee473bd7a0cf1a062518f344f1fa9e6806016c2a2c199b7703be06c869c6e83b",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30064.json",
+        "prior_git_blob_oid": "ac82e9be51f383229366497a97581eb5bff7572d"
+      },
+      {
+        "mt_id": "MT-30065",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30065.json",
+        "sha256": "27efcfd7c70997f604d1a0041afe71dc72ffbe1ab9a7de0c187defe3123943d2",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30065.json",
+        "prior_git_blob_oid": "ebe4386ec378e636b4454c04387394174d5e3879"
+      },
+      {
+        "mt_id": "MT-30066",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30066.json",
+        "sha256": "1c5a37290767fa92c50c13362054628158402e889e9ffe3314df7c3687a616c5",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30066.json",
+        "prior_git_blob_oid": "6f37e3b3e37b4a517cfc4f2d3ac4c1da62e1e566"
+      },
+      {
+        "mt_id": "MT-30067",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30067.json",
+        "sha256": "95a5c1f6ecbfe174711d713517638f94af90cbd61b911afb174e17cdf0f9cbdd",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30067.json",
+        "prior_git_blob_oid": "f3cfb98d922d67f27a50663f0b2108d9a6bed855"
+      },
+      {
+        "mt_id": "MT-30068",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30068.json",
+        "sha256": "39a0091ed54835c8d95f6ce387a2ed32f5d02912ec4d7638681548063f08bca7",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30068.json",
+        "prior_git_blob_oid": "85ccd3273971901a58d20e39c410bb57696b1ea4"
+      },
+      {
+        "mt_id": "MT-30069",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30069.json",
+        "sha256": "0ce8e0a8924f5f3c4f05bdf9993020bdc2d91591dc5079175430a2a21e973006",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30069.json",
+        "prior_git_blob_oid": "8bb3d2a54d69b288249356d0ebd889cced777d74"
+      },
+      {
+        "mt_id": "MT-30070",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30070.json",
+        "sha256": "915e2f0827911c8f43ad5581957650fa5f61d39e322169038b400dcc6f43367c",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30070.json",
+        "prior_git_blob_oid": "e268aa9323ed019f161e7e52dee43dfecc7820e9"
+      },
+      {
+        "mt_id": "MT-30071",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30071.json",
+        "sha256": "fcb1f0d692b2cfd9fc5ac47858cab10c94f59faedfbbca65e782968f3574eead",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30071.json",
+        "prior_git_blob_oid": "5a125dcf896ed9fc23b67bb7a735185e80d6386d"
       }
     ],
     "remaining": "All other allocated existing/split tasks remain in scope; no whole-corpus readiness claimed",
     "runtime_proof": "NONE",
     "host_adoption": "Actual host GUI/Argus/authority parity remains separately mapped PENDING; source descriptor/kernel preparation never substitutes.",
-    "updated_at": "2026-10-09T23:17:32.251Z",
+    "updated_at": "2026-10-09T23:52:44.240Z",
     "review_remediation": {
       "findings": "Stale HBR1.15 and circular natural-test selectors",
       "current_hbr_rule_count": 52,
@@ -1343,19 +1053,60 @@
       "runtime_proof": "NONE"
     },
     "frozen_chunk": {
-      "state": "FROZEN_AWAITING_COORDINATOR_STAGE_ACK",
-      "mt_count": 72,
+      "state": "FROZEN_CORRECTED_29_AWAITING_COORDINATOR_STAGE_ACK",
+      "mt_count": 43,
       "fixed_groups": {
-        "reserved_engines_and_raster_conformance": 3,
-        "parked_optional_filters": 3,
-        "develop411420": 10,
-        "pigment_cross_domain_and_parameter_controls": 20,
-        "layout161175": 15,
-        "nib094114": 21
+        "develop421425": 5,
+        "develop419_sampled_profile_remedy": 1,
+        "native_interop": 6,
+        "current_native_snapshot_and_four_format_amendments": 2,
+        "pigment3004230071_except30057": 29
       },
-      "original_payload_ac_lifecycle_check": "Native Git d860 exact preserved_original/acceptance_criteria/lifecycle reread all72; V2 identity and strictUTF8;52currentHBR/exactterminalfilters/PENDINGfalse/no slice aliases",
+      "original_payload_ac_lifecycle_check": "Native Git d860 exact preserved_original/acceptance_criteria/active_acceptance_criteria/red_team/lifecycle/activation/submissions/verdicts/blockers all43; every baseline rootkey present; exact native updated_at_utc29; immutable parent14 hashes unchanged; UTF8 V2 identity52currentHBR PENDINGdispatchfalse",
       "runtime_proof": "NONE",
-      "freeze_at": "2026-10-09T23:17:32.251Z"
+      "freeze_at": "2026-10-09T23:32:15.993Z",
+      "preservation_restoration": {
+        "changed_mt_ids": [
+          "MT-30042",
+          "MT-30043",
+          "MT-30044",
+          "MT-30045",
+          "MT-30046",
+          "MT-30047",
+          "MT-30048",
+          "MT-30049",
+          "MT-30050",
+          "MT-30051",
+          "MT-30052",
+          "MT-30053",
+          "MT-30054",
+          "MT-30055",
+          "MT-30056",
+          "MT-30058",
+          "MT-30059",
+          "MT-30060",
+          "MT-30061",
+          "MT-30062",
+          "MT-30063",
+          "MT-30064",
+          "MT-30065",
+          "MT-30066",
+          "MT-30067",
+          "MT-30068",
+          "MT-30069",
+          "MT-30070",
+          "MT-30071"
+        ],
+        "restored_fields": [
+          "red_team",
+          "updated_at_utc"
+        ],
+        "baseline": "d8608d992d3653dc2aa356ae67c688c2f37bb505",
+        "other_authored_fields": "UNCHANGED_PER_WORKER_PRE_POST_SEMANTIC_HASH",
+        "independent_native_read": "Python json + git show verifies exact restored values and all retained baseline fields; timestamp strings preserved without datetime coercion",
+        "parent14": "UNCHANGED_HASHES",
+        "prior_hashes": "INVALIDATED_FOR_REPLACED29"
+      }
     },
     "agent_allocations": {
       "active": [
@@ -2954,6 +2705,767 @@
           "runtime_proof": "NONE",
           "freeze_at": "2026-10-09T23:12:31.299Z",
           "corrected_after_guard": "MT-091 source147 unknown bounds remedy inspected; original payload/AC/lifecycle reread equal; coordinator guard staged nothing; other54 hashes unchanged"
+        }
+      },
+      {
+        "authority_commit": "a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89",
+        "hbr_version": "1.16.0",
+        "changed_files": [
+          {
+            "mt_id": "MT-016",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-016.json",
+            "sha256": "ddcd517d9e636e2db4e336533d6510cec01ab4a85208dfd6feb2a9a2524e62d1",
+            "contract_revision": 6,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-016.json",
+            "prior_git_blob_oid": "ce9cd8ba0e7ea191606aa6ba90a06e1d812b24ac"
+          },
+          {
+            "mt_id": "MT-020",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-020.json",
+            "sha256": "c83c7173b4ce6ebd037758484a81a26ff427835e53d7f9fa11dea841ebeb89ce",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-020.json",
+            "prior_git_blob_oid": "1c1f024c8da914e7a4f806c5d50f9e72518c54ea"
+          },
+          {
+            "mt_id": "MT-021",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-021.json",
+            "sha256": "ba3005cd35a6dbfd4bc776ee2022997c0f30c5be45cff432a82b212106659012",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-021.json",
+            "prior_git_blob_oid": "19ba229261c7218062410ece51e59bcf9b2c1977"
+          },
+          {
+            "mt_id": "MT-303",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-303.json",
+            "sha256": "21f76c23647dfc63058ebfc06505604da46dd8d7857aefef8e065cc601cc98e3",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-303.json",
+            "prior_git_blob_oid": "ed363b76cd7768deb5442eb36251148ebf351a30"
+          },
+          {
+            "mt_id": "MT-304",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-304.json",
+            "sha256": "5d3403e659bf3a9a987f4f32389e4e6abd7363d1fd7a62d6dd40ab60ca6ec118",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-304.json",
+            "prior_git_blob_oid": "5f58efee9f8011d1f5ee5b59e142e360360517c2"
+          },
+          {
+            "mt_id": "MT-305",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-305.json",
+            "sha256": "fa160648b9eca1d9bbdfadcba7cca9ea8540b28757123ea2a3974b2bd5a7549e",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-305.json",
+            "prior_git_blob_oid": "99771084f8062962a55304a998219d76b53be3c5"
+          },
+          {
+            "mt_id": "MT-411",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-411.json",
+            "sha256": "fd5d77d95207862912e3861053da7680543044775adf156358861b37625be77e",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-411.json",
+            "prior_git_blob_oid": "2e2cbf7735328668c376bb27b7ef4f457649cd64"
+          },
+          {
+            "mt_id": "MT-412",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-412.json",
+            "sha256": "9fa7454c61693501621fb8f13b10bdb80f135b5173b833af0ec08b1567f5bbbe",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-412.json",
+            "prior_git_blob_oid": "f4e77a4c6fd1751a64622c781774550ff1919916"
+          },
+          {
+            "mt_id": "MT-413",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-413.json",
+            "sha256": "f18de80b5b061e93b8f286a72a7634b0113bf55f86a6576e55f76c3e6daa1687",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-413.json",
+            "prior_git_blob_oid": "27751958198957d6327c410ebe77eefd9a1edfc3"
+          },
+          {
+            "mt_id": "MT-414",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-414.json",
+            "sha256": "72d86fa47979f1ed9af7d6c83164bdaa87bc91d8ff58f65d71e5ef44849dc41f",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-414.json",
+            "prior_git_blob_oid": "07fce278427d55467c76f5ad16c561aeed885508"
+          },
+          {
+            "mt_id": "MT-415",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-415.json",
+            "sha256": "32a4841f100b5b69ec5ccfce97ca42e3d68099bddf42c5e525561f4d006f1f9f",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-415.json",
+            "prior_git_blob_oid": "6a414c313408eb55809e6c931bac76090073216a"
+          },
+          {
+            "mt_id": "MT-416",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-416.json",
+            "sha256": "4432234e4175afff31c39e01ff35d4844a24719f5426fa99f2613f9b0cf6866b",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-416.json",
+            "prior_git_blob_oid": "8b7079fe655009eeb1f7d80ede1243c85dd6aecf"
+          },
+          {
+            "mt_id": "MT-417",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-417.json",
+            "sha256": "d743e85f6e24ed7181d5d56bec1d91ea469e19cea037b79939375dfa42091c5c",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-417.json",
+            "prior_git_blob_oid": "0ec8e62ab08390dc71573eda6541e10b694f5907"
+          },
+          {
+            "mt_id": "MT-418",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-418.json",
+            "sha256": "0393b31d52ebca733fe26df67b3744057c9ebc872f93c10816a089fd160c374d",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-418.json",
+            "prior_git_blob_oid": "26f58db661c0eadd43267c8763af00a5d45eed77"
+          },
+          {
+            "mt_id": "MT-419",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-419.json",
+            "sha256": "06ff3b78ce0598d0da8b8525b7a1b11b316e9975d8c321c54827683128d4416d",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-419.json",
+            "prior_git_blob_oid": "e0136b655f8be2700105b38e05a9dd4eafc4327b"
+          },
+          {
+            "mt_id": "MT-420",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-420.json",
+            "sha256": "02d7c8e163dee627989a7248a2bc21df997a227a18fd4c452c4f049234aced69",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-420.json",
+            "prior_git_blob_oid": "19d3749758305d4bc08721865a0019b6ddcc9811"
+          },
+          {
+            "mt_id": "MT-287",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-287.json",
+            "sha256": "6458598dd74071d00978c28dd441aeb103017149b8ee2bbdf903c035af387994",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-287.json",
+            "prior_git_blob_oid": "7c73e189a419d49448727bfd0b3ef74950bce33a"
+          },
+          {
+            "mt_id": "MT-288",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-288.json",
+            "sha256": "1e236e6e8db5f96fff439c59d9afe184b72a390de4f930cce17b48838154f74c",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-288.json",
+            "prior_git_blob_oid": "9460dc436844af984970d3834262523bb67b19a3"
+          },
+          {
+            "mt_id": "MT-298",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-298.json",
+            "sha256": "b51cbc3491542a66d254939dd98d3497c05cec9a78fb23897bb6af9c564803f6",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-298.json",
+            "prior_git_blob_oid": "664415f97806df130d4338fd331b2410c51dad6e"
+          },
+          {
+            "mt_id": "MT-30024",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30024.json",
+            "sha256": "6c75f5e066308ecacb2cbde760b48f5506c05c8c99e48d0ed0d19608475b5ed7",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30024.json",
+            "prior_git_blob_oid": "1c1a7667ae157a8b3f3ab96b22be1d92521d1734"
+          },
+          {
+            "mt_id": "MT-30025",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30025.json",
+            "sha256": "0abca1cd67f95c6ea0807d817b7ceaca49008475923d0a6f2c54acaff06c5fe5",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30025.json",
+            "prior_git_blob_oid": "3d9da5a5b870abaedb86d01e3cef6cd3ff3de4e9"
+          },
+          {
+            "mt_id": "MT-30026",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30026.json",
+            "sha256": "6a69dc471c46970ab01e3e9a4f33b4f5e8f051cffe427d532cb59dd397f7e2a5",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30026.json",
+            "prior_git_blob_oid": "de33874268647314c869fd5fdecb0f77b14df208"
+          },
+          {
+            "mt_id": "MT-30028",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30028.json",
+            "sha256": "419c5e9510b93d6d5f71f13352e571d2a4a9af70f39a3abcd17c6d4f1a5c5bc4",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30028.json",
+            "prior_git_blob_oid": "58d301c6833cca3a5cf2fb03220b75cd31a65bf2"
+          },
+          {
+            "mt_id": "MT-30029",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30029.json",
+            "sha256": "faf7df7e59061cea8fac2dd27fbef9cb81c1ddd7fe5f08f5026f33e7bb52a8ec",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30029.json",
+            "prior_git_blob_oid": "8aa59f798ac6273d31c51117fb0bc5050a826df6"
+          },
+          {
+            "mt_id": "MT-30030",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30030.json",
+            "sha256": "65ece72831a2c6fe5ec2aab824dfb5d79859f62d89db54bb4014c7c96d0d1ad2",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30030.json",
+            "prior_git_blob_oid": "6da7243f2060fa2aa05abb68b273c2107b9f2df3"
+          },
+          {
+            "mt_id": "MT-30031",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30031.json",
+            "sha256": "177071c0e307eafa7203c797e774efa5233a0766c71563cd0371493e4d7cd0d3",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30031.json",
+            "prior_git_blob_oid": "dac1ab649da2807a57c1907548d0c167b12a2866"
+          },
+          {
+            "mt_id": "MT-30032",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30032.json",
+            "sha256": "3dbb68b06d388191b72986105cde49654ac9112d117f1cde1a67e80964a19ef5",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30032.json",
+            "prior_git_blob_oid": "33732fe70468e9a83449ef03295c4f670199823f"
+          },
+          {
+            "mt_id": "MT-30033",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30033.json",
+            "sha256": "5e29bf10755cf75797f915fe8444577c23ac469c4a1d74a7478419557485a8ef",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30033.json",
+            "prior_git_blob_oid": "7de4599f61be350d3660bcd7a766adeb7fa75b06"
+          },
+          {
+            "mt_id": "MT-30034",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30034.json",
+            "sha256": "671ef2309c6cbc31a96d13dcebc21779776787df5c19ecf1d608d1c9aca545d1",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30034.json",
+            "prior_git_blob_oid": "184acc7ca6145d3a092c75c98dc5a2de69904d0e"
+          },
+          {
+            "mt_id": "MT-30035",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30035.json",
+            "sha256": "01f48accdda319e49ca50a8f6de06fa2beed9c34dd36f9a7ee4dc6217bb22f4d",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30035.json",
+            "prior_git_blob_oid": "ad34c00f4b8eda2f4d6180eabcf79f1906dbf92e"
+          },
+          {
+            "mt_id": "MT-30036",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30036.json",
+            "sha256": "80e1ecf7e9a1e57f152f1de4dd6a542edc4703187a02d64f144bb3e1409373c3",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30036.json",
+            "prior_git_blob_oid": "e3268dcef51b93ce3df9fe93b7f2e5867b0ab639"
+          },
+          {
+            "mt_id": "MT-30037",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30037.json",
+            "sha256": "cd526c4cf4491ffd526078cf4d79e7c31ea21e271d0b843fff44cff971df6784",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30037.json",
+            "prior_git_blob_oid": "48a82c9d9b3d60d1b665ccc6cbcdf5a6d2324d62"
+          },
+          {
+            "mt_id": "MT-30038",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30038.json",
+            "sha256": "87a0c3a3ee30de2d2d0c37dff4ee17a6be9dae710fd385e4974dd64ba8f141f1",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30038.json",
+            "prior_git_blob_oid": "202f9bfe56fa9ee99eee69dfa869fc1495cabf44"
+          },
+          {
+            "mt_id": "MT-30039",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30039.json",
+            "sha256": "66a145746af2e76aec2b06f5723b1d592a0e9012a60e0941b288eb1a6ca42b1a",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30039.json",
+            "prior_git_blob_oid": "b3d9a404a0a031a1042bc9880c35a3063bdbb329"
+          },
+          {
+            "mt_id": "MT-30040",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30040.json",
+            "sha256": "9446a04e48c51aa55e0d501e2d8db84a97a762aaf4d279d607c3e04fe9628ec6",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30040.json",
+            "prior_git_blob_oid": "87055926e65d09e572d75e72bf5abddc5ae2b1a5"
+          },
+          {
+            "mt_id": "MT-30041",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30041.json",
+            "sha256": "3dc0f1f05b16c45a5868e897adb9736a6d2982df5a75886df55dfb3672a25719",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30041.json",
+            "prior_git_blob_oid": "6e42377bbebe0386f75f2727c114454974fa71b7"
+          },
+          {
+            "mt_id": "MT-161",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-161.json",
+            "sha256": "7688bf20db6ea75cbcadf2f688735d8dd208b63bd06db80061844e10dbc58637",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-161.json",
+            "prior_git_blob_oid": "d5a287eb6f75faafa3027f506a1a6d6dfe006331"
+          },
+          {
+            "mt_id": "MT-162",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-162.json",
+            "sha256": "fb806b0630ff9ba008ec9b87dc28b73f7f3b68f2b0b526fa19944d4bab52ab1b",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-162.json",
+            "prior_git_blob_oid": "42a97632a97f1408d3d9aff1656c92601d1016bd"
+          },
+          {
+            "mt_id": "MT-163",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-163.json",
+            "sha256": "f194ad7366998db469d52dafb9d867854a89e9af2dbe371cc87736c6c4d17d21",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-163.json",
+            "prior_git_blob_oid": "c1453b4edae2c648c4be284e7a8749e03bd595e1"
+          },
+          {
+            "mt_id": "MT-164",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-164.json",
+            "sha256": "62940006c38d08a4b1ff84c4dce34fd2b245841c1b443c51cbb4cbe4d0ff1216",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-164.json",
+            "prior_git_blob_oid": "bd983007e04f370aef8b948f68bcd8fe5d0b6786"
+          },
+          {
+            "mt_id": "MT-165",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-165.json",
+            "sha256": "feeb69be638ca9b7caf29c341219e2ea637ce77ed4ec37595d1d14eb9266b9c9",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-165.json",
+            "prior_git_blob_oid": "4f7a6d051b29475d9b0573931cf318f77121170c"
+          },
+          {
+            "mt_id": "MT-166",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-166.json",
+            "sha256": "d6746591b4cb3f3c2550b7b53986ef1306a2cde019c653733a9118a17a4b6a23",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-166.json",
+            "prior_git_blob_oid": "84d64cfa1cabe1b32b12ce8bbc18fb511fbde30b"
+          },
+          {
+            "mt_id": "MT-167",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-167.json",
+            "sha256": "bf1c9095ce96e1c7e505331f424d8fd7fd2c1aeaab9bb4f3f940b2d8c4ada8cc",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-167.json",
+            "prior_git_blob_oid": "19860850a5309a5129c9876c6fd64fba693875a8"
+          },
+          {
+            "mt_id": "MT-168",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-168.json",
+            "sha256": "0d060be89075877cf19c2ae9b87996edecc5af07eaa4c908abde088ea90931a8",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-168.json",
+            "prior_git_blob_oid": "05c6c0e1ff582b689ea2f822887916cd88e494c6"
+          },
+          {
+            "mt_id": "MT-169",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-169.json",
+            "sha256": "e7ab66a9bcaeb282099089bdb352959b34d521af78fd37ebb41b4964db06e6e8",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-169.json",
+            "prior_git_blob_oid": "18e65f5b55b81347df786e983dd521763a0ae383"
+          },
+          {
+            "mt_id": "MT-170",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-170.json",
+            "sha256": "fa163a3bd1fe5c6942624a929ee3a149dd4c38990f56c22c990ddb16b67d9ada",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-170.json",
+            "prior_git_blob_oid": "59f62933ff064c768f076ab39a6fc16ccdc85b2e"
+          },
+          {
+            "mt_id": "MT-171",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-171.json",
+            "sha256": "caa42c36fe6a94719149d08fe41ff7c6897ac4ddac3fb82cd4abca9183a4286b",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-171.json",
+            "prior_git_blob_oid": "fcb50e293fed7f6526ae2f11521b4f7d7f187116"
+          },
+          {
+            "mt_id": "MT-172",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-172.json",
+            "sha256": "a018e2384a0b24d2cc1cbd588856e0bfcdc0e23edff5c41219b415328b2421b5",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-172.json",
+            "prior_git_blob_oid": "ab188edf63c7c0d6a94eab2cb7f9007a30e9a897"
+          },
+          {
+            "mt_id": "MT-173",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-173.json",
+            "sha256": "345dccf4d312bb1b7596a562fc1a11c5eb2709a850ebbc2d2b733cb8138431bc",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-173.json",
+            "prior_git_blob_oid": "bfc6e691c213db64f846e0ab5432d1a871d4743f"
+          },
+          {
+            "mt_id": "MT-174",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-174.json",
+            "sha256": "ce5527109ab5f9d6c53ba59184e6c49857ff95b82abb561765e66689a8d8b4c0",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-174.json",
+            "prior_git_blob_oid": "6535f99b1b5938383a25dad21e4bc5e0043dedce"
+          },
+          {
+            "mt_id": "MT-175",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-175.json",
+            "sha256": "8a35e09987da8d3b2a4d9cffba851bb9cbb56ca8b06faa273db1711d005edf93",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-175.json",
+            "prior_git_blob_oid": "bd1b4bdd33fddbb1cb9f41b595fcba14d1980ad7"
+          },
+          {
+            "mt_id": "MT-094",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-094.json",
+            "sha256": "0e550ff51516a88e24f932db28a40ca42cb0ee81ed2eb993d7628e591006db3e",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-094.json",
+            "prior_git_blob_oid": "d06e88c48323045020b57a37ab3cff25206b388a"
+          },
+          {
+            "mt_id": "MT-095",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-095.json",
+            "sha256": "43038832af359d88fd8b2a44db9a71ec0570e60b51233d4241bd071cd1cd02ca",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-095.json",
+            "prior_git_blob_oid": "d2fa0b7ba9c9850692d4581194e82396d121dd6c"
+          },
+          {
+            "mt_id": "MT-096",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-096.json",
+            "sha256": "6252811ca746877ac3affc3427117519e87f94c5a53e337acd93d8b52e36b8d8",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-096.json",
+            "prior_git_blob_oid": "3645e8721a16cdcc35014194b0475dc8be413cd3"
+          },
+          {
+            "mt_id": "MT-097",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-097.json",
+            "sha256": "839207e151455628230d83a853240e98d7d89887f17bdb620f8bbb6ab436fe22",
+            "contract_revision": 4,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-097.json",
+            "prior_git_blob_oid": "23b3bb0489021e9da170c4a2fcc0aeeb7c94078b"
+          },
+          {
+            "mt_id": "MT-098",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-098.json",
+            "sha256": "a9dd79f47a132938890ca266faccf97b414ce1d799990d4ae2bb50e87d944356",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-098.json",
+            "prior_git_blob_oid": "e2cddb431544b53895a5edfc08386076fc4c6b23"
+          },
+          {
+            "mt_id": "MT-099",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-099.json",
+            "sha256": "730e04e3420cfbf5dcf7dedfa262da2450ad02bd3fc5297712c89bd10d0c67be",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-099.json",
+            "prior_git_blob_oid": "4b45d378b5492fdb4605c5230270c66999c31fc2"
+          },
+          {
+            "mt_id": "MT-100",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-100.json",
+            "sha256": "f8a395d4e0a638c61de77f7b8420c7b72bc4f58bde8121f0601a88e5f27f9544",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-100.json",
+            "prior_git_blob_oid": "5553533fe5f512822fbf652749c96559161128ed"
+          },
+          {
+            "mt_id": "MT-101",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-101.json",
+            "sha256": "70c101e029a90dbcf652d9f8fecf168b6226b317f7f5d4e4816fafa64556cb71",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-101.json",
+            "prior_git_blob_oid": "6dc7e2fc2d115295740c87ac8265b4f28275096e"
+          },
+          {
+            "mt_id": "MT-102",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-102.json",
+            "sha256": "4cd7c0b6ace8cff00113217bfc429bf2e6f14277443ac3a3c97901cbbf78d441",
+            "contract_revision": 5,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-102.json",
+            "prior_git_blob_oid": "b5e6c8e0b668fd8e236efa6cf16db7c015fc557a"
+          },
+          {
+            "mt_id": "MT-103",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-103.json",
+            "sha256": "50cbcb1d7e90a71e0023eac7a9e23947b264bfae49ca0ee0a6ba685a9c1c7ffe",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-103.json",
+            "prior_git_blob_oid": "5c3a55b149ecf14d5f5ac08947cc84941b8d9692"
+          },
+          {
+            "mt_id": "MT-104",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-104.json",
+            "sha256": "2ff79b0e61462bc95df2cb0fc15a70e3c268c6817f2d4e86c4f46b82539f65cc",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-104.json",
+            "prior_git_blob_oid": "8d8082b9bc5df65fb84a83f8bad3a085614a890c"
+          },
+          {
+            "mt_id": "MT-105",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-105.json",
+            "sha256": "d7178cdafd4fdec030987f65601e29dd885d316fc207ca0e6779d0c56e078d22",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-105.json",
+            "prior_git_blob_oid": "65e63aef260ee377d556ffcb3f39a9fd983d4656"
+          },
+          {
+            "mt_id": "MT-106",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-106.json",
+            "sha256": "aee4c500be0ab2965c5f61ac3c19d26e4e9ae664f6d2f1f21fd77f5b6b96eef0",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-106.json",
+            "prior_git_blob_oid": "34e92128a75cc3ed1ac027256f82c53b94bc4f58"
+          },
+          {
+            "mt_id": "MT-107",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-107.json",
+            "sha256": "34cb1f2028447c6662bfbe164d3d8620eb8e66778d7f8ad4f70165ad0d622cc0",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-107.json",
+            "prior_git_blob_oid": "dfa766fda939a37d921f74e7d2eb4f9b4853a7dc"
+          },
+          {
+            "mt_id": "MT-108",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-108.json",
+            "sha256": "91b2984d09a75fb035f9ea4c64cc92cdc8489e8b000d939188202e38d582c97e",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-108.json",
+            "prior_git_blob_oid": "2e0297684e22d9021ba1aa9364bca2b967fadb32"
+          },
+          {
+            "mt_id": "MT-109",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-109.json",
+            "sha256": "41bcf158b63598193fd02f673d7607767931bb959b6deb60f78d0fb2f65dda95",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-109.json",
+            "prior_git_blob_oid": "955bc4f21ab28d056a4b073747644bf6af60d272"
+          },
+          {
+            "mt_id": "MT-110",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-110.json",
+            "sha256": "ef4656f62b6645ce3d5851eef2b661c18f808a3db2bdf2352190e09010a4837d",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-110.json",
+            "prior_git_blob_oid": "9170818a5d9dafe57f926d9d3823a1022a9fc900"
+          },
+          {
+            "mt_id": "MT-111",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-111.json",
+            "sha256": "1cec0e046fc0c2dcea792ecc579519c30524e17f754c8400a1e79891c8e43af6",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-111.json",
+            "prior_git_blob_oid": "994d4eaf3ea85a6512f24cb83745a6a509a1cf31"
+          },
+          {
+            "mt_id": "MT-112",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-112.json",
+            "sha256": "fe4f4005de99fd96be2e957132b31115ac6df6352ecda88659405028e301dd61",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-112.json",
+            "prior_git_blob_oid": "fa4161694011bf4be40bfa4f5bdd7e25eea287e7"
+          },
+          {
+            "mt_id": "MT-113",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-113.json",
+            "sha256": "38c58c6bce0b14bc04a61c65a739bea639d378122455ca4fb78b0ef40b732410",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-113.json",
+            "prior_git_blob_oid": "0a799667590de9d24189ed56f17e57b500b3190b"
+          },
+          {
+            "mt_id": "MT-114",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-114.json",
+            "sha256": "f445688b0962ab406ed417f33cd0e013bf818219c9ec1566d4767df491dee0e4",
+            "contract_revision": 3,
+            "status": "PENDING",
+            "stage": "standalone_source",
+            "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-114.json",
+            "prior_git_blob_oid": "17e64e2953f5cc54901f0538d6acdf2110296197"
+          }
+        ],
+        "remaining": "All other allocated existing/split tasks remain in scope; no whole-corpus readiness claimed",
+        "runtime_proof": "NONE",
+        "host_adoption": "Actual host GUI/Argus/authority parity remains separately mapped PENDING; source descriptor/kernel preparation never substitutes.",
+        "updated_at": "2026-10-09T23:17:32.251Z",
+        "review_remediation": {
+          "findings": "Stale HBR1.15 and circular natural-test selectors",
+          "current_hbr_rule_count": 52,
+          "prior_history_retained": true,
+          "terminal_argv_planned": true,
+          "runtime_proof": "NONE"
+        },
+        "frozen_chunk": {
+          "state": "COORDINATOR_COMMITTED_PUSHED_ACK",
+          "mt_count": 72,
+          "fixed_groups": {
+            "reserved_engines_and_raster_conformance": 3,
+            "parked_optional_filters": 3,
+            "develop411420": 10,
+            "pigment_cross_domain_and_parameter_controls": 20,
+            "layout161175": 15,
+            "nib094114": 21
+          },
+          "original_payload_ac_lifecycle_check": "Native Git d860 exact preserved_original/acceptance_criteria/lifecycle reread all72; V2 identity and strictUTF8;52currentHBR/exactterminalfilters/PENDINGfalse/no slice aliases",
+          "runtime_proof": "NONE",
+          "freeze_at": "2026-10-09T23:17:32.251Z",
+          "coordinator_commit": "461afc99e60bff1311cdbfda5eb58a546f63a069",
+          "staging_proof": "Coordinator fresh GitHub ref and actualstaged72 raw LF-identical/JSON equal; ACK received"
+        },
+        "agent_allocations": {
+          "active": [
+            "Pigment originals above050 excluding frozen through067/35534 plus8Pigment splits",
+            "Layout/Components excluding frozen through151/35537/35539 and reserved020",
+            "Nib originals excluding35535/016 plus assigned genuine companions"
+          ]
         }
       }
     ]

@@ -50,7 +50,7 @@
     "title": "Studio authorized atomic storage and raster references",
     "group": "HOST_ADOPTION",
     "version": 1,
-    "contract_revision": 1
+    "contract_revision": 2
   },
   "parent": {
     "wp_contract_revision": 2,
@@ -67,7 +67,13 @@
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/27/maintenance",
       ".GOV/spec/SPEC_CURRENT.md",
-      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/nonexecutable_reference_disposition",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35407",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35408",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35409",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35410",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35411"
     ],
     "pillar_refs": [
       "INT",
@@ -440,11 +446,6 @@
       "MT-35355",
       "MT-35356",
       "MT-35357",
-      "MT-35407",
-      "MT-35408",
-      "MT-35409",
-      "MT-35410",
-      "MT-35411",
       "MT-35979",
       "MT-36018",
       "MT-36026",
@@ -514,7 +515,7 @@
       },
       {
         "n": 4,
-        "step": "Construct per-criterion inputs from .GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/36/qualified_ac_refs and original_scope_refs. Preserve exact IDs, source hashes, source feature outputs and loss/failure rules. Bind each output to mapped host consumer, current actor/resource/revision and source release; do not replace composite feature results with facade registration."
+        "step": "Construct per-criterion inputs from .GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/36/qualified_ac_refs and original_scope_refs. Preserve exact IDs, source hashes, source feature outputs and loss/failure rules. Bind each output to mapped host consumer, current actor/resource/revision and source release; do not replace composite feature results with facade registration. MT-35407..MT-35411 are retained ASSET029..033 derivation references only, excluded from source/runtime gates under current Spec30776..30780. Genuine ASSET025/026/027 dependency resolution and ASSET030 full host byte-binding prerequisites remain unchanged."
       },
       {
         "n": 5,
@@ -842,11 +843,6 @@
         "MT-35355",
         "MT-35356",
         "MT-35357",
-        "MT-35407",
-        "MT-35408",
-        "MT-35409",
-        "MT-35410",
-        "MT-35411",
         "MT-35979",
         "MT-36018",
         "MT-36026",
@@ -1174,11 +1170,6 @@
         "./MT-35355.json#/submissions",
         "./MT-35356.json#/submissions",
         "./MT-35357.json#/submissions",
-        "./MT-35407.json#/submissions",
-        "./MT-35408.json#/submissions",
-        "./MT-35409.json#/submissions",
-        "./MT-35410.json#/submissions",
-        "./MT-35411.json#/submissions",
         "./MT-35979.json#/submissions",
         "./MT-36018.json#/submissions",
         "./MT-36026.json#/submissions",
@@ -1243,7 +1234,7 @@
           "MT-36225/AC-HOST-001",
           "MT-36225/AC-HOST-002"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --no-default-features --features kernel-proof,surreal-test-support --test studio_storage_auth_host -- host_adoption_behavior --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_behavior in owning target as individually keyed original-criterion cases, not one facade assertion. Input: Use existing AppState storage and authenticated record-user scope; validate immutable artifact refs then atomically commit proposal/head/EventLedger/idempotency and mirror intent; current grants rechecked at serialized acceptance. Deny absent/stale/revoked/cross-account/derived-scope expansion; unknown acknowledgement reconciles canonical authority. Method: Use existing AppState storage and authenticated record-user scope; validate immutable artifact refs then atomically commit proposal/head/EventLedger/idempotency and mirror intent; current grants rechecked at serialized acceptance. Deny absent/stale/revoked/cross-account/derived-scope expansion; unknown acknowledgement reconciles canonical authority. Canonical positive oracle: authenticated record-user head, proposal, EventLedger, idempotency and mirror intent. Negative assertions: Race revoke/cross-account/target revision at serialized acceptance; reject without new head/EventLedger/mirror intent; reconcile unknown acknowledgement from canonical authority. Re-read canonical head/events/current grants after success and denial; each original qualified AC records its own requested feature output.",
+        "command_or_method": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --no-default-features --features kernel-proof,surreal-test-support --test studio_storage_auth_host -- host_adoption_behavior --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_behavior in owning target as individually keyed original-criterion cases, not one facade assertion. Input: Use existing AppState storage and authenticated record-user scope; validate immutable artifact refs then atomically commit proposal/head/EventLedger/idempotency and mirror intent; current grants rechecked at serialized acceptance. Deny absent/stale/revoked/cross-account/derived-scope expansion; unknown acknowledgement reconciles canonical authority. Method: Use existing AppState storage and authenticated record-user scope; validate immutable artifact refs then atomically commit proposal/head/EventLedger/idempotency and mirror intent; current grants rechecked at serialized acceptance. Deny absent/stale/revoked/cross-account/derived-scope expansion; unknown acknowledgement reconciles canonical authority. Canonical positive oracle: authenticated record-user head, proposal, EventLedger, idempotency and mirror intent. Negative assertions: Race revoke/cross-account/target revision at serialized acceptance; reject without new head/EventLedger/mirror intent; reconcile unknown acknowledgement from canonical authority. Re-read canonical head/events/current grants after success and denial; each original qualified AC records its own requested feature output.",
         "expected": "Use existing AppState storage and authenticated record-user scope; validate immutable artifact refs then atomically commit proposal/head/EventLedger/idempotency and mirror intent; current grants rechecked at serialized acceptance. Deny absent/stale/revoked/cross-account/derived-scope expansion; unknown acknowledgement reconciles canonical authority",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
@@ -1259,8 +1250,8 @@
         "claim_refs": [
           "MT-36225/AC-HOST-003"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --no-default-features --features kernel-proof,surreal-test-support --test studio_storage_auth_host -- host_adoption_compatibility --exact --nocapture; cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --no-default-features --features kernel-proof,surreal-test-support --test studio_storage_auth_host -- host_adoption_rollback --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize both named tests in the same owning target. Compatibility: run prior and candidate immutable module releases with the identical task inputs; independently compare authenticated record-user head, proposal, EventLedger, idempotency and mirror intent and source-qualified identity/loss semantics. Inject incompatible schema/API/ABI or missing dependency/provider pin and assert denial before authority mutation. Rollback: settle accepted work/cancel and checkpoint in-flight authenticated record-user head, proposal, EventLedger, idempotency and mirror intent, restore the exact prior admitted manifest+locks+release pins, reopen/replay the same host case and independently compare authenticated record-user head, proposal, EventLedger, idempotency and mirror intent plus canonical accepted head/history/EventLedger. No rewrite of accepted authority, silent data loss or success through missing provider.",
-      "expected": "Prior/candidate compatible release preserves authenticated record-user head, proposal, EventLedger, idempotency and mirror intent; incompatible candidate is denied before authority mutation; rollback reopens/replays prior authenticated record-user head, proposal, EventLedger, idempotency and mirror intent with accepted authority and provenance intact.",
+        "command_or_method": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --no-default-features --features kernel-proof,surreal-test-support --test studio_storage_auth_host -- host_adoption_compatibility --exact --nocapture; cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --no-default-features --features kernel-proof,surreal-test-support --test studio_storage_auth_host -- host_adoption_rollback --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize both named tests in the same owning target. Compatibility: run prior and candidate immutable module releases with the identical task inputs; independently compare authenticated record-user head, proposal, EventLedger, idempotency and mirror intent and source-qualified identity/loss semantics. Inject incompatible schema/API/ABI or missing dependency/provider pin and assert denial before authority mutation. Rollback: settle accepted work/cancel and checkpoint in-flight authenticated record-user head, proposal, EventLedger, idempotency and mirror intent, restore the exact prior admitted manifest+locks+release pins, reopen/replay the same host case and independently compare authenticated record-user head, proposal, EventLedger, idempotency and mirror intent plus canonical accepted head/history/EventLedger. No rewrite of accepted authority, silent data loss or success through missing provider.",
+        "expected": "Prior/candidate compatible release preserves authenticated record-user head, proposal, EventLedger, idempotency and mirror intent; incompatible candidate is denied before authority mutation; rollback reopens/replays prior authenticated record-user head, proposal, EventLedger, idempotency and mirror intent with accepted authority and provenance intact.",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1276,7 +1267,7 @@
           "MT-36225/AC-HOST-002",
           "MT-36225/AC-HOST-003"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --no-default-features --features kernel-proof,surreal-test-support --test studio_storage_auth_host -- host_adoption_pillars --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_pillars in owning target: INT same typed command and authenticated record-user head, proposal, EventLedger, idempotency and mirror intent for operator/model; SWARM two agents/operator current-grant revision isolation; VIS structured current trace inspection; QUIET background service actions preserve focus; MAN same-change canonical manual for Studio authorized atomic storage and raster references failure/recovery; STOP cancel before acceptance leaves head unchanged, cancel after acceptance retains receipt and drains; PRIV revoked/cross-account action denies; COMPART source/host owners separate; COMPONENT selected locked package closure only.",
+        "command_or_method": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --no-default-features --features kernel-proof,surreal-test-support --test studio_storage_auth_host -- host_adoption_pillars --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_pillars in owning target: INT same typed command and authenticated record-user head, proposal, EventLedger, idempotency and mirror intent for operator/model; SWARM two agents/operator current-grant revision isolation; VIS structured current trace inspection; QUIET background service actions preserve focus; MAN same-change canonical manual for Studio authorized atomic storage and raster references failure/recovery; STOP cancel before acceptance leaves head unchanged, cancel after acceptance retains receipt and drains; PRIV revoked/cross-account action denies; COMPART source/host owners separate; COMPONENT selected locked package closure only.",
         "expected": "Applicable nine-pillar behavior evidenced on exact host candidate; missing renderer/device/production route remains blocked",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
@@ -1582,11 +1573,6 @@
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35355.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35356.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35357.json",
-      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35407.json",
-      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35408.json",
-      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35409.json",
-      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35410.json",
-      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35411.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35979.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36018.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36026.json",

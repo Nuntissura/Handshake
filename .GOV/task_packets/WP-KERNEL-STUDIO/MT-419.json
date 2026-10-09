@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-STUDIO",
   "mt_id": "MT-419",
   "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": "2026-10-09T23:15:40.033Z",
+  "updated_at_utc": "2026-10-09T23:28:44.870Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-419.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-419.md",
@@ -280,7 +280,7 @@
     "title": "Panel group — Optics / lens correction / defringe [STU-RAW-009]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -349,6 +349,24 @@
           }
         ],
         "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-RAW-127",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:2469",
+        "verbatim": "**[STU-RAW-127] LENS PROFILE MODEL.** A lens profile is a **sampled** correction model, not a formula:",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 2469,
+            "end_line": 2496,
+            "body_sha256": "968764a823aee102a8f03264a33baa1c25dd741e4564c9519c6ee572f74543f3",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full six-submodel table and numerical semantics bound by range"
       }
     ],
     "read_context": [
@@ -1924,7 +1942,7 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_optics_profile.rs: Resolve automatic lensmatch through bounded local actualprofilecatalog port with manual selection/override; retain name/file/digest/embeddedsource, no vendorservice/runtime networking. Consume shared distortion/vignette/CA correction evaluator, use inverse map and tiled sampling, manualvignette remains correction not creative postcrop. Defringe identifies captured purple/green windows and amount0..20 through actualcolourkernel; sampler proposes samefourhue endpoints. Preserve exact nonzero defaults and lensdigest on reevaluation; source profile format/version/matcher/math oracle remains prerequisite."
+        "step": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_optics_profile.rs: Resolve automatic lensmatch through bounded local actualprofilecatalog port with manual selection/override; retain name/file/digest/embeddedsource, no vendorservice/runtime networking. Consume shared distortion/vignette/CA correction evaluator, use inverse map and tiled sampling, manualvignette remains correction not creative postcrop. Defringe identifies captured purple/green windows and amount0..20 through actualcolourkernel; sampler proposes samefourhue endpoints. Preserve exact nonzero defaults and lensdigest on reevaluation; source profile format/version/matcher/math oracle remains prerequisite. Bind RAW127 actual sampled (focal-length/focus-distance/aperture) grid: preserve all six submodels, f64 distortion/vignette coefficients, independent red-green/green/blue-green CA models, rectilinear versus fisheye dispatch and 1e32 focus infinity sentinel. Interpolate actual shot coordinates for single-sample prime and dense zoom profiles; expose each sample residual mean error/standard deviation. Captured ranges/sample counts are corpus observations, not invented hard bounds. Actual profile parser/interpolation/fisheye transfer/oracle unresolved remains implementation prerequisite."
       },
       {
         "n": 2,
@@ -1932,7 +1950,7 @@
       },
       {
         "n": 3,
-        "step": "handshake-studio-assets/crates/hsk-studio-develop/tests/develop_optics_profile.rs: optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency Independent observation: Independent lensprofilemetadata/hash and canonical17field reread; independently authored calibrationgrid/edgecolour/vignette originaloutput compares actualcorrection and sampledwindow; profileparser/transfer/resampling/tolerance binding mandatory"
+        "step": "handshake-studio-assets/crates/hsk-studio-develop/tests/develop_optics_profile.rs: optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency Independent observation: Independent lensprofilemetadata/hash and canonical17field reread; independently authored calibrationgrid/edgecolour/vignette originaloutput compares actualcorrection and sampledwindow; profileparser/transfer/resampling/tolerance binding mandatory Check sampled-grid interpolation, all three CA channels, extreme f64 coefficients, explicit infinity sentinel, fisheye-versus-rectilinear dispatch and residual-state readback against independent calibration."
       },
       {
         "n": 4,
@@ -1942,7 +1960,8 @@
     "expected_outputs": [
       "Profile-hash-bound reversible optics/defringe proposal with localmatch/manualoverride and samplerdelta, explicit unavailableprofile outcome",
       "Planned source handshake-studio-assets/crates/hsk-studio-develop/src/develop_optics_profile.rs and natural proof handshake-studio-assets/crates/hsk-studio-develop/tests/develop_optics_profile.rs; optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency",
-      "Failure/recovery: Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch"
+      "Failure/recovery: Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch",
+      "RAW127 six-submodel sampled-grid evaluation with f64 coefficients, three CA models, infinity sentinel and inspectable per-sample residuals."
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -2035,7 +2054,7 @@
           "AC-001"
         ],
         "command_or_method": "cargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile optics_nonzero_defaults -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile local_profile_match_override -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile defringe_same_fields -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile no_vendor_service_dependency -- --exact",
-        "expected": "Profile-hash-bound reversible optics/defringe proposal with localmatch/manualoverride and samplerdelta, explicit unavailableprofile outcome Successful case: optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency Failed/recovered case: Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch",
+        "expected": "Profile-hash-bound reversible optics/defringe proposal with localmatch/manualoverride and samplerdelta, explicit unavailableprofile outcome Successful case: optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency Failed/recovered case: Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch RAW127 grid and residual metadata retained.",
         "timeout_seconds": 90,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2046,7 +2065,7 @@
         "method_recipe": {
           "selected_package": "hsk-studio-develop",
           "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
-          "consumer": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_optics_profile.rs",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_optics_profile.rs; RAW127 sampled-grid six-submodel/f64/CA/fisheye/infinity/residual contract",
           "scenario": "optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency",
           "negative_path": "Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch",
           "independent_oracle": "Independent lensprofilemetadata/hash and canonical17field reread; independently authored calibrationgrid/edgecolour/vignette originaloutput compares actualcorrection and sampledwindow; profileparser/transfer/resampling/tolerance binding mandatory",
@@ -2074,7 +2093,7 @@
           "AC-002"
         ],
         "command_or_method": "cargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile optics_nonzero_defaults -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile local_profile_match_override -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile defringe_same_fields -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile no_vendor_service_dependency -- --exact",
-        "expected": "Profile-hash-bound reversible optics/defringe proposal with localmatch/manualoverride and samplerdelta, explicit unavailableprofile outcome Successful case: optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency Failed/recovered case: Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch",
+        "expected": "Profile-hash-bound reversible optics/defringe proposal with localmatch/manualoverride and samplerdelta, explicit unavailableprofile outcome Successful case: optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency Failed/recovered case: Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch RAW127 grid and residual metadata retained.",
         "timeout_seconds": 90,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2085,7 +2104,7 @@
         "method_recipe": {
           "selected_package": "hsk-studio-develop",
           "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
-          "consumer": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_optics_profile.rs",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_optics_profile.rs; RAW127 sampled-grid six-submodel/f64/CA/fisheye/infinity/residual contract",
           "scenario": "optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency",
           "negative_path": "Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch",
           "independent_oracle": "Independent lensprofilemetadata/hash and canonical17field reread; independently authored calibrationgrid/edgecolour/vignette originaloutput compares actualcorrection and sampledwindow; profileparser/transfer/resampling/tolerance binding mandatory",
@@ -2113,7 +2132,7 @@
           "AC-003"
         ],
         "command_or_method": "cargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile optics_nonzero_defaults -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile local_profile_match_override -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile defringe_same_fields -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile no_vendor_service_dependency -- --exact",
-        "expected": "Profile-hash-bound reversible optics/defringe proposal with localmatch/manualoverride and samplerdelta, explicit unavailableprofile outcome Successful case: optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency Failed/recovered case: Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch",
+        "expected": "Profile-hash-bound reversible optics/defringe proposal with localmatch/manualoverride and samplerdelta, explicit unavailableprofile outcome Successful case: optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency Failed/recovered case: Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch RAW127 grid and residual metadata retained.",
         "timeout_seconds": 90,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2124,7 +2143,7 @@
         "method_recipe": {
           "selected_package": "hsk-studio-develop",
           "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
-          "consumer": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_optics_profile.rs",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_optics_profile.rs; RAW127 sampled-grid six-submodel/f64/CA/fisheye/infinity/residual contract",
           "scenario": "optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency",
           "negative_path": "Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch",
           "independent_oracle": "Independent lensprofilemetadata/hash and canonical17field reread; independently authored calibrationgrid/edgecolour/vignette originaloutput compares actualcorrection and sampledwindow; profileparser/transfer/resampling/tolerance binding mandatory",
@@ -2152,7 +2171,7 @@
           "AC-004"
         ],
         "command_or_method": "cargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile optics_nonzero_defaults -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile local_profile_match_override -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile defringe_same_fields -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile no_vendor_service_dependency -- --exact",
-        "expected": "Profile-hash-bound reversible optics/defringe proposal with localmatch/manualoverride and samplerdelta, explicit unavailableprofile outcome Successful case: optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency Failed/recovered case: Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch",
+        "expected": "Profile-hash-bound reversible optics/defringe proposal with localmatch/manualoverride and samplerdelta, explicit unavailableprofile outcome Successful case: optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency Failed/recovered case: Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch RAW127 grid and residual metadata retained.",
         "timeout_seconds": 90,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2163,7 +2182,7 @@
         "method_recipe": {
           "selected_package": "hsk-studio-develop",
           "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
-          "consumer": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_optics_profile.rs",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_optics_profile.rs; RAW127 sampled-grid six-submodel/f64/CA/fisheye/infinity/residual contract",
           "scenario": "optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency",
           "negative_path": "Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch",
           "independent_oracle": "Independent lensprofilemetadata/hash and canonical17field reread; independently authored calibrationgrid/edgecolour/vignette originaloutput compares actualcorrection and sampledwindow; profileparser/transfer/resampling/tolerance binding mandatory",
@@ -2191,7 +2210,7 @@
           "AC-005"
         ],
         "command_or_method": "cargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile optics_nonzero_defaults -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile local_profile_match_override -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile defringe_same_fields -- --exact\ncargo test --locked -p hsk-studio-develop --no-default-features --test develop_optics_profile no_vendor_service_dependency -- --exact",
-        "expected": "Profile-hash-bound reversible optics/defringe proposal with localmatch/manualoverride and samplerdelta, explicit unavailableprofile outcome Successful case: optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency Failed/recovered case: Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch",
+        "expected": "Profile-hash-bound reversible optics/defringe proposal with localmatch/manualoverride and samplerdelta, explicit unavailableprofile outcome Successful case: optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency Failed/recovered case: Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch RAW127 grid and residual metadata retained.",
         "timeout_seconds": 90,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2202,7 +2221,7 @@
         "method_recipe": {
           "selected_package": "hsk-studio-develop",
           "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
-          "consumer": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_optics_profile.rs",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_optics_profile.rs; RAW127 sampled-grid six-submodel/f64/CA/fisheye/infinity/residual contract",
           "scenario": "optics_nonzero_defaults; local_profile_match_override; defringe_same_fields; no_vendor_service_dependency",
           "negative_path": "Missing/corrupt lensprofile or unsupportedversion,ambiguousmatch/unboundmatcher,singularmap/stalegrant/profile/cancel/budget rejects without replacing source; regrant/restoreexactprofile retry; no automaticnewprofile substitution or fabricatedmatch",
           "independent_oracle": "Independent lensprofilemetadata/hash and canonical17field reread; independently authored calibrationgrid/edgecolour/vignette originaloutput compares actualcorrection and sampledwindow; profileparser/transfer/resampling/tolerance binding mandatory",
