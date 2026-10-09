@@ -7147,7 +7147,14 @@ async fn upgrade_pre_mt168_lookup_revision(
         )
         .await;
     }
-    let schema_upgrade = schema_function_definition("mt120_workspace_delete");
+    let schema_upgrade_start = SCHEMA
+        .find("DEFINE FUNCTION OVERWRITE fn::mt120_workspace_delete(")
+        .expect("canonical workspace-delete function");
+    let schema_upgrade_end = schema_upgrade_start
+        + SCHEMA[schema_upgrade_start..]
+            .find("\nDEFINE FUNCTION OVERWRITE fn::mt120_document_delete(")
+            .expect("following canonical document-delete function");
+    let schema_upgrade = &SCHEMA[schema_upgrade_start..schema_upgrade_end];
     let upgrade = format!(
         "BEGIN TRANSACTION;\n\
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
