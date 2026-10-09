@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 510
+generation: 511
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -419,3 +419,4 @@ steps:
 - {id: GP-398, role: any, at: before_round, do: verify exact163 upgrade extracts complete workspace-delete fn across nested loop closures, check: {type: confirm}, source: 'fail:51c exact163 extraction stopped at inner FOR closure; COMMIT parsed inside unterminated fn', state: active}
 - {id: GP-399, role: wp_validator, at: before_round, do: 'verify private SDK take uses supported Option, Vec or SDK Value result types', check: {type: confirm}, source: 'infra: private probe E0277; usize QueryResult rejects bool, RecordId and serde_json scalar takes', state: active}
 - {id: GP-400, role: wp_validator, at: before_round, do: verify private native capture suppresses void task output and returns one numeric exit, check: {type: confirm}, source: 'infra: private PS capture returned VoidTaskResult objects with exit1; no query ran', state: active}
+- {id: GP-401, role: wp_validator, at: before_round, do: verify direct record-set table filter uses bound IDs before fetch; missing IDs match original empty result, check: {type: confirm}, source: 'fail: private r2 missing record gave NONE to record::table(id); original SELECT returned empty', state: active}
