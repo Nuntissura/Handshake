@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-09T19:38:56.511161+00:00",
+  "updated_at_utc": "2026-10-09T19:40:27.206115+00:00",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -248,7 +248,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "blocked_on": null,
     "depends_on": [],
     "blocks": [
@@ -257,19 +257,19 @@
     ],
     "active": true,
     "validator_verdict": "FAIL_V1",
-    "claimed_by": "KERNEL_BUILDER-20261009-retained-builder",
+    "claimed_by": "KERNEL_BUILDER-new-lead-20261009",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER",
+    "next_actor": "WP_VALIDATOR",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-153.json#analysis_20261001_step1_w_scans_ownership",
       "MT-167.json#diagnosis_20261002_dbdae422_grant_table_scan"
     ],
-    "candidate_commit": "280ef9851901db2a8ab32b13c82fdfb1656225e6",
+    "candidate_commit": "85f45913a0c11019b3a49c9f213356d73495e765",
     "status_before_ready": "BLOCKED",
-    "pushed_verified": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 280ef9851901db2a8ab32b13c82fdfb1656225e6",
-    "ready_for_validation_at_utc": "2026-10-02T17:20:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20261002",
+    "pushed_verified": "Fresh git ls-remote feat/WP-KERNEL-012 exact85f; clean product; R18 native0 preserved",
+    "ready_for_validation_at_utc": "2026-10-09T19:40:27.206115+00:00",
+    "ready_for_validation_by": "KERNEL_BUILDER-new-lead-20261009",
     "selection_note": {
       "MT-168": [
         "handshake_core lib resource_authority_tests (whole, incl. grant_check_cost_is_independent_of_unrelated_grant_rows, authority_checks_cost_is_independent_of_unrelated_grant_rows, loom_block_and_source_read_cost_is_independent_of_unrelated_grant_rows, MT-164/MT-166 cost tests)",
@@ -2256,7 +2256,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "MANDATORY_NATIVE_COMPILE_PASS_PRESERVED_PENDING_SUBMIT",
+    "state": "READY_FOR_INDEPENDENT_ORIGINAL3_R19",
     "candidate_commit": "85f45913a0c11019b3a49c9f213356d73495e765",
     "candidate_tree": "3d6119409baeff624ff988475ad04606f1bc1fd7",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -2292,7 +2292,7 @@
       "Historical PRE162 reconstruction static gap retained; no historical repin",
       "MT168-DOWNSTREAM original3: account/full parity PASS; timing5.4940202s>5s FAIL; growth removed; residual attribution unmeasured"
     ],
-    "next_actor": "KERNEL_BUILDER",
+    "next_actor": "WP_VALIDATOR",
     "preservation_checkpoints": [
       {
         "commit": "817bd35cfae235e754e0d6e447fda2cf137578ab",
@@ -2464,7 +2464,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Builder before_submit then independent original3 one compatible warm-target runtime batch",
+    "next_dependency": "Independent original mounted account/parity/median one compatible batch; unaffected original bindings reused",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
@@ -2856,7 +2856,7 @@
       "review": "Root and Buddy opened actual source; AST0; r15 derivative only candidate/suffix/capturefilename/round identities",
       "compiler_profile_command_unchanged": true,
       "status": "COMPILE_PASS_NATIVE_CAPTURE",
-      "exclusive_target_owner": "KERNEL_BUILDER_PENDING_SUBMIT",
+      "exclusive_target_owner": "WP_VALIDATOR-new-root/wpv",
       "precompile_export_delegate": "WP_VALIDATOR only source export preparation; no runtime or target job",
       "native_exit_code": 0,
       "started_at_utc": "2026-10-09T18:52:57.1418107Z",
@@ -2877,6 +2877,19 @@
         "cause": "UNVERIFIED",
         "native_capture_survived": true
       }
+    },
+    "continuation_submit_20261009": {
+      "at_utc": "2026-10-09T19:40:27.206115+00:00",
+      "gameplan": "kernel_builder before_submit PASS11/11 exit0; root repeated check on85f",
+      "native_compile": "PR-WP012-MT168-KB-CHECK-20261009-85F-R18",
+      "exclusive_target_export_controller_owner": "WP_VALIDATOR-new-root/wpv",
+      "last_independent_verdict_retained": "FAIL_V1",
+      "fresh_required": [
+        "mounted_index_account_source_witness_revocation_and_workspace_delete",
+        "mt167_batch_and_per_file_writer_produce_equal_rows",
+        "mt167_code_nav_index_median_within_spec_baseline"
+      ],
+      "acceptance_floor_unchanged": true
     }
   },
   "mt168_private_query_probe_20261009": {
