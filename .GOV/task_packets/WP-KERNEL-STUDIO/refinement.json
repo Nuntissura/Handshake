@@ -30,15 +30,35 @@
       ".GOV/spec/master-spec-v02.199/spec-modules/12-end-of-file-appendices.md (FEAT-STUDIO*/PRIM-Studio*/IMX-STUDIO*/feature-links rows)"
     ],
     "spec_anchors": [
-      "STU-SECTION-001..003", "STU-OVR-001..003", "STU-ARC-001..006", "STU-DOC-001..004",
-      "STU-RAS-*", "STU-VEC-*", "STU-LAY-*", "STU-TYP-*", "STU-COL-*", "STU-FX-*",
-      "STU-DS-*", "STU-PRO-*", "STU-RAW-*", "STU-IO-*", "STU-AUT-*", "STU-WB-*",
-      "STU-MDL-*", "STU-PAR-*", "STU-PW-*", "STU-HIS-*", "STU-QUIET-*", "STU-UNI-*",
-      "STU-MAN-*", "STU-CON-001..006", "STU-VAL-001..006"
+      "STU-SECTION-001..003",
+      "STU-OVR-001..003",
+      "STU-ARC-001..006",
+      "STU-DOC-001..004",
+      "STU-RAS-*",
+      "STU-VEC-*",
+      "STU-LAY-*",
+      "STU-TYP-*",
+      "STU-COL-*",
+      "STU-FX-*",
+      "STU-DS-*",
+      "STU-PRO-*",
+      "STU-RAW-*",
+      "STU-IO-*",
+      "STU-AUT-*",
+      "STU-WB-*",
+      "STU-MDL-*",
+      "STU-PAR-*",
+      "STU-PW-*",
+      "STU-HIS-*",
+      "STU-QUIET-*",
+      "STU-UNI-*",
+      "STU-MAN-*",
+      "STU-CON-001..006",
+      "STU-VAL-001..006"
     ],
     "scope_edges": [
-      "IN: handshake_core::studio + studio-engine crate; StudioDocument unified model + 38 canonical primitives; SCHEMAFULL studio_* SurrealDB record types + forward-only SurrealKit rollouts; STUDIO_* EventLedger variants; StudioValidationDescriptor; StudioModelAdapter + MCP command surface; StudioEditProposal propose-work; per-file StudioHistoryEntry undo/redo; native egui/wgpu/AccessKit operator surface + Argus; dual-audience UserManual; import/export + format-compat.",
-      "OUT: source-app menu-tree clones; pixel-perfect UI clone; vendor cloud services; vendor product naming; new invented interchange format; provider generative-AI as core dependency (adapter-only)."
+      "IN: preserve all current Section14 and prior MT scope; multi-crate isolated Studio assets, full non-AI creative/photo/catalog/timeline/motion/compositing/design/web/publishing workflows and unified native snapshot proposal per current Operator scope.",
+      "OUT: vendor AI/generative reimplementation, required cloud/Adobe runtime, separate shipped suite apps and duplicate canonical mechanic owners. Modular/native-format source changes require approved exact enrichment before implementation."
     ],
     "assumptions": [
       "Kernel baseline (sandbox, PromotionGate, CRDT, native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough before Studio product implementation (STU-ARC-006).",
@@ -57,17 +77,42 @@
       "MT index + task board + build order + traceability updated; ACTIVATION_READINESS emitted."
     ],
     "hbr_pillar_review": {
-      "INT": { "applicable": true, "evidence_path": "14.24 [STU-VAL-002]; FR-EVT-STUDIO-* WIRED, internal_diagnostics/Palmistry DEFERRED" },
-      "SWARM": { "applicable": true, "evidence_path": "14.17 [STU-PAR-001..005] parallel multi-file/multi-model + operator concurrency" },
-      "VIS": { "applicable": true, "evidence_path": "14.16/14.24 [STU-MDL-002, STU-VAL-003] Argus on every operator surface" },
-      "QUIET": { "applicable": true, "evidence_path": "14.20 [STU-QUIET-001..005] headless/no-focus-steal law" },
-      "MAN": { "applicable": true, "evidence_path": "14.22 [STU-MAN-001..004] dual-audience UserManual, same-change currency" }
+      "INT": {
+        "applicable": true,
+        "evidence_path": "14.24 [STU-VAL-002]; FR-EVT-STUDIO-* WIRED, internal_diagnostics/Palmistry DEFERRED"
+      },
+      "SWARM": {
+        "applicable": true,
+        "evidence_path": "14.17 [STU-PAR-001..005] parallel multi-file/multi-model + operator concurrency"
+      },
+      "VIS": {
+        "applicable": true,
+        "evidence_path": "14.16/14.24 [STU-MDL-002, STU-VAL-003] Argus on every operator surface"
+      },
+      "QUIET": {
+        "applicable": true,
+        "evidence_path": "14.20 [STU-QUIET-001..005] headless/no-focus-steal law"
+      },
+      "MAN": {
+        "applicable": true,
+        "evidence_path": "14.22 [STU-MAN-001..004] dual-audience UserManual, same-change currency"
+      }
     },
     "hbr_int_009_three_tier_diagnostic": {
-      "applicable": true, "verdict": "DEFERRED_WITH_REASON",
-      "tier_flight_recorder": { "status": "WIRED", "notes": "FR-EVT-STUDIO-* business events wired at build (14.23 [STU-CON-003], 14.24 [STU-VAL-002])" },
-      "tier_internal_diagnostics": { "status": "DEFERRED", "notes": "built by WP-KERNEL-012, retrofit WP-KERNEL-016; observable-behavior MTs record DEFERRED-with-reason" },
-      "tier_palmistry": { "status": "DEFERRED", "notes": "external watcher shipped later; DEFERRED-with-reason per HBR-INT-009" }
+      "applicable": true,
+      "verdict": "DEFERRED_WITH_REASON",
+      "tier_flight_recorder": {
+        "status": "WIRED",
+        "notes": "FR-EVT-STUDIO-* business events wired at build (14.23 [STU-CON-003], 14.24 [STU-VAL-002])"
+      },
+      "tier_internal_diagnostics": {
+        "status": "DEFERRED",
+        "notes": "built by WP-KERNEL-012, retrofit WP-KERNEL-016; observable-behavior MTs record DEFERRED-with-reason"
+      },
+      "tier_palmistry": {
+        "status": "DEFERRED",
+        "notes": "external watcher shipped later; DEFERRED-with-reason per HBR-INT-009"
+      }
     },
     "research_basis": {
       "currency_required": "NO",
@@ -104,7 +149,12 @@
       },
       "granularity_rule": "No upper MT-count bias; each MT narrow, no-context-implementable, small-model-sized, independently reviewable + crash-recoverable; foundation MTs own shared schema/helpers and later MTs depend on them.",
       "mt_index": ".GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json"
-    }
+    },
+    "historical_scope_edges_before_2026_10_09": [
+      "IN: handshake_core::studio + studio-engine crate; StudioDocument unified model + 38 canonical primitives; SCHEMAFULL studio_* SurrealDB record types + forward-only SurrealKit rollouts; STUDIO_* EventLedger variants; StudioValidationDescriptor; StudioModelAdapter + MCP command surface; StudioEditProposal propose-work; per-file StudioHistoryEntry undo/redo; native egui/wgpu/AccessKit operator surface + Argus; dual-audience UserManual; import/export + format-compat.",
+      "OUT: source-app menu-tree clones; pixel-perfect UI clone; vendor cloud services; vendor product naming; new invented interchange format; provider generative-AI as core dependency (adapter-only)."
+    ],
+    "current_preparation_note": "Existing dated completed spec/MT assertions are historical. Oct9 source repass and deep-drill findings amend planning scope/topology only; do not treat old assumptions, worktree-creation or visual-fallback wording as fresh executable acceptance."
   },
   "red_team": {
     "required": true,
@@ -120,6 +170,49 @@
       "Per-MT runtime-proof obligation; per-MT GUI/Argus + UserManual obligation.",
       "HBR matrix closure gate before any PASS.",
       "Canonical-primitive reference enforced; no shadow primitives in domain MTs."
+    ]
+  },
+  "preparation_repass_2026_10_09": {
+    "schema_id": "hsk.studio_preparation_amendment@1",
+    "amendment_id": "STUDIO-PREP-AMENDMENT-20261009",
+    "updated_at": "2026-10-09T17:00:42Z",
+    "approval": {
+      "source": "Live Operator messages 2026-10-09",
+      "scope": "Research/design repass, agent swarm and separate Studio asset worktree; implementation starts in a new session.",
+      "signature": "No new USER_SIGNATURE invented; historic signatures retained."
+    },
+    "research_entrypoint": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/preparation.json",
+    "engineering": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/engineering.json",
+    "ui": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/ui-and-design-workflows.json",
+    "media": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/media-photo-workflows.json",
+    "native_document": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/native-document-and-interop.json",
+    "next_session": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/build-policy-and-next-session.json",
+    "current_spec": "v02.206 via SPEC_CURRENT.md",
+    "worktree": {
+      "branch": "codex/handshake-studio-assets",
+      "baseline": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "locator": "git worktree list --porcelain; refs/heads/codex/handshake-studio-assets",
+      "status": "CREATED_ATTACHED_CLEAN; no product implementation",
+      "governance": "Direct verified gov_kernel via HANDSHAKE_GOV_ROOT; no copied/junctioned .GOV authority."
+    },
+    "effective_operator_scope": {
+      "modularity": "Supersedes prior planning shorthand of one studio-engine with many independent owned engine/UI/interop crates; exact spec enrichment proposed, not published.",
+      "native_format": "Supersedes prior planning non-goal of a new on-disk format: native portable .handshake design requested; live authority stays Surreal/EventLedger/CRDT; exact spec enrichment proposed.",
+      "timeline": "Existing §14.25/26/27 retained; STU-VID-001 supersedes early STU-OVR-015. No current video exclusion.",
+      "lightroom": "Classic/desktop RAW and catalog included. Native .lrcat decoding policy conflict remains open.",
+      "ai": "All vendor AI/generative implementation excluded.",
+      "interop": "Adobe opening/conversion remains full target with typed partial/unsupported gaps; no full-parity claim.",
+      "assets": "One reusable canonical mechanic per panel/control capability, multiple bindable instances; same descriptor drives UI/Argus/manual.",
+      "models": "Production Argus inspection/steering/render outcome, privacy, quiet operation and parallel agent views mandatory per module.",
+      "diagnostics": "Per-module FR/internal_diagnostics/Palmistry integration contracts proposed; no WIRED claim in preparation."
+    },
+    "preservation": "All prior domain scope, MT IDs/acceptance and prep retained, including Affinity, web/Dreamweaver, CJK/RTL/ME, prepress/color and output accessibility. 5484 MT records are preparation, not implementation proof.",
+    "activation": "NON_EXECUTION remains; exact spec/contract/capability/build-budget decisions precede dependent coding next session.",
+    "open_decision_refs": [
+      "STUDIO-SPEC-DELTA-001",
+      "STUDIO-SPEC-DELTA-002",
+      "STUDIO-SPEC-DELTA-003",
+      "STUDIO-SPEC-DELTA-004"
     ]
   }
 }

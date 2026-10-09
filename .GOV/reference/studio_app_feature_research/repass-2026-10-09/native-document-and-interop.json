@@ -1,0 +1,246 @@
+{
+  "schema_id": "hsk.studio_native_document_proposal@1",
+  "file_id": "STUDIO-REPASS-20261009-DOCUMENT",
+  "updated_at": "2026-10-09T17:00:42Z",
+  "wp_id": "WP-KERNEL-STUDIO",
+  "status": "PROPOSED_NOT_EXECUTABLE",
+  "authority": "REFERENCE_ONLY; current Master Spec and approved typed WP/MT contracts govern implementation",
+  "operator_request": {
+    "native_format": "A Handshake native file format supporting interchangeable workflows inside one document, with Adobe import and conversion.",
+    "preserve": "Original Adobe files, prior format scope, local desktop workflows, full non-AI parity target."
+  },
+  "conflicts": [
+    {
+      "id": "STUDIO-SPEC-DELTA-002",
+      "anchor": "STU-IO-001",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line": 21209,
+      "current": "Explicitly forbids a bespoke native on-disk Studio format; live persistence is SurrealDB/EventLedger/CRDT.",
+      "proposed": "Permit a versioned portable Handshake document snapshot; retain SurrealDB/EventLedger/CRDT as integrated live authority. Native snapshot is import/export/recovery transport, not a second database.",
+      "decision": "Operator requested native format. Exact technical enrichment requires review before copy-first spec publication."
+    },
+    {
+      "id": "STUDIO-SPEC-DELTA-003",
+      "anchor": "CX-503R",
+      "current": "No SQLite, including import adapters.",
+      "proposed": "Keep all live/catalog authority in SurrealDB. Seek a narrowly bounded read-only parser exception for user-selected Lightroom .lrcat files; no SQLite runtime, writable cache or new catalog authority.",
+      "decision": "OPEN; .lrcat requirement remains in scope, blocked until explicitly resolved."
+    }
+  ],
+  "container": {
+    "proposed_extension": ".handshake",
+    "name_status": "PROPOSED; user explicitly authorized naming",
+    "media_type": "application/vnd.handshake.document+zip (proposed; not registered)",
+    "physical_shape": "ZIP64 snapshot containing manifest.json, typed graph JSON chunks, content-addressed binary blobs, thumbnails and explicitly preserved opaque import records.",
+    "reason": "OpenRaster demonstrates portable ZIP packaging; PhotoCraft demonstrates CAS/native manifests; OTIO demonstrates versioned time-aware schemas. None alone represents the unified Studio model.",
+    "authoritative_content": "Canonical typed graph IDs and explicit references, not separate per-app documents embedded as competing authority. Integrated snapshots/exports use PRIM-ArtifactService/PRIM-ArtifactManifest and CKC catalog registration with document/revision, recipe, source asset IDs, KernelActor and EventLedger provenance (STU-ASSET-009/012/013).",
+    "entries": [
+      {
+        "path": "mimetype",
+        "purpose": "Versioned document MIME sentinel; first stored uncompressed entry."
+      },
+      {
+        "path": "manifest.json",
+        "purpose": "Schema revision, document identity, snapshot root, revision/epoch, capability versions, checksums, units, timebase, working spaces, embedded/linked asset policy and migration provenance."
+      },
+      {
+        "path": "graphs/<graph-id>.json",
+        "purpose": "Referenced raster, vector, text/layout, design-system, prototype, sequence, composition, develop and metadata graphs."
+      },
+      {
+        "path": "blobs/<sha256>",
+        "purpose": "Immutable raster tiles/source pixels, media, fonts where packaged, ICC/OCIO transforms and opaque source records."
+      },
+      {
+        "path": "imports/<import-id>/report.json",
+        "purpose": "Original-source hash/format/version, mapping, editability and visual confidence, unsupported/loss decisions and explicit user acknowledgment."
+      },
+      {
+        "path": "preview/<view-id>.png",
+        "purpose": "Disposable preview with receipt containing view, document revision, render epoch, frame/time/sample, color transform/profile/config digest, crop/scale/proxy status and actor/granted scope; never authoritative pixels unless deliberately committed raster content."
+      }
+    ],
+    "large_media": "Explicit linked mode or portable packed mode. Relocatable content-hash resolver; missing files produce structured findings, never silently relink by filename. Stream chunks and lazy-load graphs/tiles; forbid entire video decode into RAM. Random-access audio/video decode must not materialize whole source into RAM. Proxy and original delivery are distinct provenance; cancelled/partial export queues recover from completed artifact identities.",
+    "identity": "Preserve STU-ARC-004/STU-CON-004 prefixed UUIDv7 domain IDs (SDOC-{uuid_v7}, SLYR-{uuid_v7}, SART-{uuid_v7}, etc.) and canonical schema IDs at every API/receipt boundary. Never remint existing identities on native reopen. Content hashes identify bytes, not mutable semantic objects.",
+    "scalars": "Preserve current declared integer tick fields: STU-VID-012 fixes sequence timebase at 254016000000 ticks/second; STU-VID-013/013a canonicalize 24000/1001, 30000/1001 and 60000/1001 tick-per-frame values and normalize legacy decimal-rate imports with receipts. RationalTime is an interchange convenience, not replacement live storage. Use half-open ranges, checked arithmetic/overflow, integer audio samples with explicit rate and exact typed unit/coordinate conversions. Nonfinite values reject.",
+    "color": "Store source/working/output profiles and transform IDs/config digests/versions/interpolation; record managed/unmanaged and display proof conditions. Preserve scene-linear/HDR and CMYK/spot/device values. Carry alpha association, sample precision, range, primaries/transfer/matrix, scene/display/output intent and HDR metadata. Unknown or unsupported transforms are typed BLOCKED; never substitute identity silently.",
+    "concurrency": "Snapshot is immutable revision export. Integrated host loads through existing grants/PromotionGate and creates a live CRDT revision; never merge container files by byte overwrite. Agent branches address object/resource revisions with leases where operations cannot commute. Every package records source revision+epoch and export revision, distinct from a new authenticated live import revision; stale snapshots cannot impersonate current authority or replay already-promoted edits.",
+    "audio": "Integer sample positions/rate, explicit channel layout/order, BWF/iXML/timecode metadata, source clock to sequence tick mapping/drift, resampling parameters, latency compensation and proxy/original provenance. Unsupported channel/rate/latency mappings produce typed findings."
+  },
+  "rules": [
+    {
+      "id": "STUDIO-DOC-PROP-001",
+      "text": "One document can own raster/vector/layout/develop/sequence/composition/prototype subgraphs linked by stable IDs; switching workflow changes tool bindings and view state without converting or flattening the document."
+    },
+    {
+      "id": "STUDIO-DOC-PROP-002",
+      "text": "Validate schema and capability versions before applying; reject unsupported mandatory semantics; preserve unknown optional/opaque fields exactly where safely understood; never pretend unknown editable content is supported."
+    },
+    {
+      "id": "STUDIO-DOC-PROP-003",
+      "text": "Save to a sibling temporary file, flush and validate its index/checksums, then atomically replace with retained last-good recovery; publish a new revision only after success. Windows crash and locked-file cases require actual proof."
+    },
+    {
+      "id": "STUDIO-DOC-PROP-004",
+      "text": "Reject archive traversal, absolute/device paths, symlinks, duplicate canonical paths, hostile counts/sizes/ratios, cyclic graph/reference abuse, nonfinite scalars and hash mismatches before materialization. Limits are contract-bound and exposed in diagnostics."
+    },
+    {
+      "id": "STUDIO-DOC-PROP-005",
+      "text": "Migrations operate copy-first with deterministic receipts and source retention; export/import twice must not discard unknown data or change semantics without an explicit loss receipt."
+    },
+    {
+      "id": "STUDIO-DOC-PROP-006",
+      "text": "Original source bytes remain available according to resource grants and operator retention choice. Retaining an original must not create a hidden copy in exports requesting sanitization/redaction."
+    },
+    {
+      "id": "STUDIO-DOC-PROP-007",
+      "text": "Read/import/export resolve external links through the governed asset resolver; documents never gain ambient filesystem/network access through path strings or embedded scripts."
+    },
+    {
+      "id": "STUDIO-DOC-PROP-008",
+      "text": "Portable snapshots inherit principal/AccessSpace/grant-derived scope and sensitivity. Thumbnails, caches, logs, Argus captures and model outcomes cannot widen source scope."
+    },
+    {
+      "id": "STUDIO-DOC-PROP-009",
+      "text": "Serialized principal/AccessSpace/grant fields carry provenance only, never transferable permission. On open/import the authenticated recipient resolves fresh ResourceBroker grants for every graph/blob/preview/source attachment; inaccessible mandatory dependencies yield a typed rejection or explicitly partial proposal."
+    }
+  ],
+  "import_contract": {
+    "modes": [
+      "editable_verified",
+      "editable_partial_with_report",
+      "preserved_opaque_with_preview",
+      "unsupported_rejected",
+      "blocked_by_policy_or_missing_capability"
+    ],
+    "losses": "Per semantic object and property: exact mapping/unsupported/loss/approximation, original retention, render comparison, round-trip disposition. A parser-success or preview-only result cannot be labeled full editable support.",
+    "adobe_rows": [
+      {
+        "format": "PSD/PSB",
+        "basis": "Official structure documentation plus PhotoCraft PSD source review.",
+        "target": "Editable layers/masks/channels/blends/text/smart-object mappings with explicit private/unsupported block handling; independent rendered/edited corpus."
+      },
+      {
+        "format": "PSDC",
+        "basis": "Photoshop documents cloud format but public PSD structure does not establish PSDC semantics.",
+        "target": "UNVERIFIED native decoder; preserve requested support as research/fixture gap, offline source export path only when explicitly selected."
+      },
+      {
+        "format": "AI/PDF-compatible AI",
+        "basis": "Complete pinned VectorCraft source drill: file sniff -> PDF PieceInfo/Illustrator AIPrivateData or EPS -> bounded Zstd/zlib private PostScript parser -> layered native build. See VD-CHAIN-VECTOR-AI-IMPORT in vector-design-root-drill.json.",
+        "target": "Private editing-data conversion is a substantive bounded adapter candidate. Decompression/no-layer-marker paths can silently fall back to PDF artwork; convert every fallback into typed losses and preserve originals. Handwritten fixtures and a roughly 400px self-render luminance comparison do not prove Adobe visual, color or post-edit fidelity. Full appearance/spot/mesh/live-effect scope remains required."
+      },
+      {
+        "format": "INDD/IDML/IDMS",
+        "basis": "Adobe documents IDML as XML interchange.",
+        "target": "IDML bridge first as independently proven implementation slice, binary INDD remains requested in-scope gap; do not market as equivalent."
+      },
+      {
+        "format": "FIG",
+        "basis": "Figma local-copy documentation.",
+        "target": "Offline .fig semantics and loss/asset mapping need fixtures; histories/comments/external component links cannot be inferred from local copy. Optional API adapter never required for desktop operation."
+      },
+      {
+        "format": "PRPROJ",
+        "basis": "FilmCraft public interchange source lists EDL/XML/FCPXML/OTIO/AAF/OMF; EffectCraft interchange explicitly excludes native .prproj. Native decoder NOT_IMPLEMENTED by these candidates.",
+        "target": "Native PRPROJ importer remains an explicit requested gap. Public interchange may bridge an individually disclosed conversion only; fixture proof must cover sequences/clips/nested/multicam/audio/effects/bins/timecode and preserve unsupported data."
+      },
+      {
+        "format": "AEP/AEPX",
+        "basis": "Adobe identifies binary AEP and AEPX XML containing opaque binary fields; EffectCraft marks unsupported.",
+        "target": "Binary decoder and opaque AEPX fields remain explicit research gaps. Do not classify XML parsing as complete composition conversion."
+      },
+      {
+        "format": "LRCAT/XMP/DNG",
+        "basis": "LightCraft parser/catalog source review and current SQLite restriction.",
+        "target": "Preserve catalog hierarchy/virtual copies/develop versions/masks/links and metadata. .lrcat import requires authority decision noted above; XMP alone does not cover full catalog semantics."
+      },
+      {
+        "format": "SESX (Audition session)",
+        "basis": "Supporting professional audio-post research; inspected DSP/mixer/audio decoding does not establish session parser support.",
+        "target": "Session graph/effect/clip/automation/asset mapping remains NOT_INSPECTED; retain a separate supporting audio-post compatibility gap without implying a DAW/MIDI/Pro Tools expansion."
+      }
+    ]
+  },
+  "verification_plan": {
+    "owner": "Independent runtime validator after implementation contracts exist",
+    "positive": [
+      "Mixed graph document save/reopen/edit/export without flattening; linked and packed large media; migrated old schema and unknown fields preserved.",
+      "Exact proprietary fixtures spanning current installed releases, historical version edges, private blocks and non-AI professional workflows; semantic and visual edited round-trip.",
+      "Interrupted/locked-disk saves reopen last-good authoritative revision; hash-identity and grants checked across import/export."
+    ],
+    "negative": [
+      "Archive bombs/traversal/duplicate entries/hash/cycle errors fail closed without writes or leaked thumbnails.",
+      "Two agents modifying overlapping raster regions or sequence edits get deterministic conflict/lease handling; disjoint graph edits promote safely.",
+      "Revoked grants and context switches cannot recover content through snapshots, previews, diagnostics or Argus.",
+      "Redaction/sanitization exports exclude retained source bytes and embedded recovery history; inspect raw output for residue.",
+      "Import a package whose embedded grant claims broader access than the authenticated recipient; verify no graph, source attachment, thumbnail or existence metadata becomes available."
+    ],
+    "proof_not_done": [
+      "No implementation/build/runtime/Adobe GUI differential proof in this preparation session."
+    ]
+  },
+  "sources": [
+    {
+      "id": "DOC-SRC-001",
+      "url": "https://www.openraster.org/baseline/file-layout-spec.html",
+      "checked": "ZIP layout and ZIP64 rules; inspiration only"
+    },
+    {
+      "id": "DOC-SRC-002",
+      "url": "https://opentimelineio.readthedocs.io/en/latest/tutorials/otio-file-format-specification.html",
+      "checked": "OTIO_SCHEMA and rational time; timeline interchange only"
+    },
+    {
+      "id": "DOC-SRC-003",
+      "url": "https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/",
+      "checked": "PSD/PSB structure"
+    },
+    {
+      "id": "DOC-SRC-004",
+      "url": "https://helpx.adobe.com/after-effects/desktop/work-with-projects/after-effects-projects/projects.html",
+      "checked": "AEP versus AEPX opaque data"
+    },
+    {
+      "id": "DOC-SRC-005",
+      "url": "https://developer.adobe.com/indesign/?navID=documentation",
+      "checked": "IDML interoperability"
+    },
+    {
+      "id": "DOC-SRC-006",
+      "url": "https://help.figma.com/hc/en-us/articles/8403626871063-Save-a-local-copy-of-files",
+      "checked": "Local-copy omissions and external component links"
+    },
+    {
+      "id": "DOC-SRC-007",
+      "path": "engineering.json",
+      "checked": "PhotoCraft source and container/CAS patterns"
+    },
+    {
+      "id": "DOC-SRC-008",
+      "path": "media-photo-workflows.json",
+      "checked": "Media and Lightroom importer source evidence"
+    }
+  ],
+  "design_review": {
+    "reviewer": "studio_ui",
+    "status": "SOURCE_AND_AUTHORITY_REVIEW_NO_RUNTIME_VERDICT",
+    "findings_resolved": [
+      "Canonical prefixed identity preservation",
+      "Recipient grant reauthorization",
+      "CKC ArtifactManifest/EventLedger publication provenance",
+      "Render receipt identity shared with Argus",
+      "Existing UUIDv7 payload preserved",
+      "AI source-inspection ceiling corrected",
+      "Snapshot source revision/epoch distinguished from live import revision",
+      "Normative tick/frame rate and audio clock mappings",
+      "Fail-closed color semantics",
+      "PRPROJ candidate limitation and supporting SESX gap",
+      "Large-media/proxy/cancel recovery"
+    ],
+    "additional_reviewers": [
+      "studio_engineering",
+      "studio_media"
+    ]
+  }
+}

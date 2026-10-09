@@ -1,0 +1,3407 @@
+{
+  "schema_version": "1.0.0",
+  "file_id": "STUDIO-REPASS-2026-10-09-ENGINEERING",
+  "file_kind": "reference_research",
+  "updated_at": "2026-10-09",
+  "owner": "studio_engineering",
+  "authority": "REFERENCE_ONLY_NOT_EXECUTION_CONTRACT",
+  "host_observation": {
+    "id": "ENG-HOST-001",
+    "status": "ROOT_LIVE_READ_2026-10-09",
+    "os_architecture": "X64",
+    "process_architecture": "X64",
+    "processor": "AMD Ryzen 9 5950X 16-Core Processor",
+    "processor_architecture_code": 9,
+    "source": "Root agent read RuntimeInformation and Win32_Processor",
+    "scope": "This research host is x64. Prior ARM64 Surface development remains a separate portability/build-proof requirement. Neither architecture substitutes for the other runtime acceptance lane.",
+    "artifact_path_constraint": "Managed Studio worktree is on C drive; inherited relative sibling Cargo target from WP012 must be overridden through approved per-owner scoped external artifact configuration before a build."
+  },
+  "scope": {
+    "handshake_product": "Engineering research and proposed modular Studio asset architecture, native integration seams, dependency/build discipline, direct PhotoCraft/VectorCraft/DesignCraft source audit.",
+    "repo_governance": "This disjoint research artifact only; no authority, packet, product or status mutation.",
+    "implementation_this_session": false
+  },
+  "claim_posture": {
+    "runtime_status": "NOT_RUN",
+    "build_status": "NOT_RUN",
+    "tests_status": "NOT_RUN",
+    "parity_status": "NOT_PROVEN",
+    "source_audit": "Selected actual APIs, implementations, tests, manifests, notices and status documentation directly inspected; complete source trees navigated through primary GitHub trees. Not exhaustive line-by-line audit of every file.",
+    "compile_bottleneck": "Hours-long build duration is operator-reported. Dependency/source evidence supports measuring blast radius; no profiling establishes a cause or promised speedup.",
+    "upstream_release_status": "Pinned live source snapshots inspected; release builds and upstream CI attestations not independently validated."
+  },
+  "baselines": [
+    {
+      "id": "ENG-BASELINE-GOV",
+      "role": "live_governance",
+      "commit": "63bc51cee22dab55a306c9b96fa5a519804dae49",
+      "observed_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel",
+      "mutable_during_repass": true
+    },
+    {
+      "id": "ENG-BASELINE-PRODUCT",
+      "role": "active_product_reference",
+      "branch": "feat/WP-KERNEL-012",
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1",
+      "read_only": true
+    }
+  ],
+  "authority_read": [
+    {
+      "path": "AGENTS.md",
+      "role": "kernel-first startup, split, preservation, verified claims, research and external artifacts"
+    },
+    {
+      "path": ".GOV/codex/Handshake_Codex_v1.4.md",
+      "role": "current governing Codex; explicit current retirements win"
+    },
+    {
+      "path": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+      "role": "assigned planning/research role and disjoint swarm"
+    },
+    {
+      "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      "version": "1.15.0",
+      "role": "COMPART/COMPONENT, three-tier diagnostics, quiet Argus, UserManual"
+    },
+    {
+      "path": ".GOV/spec/SPEC_CURRENT.md",
+      "role": "entrypoint resolving master-spec-v02.206"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "role": "actual Studio authority; corpus is reference"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+      "role": "current native build/integration constraints only; does not authorize Studio implementation"
+    },
+    {
+      "path": ".GOV/reference/studio_app_feature_research/INSTRUCTIONS.md",
+      "role": "reference placement and feature evidence posture"
+    }
+  ],
+  "preservation": {
+    "id": "ENG-PRESERVE-001",
+    "existing_studio_preparation": "Retain existing Studio spec/contracts and 5484 draft microtasks as carried-forward scope/provenance. Root supplied count, not implementation evidence.",
+    "native_workspace": "One Studio workspace/shell and one shared StudioDocument across raster/vector/design/publication/RAW/timeline/motion workflows; no seven parallel application authority models.",
+    "ai_scope": "Adobe AI reimplementation remains out of requested scope. Non-AI features are not discarded because reusable libraries lack them."
+  },
+  "authority_reconciliation": [
+    {
+      "id": "ENG-DECISION-001",
+      "status": "NEEDS_NARROW_SPEC_REFINEMENT_BEFORE_ACTIVATION",
+      "issue": "§14.2 currently says one standalone studio-engine crate owns all compute. Operator expressly rejects a single Studio crate and requests independently buildable modular assets.",
+      "proposal": "Replace single-crate wording with a many-crate DAG in the same repo: lightweight contracts/document, separate engines and heavy adapters, optional facade only for selected composition. Separate Studio workspace/package commands must not depend on core/native/Surreal; later owned binding crate may.",
+      "evidence": [
+        "ENG-E-001",
+        "ENG-E-002"
+      ],
+      "scope_limit": "Do not amend unrelated Studio scope or move governance into product checkout."
+    },
+    {
+      "id": "ENG-DECISION-002",
+      "status": "EXISTING_SCOPE_RECONCILED",
+      "issue": "Early STU-OVR-015 excludes NLE; later STU-VID-001 explicitly supersedes it.",
+      "proposal": "Carry current footage timeline/motion/VFX scope and later chapters forward; no new timeline exclusion or duplicate director ownership.",
+      "evidence": [
+        "ENG-E-004"
+      ]
+    },
+    {
+      "id": "ENG-DECISION-003",
+      "status": "NEEDS_CONTRACT_RECONCILIATION",
+      "issue": "MCP actual attribution field reported by UI audit is client_session_id; HBR-VIS says agent_label. Widget leases do not provide document-object mutation leases.",
+      "proposal": "Use a documented versioned envelope/adaptation with client/session attribution, object revision/lease/conflict receipts. Resolve wire naming in owning contract before implementation, never silently invent alias.",
+      "evidence": [
+        "ENG-E-013"
+      ],
+      "cross_agent_evidence": {
+        "owner": "studio_ui",
+        "product_path": "src/frontend/handshake_native/src/mcp/server.rs",
+        "line": 457
+      }
+    },
+    {
+      "id": "ENG-DECISION-004",
+      "status": "NEEDS_EXACT_ACTIVATION_COMMANDS",
+      "issue": "HBR canary/test_entrypoint/implementer_check contain REPLACE_ME placeholders; WP012 commands/owner IDs are scoped to its work.",
+      "proposal": "Studio activation defines one checked-in scoped runner/batch, canary and permitted implementer check, exact owned external targets and chosen feature/package closures before builds.",
+      "source_path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      "source_lines": [
+        51,
+        53,
+        57
+      ]
+    },
+    {
+      "id": "ENG-DECISION-005",
+      "status": "EXTERNAL_IMPORT_POLICY_GAP",
+      "issue": "Media audit finds LightCraft Lightroom import uses custom SQLite page parser despite snapshot/log native catalog. Existing CX-503R and STU-OVR-003 forbid SQLite even import.",
+      "proposal": "Do not adopt that importer under current contract. Preserve Lightroom migration scope; ask owner to reconcile approved exception or choose non-SQLite interchange/export input. Do not claim it is solved.",
+      "cross_agent_evidence": {
+        "owner": "studio_media",
+        "repository": "https://github.com/storytold/lightcraft",
+        "commit": "88ea1a804b35709e1fe436e3792adf0428b97daa",
+        "paths": [
+          "crates/catalog/src/store.rs",
+          "crates/engine/src/lightroom_catalog.rs"
+        ],
+        "status": "SEE_MEDIA_REPORT_FOR_DIRECT_SOURCE_LINES"
+      }
+    }
+  ],
+  "current_architecture": [
+    {
+      "id": "ENG-ARCH-001",
+      "finding": "Repository already has multiple Rust packages, despite operator's broad single-crate description. Core remains very large and heavy; native GUI is also one broad crate.",
+      "packages": [
+        "handshake_core",
+        "handshake_document",
+        "handshake_storage_support",
+        "handshake_native",
+        "handshake-diag-ring",
+        "palmistry",
+        "toolkit_spike"
+      ],
+      "evidence": [
+        "ENG-E-005",
+        "ENG-E-007",
+        "ENG-E-009",
+        "ENG-E-017",
+        "ENG-E-018"
+      ],
+      "implication": "Define package and owner compilation boundaries; workspace membership alone does not isolate code."
+    },
+    {
+      "id": "ENG-ARCH-002",
+      "finding": "Static core/native source size highlights ownership breadth, not measured compiler causality.",
+      "measure": {
+        "method": "Read-only PowerShell .rs file enumeration and Measure-Object -Line (nonblank lines), includes inline tests and schemas.",
+        "core_files": 726,
+        "core_nonblank_lines": 496373,
+        "native_files": 226,
+        "native_nonblank_lines": 247460,
+        "document_files": 12,
+        "document_nonblank_lines": 4816,
+        "storage_support_files": 6,
+        "storage_support_nonblank_lines": 2409
+      },
+      "proof_limit": "No clean/warm timing, peak memory, critical path or relink measurement performed."
+    },
+    {
+      "id": "ENG-ARCH-003",
+      "finding": "EditorSurface retains a design-only source header, but InteractionBus has actual callback dispatch to an empty registry. No production surface registration was found in the complete WP012 root drill; PaneFactory owns actual mounting. See HS-DRILL-005 in handshake-root-drill.json.",
+      "evidence": [
+        "ENG-E-011",
+        "ENG-E-012"
+      ],
+      "implication": "Standalone harness first; later bind via owned native surface implementation and runtime proof."
+    },
+    {
+      "id": "ENG-ARCH-004",
+      "finding": "Diagnostics already have useful independently packaged ring/survivor substrates; GUI diagnostics and core business-event/manual types are not independent leaf crates.",
+      "evidence": [
+        "ENG-E-014",
+        "ENG-E-015",
+        "ENG-E-016",
+        "ENG-E-017",
+        "ENG-E-018",
+        "ENG-E-019",
+        "ENG-E-020",
+        "ENG-E-021",
+        "ENG-E-022"
+      ],
+      "implication": "Neutral ports and shared schema dependencies, then integration adapters, avoid pulling entire app into each engine."
+    },
+    {
+      "id": "ENG-ARCH-005",
+      "finding": "Current Rust 1.97.1 exceeds inspected upstream MSRV 1.95/1.90, but Handshake egui 0.33 and ArtCraft egui 0.36 have different types/APIs.",
+      "evidence": [
+        "ENG-E-006",
+        "ENG-E-023",
+        "ENG-E-101",
+        "ENG-E-301"
+      ],
+      "implication": "Engine leaves can be adapted separately; importing upstream GUI is not an embedding shortcut or approved native GUI upgrade."
+    }
+  ],
+  "recent_rust_suite_verification": {
+    "id": "ENG-RUST-SUITE-001",
+    "claim_checked": "A recent author rewrote all Adobe products to Rust.",
+    "observed": "Seven real Storytold ArtCraft repositories exist; inspected snapshots contain substantive modular Rust source, not only screenshots or README feature lists.",
+    "repositories": [
+      "https://github.com/storytold/photocraft",
+      "https://github.com/storytold/vectorcraft",
+      "https://github.com/storytold/designcraft",
+      "https://github.com/storytold/lightcraft",
+      "https://github.com/storytold/filmcraft",
+      "https://github.com/storytold/effectcraft",
+      "https://github.com/storytold/printcraft"
+    ],
+    "verdict": "SUBSTANTIVE_REUSE_CANDIDATES_PARITY_UNPROVEN",
+    "boundary": "Seven repos do not establish all Adobe apps, full professional behavior, native-format interoperability, Figma parity, crash recovery, Studio Argus or shared-document integration.",
+    "division_of_source_audit": {
+      "engineering": [
+        "photocraft",
+        "vectorcraft",
+        "designcraft"
+      ],
+      "media": [
+        "lightcraft",
+        "filmcraft",
+        "effectcraft"
+      ],
+      "root": [
+        "printcraft"
+      ]
+    },
+    "evidence": [
+      "ENG-E-101",
+      "ENG-E-103",
+      "ENG-E-108",
+      "ENG-E-109",
+      "ENG-E-114",
+      "ENG-E-201",
+      "ENG-E-204",
+      "ENG-E-210",
+      "ENG-E-301",
+      "ENG-E-305",
+      "ENG-E-306",
+      "ENG-E-309"
+    ]
+  },
+  "reuse_candidates": [
+    {
+      "id": "ENG-REUSE-PHOTOCRAFT",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "source_version": "0.5.0",
+      "disposition": "SELECTIVE_FORK_OR_ADAPT_LEAVES_AFTER_FIXTURE_PROOF",
+      "license": {
+        "code": "MIT OR Apache-2.0",
+        "metadata_status": "MANIFEST_AND_NOTICE_INSPECTED_FULL_DEPENDENCY_LICENSE_AUDIT_PENDING",
+        "excluded": "ArtCraft branding",
+        "separate_materials": [
+          "SIL-OFL fonts",
+          "ISC/MIT icons",
+          "SCOWL dictionary",
+          "craft-fonts manifest"
+        ]
+      },
+      "reuse": [
+        "Sparse COW raster tile storage",
+        "PSD/PSB format parser/writer preserving raw metadata",
+        "Pure Rust ICC transform candidate",
+        "CPU/GPU consistency, residency and atomic save test patterns"
+      ],
+      "reject_for_wholesale_adoption": [
+        "Own document authority and Session mutation model",
+        "Upstream UI suite and egui 0.36 dependency",
+        "Prose params/JSON Value command contract",
+        "Corpus pass-floor or optional GPU tests as Handshake PASS"
+      ],
+      "gaps": [
+        {
+          "id": "ENG-PHOTO-GAP-001",
+          "gap": "PSD format parse/write, imported editable graph, rendered Adobe oracle and native re-export are different claims.",
+          "mitigation": "Maintain source bytes and loss report; generated, corpus and independently rendered Adobe fixtures get separate proof rows.",
+          "evidence": [
+            "ENG-E-105",
+            "ENG-E-107",
+            "ENG-E-108"
+          ]
+        },
+        {
+          "id": "ENG-PHOTO-GAP-002",
+          "gap": "GPU test setup silently skips unavailable devices and some render targets.",
+          "mitigation": "Acceptance runner requires declared x64 adapter/backend and fails or marks unavailable as no proof; scalar CPU fallback verified independently.",
+          "evidence": [
+            "ENG-E-109",
+            "ENG-E-110"
+          ]
+        },
+        {
+          "id": "ENG-PHOTO-GAP-003",
+          "gap": "CMS rejects profile/curve/LUT forms; performance status is incomplete.",
+          "mitigation": "Golden ICC corpus with independent transforms, blackpoint/CMYK/spot/HDR/soft-proof cases; benchmark professional image workloads with real budgets.",
+          "evidence": [
+            "ENG-E-112",
+            "ENG-E-114"
+          ]
+        }
+      ],
+      "evidence": [
+        "ENG-E-101",
+        "ENG-E-102",
+        "ENG-E-103",
+        "ENG-E-104",
+        "ENG-E-105",
+        "ENG-E-108",
+        "ENG-E-111",
+        "ENG-E-113"
+      ]
+    },
+    {
+      "id": "ENG-REUSE-VECTORCRAFT",
+      "repository": "https://github.com/storytold/vectorcraft",
+      "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+      "disposition": "SELECTIVE_PATHOPS_SHAPING_INTEROP_ADAPTATION",
+      "license": {
+        "code": "MIT OR Apache-2.0",
+        "metadata_status": "MANIFEST_AND_NOTICE_INSPECTED_FULL_DEPENDENCY_LICENSE_AUDIT_PENDING",
+        "excluded": "ArtCraft branding",
+        "separate_materials": [
+          "OFL fonts",
+          "ISC/MIT icons",
+          "BSD-3-Clause Adobe CMaps",
+          "upstream dependency licenses"
+        ]
+      },
+      "reuse": [
+        "linesweeper-backed curve-preserving booleans/pathops",
+        "Font/shaping/composition examples",
+        "SVG/PDF import warning-report patterns"
+      ],
+      "reject_for_wholesale_adoption": [
+        "Separate VectorCraft authority document",
+        "Silent boolean error-to-empty APIs",
+        "DTD-enabled parsing without governed input budget",
+        "Roadmap percentage as fidelity claim"
+      ],
+      "gaps": [
+        {
+          "id": "ENG-VECTOR-GAP-001",
+          "gap": "boolean() and N-way helpers can turn invalid geometry into empty/partial results.",
+          "mitigation": "Use try_boolean/try_normalize and reject invalid precision/nonfinite inputs; add fallible N-way API with affected object loss receipts before promotion.",
+          "evidence": [
+            "ENG-E-203",
+            "ENG-E-204"
+          ]
+        },
+        {
+          "id": "ENG-VECTOR-GAP-002",
+          "gap": "SVG parser explicitly permits DTD; external source paths/fonts/resources require a single governed resolver.",
+          "mitigation": "Bound XML depth/entity expansion/part bytes and input time; capture allowed assets by identity; no ambient network/filesystem access.",
+          "evidence": [
+            "ENG-E-208"
+          ]
+        },
+        {
+          "id": "ENG-VECTOR-GAP-003",
+          "gap": "Figma systems, complex type and vendor import semantics are not established by VectorCraft path/render source.",
+          "mitigation": "Keep components/variables/constraints/prototype/advanced type requirements in scope and require independent domain fixtures.",
+          "evidence": [
+            "ENG-E-210",
+            "ENG-E-206"
+          ]
+        }
+      ],
+      "evidence": [
+        "ENG-E-201",
+        "ENG-E-202",
+        "ENG-E-203",
+        "ENG-E-205",
+        "ENG-E-206",
+        "ENG-E-207",
+        "ENG-E-209",
+        "ENG-E-210"
+      ]
+    },
+    {
+      "id": "ENG-REUSE-DESIGNCRAFT",
+      "repository": "https://github.com/storytold/designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "source_version": "0.4.0",
+      "disposition": "SELECTIVE_COMPOSER_AND_IDML_ADAPTER_ADAPTATION",
+      "license": {
+        "code": "MIT OR Apache-2.0",
+        "metadata_status": "MANIFEST_AND_NOTICE_INSPECTED_FULL_DEPENDENCY_LICENSE_AUDIT_PENDING",
+        "excluded": "ArtCraft branding",
+        "separate_materials": [
+          "OFL fonts",
+          "public-domain Moby dictionary",
+          "CC0 generated hyphenation patterns"
+        ]
+      },
+      "reuse": [
+        "Threaded frame/column composition, overset and caret-hit APIs",
+        "Paragraph composer and adversarial layout fixtures",
+        "IDML package parse/convert source and advanced type resource examples"
+      ],
+      "reject_for_wholesale_adoption": [
+        "Ambient default linked-file reader",
+        "Unbounded package reads",
+        "Silent missing includes",
+        "Second document/format/store authority"
+      ],
+      "gaps": [
+        {
+          "id": "ENG-DESIGN-GAP-001",
+          "gap": "ZIP initial-capacity cap does not bound read_to_end; default reader accesses arbitrary linked path.",
+          "mitigation": "Adapter accepts resource resolver/capabilities only and enforces per-part/total/ratio/count/depth/time budgets; fail with explicit import-loss/error receipts.",
+          "evidence": [
+            "ENG-E-306",
+            "ENG-E-307"
+          ]
+        },
+        {
+          "id": "ENG-DESIGN-GAP-002",
+          "gap": "Old IDML header contradicts newer CJK/Arabic resource preservation tests.",
+          "mitigation": "Inspect branches for each exact requirement; do not copy stale unsupported list. Current advanced type tests are source evidence, not real vendor interoperability.",
+          "evidence": [
+            "ENG-E-308",
+            "ENG-E-309"
+          ]
+        },
+        {
+          "id": "ENG-DESIGN-GAP-003",
+          "gap": "Handwritten fixtures and same-implementation roundtrip cannot prove InDesign rendering/export/reopen fidelity.",
+          "mitigation": "Independent Adobe-generated IDML corpus, multi-script fonts, linked assets, tables/notes/masters/overprint/overset and rendered PDF comparison; INDD decoder separately proved.",
+          "evidence": [
+            "ENG-E-310",
+            "ENG-E-305"
+          ]
+        }
+      ],
+      "evidence": [
+        "ENG-E-301",
+        "ENG-E-302",
+        "ENG-E-303",
+        "ENG-E-304",
+        "ENG-E-305",
+        "ENG-E-306",
+        "ENG-E-309"
+      ]
+    },
+    {
+      "id": "ENG-REUSE-STACK",
+      "disposition": "CANDIDATES_NOT_YET_SOURCE_QUALIFIED",
+      "candidates": [
+        {
+          "name": "Vello",
+          "url": "https://github.com/linebender/vello",
+          "role": "GPU render backend",
+          "evidence": "ENG-E-405"
+        },
+        {
+          "name": "Parley",
+          "url": "https://github.com/linebender/parley",
+          "role": "shared font/shaping/text layout substrate, not full publication compositor",
+          "evidence": "ENG-E-406"
+        },
+        {
+          "name": "moxcms",
+          "url": "https://github.com/awxkee/moxcms",
+          "role": "pure Rust color conversion candidate",
+          "evidence": "ENG-E-407"
+        }
+      ],
+      "gate": "Direct API/implementation/test/license/issue/performance inspection before selecting or downloading dependencies; no recommendation of wholesale replacement on README evidence."
+    }
+  ],
+  "proposed_architecture": {
+    "id": "ENG-DAG-001",
+    "status": "PROPOSED_REFERENCE_ONLY",
+    "naming_authorization": "Operator explicitly requests fitting Handshake-themed crate names. Names below are proposals, not canonical project names.",
+    "principles": [
+      {
+        "id": "ENG-DAG-P-001",
+        "proposal": "One independently selectable Studio asset workspace with lightweight default members; every target imports only its declared dependency closure. No single Studio crate containing all engines."
+      },
+      {
+        "id": "ENG-DAG-P-002",
+        "proposal": "One shared document schema/contracts and one kernel authority adapter. Engine algorithms receive immutable typed data and produce values/patch proposals."
+      },
+      {
+        "id": "ENG-DAG-P-003",
+        "proposal": "GUI, GPU, native codecs, image/RAW/font/import dependencies stay out of foundation/document types. Heavy adapters remain separate packages or optional provider features."
+      },
+      {
+        "id": "ENG-DAG-P-004",
+        "proposal": "A package facade/provider registry may compose selected engines, but no unconditional all-engine reexports/dependencies. Trait objects/typed ports keep consumers from importing provider implementations."
+      },
+      {
+        "id": "ENG-DAG-P-005",
+        "proposal": "A crate boundary must have a real owner/API/dependency or compile-isolation reason; do not turn every slider/effect into a tiny crate or rebuild a panel per workflow."
+      },
+      {
+        "id": "ENG-DAG-P-006",
+        "proposal": "Use one canonical reusable panel/control mechanic configured through typed properties/actions/units/preconditions; manual/Argus/accessibility derive from that registry."
+      }
+    ],
+    "nodes": [
+      {
+        "id": "ENG-CRATE-ACCORD",
+        "key": "accord",
+        "proposed_name": "hsk-studio-accord",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [],
+        "responsibility": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies."
+      },
+      {
+        "id": "ENG-CRATE-OBSERVE",
+        "key": "observe",
+        "proposed_name": "hsk-studio-observe",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord"
+        ],
+        "responsibility": "Typed diagnostic sink/progress and correlation ports; do not copy authority/FlightRecorder into each engine."
+      },
+      {
+        "id": "ENG-CRATE-FOLIO",
+        "key": "folio",
+        "proposed_name": "hsk-studio-folio",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord"
+        ],
+        "responsibility": "One StudioDocument graph/schema and immutable snapshots shared by all domains, not per-vendor models. Photo virtual-copy/develop recipe links reference CKC asset identities; catalog keywords/collections/relink authority is CKC, never a Folio-private catalog."
+      },
+      {
+        "id": "ENG-CRATE-CHRONICLE",
+        "key": "chronicle",
+        "proposed_name": "hsk-studio-chronicle",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "observe"
+        ],
+        "responsibility": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner."
+      },
+      {
+        "id": "ENG-CRATE-PRISM",
+        "key": "prism",
+        "proposed_name": "hsk-studio-prism",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "observe"
+        ],
+        "responsibility": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version."
+      },
+      {
+        "id": "ENG-CRATE-PIGMENT",
+        "key": "pigment",
+        "proposed_name": "hsk-studio-pigment",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "prism",
+          "observe"
+        ],
+        "responsibility": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency."
+      },
+      {
+        "id": "ENG-CRATE-NIB",
+        "key": "nib",
+        "proposed_name": "hsk-studio-nib",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "observe"
+        ],
+        "responsibility": "Vector geometry/path operations, live geometry validation; no raster editor dependency."
+      },
+      {
+        "id": "ENG-CRATE-TYPE",
+        "key": "type",
+        "proposed_name": "hsk-studio-type",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "observe"
+        ],
+        "responsibility": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains."
+      },
+      {
+        "id": "ENG-CRATE-LAYOUT",
+        "key": "layout",
+        "proposed_name": "hsk-studio-layout",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "type",
+          "nib",
+          "observe"
+        ],
+        "responsibility": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms."
+      },
+      {
+        "id": "ENG-CRATE-DEVELOP",
+        "key": "develop",
+        "proposed_name": "hsk-studio-develop",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "pigment",
+          "prism",
+          "observe"
+        ],
+        "responsibility": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog."
+      },
+      {
+        "id": "ENG-CRATE-COMPONENTS",
+        "key": "components",
+        "proposed_name": "hsk-studio-components",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "layout",
+          "observe"
+        ],
+        "responsibility": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app."
+      },
+      {
+        "id": "ENG-CRATE-PULSE",
+        "key": "pulse",
+        "proposed_name": "hsk-studio-pulse",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "observe"
+        ],
+        "responsibility": "Canonical integer-tick sequence time at 254016000000 ticks/second per STU-VID-012 and normalized broadcast ticks/frame per STU-VID-013. Preserve declared field types with checked arithmetic/range; rational time is for interchange adapters, never a competing stored authority. Own edit/trim/ripple/multicam references and scheduling; media decoder behind typed port."
+      },
+      {
+        "id": "ENG-CRATE-SCORE",
+        "key": "score",
+        "proposed_name": "hsk-studio-score",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "observe"
+        ],
+        "responsibility": "Audio integer sample/channel/timing, DSP, spectral selection/repair/restoration, mix/routing/streaming/latency and waveform/loudness semantics for picture-post workflows. Device I/O such as CPAL, native codecs and plug-in hosting are separate optional provider leaves, not implied pure DSP support."
+      },
+      {
+        "id": "ENG-CRATE-REEL",
+        "key": "reel",
+        "proposed_name": "hsk-studio-reel",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "observe"
+        ],
+        "responsibility": "Decode/encode media/proxy-provider adapters; native codec bindings opt-in, never reachable from raster/type default closure."
+      },
+      {
+        "id": "ENG-CRATE-MOTION",
+        "key": "motion",
+        "proposed_name": "hsk-studio-motion",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "nib",
+          "type",
+          "observe"
+        ],
+        "responsibility": "Keyframes/easing, compositing/effect graph semantics and expressions policy; shared exact time/schema comes from Accord/Folio. Sequence/media references use provider contracts, so composition/keyframe math does not unconditionally pull NLE edit algorithms. No vendor runtime."
+      },
+      {
+        "id": "ENG-CRATE-COMPOSITE",
+        "key": "composite",
+        "proposed_name": "hsk-studio-composite",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "prism",
+          "pigment",
+          "nib",
+          "type",
+          "observe"
+        ],
+        "responsibility": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure."
+      },
+      {
+        "id": "ENG-CRATE-RENDER_CPU",
+        "key": "render_cpu",
+        "proposed_name": "hsk-studio-render-cpu",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "prism",
+          "pigment",
+          "nib",
+          "type",
+          "observe"
+        ],
+        "responsibility": "CPU render backend/reference; opt-in professional reference cases require external independent oracles."
+      },
+      {
+        "id": "ENG-CRATE-RENDER_GPU",
+        "key": "render_gpu",
+        "proposed_name": "hsk-studio-render-gpu",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "prism",
+          "pigment",
+          "nib",
+          "type",
+          "observe"
+        ],
+        "responsibility": "wgpu backend/device lifecycle, residency and budgets; GPU API types hidden from document/contracts."
+      },
+      {
+        "id": "ENG-CRATE-PACKAGE",
+        "key": "package",
+        "proposed_name": "hsk-studio-package",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "observe"
+        ],
+        "responsibility": "Native document container serialization, manifest/hash references, atomic recovery and bounded loading. Stream asset bytes through CKC/PRIM-ArtifactService provider ports; no private catalog, preview cache, metadata store, watcher or second CAS under STU-ASSET-004/009/010. Standalone fixtures supply scoped in-memory resolver inputs rather than kernel imports."
+      },
+      {
+        "id": "ENG-CRATE-INTEROP_PSD",
+        "key": "interop_psd",
+        "proposed_name": "hsk-studio-interop-psd",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "pigment",
+          "prism",
+          "type",
+          "observe"
+        ],
+        "responsibility": "PSD/PSB conversion with provenance and structured unsupported/loss report; preserve originals/unknown bytes."
+      },
+      {
+        "id": "ENG-CRATE-INTEROP_VECTOR",
+        "key": "interop_vector",
+        "proposed_name": "hsk-studio-interop-vector",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "nib",
+          "type",
+          "prism",
+          "observe"
+        ],
+        "responsibility": "SVG/AI/PDF adapter family; split heavy PDF parser out of default SVG closure when graph evidence warrants."
+      },
+      {
+        "id": "ENG-CRATE-INTEROP_FIG",
+        "key": "interop_fig",
+        "proposed_name": "hsk-studio-interop-fig",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "components",
+          "type",
+          "observe"
+        ],
+        "responsibility": "Offline .fig proprietary-version decoder and conversion adapter owner; decoder availability NOT_PROVEN. Preserve original/source-qualified IDs and map components/variants/variables/modes/auto-layout/prototypes with loss receipts. SVG/PNG/token/API interchange does not replace required editable .fig import."
+      },
+      {
+        "id": "ENG-CRATE-INTEROP_LAYOUT",
+        "key": "interop_layout",
+        "proposed_name": "hsk-studio-interop-layout",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "layout",
+          "type",
+          "prism",
+          "observe"
+        ],
+        "responsibility": "IDML/INDD/print interchange conversion; no claim INDD readable without actual decoder proof."
+      },
+      {
+        "id": "ENG-CRATE-INTEROP_MEDIA",
+        "key": "interop_media",
+        "proposed_name": "hsk-studio-interop-media",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "pulse",
+          "motion",
+          "score",
+          "observe"
+        ],
+        "responsibility": "Native video/motion/catalog interchange; loss-aware typed graph adapters, licensed format support remains evidenced per fixture."
+      },
+      {
+        "id": "ENG-CRATE-CONTROLS",
+        "key": "controls",
+        "proposed_name": "hsk-studio-controls",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "observe"
+        ],
+        "responsibility": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app."
+      },
+      {
+        "id": "ENG-CRATE-SESSION",
+        "key": "session",
+        "proposed_name": "hsk-studio-session",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "chronicle",
+          "package",
+          "observe"
+        ],
+        "responsibility": "Headless single-document operation orchestration, provider registration and test ports. Multi-output delivery captures immutable revision/presets/output verification and uses existing Job Runtime via a port for queue/watchfolder/cancel/retry, without a second job database or queue authority. No built-in all-engine mega dependency."
+      },
+      {
+        "id": "ENG-CRATE-HARNESS",
+        "key": "harness",
+        "proposed_name": "hsk-studio-harness",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "session",
+          "controls",
+          "render_cpu",
+          "observe"
+        ],
+        "responsibility": "Standalone Studio asset desktop/CLI harness; domain engines/renderer loaded through explicit feature/member selections."
+      },
+      {
+        "id": "ENG-CRATE-KERNEL_BINDINGS",
+        "key": "kernel_bindings",
+        "proposed_name": "hsk-studio-kernel-bindings",
+        "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+        "depends_on": [
+          "accord",
+          "folio",
+          "session",
+          "observe"
+        ],
+        "responsibility": "Later owned adapter for AppState/EventLedger/SurrealDB/PromotionGate/Argus/manual. Only this integration target may depend on handshake_core/native integration surfaces."
+      }
+    ],
+    "edges": [
+      {
+        "id": "ENG-EDGE-INTEROP_FIG-ACCORD",
+        "consumer": "interop_fig",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_FIG-FOLIO",
+        "consumer": "interop_fig",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_FIG-COMPONENTS",
+        "consumer": "interop_fig",
+        "dependency": "components"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_FIG-TYPE",
+        "consumer": "interop_fig",
+        "dependency": "type"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_FIG-OBSERVE",
+        "consumer": "interop_fig",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-OBSERVE-ACCORD",
+        "consumer": "observe",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-FOLIO-ACCORD",
+        "consumer": "folio",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-CHRONICLE-ACCORD",
+        "consumer": "chronicle",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-CHRONICLE-FOLIO",
+        "consumer": "chronicle",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-CHRONICLE-OBSERVE",
+        "consumer": "chronicle",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-PRISM-ACCORD",
+        "consumer": "prism",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-PRISM-OBSERVE",
+        "consumer": "prism",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-PIGMENT-ACCORD",
+        "consumer": "pigment",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-PIGMENT-PRISM",
+        "consumer": "pigment",
+        "dependency": "prism"
+      },
+      {
+        "id": "ENG-EDGE-PIGMENT-OBSERVE",
+        "consumer": "pigment",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-NIB-ACCORD",
+        "consumer": "nib",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-NIB-OBSERVE",
+        "consumer": "nib",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-TYPE-ACCORD",
+        "consumer": "type",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-TYPE-OBSERVE",
+        "consumer": "type",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-LAYOUT-ACCORD",
+        "consumer": "layout",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-LAYOUT-FOLIO",
+        "consumer": "layout",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-LAYOUT-TYPE",
+        "consumer": "layout",
+        "dependency": "type"
+      },
+      {
+        "id": "ENG-EDGE-LAYOUT-NIB",
+        "consumer": "layout",
+        "dependency": "nib"
+      },
+      {
+        "id": "ENG-EDGE-LAYOUT-OBSERVE",
+        "consumer": "layout",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-DEVELOP-ACCORD",
+        "consumer": "develop",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-DEVELOP-PIGMENT",
+        "consumer": "develop",
+        "dependency": "pigment"
+      },
+      {
+        "id": "ENG-EDGE-DEVELOP-PRISM",
+        "consumer": "develop",
+        "dependency": "prism"
+      },
+      {
+        "id": "ENG-EDGE-DEVELOP-OBSERVE",
+        "consumer": "develop",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-COMPONENTS-ACCORD",
+        "consumer": "components",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-COMPONENTS-FOLIO",
+        "consumer": "components",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-COMPONENTS-LAYOUT",
+        "consumer": "components",
+        "dependency": "layout"
+      },
+      {
+        "id": "ENG-EDGE-COMPONENTS-OBSERVE",
+        "consumer": "components",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-PULSE-ACCORD",
+        "consumer": "pulse",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-PULSE-FOLIO",
+        "consumer": "pulse",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-PULSE-OBSERVE",
+        "consumer": "pulse",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-SCORE-ACCORD",
+        "consumer": "score",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-SCORE-OBSERVE",
+        "consumer": "score",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-REEL-ACCORD",
+        "consumer": "reel",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-REEL-OBSERVE",
+        "consumer": "reel",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-MOTION-ACCORD",
+        "consumer": "motion",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-MOTION-FOLIO",
+        "consumer": "motion",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-MOTION-NIB",
+        "consumer": "motion",
+        "dependency": "nib"
+      },
+      {
+        "id": "ENG-EDGE-MOTION-TYPE",
+        "consumer": "motion",
+        "dependency": "type"
+      },
+      {
+        "id": "ENG-EDGE-MOTION-OBSERVE",
+        "consumer": "motion",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-COMPOSITE-ACCORD",
+        "consumer": "composite",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-COMPOSITE-FOLIO",
+        "consumer": "composite",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-COMPOSITE-PRISM",
+        "consumer": "composite",
+        "dependency": "prism"
+      },
+      {
+        "id": "ENG-EDGE-COMPOSITE-PIGMENT",
+        "consumer": "composite",
+        "dependency": "pigment"
+      },
+      {
+        "id": "ENG-EDGE-COMPOSITE-NIB",
+        "consumer": "composite",
+        "dependency": "nib"
+      },
+      {
+        "id": "ENG-EDGE-COMPOSITE-TYPE",
+        "consumer": "composite",
+        "dependency": "type"
+      },
+      {
+        "id": "ENG-EDGE-COMPOSITE-OBSERVE",
+        "consumer": "composite",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-RENDER_CPU-ACCORD",
+        "consumer": "render_cpu",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-RENDER_CPU-PRISM",
+        "consumer": "render_cpu",
+        "dependency": "prism"
+      },
+      {
+        "id": "ENG-EDGE-RENDER_CPU-PIGMENT",
+        "consumer": "render_cpu",
+        "dependency": "pigment"
+      },
+      {
+        "id": "ENG-EDGE-RENDER_CPU-NIB",
+        "consumer": "render_cpu",
+        "dependency": "nib"
+      },
+      {
+        "id": "ENG-EDGE-RENDER_CPU-TYPE",
+        "consumer": "render_cpu",
+        "dependency": "type"
+      },
+      {
+        "id": "ENG-EDGE-RENDER_CPU-OBSERVE",
+        "consumer": "render_cpu",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-RENDER_GPU-ACCORD",
+        "consumer": "render_gpu",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-RENDER_GPU-PRISM",
+        "consumer": "render_gpu",
+        "dependency": "prism"
+      },
+      {
+        "id": "ENG-EDGE-RENDER_GPU-PIGMENT",
+        "consumer": "render_gpu",
+        "dependency": "pigment"
+      },
+      {
+        "id": "ENG-EDGE-RENDER_GPU-NIB",
+        "consumer": "render_gpu",
+        "dependency": "nib"
+      },
+      {
+        "id": "ENG-EDGE-RENDER_GPU-TYPE",
+        "consumer": "render_gpu",
+        "dependency": "type"
+      },
+      {
+        "id": "ENG-EDGE-RENDER_GPU-OBSERVE",
+        "consumer": "render_gpu",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-PACKAGE-ACCORD",
+        "consumer": "package",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-PACKAGE-FOLIO",
+        "consumer": "package",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-PACKAGE-OBSERVE",
+        "consumer": "package",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_PSD-ACCORD",
+        "consumer": "interop_psd",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_PSD-FOLIO",
+        "consumer": "interop_psd",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_PSD-PIGMENT",
+        "consumer": "interop_psd",
+        "dependency": "pigment"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_PSD-PRISM",
+        "consumer": "interop_psd",
+        "dependency": "prism"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_PSD-TYPE",
+        "consumer": "interop_psd",
+        "dependency": "type"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_PSD-OBSERVE",
+        "consumer": "interop_psd",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_VECTOR-ACCORD",
+        "consumer": "interop_vector",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_VECTOR-FOLIO",
+        "consumer": "interop_vector",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_VECTOR-NIB",
+        "consumer": "interop_vector",
+        "dependency": "nib"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_VECTOR-TYPE",
+        "consumer": "interop_vector",
+        "dependency": "type"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_VECTOR-PRISM",
+        "consumer": "interop_vector",
+        "dependency": "prism"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_VECTOR-OBSERVE",
+        "consumer": "interop_vector",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_LAYOUT-ACCORD",
+        "consumer": "interop_layout",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_LAYOUT-FOLIO",
+        "consumer": "interop_layout",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_LAYOUT-LAYOUT",
+        "consumer": "interop_layout",
+        "dependency": "layout"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_LAYOUT-TYPE",
+        "consumer": "interop_layout",
+        "dependency": "type"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_LAYOUT-PRISM",
+        "consumer": "interop_layout",
+        "dependency": "prism"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_LAYOUT-OBSERVE",
+        "consumer": "interop_layout",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_MEDIA-ACCORD",
+        "consumer": "interop_media",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_MEDIA-FOLIO",
+        "consumer": "interop_media",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_MEDIA-PULSE",
+        "consumer": "interop_media",
+        "dependency": "pulse"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_MEDIA-MOTION",
+        "consumer": "interop_media",
+        "dependency": "motion"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_MEDIA-SCORE",
+        "consumer": "interop_media",
+        "dependency": "score"
+      },
+      {
+        "id": "ENG-EDGE-INTEROP_MEDIA-OBSERVE",
+        "consumer": "interop_media",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-CONTROLS-ACCORD",
+        "consumer": "controls",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-CONTROLS-OBSERVE",
+        "consumer": "controls",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-SESSION-ACCORD",
+        "consumer": "session",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-SESSION-FOLIO",
+        "consumer": "session",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-SESSION-CHRONICLE",
+        "consumer": "session",
+        "dependency": "chronicle"
+      },
+      {
+        "id": "ENG-EDGE-SESSION-PACKAGE",
+        "consumer": "session",
+        "dependency": "package"
+      },
+      {
+        "id": "ENG-EDGE-SESSION-OBSERVE",
+        "consumer": "session",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-HARNESS-ACCORD",
+        "consumer": "harness",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-HARNESS-FOLIO",
+        "consumer": "harness",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-HARNESS-SESSION",
+        "consumer": "harness",
+        "dependency": "session"
+      },
+      {
+        "id": "ENG-EDGE-HARNESS-CONTROLS",
+        "consumer": "harness",
+        "dependency": "controls"
+      },
+      {
+        "id": "ENG-EDGE-HARNESS-RENDER_CPU",
+        "consumer": "harness",
+        "dependency": "render_cpu"
+      },
+      {
+        "id": "ENG-EDGE-HARNESS-OBSERVE",
+        "consumer": "harness",
+        "dependency": "observe"
+      },
+      {
+        "id": "ENG-EDGE-KERNEL_BINDINGS-ACCORD",
+        "consumer": "kernel_bindings",
+        "dependency": "accord"
+      },
+      {
+        "id": "ENG-EDGE-KERNEL_BINDINGS-FOLIO",
+        "consumer": "kernel_bindings",
+        "dependency": "folio"
+      },
+      {
+        "id": "ENG-EDGE-KERNEL_BINDINGS-SESSION",
+        "consumer": "kernel_bindings",
+        "dependency": "session"
+      },
+      {
+        "id": "ENG-EDGE-KERNEL_BINDINGS-OBSERVE",
+        "consumer": "kernel_bindings",
+        "dependency": "observe"
+      }
+    ],
+    "forbidden_dependency_edges": [
+      {
+        "id": "ENG-DAG-FORBID-001",
+        "from": "Any Studio engine/contracts/document/interop/control/harness package",
+        "to": [
+          "handshake_core",
+          "handshake_native",
+          "SurrealDB/RocksDB"
+        ],
+        "reason": "Independent Studio asset development must not trigger kernel/native application graph."
+      },
+      {
+        "id": "ENG-DAG-FORBID-002",
+        "from": "folio/accord",
+        "to": [
+          "egui",
+          "eframe",
+          "wgpu",
+          "codec FFI",
+          "image decoder",
+          "runtime database"
+        ],
+        "reason": "Schema reuse and small-model work require a cheap pure boundary."
+      },
+      {
+        "id": "ENG-DAG-FORBID-003",
+        "from": "kernel business-event contract",
+        "to": "duplicated engine authority database/history",
+        "reason": "Avoid divergent EventLedger/CRDT/promotion state."
+      }
+    ],
+    "evidence": [
+      "ENG-E-001",
+      "ENG-E-002",
+      "ENG-E-005",
+      "ENG-E-009",
+      "ENG-E-011",
+      "ENG-E-401",
+      "ENG-E-402"
+    ],
+    "standalone_to_embedded": {
+      "stage_one": "Implement approved pure contracts/document + one focused domain engine/harness proof in Studio product worktree; shared control/Argus/telemetry ports present from the first asset.",
+      "stage_two": "Additional domains attach through providers in same document/workspace, not new windows/app silhouettes.",
+      "stage_three": "An authorized integration packet binds stable ports to WP012 native surfaces, FR, internal diagnostics/Palmistry, UserManual, kernel store/proposal/promotion. Runtime embedding remains separate proof.",
+      "dependency_direction": "Kernel adapter imports Studio contracts/providers; Studio leaves never import kernel/native."
+    }
+  },
+  "build_and_platform_proposal": {
+    "id": "ENG-BUILD-001",
+    "status": "PROPOSED_ACCEPTANCE_CONTROLS_NOT_RUN",
+    "policy_basis": [
+      "HBR-COMPART-001",
+      "HBR-COMPART-002",
+      "HBR-COMPONENT-001",
+      "HBR-COMPONENT-002",
+      "GLOBAL-VALIDATION-023–025"
+    ],
+    "controls": [
+      {
+        "id": "ENG-BUILD-C-001",
+        "proposal": "Pin Rust/toolchain/lockfile and explicit resolver/default-members. Checked-in runner invokes exact packages/features; avoid cargo --workspace as routine leaf edit check.",
+        "evidence": [
+          "ENG-E-023",
+          "ENG-E-401",
+          "ENG-E-402"
+        ]
+      },
+      {
+        "id": "ENG-BUILD-C-002",
+        "proposal": "Before engine implementation, cargo metadata/tree closure must show standalone target has no core/native/Surreal/RocksDB, and contracts has no GUI/GPU/codecs. Record features and duplicate package versions."
+      },
+      {
+        "id": "ENG-BUILD-C-003",
+        "proposal": "Measure first cold and warm focused target timings/peak memory/artifact size/relinked binaries once at stable inputs. Set numeric budgets from measured environment and operator requirements, not unmeasured promised speedup.",
+        "evidence": [
+          "ENG-E-403",
+          "ENG-E-404"
+        ]
+      },
+      {
+        "id": "ENG-BUILD-C-004",
+        "proposal": "Warm single-leaf edit proof records only leaf/dependents rebuilt; fixture compares actual compiled-crate/relink list to declared affected closure. Controls edit must not rebuild native codecs or core."
+      },
+      {
+        "id": "ENG-BUILD-C-005",
+        "proposal": "Use one stable governed owner source path refreshed changed-files-only/current mtimes, identity SHA/tree/file-count/manifest hashes, canonical external scoped artifact/cache paths, no cargo clean for candidate changes."
+      },
+      {
+        "id": "ENG-BUILD-C-006",
+        "proposal": "WP012 currently mandates one Cargo process for its scoped owner/proof workflow. New Studio activation must define compiler concurrency from measured CPU/memory/disk resources and canonical owner targets; this x64 Ryzen host has not been measured as constrained. Preserve Surface-specific caps when required. Batch compatible checks/shared prerequisites and schedule validators so compiler work does not compete unsafely for an owner target. Parallel swarm source ownership does not imply parallel Cargo processes."
+      },
+      {
+        "id": "ENG-BUILD-C-007",
+        "proposal": "Choose the measured developer feedback lane after inspecting current cache settings: Rust incremental compilation and sccache Rust caching are separate alternatives because incremental disables sccache cacheability. Do not blindly enable both. Avoid upstream release LTO/codegen-one defaults for feedback. Final release packaging has its own measured target/profile and exact runtime proof.",
+        "evidence": [
+          "ENG-E-404"
+        ]
+      },
+      {
+        "id": "ENG-BUILD-C-008",
+        "proposal": "x64 Windows product proof must run exact target binaries with native dependencies and declared DX12/GPU backend. ARM64 Surface source/portable-unit checks are useful separate evidence, never x64 runtime PASS."
+      },
+      {
+        "id": "ENG-BUILD-C-009",
+        "proposal": "Each SIMD/codec/GPU backend has explicit target cfg and runtime capability dispatch plus scalar reference. Reject native x86 instructions or SDK assumptions in portable contracts/leaves."
+      },
+      {
+        "id": "ENG-BUILD-C-010",
+        "proposal": "GPU absence/device loss/fallback is explicit diagnostic and proof state. Required render test never silently skips; export and agent screenshots bind rendered revision/time/color/provider.",
+        "evidence": [
+          "ENG-E-109",
+          "ENG-E-110",
+          "ENG-E-111"
+        ]
+      },
+      {
+        "id": "ENG-BUILD-C-011",
+        "proposal": "Cache-key artifact records include target triple, toolchain, lock/features/profile and candidate identity; cache hit itself does not prove correctness or compatibility."
+      }
+    ],
+    "proof_gap": "No benchmark, compile, cache result or target compatibility proof produced in this research session."
+  },
+  "swarm_and_document_proposal": {
+    "id": "ENG-SWARM-001",
+    "status": "PROPOSED_TYPED_BOUNDARY",
+    "controls": [
+      {
+        "id": "ENG-SWARM-C-001",
+        "proposal": "Each command carries stable domain object IDs, observed document revision, actor/client/session identity, idempotency key and declared read/write set; result includes accepted/conflict/rejected receipt."
+      },
+      {
+        "id": "ENG-SWARM-C-002",
+        "proposal": "Parallel agents own independent view/selection/prototype preview state. Shared mutations are proposals against immutable revisions, not coupled active-pane keyboard focus."
+      },
+      {
+        "id": "ENG-SWARM-C-003",
+        "proposal": "Document transaction manager enforces object/tile/time-range leases and conflicts; global color/profile, dimensions, shared font/style/variable or timeline ripple changes require wider conflict/barrier semantics."
+      },
+      {
+        "id": "ENG-SWARM-C-004",
+        "proposal": "Brush/path/time gestures are typed batches with preview/commit/cancel; no new arbitrary canvas coordinate-only endpoint for each tool. Existing Argus methods route discoverable controls; semantic gestures require owner contract."
+      },
+      {
+        "id": "ENG-SWARM-C-005",
+        "proposal": "Preview/visual verification observes exact document revision, render generation, frame/time, input/working/display profile and proxy/original choice. Stale captures cannot certify mutations."
+      },
+      {
+        "id": "ENG-SWARM-C-006",
+        "proposal": "Undo is conflict-aware and attributable; one agent cannot silently undo another's later edit. Export captures immutable revision and referenced assets; cancellation/deadline reports partial work, never corrupt authority."
+      },
+      {
+        "id": "ENG-SWARM-C-007",
+        "proposal": "CRDT cooperation does not imply all bitmap/native media operations commute. Keep kernel CRDT/EventLedger owner and specialized proposal merge policies per primitive."
+      }
+    ],
+    "existing_gaps": [
+      {
+        "id": "ENG-SWARM-GAP-001",
+        "gap": "UI snapshot is widget metadata only; lacks domain precision/temporal/context required by Studio spec.",
+        "cross_agent_evidence": {
+          "owner": "studio_ui",
+          "path": "src/frontend/handshake_native/src/accessibility/snapshot.rs",
+          "lines": [
+            203,
+            231
+          ]
+        },
+        "mitigation": "Extend canonical typed projection once for applicable property contexts; reusable controls emit it."
+      },
+      {
+        "id": "ENG-SWARM-GAP-002",
+        "gap": "Screenshot result currently carries dimensions/time/png, not document/frame/color/proxy provenance.",
+        "cross_agent_evidence": {
+          "owner": "studio_ui",
+          "path": "src/frontend/handshake_native/src/mcp/screenshot.rs",
+          "line": 30
+        },
+        "mitigation": "Add canonical capture receipt/provenance before output inspection claims."
+      }
+    ],
+    "evidence": [
+      "ENG-E-002",
+      "ENG-E-013"
+    ]
+  },
+  "diagnostic_and_manual_proposal": {
+    "id": "ENG-DIAG-001",
+    "status": "PROPOSED_MUST_BE_OWNED_AT_ACTIVATION",
+    "per_module_contract": [
+      "typed internal sink accepts only owned allowlisted numeric/code/category/progress/process-session fields; document/object/job/revision joins remain in separately authorized business receipts unless explicit schema/privacy authority permits a field",
+      "business effect/outcome event via kernel FR adapter",
+      "internal diagnostic span/progress/heartbeat/budget/device-loss/drop counters",
+      "Palmistry observes owning process/worker progress outside process",
+      "UserManual purpose/inputs/outputs/workflows/failure/recovery/verification generated from same capability schema"
+    ],
+    "controls": [
+      {
+        "id": "ENG-DIAG-C-001",
+        "proposal": "Each new engine exposes one neutral diagnostic sink/progress port and configured no-op/buffer implementation for isolated tests; do not import core just to log."
+      },
+      {
+        "id": "ENG-DIAG-C-002",
+        "proposal": "Reuse handshake-diag-ring wire schema through sanctioned shared dependency/extraction path; do not clone ring layouts and invent private numeric codes.",
+        "evidence": [
+          "ENG-E-015",
+          "ENG-E-017"
+        ]
+      },
+      {
+        "id": "ENG-DIAG-C-003",
+        "proposal": "Register Studio operations in owning watchdog/schema contract; render/media export progress uses meaningful work counters and absolute deadlines. Alive UI heartbeat cannot hide dead GPU/codec worker.",
+        "evidence": [
+          "ENG-E-016",
+          "ENG-E-019"
+        ]
+      },
+      {
+        "id": "ENG-DIAG-C-004",
+        "proposal": "Record per-tier WIRED, NOT_APPLICABLE-with-reason or DEFERRED-with-reason and integration follow-up. Standalone memory sink is not production FR/Palmistry proof."
+      },
+      {
+        "id": "ENG-DIAG-C-005",
+        "proposal": "One UserManual canonical surface accepts shared generated descriptors for tools/primitives/units/object selection/preview/commit/inspect/recovery and diagnostic evidence. Do not invent a second ModelManual."
+      },
+      {
+        "id": "ENG-DIAG-C-006",
+        "proposal": "Each public control/action/value range/schema is discoverable to humans, accessibility and models, including invalid states/unsupported conversions. Example command/results and visual verification receipts permit no-context operation."
+      }
+    ],
+    "evidence": [
+      "ENG-E-014",
+      "ENG-E-015",
+      "ENG-E-017",
+      "ENG-E-018",
+      "ENG-E-019",
+      "ENG-E-020",
+      "ENG-E-021",
+      "ENG-E-022"
+    ],
+    "governance_source": {
+      "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      "anchors": [
+        "HBR-INT-009",
+        "HBR-MAN-004",
+        "HBR-VIS-001",
+        "HBR-VIS-005"
+      ],
+      "lines": [
+        655,
+        889,
+        902,
+        1039,
+        1343
+      ]
+    }
+  },
+  "blocker_deliberation": [
+    {
+      "id": "ENG-BLOCKER-001",
+      "status": "SPEC_CONTRACT_DELTA_REQUIRED",
+      "blocking": "New modular asset implementation contract",
+      "evidence": [
+        "ENG-E-001"
+      ],
+      "minimum_resolution": "Narrow authority refinement for many crates/independent harness, preserving existing shared primitives and scope. Root owns spec decision."
+    },
+    {
+      "id": "ENG-BLOCKER-002",
+      "status": "NO_PARITY_EVIDENCE_YET",
+      "blocking": "Any claim of professional Adobe-format/workflow parity",
+      "evidence": [
+        "ENG-E-108",
+        "ENG-E-114",
+        "ENG-E-210",
+        "ENG-E-310"
+      ],
+      "minimum_resolution": "Requirement-to-source-to-fixture ledger with independent original-app or standard renderer oracles, loss classification and complete workflow acceptance."
+    },
+    {
+      "id": "ENG-BLOCKER-003",
+      "status": "INTEGRATION_SEAM_NOT_LIVE",
+      "blocking": "Immediate kernel/native plugin claim",
+      "evidence": [
+        "ENG-E-011"
+      ],
+      "minimum_resolution": "Own integration implementation packet after focused assets, plus actual native runtime/Argus/state persistence proof."
+    },
+    {
+      "id": "ENG-BLOCKER-004",
+      "status": "IMPORT_SANDBOX_ADAPTATION_REQUIRED",
+      "blocking": "Use of upstream default importer on untrusted documents",
+      "evidence": [
+        "ENG-E-204",
+        "ENG-E-208",
+        "ENG-E-306",
+        "ENG-E-307"
+      ],
+      "minimum_resolution": "Fallible conversion, resource resolver, bounded parse/eval and loss receipts under promotion."
+    },
+    {
+      "id": "ENG-BLOCKER-005",
+      "status": "BUILD_PROFILE_AND_COMMANDS_NOT_DEFINED",
+      "blocking": "First expensive Studio command",
+      "evidence": [
+        "ENG-E-005",
+        "ENG-E-009",
+        "ENG-E-401",
+        "ENG-E-402"
+      ],
+      "minimum_resolution": "Approved activation runner, exact owner target closure, gameplan/canary, x64/ARM evidence lane and measurable compile budget."
+    },
+    {
+      "id": "ENG-BLOCKER-006",
+      "status": "CROSS_DOMAIN_TYPE_OWNER_NEEDED",
+      "blocking": "Blind adoption of three incompatible document/font/color models",
+      "evidence": [
+        "ENG-E-002",
+        "ENG-E-104",
+        "ENG-E-304"
+      ],
+      "minimum_resolution": "One StudioDocument/schema/font/color contract and adapters; no delegated agent private shape duplication."
+    },
+    {
+      "id": "ENG-BLOCKER-007",
+      "status": "POLICY_RECONCILIATION_REQUIRED",
+      "blocking": "Lightroom SQLite-based native catalog importer",
+      "minimum_resolution": "Preserve scope but reconcile CX-503R exception or documented export/interchange import route; do not adopt prohibited source.",
+      "cross_agent_owner": "studio_media"
+    }
+  ],
+  "high_roi_additions": [
+    {
+      "id": "ENG-ROI-001",
+      "addition": "Use one semantic capability registry as property panel, command schema, AccessKit/Argus projection and UserManual source.",
+      "why_now": "Every domain/control requires those surfaces; shared metadata prevents four divergent definitions.",
+      "gap": "Existing snapshot/command params insufficient and repeat panels invite drift.",
+      "reuse": [
+        "SurfaceDescriptor",
+        "Argus",
+        "HBR-COMPONENT"
+      ],
+      "validation": "Same schema drives UI range/default/disabled reason and model command validation; registered controls inspected through quiet Argus."
+    },
+    {
+      "id": "ENG-ROI-002",
+      "addition": "Cross-format loss/provenance ledger and immutable originals at the common import boundary.",
+      "why_now": "All Adobe adapters converge on one native document now.",
+      "gap": "Silent missing includes/unsupported effects or low pass floors can look like successful conversion.",
+      "reuse": [
+        "StudioImportReport",
+        "PromotionGate",
+        "source-preserving PSD parsing"
+      ],
+      "validation": "Loss report complete for unsupported semantics and native reopen retains opaque source/provenance; no silent flatten."
+    },
+    {
+      "id": "ENG-ROI-003",
+      "addition": "Package closure and warm recompilation budgets as first-class module acceptance.",
+      "why_now": "Modularity is explicitly motivated by build cost; crate count alone is cosmetic.",
+      "gap": "Current heavy core and broad GUI graph remain expensive.",
+      "reuse": [
+        "HBR-COMPART",
+        "stable owner snapshots",
+        "warm cache"
+      ],
+      "validation": "Measured compiler/relink closure exactly matches touched owner/dependents and independent harness excludes kernel/native/DB."
+    },
+    {
+      "id": "ENG-ROI-004",
+      "addition": "Shared capture receipt links visual output to exact revision/frame/profiles/provider.",
+      "why_now": "Argus and professional color/timeline evidence need same invariant.",
+      "gap": "Agent can inspect stale or proxy image and believe final state is correct.",
+      "reuse": [
+        "Argus screenshot",
+        "render harness",
+        "FR correlation"
+      ],
+      "validation": "Mutate, capture, inspect and export receipts reconcile identity; stale revision explicitly rejected."
+    }
+  ],
+  "next_session_gates": [
+    {
+      "id": "ENG-GATE-001",
+      "name": "authority-and-preservation",
+      "proof": "Refinement/packet reconciles single-crate wording, native package and existing timeline supersession without discarding prep; operator-approved activation/worktree/owned paths."
+    },
+    {
+      "id": "ENG-GATE-002",
+      "name": "candidate-source-selection",
+      "proof": "Exact upstream SHA/retained licenses/notice, source/API/test issues and selected leaves mapped to canonical Studio primitive; no branding/import runtime copied wholesale."
+    },
+    {
+      "id": "ENG-GATE-003",
+      "name": "dependency-isolation",
+      "proof": "Cargo metadata/tree of exact package+features excludes core/native/Surreal/RocksDB; pure foundation excludes egui/wgpu/decoder. No build is needed to define these conditions."
+    },
+    {
+      "id": "ENG-GATE-004",
+      "name": "first-domain-real-workflow",
+      "proof": "One complete operator/model workflow in standalone Studio asset uses shared document/controls and persists native reopen, includes failure/recovery; full remaining parity scope still preserved."
+    },
+    {
+      "id": "ENG-GATE-005",
+      "name": "visual-and-diagnostic-proof",
+      "proof": "Quiet Argus inspect/steer/capture/verify at exact revision plus UserManual and three-tier posture. Actual x64 and ARM portability results separately named."
+    },
+    {
+      "id": "ENG-GATE-006",
+      "name": "compile-cost-proof",
+      "proof": "Checked-in governed runner/gameplan/canary and stable warm source/target; focused change compiled/relinked closure, timings and resource budgets recorded."
+    },
+    {
+      "id": "ENG-GATE-007",
+      "name": "import-fidelity-proof",
+      "proof": "Adobe-origin/nontrivial corpus and independent render/reopen/export oracles per supported semantic, structured loss/unsupported report and bounded resource path; own roundtrip alone insufficient."
+    },
+    {
+      "id": "ENG-GATE-008",
+      "name": "later-native-binding",
+      "proof": "Owned integration packet attaches assets through runtime seam/ports without cyclic dependencies; uses current kernel sandbox/CRDT/store/events/manual/diagnostic/Argus surfaces and production-native runtime proof."
+    }
+  ],
+"snapshot_and_live_authority": {
+    "id": "ENG-SNAPSHOT-001",
+    "status": "PROPOSED_BOUNDARY",
+    "standalone": "Canonical contracts/UiDescriptor/ParamSpec/UserManual entries are exported or extracted once by their owner as immutable versioned/hash-bound inputs. Standalone Studio harness may project those records and hold per-view in-memory state without importing native/core/Surreal. No separately edited authority registry.",
+    "embedded": "Later binding reads/writes the current canonical UserManual/layout/CRDT/EventLedger surfaces through owned ports; an exported snapshot is neither a live authorization grant nor proof that the current authority revision remains unchanged.",
+    "refresh": "Bind exported schema/manual/descriptors to baseline version/hash; diff owner contract changes and regenerate snapshot/adapters before claiming compatibility. No private panel/command mirror manually maintained.",
+    "identity": "Preserve current STU-ARC-004 SDOC uuid_v7 and typed IDs unless an explicit approved refinement changes that contract. Hashes identify immutable bytes; they do not replace mutable semantic UUIDs.",
+    "reviewed_sources": [
+      "native-document-and-interop.json",
+      "ui-and-design-workflows.json",
+      "ENG-E-002",
+      "ENG-E-022"
+    ]
+  },
+  "upstream_maintenance": {
+    "id": "ENG-UPSTREAM-001",
+    "status": "PROPOSED_REUSE_POLICY",
+    "controls": [
+      {
+        "id": "ENG-UPSTREAM-C-001",
+        "proposal": "Track each adapted leaf by upstream repo/SHA/source paths/SHA256, dependency manifest/lock/MSRV, adopted license/NOTICE and local patch inventory; do not accept moving main as reproducible dependency."
+      },
+      {
+        "id": "ENG-UPSTREAM-C-002",
+        "proposal": "Selected fork/assets remove excluded branding and preserve code/material notices. Full transitive dependency/font/profile/fixture metadata audit remains required before distribution."
+      },
+      {
+        "id": "ENG-UPSTREAM-C-003",
+        "proposal": "Preserve upstream history or pinned source provenance through approved fork/vendor workflow; no remote source executes during intake. Run candidates only after build authority and sandbox/resource contracts exist."
+      },
+      {
+        "id": "ENG-UPSTREAM-C-004",
+        "proposal": "Keep conversion adapters distinct from upstream algorithm leaves and shared Studio schema, so upstream updates cannot silently mutate native document/command/manual contracts."
+      },
+      {
+        "id": "ENG-UPSTREAM-C-005",
+        "proposal": "Reconcile egui/font/color/render dependency versions at owner boundary; duplicate package versions/types and feature union are explicit graph findings rather than hidden upgrades.",
+        "evidence": [
+          "ENG-E-402"
+        ]
+      },
+      {
+        "id": "ENG-UPSTREAM-C-006",
+        "proposal": "Update a pinned candidate only with scoped source/API diff, required fixture/visual/performance/security regression proof and restored license provenance. Reuse unchanged valid proof; refresh invalidated input/behavior proof only."
+      }
+    ]
+  },
+  "cross_review": {
+    "id": "ENG-CROSSREVIEW-001",
+    "status": "INSPECTED_REFERENCE_FILES_ONLY",
+    "native_document": {
+      "path": "native-document-and-interop.json",
+      "findings": [
+        "Portable snapshot versus live Surreal/EventLedger/CRDT boundary is explicit.",
+        "Preserve STU-ARC-004 uuid_v7 identity contract; do not defer known identity to arbitrary foundation choice.",
+        "AI-compatible PDF evidence is not full Illustrator private-document importer proof; root resolving exact source.",
+        "Snapshot revision/epoch and import source IDs must be distinct from current live promotion revision."
+      ],
+      "runtime_proof": "NOT_RUN"
+    },
+    "ui": {
+      "path": "ui-and-design-workflows.json",
+      "findings": [
+        "Canonical UiDescriptor/ParamSpec reusable mechanics align with independent contracts/proposed DAG.",
+        "Explicit client_session_id/agent_label mismatch, document leases and capture revision/frame/profile/proxy gaps are preserved.",
+        "Clarify standalone generated snapshot/manual projection does not pull native or Surreal; later adapter accesses canonical live store.",
+        "One mechanic can have many independently bound instances; no per-vendor shell or mega-panel."
+      ],
+      "runtime_proof": "NOT_RUN"
+    }
+  },
+  "source_provenance": {
+    "id": "ENG-SOURCE-SNAPSHOT-001",
+    "source_root_observed": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source",
+    "retention_reason": "Pinned independent source review in next session; external reference inputs, never executable/runtime authority.",
+    "files": [
+      {
+        "path": "designcraft/Cargo.toml",
+        "sha256": "e99ebe7a2fe9f676b63930f4a6c535ebf40c2eb0167cf5644cf457086a130f04",
+        "bytes": 2915,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/Cargo.toml"
+      },
+      {
+        "path": "designcraft/NOTICE",
+        "sha256": "396812c8659db4db2533bfb7bc6570d5ba54676d6aa98a9ef0d6b4218ee8c2e9",
+        "bytes": 1950,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/NOTICE"
+      },
+      {
+        "path": "designcraft/README.md",
+        "sha256": "328f5aface5a5d7ce5c5f54ccee1dfc3ffe625a9c196c90c4a9eb97ee43ef255",
+        "bytes": 16641,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/README.md"
+      },
+      {
+        "path": "designcraft/ROADMAP.md",
+        "sha256": "5b7d625af3aea00eb37f101201a045a68fd8b1660e1999c742af34ab6a59298a",
+        "bytes": 47679,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/ROADMAP.md"
+      },
+      {
+        "path": "designcraft/crates/compose/Cargo.toml",
+        "sha256": "e01d99713da58bacb6de95b0d35bc1c11d0d2d2684e26d80e59830e61ab0727d",
+        "bytes": 727,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/compose/Cargo.toml"
+      },
+      {
+        "path": "designcraft/crates/compose/src/lib.rs",
+        "sha256": "6872eb2c48a24bdc9683df5b902c205b0ead1bf2411e0088f13a1f11318586c0",
+        "bytes": 98594,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/compose/src/lib.rs"
+      },
+      {
+        "path": "designcraft/crates/compose/src/tests.rs",
+        "sha256": "a81ee7520b32a26d3b0c2474d6b42c3ed8d797b18efd5bba54253f0768975fe2",
+        "bytes": 96093,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/compose/src/tests.rs"
+      },
+      {
+        "path": "designcraft/crates/doc/src/lib.rs",
+        "sha256": "23b764ed065ae95f146d37567904dcaf05b5126cb1d86b56bea5284a7298a6c7",
+        "bytes": 27583,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/doc/src/lib.rs"
+      },
+      {
+        "path": "designcraft/crates/engine/Cargo.toml",
+        "sha256": "b877305d6b4ac5b25f13639a688661bfdcc13ede03b873f90eecc6ebbf36ecb9",
+        "bytes": 1260,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/engine/Cargo.toml"
+      },
+      {
+        "path": "designcraft/crates/engine/src/lib.rs",
+        "sha256": "45ff2c778c156e6e16bb7930fd99faa64bffbaaae2a0eedaa8bd7477f06e7edf",
+        "bytes": 21276,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/engine/src/lib.rs"
+      },
+      {
+        "path": "designcraft/crates/fonts/src/lib.rs",
+        "sha256": "23f1701c435f799705d97a330b313176fc29047eadc4e437b8659eba242003e0",
+        "bytes": 22858,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/fonts/src/lib.rs"
+      },
+      {
+        "path": "designcraft/crates/format/src/lib.rs",
+        "sha256": "23d86f81787ff44be8dd2b189b62197f4719ae149876883947c1fc2bce034593",
+        "bytes": 12593,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/format/src/lib.rs"
+      },
+      {
+        "path": "designcraft/crates/idml/Cargo.toml",
+        "sha256": "5020305099b3231e8992797e2033701b948b85d5df8ac762b0b6bf38f461d586",
+        "bytes": 444,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/Cargo.toml"
+      },
+      {
+        "path": "designcraft/crates/idml/src/import.rs",
+        "sha256": "f7b738aa8968dad814860cd7bb23657d6993882895cc015332178637e0c06ba3",
+        "bytes": 117423,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/import.rs"
+      },
+      {
+        "path": "designcraft/crates/idml/src/lib.rs",
+        "sha256": "f9cc697e74c91eeddaff048713657e30f2f468bc9c723949e547fbd4bde1cd63",
+        "bytes": 7146,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/lib.rs"
+      },
+      {
+        "path": "designcraft/crates/idml/src/tests.rs",
+        "sha256": "15cd5b97d392ac143225fba71532e872722505d6acfd1af4a29da22ae82f4fe4",
+        "bytes": 49182,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/tests.rs"
+      },
+      {
+        "path": "designcraft/crates/pdf/src/lib.rs",
+        "sha256": "10656b7841f20eea20f1741b23873013ba75631508846bff7a35aacde8d61470",
+        "bytes": 7598,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/pdf/src/lib.rs"
+      },
+      {
+        "path": "designcraft/crates/render/Cargo.toml",
+        "sha256": "a234c015334f8ca3ebc58da2883c27fecf184e04a17fbcdb9d2fb8766c6e414f",
+        "bytes": 815,
+        "repository": "https://github.com/storytold/designcraft",
+        "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/designcraft/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/render/Cargo.toml"
+      },
+      {
+        "path": "photocraft/ATTRIBUTION.md",
+        "sha256": "b368f49de4acf1cb928deef38d92ca586d215ae3854e7cd6ad7340042d4bc233",
+        "bytes": 14906,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/ATTRIBUTION.md"
+      },
+      {
+        "path": "photocraft/Cargo.toml",
+        "sha256": "1bc9a1ee4d5fdbed3e1db437a9c970431153630fdb0620505bb1782ae7621862",
+        "bytes": 3310,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/Cargo.toml"
+      },
+      {
+        "path": "photocraft/NOTICE",
+        "sha256": "fb7d6f0e57c396b6c94f6315d3dba13048a296d81e7546d33e2b7c77c71ea147",
+        "bytes": 1399,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/NOTICE"
+      },
+      {
+        "path": "photocraft/README.md",
+        "sha256": "3e2557f1d61d7728d15619405a8d835322568cd5c05dd8e3abfbc9fe95bfaa69",
+        "bytes": 30407,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/README.md"
+      },
+      {
+        "path": "photocraft/crates/cms/Cargo.toml",
+        "sha256": "1782f4d09bf26ddb392b831ca15893026601548a4f06c9de668ac7bc05ed2c9b",
+        "bytes": 443,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/cms/Cargo.toml"
+      },
+      {
+        "path": "photocraft/crates/cms/src/lib.rs",
+        "sha256": "8155b8877d27e81062634ba7627047bb823394fe265f4ad35c412b579ca1e28e",
+        "bytes": 4002,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/cms/src/lib.rs"
+      },
+      {
+        "path": "photocraft/crates/cms/src/profile.rs",
+        "sha256": "a8c6c49f4ed1c96c8555df009400e71b1f79981853543dd1010c93eca8995675",
+        "bytes": 31815,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/cms/src/profile.rs"
+      },
+      {
+        "path": "photocraft/crates/cms/src/transform.rs",
+        "sha256": "016385d447658afc5fad63e20b90c5b0e7a02d8e0ba55e1ee92209a4b3abec41",
+        "bytes": 30799,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/cms/src/transform.rs"
+      },
+      {
+        "path": "photocraft/crates/doc/src/lib.rs",
+        "sha256": "0aecb876ce711911bddf6bd7f5cbc342a975db9ea0c5def6a170cea5bae75e66",
+        "bytes": 47508,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/doc/src/lib.rs"
+      },
+      {
+        "path": "photocraft/crates/engine/Cargo.toml",
+        "sha256": "ba8bb18fda47ab27810ad47580dfdd2564bc775f22fa8c4723c8f4d8dba84a73",
+        "bytes": 1436,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/engine/Cargo.toml"
+      },
+      {
+        "path": "photocraft/crates/engine/src/commands.rs",
+        "sha256": "6963675c3cc43f257bdb0d1059d2744899d84946ddedc6d4f72c9ce3283c4592",
+        "bytes": 64585,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/engine/src/commands.rs"
+      },
+      {
+        "path": "photocraft/crates/engine/src/jobs.rs",
+        "sha256": "dd8a88185ff455e413de003fcbeb8443e2a886bbeaed288abaaabab410ea7f20",
+        "bytes": 32594,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/engine/src/jobs.rs"
+      },
+      {
+        "path": "photocraft/crates/engine/src/lib.rs",
+        "sha256": "33843f031c2562cf3680b5464dfe089248b6f31be3d3cf796f2adad3f7d48ee6",
+        "bytes": 23862,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/engine/src/lib.rs"
+      },
+      {
+        "path": "photocraft/crates/format/src/atomic.rs",
+        "sha256": "2ab4fc895f573632997bcfe6cee77a5bc975a0515b685df58de9be980a5c01e8",
+        "bytes": 11053,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/format/src/atomic.rs"
+      },
+      {
+        "path": "photocraft/crates/format/src/lib.rs",
+        "sha256": "0e3660fcf0bf2537b092c651184828199095a23dd67e2aa4a27b83fc08b971e2",
+        "bytes": 5928,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/format/src/lib.rs"
+      },
+      {
+        "path": "photocraft/crates/format/src/manifest.rs",
+        "sha256": "6e63103b46c5b765008a5bbf117a42025a61d0ac3be5f76f282a8ebdbddd9a91",
+        "bytes": 11210,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/format/src/manifest.rs"
+      },
+      {
+        "path": "photocraft/crates/format/src/read.rs",
+        "sha256": "91f82c6a26f8402edea6afc888458884ae85e400eb8803d508205d9bc9f0d05a",
+        "bytes": 5030,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/format/src/read.rs"
+      },
+      {
+        "path": "photocraft/crates/gpu/Cargo.toml",
+        "sha256": "d5503d27b708033f054523f0aea7c35da6c09ce262b024b6a560af812305721d",
+        "bytes": 831,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/gpu/Cargo.toml"
+      },
+      {
+        "path": "photocraft/crates/gpu/tests/parity.rs",
+        "sha256": "0a079fac8c06f0d82e243b76d65cf4c0b401d2afd8adcc9b5afc5329eb6ff34f",
+        "bytes": 78088,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/gpu/tests/parity.rs"
+      },
+      {
+        "path": "photocraft/crates/io/tests/corpus.rs",
+        "sha256": "3551d2f5c7307f781deb64f8c44dfaea71a6b38412721406032d9c1086a2b0cb",
+        "bytes": 23722,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/io/tests/corpus.rs"
+      },
+      {
+        "path": "photocraft/crates/ops/src/lib.rs",
+        "sha256": "abf273426ee15eb03d53ebe0db958d37ecbebc9a29e6d02a5864b9d9cd658339",
+        "bytes": 21618,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/ops/src/lib.rs"
+      },
+      {
+        "path": "photocraft/crates/psd/src/file.rs",
+        "sha256": "30b747819dc80d8810f8a849d3f47b4eacaf92586fb86435fcc8a67cfc9235e8",
+        "bytes": 13748,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/psd/src/file.rs"
+      },
+      {
+        "path": "photocraft/crates/psd/src/header.rs",
+        "sha256": "a6fabd610e77fe31882a989a8bf9dcba2d1b0f0ae3f890fc1a3ccb91e7387018",
+        "bytes": 8066,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/psd/src/header.rs"
+      },
+      {
+        "path": "photocraft/crates/psd/src/io.rs",
+        "sha256": "8e4428715c652baac4865fd857d4777ccbdf44bf333b426e1acc85f4f32f6cc9",
+        "bytes": 10877,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/psd/src/io.rs"
+      },
+      {
+        "path": "photocraft/crates/psd/src/lib.rs",
+        "sha256": "68afde4748f622a1dcd152d498bd543bd1abb0afd67a5c9f62eaa7d7eb0bb4c6",
+        "bytes": 3256,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/psd/src/lib.rs"
+      },
+      {
+        "path": "photocraft/crates/psd/tests/corpus.rs",
+        "sha256": "9737d3e4fedaa3c594829f6ab2b0ad1036246a6f38ac0604053e2f9dd19c61e9",
+        "bytes": 2982,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/psd/tests/corpus.rs"
+      },
+      {
+        "path": "photocraft/crates/psd/tests/malformed.rs",
+        "sha256": "8ec540714200eed82d8a42d604778bff80f11f25e38fb4b637af4f417786b121",
+        "bytes": 10386,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/psd/tests/malformed.rs"
+      },
+      {
+        "path": "photocraft/crates/raster/Cargo.toml",
+        "sha256": "1e77c90e19b64af978f120554a2c4317dea1f5075201c722fc159b31d93df5d8",
+        "bytes": 314,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/raster/Cargo.toml"
+      },
+      {
+        "path": "photocraft/crates/raster/src/lib.rs",
+        "sha256": "627bc2293d54765c60ddea3a4645c9da360b5ad370a01777e4e07a9c995d68fc",
+        "bytes": 40718,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/raster/src/lib.rs"
+      },
+      {
+        "path": "photocraft/docs/architecture.md",
+        "sha256": "7508588fe67e08a73216247beebed3cc9549ac2906eb1a96301af8c40f79d8d0",
+        "bytes": 42269,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/docs/architecture.md"
+      },
+      {
+        "path": "photocraft/docs/roadmap.md",
+        "sha256": "df7b42c789a2dae1bb34a3ef93af680614175b8f1e0a57dc85420eb26d80b99c",
+        "bytes": 20724,
+        "repository": "https://github.com/storytold/photocraft",
+        "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/photocraft/175603a644f10d2e8c61f82a63f7c2659c71dc47/docs/roadmap.md"
+      },
+      {
+        "path": "vectorcraft/Cargo.toml",
+        "sha256": "77c7643cc32cee7e998fa8e31067c483cce152240144437a894a51370e96d20b",
+        "bytes": 3864,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/Cargo.toml"
+      },
+      {
+        "path": "vectorcraft/NOTICE",
+        "sha256": "6f7d5ee568de2b9f269af2ca4de11230eaaf1d16d3e6e817a13a17e5a669035f",
+        "bytes": 4375,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/NOTICE"
+      },
+      {
+        "path": "vectorcraft/README.md",
+        "sha256": "f52e7090844dcfbcb92bea7de6dad97d01e3b2a2321d8aaf0c270543e3fbb769",
+        "bytes": 21395,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/README.md"
+      },
+      {
+        "path": "vectorcraft/ROADMAP.md",
+        "sha256": "dd67dd4c98a0dec7e5d7a9d2c5957a8d26894567061359ee94b341fa8b40b2b6",
+        "bytes": 114105,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/ROADMAP.md"
+      },
+      {
+        "path": "vectorcraft/crates/affinity/src/lib.rs",
+        "sha256": "18a39cd92fc02e2122466cd3ca25e80d4c8d2f2b4a72a6860ad8d798fe6cb0eb",
+        "bytes": 1705,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/affinity/src/lib.rs"
+      },
+      {
+        "path": "vectorcraft/crates/affinity/tests/outline_limits.rs",
+        "sha256": "0b6959dabbc08174d4d5bad82f6a111823c8ee609d5e553372e1eb2d4beb50a1",
+        "bytes": 7090,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/affinity/tests/outline_limits.rs"
+      },
+      {
+        "path": "vectorcraft/crates/color/src/cms/icc.rs",
+        "sha256": "0b485b78629d8884afd6d808c7ff0481144efa4e3eead9e2fdfb612d9150954e",
+        "bytes": 14662,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/color/src/cms/icc.rs"
+      },
+      {
+        "path": "vectorcraft/crates/doc/src/lib.rs",
+        "sha256": "5aa0bb12cd227b9b8ddb522b7373826cf2ec177f654f77a79e36d028c93942d4",
+        "bytes": 53811,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/doc/src/lib.rs"
+      },
+      {
+        "path": "vectorcraft/crates/engine/Cargo.toml",
+        "sha256": "714adc39ba8c798c07798738d8b8ec4f44de3eb4e5a54fb326b699e26462f89e",
+        "bytes": 1466,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/engine/Cargo.toml"
+      },
+      {
+        "path": "vectorcraft/crates/engine/src/lib.rs",
+        "sha256": "26938b74d2afaa0bea728e27d4a1dde89b52b2e174b0f30bf4da51528f13b499",
+        "bytes": 65287,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/engine/src/lib.rs"
+      },
+      {
+        "path": "vectorcraft/crates/engine/tests/affinity_corpus.rs",
+        "sha256": "045fbb1029166c7792e7486f62ca7df7490817d1f5244f6267edb3b617c8fda9",
+        "bytes": 14432,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/engine/tests/affinity_corpus.rs"
+      },
+      {
+        "path": "vectorcraft/crates/geom/Cargo.toml",
+        "sha256": "20a12c72ef7f2324ed0849f0169d46e4507ec7e4cc1d3823cdd32f559c4c52a3",
+        "bytes": 406,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/geom/Cargo.toml"
+      },
+      {
+        "path": "vectorcraft/crates/pathops/Cargo.toml",
+        "sha256": "c0e5bcdeea22bb243aa054d9d1a6c17cfad570785a35b946824b173c8472ea2d",
+        "bytes": 512,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/pathops/Cargo.toml"
+      },
+      {
+        "path": "vectorcraft/crates/pathops/src/boolean.rs",
+        "sha256": "3473aa3f99db806fc246c2444fd60f5c1fbdf775281bad3f513da39a281e6900",
+        "bytes": 21463,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/pathops/src/boolean.rs"
+      },
+      {
+        "path": "vectorcraft/crates/pathops/src/lib.rs",
+        "sha256": "e1d37ed81143fb3a35739488bab6373dfe6a1cc935d4f8882b510f35112055fd",
+        "bytes": 1457,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/pathops/src/lib.rs"
+      },
+      {
+        "path": "vectorcraft/crates/pathops/src/planar.rs",
+        "sha256": "ae9ef65f973280e6dadfb21e1245393727564b63c32771bf67e426cbe543adf4",
+        "bytes": 50815,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/pathops/src/planar.rs"
+      },
+      {
+        "path": "vectorcraft/crates/pdf/src/import.rs",
+        "sha256": "72342a7cf6b0494233fd2e79f3696ed169c62e842c851256d6ed68ca977157fe",
+        "bytes": 75465,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/pdf/src/import.rs"
+      },
+      {
+        "path": "vectorcraft/crates/pdf/src/lib.rs",
+        "sha256": "26a3e00cfed8fe5d9adccc0a57334d9d607e1b2107dfb62a5ad35bf454d01ee7",
+        "bytes": 9982,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/pdf/src/lib.rs"
+      },
+      {
+        "path": "vectorcraft/crates/render/Cargo.toml",
+        "sha256": "225f6d64448903b214d269cc15b3bdac27f8c6e9a992021dbcf67cfeda52f3b9",
+        "bytes": 1338,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/render/Cargo.toml"
+      },
+      {
+        "path": "vectorcraft/crates/svg/src/lib.rs",
+        "sha256": "570c6f5ccc91c3e060ffc0c6cfe016fa56ec63374cd001dbe6c7344fb3984384",
+        "bytes": 26196,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/svg/src/lib.rs"
+      },
+      {
+        "path": "vectorcraft/crates/text/Cargo.toml",
+        "sha256": "3d090736c20d4d934fbec13f991ed3ca8b93313657ce431df5440741b5895b26",
+        "bytes": 1392,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/text/Cargo.toml"
+      },
+      {
+        "path": "vectorcraft/crates/text/src/composer.rs",
+        "sha256": "4473e0ee95a25ef43cd7e8fa2a917e40e55c52aacd455bc1097c6cba543b5d97",
+        "bytes": 9217,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/text/src/composer.rs"
+      },
+      {
+        "path": "vectorcraft/crates/text/src/shape.rs",
+        "sha256": "0ef53764856ba94c6f287221e8c31fe88e84c933bfabc037112425be93620906",
+        "bytes": 23210,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/text/src/shape.rs"
+      },
+      {
+        "path": "vectorcraft/crates/text/src/tests_bidi.rs",
+        "sha256": "8512f310afa45b66361fe15d8d38411b1fdcd7b4b22b94a1aa0f0213395ca4ac",
+        "bytes": 16603,
+        "repository": "https://github.com/storytold/vectorcraft",
+        "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "retrieval": "raw.githubusercontent.com pinned source; no executable invocation",
+        "raw_url": "https://raw.githubusercontent.com/storytold/vectorcraft/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/text/src/tests_bidi.rs"
+      }
+    ],
+    "failures": [
+      {
+        "repository": "vectorcraft",
+        "path": "ATTRIBUTION.md",
+        "status": "404_USE_NOTICE_AND_ASSETS_INSTEAD"
+      },
+      {
+        "repository": "vectorcraft",
+        "path": "crates/engine/src/cmd/fileio/ai.rs",
+        "status": "404_NOT_INSPECTED"
+      },
+      {
+        "repository": "designcraft",
+        "path": "crates/engine/src/commands.rs",
+        "status": "404_NOT_INSPECTED"
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "id": "ENG-E-025",
+      "kind": "inspected_local_source",
+      "root_role": "live_governance",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22482,
+      "line_end": 22505,
+      "commit": "63bc51cee22dab55a306c9b96fa5a519804dae49",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "claim": "STU-VID-012 stores sequence times as integer ticks at 254016000000 ticks/second; STU-VID-013 provides ticks/frame for normalized broadcast rates. No i128 mandate appears in inspected clause.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-026",
+      "kind": "inspected_local_source",
+      "root_role": "live_governance",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 30625,
+      "line_end": 30665,
+      "commit": "63bc51cee22dab55a306c9b96fa5a519804dae49",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "claim": "STU-ASSET-004 prohibits second Studio catalog/preview cache/metadata collections/index/watcher/CAS. STU-ASSET-009/010 require CKC and PRIM-ArtifactService identity and typed asset commands for resolution/export.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-001",
+      "kind": "inspected_local_source",
+      "root_role": "live_governance",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 128,
+      "line_end": 142,
+      "commit": "63bc51cee22dab55a306c9b96fa5a519804dae49",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "claim": "Current early architecture assigns authority to kernel-attached studio, compute to a standalone studio-engine crate, native egui/wgpu/AccessKit UI; STU-OVR-003 excludes SQLite.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-002",
+      "kind": "inspected_local_source",
+      "root_role": "live_governance",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 179,
+      "line_end": 203,
+      "commit": "63bc51cee22dab55a306c9b96fa5a519804dae49",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "claim": "STU-ARC-001–006 and STU-DOC-001–004 provide existing module, event, ID, sandbox/promotion, engine isolation and unified document contracts.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-003",
+      "kind": "inspected_local_source",
+      "root_role": "live_governance",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 114,
+      "line_end": 116,
+      "commit": "63bc51cee22dab55a306c9b96fa5a519804dae49",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "claim": "Historical feature research is provenance; current Master Spec is authority. Shared capability is implemented once; vendor app names do not become tools/panels.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-004",
+      "kind": "authority_reconciliation",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22394,
+      "claim": "Root directly inspected §14.25: STU-VID-001 supersedes STU-OVR-015; footage editing timeline is already Studio-owned. engine.director is a consumer. Engineering uses that corrected scope.",
+      "proof_level": "root_agent_inspection",
+      "owner": "root"
+    },
+    {
+      "id": "ENG-E-005",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/frontend/handshake_native/Cargo.toml",
+      "line_start": 1,
+      "line_end": 23,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/handshake_native/Cargo.toml",
+      "claim": "Native app is a standalone Cargo workspace; deferred root workspace and excluded nested diag_ring are explicit.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-006",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/frontend/handshake_native/Cargo.toml",
+      "line_start": 111,
+      "line_end": 113,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/handshake_native/Cargo.toml",
+      "claim": "Current native UI uses egui/eframe 0.33 and egui_tiles 0.14, with wgpu/AccessKit.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-007",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/frontend/handshake_native/Cargo.toml",
+      "line_start": 289,
+      "line_end": 289,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/handshake_native/Cargo.toml",
+      "claim": "Native app already imports independent handshake-diag-ring by path.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-008",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/frontend/handshake_native/Cargo.toml",
+      "line_start": 337,
+      "line_end": 337,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/handshake_native/Cargo.toml",
+      "claim": "Windows renderer dependency selects wgpu 27 with dx12.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-009",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/backend/handshake_core/Cargo.toml",
+      "line_start": 162,
+      "line_end": 181,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/backend/handshake_core/Cargo.toml",
+      "claim": "Core imports extracted document/storage support packages and unconditional SurrealDB kv-rocksdb; expensive native graph remains behind core.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-010",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/backend/handshake_core/src/lib.rs",
+      "line_start": 135,
+      "line_end": 307,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/backend/handshake_core/src/lib.rs",
+      "claim": "Core publishes many feature-gated modules; AppState carries FlightRecorder. No studio module found in the inspected module listing.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-011",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/frontend/handshake_native/src/surface_extension_seam.rs",
+      "line_start": 1,
+      "line_end": 18,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/handshake_native/src/surface_extension_seam.rs",
+      "claim": "EditorSurface extension seam explicitly declares design-only stub and production absence of callers.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-012",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/frontend/handshake_native/src/surface_extension_seam.rs",
+      "line_start": 52,
+      "line_end": 123,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/handshake_native/src/surface_extension_seam.rs",
+      "claim": "Design-only seam provides surface identity, selection/events and undo callback/registry entrypoints; integration is future work.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-013",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/frontend/handshake_native/src/mcp/argus.rs",
+      "line_start": 8,
+      "line_end": 57,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/handshake_native/src/mcp/argus.rs",
+      "claim": "Four canonical Argus methods are inspect, click, set_value and screenshot; typed Studio canvas/time gestures are not inferred from them.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-014",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "line_start": 1,
+      "line_end": 70,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "claim": "Typed internal_diagnostics implementation supplements FlightRecorder; exposes frame/GPU/watchdog/panel/Palmistry/recorder modules.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-015",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "line_start": 49,
+      "line_end": 280,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "claim": "DiagnosticsRecorder supports bounded buffering, ring-backed or in-process recording, heartbeat, dropped counts, installation and snapshots.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-016",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/frontend/handshake_native/src/diagnostics/operation_watchdog.rs",
+      "line_start": 21,
+      "line_end": 48,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/handshake_native/src/diagnostics/operation_watchdog.rs",
+      "claim": "Watchdog uses 250ms poll and existing closed OperationCode allowlist; Studio domains need governed registration rather than private numeric values.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-017",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/frontend/handshake_native/diag_ring/Cargo.toml",
+      "line_start": 22,
+      "line_end": 44,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/handshake_native/diag_ring/Cargo.toml",
+      "claim": "Tiny standalone diagnostic-ring crate has shared-memory/schema dependencies and does not pull GUI/network/core.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-018",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/frontend/palmistry/Cargo.toml",
+      "line_start": 14,
+      "line_end": 51,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/palmistry/Cargo.toml",
+      "claim": "Palmistry is a standalone package using diagnostic ring and crash/freeze IPC stack. It is an existing survivor mechanism.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-019",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/frontend/palmistry/src/child_registry.rs",
+      "line_start": 39,
+      "line_end": 179,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/palmistry/src/child_registry.rs",
+      "claim": "ChildProcessProbe/ChildRegistry expose file-child registration and polling; bounded progress counters provide out-of-process monitoring substrate.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-020",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/backend/handshake_core/src/flight_recorder/fr_emitter.rs",
+      "line_start": 175,
+      "line_end": 184,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/backend/handshake_core/src/flight_recorder/fr_emitter.rs",
+      "claim": "Core FrRecorder interface uses core FR data types; importing it directly would violate standalone Studio dependency isolation.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-021",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/backend/handshake_core/src/user_manual/mod.rs",
+      "line_start": 65,
+      "line_end": 73,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/backend/handshake_core/src/user_manual/mod.rs",
+      "claim": "Canonical UserManual version/namespace are product-owned.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-022",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "src/backend/handshake_core/src/user_manual/registry.rs",
+      "line_start": 94,
+      "line_end": 108,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/backend/handshake_core/src/user_manual/registry.rs",
+      "claim": "SurfaceDescriptor gives stable surface/group/method/route/summary/IO discovery registry.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-023",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": "rust-toolchain.toml",
+      "line_start": 1,
+      "line_end": 3,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/rust-toolchain.toml",
+      "claim": "Current toolchain is Rust 1.97.1.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-024",
+      "kind": "inspected_local_source",
+      "root_role": "active_product_baseline",
+      "path": ".cargo/config.toml",
+      "line_start": 1,
+      "line_end": 10,
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/.cargo/config.toml",
+      "claim": "Legacy unscoped artifact target path and AWS LC prebuilt NASM config are inspected. New owned Studio commands must obey current scoped external artifact law.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-101",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "Cargo.toml",
+      "line_start": 1,
+      "line_end": 65,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/Cargo.toml#L1",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/Cargo.toml",
+      "claim": "Real modular Rust workspace includes engine/raster/CMS/PSD/GPU/format leaves; egui/eframe 0.36 and MSRV 1.95 differ from Handshake GUI version.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-102",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "NOTICE",
+      "line_start": 1,
+      "line_end": 31,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/NOTICE#L1",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/NOTICE",
+      "claim": "Source declared MIT OR Apache-2.0; ArtCraft brand excluded, bundled fonts/icons/dictionary retain separate notices.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-103",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "crates/raster/src/lib.rs",
+      "line_start": 21,
+      "line_end": 99,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/raster/src/lib.rs#L21",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/crates/raster/src/lib.rs",
+      "claim": "Surface is sparse tiled storage with Arc-backed copy-on-write tiles, independent of UI.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-104",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "crates/engine/src/commands.rs",
+      "line_start": 11,
+      "line_end": 27,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/engine/src/commands.rs#L11",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/crates/engine/src/commands.rs",
+      "claim": "CommandSpec carries command ID/menu/shortcut/run/enabled/journal but params are prose and run mutates Session with JSON Value; this does not implement Studio typed policy.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-105",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "crates/psd/src/lib.rs",
+      "line_start": 1,
+      "line_end": 52,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/psd/src/lib.rs#L1",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/crates/psd/src/lib.rs",
+      "claim": "PsdFile parse/write APIs retain format-level raw data and lazily decode channels; separate from document import conversion.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-106",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "crates/psd/src/io.rs",
+      "line_start": 45,
+      "line_end": 59,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/psd/src/io.rs#L45",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/crates/psd/src/io.rs",
+      "claim": "Length reader has address-space conversion and EOF bounds; does not by itself prove full decoder resource budgets.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-107",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "crates/psd/tests/corpus.rs",
+      "line_start": 4,
+      "line_end": 41,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/psd/tests/corpus.rs#L4",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/crates/psd/tests/corpus.rs",
+      "claim": "Corpus test is feature gated and requires corpus when enabled; parse/rewrite byte equality is a distinct proof from imported visual fidelity.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-108",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "crates/io/tests/corpus.rs",
+      "line_start": 151,
+      "line_end": 160,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/io/tests/corpus.rs#L151",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/crates/io/tests/corpus.rs",
+      "claim": "Imported corpus fixtures have explicit partial render/roundtrip pass floors; counts are not full-format fidelity.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-109",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "crates/gpu/tests/parity.rs",
+      "line_start": 32,
+      "line_end": 67,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/gpu/tests/parity.rs#L32",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/crates/gpu/tests/parity.rs",
+      "claim": "GPU test setup returns None for no adapter, unsupported float targets or compositor construction; skipped tests cannot prove GPU behavior.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-110",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "crates/gpu/tests/parity.rs",
+      "line_start": 148,
+      "line_end": 159,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/gpu/tests/parity.rs#L148",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/crates/gpu/tests/parity.rs",
+      "claim": "Individual GPU tests return when setup unavailable. Adaptation requires required-device failure or explicit non-proof status.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-111",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "crates/gpu/tests/parity.rs",
+      "line_start": 1498,
+      "line_end": 1569,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/gpu/tests/parity.rs#L1498",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/crates/gpu/tests/parity.rs",
+      "claim": "Source contains large-texture/page residency/eviction/incremental update parity assertions; useful regression patterns, not executed here.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-112",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "crates/cms/src/profile.rs",
+      "line_start": 330,
+      "line_end": 379,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/cms/src/profile.rs#L330",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/crates/cms/src/profile.rs",
+      "claim": "CMS returns unsupported-profile cases; pure Rust CMS is a candidate, not universal ICC compatibility proof.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-113",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "crates/format/src/atomic.rs",
+      "line_start": 127,
+      "line_end": 182,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/format/src/atomic.rs#L127",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/crates/format/src/atomic.rs",
+      "claim": "Atomic-write helper has injected filesystem operations, temp sibling and sync/rename retry; useful crash-save reference.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-114",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "path": "docs/roadmap.md",
+      "line_start": 52,
+      "line_end": 81,
+      "url": "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/docs/roadmap.md#L52",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/photocraft/docs/roadmap.md",
+      "claim": "Upstream roadmap distinguishes performance gaps and partial smart-filter render coverage; source status is not professional parity.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-201",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/vectorcraft",
+      "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+      "path": "Cargo.toml",
+      "line_start": 1,
+      "line_end": 74,
+      "url": "https://github.com/storytold/vectorcraft/blob/825d4fdb8b527c597855d273fb4bcc1971855b6a/Cargo.toml#L1",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/vectorcraft/Cargo.toml",
+      "claim": "Actual Rust workspace is modular; graphics/font/GUI library dependency versions are explicit.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-202",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/vectorcraft",
+      "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+      "path": "NOTICE",
+      "line_start": 1,
+      "line_end": 63,
+      "url": "https://github.com/storytold/vectorcraft/blob/825d4fdb8b527c597855d273fb4bcc1971855b6a/NOTICE#L1",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/vectorcraft/NOTICE",
+      "claim": "MIT OR Apache-2.0 source; excluded brand and fonts/icons/CMap resource notices are separate.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-203",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/vectorcraft",
+      "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+      "path": "crates/pathops/src/lib.rs",
+      "line_start": 14,
+      "line_end": 33,
+      "url": "https://github.com/storytold/vectorcraft/blob/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/pathops/src/lib.rs#L14",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/vectorcraft/crates/pathops/src/lib.rs",
+      "claim": "Fallible boolean/normalize and precision APIs exported, with typed NonFinite/OpenPath/Degenerate errors.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-204",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/vectorcraft",
+      "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+      "path": "crates/pathops/src/boolean.rs",
+      "line_start": 539,
+      "line_end": 582,
+      "url": "https://github.com/storytold/vectorcraft/blob/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/pathops/src/boolean.rs#L539",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/vectorcraft/crates/pathops/src/boolean.rs",
+      "claim": "boolean and boolean_n convert errors to empty output; unite_all drops individual normalize errors. Studio must use fallible paths or make loss explicit.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-205",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/vectorcraft",
+      "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+      "path": "crates/pathops/Cargo.toml",
+      "line_start": 1,
+      "line_end": 24,
+      "url": "https://github.com/storytold/vectorcraft/blob/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/pathops/Cargo.toml#L1",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/vectorcraft/crates/pathops/Cargo.toml",
+      "claim": "Pathops leaf depends on geom and linesweeper; suitable isolation candidate instead of entire GUI/Session.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-206",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/vectorcraft",
+      "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+      "path": "crates/text/src/shape.rs",
+      "line_start": 1,
+      "line_end": 45,
+      "url": "https://github.com/storytold/vectorcraft/blob/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/text/src/shape.rs#L1",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/vectorcraft/crates/text/src/shape.rs",
+      "claim": "Real shaping uses HarfRust and font handling, not native Adobe runtime.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-207",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/vectorcraft",
+      "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+      "path": "crates/text/src/tests_bidi.rs",
+      "line_start": 1,
+      "line_end": 40,
+      "url": "https://github.com/storytold/vectorcraft/blob/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/text/src/tests_bidi.rs#L1",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/vectorcraft/crates/text/src/tests_bidi.rs",
+      "claim": "Source includes bidi test fixture code; test presence does not prove multilingual pro typesetting.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-208",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/vectorcraft",
+      "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+      "path": "crates/svg/src/lib.rs",
+      "line_start": 352,
+      "line_end": 353,
+      "url": "https://github.com/storytold/vectorcraft/blob/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/svg/src/lib.rs#L352",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/vectorcraft/crates/svg/src/lib.rs",
+      "claim": "SVG parser config explicitly enables DTD; bounded XML parser and reference policy must be reviewed before untrusted imports.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-209",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/vectorcraft",
+      "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+      "path": "crates/pdf/src/lib.rs",
+      "line_start": 109,
+      "line_end": 181,
+      "url": "https://github.com/storytold/vectorcraft/blob/825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/pdf/src/lib.rs#L109",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/vectorcraft/crates/pdf/src/lib.rs",
+      "claim": "PDF import/export exposes options and warning reports; document-edit fidelity remains a conversion-specific obligation.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-210",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/vectorcraft",
+      "commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+      "path": "ROADMAP.md",
+      "line_start": 37,
+      "line_end": 78,
+      "url": "https://github.com/storytold/vectorcraft/blob/825d4fdb8b527c597855d273fb4bcc1971855b6a/ROADMAP.md#L37",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/vectorcraft/ROADMAP.md",
+      "claim": "Upstream identifies remaining effects/type/import and independent vendor comparison gaps; roadmap percentages are not accepted capability evidence.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-301",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "path": "Cargo.toml",
+      "line_start": 1,
+      "line_end": 74,
+      "url": "https://github.com/storytold/designcraft/blob/66c7ce7e96ec286a091878cc2541ee8369aa79d6/Cargo.toml#L1",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/designcraft/Cargo.toml",
+      "claim": "DesignCraft has genuine geometry/color/doc/fonts/compose/render/IDML/PDF/format/engine/UI leaves, MSRV 1.90, egui/eframe 0.36.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-302",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "path": "NOTICE",
+      "line_start": 1,
+      "line_end": 33,
+      "url": "https://github.com/storytold/designcraft/blob/66c7ce7e96ec286a091878cc2541ee8369aa79d6/NOTICE#L1",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/designcraft/NOTICE",
+      "claim": "MIT OR Apache-2.0 source; excluded brand and font/hyphenation provenance retained.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-303",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "path": "crates/compose/src/lib.rs",
+      "line_start": 243,
+      "line_end": 327,
+      "url": "https://github.com/storytold/designcraft/blob/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/compose/src/lib.rs#L243",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/designcraft/crates/compose/src/lib.rs",
+      "claim": "Composer exposes ComposedStory/overset/frame specs/options; a reusable layout candidate with explicit overflow.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-304",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "path": "crates/compose/src/lib.rs",
+      "line_start": 430,
+      "line_end": 441,
+      "url": "https://github.com/storytold/designcraft/blob/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/compose/src/lib.rs#L430",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/designcraft/crates/compose/src/lib.rs",
+      "claim": "Composition accepts doc/story/frame specs/options; adapter must convert unified Studio document without adopting a second authority model.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-305",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "path": "crates/compose/src/tests.rs",
+      "line_start": 21,
+      "line_end": 169,
+      "url": "https://github.com/storytold/designcraft/blob/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/compose/src/tests.rs#L21",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/designcraft/crates/compose/src/tests.rs",
+      "claim": "Tests contain paragraph/overset/frame flow/wrap/caret-hit and paragraph-versus-greedy comparisons; source-reviewed only.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-306",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "path": "crates/idml/src/import.rs",
+      "line_start": 23,
+      "line_end": 53,
+      "url": "https://github.com/storytold/designcraft/blob/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/import.rs#L23",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/designcraft/crates/idml/src/import.rs",
+      "claim": "Default IDML reader uses ambient filesystem; ZIP parts are unbounded read_to_end despite limited initial capacity.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-307",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "path": "crates/idml/src/import.rs",
+      "line_start": 65,
+      "line_end": 81,
+      "url": "https://github.com/storytold/designcraft/blob/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/import.rs#L65",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/designcraft/crates/idml/src/import.rs",
+      "claim": "Missing includes are silently continued; d.check validates result but does not report all lost source semantics.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-308",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "path": "crates/idml/src/lib.rs",
+      "line_start": 27,
+      "line_end": 37,
+      "url": "https://github.com/storytold/designcraft/blob/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/lib.rs#L27",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/designcraft/crates/idml/src/lib.rs",
+      "claim": "Header advertises ignored import/export topics and no opaque carryover; current tests below partly supersede this documentation.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-309",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "path": "crates/idml/src/tests.rs",
+      "line_start": 720,
+      "line_end": 847,
+      "url": "https://github.com/storytold/designcraft/blob/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/tests.rs#L720",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/designcraft/crates/idml/src/tests.rs",
+      "claim": "Current tests include CJK composite-font/custom-kinsoku resources, preserved unsupported mojikumi and Arabic controls/directions. Do not declare those wholly unsupported from stale header.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-310",
+      "kind": "inspected_primary_source",
+      "repository": "https://github.com/storytold/designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "path": "crates/idml/src/tests.rs",
+      "line_start": 197,
+      "line_end": 421,
+      "url": "https://github.com/storytold/designcraft/blob/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/tests.rs#L197",
+      "observed_local_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering/source/designcraft/crates/idml/src/tests.rs",
+      "claim": "Import test uses handwritten package; own-format roundtrip is a different oracle from Adobe-produced fixture/render comparison.",
+      "proof_level": "source_inspection_only"
+    },
+    {
+      "id": "ENG-E-401",
+      "kind": "current_primary_documentation",
+      "url": "https://doc.rust-lang.org/cargo/reference/workspaces.html",
+      "claim": "Workspace uses shared lock/target/profile; package selection and dependency graph determine actual compilation.",
+      "proof_level": "documentation_inspection"
+    },
+    {
+      "id": "ENG-E-402",
+      "kind": "current_primary_documentation",
+      "url": "https://doc.rust-lang.org/cargo/reference/resolver.html",
+      "claim": "Features can unify across selected packages; duplicated semver package versions create separate types/artifacts. Resolver/package command scope matter.",
+      "proof_level": "documentation_inspection"
+    },
+    {
+      "id": "ENG-E-403",
+      "kind": "current_primary_documentation",
+      "url": "https://doc.rust-lang.org/cargo/reference/timings.html",
+      "claim": "Cargo timing reports can expose critical path and per-crate build cost.",
+      "proof_level": "documentation_inspection"
+    },
+    {
+      "id": "ENG-E-404",
+      "kind": "current_primary_documentation",
+      "url": "https://doc.rust-lang.org/cargo/reference/profiles.html",
+      "claim": "Workspace profiles/codegen/LTO/incrementality affect feedback and final linkage independently of source modularity.",
+      "proof_level": "documentation_inspection"
+    },
+    {
+      "id": "ENG-E-405",
+      "kind": "current_primary_repository",
+      "url": "https://github.com/linebender/vello",
+      "claim": "GPU compute renderer candidate. Repository/docs inspected; no direct source/runtime audit for this repass.",
+      "proof_level": "repository_documentation_only"
+    },
+    {
+      "id": "ENG-E-406",
+      "kind": "current_primary_repository",
+      "url": "https://github.com/linebender/parley",
+      "claim": "Text-layout/font-stack candidate using Fontique/HarfRust/Skrifa; repository/docs inspected, not a full publication compositor source audit.",
+      "proof_level": "repository_documentation_only"
+    },
+    {
+      "id": "ENG-E-407",
+      "kind": "current_primary_repository",
+      "url": "https://github.com/awxkee/moxcms",
+      "claim": "Pure Rust color-management candidate. Repository/docs inspected; source/ICC conformance audit required before selection.",
+      "proof_level": "repository_documentation_only"
+    }
+  ]
+}

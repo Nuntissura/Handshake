@@ -1,0 +1,141 @@
+{
+  "schema_id": "hsk.studio_source_adoption_audit@1",
+  "file_id": "STUDIO-REPASS-20261009-PDF",
+  "updated_at": "2026-10-09T17:00:42Z",
+  "status": "SOURCE_REVIEW_ONLY_NOT_RUNTIME_VALIDATED",
+  "authority": "REFERENCE_ONLY",
+  "repository": "https://github.com/storytold/pdfcraft",
+  "previous_name": "PrintCraft; repository redirected to PdfCraft",
+  "commit": "f626db25cca2c89f8fa3f7e30d22bf59faea65ec",
+  "tree": "f36f21265f07ddb3be2fbd3cda2ca2594f79d9f6",
+  "source_inspection": {
+    "tree": "Complete recursive GitHub tree, not truncated",
+    "files": [
+      "Cargo.toml",
+      "ROADMAP.md",
+      "crates/engine/src/lib.rs",
+      "crates/automation/src/lib.rs",
+      "crates/cos/src/parser.rs",
+      "crates/cos/src/writer.rs",
+      "crates/redact/src/lib.rs",
+      "crates/preflight/src/lib.rs",
+      "crates/render/src/lib.rs",
+      "crates/a11y/src/lib.rs"
+    ],
+    "method": "Pinned GitHub source text directly read; no build, fixture execution or installed Acrobat GUI comparison.",
+    "source_snapshot": "Pinned immutable URLs retain exact inspected input; external agent source copies are separately indexed in their reports."
+  },
+  "package": {
+    "license": "MIT OR Apache-2.0; component/third-party notices require per-file adoption audit",
+    "rust": "1.90",
+    "edition": "2024",
+    "workspace_leaf_crates": 30,
+    "ui": "egui 0.36; Handshake WP012 uses 0.33, so do not wholesale import UI",
+    "dependencies": "hayro 0.7.1, hayro-syntax 0.7.2, lopdf 0.45; vendored patches for hayro/lopdf/winit need individual maintenance review",
+    "build": "resolver 3, thin LTO release/codegen-units=1; development optimization/debug choices are candidate data, not approved Handshake changes"
+  },
+  "findings": [
+    {
+      "id": "PDF-AUD-001",
+      "evidence": "https://github.com/storytold/pdfcraft/blob/f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/render/src/lib.rs#L1",
+      "observed": "Rendering uses hayro; metadata/inspection use lopdf rather than a complete independent native engine.",
+      "decision": "Compare direct hayro/lopdf reuse with adapted PdfCraft leaves; no claim everything is original Rust implementation by this repository."
+    },
+    {
+      "id": "PDF-AUD-002",
+      "evidence": "https://github.com/storytold/pdfcraft/blob/f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/cos/src/parser.rs",
+      "observed": "Bounds-checked lexer and parser recursion ceiling MAX_DEPTH=128 exist.",
+      "decision": "Useful parser pattern; malformed-object/filter/expansion/resource boundary corpus still required."
+    },
+    {
+      "id": "PDF-AUD-003",
+      "evidence": "https://github.com/storytold/pdfcraft/blob/f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/cos/src/writer.rs",
+      "observed": "Incremental writer normally retains prior bytes, but writer.rs L175-179 redirects full_save_required/encryption changes/reconstructed documents to write_full.",
+      "decision": "Preserve existing full-save safeguard; choose operation-aware output policy and require independent residue proof. Redaction is not necessarily incremental."
+    },
+    {
+      "id": "PDF-AUD-004",
+      "evidence": "https://github.com/storytold/pdfcraft/blob/f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/engine/src/lib.rs#L1640",
+      "observed": "ApplyRedactions invokes redact::apply; redact/lib.rs L421 sets doc.require_full_save(); generic save_bytes L2488 calls write_incremental, whose L175-179 honors the flag and performs full rewrite. save_full_bytes L2499 is also available and refuses signed files.",
+      "decision": "Reuse and preserve the inspected redaction-to-full-rewrite safeguard. No residual-original bug demonstrated. Independently verify all privacy operations and exported history/attachments; partial call-chain review was insufficient.",
+      "additional_evidence": [
+        "https://github.com/storytold/pdfcraft/blob/f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/redact/src/lib.rs#L421",
+        "https://github.com/storytold/pdfcraft/blob/f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/cos/src/writer.rs#L175"
+      ]
+    },
+    {
+      "id": "PDF-AUD-005",
+      "evidence": "https://github.com/storytold/pdfcraft/blob/f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/redact/src/lib.rs#L267",
+      "observed": "Redaction removes target content/resources and checks remaining region content; related metadata/tag cleanup exists.",
+      "decision": "Reuse only after independent byte, object-tree, extraction, OCR/image and reopened-render residue checks, including recovery/source attachments."
+    },
+    {
+      "id": "PDF-AUD-006",
+      "evidence": "https://github.com/storytold/pdfcraft/blob/f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/preflight/src/lib.rs#L181",
+      "observed": "Preflight implements declared A2b/A3b checks and conversion helpers, not a demonstrated complete PDF/A, PDF/X or PDF/UA conformity oracle.",
+      "decision": "Adopt rules as findings with explicit scope; use independent format validators and press/accessibility workflow proofs."
+    },
+    {
+      "id": "PDF-AUD-007",
+      "evidence": "https://github.com/storytold/pdfcraft/blob/f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/a11y/src/lib.rs",
+      "observed": "Accessibility rules expose passed/failed/manual/skipped dispositions.",
+      "decision": "Carry manual/skipped findings through output receipts; never mark PDF/UA complete from the rule count."
+    },
+    {
+      "id": "PDF-AUD-008",
+      "evidence": "https://github.com/storytold/pdfcraft/blob/f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/automation/src/lib.rs",
+      "observed": "Typed engine automation is independent of UI and can return JSON/PNG with document IDs and optional path confinement.",
+      "decision": "Adapt engine APIs under Handshake ToolGate/Argus/resource grant registry; do not introduce a parallel shipped daemon/MCP authority."
+    },
+    {
+      "id": "PDF-AUD-009",
+      "evidence": "https://github.com/storytold/pdfcraft/blob/f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/engine/src/lib.rs#L2510",
+      "observed": "mark_saved reopens saved bytes as editor authority and updates saved generation; editor transaction clones support recovery.",
+      "decision": "Useful save/rebase pattern; interrupted write, reopen failure, dirty generation and undo semantics need actual production-boundary proof."
+    },
+    {
+      "id": "PDF-AUD-010",
+      "evidence": "https://github.com/storytold/pdfcraft/blob/f626db25cca2c89f8fa3f7e30d22bf59faea65ec/ROADMAP.md",
+      "observed": "Author records lack of systematic side-by-side Acrobat fidelity checks and unfinished native renderer/conformity work.",
+      "decision": "Early candidate code, not full Acrobat parity or verified production readiness."
+    }
+  ],
+  "adoption": {
+    "selected_for_detailed_prototype_review": [
+      "COS parsing/writing",
+      "page organization/annotations/XFDF",
+      "declared-scope preflight/accessibility findings",
+      "render adapter and engine transaction patterns"
+    ],
+    "rejected_for_wholesale_fork": [
+      "egui shell/branding",
+      "parallel automation server",
+      "compliance claims based on partial checks",
+      "Any adapter bypassing existing full-save-required safeguards or treating source review as residue proof"
+    ],
+    "not_forked": "No upstream repository fork or code vendoring performed this session; pinned source audits precede adoption."
+  },
+  "independent_proof": {
+    "state": "NOT_RUN; planning session and NON_EXECUTION stub",
+    "required": [
+      "Differential render against Adobe Acrobat using varied text/CJK/RTL, transparencies, font subsets, spot/overprint and malformed files.",
+      "Sanitize/redact a document, full-rewrite export, extract and search decompressed streams/original revisions/recovery attachments, reopen independently and confirm content absence.",
+      "PDF/A/PDF/X/PDF/UA checks through independent validators plus declared manual accessibility review.",
+      "Signed/encrypted save refusal and exact grant confinement without data leaks."
+    ],
+    "counterfactuals": [
+      "A visually blank redacted page may still contain removed bytes in prior incremental revisions.",
+      "A green preflight report may miss a rule outside the implementation's declared profile.",
+      "PNG/JSON output is not model integration until ToolGate, grants, Argus revision receipts and diagnostic consumers actually execute."
+    ]
+  },
+  "design_review": {
+    "reviewer": "studio_ui",
+    "status": "SOURCE_REVIEW_NO_RUNTIME_VERDICT",
+    "finding": "Initial engine-only audit omitted downstream full_save_required safeguard; exact full source chain inspected and audit corrected before delivery.",
+    "independent_source_checks": [
+      "Root engine save/redaction API inspection",
+      "UI specialist redact flag and COS writer inspection; root independently reopened exact lines"
+    ]
+  }
+}

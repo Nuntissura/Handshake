@@ -2,6 +2,23 @@
 # Machine-readable map over per-topic files in this folder.
 
 research_paper:
+  current_repass:
+    id: STUDIO-REPASS-20261009
+    status: reference-only-preparation-no-implementation
+    entrypoint: repass-2026-10-09/preparation.json
+    files:
+      - repass-2026-10-09/engineering.json
+      - repass-2026-10-09/ui-and-design-workflows.json
+      - repass-2026-10-09/media-photo-workflows.json
+      - repass-2026-10-09/native-document-and-interop.json
+      - repass-2026-10-09/pdfcraft-source-audit.json
+      - repass-2026-10-09/supplementary-workflows.json
+      - repass-2026-10-09/build-policy-and-next-session.json
+      - repass-2026-10-09/handshake-root-drill.json
+      - repass-2026-10-09/photocraft-root-drill.json
+      - repass-2026-10-09/vector-design-root-drill.json
+    preservation: Prior inventories and 5484 prepared MT records retained; no feature-count parity claim.
+    scope: Non-AI raster/vector/layout/design/RAW/catalog/timeline/motion/compositing, native desktop reusable assets, production Argus, swarm/manual/diagnostics and modular build units.
   id: handshake-studio-app-feature-research
   feature_name: Studio
   title: "Handshake Studio - Photoshop, Affinity, InDesign, Illustrator, and Figma Feature Inventory"
@@ -11,14 +28,15 @@ research_paper:
     local-first, no-cloud-required, Handshake-native Rust tools inside the built-in
     Studio module.
   status: "draft - category maps, generated official-help leaf indexes, per-app deep-feature deltas (51-55), a Handshake integration architecture (56), a deep-delta cross-app overlap map (57), plus the 2026-07-20 adversarial parity audit: parity feature gap register (58), workflow needs register (59), bridge opportunity register (60), action register (61), snapshot distillation delta (62), targeted re-pass delta (63), workflow needs research delta (64), command/shortcut/scripting-DOM capture (65), and parity gap closeout delta (66: CJK/RTL/ME + accessibility-EXCEED + print/prepress + automation + performance)"
-  updated_at: "2026-07-20"
+  updated_at: "2026-10-09"
   repo: Handshake
   location: ".GOV/reference/studio_app_feature_research/"
   instruction_file: "INSTRUCTIONS.md"
   authority_note: "Reference/landscape material only. Not a Work Packet, Master Spec, validator gate, or implementation authority."
   source_policy: "Prefer official vendor help/product/developer pages; mark uncertain or blocked claims UNVERIFIED."
   naming_policy: "Vendor product names are source/provenance and compatibility references only; shipped Studio tools, commands, panels, and manual topics use Handshake-native names."
-  file_format_policy: "Preserve compatibility with existing creative file formats through explicit import/export contracts and fixtures; do not invent a replacement interchange format for this rebuild scope."
+  file_format_policy: "Operator 2026-10-09 requests a native Handshake document format plus Adobe import/conversion. See repass-2026-10-09/native-document-and-interop.json; concrete proposal only until current STU-IO-001 enrichment is approved and published. Preserve all existing interoperability commitments."
+  previous_file_format_policy: "Prior research scope forbade a replacement interchange format; retained as superseded planning history by the explicit 2026-10-09 native-format request."
   provider_offline_policy: "Provider, cloud, AI, collaboration, community, hosted API, and compatibility behavior remains documented, but built-in Studio behavior is local-first with optional adapters, deterministic fallbacks, receipts, and offline verification."
 
 header_convention:
@@ -741,4 +759,4 @@ known_gaps:
 
 review:
   verdict: "Useful research corpus and implementation-planning seed for Studio; still not product authority until selected command contracts are accepted into a work packet or spec. 2026-07-20 adversarial audit added: the corpus is NOT yet exhaustive enough to claim full non-AI parity for any of the 5 apps (58 verified feature gaps + 41/113 workflow needs partial-or-uncovered); see 58/59/60/61 and 08 SFR-GAP-021 / SFR-REMAINING-GAP-011..015."
-  updated_at: "2026-07-20"
+  updated_at: "2026-10-09"
