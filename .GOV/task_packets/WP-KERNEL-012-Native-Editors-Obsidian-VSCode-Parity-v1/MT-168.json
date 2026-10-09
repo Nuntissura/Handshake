@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-09T18:04:25.579135+00:00",
+  "updated_at_utc": "2026-10-09T18:11:08.932519+00:00",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -415,7 +415,7 @@
     {
       "tier": "FLIGHT_RECORDER_EVENTLEDGER",
       "status": "UNCHANGED",
-      "reason": "Index-run receipts keep their current EventLedger shape; spec Ã‚Â§2.3.14.4.6 FR latency logging is not widened by this MT."
+      "reason": "Index-run receipts keep their current EventLedger shape; spec Ãƒâ€šÃ‚Â§2.3.14.4.6 FR latency logging is not widened by this MT."
     },
     {
       "tier": "INTERNAL_DIAGNOSTICS",
@@ -469,7 +469,7 @@
   "group": "E5",
   "spec_basis": {
     "kind": "remediation_derived_mt",
-    "note": "Created to own recorded validator failures/diagnoses that had no owning MT; CX-SPEC-TRUTH-001 activation gate does not apply to remediation work. Downstream timing baseline: Master Spec v02.206 Ã‚Â§2.3.14.17.3 (02-system-architecture.md:4470-4478) as quoted in MT-167.json#spec_basis."
+    "note": "Created to own recorded validator failures/diagnoses that had no owning MT; CX-SPEC-TRUTH-001 activation gate does not apply to remediation work. Downstream timing baseline: Master Spec v02.206 Ãƒâ€šÃ‚Â§2.3.14.17.3 (02-system-architecture.md:4470-4478) as quoted in MT-167.json#spec_basis."
   },
   "hbr_swarm_allocation": "Grant-check cost independent of other workspaces' rows is what lets parallel agents/workspaces coexist; no new swarm surface; no waiver.",
   "operator_decision": {
@@ -2198,7 +2198,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "BOUNDED_LINK_PRIVATE_FIXTURE_REPAIR",
+    "state": "BOUNDED_LINK_COMPONENT_R17_PREPARING",
     "candidate_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
     "candidate_tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -2696,7 +2696,22 @@
       "frozen_inputs_same": 14,
       "frozen_inputs_total": 14,
       "gameplan_step": "GP-412",
-      "status_effect": "NONE; product remains292d; no bounded-loop or acceptance proof reached"
+      "status_effect": "NONE; product remains292d; no bounded-loop or acceptance proof reached",
+      "changed_input_retry": {
+        "round": "r17",
+        "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs",
+        "reviewed_inputs": {
+          "mt168-private-linkbatch-probe-r17-host.ps1": "06611b60864ca84bcdcd787fc81b99af392d3cc217a64a4ccf7f4c7bc37c3535",
+          "mt168-private-linkbatch-probe-r17-launch.ps1": "1f6f003607c27e735aa545c9ec89999a0d795669b8fa55c922c420a43146de9a",
+          "mt168-private-linkbatch-probe-r17-seed.surql": "90ae5059994dbcc8f4dce70147ddae324c3e8538c60c631b3b8f6b6b7cbbe172",
+          "mt168-private-linkbatch-probe-r17.rs": "816c25795b6bf68807428534a9439218d11045287f8d29ed4f65d267116b1b30"
+        },
+        "scope": "Private fixture only; original/proposed SQL unchanged; same40 transactions/zero EXPLAIN",
+        "repair": "Isolate denied span35 on separate entity/edge evidence graphs, verify exact system pair exists and authenticated pair hidden",
+        "review": "Root and Buddy opened amended exact seed/source/native-capture/host; no remaining blocking static finding",
+        "permission_boundary": "Full current schema RecordUser; sentinel PERMISSIONS FULL is private diagnostic only, no production acceptance substitution",
+        "authorized_by": "operator_decision_20261009_session_scope_waiver"
+      }
     }
   },
   "mt168_private_query_probe_20261009": {
@@ -2847,7 +2862,7 @@
     "observed": "Instrumented parity PASS119.600s; timing FAIL160.736s; MT008 median12.9450916s exceeds5s",
     "statement_records": 882,
     "normal_complete_17_slot_groups": 18,
-    "source_mapping": "Current PERSIST_CLEAN_CODE_BATCH engine542â€“577; normal SDK public slots0BEGIN/1entitiesIF/2filesINSERT/3authorityFOR/4ledgerINSERT/5receiptFOR/6spansINSERT/7replaceevidenceFOR/8entitylinksINSERT/9edgesIF/10edgelinksINSERT/11sourcesUPDATEIF/12threeverificationIF/13entitylinkFOR/14edgelinkFOR/15fencesFOR/16COMMIT; count17 alone is not query identity",
+    "source_mapping": "Current PERSIST_CLEAN_CODE_BATCH engine542Ã¢â‚¬â€œ577; normal SDK public slots0BEGIN/1entitiesIF/2filesINSERT/3authorityFOR/4ledgerINSERT/5receiptFOR/6spansINSERT/7replaceevidenceFOR/8entitylinksINSERT/9edgesIF/10edgelinksINSERT/11sourcesUPDATEIF/12threeverificationIF/13entitylinkFOR/14edgelinkFOR/15fencesFOR/16COMMIT; count17 alone is not query identity",
     "slot14_edge_link_verification_us": [
       1725850,
       3701789,
