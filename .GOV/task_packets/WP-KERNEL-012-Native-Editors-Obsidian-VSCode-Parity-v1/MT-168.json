@@ -996,6 +996,25 @@
         "native_passed": 2,
         "input_binding": "All13 frozen execution inputs independently rehashed unchanged after closure; original51c source/backend/input bindings retained in owning frozen-inputs manifest",
         "runtime_verdict": "FAIL_REQUIRED_PROOF; lifecycle FAIL_V1 and historical verdicts retained"
+      },
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-20261009-34AA-R5",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261009-retained-builder",
+        "covers": ["MT-168"],
+        "commit": "34aa1a4ddf9830a88ab75c358d51b864ebdee6d7",
+        "tree": "961422b711b087fe14ed859696404e9726fad42a",
+        "command": "cargo check --locked -j1 --config <kernel packet>/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "started_at_utc": "2026-10-09T04:51:01.1937075Z",
+        "completed_at_utc": "2026-10-09T05:06:00.8364570Z",
+        "exit_code": 0,
+        "result": "COMPILE_PASS",
+        "runtime_executed": false,
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-builder-compile-34aa1a4-r5.json",
+        "proof_sha256": "693a595d8017e7aa277e60eb00090088576950a23d7b36ad844dc026c2ba8238",
+        "input_binding": "Root independently opened numeric exit0, Finished14m57s, all6 unchanged input hashes and closed observer with processes[]",
+        "gates": {"before_round": "PASS45/45", "before_submit": "PASS11/11"},
+        "exclusive_target_released_to": "WP_VALIDATOR"
       }
     ],
     "running_record_ready13_20261008": {
@@ -1754,7 +1773,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "EXACT163_REPAIR_COMPILE_PENDING",
+    "state": "EXACT163_REPAIR_COMPILE_PASS_RUNTIME_PENDING",
     "candidate_commit": "34aa1a4ddf9830a88ab75c358d51b864ebdee6d7",
     "candidate_tree": "961422b711b087fe14ed859696404e9726fad42a",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -1786,11 +1805,11 @@
     "current_info": "3d761f8df95c2869e5bb8a3b656f5f96a02a5cb863b2bb1f1d30306beff98ff7; independently measured then pinned51c; all six CURRENT consumers PASS in closed51c acceptance",
     "preserved_verdict": "FAIL_V1",
     "unclosed": [
-      "Exact163 durable upgrade FAIL: workspace-delete function extraction terminates at an inner unindented loop closure, producing malformed upgrade SQL; scoped34aa repair requires fresh builder compile and focused exact163 proof",
+      "Closed51c exact163 FAIL from truncated function; scoped34aa full-function repair compiled0 with unchanged inputs; focused durable exact163 runtime proof pending",
       "Historical PRE162 reconstruction static gap retained; no historical repin",
       "MT168-DOWNSTREAM observation remains false: MT167 equal-row case times out before full equality proof; median14.4494677s exceeds5s and measured code-index projection elapsed time grows across samples; residual cause UNVERIFIED, no MT167 verdict rewrite"
     ],
-    "next_actor": "WP_VALIDATOR verified fixedexport34aa handoff; exclusive KERNEL_BUILDER fresh mandatory compile; WP_VALIDATOR focused exact163 proof",
+    "next_actor": "WP_VALIDATOR private owned query-plan probe then missing exact163/downstream runtime proof; conditional engine scope addition awaits Operator",
     "preservation_checkpoints": [
       {
         "commit": "817bd35cfae235e754e0d6e447fda2cf137578ab",
@@ -1962,7 +1981,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Fresh mandatory34aa builder compile and focused exact163 proof; measured downstream growth remains unclosed; reuse greens only under verified original51c bindings",
+    "next_dependency": "Missing exact163 runtime proof and measured downstream growth; engine proposal stays unapplied pending query probe and exact Operator scope; verified original51c greens retain original bindings",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
