@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 526
+generation: 527
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -433,3 +433,4 @@ steps:
 - {id: GP-412, role: any, at: before_round, do: verify private valid endpoint witnesses exclude denied evidence and hidden pairs have exact canonical identities, check: {type: confirm}, source: 'infra:r16 crossed edge fixture visibility0; valid and denied evidence shared endpoint graph', state: active}
 - {id: GP-413, role: orchestrator, at: before_dispatch, do: verify completed retained agents resume via followup_task before expecting new work, check: {type: confirm}, source: 'infra: send_message queued to completed Buddy/Builder without restarting their turn', state: active}
 - {id: GP-414, role: any, at: before_merge, do: verify HEAD equals remote or kernel publication preserves both parents and exact disjoint path trees, check: {type: confirm}, source: 'infra: GP014 requires equal heads for divergent kernel publication despite disjoint scoped commits', state: active}
+- {id: GP-415, role: any, at: before_round, do: verify artifact writers use task-specific variables and inspected JSON objects; avoid reserved PowerShell names, check: {type: confirm}, source: 'infra:r17 proof writer assigned reserved $host; built-in host serialization stalled; component inputs unchanged', state: active}

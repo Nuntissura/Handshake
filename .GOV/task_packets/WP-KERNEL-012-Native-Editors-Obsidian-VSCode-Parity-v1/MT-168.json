@@ -1440,6 +1440,29 @@
         },
         "root_readback": "Opened exact native exits/logs/JUnit; all37 original/copy hashes and13 frozen inputs matched before mutation",
         "status_effect": "MT168 remains unpassed; historical MT111/136/170 and MT167 own verdicts unchanged"
+      },
+      {
+        "proof_id": "PR-WP012-MT168-WPV-LINKBATCH-CONTROLS-20261009-292D-R17",
+        "command": "C:\\Users\\iljas\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -File C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\mt168-private-linkbatch-probe-r17-launch.ps1",
+        "cwd": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs",
+        "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "retained-wpv-WP-KERNEL-012",
+        "target_dir": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\target",
+        "started_utc": "2026-10-09T18:13:02.1139068Z",
+        "finished_utc": "2026-10-09T18:30:57.9908212Z",
+        "exit_code": 0,
+        "result_line": "COMPONENT PASS40 original/bounded transactions; compile0/query0/outer0; zeroEXPLAIN; production acceptance pending",
+        "log_path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\backend-opt-diag-292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4-mt168-private-linkbatch-r17.query.stdout.log",
+        "proof_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt168-linkbatch-controls-292d-r17.json",
+        "proof_sha256": "86cc1a170345e7753e476f3ce3ef9e44345b18d1121bb842c22063c3aaa9e464",
+        "diagnostic_only": true,
+        "acceptance_substitute": false,
+        "covers": [
+          "MT-168"
+        ]
       }
     ],
     "running_record_ready13_20261008": {
@@ -2198,7 +2221,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "BOUNDED_LINK_COMPONENT_R17_PREPARING",
+    "state": "BOUNDED_LINK_COMPONENT_PASS_BUILDER_APPLY_PENDING",
     "candidate_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
     "candidate_tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -2234,7 +2257,7 @@
       "Historical PRE162 reconstruction static gap retained; no historical repin",
       "MT168-DOWNSTREAM original3: account/full parity PASS; timing5.4940202s>5s FAIL; growth removed; residual attribution unmeasured"
     ],
-    "next_actor": "WP_VALIDATOR",
+    "next_actor": "KERNEL_BUILDER",
     "preservation_checkpoints": [
       {
         "commit": "817bd35cfae235e754e0d6e447fda2cf137578ab",
@@ -2712,6 +2735,47 @@
         "permission_boundary": "Full current schema RecordUser; sentinel PERMISSIONS FULL is private diagnostic only, no production acceptance substitution",
         "authorized_by": "operator_decision_20261009_session_scope_waiver"
       }
+    },
+    "private_linkbatch_control_r17_20261009": {
+      "proof_id": "PR-WP012-MT168-WPV-LINKBATCH-CONTROLS-20261009-292D-R17",
+      "proof_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt168-linkbatch-controls-292d-r17.json",
+      "proof_sha256": "86cc1a170345e7753e476f3ce3ef9e44345b18d1121bb842c22063c3aaa9e464",
+      "candidate": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "producing_binary": {
+        "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\mt168-private-linkbatch-probe-r17.exe",
+        "sha256": "d295d3a32c1ecadc548ab301f643310405f52edff6ad946a623c29ed7ea4628f",
+        "copy": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\frozen-inputs\\mt168-292d7a1-private-linkbatch-r17-closed\\15-mt168-private-linkbatch-probe-r17.exe"
+      },
+      "phase_exit_codes": {
+        "compile": 0,
+        "query": 0,
+        "outer": 0
+      },
+      "controls": 40,
+      "explain_invocations": 0,
+      "diagnostic_only": true,
+      "acceptance_substitute": false,
+      "preservation": {
+        "manifest_path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\frozen-inputs\\mt168-292d7a1-private-linkbatch-r17-closed\\manifest.json",
+        "manifest_sha256": "8ed993968817e8ad5253dc56a9ce67374d535f83e5e239f683de3138d25ac7e1",
+        "file_count": 35,
+        "bytes": 297491913,
+        "all_original_copy_hashes_match": true
+      },
+      "root_readback": "All35 originals/copies,14 frozen inputs and proof artifact hashes match after final closure",
+      "ownership": "WPV explicitly released exclusive target/export/input ownership to root/Builder; no WPV job remains",
+      "metadata_infrastructure_incident": {
+        "cause": "First proof writer assigned reserved PowerShell $host; assignment failed and attempted built-in host serialization. No proof file was produced or accepted.",
+        "owned_writer_pid": 34744,
+        "owned_writer_start_utc": "2026-10-09T18:32:47.826767Z",
+        "handling": "Verified exact owned writer PID/start/command then stopped only that writer; exec session77099 closed -1. No compiler/query/foreign process was touched.",
+        "correction": "Task-specific taskHostResult and proofData variables, ErrorActionPreference Stop; serialize inspected Scheduler host JSON only.",
+        "component_rerun": false,
+        "component_result_unchanged": true,
+        "metadata_amendment_note": "First incident amendment used bare false/true tokens and failed before Add-Member; proof hash remained unchanged. Corrected to PowerShell boolean literals."
+      },
+      "gameplan_step": "GP-415",
+      "status_effect": "MT168 retains FAIL_V1; only component equivalence and rollback proved; fresh original acceptance pending"
     }
   },
   "mt168_private_query_probe_20261009": {
