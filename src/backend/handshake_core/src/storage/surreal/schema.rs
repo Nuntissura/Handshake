@@ -3412,7 +3412,7 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // fn::mt120_workspace_delete changed and protected_resources gained protected_resources_parent_idx;
 // MT-170 CURRENT schema-info pin; fresh-Mem canonical measurement on c1f8d7cd.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976";
+    "3d761f8df95c2869e5bb8a3b656f5f96a02a5cb863b2bb1f1d30306beff98ff7";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
