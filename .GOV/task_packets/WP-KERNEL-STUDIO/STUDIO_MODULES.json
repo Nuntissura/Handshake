@@ -112,7 +112,7 @@
         ],
         "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/workspace_owner/maintenance_contracts/build_selection/dependency_module_refs",
         "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/workspace_owner/maintenance_contracts/build_selection",
-        "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json#/proof/checks",
+        "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json#/proof/checks/0/command_or_method",
         "artifact_refs": [],
         "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json#/execution/expected_outputs",
         "public_contract_refs": [
@@ -253,7 +253,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/0/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/0/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35529.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35529.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35529.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -395,7 +395,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/1/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/1/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -537,7 +537,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/2/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/2/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35531.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35531.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35531.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -683,7 +683,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/3/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/3/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35532.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35532.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35532.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -827,7 +827,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/4/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/4/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35533.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35533.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35533.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -973,7 +973,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35534.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35534.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35534.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -1117,7 +1117,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/6/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/6/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35535.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35535.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35535.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -1261,7 +1261,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/7/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/7/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35536.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35536.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35536.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -1411,7 +1411,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/8/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/8/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35537.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35537.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35537.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -1559,7 +1559,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/9/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/9/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35538.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35538.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35538.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -1709,7 +1709,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/10/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/10/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35539.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35539.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35539.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -1855,7 +1855,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/11/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/11/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35540.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35540.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35540.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -1999,7 +1999,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/12/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/12/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35541.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35541.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35541.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -2143,7 +2143,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/13/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/13/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35542.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35542.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35542.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -2293,7 +2293,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/14/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/14/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35543.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35543.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35543.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -2447,7 +2447,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/15/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/15/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35544.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35544.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35544.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -2599,7 +2599,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/16/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/16/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35545.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35545.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35545.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -2751,7 +2751,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/17/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/17/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -2897,7 +2897,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/18/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/18/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35547.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35547.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35547.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -3049,7 +3049,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/19/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/19/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35548.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35548.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35548.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -3201,7 +3201,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/20/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/20/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35549.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35549.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35549.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -3353,7 +3353,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/21/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/21/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35550.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35550.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35550.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -3506,7 +3506,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/22/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/22/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35551.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35551.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35551.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -3652,7 +3652,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/23/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/23/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35552.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35552.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35552.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -3796,7 +3796,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/24/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/24/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35553.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35553.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35553.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -3946,7 +3946,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/25/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/25/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35554.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35554.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35554.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -4098,7 +4098,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/26/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/26/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35555.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35555.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35555.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -4248,7 +4248,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/27/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/27/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35556.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35556.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35556.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -4394,7 +4394,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/28/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/28/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35557.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35557.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35557.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -4540,7 +4540,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35558.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35558.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35558.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -4686,7 +4686,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/30/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/30/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35559.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35559.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35559.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -4832,7 +4832,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/31/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/31/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35560.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35560.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35560.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -4978,7 +4978,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/32/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/32/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35561.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35561.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35561.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -5124,7 +5124,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/33/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/33/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35562.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35562.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35562.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -5275,7 +5275,7 @@
           ],
           "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/34/maintenance_contracts/build_selection/dependency_module_refs",
           "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/34/maintenance_contracts/build_selection",
-          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35563.json#/proof/checks",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35563.json#/proof/checks/0/command_or_method",
           "artifact_refs": [],
           "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35563.json#/execution/expected_outputs",
           "public_contract_refs": [
@@ -5471,14 +5471,27 @@
           "source_root": "src/backend/handshake_core/src/studio",
           "allowed_hook_paths": [
             "src/backend/handshake_core/src/studio/adapters/accord.rs",
+            "src/backend/handshake_core/tests/studio_module_accord_host.rs",
             "src/backend/handshake_core/src/studio/adapters/folio.rs",
+            "src/backend/handshake_core/tests/studio_module_folio_host.rs",
             "src/backend/handshake_core/src/studio/adapters/chronicle.rs",
+            "src/backend/handshake_core/tests/studio_module_chronicle_host.rs",
             "src/backend/handshake_core/src/studio/adapters/kernel_bindings.rs",
+            "src/backend/handshake_core/tests/studio_module_kernel_bindings_host.rs",
             "src/backend/handshake_core/Cargo.toml",
+            "src/backend/handshake_core/tests/studio_source_pins_host.rs",
+            "src/frontend/handshake_native/Cargo.toml",
+            "Cargo.lock",
             "src/backend/handshake_core/src/studio/storage_glue.rs",
+            "src/backend/handshake_core/tests/studio_storage_auth_host.rs",
+            "src/backend/handshake_core/src/lib.rs",
+            "src/backend/handshake_core/src/api/mod.rs",
             "src/backend/handshake_core/src/studio/promotion.rs",
+            "src/backend/handshake_core/tests/studio_promotion_host.rs",
             "src/backend/handshake_core/src/studio/draft.rs",
-            "src/backend/handshake_core/src/studio/jobs.rs"
+            "src/backend/handshake_core/tests/studio_draft_crdt_host.rs",
+            "src/backend/handshake_core/src/studio/jobs.rs",
+            "src/backend/handshake_core/tests/studio_admission_jobs_host.rs"
           ],
           "assignment": "Host files only in separately activated integration target; WP012 remains read-only preparation. Preserve current owning AppState/API/EventLedger/FR/MEX/native owners."
         },
@@ -5497,7 +5510,18 @@
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36227.json",
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36228.json"
           ],
-          "closure": "Affected host target+selected pinned source modules only; exact host worktree/entrypoint/config unresolved before activation, no full kernel prerequisite for source work."
+          "closure": "Affected host target+selected pinned source modules only; exact host worktree/entrypoint/config unresolved before activation, no full kernel prerequisite for source work.",
+          "planned_native_test_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36189.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36191.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36192.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36216.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36224.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36225.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36226.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36227.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36228.json#/proof"
+          ]
         },
         "runtime": {
           "limits": "Use existing bounded job/resource/document/current-grant ports; each adoption task binds source budget/leases to host owner and reserved cancel/drain outcomes.",
@@ -5515,14 +5539,27 @@
           "provenance": "Host candidate/source commit-tree-module hashes+independent canonical assets remote equality; root report carries authoring history, no runtime receipt.",
           "allowlist": [
             "src/backend/handshake_core/src/studio/adapters/accord.rs",
+            "src/backend/handshake_core/tests/studio_module_accord_host.rs",
             "src/backend/handshake_core/src/studio/adapters/folio.rs",
+            "src/backend/handshake_core/tests/studio_module_folio_host.rs",
             "src/backend/handshake_core/src/studio/adapters/chronicle.rs",
+            "src/backend/handshake_core/tests/studio_module_chronicle_host.rs",
             "src/backend/handshake_core/src/studio/adapters/kernel_bindings.rs",
+            "src/backend/handshake_core/tests/studio_module_kernel_bindings_host.rs",
             "src/backend/handshake_core/Cargo.toml",
+            "src/backend/handshake_core/tests/studio_source_pins_host.rs",
+            "src/frontend/handshake_native/Cargo.toml",
+            "Cargo.lock",
             "src/backend/handshake_core/src/studio/storage_glue.rs",
+            "src/backend/handshake_core/tests/studio_storage_auth_host.rs",
+            "src/backend/handshake_core/src/lib.rs",
+            "src/backend/handshake_core/src/api/mod.rs",
             "src/backend/handshake_core/src/studio/promotion.rs",
+            "src/backend/handshake_core/tests/studio_promotion_host.rs",
             "src/backend/handshake_core/src/studio/draft.rs",
-            "src/backend/handshake_core/src/studio/jobs.rs"
+            "src/backend/handshake_core/tests/studio_draft_crdt_host.rs",
+            "src/backend/handshake_core/src/studio/jobs.rs",
+            "src/backend/handshake_core/tests/studio_admission_jobs_host.rs"
           ],
           "excluded": [
             ".GOV/**",
@@ -5693,39 +5730,75 @@
           "source_root": "src/frontend/handshake_native/src/studio",
           "allowed_hook_paths": [
             "src/frontend/handshake_native/src/studio/adapters/observe.rs",
+            "src/frontend/handshake_native/tests/test_studio_observe_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/prism.rs",
+            "src/frontend/handshake_native/tests/test_studio_prism_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/pigment.rs",
+            "src/frontend/handshake_native/tests/test_studio_pigment_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/nib.rs",
+            "src/frontend/handshake_native/tests/test_studio_nib_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/type.rs",
+            "src/frontend/handshake_native/tests/test_studio_type_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/layout.rs",
+            "src/frontend/handshake_native/tests/test_studio_layout_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/develop.rs",
+            "src/frontend/handshake_native/tests/test_studio_develop_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/components.rs",
+            "src/frontend/handshake_native/tests/test_studio_components_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/pulse.rs",
+            "src/frontend/handshake_native/tests/test_studio_pulse_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/score.rs",
+            "src/frontend/handshake_native/tests/test_studio_score_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/reel.rs",
+            "src/frontend/handshake_native/tests/test_studio_reel_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/motion.rs",
+            "src/frontend/handshake_native/tests/test_studio_motion_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/composite.rs",
+            "src/frontend/handshake_native/tests/test_studio_composite_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/render_cpu.rs",
+            "src/frontend/handshake_native/tests/test_studio_render_cpu_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/render_gpu.rs",
+            "src/frontend/handshake_native/tests/test_studio_render_gpu_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/package.rs",
+            "src/frontend/handshake_native/tests/test_studio_package_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/interop_psd.rs",
+            "src/frontend/handshake_native/tests/test_studio_interop_psd_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/interop_vector.rs",
+            "src/frontend/handshake_native/tests/test_studio_interop_vector_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/interop_fig.rs",
+            "src/frontend/handshake_native/tests/test_studio_interop_fig_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/interop_layout.rs",
+            "src/frontend/handshake_native/tests/test_studio_interop_layout_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/interop_media.rs",
+            "src/frontend/handshake_native/tests/test_studio_interop_media_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/controls.rs",
+            "src/frontend/handshake_native/tests/test_studio_controls_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/session.rs",
+            "src/frontend/handshake_native/tests/test_studio_session_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/harness.rs",
+            "src/frontend/handshake_native/tests/test_studio_harness_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/press.rs",
+            "src/frontend/handshake_native/tests/test_studio_press_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/web.rs",
+            "src/frontend/handshake_native/tests/test_studio_web_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/score_device.rs",
+            "src/frontend/handshake_native/tests/test_studio_score_device_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/score_plugin.rs",
+            "src/frontend/handshake_native/tests/test_studio_score_plugin_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/reel_native.rs",
+            "src/frontend/handshake_native/tests/test_studio_reel_native_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/interop_lrcat.rs",
+            "src/frontend/handshake_native/tests/test_studio_interop_lrcat_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/motion_js.rs",
+            "src/frontend/handshake_native/tests/test_studio_motion_js_host.rs",
             "src/frontend/handshake_native/src/studio/mod.rs",
+            "src/frontend/handshake_native/tests/test_studio_native_surface.rs",
+            "src/frontend/handshake_native/src/app.rs",
+            "src/frontend/handshake_native/src/pane_registry.rs",
             "src/frontend/handshake_native/src/studio/inspection.rs",
-            "src/frontend/handshake_native/src/studio/diagnostics.rs"
+            "src/frontend/handshake_native/tests/test_studio_argus_manual.rs",
+            "src/frontend/handshake_native/src/studio/diagnostics.rs",
+            "src/frontend/handshake_native/tests/test_studio_three_tier.rs"
           ],
           "assignment": "Host files only in separately activated integration target; WP012 remains read-only preparation. Preserve current owning AppState/API/EventLedger/FR/MEX/native owners."
         },
@@ -5769,7 +5842,43 @@
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36232.json",
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36233.json"
           ],
-          "closure": "Affected host target+selected pinned source modules only; exact host worktree/entrypoint/config unresolved before activation, no full kernel prerequisite for source work."
+          "closure": "Affected host target+selected pinned source modules only; exact host worktree/entrypoint/config unresolved before activation, no full kernel prerequisite for source work.",
+          "planned_native_test_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36190.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36193.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36195.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36196.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36197.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36198.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36199.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36200.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36201.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36202.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36203.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36205.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36206.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36207.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36208.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36209.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36210.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36211.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36212.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36213.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36214.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36215.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36217.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36219.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36220.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36221.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36222.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36223.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36231.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36232.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36233.json#/proof"
+          ]
         },
         "runtime": {
           "limits": "Use existing bounded job/resource/document/current-grant ports; each adoption task binds source budget/leases to host owner and reserved cancel/drain outcomes.",
@@ -5787,39 +5896,75 @@
           "provenance": "Host candidate/source commit-tree-module hashes+independent canonical assets remote equality; root report carries authoring history, no runtime receipt.",
           "allowlist": [
             "src/frontend/handshake_native/src/studio/adapters/observe.rs",
+            "src/frontend/handshake_native/tests/test_studio_observe_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/prism.rs",
+            "src/frontend/handshake_native/tests/test_studio_prism_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/pigment.rs",
+            "src/frontend/handshake_native/tests/test_studio_pigment_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/nib.rs",
+            "src/frontend/handshake_native/tests/test_studio_nib_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/type.rs",
+            "src/frontend/handshake_native/tests/test_studio_type_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/layout.rs",
+            "src/frontend/handshake_native/tests/test_studio_layout_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/develop.rs",
+            "src/frontend/handshake_native/tests/test_studio_develop_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/components.rs",
+            "src/frontend/handshake_native/tests/test_studio_components_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/pulse.rs",
+            "src/frontend/handshake_native/tests/test_studio_pulse_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/score.rs",
+            "src/frontend/handshake_native/tests/test_studio_score_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/reel.rs",
+            "src/frontend/handshake_native/tests/test_studio_reel_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/motion.rs",
+            "src/frontend/handshake_native/tests/test_studio_motion_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/composite.rs",
+            "src/frontend/handshake_native/tests/test_studio_composite_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/render_cpu.rs",
+            "src/frontend/handshake_native/tests/test_studio_render_cpu_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/render_gpu.rs",
+            "src/frontend/handshake_native/tests/test_studio_render_gpu_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/package.rs",
+            "src/frontend/handshake_native/tests/test_studio_package_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/interop_psd.rs",
+            "src/frontend/handshake_native/tests/test_studio_interop_psd_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/interop_vector.rs",
+            "src/frontend/handshake_native/tests/test_studio_interop_vector_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/interop_fig.rs",
+            "src/frontend/handshake_native/tests/test_studio_interop_fig_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/interop_layout.rs",
+            "src/frontend/handshake_native/tests/test_studio_interop_layout_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/interop_media.rs",
+            "src/frontend/handshake_native/tests/test_studio_interop_media_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/controls.rs",
+            "src/frontend/handshake_native/tests/test_studio_controls_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/session.rs",
+            "src/frontend/handshake_native/tests/test_studio_session_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/harness.rs",
+            "src/frontend/handshake_native/tests/test_studio_harness_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/press.rs",
+            "src/frontend/handshake_native/tests/test_studio_press_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/web.rs",
+            "src/frontend/handshake_native/tests/test_studio_web_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/score_device.rs",
+            "src/frontend/handshake_native/tests/test_studio_score_device_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/score_plugin.rs",
+            "src/frontend/handshake_native/tests/test_studio_score_plugin_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/reel_native.rs",
+            "src/frontend/handshake_native/tests/test_studio_reel_native_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/interop_lrcat.rs",
+            "src/frontend/handshake_native/tests/test_studio_interop_lrcat_host.rs",
             "src/frontend/handshake_native/src/studio/adapters/motion_js.rs",
+            "src/frontend/handshake_native/tests/test_studio_motion_js_host.rs",
             "src/frontend/handshake_native/src/studio/mod.rs",
+            "src/frontend/handshake_native/tests/test_studio_native_surface.rs",
+            "src/frontend/handshake_native/src/app.rs",
+            "src/frontend/handshake_native/src/pane_registry.rs",
             "src/frontend/handshake_native/src/studio/inspection.rs",
-            "src/frontend/handshake_native/src/studio/diagnostics.rs"
+            "src/frontend/handshake_native/tests/test_studio_argus_manual.rs",
+            "src/frontend/handshake_native/src/studio/diagnostics.rs",
+            "src/frontend/handshake_native/tests/test_studio_three_tier.rs"
           ],
           "excluded": [
             ".GOV/**",
@@ -6081,7 +6226,8 @@
           "module_ref": "handshake_core::mex",
           "source_root": "src/backend/handshake_core/src/mex",
           "allowed_hook_paths": [
-            "src/backend/handshake_core/src/mex/runtime.rs"
+            "src/backend/handshake_core/src/mex/runtime.rs",
+            "src/backend/handshake_core/tests/studio_extension_lifecycle_host.rs"
           ],
           "assignment": "Host files only in separately activated integration target; WP012 remains read-only preparation. Preserve current owning AppState/API/EventLedger/FR/MEX/native owners."
         },
@@ -6092,7 +6238,10 @@
           "test_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36229.json"
           ],
-          "closure": "Affected host target+selected pinned source modules only; exact host worktree/entrypoint/config unresolved before activation, no full kernel prerequisite for source work."
+          "closure": "Affected host target+selected pinned source modules only; exact host worktree/entrypoint/config unresolved before activation, no full kernel prerequisite for source work.",
+          "planned_native_test_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36229.json#/proof"
+          ]
         },
         "runtime": {
           "limits": "Use existing bounded job/resource/document/current-grant ports; each adoption task binds source budget/leases to host owner and reserved cancel/drain outcomes.",
@@ -6109,7 +6258,8 @@
           "compatibility": "Execute each original AC through exact mapped native host consumer and source result; generic adapter success cannot close covered parity.",
           "provenance": "Host candidate/source commit-tree-module hashes+independent canonical assets remote equality; root report carries authoring history, no runtime receipt.",
           "allowlist": [
-            "src/backend/handshake_core/src/mex/runtime.rs"
+            "src/backend/handshake_core/src/mex/runtime.rs",
+            "src/backend/handshake_core/tests/studio_extension_lifecycle_host.rs"
           ],
           "excluded": [
             ".GOV/**",
@@ -6206,7 +6356,8 @@
           "module_ref": "handshake_core::flight_recorder",
           "source_root": "src/backend/handshake_core/src/flight_recorder",
           "allowed_hook_paths": [
-            "src/backend/handshake_core/src/flight_recorder/mod.rs"
+            "src/backend/handshake_core/src/flight_recorder/mod.rs",
+            "src/backend/handshake_core/tests/studio_business_events_host.rs"
           ],
           "assignment": "Host files only in separately activated integration target; WP012 remains read-only preparation. Preserve current owning AppState/API/EventLedger/FR/MEX/native owners."
         },
@@ -6217,7 +6368,10 @@
           "test_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36230.json"
           ],
-          "closure": "Affected host target+selected pinned source modules only; exact host worktree/entrypoint/config unresolved before activation, no full kernel prerequisite for source work."
+          "closure": "Affected host target+selected pinned source modules only; exact host worktree/entrypoint/config unresolved before activation, no full kernel prerequisite for source work.",
+          "planned_native_test_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36230.json#/proof"
+          ]
         },
         "runtime": {
           "limits": "Use existing bounded job/resource/document/current-grant ports; each adoption task binds source budget/leases to host owner and reserved cancel/drain outcomes.",
@@ -6234,7 +6388,8 @@
           "compatibility": "Execute each original AC through exact mapped native host consumer and source result; generic adapter success cannot close covered parity.",
           "provenance": "Host candidate/source commit-tree-module hashes+independent canonical assets remote equality; root report carries authoring history, no runtime receipt.",
           "allowlist": [
-            "src/backend/handshake_core/src/flight_recorder/mod.rs"
+            "src/backend/handshake_core/src/flight_recorder/mod.rs",
+            "src/backend/handshake_core/tests/studio_business_events_host.rs"
           ],
           "excluded": [
             ".GOV/**",

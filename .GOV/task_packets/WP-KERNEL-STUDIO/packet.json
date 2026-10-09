@@ -6891,7 +6891,7 @@
     "mirror": {
       "repository": "https://github.com/Nuntissura/assets",
       "destination_prefix": "handshake-studio-assets/",
-      "role": "Deterministic product-subtree mirror; one writable canonical product owner in Studio worktree",
+      "role": "Canonical standalone source publication in Nuntissura/assets handshake-studio-assets; any Handshake checkout is a governed preparation/execution checkout or immutable consumer, not a second canonical module owner.",
       "status": "NOT_MATERIALIZED_NO_PRODUCT_CODE_YET",
       "prohibited": [
         ".GOV",
@@ -13143,7 +13143,15 @@
     "source_first_condition": "Independent canonical assets remote revision and standalone contract proof before any host write",
     "runtime_authorized": false,
     "authoring_state": "IN_PROGRESS_NOT_IMPLEMENTATION_READY",
-    "original_scope_ac_preservation": "Original5484 IDs/21145 captured AC and all36 foundations/55 amendments remain immutable lineage; original host semantics map to distinct adoption MTs, never source-local PASS."
+    "original_scope_ac_preservation": "Original5484 IDs/21145 captured AC and all36 foundations/55 amendments remain immutable lineage; original host semantics map to distinct adoption MTs, never source-local PASS.",
+    "completion_binding": {
+      "source_mt_state": "Ordinary standalone_source MT acceptance closes only its owned source contribution after independent source proof and canonical remote publication. Original integrated acceptance payload is retained as immutable lineage, not a host execution prerequisite for source closure.",
+      "host_mt_state": "Ordinary host_adoption MT remains separately PENDING until independently verified immutable source revision/release/lock and native host behavior satisfy every mapped original assertion.",
+      "original_full_scope_completion": "Derived only when all source contributions and all distinct host adoption contributions for each qualified original AC are independently accepted. Source PASS alone never closes original host semantics; host PENDING never prevents a fully proved source contribution from closing.",
+      "lineage_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/inverse_mapping",
+      "host_lineage_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/qualified_ac_to_host_adoption_mts",
+      "current_state": "ALL_PENDING_NO_RUNTIME_PROOF_NO_DISPATCH"
+    }
   },
   "architecture_binding": {
     "module_lifecycle_refs": [

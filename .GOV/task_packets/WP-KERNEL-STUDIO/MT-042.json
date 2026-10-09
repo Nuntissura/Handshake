@@ -278,7 +278,7 @@
     "title": "Fill & gradient tools + fg/bg fill + stroke-selection [STU-RAS-025]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 2
+    "contract_revision": 3
   },
   "parent": {
     "wp_contract_revision": null,
@@ -287,6 +287,7 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
+    "module_maintenance_refs": [".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"],
     "specification_anchor_refs": [
       {
         "id": "STU-RAS-025",
@@ -319,7 +320,7 @@
       {
         "rule_id": "HBR-PRIV-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/0",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope.",
@@ -340,12 +341,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/0"
       },
       {
         "rule_id": "HBR-PRIV-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/1",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any resource authorization or discovery boundary",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove default deny for missing, invalid, stale, revoked, ambiguous, and mismatched account, Principal, session, AccessSpace, project, tenant, resource, and delegation context at every touched boundary. UI filtering alone cannot satisfy this rule.",
@@ -366,12 +368,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/1"
       },
       {
         "rule_id": "HBR-PRIV-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/2",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Concurrent runtime tests use at least two accounts in the same project plus one unrelated account and prove that private resources and their existence metadata, names, counts, thumbnails, search hits, activity, logs, and traces remain invisible without explicit resource grants while intentionally shared resources remain usable.",
@@ -392,12 +395,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/2"
       },
       {
         "rule_id": "HBR-PRIV-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/3",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The derived object inherits an access scope no broader than all contributing source scopes unless an explicit authorized share or promotion event records the widening. Negative tests cover mixed-scope inputs and prove caches, indexes, summaries, embeddings, thumbnails, logs, traces, model contexts, exports, and sync mirrors cannot leak restricted source existence or content.",
@@ -418,12 +422,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/3"
       },
       {
         "rule_id": "HBR-PRIV-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/4",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client (required_if the action runs for a delegated client). The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
@@ -444,12 +449,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/4"
       },
       {
         "rule_id": "HBR-PRIV-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/5",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove logout, disablement, role change, AccessSpace switch, project removal, resource revocation, pass expiry, token rotation, and disconnect stop future access promptly and invalidate or re-evaluate affected caches, contexts, previews, downloads, and in-flight work. Existing runs stay pinned to immutable original context and are never silently retargeted.",
@@ -470,12 +476,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-006",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-006",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/5"
       },
       {
         "rule_id": "HBR-PRIV-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/6",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The remote operation carries stable local account/Principal identity, remote tenant and resource identity, audience-bound delegation, explicit resource scope, authorization receipt, content hash, provenance, expiry/revocation state, and resulting local owner/AccessSpace. Tests prove remote linking cannot merge accounts, reuse a token for another resource audience, or widen local visibility.",
@@ -496,12 +503,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-007",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-007",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/6"
       },
       {
         "rule_id": "HBR-PRIV-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/7",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Argus or typed headless proof shows the active account, AccessSpace, relevant sharing/visibility state, and denial reason without revealing restricted resource metadata. Destructive sharing or widening actions require an explicit preview of affected resources and recipients; the visible state must match backend authorization under concurrent account/Space changes.",
@@ -522,12 +530,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-008",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-008",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/7"
       },
       {
         "rule_id": "HBR-INT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/8",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any product behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior.",
@@ -548,12 +557,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/8"
       },
       {
         "rule_id": "HBR-INT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/9",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model invocation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves a stored ContextBundle is dispatched through ModelAdapter, tool requests pass through ToolGate, and model outputs land in ArtifactStore. No model invocation may bypass these primitives.",
@@ -574,12 +584,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/9"
       },
       {
         "rule_id": "HBR-INT-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/10",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP produces any artifact intended for authority state",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the artifact reaches authority state ONLY via PromotionGate event; negative test proves direct mutation paths fail closed.",
@@ -600,12 +611,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/10"
       },
       {
         "rule_id": "HBR-INT-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/11",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any collaborative state surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves CRDT updates persist, replay correctly after reconnect, and promote through ValidationRunner before reaching authority state.",
@@ -626,12 +638,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/11"
       },
       {
         "rule_id": "HBR-INT-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/12",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the lane normalizes into the same SessionRun event stream as every other lane; no lane-specific authority leak; the TraceProjection cannot tell which lane ran beyond a lane label.",
@@ -652,12 +665,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/12"
       },
       {
         "rule_id": "HBR-INT-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/13",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT assess actual product role/agent/FEMS boundary only; do not revive retired repo memory rituals.",
@@ -678,12 +692,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-006",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-006",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/13"
       },
       {
         "rule_id": "HBR-INT-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/14",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior is reconstructable from the Operator Surface TraceProjection using durable state alone (no chat history, no terminal scrollback, no provider memory).",
@@ -704,12 +719,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-007",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-007",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/14"
       },
       {
         "rule_id": "HBR-INT-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/15",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates or modifies any UUID generation site in product code",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order).",
@@ -730,12 +746,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-008",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-008",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/15"
       },
       {
         "rule_id": "HBR-INT-009",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/16",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
@@ -756,12 +773,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-009",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-009",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/16"
       },
       {
         "rule_id": "HBR-SWARM-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/17",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any shared state surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test runs at least two concurrent agent sessions plus simulated operator edits against the touched state. Passes only when there is no silent last-writer-wins, no lease starvation, no deadlock, and all conflicts surface as deterministic conflict reports or revision rejections.",
@@ -782,12 +800,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/17"
       },
       {
         "rule_id": "HBR-SWARM-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/18",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test proves leases expire correctly, stale sessions are recoverable, backpressure works under load, cancellation is honored within a bounded time, and loop counters prevent runaway.",
@@ -808,12 +827,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/18"
       },
       {
         "rule_id": "HBR-SWARM-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/19",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any operator-facing surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test proves the operator can keep editing CRDT-backed surfaces while an agent session is active on adjacent state. Presence and conflict state must be visible in the UI.",
@@ -834,12 +854,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/19"
       },
       {
         "rule_id": "HBR-SWARM-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/20",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every cross-agent message carries typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for); narrative-only routing is forbidden. Test proves a receiving agent can act from typed fields without parsing prose.",
@@ -860,12 +881,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/20"
       },
       {
         "rule_id": "HBR-SWARM-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/21",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any cargo build, test, lint, benchmark, coverage, or tooling run by any worktree, role session, or sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped SurrealDB namespace/database, because divergent SurrealKit rollout sets across worktrees cannot share authority state safely.",
@@ -886,12 +908,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/21"
       },
       {
         "rule_id": "HBR-SWARM-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/22",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Completion of any build, test, or tooling run, and completion of any sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (kernel-owned governance state, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not.",
@@ -912,12 +935,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-006",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-006",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/22"
       },
       {
         "rule_id": "HBR-VIS-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/23",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
@@ -938,12 +962,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/23"
       },
       {
         "rule_id": "HBR-VIS-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/24",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any captured frame produced for HBR-VIS-001",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
@@ -964,12 +989,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/24"
       },
       {
         "rule_id": "HBR-VIS-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/25",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any feature visible at multiple viewports or states",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Capture matrix instead of a single shot: normal viewport, at least one constrained viewport, and at least one edge state (empty, error, loading, multi-item).",
@@ -990,12 +1016,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/25"
       },
       {
         "rule_id": "HBR-VIS-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/26",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches a non-UI behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
@@ -1016,12 +1043,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/26"
       },
       {
         "rule_id": "HBR-VIS-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/27",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Treat the missing Argus path as HBR-VIS technical debt. If the missing visibility/steering path blocks proof of the implemented surface, it is an allowed same-MT/WP scope increase: remediate the minimum stable author_id, snapshot state, steering hook, or headless capture path before claiming DONE/PASS. If the role cannot remediate within authority, record a blocking HBR-VIS gap with the exact surface, missing Argus capability, affected proof, and recommended remediation.",
@@ -1042,12 +1070,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/27"
       },
       {
         "rule_id": "HBR-QUIET-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/28",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automated test or agent run",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
@@ -1068,12 +1097,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/28"
       },
       {
         "rule_id": "HBR-QUIET-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/29",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automation surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
@@ -1094,12 +1124,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/29"
       },
       {
         "rule_id": "HBR-QUIET-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/30",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every background launch records ownership metadata (owner_session, owner_wp, owner_role, started_at) and is reclaimed at session close, failure, staleness, or operator cancel. Test proves no blank terminal windows and no orphan processes after a run, failure, or kill.",
@@ -1120,12 +1151,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/30"
       },
       {
         "rule_id": "HBR-QUIET-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/31",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP requires foreground interaction that cannot be eliminated",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Declare the foreground requirement in the WP before any run. Use a bounded controlled test window or documented manual step. Surface an operator-visible warning before launch. The default is forbidden; exceptions must be justified and time-bounded.",
@@ -1146,12 +1178,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/31"
       },
       {
         "rule_id": "HBR-MAN-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/32",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
@@ -1172,12 +1205,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/32"
       },
       {
         "rule_id": "HBR-MAN-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/33",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any change to UserManual content",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
@@ -1198,12 +1232,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/33"
       },
       {
         "rule_id": "HBR-MAN-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/34",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any UserManual entry that describes a wired code surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
@@ -1224,12 +1259,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/34"
       },
       {
         "rule_id": "HBR-MAN-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/35",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
@@ -1250,12 +1286,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/35"
       },
       {
         "rule_id": "HBR-STOP-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/36",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.",
@@ -1276,12 +1313,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/36"
       },
       {
         "rule_id": "HBR-STOP-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/37",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Speculative capacity reasons do not justify dropping scope. Continue through justified actions under Codex CX-EXEC-003/004; never override the two-attempt approach-change or escalation threshold merely to keep running.",
@@ -1302,12 +1340,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/37"
       },
       {
         "rule_id": "HBR-STOP-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/38",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer considers stopping work on an MT, WP, or session",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Claim completion only when required runtime proof establishes it. An explicit Operator stop or incomplete escalation under Codex CX-EXEC-003 permits ending the current execution loop without PASS or dropping scope; preserve work and report the exact blocker and needed decision/dependency.",
@@ -1328,12 +1367,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/38"
       },
       {
         "rule_id": "HBR-STOP-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/39",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters a dependency that blocks completion of the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Perform justified dependency work within authority, then return to the outstanding work. Apply Codex CX-EXEC-003/004 to repeated failures; when no justified next action remains, report the exact dependency and preserve incomplete state instead of continuing diagnostics or builds indefinitely.",
@@ -1354,12 +1394,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/39"
       },
       {
         "rule_id": "HBR-STOP-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/40",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
@@ -1380,12 +1421,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/40"
       },
       {
         "rule_id": "HBR-COMPART-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/41",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches or creates more than one product module, or any MT is scaffolded for a product WP",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The WP contract declares every touched and created module and a boundary_change disposition. Every MT binds exactly one owning module in execution.module_ref and its write scope derives from that module's declared roots. Until the compartment refactor lands crates, module refs are logical module paths; when crates exist they resolve to build units. Activation rejects dependency-direction violations and unsettled build-budget reviews.",
@@ -1406,12 +1448,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/41"
       },
       {
         "rule_id": "HBR-COMPART-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/42",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any validation round of a product WP once build units exist",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; A change confined to one module must not rebuild the whole product. Each validation round measures warm incremental rebuild time and the count of relinked test binaries for the candidate commit and records them against the project build budgets; a budget breach opens a boundary review before the next activation touching that module.",
@@ -1432,12 +1475,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/42"
       },
       {
         "rule_id": "HBR-COMPONENT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/43",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail.",
@@ -1458,12 +1502,13 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/43"
       },
       {
         "rule_id": "HBR-COMPONENT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/44",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP declares a new canonical mechanic or capability owner",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PIGMENT scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; A new canonical mechanic is allowed only when no existing owner exists and the mechanic has a Master Spec primitive id; activation refuses a new capability that lacks its spec primitive or duplicates an existing owner.",
@@ -1484,7 +1529,127 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "prior_assessment_ref": "git:f33d2fbba3ed95595f96775684c7a68f80c997d1:.GOV/task_packets/WP-KERNEL-STUDIO/MT-042.json#/context_capsule/pillar_refs/44"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/45",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_created_or_materially_modified",
+        "assessment": "APPLIES",
+        "reason": "Pigment owns standalone CPU API/closure, public consumer and same manual/diagnostics.",
+        "scope_evidence_refs": [
+          "MT-042#/execution",
+          "MT-042#/proof"
+        ],
+        "evidence_kind": "actual_source_contract_and_standalone_consumer",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36194/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
+        "proof_destination_base": "sole configured external CX-984 root; runtime owner binding required"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/46",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+        "assessment": "APPLIES",
+        "reason": "Revision-bound pixel requests expose work/byte bounds, typed cancel/error and recovery; host queue settlement stays adapter.",
+        "scope_evidence_refs": [
+          "MT-042#/execution",
+          "MT-042#/proof"
+        ],
+        "evidence_kind": "actual_source_contract_and_standalone_consumer",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36194/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
+        "proof_destination_base": "sole configured external CX-984 root; runtime owner binding required"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/47",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_released_or_consumed",
+        "assessment": "APPLIES",
+        "reason": "Publish exact source/toolchain/lock/artifact versions after source landing; current pins pending.",
+        "scope_evidence_refs": [
+          "MT-042#/execution",
+          "MT-042#/proof"
+        ],
+        "evidence_kind": "actual_source_contract_and_standalone_consumer",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36194/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
+        "proof_destination_base": "sole configured external CX-984 root; runtime owner binding required"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/48",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_embedded_in_a_host",
+        "assessment": "LATER_HOST_ADOPTION",
+        "reason": "Concrete service/storage/authorization/UI adapter conformance belongs host MT-36194.",
+        "scope_evidence_refs": [
+          "MT-042#/execution",
+          "MT-042#/proof"
+        ],
+        "evidence_kind": "actual_host_adapter_conformance",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36194/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
+        "proof_destination_base": "sole configured external CX-984 root; runtime owner binding required"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/49",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_upgraded_or_moved",
+        "assessment": "APPLIES",
+        "reason": "Private fixtures/grants/config excluded; portable source/upgrade/rollback contracts required.",
+        "scope_evidence_refs": [
+          "MT-042#/execution",
+          "MT-042#/proof"
+        ],
+        "evidence_kind": "actual_source_contract_and_standalone_consumer",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36194/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
+        "proof_destination_base": "sole configured external CX-984 root; runtime owner binding required"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/50",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_or_mirrored",
+        "assessment": "APPLIES",
+        "reason": "Canonical source/mirror drift and customized destination preservation must be checked independently.",
+        "scope_evidence_refs": [
+          "MT-042#/execution",
+          "MT-042#/proof"
+        ],
+        "evidence_kind": "actual_source_contract_and_standalone_consumer",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36194/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
+        "proof_destination_base": "sole configured external CX-984 root; runtime owner binding required"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/51",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
+        "assessment": "APPLIES",
+        "reason": "Canonical assets GitHub landing and independent remote reread precede distinct immutable pinned MT-36194 adoption.",
+        "scope_evidence_refs": [
+          "MT-042#/execution",
+          "MT-042#/proof"
+        ],
+        "evidence_kind": "actual_source_contract_and_standalone_consumer",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-042/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36194/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
+        "proof_destination_base": "sole configured external CX-984 root; runtime owner binding required"
       }
     ],
     "runtime_lane_refs": [
@@ -1601,21 +1766,21 @@
       "MT-35561",
       "MT-35562",
       "MT-35563",
-      "MT-002-ASSET-FOLIO",
-      "MT-002-ASSET-ACCORD",
-      "MT-017-ASSET-COMPOSITE",
-      "MT-017-ASSET-PIGMENT",
-      "MT-017-ASSET-ACCORD",
-      "MT-017-ASSET-FOLIO",
-      "MT-017-ASSET-KERNEL_BINDINGS",
-      "MT-017-ASSET-MOTION",
-      "MT-017-ASSET-RENDER_GPU",
-      "MT-017-ASSET-RENDER_CPU",
-      "MT-032-ASSET-PIGMENT",
-      "MT-009-ASSET-CONTROLS",
-      "MT-009-ASSET-HARNESS",
-      "MT-009-ASSET-SESSION",
-      "MT-009-ASSET-FOLIO"
+      "MT-002",
+      "MT-35628",
+      "MT-017",
+      "MT-35650",
+      "MT-35651",
+      "MT-35652",
+      "MT-35653",
+      "MT-35654",
+      "MT-35655",
+      "MT-35656",
+      "MT-032",
+      "MT-009",
+      "MT-35640",
+      "MT-35641",
+      "MT-35642"
     ],
     "start_precondition": {
       "dispatch_allowed": false,
@@ -1626,7 +1791,9 @@
         "INDEPENDENT_CONTRACT_REVIEW",
         "STUDIO_ALL_36_FOUNDATIONS_PASSED",
         "SCOPED_EXISTING_OWNER_SEARCH_AND_CAPABILITY_BINDING",
-        "VERIFIED_OWNER_SLUG_AND_ABSOLUTE_CONFIGURED_ARTIFACT_ROOT_BOUND"
+        "VERIFIED_OWNER_SLUG_AND_ABSOLUTE_CONFIGURED_ARTIFACT_ROOT_BOUND",
+        "EXACT_NATIVE_OR_OWNER_SOURCE_LOCK_AND_ORACLE_BOUND",
+        "PLANNED_CASE_TARGET_CREATED_CONFIGURED_BEFORE_HANDOFF"
       ],
       "foundation_barrier_ref": "STUDIO-ALL-FOUNDATIONS",
       "foundation_members": [
@@ -1684,34 +1851,80 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "scope": "Current STUDIO-MODULE-PIGMENT asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
-        "fulfillment_ref": "MT-042#/fulfillment",
-        "module_catalog_ref": "STUDIO-MODULE-PIGMENT",
-        "immutable_input_and_revision_required": true
+        "name": "typed_request",
+        "type_and_units": "Canonical StudioGradient independent color/transparency stop arrays, integer position0..4096, midpoint/opacity percent; Pattern ID/source; seed pixel coordinates, tolerance classification and selection alpha; five geometry enums/transform; target profile/revision and byte/count/cancel lease"
+      },
+      {
+        "name": "selected_implementation",
+        "selected_package": "hsk-studio-pigment",
+        "default_features": false,
+        "features": [],
+        "provider": "Module-owned CPU operations through existing Pigment/Prism/Folio/Chronicle/Controls. Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented."
+      },
+      {
+        "name": "canonical_source",
+        "repository_url": "https://github.com/Nuntissura/assets",
+        "subdirectory": "handshake-studio-assets",
+        "source_revision": "PENDING_CANONICAL_SOURCE_LANDING",
+        "dependency_lock_ref": "handshake-studio-assets/Cargo.lock"
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "Implement bounded scanline flood-fill with visited spans and canonical sample comparison/tolerance, clipping to shared selection alpha; sample registered Pattern by origin/alignment and profile-aware pixels, no pattern fork.",
+        "owned_file_refs": [
+          "handshake-studio-assets/crates/hsk-studio-pigment/src/flood_fill.rs",
+          "handshake-studio-assets/crates/hsk-studio-pigment/src/gradient_fill.rs",
+          "handshake-studio-assets/crates/hsk-studio-pigment/src/selection_stroke.rs"
+        ]
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "Evaluate linear projection, radial distance, angle phase, reflected projection and diamond metric against canonical separate color/transparency stops; preserve interpolation/noise seed and resolve foreground/background stop references at the recorded swatch revision.",
+        "owned_file_refs": [
+          "handshake-studio-assets/crates/hsk-studio-pigment/src/flood_fill.rs",
+          "handshake-studio-assets/crates/hsk-studio-pigment/src/gradient_fill.rs",
+          "handshake-studio-assets/crates/hsk-studio-pigment/src/selection_stroke.rs"
+        ]
       },
       {
         "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
+        "step": "Return editable canonical gradient/stop proposal for layers/fill layers/masks; route on-canvas handle input through shared Controls with same integer positions. Fg/bg fill consumes current swatch, stroke-selection uses mask boundary distance and typed width/placement.",
+        "owned_file_refs": [
+          "handshake-studio-assets/crates/hsk-studio-pigment/src/flood_fill.rs",
+          "handshake-studio-assets/crates/hsk-studio-pigment/src/gradient_fill.rs",
+          "handshake-studio-assets/crates/hsk-studio-pigment/src/selection_stroke.rs"
+        ]
       },
       {
         "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "Budget/cancel discards tile proposal; stale gradient/swatch/selection revisions conflict. Recovery reparses current canonical primitive and reruns; unsupported stop form or missing Pattern reports loss/blocker rather than flattened success.",
+        "owned_file_refs": [
+          "handshake-studio-assets/crates/hsk-studio-pigment/src/flood_fill.rs",
+          "handshake-studio-assets/crates/hsk-studio-pigment/src/gradient_fill.rs",
+          "handshake-studio-assets/crates/hsk-studio-pigment/src/selection_stroke.rs"
+        ]
+      },
+      {
+        "n": 5,
+        "step": "Configure shared Controls fill_gradient options/commands, manual/model recovery and Observe diagnostic descriptors using actual same operation. No duplicated panel/brush/history/selection owner. Grant/EventLedger/Argus/FR/internal diagnostics/Palmistry/native UI proof remains host MT-36194."
       }
     ],
     "expected_outputs": [
-      "Owned real capability and failure path",
-      "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      {
+        "result": "Immutable editable pixel/mask/channel/geometry proposal with revision/profile/source identity",
+        "failure_outcome": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+        "planned_target": "tests/fill_gradient.rs",
+        "target_status": "CREATED_DURING_CODING_NOT_EXISTING_TARGET_CLAIM",
+        "owned_sources": [
+          "flood_fill.rs",
+          "gradient_fill.rs",
+          "selection_stroke.rs"
+        ],
+        "dependency_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented.",
+        "parity": "RETAINED_NOT_PROVEN"
+      }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1827,7 +2040,8 @@
       "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
       "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/5",
       "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
-    }
+    },
+    "module_change_stage": "standalone_source"
   },
   "proof": {
     "parent_proof_refs": [],
@@ -1838,14 +2052,14 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": null,
-        "expected": "Bucket/flood fill by tolerance with color+pattern",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator planned argv: cargo test --locked -p hsk-studio-pigment --no-default-features --test fill_gradient bucket_pattern_tolerance -- --exact. Reuse the same target's fill_gradient_negative_recovery case once across bound rows; each case 45s.",
+        "expected": "Consumer fills connected checkerboard region with solid then Pattern at exact origin; oracle marks visited connectivity/tolerance/AA pixels independently. invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+        "timeout_seconds": 45,
         "on_timeout": "record_timeout",
         "evidence_required": [
-          "Exact owned candidate/input closure",
-          "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
+          "Exact canonical source/tree/lock/toolchain/features/input hashes",
+          "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "Actual public consumer output/error/retry and immutable source reread; no fixture-only/canned/skip PASS"
         ],
         "method_recipe": {
           "selected_packages": [
@@ -1853,10 +2067,17 @@
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "Bucket/flood fill by tolerance with color+pattern",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; features=[]; exact foreign native source/feature lock required before admission",
+          "consumer": "Consumer fills connected checkerboard region with solid then Pattern at exact origin; oracle marks visited connectivity/tolerance/AA pixels independently.",
+          "scenario": "Consumer fills connected checkerboard region with solid then Pattern at exact origin; oracle marks visited connectivity/tolerance/AA pixels independently.",
+          "independent_oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented.",
+          "production_embedding": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json; source operation proof never certifies host parity"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_RUN_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1869,14 +2090,14 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": null,
-        "expected": "Gradient tool with 5 geometry modes",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator planned argv: cargo test --locked -p hsk-studio-pigment --no-default-features --test fill_gradient five_gradient_geometries -- --exact. Reuse the same target's fill_gradient_negative_recovery case once across bound rows; each case 45s.",
+        "expected": "Render one shared gradient in all five geometry modes on layer/fill/mask, check independently computed sample points and separate transparency interpolation. invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+        "timeout_seconds": 45,
         "on_timeout": "record_timeout",
         "evidence_required": [
-          "Exact owned candidate/input closure",
-          "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
+          "Exact canonical source/tree/lock/toolchain/features/input hashes",
+          "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "Actual public consumer output/error/retry and immutable source reread; no fixture-only/canned/skip PASS"
         ],
         "method_recipe": {
           "selected_packages": [
@@ -1884,10 +2105,17 @@
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "Gradient tool with 5 geometry modes",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; features=[]; exact foreign native source/feature lock required before admission",
+          "consumer": "Render one shared gradient in all five geometry modes on layer/fill/mask, check independently computed sample points and separate transparency interpolation.",
+          "scenario": "Render one shared gradient in all five geometry modes on layer/fill/mask, check independently computed sample points and separate transparency interpolation.",
+          "independent_oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented.",
+          "production_embedding": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json; source operation proof never certifies host parity"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_RUN_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1900,14 +2128,14 @@
         "claim_refs": [
           "AC-003"
         ],
-        "command_or_method": null,
-        "expected": "On-canvas stops",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator planned argv: cargo test --locked -p hsk-studio-pigment --no-default-features --test fill_gradient stop_handle_canonical_roundtrip -- --exact. Reuse the same target's fill_gradient_negative_recovery case once across bound rows; each case 45s.",
+        "expected": "Controls consumer moves one stop to integer2048 then rereads same canonical gradient ID; color and transparency lists remain independent, cancel drag retains original. invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+        "timeout_seconds": 45,
         "on_timeout": "record_timeout",
         "evidence_required": [
-          "Exact owned candidate/input closure",
-          "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
+          "Exact canonical source/tree/lock/toolchain/features/input hashes",
+          "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "Actual public consumer output/error/retry and immutable source reread; no fixture-only/canned/skip PASS"
         ],
         "method_recipe": {
           "selected_packages": [
@@ -1915,10 +2143,17 @@
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "On-canvas stops",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; features=[]; exact foreign native source/feature lock required before admission",
+          "consumer": "Controls consumer moves one stop to integer2048 then rereads same canonical gradient ID; color and transparency lists remain independent, cancel drag retains original.",
+          "scenario": "Controls consumer moves one stop to integer2048 then rereads same canonical gradient ID; color and transparency lists remain independent, cancel drag retains original.",
+          "independent_oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented.",
+          "production_embedding": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json; source operation proof never certifies host parity"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_RUN_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1931,14 +2166,14 @@
         "claim_refs": [
           "AC-004"
         ],
-        "command_or_method": null,
-        "expected": "Fg/bg fill",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator planned argv: cargo test --locked -p hsk-studio-pigment --no-default-features --test fill_gradient foreground_background_fill -- --exact. Reuse the same target's fill_gradient_negative_recovery case once across bound rows; each case 45s.",
+        "expected": "Two canonical swatch IDs produce expected selected pixels; changing swatch revision before apply refuses stale result. invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+        "timeout_seconds": 45,
         "on_timeout": "record_timeout",
         "evidence_required": [
-          "Exact owned candidate/input closure",
-          "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
+          "Exact canonical source/tree/lock/toolchain/features/input hashes",
+          "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "Actual public consumer output/error/retry and immutable source reread; no fixture-only/canned/skip PASS"
         ],
         "method_recipe": {
           "selected_packages": [
@@ -1946,10 +2181,17 @@
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "Fg/bg fill",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; features=[]; exact foreign native source/feature lock required before admission",
+          "consumer": "Two canonical swatch IDs produce expected selected pixels; changing swatch revision before apply refuses stale result.",
+          "scenario": "Two canonical swatch IDs produce expected selected pixels; changing swatch revision before apply refuses stale result.",
+          "independent_oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented.",
+          "production_embedding": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json; source operation proof never certifies host parity"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_RUN_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1962,14 +2204,14 @@
         "claim_refs": [
           "AC-005"
         ],
-        "command_or_method": null,
-        "expected": "Stroke-selection",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator planned argv: cargo test --locked -p hsk-studio-pigment --no-default-features --test fill_gradient selection_stroke_width_placement -- --exact. Reuse the same target's fill_gradient_negative_recovery case once across bound rows; each case 45s.",
+        "expected": "Stroke an analytic square mask using typed pixel width/placement; independently compare boundary coverage and preserved outside pixels. invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+        "timeout_seconds": 45,
         "on_timeout": "record_timeout",
         "evidence_required": [
-          "Exact owned candidate/input closure",
-          "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
+          "Exact canonical source/tree/lock/toolchain/features/input hashes",
+          "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "Actual public consumer output/error/retry and immutable source reread; no fixture-only/canned/skip PASS"
         ],
         "method_recipe": {
           "selected_packages": [
@@ -1977,23 +2219,55 @@
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "Stroke-selection",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; features=[]; exact foreign native source/feature lock required before admission",
+          "consumer": "Stroke an analytic square mask using typed pixel width/placement; independently compare boundary coverage and preserved outside pixels.",
+          "scenario": "Stroke an analytic square mask using typed pixel width/placement; independently compare boundary coverage and preserved outside pixels.",
+          "independent_oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented.",
+          "production_embedding": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json; source operation proof never certifies host parity"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_RUN_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-042-SOURCE-COMPILE",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-004",
+          "AC-005"
+        ],
+        "command_or_method": "Implementer planned argv: cargo check --locked -p hsk-studio-pigment --no-default-features --tests. Inspect cargo tree --locked -p hsk-studio-pigment --no-default-features --edges normal,build against declared owner DAG; reuse valid unchanged compile proof.",
+        "expected": "Selected ports/cases type-check, exact lock/toolchain, no kernel/native/DB/GPU/codec/undeclared closure; no runtime/parity inference.",
+        "timeout_seconds": 180,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact owned inputs/configuration",
+          "No preparation runtime execution"
+        ],
+        "materialization_status": "PLANNED_NOT_RUN"
       }
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-pigment/**"
+      "handshake-studio-assets/crates/hsk-studio-pigment/src/flood_fill.rs",
+      "handshake-studio-assets/crates/hsk-studio-pigment/src/gradient_fill.rs",
+      "handshake-studio-assets/crates/hsk-studio-pigment/src/selection_stroke.rs",
+      "handshake-studio-assets/crates/hsk-studio-pigment/tests/fill_gradient.rs",
+      "handshake-studio-assets/crates/hsk-studio-pigment/Cargo.toml",
+      "handshake-studio-assets/Cargo.lock"
     ],
     "extra_build_proofs": [],
-    "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
+    "proof_materialization_status": "PLANNED_NOT_RUN_NO_EXECUTION_AUTHORIZED"
   },
   "activation": {
     "disposition": "NON_AI_CURRENT_SCOPE",
@@ -2417,7 +2691,8 @@
         },
         "parent_activation_ref": "MT-042#/activation",
         "mandatory_parent_precondition_ref": "MT-042#/execution/start_precondition",
-        "separate_execution_rule": "Separate owner claim does not bypass parent activation, all36 foundations, exact external capability proof or original acceptance; only this slice root is writable."
+        "separate_execution_rule": "Separate owner claim does not bypass parent activation, all36 foundations, exact external capability proof or original acceptance; only this slice root is writable.",
+        "executable_mt_ref": "MT-042"
       }
     ],
     "compound_scope_rule": "Only primary owner executes under this MT claim; each other owner slice is an independently scoped execution unit requiring its own claim and evidence. Parent MT cannot complete until all slices plus later embedding acceptance are fulfilled.",
@@ -2431,7 +2706,7 @@
         "semantic_fulfillment": "Bucket/flood fill by tolerance with color+pattern",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-042-ASSET-PIGMENT"
+          "MT-042"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2446,15 +2721,23 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Bucket/flood fill by tolerance with color+pattern",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; features=[]; exact source/provider lock",
+          "consumer_assertion": "Consumer fills connected checkerboard region with solid then Pattern at exact origin; oracle marks visited connectivity/tolerance/AA pixels independently.",
+          "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+          "oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "planned_test_target": "fill_gradient",
+          "planned_case": "bucket_pattern_tolerance",
+          "timeout_seconds": 45,
+          "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented."
         },
-        "later_embedding_ref": "MT-042-KERNEL-AC-001",
+        "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
         "later_embedding_required": true,
         "later_embedding_assertion": "Bucket/flood fill by tolerance with color+pattern Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
+        ],
+        "qualified_original_acceptance_ref": "MT-042/AC-001"
       },
       {
         "acceptance_id": "AC-002",
@@ -2465,7 +2748,7 @@
         "semantic_fulfillment": "Gradient tool with 5 geometry modes",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-042-ASSET-PIGMENT"
+          "MT-042"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2480,15 +2763,23 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Gradient tool with 5 geometry modes",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; features=[]; exact source/provider lock",
+          "consumer_assertion": "Render one shared gradient in all five geometry modes on layer/fill/mask, check independently computed sample points and separate transparency interpolation.",
+          "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+          "oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "planned_test_target": "fill_gradient",
+          "planned_case": "five_gradient_geometries",
+          "timeout_seconds": 45,
+          "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented."
         },
-        "later_embedding_ref": "MT-042-KERNEL-AC-002",
+        "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
         "later_embedding_required": true,
         "later_embedding_assertion": "Gradient tool with 5 geometry modes Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
+        ],
+        "qualified_original_acceptance_ref": "MT-042/AC-002"
       },
       {
         "acceptance_id": "AC-003",
@@ -2499,7 +2790,7 @@
         "semantic_fulfillment": "On-canvas stops",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-042-ASSET-PIGMENT"
+          "MT-042"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2514,15 +2805,23 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "On-canvas stops",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; features=[]; exact source/provider lock",
+          "consumer_assertion": "Controls consumer moves one stop to integer2048 then rereads same canonical gradient ID; color and transparency lists remain independent, cancel drag retains original.",
+          "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+          "oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "planned_test_target": "fill_gradient",
+          "planned_case": "stop_handle_canonical_roundtrip",
+          "timeout_seconds": 45,
+          "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented."
         },
-        "later_embedding_ref": "MT-042-KERNEL-AC-003",
+        "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
         "later_embedding_required": true,
         "later_embedding_assertion": "On-canvas stops Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
+        ],
+        "qualified_original_acceptance_ref": "MT-042/AC-003"
       },
       {
         "acceptance_id": "AC-004",
@@ -2533,7 +2832,7 @@
         "semantic_fulfillment": "Fg/bg fill",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-042-ASSET-PIGMENT"
+          "MT-042"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2548,15 +2847,23 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Fg/bg fill",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; features=[]; exact source/provider lock",
+          "consumer_assertion": "Two canonical swatch IDs produce expected selected pixels; changing swatch revision before apply refuses stale result.",
+          "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+          "oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "planned_test_target": "fill_gradient",
+          "planned_case": "foreground_background_fill",
+          "timeout_seconds": 45,
+          "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented."
         },
-        "later_embedding_ref": "MT-042-KERNEL-AC-004",
+        "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
         "later_embedding_required": true,
         "later_embedding_assertion": "Fg/bg fill Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
+        ],
+        "qualified_original_acceptance_ref": "MT-042/AC-004"
       },
       {
         "acceptance_id": "AC-005",
@@ -2567,7 +2874,7 @@
         "semantic_fulfillment": "Stroke-selection",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-042-ASSET-PIGMENT"
+          "MT-042"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2582,26 +2889,30 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Stroke-selection",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; features=[]; exact source/provider lock",
+          "consumer_assertion": "Stroke an analytic square mask using typed pixel width/placement; independently compare boundary coverage and preserved outside pixels.",
+          "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+          "oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+          "planned_test_target": "fill_gradient",
+          "planned_case": "selection_stroke_width_placement",
+          "timeout_seconds": 45,
+          "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented."
         },
-        "later_embedding_ref": "MT-042-KERNEL-AC-005",
+        "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
         "later_embedding_required": true,
         "later_embedding_assertion": "Stroke-selection Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
+        ],
+        "qualified_original_acceptance_ref": "MT-042/AC-005"
       }
     ],
     "later_kernel": {
       "phase": "SEPARATE_LATER_EMBEDDING",
       "status": "PENDING",
       "all_original_acceptance_refs": [
-        "MT-042-KERNEL-AC-001",
-        "MT-042-KERNEL-AC-002",
-        "MT-042-KERNEL-AC-003",
-        "MT-042-KERNEL-AC-004",
-        "MT-042-KERNEL-AC-005"
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
       ],
       "original_acceptance": [
         {
@@ -2706,7 +3017,7 @@
           "semantic_fulfillment": "Bucket/flood fill by tolerance with color+pattern",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-042-ASSET-PIGMENT"
+            "MT-042"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2721,15 +3032,23 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Bucket/flood fill by tolerance with color+pattern",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; features=[]; exact source/provider lock",
+            "consumer_assertion": "Consumer fills connected checkerboard region with solid then Pattern at exact origin; oracle marks visited connectivity/tolerance/AA pixels independently.",
+            "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+            "oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+            "planned_test_target": "fill_gradient",
+            "planned_case": "bucket_pattern_tolerance",
+            "timeout_seconds": 45,
+            "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented."
           },
-          "later_embedding_ref": "MT-042-KERNEL-AC-001",
+          "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
           "later_embedding_required": true,
           "later_embedding_assertion": "Bucket/flood fill by tolerance with color+pattern Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
+          ],
+          "qualified_original_acceptance_ref": "MT-042/AC-001"
         },
         {
           "acceptance_id": "AC-002",
@@ -2740,7 +3059,7 @@
           "semantic_fulfillment": "Gradient tool with 5 geometry modes",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-042-ASSET-PIGMENT"
+            "MT-042"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2755,15 +3074,23 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Gradient tool with 5 geometry modes",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; features=[]; exact source/provider lock",
+            "consumer_assertion": "Render one shared gradient in all five geometry modes on layer/fill/mask, check independently computed sample points and separate transparency interpolation.",
+            "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+            "oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+            "planned_test_target": "fill_gradient",
+            "planned_case": "five_gradient_geometries",
+            "timeout_seconds": 45,
+            "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented."
           },
-          "later_embedding_ref": "MT-042-KERNEL-AC-002",
+          "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
           "later_embedding_required": true,
           "later_embedding_assertion": "Gradient tool with 5 geometry modes Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
+          ],
+          "qualified_original_acceptance_ref": "MT-042/AC-002"
         },
         {
           "acceptance_id": "AC-003",
@@ -2774,7 +3101,7 @@
           "semantic_fulfillment": "On-canvas stops",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-042-ASSET-PIGMENT"
+            "MT-042"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2789,15 +3116,23 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "On-canvas stops",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; features=[]; exact source/provider lock",
+            "consumer_assertion": "Controls consumer moves one stop to integer2048 then rereads same canonical gradient ID; color and transparency lists remain independent, cancel drag retains original.",
+            "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+            "oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+            "planned_test_target": "fill_gradient",
+            "planned_case": "stop_handle_canonical_roundtrip",
+            "timeout_seconds": 45,
+            "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented."
           },
-          "later_embedding_ref": "MT-042-KERNEL-AC-003",
+          "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
           "later_embedding_required": true,
           "later_embedding_assertion": "On-canvas stops Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
+          ],
+          "qualified_original_acceptance_ref": "MT-042/AC-003"
         },
         {
           "acceptance_id": "AC-004",
@@ -2808,7 +3143,7 @@
           "semantic_fulfillment": "Fg/bg fill",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-042-ASSET-PIGMENT"
+            "MT-042"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2823,15 +3158,23 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Fg/bg fill",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; features=[]; exact source/provider lock",
+            "consumer_assertion": "Two canonical swatch IDs produce expected selected pixels; changing swatch revision before apply refuses stale result.",
+            "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+            "oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+            "planned_test_target": "fill_gradient",
+            "planned_case": "foreground_background_fill",
+            "timeout_seconds": 45,
+            "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented."
           },
-          "later_embedding_ref": "MT-042-KERNEL-AC-004",
+          "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
           "later_embedding_required": true,
           "later_embedding_assertion": "Fg/bg fill Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
+          ],
+          "qualified_original_acceptance_ref": "MT-042/AC-004"
         },
         {
           "acceptance_id": "AC-005",
@@ -2842,7 +3185,7 @@
           "semantic_fulfillment": "Stroke-selection",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-042-ASSET-PIGMENT"
+            "MT-042"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2857,15 +3200,23 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Stroke-selection",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; features=[]; exact source/provider lock",
+            "consumer_assertion": "Stroke an analytic square mask using typed pixel width/placement; independently compare boundary coverage and preserved outside pixels.",
+            "negative_path": "invalid stop bounds/duplicates policy, missing pattern, zero gradient span, stale swatch or selection, budget/cancel: no accepted patch; independent transparent stops never dropped.",
+            "oracle": "Analytic scanline connectivity/geometry samples and original Photoshop gradient/fill/stroke outputs; exact per-profile tolerances bound before proof.",
+            "planned_test_target": "fill_gradient",
+            "planned_case": "selection_stroke_width_placement",
+            "timeout_seconds": 45,
+            "unresolved_prerequisites": "Exact Pattern/noise/interpolation implementation pins and original-source/profile fixtures unresolved; unknown tolerance defaults not invented."
           },
-          "later_embedding_ref": "MT-042-KERNEL-AC-005",
+          "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
           "later_embedding_required": true,
           "later_embedding_assertion": "Stroke-selection Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
+          ],
+          "qualified_original_acceptance_ref": "MT-042/AC-005"
         }
       ]
     },
