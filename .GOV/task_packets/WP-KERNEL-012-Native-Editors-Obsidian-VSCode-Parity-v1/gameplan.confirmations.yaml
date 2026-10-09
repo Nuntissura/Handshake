@@ -631,9 +631,6 @@ confirmations:
 - {id: GP-295, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T21:00:26Z', by: orchestrator, note: Actual UTF8 identities/source scoped; stable catalog/atomic receipts; no MT170 fixture change; no runtime PASS claimed}
 - {id: GP-298, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T21:00:26Z', by: orchestrator, note: Actual UTF8 identities/source scoped; stable catalog/atomic receipts; no MT170 fixture change; no runtime PASS claimed}
 - {id: GP-368, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T21:00:26Z', by: orchestrator, note: Actual UTF8 identities/source scoped; stable catalog/atomic receipts; no MT170 fixture change; no runtime PASS claimed}
-- {id: GP-010, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T21:02:09Z', by: orchestrator, note: '170 canonical MTs reread;136READY,111PASS,170PASS; strict changed JSON; no memory rituals'}
-- {id: GP-011, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T21:02:09Z', by: orchestrator, note: '170 canonical MTs reread;136READY,111PASS,170PASS; strict changed JSON; no memory rituals'}
-- {id: GP-012, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T21:02:09Z', by: orchestrator, note: '170 canonical MTs reread;136READY,111PASS,170PASS; strict changed JSON; no memory rituals'}
 - {id: GP-191, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T21:02:09Z', by: orchestrator, note: '170 canonical MTs reread;136READY,111PASS,170PASS; strict changed JSON; no memory rituals'}
 - {id: GP-196, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T21:02:09Z', by: orchestrator, note: '170 canonical MTs reread;136READY,111PASS,170PASS; strict changed JSON; no memory rituals'}
 - {id: GP-197, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T21:02:09Z', by: orchestrator, note: '170 canonical MTs reread;136READY,111PASS,170PASS; strict changed JSON; no memory rituals'}
@@ -779,3 +776,9 @@ confirmations:
 - {id: GP-382, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T23:03:58Z', by: wp_validator, note: 0c63 closed11/11/check0/build0;12hashes;source7167;historyUTF8equal;all own floor inspected}
 - {id: GP-325, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T23:03:59Z', by: wp_validator, note: MT136 CORE-only; no native vault or MT111 broker assertion selected; scoped N/A}
 - {id: GP-381, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T23:03:59Z', by: wp_validator, note: MT136 CORE-only; no native vault or MT111 broker assertion selected; scoped N/A}
+- {id: GP-177, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T23:58:54Z', by: builder, note: Read-only exact-path directory inventory; no runner-name discovery mixed into inventory; valid pipeline observed}
+- {id: GP-179, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T23:58:54Z', by: builder, note: Read-only exact-path directory inventory; no runner-name discovery mixed into inventory; valid pipeline observed}
+- {id: GP-180, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-08T23:58:54Z', by: builder, note: Read-only exact-path directory inventory; no runner-name discovery mixed into inventory; valid pipeline observed}
+- {id: GP-010, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-09T00:04:20Z', note: Authority/state read;170MTs135PASS12FAIL18BLOCKED5READY;zero unpaired verdicts;no memory reads}
+- {id: GP-011, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-09T00:04:20Z', note: Authority/state read;170MTs135PASS12FAIL18BLOCKED5READY;zero unpaired verdicts;no memory reads}
+- {id: GP-012, head: 0c63e656c96c75fefbea00eb776c9cf1cc2d0f76, at: '2026-10-09T00:04:20Z', note: Authority/state read;170MTs135PASS12FAIL18BLOCKED5READY;zero unpaired verdicts;no memory reads}

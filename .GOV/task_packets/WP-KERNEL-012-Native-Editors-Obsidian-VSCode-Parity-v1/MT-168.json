@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-08T16:59:02.694177Z",
+  "updated_at_utc": "2026-10-09T00:11:19.766959+00:00",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -208,6 +208,22 @@
         "evidence_required": [
           "junit"
         ]
+      },
+      {
+        "check_id": "MT-168-EXACT163-UPGRADE",
+        "executor_role": "WP_VALIDATOR",
+        "claim_refs": [
+          "AC-168-6",
+          "operator_decision_20261009_exact163_proof"
+        ],
+        "command_or_method": "Existing core-lib selection: storage::surreal::schema::tests::mt168_revision_163_upgrade_preserves_data_and_restarts_current",
+        "expected": "Exact accepted163 seeds real disk, rejects changed state/catalog without DDL, upgrades164 with retained row, closes/reopens current and retains row",
+        "timeout_seconds": 1200,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "junit",
+          "candidate/source/target identity"
+        ]
       }
     ]
   },
@@ -235,9 +251,9 @@
     ],
     "active": true,
     "validator_verdict": "FAIL_V1",
-    "claimed_by": "KERNEL_BUILDER-20261002",
+    "claimed_by": "KERNEL_BUILDER-20261009-retained-builder",
     "completed_by": null,
-    "next_actor": "ORCHESTRATOR: deliberate and select only one failed MT for repair; active1ad union continues",
+    "next_actor": "KERNEL_BUILDER",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-153.json#analysis_20261001_step1_w_scans_ownership",
@@ -268,7 +284,8 @@
     "prior_validator_verdict": null,
     "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
     "validated_at_utc": "2026-10-08T16:59:02.694177Z",
-    "validated_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557"
+    "validated_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "claimed_at_utc": "2026-10-09T00:06:04.571037+00:00"
   },
   "scope": {
     "summary": "Make grant checks and W resource/grant scans index-served (key-first all-AND lookups with bare LET params; new parent_resource_id index) so their cost is independent of other workspaces' rows; semantics unchanged.",
@@ -1555,5 +1572,118 @@
     "scope_limit": "Actual own current-candidate product failure; shared unrelated failures are not inherited; MT111 remains the only selected repair",
     "state_effect": "Supplement prior source FAIL_V1; no second lifecycle transition or failed-round counter",
     "verdict_events": []
+  },
+  "remediation_20261009_mt168": {
+    "recorded_at_utc": "2026-10-09T00:06:04.571037+00:00",
+    "by": "KERNEL_BUILDER-20261009-retained-builder",
+    "batch_owner": "MT-168",
+    "covered_mts": [
+      "MT-168"
+    ],
+    "state": "UNCOMPILED_UNVALIDATED_FULL_SOURCE_CHECKPOINT",
+    "candidate_commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
+    "candidate_tree": "6e699788f7e4ec44f827243c18d0dadbe6b72302",
+    "product_worktree": "wtc-WP-KERNEL-012",
+    "branch": "feat/WP-KERNEL-012",
+    "failure_refs": [
+      "validation_source_20261008_1ad04e43",
+      "validation_runtime_20261008_1ad04e43_core"
+    ],
+    "changed_paths": [
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs"
+    ],
+    "repair": [
+      "Bare-key candidate lookups preserve all workspace-delete filters and cardinality",
+      "Timing fixture memory-pack parent and delete grant satisfy existing guard",
+      "Strict exact163 predecessor bridge advances164 by re-emitting only workspace-delete function"
+    ],
+    "independent_source_review": "buddy: NO_BLOCKING_PRODUCTION_SOURCE_FINDING for uncompiled/unvalidated checkpoint; no runtime acceptance",
+    "static_evidence": {
+      "diff_check_exit": 0,
+      "ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-scoped-static-20261009.json",
+      "scope": "Historical pins, exact163 source/info, current raw hash, old162 upgrade body and table permissions",
+      "runtime_proof": false,
+      "compile_proof": false
+    },
+    "current_generated_sha256": "6fe8ffb1965993f3432f8978a08a6618408340b2e977ba4b18d9367f1f9861d3",
+    "current_info": "UNMEASURED; existing constant unchanged until independent measurement",
+    "preserved_verdict": "FAIL_V1",
+    "unclosed": [
+      "Mandatory builder compile pending fixedexport exclusive handoff",
+      "Independent CURRENT runtime pin measurement",
+      "Required own authority/timing/downstream acceptance",
+      "Historical PRE162 reconstruction static gap retained; no historical repin",
+      "MT167 downstream median failure remains distinct; no causal fix claimed"
+    ],
+    "next_actor": "KERNEL_BUILDER for exclusive warm check after WPV export preparation",
+    "preservation_checkpoints": [
+      {
+        "commit": "817bd35cfae235e754e0d6e447fda2cf137578ab",
+        "tree": "64fdb3a43fc6d823ee4ee6a6db54870b5696d232",
+        "state": "UNCOMPILED_UNVALIDATED_PRESERVATION_CHECKPOINT"
+      },
+      {
+        "commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
+        "tree": "6e699788f7e4ec44f827243c18d0dadbe6b72302",
+        "state": "UNCOMPILED_UNVALIDATED_FULL_SOURCE_CHECKPOINT"
+      }
+    ],
+    "approved_lineage_test": "storage::surreal::schema::tests::mt168_revision_163_upgrade_preserves_data_and_restarts_current",
+    "lineage_static_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-lineage-static-20261009.json",
+    "preexisting_pre162_reconstruction_gap": {
+      "baseline_commit": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+      "observed_identity_only_reversal_sha256": "54f2ee89c8988dcf1a149549b00d21017eabc384de6e0348d5285f43a00db851",
+      "fixed_pre162_expected": "a0b177fe32c68a5b17813dede906f83877241532c3c8996e2a3c3fd124c6fbb5",
+      "cause": "UNVERIFIED",
+      "new_helper_effect": "byte-identical old163->old162 reversal; existing gap unchanged",
+      "status_effect": "NONE; accepted historical MT170 verdict preserved; no runtime proof claimed"
+    },
+    "wpv_preparation": {
+      "artifact_owner_mt": "MT-170",
+      "work_owner_mt": "MT-168",
+      "covered_mts": [
+        "MT-168"
+      ],
+      "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+      "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
+      "compile_executor": "KERNEL_BUILDER",
+      "runtime_executor": "WP_VALIDATOR",
+      "mutable_owner": "one_at_a_time",
+      "phase_order": [
+        "verified fixedexport refresh",
+        "exclusive locked-j1 builder lib/tests check",
+        "resource release",
+        "WPV six CURRENT catalogs measurement",
+        "KB measured CURRENT pin-only push",
+        "WPV required MT168 bundle"
+      ],
+      "downstream_observations": [
+        "MT153 BCV cleanup",
+        "MT154 W",
+        "MT157 W",
+        "MT167 timing"
+      ],
+      "adjacent_verdict_authority": "NONE",
+      "admission_reserve_bytes": 10000000000,
+      "wp_cap_bytes": 160000000000,
+      "observer_stop_bytes": 158000000000
+    }
+  },
+  "operator_decision_request_20261009_exact163_proof": {
+    "state": "APPROVED",
+    "path": "src/backend/handshake_core/src/storage/surreal/schema.rs",
+    "requested_scope": "New embedded mt168_revision_163_upgrade_preserves_data_and_restarts_current test and exact163 restoration helper/deltas; retain old162 and older fixtures",
+    "reason": "Existing mt139 test seeds old151 and mt170 test seeds162; neither proves163 to164 dispatcher/upgrade/disk close/reopen",
+    "proof": "Immutable163 generated/info pins, retained sentinel, exact164 state, real disk reopen, negative state/catalog denial",
+    "forbidden": "No acceptance weakening, permission widening, or borrowed MT170 scope"
+  },
+  "operator_decision_20261009_exact163_proof": {
+    "authorized_by": "OPERATOR",
+    "answer": "approve",
+    "recorded_at_utc": "2026-10-09T00:07:10.876687+00:00",
+    "scope": "Only schema.rs embedded mt168_revision_163_upgrade_preserves_data_and_restarts_current and exact163 reconstruction/test helper; durable sentinel/reopen and scoped negative state/catalog rejection; preserve historical162/older proof",
+    "source": "Root relayed current async question approval in this live session"
   }
 }
