@@ -1,7 +1,7 @@
 {
   "schema_id": "hsk.studio_module_catalog@1",
   "file_id": "STUDIO-MODULES-207",
-  "updated_at": "2026-10-09T22:23:36.476462+00:00",
+  "updated_at": "2026-10-09T22:28:37.609007+00:00",
   "authority": "Approved Studio architecture planning under signature ilja091020261912; actual Rust implementation next session",
   "spec_version": "v02.207",
   "approval_ref": "STUDIO-APPROVAL-SPEC-207",
@@ -5448,5 +5448,876 @@
   ],
   "source_repository_url": "https://github.com/Nuntissura/assets",
   "source_repository_policy": "Canonical standalone source changes land in assets GitHub before distinct native Handshake host adoption; existing local Studio worktree is a preparation locator, no verified assets checkout or runtime authorization claimed.",
-  "authoring_checkpoint": "a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89"
+  "authoring_checkpoint": "a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89",
+  "host_modules": [
+    {
+      "module_ref": "handshake_core::studio",
+      "status": "PLANNED_ADAPTER_MODULE_NOT_MATERIALIZED",
+      "source_root": "src/backend/handshake_core/src/studio",
+      "host_task_refs": [
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36189.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36191.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36192.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36216.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36224.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36225.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36226.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36227.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36228.json"
+      ],
+      "maintenance_contracts": {
+        "ownership": {
+          "module_ref": "handshake_core::studio",
+          "source_root": "src/backend/handshake_core/src/studio",
+          "allowed_hook_paths": [
+            "src/backend/handshake_core/src/studio/adapters/accord.rs",
+            "src/backend/handshake_core/src/studio/adapters/folio.rs",
+            "src/backend/handshake_core/src/studio/adapters/chronicle.rs",
+            "src/backend/handshake_core/src/studio/adapters/kernel_bindings.rs",
+            "src/backend/handshake_core/Cargo.toml",
+            "src/backend/handshake_core/src/studio/storage_glue.rs",
+            "src/backend/handshake_core/src/studio/promotion.rs",
+            "src/backend/handshake_core/src/studio/draft.rs",
+            "src/backend/handshake_core/src/studio/jobs.rs"
+          ],
+          "assignment": "Host files only in separately activated integration target; WP012 remains read-only preparation. Preserve current owning AppState/API/EventLedger/FR/MEX/native owners."
+        },
+        "selection": {
+          "build_units": [
+            "handshake_core"
+          ],
+          "test_mt_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36189.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36191.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36192.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36216.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36224.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36225.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36226.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36227.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36228.json"
+          ],
+          "closure": "Affected host target+selected pinned source modules only; exact host worktree/entrypoint/config unresolved before activation, no full kernel prerequisite for source work."
+        },
+        "runtime": {
+          "limits": "Use existing bounded job/resource/document/current-grant ports; each adoption task binds source budget/leases to host owner and reserved cancel/drain outcomes.",
+          "lifecycle": "Check independently observed assets remote revision and source proof before host writes; instantiate adapter from exact immutable release and lock pins; no module-internal patch in host.",
+          "manual": "Same-change canonical UserManual for each adopted behavior/route with failure/recovery and storage/FR link.",
+          "tools": "Typed existing API/model routes consume module public descriptors; no second router or invented private control owner.",
+          "inspection": "Native adoption binds current actor/revision/frame/renderer/profile/grant Argus observation; backend headless routes expose existing trace inspection.",
+          "diagnostics": "Existing FlightRecorder/internal_diagnostics/Palmistry owners, explicit task-specific wiring and current producer/consumer proof; planned records are not availability.",
+          "recovery": "Reauthorize retry, reconcile outcome-unknown writes from canonical EventLedger/CRDT receipt, fence stale epochs and preserve accepted state through bounded shutdown.",
+          "gui": "Studio adapters mount through native EditorSurface/registry and stable author_id/AccessKit/headless routes; no webview shell."
+        },
+        "release": {
+          "version": "Host adapter revision binds explicit source release/schema/API/lock/toolchain pins and host candidate SHA; standalone remote proof is separate.",
+          "compatibility": "Execute each original AC through exact mapped native host consumer and source result; generic adapter success cannot close covered parity.",
+          "provenance": "Host candidate/source commit-tree-module hashes+independent canonical assets remote equality; root report carries authoring history, no runtime receipt.",
+          "allowlist": [
+            "src/backend/handshake_core/src/studio/adapters/accord.rs",
+            "src/backend/handshake_core/src/studio/adapters/folio.rs",
+            "src/backend/handshake_core/src/studio/adapters/chronicle.rs",
+            "src/backend/handshake_core/src/studio/adapters/kernel_bindings.rs",
+            "src/backend/handshake_core/Cargo.toml",
+            "src/backend/handshake_core/src/studio/storage_glue.rs",
+            "src/backend/handshake_core/src/studio/promotion.rs",
+            "src/backend/handshake_core/src/studio/draft.rs",
+            "src/backend/handshake_core/src/studio/jobs.rs"
+          ],
+          "excluded": [
+            ".GOV/**",
+            "credentials",
+            "private imported assets",
+            "machine-local state",
+            "build/test output"
+          ],
+          "mirror": "Consume canonical assets source exactly; preserve handpick and customized destinations; drift blocks native adoption."
+        },
+        "embedding": {
+          "adapter_contract_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36189.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36191.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36192.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36216.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36224.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36225.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36226.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36227.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36228.json"
+          ],
+          "conformance_proof_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36189.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36191.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36192.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36216.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36224.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36225.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36226.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36227.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36228.json#/proof/checks"
+          ],
+          "responsibility": "handshake_core::studio owns only its host adaptation/service hooks; canonical source module algorithms remain in assets GitHub. AppState/storage/auth/promotion/CRDT/native obligations remain Handshake law."
+        },
+        "evolution": {
+          "portable": "Repo-root-discovered host paths and externally configured artifact root; no drive/profile paths.",
+          "upgrade": "Independently verify new canonical source proof/release; settle leases/in-flight accepted outcomes; adopt exact pinned changed closure, inspect negative compatibility.",
+          "migration": "Authority schema rollout under existing SurrealKit; explicit version and reversible/irreversible dispositions, last-good retained; source asset upgrade does not migrate host state.",
+          "rollback": "Restore previous pinned source+host adapter/lock after bounded drain; recover EventLedger/CRDT authority via existing host contracts, never erase an accepted edit or substitute byte rollback for authority recovery."
+        }
+      },
+      "maintenance": {
+        "contract_version": 1,
+        "owner_ref": "handshake_core::studio",
+        "unit_kind": "code",
+        "source": {
+          "canonical_repository_url": "https://github.com/Nuntissura/Handshake"
+        },
+        "standalone": {
+          "source_root_refs": [
+            "src/backend/handshake_core/src/studio"
+          ],
+          "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/selection",
+          "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/selection/build_units",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/selection/test_mt_refs",
+          "artifact_refs": [],
+          "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36189.json#/execution",
+          "public_contract_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/embedding"
+          ],
+          "contract_proof_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36189.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36191.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36192.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36216.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36224.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36225.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36226.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36227.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36228.json#/proof"
+          ]
+        },
+        "operation": {
+          "resource_limits_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/runtime/limits",
+          "lifecycle_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/runtime/lifecycle",
+          "manual_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/runtime/manual",
+          "model_tools_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/runtime/tools",
+          "inspection_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/runtime/inspection",
+          "diagnostics_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/runtime/diagnostics",
+          "recovery_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/runtime/recovery",
+          "gui_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/runtime/gui"
+        },
+        "release": {
+          "version_policy_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/release/version",
+          "compatibility_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/release/compatibility",
+          "provenance_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/release/provenance",
+          "publication_allowlist_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/release/allowlist",
+          "private_data_exclusion_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/release/excluded",
+          "mirror_policy_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/release/mirror"
+        },
+        "embedding": {
+          "adapter_contract_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36189.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36191.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36192.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36216.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36224.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36225.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36226.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36227.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36228.json"
+          ],
+          "conformance_proof_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36189.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36191.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36192.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36216.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36224.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36225.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36226.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36227.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36228.json#/proof"
+          ],
+          "standalone_host_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/embedding"
+        },
+        "evolution": {
+          "portable_roots_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/evolution/portable",
+          "upgrade_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/evolution/upgrade",
+          "migration_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/evolution/migration",
+          "rollback_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance_contracts/evolution/rollback"
+        }
+      }
+    },
+    {
+      "module_ref": "handshake_native::studio",
+      "status": "PLANNED_ADAPTER_MODULE_NOT_MATERIALIZED",
+      "source_root": "src/frontend/handshake_native/src/studio",
+      "host_task_refs": [
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36190.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36193.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36195.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36196.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36197.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36198.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36199.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36200.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36201.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36202.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36203.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36205.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36206.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36207.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36208.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36209.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36210.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36211.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36212.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36213.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36214.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36215.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36217.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36219.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36220.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36221.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36222.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36223.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36231.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36232.json",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36233.json"
+      ],
+      "maintenance_contracts": {
+        "ownership": {
+          "module_ref": "handshake_native::studio",
+          "source_root": "src/frontend/handshake_native/src/studio",
+          "allowed_hook_paths": [
+            "src/frontend/handshake_native/src/studio/adapters/observe.rs",
+            "src/frontend/handshake_native/src/studio/adapters/prism.rs",
+            "src/frontend/handshake_native/src/studio/adapters/pigment.rs",
+            "src/frontend/handshake_native/src/studio/adapters/nib.rs",
+            "src/frontend/handshake_native/src/studio/adapters/type.rs",
+            "src/frontend/handshake_native/src/studio/adapters/layout.rs",
+            "src/frontend/handshake_native/src/studio/adapters/develop.rs",
+            "src/frontend/handshake_native/src/studio/adapters/components.rs",
+            "src/frontend/handshake_native/src/studio/adapters/pulse.rs",
+            "src/frontend/handshake_native/src/studio/adapters/score.rs",
+            "src/frontend/handshake_native/src/studio/adapters/reel.rs",
+            "src/frontend/handshake_native/src/studio/adapters/motion.rs",
+            "src/frontend/handshake_native/src/studio/adapters/composite.rs",
+            "src/frontend/handshake_native/src/studio/adapters/render_cpu.rs",
+            "src/frontend/handshake_native/src/studio/adapters/render_gpu.rs",
+            "src/frontend/handshake_native/src/studio/adapters/package.rs",
+            "src/frontend/handshake_native/src/studio/adapters/interop_psd.rs",
+            "src/frontend/handshake_native/src/studio/adapters/interop_vector.rs",
+            "src/frontend/handshake_native/src/studio/adapters/interop_fig.rs",
+            "src/frontend/handshake_native/src/studio/adapters/interop_layout.rs",
+            "src/frontend/handshake_native/src/studio/adapters/interop_media.rs",
+            "src/frontend/handshake_native/src/studio/adapters/controls.rs",
+            "src/frontend/handshake_native/src/studio/adapters/session.rs",
+            "src/frontend/handshake_native/src/studio/adapters/harness.rs",
+            "src/frontend/handshake_native/src/studio/adapters/press.rs",
+            "src/frontend/handshake_native/src/studio/adapters/web.rs",
+            "src/frontend/handshake_native/src/studio/adapters/score_device.rs",
+            "src/frontend/handshake_native/src/studio/adapters/score_plugin.rs",
+            "src/frontend/handshake_native/src/studio/adapters/reel_native.rs",
+            "src/frontend/handshake_native/src/studio/adapters/interop_lrcat.rs",
+            "src/frontend/handshake_native/src/studio/adapters/motion_js.rs",
+            "src/frontend/handshake_native/src/studio/mod.rs",
+            "src/frontend/handshake_native/src/studio/inspection.rs",
+            "src/frontend/handshake_native/src/studio/diagnostics.rs"
+          ],
+          "assignment": "Host files only in separately activated integration target; WP012 remains read-only preparation. Preserve current owning AppState/API/EventLedger/FR/MEX/native owners."
+        },
+        "selection": {
+          "build_units": [
+            "handshake_native"
+          ],
+          "test_mt_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36190.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36193.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36195.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36196.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36197.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36198.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36199.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36200.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36201.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36202.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36203.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36205.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36206.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36207.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36208.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36209.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36210.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36211.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36212.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36213.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36214.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36215.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36217.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36219.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36220.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36221.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36222.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36223.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36231.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36232.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36233.json"
+          ],
+          "closure": "Affected host target+selected pinned source modules only; exact host worktree/entrypoint/config unresolved before activation, no full kernel prerequisite for source work."
+        },
+        "runtime": {
+          "limits": "Use existing bounded job/resource/document/current-grant ports; each adoption task binds source budget/leases to host owner and reserved cancel/drain outcomes.",
+          "lifecycle": "Check independently observed assets remote revision and source proof before host writes; instantiate adapter from exact immutable release and lock pins; no module-internal patch in host.",
+          "manual": "Same-change canonical UserManual for each adopted behavior/route with failure/recovery and storage/FR link.",
+          "tools": "Typed existing API/model routes consume module public descriptors; no second router or invented private control owner.",
+          "inspection": "Native adoption binds current actor/revision/frame/renderer/profile/grant Argus observation; backend headless routes expose existing trace inspection.",
+          "diagnostics": "Existing FlightRecorder/internal_diagnostics/Palmistry owners, explicit task-specific wiring and current producer/consumer proof; planned records are not availability.",
+          "recovery": "Reauthorize retry, reconcile outcome-unknown writes from canonical EventLedger/CRDT receipt, fence stale epochs and preserve accepted state through bounded shutdown.",
+          "gui": "Studio adapters mount through native EditorSurface/registry and stable author_id/AccessKit/headless routes; no webview shell."
+        },
+        "release": {
+          "version": "Host adapter revision binds explicit source release/schema/API/lock/toolchain pins and host candidate SHA; standalone remote proof is separate.",
+          "compatibility": "Execute each original AC through exact mapped native host consumer and source result; generic adapter success cannot close covered parity.",
+          "provenance": "Host candidate/source commit-tree-module hashes+independent canonical assets remote equality; root report carries authoring history, no runtime receipt.",
+          "allowlist": [
+            "src/frontend/handshake_native/src/studio/adapters/observe.rs",
+            "src/frontend/handshake_native/src/studio/adapters/prism.rs",
+            "src/frontend/handshake_native/src/studio/adapters/pigment.rs",
+            "src/frontend/handshake_native/src/studio/adapters/nib.rs",
+            "src/frontend/handshake_native/src/studio/adapters/type.rs",
+            "src/frontend/handshake_native/src/studio/adapters/layout.rs",
+            "src/frontend/handshake_native/src/studio/adapters/develop.rs",
+            "src/frontend/handshake_native/src/studio/adapters/components.rs",
+            "src/frontend/handshake_native/src/studio/adapters/pulse.rs",
+            "src/frontend/handshake_native/src/studio/adapters/score.rs",
+            "src/frontend/handshake_native/src/studio/adapters/reel.rs",
+            "src/frontend/handshake_native/src/studio/adapters/motion.rs",
+            "src/frontend/handshake_native/src/studio/adapters/composite.rs",
+            "src/frontend/handshake_native/src/studio/adapters/render_cpu.rs",
+            "src/frontend/handshake_native/src/studio/adapters/render_gpu.rs",
+            "src/frontend/handshake_native/src/studio/adapters/package.rs",
+            "src/frontend/handshake_native/src/studio/adapters/interop_psd.rs",
+            "src/frontend/handshake_native/src/studio/adapters/interop_vector.rs",
+            "src/frontend/handshake_native/src/studio/adapters/interop_fig.rs",
+            "src/frontend/handshake_native/src/studio/adapters/interop_layout.rs",
+            "src/frontend/handshake_native/src/studio/adapters/interop_media.rs",
+            "src/frontend/handshake_native/src/studio/adapters/controls.rs",
+            "src/frontend/handshake_native/src/studio/adapters/session.rs",
+            "src/frontend/handshake_native/src/studio/adapters/harness.rs",
+            "src/frontend/handshake_native/src/studio/adapters/press.rs",
+            "src/frontend/handshake_native/src/studio/adapters/web.rs",
+            "src/frontend/handshake_native/src/studio/adapters/score_device.rs",
+            "src/frontend/handshake_native/src/studio/adapters/score_plugin.rs",
+            "src/frontend/handshake_native/src/studio/adapters/reel_native.rs",
+            "src/frontend/handshake_native/src/studio/adapters/interop_lrcat.rs",
+            "src/frontend/handshake_native/src/studio/adapters/motion_js.rs",
+            "src/frontend/handshake_native/src/studio/mod.rs",
+            "src/frontend/handshake_native/src/studio/inspection.rs",
+            "src/frontend/handshake_native/src/studio/diagnostics.rs"
+          ],
+          "excluded": [
+            ".GOV/**",
+            "credentials",
+            "private imported assets",
+            "machine-local state",
+            "build/test output"
+          ],
+          "mirror": "Consume canonical assets source exactly; preserve handpick and customized destinations; drift blocks native adoption."
+        },
+        "embedding": {
+          "adapter_contract_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36190.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36193.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36195.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36196.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36197.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36198.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36199.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36200.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36201.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36202.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36203.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36205.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36206.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36207.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36208.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36209.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36210.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36211.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36212.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36213.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36214.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36215.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36217.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36219.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36220.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36221.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36222.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36223.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36231.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36232.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36233.json"
+          ],
+          "conformance_proof_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36190.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36193.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36195.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36196.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36197.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36198.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36199.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36200.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36201.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36202.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36203.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36205.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36206.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36207.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36208.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36209.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36210.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36211.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36212.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36213.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36214.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36215.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36217.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36219.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36220.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36221.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36222.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36223.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36231.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36232.json#/proof/checks",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36233.json#/proof/checks"
+          ],
+          "responsibility": "handshake_native::studio owns only its host adaptation/service hooks; canonical source module algorithms remain in assets GitHub. AppState/storage/auth/promotion/CRDT/native obligations remain Handshake law."
+        },
+        "evolution": {
+          "portable": "Repo-root-discovered host paths and externally configured artifact root; no drive/profile paths.",
+          "upgrade": "Independently verify new canonical source proof/release; settle leases/in-flight accepted outcomes; adopt exact pinned changed closure, inspect negative compatibility.",
+          "migration": "Authority schema rollout under existing SurrealKit; explicit version and reversible/irreversible dispositions, last-good retained; source asset upgrade does not migrate host state.",
+          "rollback": "Restore previous pinned source+host adapter/lock after bounded drain; recover EventLedger/CRDT authority via existing host contracts, never erase an accepted edit or substitute byte rollback for authority recovery."
+        }
+      },
+      "maintenance": {
+        "contract_version": 1,
+        "owner_ref": "handshake_native::studio",
+        "unit_kind": "code",
+        "source": {
+          "canonical_repository_url": "https://github.com/Nuntissura/Handshake"
+        },
+        "standalone": {
+          "source_root_refs": [
+            "src/frontend/handshake_native/src/studio"
+          ],
+          "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/selection",
+          "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/selection/build_units",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/selection/test_mt_refs",
+          "artifact_refs": [],
+          "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36190.json#/execution",
+          "public_contract_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/embedding"
+          ],
+          "contract_proof_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36190.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36193.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36195.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36196.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36197.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36198.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36199.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36200.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36201.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36202.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36203.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36205.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36206.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36207.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36208.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36209.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36210.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36211.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36212.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36213.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36214.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36215.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36217.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36219.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36220.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36221.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36222.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36223.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36231.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36232.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36233.json#/proof"
+          ]
+        },
+        "operation": {
+          "resource_limits_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/runtime/limits",
+          "lifecycle_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/runtime/lifecycle",
+          "manual_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/runtime/manual",
+          "model_tools_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/runtime/tools",
+          "inspection_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/runtime/inspection",
+          "diagnostics_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/runtime/diagnostics",
+          "recovery_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/runtime/recovery",
+          "gui_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/runtime/gui"
+        },
+        "release": {
+          "version_policy_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/release/version",
+          "compatibility_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/release/compatibility",
+          "provenance_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/release/provenance",
+          "publication_allowlist_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/release/allowlist",
+          "private_data_exclusion_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/release/excluded",
+          "mirror_policy_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/release/mirror"
+        },
+        "embedding": {
+          "adapter_contract_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36190.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36193.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36195.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36196.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36197.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36198.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36199.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36200.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36201.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36202.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36203.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36205.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36206.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36207.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36208.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36209.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36210.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36211.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36212.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36213.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36214.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36215.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36217.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36219.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36220.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36221.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36222.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36223.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36231.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36232.json",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36233.json"
+          ],
+          "conformance_proof_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36190.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36193.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36195.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36196.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36197.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36198.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36199.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36200.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36201.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36202.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36203.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36205.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36206.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36207.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36208.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36209.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36210.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36211.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36212.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36213.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36214.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36215.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36217.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36219.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36220.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36221.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36222.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36223.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36231.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36232.json#/proof",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36233.json#/proof"
+          ],
+          "standalone_host_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/embedding"
+        },
+        "evolution": {
+          "portable_roots_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/evolution/portable",
+          "upgrade_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/evolution/upgrade",
+          "migration_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/evolution/migration",
+          "rollback_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/evolution/rollback"
+        }
+      }
+    },
+    {
+      "module_ref": "handshake_core::mex",
+      "status": "EXISTING_HOST_OWNER_ATTACHMENT_REPORTED_BY_EMBEDDING_SOURCE_INSPECTION",
+      "source_root": "src/backend/handshake_core/src/mex",
+      "host_task_refs": [
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36229.json"
+      ],
+      "maintenance_contracts": {
+        "ownership": {
+          "module_ref": "handshake_core::mex",
+          "source_root": "src/backend/handshake_core/src/mex",
+          "allowed_hook_paths": [
+            "src/backend/handshake_core/src/mex/runtime.rs"
+          ],
+          "assignment": "Host files only in separately activated integration target; WP012 remains read-only preparation. Preserve current owning AppState/API/EventLedger/FR/MEX/native owners."
+        },
+        "selection": {
+          "build_units": [
+            "handshake_core"
+          ],
+          "test_mt_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36229.json"
+          ],
+          "closure": "Affected host target+selected pinned source modules only; exact host worktree/entrypoint/config unresolved before activation, no full kernel prerequisite for source work."
+        },
+        "runtime": {
+          "limits": "Use existing bounded job/resource/document/current-grant ports; each adoption task binds source budget/leases to host owner and reserved cancel/drain outcomes.",
+          "lifecycle": "Check independently observed assets remote revision and source proof before host writes; instantiate adapter from exact immutable release and lock pins; no module-internal patch in host.",
+          "manual": "Same-change canonical UserManual for each adopted behavior/route with failure/recovery and storage/FR link.",
+          "tools": "Typed existing API/model routes consume module public descriptors; no second router or invented private control owner.",
+          "inspection": "Native adoption binds current actor/revision/frame/renderer/profile/grant Argus observation; backend headless routes expose existing trace inspection.",
+          "diagnostics": "Existing FlightRecorder/internal_diagnostics/Palmistry owners, explicit task-specific wiring and current producer/consumer proof; planned records are not availability.",
+          "recovery": "Reauthorize retry, reconcile outcome-unknown writes from canonical EventLedger/CRDT receipt, fence stale epochs and preserve accepted state through bounded shutdown.",
+          "gui": "Studio adapters mount through native EditorSurface/registry and stable author_id/AccessKit/headless routes; no webview shell."
+        },
+        "release": {
+          "version": "Host adapter revision binds explicit source release/schema/API/lock/toolchain pins and host candidate SHA; standalone remote proof is separate.",
+          "compatibility": "Execute each original AC through exact mapped native host consumer and source result; generic adapter success cannot close covered parity.",
+          "provenance": "Host candidate/source commit-tree-module hashes+independent canonical assets remote equality; root report carries authoring history, no runtime receipt.",
+          "allowlist": [
+            "src/backend/handshake_core/src/mex/runtime.rs"
+          ],
+          "excluded": [
+            ".GOV/**",
+            "credentials",
+            "private imported assets",
+            "machine-local state",
+            "build/test output"
+          ],
+          "mirror": "Consume canonical assets source exactly; preserve handpick and customized destinations; drift blocks native adoption."
+        },
+        "embedding": {
+          "adapter_contract_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36229.json"
+          ],
+          "conformance_proof_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36229.json#/proof/checks"
+          ],
+          "responsibility": "handshake_core::mex owns only its host adaptation/service hooks; canonical source module algorithms remain in assets GitHub. AppState/storage/auth/promotion/CRDT/native obligations remain Handshake law."
+        },
+        "evolution": {
+          "portable": "Repo-root-discovered host paths and externally configured artifact root; no drive/profile paths.",
+          "upgrade": "Independently verify new canonical source proof/release; settle leases/in-flight accepted outcomes; adopt exact pinned changed closure, inspect negative compatibility.",
+          "migration": "Authority schema rollout under existing SurrealKit; explicit version and reversible/irreversible dispositions, last-good retained; source asset upgrade does not migrate host state.",
+          "rollback": "Restore previous pinned source+host adapter/lock after bounded drain; recover EventLedger/CRDT authority via existing host contracts, never erase an accepted edit or substitute byte rollback for authority recovery."
+        }
+      },
+      "maintenance": {
+        "contract_version": 1,
+        "owner_ref": "handshake_core::mex",
+        "unit_kind": "code",
+        "source": {
+          "canonical_repository_url": "https://github.com/Nuntissura/Handshake"
+        },
+        "standalone": {
+          "source_root_refs": [
+            "src/backend/handshake_core/src/mex"
+          ],
+          "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/selection",
+          "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/selection/build_units",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/selection/test_mt_refs",
+          "artifact_refs": [],
+          "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36229.json#/execution",
+          "public_contract_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/embedding"
+          ],
+          "contract_proof_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36229.json#/proof"
+          ]
+        },
+        "operation": {
+          "resource_limits_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/runtime/limits",
+          "lifecycle_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/runtime/lifecycle",
+          "manual_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/runtime/manual",
+          "model_tools_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/runtime/tools",
+          "inspection_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/runtime/inspection",
+          "diagnostics_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/runtime/diagnostics",
+          "recovery_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/runtime/recovery",
+          "gui_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/runtime/gui"
+        },
+        "release": {
+          "version_policy_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/release/version",
+          "compatibility_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/release/compatibility",
+          "provenance_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/release/provenance",
+          "publication_allowlist_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/release/allowlist",
+          "private_data_exclusion_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/release/excluded",
+          "mirror_policy_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/release/mirror"
+        },
+        "embedding": {
+          "adapter_contract_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36229.json"
+          ],
+          "conformance_proof_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36229.json#/proof"
+          ],
+          "standalone_host_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/embedding"
+        },
+        "evolution": {
+          "portable_roots_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/evolution/portable",
+          "upgrade_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/evolution/upgrade",
+          "migration_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/evolution/migration",
+          "rollback_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance_contracts/evolution/rollback"
+        }
+      }
+    },
+    {
+      "module_ref": "handshake_core::flight_recorder",
+      "status": "EXISTING_HOST_OWNER_ATTACHMENT_REPORTED_BY_EMBEDDING_SOURCE_INSPECTION",
+      "source_root": "src/backend/handshake_core/src/flight_recorder",
+      "host_task_refs": [
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36230.json"
+      ],
+      "maintenance_contracts": {
+        "ownership": {
+          "module_ref": "handshake_core::flight_recorder",
+          "source_root": "src/backend/handshake_core/src/flight_recorder",
+          "allowed_hook_paths": [
+            "src/backend/handshake_core/src/flight_recorder/mod.rs"
+          ],
+          "assignment": "Host files only in separately activated integration target; WP012 remains read-only preparation. Preserve current owning AppState/API/EventLedger/FR/MEX/native owners."
+        },
+        "selection": {
+          "build_units": [
+            "handshake_core"
+          ],
+          "test_mt_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36230.json"
+          ],
+          "closure": "Affected host target+selected pinned source modules only; exact host worktree/entrypoint/config unresolved before activation, no full kernel prerequisite for source work."
+        },
+        "runtime": {
+          "limits": "Use existing bounded job/resource/document/current-grant ports; each adoption task binds source budget/leases to host owner and reserved cancel/drain outcomes.",
+          "lifecycle": "Check independently observed assets remote revision and source proof before host writes; instantiate adapter from exact immutable release and lock pins; no module-internal patch in host.",
+          "manual": "Same-change canonical UserManual for each adopted behavior/route with failure/recovery and storage/FR link.",
+          "tools": "Typed existing API/model routes consume module public descriptors; no second router or invented private control owner.",
+          "inspection": "Native adoption binds current actor/revision/frame/renderer/profile/grant Argus observation; backend headless routes expose existing trace inspection.",
+          "diagnostics": "Existing FlightRecorder/internal_diagnostics/Palmistry owners, explicit task-specific wiring and current producer/consumer proof; planned records are not availability.",
+          "recovery": "Reauthorize retry, reconcile outcome-unknown writes from canonical EventLedger/CRDT receipt, fence stale epochs and preserve accepted state through bounded shutdown.",
+          "gui": "Studio adapters mount through native EditorSurface/registry and stable author_id/AccessKit/headless routes; no webview shell."
+        },
+        "release": {
+          "version": "Host adapter revision binds explicit source release/schema/API/lock/toolchain pins and host candidate SHA; standalone remote proof is separate.",
+          "compatibility": "Execute each original AC through exact mapped native host consumer and source result; generic adapter success cannot close covered parity.",
+          "provenance": "Host candidate/source commit-tree-module hashes+independent canonical assets remote equality; root report carries authoring history, no runtime receipt.",
+          "allowlist": [
+            "src/backend/handshake_core/src/flight_recorder/mod.rs"
+          ],
+          "excluded": [
+            ".GOV/**",
+            "credentials",
+            "private imported assets",
+            "machine-local state",
+            "build/test output"
+          ],
+          "mirror": "Consume canonical assets source exactly; preserve handpick and customized destinations; drift blocks native adoption."
+        },
+        "embedding": {
+          "adapter_contract_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36230.json"
+          ],
+          "conformance_proof_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36230.json#/proof/checks"
+          ],
+          "responsibility": "handshake_core::flight_recorder owns only its host adaptation/service hooks; canonical source module algorithms remain in assets GitHub. AppState/storage/auth/promotion/CRDT/native obligations remain Handshake law."
+        },
+        "evolution": {
+          "portable": "Repo-root-discovered host paths and externally configured artifact root; no drive/profile paths.",
+          "upgrade": "Independently verify new canonical source proof/release; settle leases/in-flight accepted outcomes; adopt exact pinned changed closure, inspect negative compatibility.",
+          "migration": "Authority schema rollout under existing SurrealKit; explicit version and reversible/irreversible dispositions, last-good retained; source asset upgrade does not migrate host state.",
+          "rollback": "Restore previous pinned source+host adapter/lock after bounded drain; recover EventLedger/CRDT authority via existing host contracts, never erase an accepted edit or substitute byte rollback for authority recovery."
+        }
+      },
+      "maintenance": {
+        "contract_version": 1,
+        "owner_ref": "handshake_core::flight_recorder",
+        "unit_kind": "code",
+        "source": {
+          "canonical_repository_url": "https://github.com/Nuntissura/Handshake"
+        },
+        "standalone": {
+          "source_root_refs": [
+            "src/backend/handshake_core/src/flight_recorder"
+          ],
+          "dependency_closure_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/selection",
+          "build_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/selection/build_units",
+          "test_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/selection/test_mt_refs",
+          "artifact_refs": [],
+          "entrypoint_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36230.json#/execution",
+          "public_contract_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/embedding"
+          ],
+          "contract_proof_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36230.json#/proof"
+          ]
+        },
+        "operation": {
+          "resource_limits_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/runtime/limits",
+          "lifecycle_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/runtime/lifecycle",
+          "manual_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/runtime/manual",
+          "model_tools_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/runtime/tools",
+          "inspection_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/runtime/inspection",
+          "diagnostics_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/runtime/diagnostics",
+          "recovery_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/runtime/recovery",
+          "gui_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/runtime/gui"
+        },
+        "release": {
+          "version_policy_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/release/version",
+          "compatibility_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/release/compatibility",
+          "provenance_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/release/provenance",
+          "publication_allowlist_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/release/allowlist",
+          "private_data_exclusion_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/release/excluded",
+          "mirror_policy_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/release/mirror"
+        },
+        "embedding": {
+          "adapter_contract_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36230.json"
+          ],
+          "conformance_proof_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36230.json#/proof"
+          ],
+          "standalone_host_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/embedding"
+        },
+        "evolution": {
+          "portable_roots_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/evolution/portable",
+          "upgrade_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/evolution/upgrade",
+          "migration_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/evolution/migration",
+          "rollback_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance_contracts/evolution/rollback"
+        }
+      }
+    }
+  ]
 }

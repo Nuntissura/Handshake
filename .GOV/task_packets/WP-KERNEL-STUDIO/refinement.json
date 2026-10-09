@@ -6215,7 +6215,11 @@
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/32/maintenance",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/33/maintenance",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/34/maintenance",
-      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/workspace_owner/maintenance"
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/workspace_owner/maintenance",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/0/maintenance",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/2/maintenance",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/3/maintenance"
     ]
   }
 }
