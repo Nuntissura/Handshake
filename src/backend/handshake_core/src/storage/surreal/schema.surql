@@ -6815,26 +6815,32 @@ FOR $owned IN $resources {
 };
 LET $workspace_delete_rows_1 = SELECT rich_document_id FROM knowledge_rich_documents WHERE workspace_id = $workspace;
 FOR $document IN $workspace_delete_rows_1 {
-    IF array::len(SELECT id FROM protected_resources WHERE resource_kind = 'rich_document'
-        AND external_resource_id = $document.rich_document_id AND parent_resource_id = $resource
-        AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active') != 1 {
+    LET $document_id = $document.rich_document_id;
+    LET $document_resources = SELECT * FROM protected_resources WHERE resource_kind = 'rich_document'
+        AND external_resource_id = $document_id;
+    IF array::len($document_resources[WHERE parent_resource_id = $resource
+        AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active']) != 1 {
         RETURN false;
     };
 };
 LET $workspace_delete_rows_2 = SELECT block_id, source_rich_document_id, content_type, content_hash FROM loom_blocks WHERE workspace_id = $workspace;
 FOR $block IN $workspace_delete_rows_2 {
+    LET $block_id = $block.block_id;
     IF $block.source_rich_document_id != NONE {
+        LET $block_resources = SELECT * FROM protected_resources WHERE resource_kind = 'rich_document'
+            AND external_resource_id = $block_id;
         IF record::id($block.source_rich_document_id) != $block.block_id OR $block.content_type != 'note'
             OR $block.source_rich_document_id.workspace_id != $workspace
             OR $block.content_hash != $block.source_rich_document_id.content_sha256
-            OR array::len(SELECT id FROM protected_resources WHERE resource_kind = 'rich_document'
-                AND external_resource_id = $block.block_id AND parent_resource_id = $resource
-                AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active') != 1 {
+            OR array::len($block_resources[WHERE parent_resource_id = $resource
+                AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active']) != 1 {
             RETURN false;
         };
     } ELSE IF $block.content_type != 'view_def' {
-        IF array::len(SELECT id FROM protected_resources WHERE resource_kind = 'loom_block' AND external_resource_id = $block.block_id
-            AND id IN $resources.id AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active') != 1 {
+        LET $block_resources = SELECT * FROM protected_resources WHERE resource_kind = 'loom_block'
+            AND external_resource_id = $block_id;
+        IF array::len($block_resources[WHERE id IN $resources.id AND owner_account_id = $account
+            AND access_space_id = $space AND lifecycle_state = 'active']) != 1 {
             RETURN false;
         };
     };
@@ -7025,9 +7031,13 @@ FOR $source IN $workspace_delete_rows_8 { IF array::len(SELECT id FROM protected
     LET $workspace_delete_rows_12 = SELECT * FROM knowledge_entities WHERE workspace_id = $workspace;
     FOR $entity IN $workspace_delete_rows_12 {
         IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {
-            LET $entity_block = type::record('loom_blocks', $entity.entity_key);
-            LET $view_entity = IF record::exists($entity_block) { $entity_block.content_type = 'view_def' AND $entity_block.workspace_id = $workspace } ELSE { $entity.detection_provenance.content_type = 'view_def' AND array::len(SELECT id FROM protected_resources WHERE resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key) = 0 };
-            IF !$view_entity AND array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };
+            LET $entity_key = $entity.entity_key;
+            LET $entity_block = type::record('loom_blocks', $entity_key);
+            LET $entity_loom_resources = SELECT * FROM protected_resources WHERE resource_kind = 'loom_block' AND external_resource_id = $entity_key;
+            LET $entity_document_resources = SELECT * FROM protected_resources WHERE resource_kind = 'rich_document' AND external_resource_id = $entity_key;
+            LET $entity_resources = array::concat($entity_loom_resources, $entity_document_resources);
+            LET $view_entity = IF record::exists($entity_block) { $entity_block.content_type = 'view_def' AND $entity_block.workspace_id = $workspace } ELSE { $entity.detection_provenance.content_type = 'view_def' AND array::len($entity_resources) = 0 };
+            IF !$view_entity AND array::len($entity_resources[WHERE id IN $resources.id AND lifecycle_state = 'active']) != 1 { RETURN false; };
         } ELSE IF $entity.primary_source_id = NONE OR $entity.primary_source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($entity.primary_source_id), 'delete', 'fs.write') { RETURN false; };
         LET $workspace_delete_rows_13 = SELECT span_id FROM knowledge_entity_spans WHERE entity_id = $entity.id;
         FOR $link IN $workspace_delete_rows_13 {

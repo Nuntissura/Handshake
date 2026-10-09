@@ -15,7 +15,13 @@ use super::{
 };
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 163;
+pub const SCHEMA_REVISION: i64 = 164;
+/// Exact accepted revision-163 catalog before the MT-168 bare-key workspace-delete repair.
+const PRE_MT168_LOOKUP_REVISION: i64 = 163;
+const PRE_MT168_LOOKUP_GENERATED_SHA256: &str =
+    "50394566996175d7397b6cc7a9233085195d9634db88238c811360b94924bc23";
+const PRE_MT168_LOOKUP_INFO_SHA256: &str =
+    "14da8ab1211e4805f243e7a6dbe012a45a40df84928b395f8c71e73e6f881976";
 /// Exact revision-162 state measured before MT-170 identity and revision-163 changes.
 const PRE_MT170_IDENTITY_REVISION: i64 = 162;
 const PRE_MT170_IDENTITY_GENERATED_SHA256: &str =
@@ -3198,8 +3204,9 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // 464772928f331dc7d88460456bc64161401462a9e42deff281935db56dff7734); sha256 of schema.surql.
 // MT-170 re-pin: loom_edges projection branch admits standalone same-workspace targets (previous
 // value 8452a3f9bfdff502dafbb1ed7d6e7df60ce70ae47f3557edb13c391bf7b38513); sha256 of schema.surql.
+// MT-168 CURRENT generated pin; schema-info awaits independent measurement.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "50394566996175d7397b6cc7a9233085195d9634db88238c811360b94924bc23";
+    "6fe8ffb1965993f3432f8978a08a6618408340b2e977ba4b18d9367f1f9861d3";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -4863,6 +4870,18 @@ impl SchemaState {
             && self.info_fingerprint_sha256 == EXPECTED_SCHEMA_INFO_SHA256
     }
 
+    fn is_exact_pre_mt168_lookup_revision(&self) -> bool {
+        self.version == SCHEMA_VERSION
+            && self.revision == PRE_MT168_LOOKUP_REVISION
+            && self.target_revision == PRE_MT168_LOOKUP_REVISION
+            && self.namespace == DEFAULT_NAMESPACE
+            && self.database == DEFAULT_DATABASE
+            && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
+            && self.generated_surql_sha256 == PRE_MT168_LOOKUP_GENERATED_SHA256
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == PRE_MT168_LOOKUP_INFO_SHA256
+    }
+
     fn has_pre_mt170_identity_revision(&self) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == PRE_MT170_IDENTITY_REVISION
@@ -5528,6 +5547,11 @@ async fn bootstrap_schema_unbounded(
                     Some(state) if state.is_exact_current() => {
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
+                    }
+                    Some(state) if state.is_exact_pre_mt168_lookup_revision() => {
+                        verified_observed =
+                            Some(upgrade_pre_mt168_lookup_revision(&database, &state).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
                     Some(state) if state.is_exact_pre_mt170_identity_revision() => {
                         verified_observed =
@@ -7006,7 +7030,115 @@ COMMIT TRANSACTION;\n"
     }
 }
 
-/// MT-170: upgrade the exact revision-162 predecessor in place to the revision-163 projection
+/// MT-168: upgrade only the workspace-delete lookup function from the exact revision-163 catalog.
+async fn upgrade_pre_mt168_lookup_revision(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_mt168_lookup_revision() {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_PRE_MT168_LOOKUP_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    let predecessor_observed = read_schema_catalog(database).await?;
+    if predecessor_observed.info_fingerprint_sha256 != PRE_MT168_LOOKUP_INFO_SHA256 {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_PRE_MT168_LOOKUP_CATALOG_MISMATCH: expected={PRE_MT168_LOOKUP_INFO_SHA256}; observed={}",
+                predecessor_observed.info_fingerprint_sha256
+            ),
+        )
+        .await;
+    }
+    let schema_upgrade = schema_function_definition("mt120_workspace_delete");
+    let upgrade = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_PRE_MT168_LOOKUP_STATE_CHANGED';\n\
+}};\n\
+{schema_upgrade}\n\
+UPDATE ONLY handshake_schema_state:primary SET\n\
+    revision = $schema_revision, target_revision = $schema_revision,\n\
+    generated_surql_sha256 = $generated_surql_sha256,\n\
+    info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
+    apply_state = 'schema_applied',\n\
+    updated_at = time::now();\n\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            upgrade.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_MT168_LOOKUP_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: PRE_MT168_LOOKUP_GENERATED_SHA256.to_owned(),
+                predecessor_info_fingerprint_sha256: PRE_MT168_LOOKUP_INFO_SHA256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+
+    let upgraded = match read_context_and_state(database).await? {
+        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) => {
+            return fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT168_LOOKUP_STATE_MISMATCH: {state:?}"),
+            )
+            .await;
+        }
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT168_LOOKUP_STATE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    ensure_knowledge_schema_registry(database).await?;
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
+    match read_context_and_state(database).await? {
+        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) => {
+            fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT168_LOOKUP_FINAL_STATE_MISMATCH: {state:?}"),
+            )
+            .await
+        }
+        None => {
+            fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT168_LOOKUP_FINAL_STATE_MISSING".to_owned(),
+            )
+            .await
+        }
+    }
+}
+
+/// MT-170: upgrade the exact revision-162 predecessor in place to the current projection
 /// identity constraints and standalone-note write guard.
 async fn upgrade_pre_mt170_identity_revision(
     database: &SurrealAdminContext<'_>,

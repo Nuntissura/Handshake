@@ -4397,7 +4397,7 @@ async fn authority_checks_cost_is_independent_of_unrelated_grant_rows(
                         &owner.identity,
                         ResourceKind::MemoryPack,
                         &workspace.id,
-                        None,
+                        Some(&workspace_resource.resource_id),
                         "account_private",
                     )
                     .await?;
@@ -4407,6 +4407,14 @@ async fn authority_checks_cost_is_independent_of_unrelated_grant_rows(
                     &pack_resource.resource_id,
                     ResourceAction::Read,
                     "memory.read",
+                )
+                .await?;
+                source_probe_grant(
+                    storage,
+                    &owner,
+                    &pack_resource.resource_id,
+                    ResourceAction::Delete,
+                    "fs.write",
                 )
                 .await?;
                 let unrelated_workspace_resource = storage
