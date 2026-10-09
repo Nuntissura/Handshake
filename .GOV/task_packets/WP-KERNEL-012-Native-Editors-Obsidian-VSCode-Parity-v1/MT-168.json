@@ -108,7 +108,8 @@
       "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (timing tests only)",
       "src/backend/handshake_core/src/storage/surreal/workspaces.rs (only the delete_account_workspace $children lookup, :540 at 6846e7d4)",
       "src/backend/handshake_core/src/storage/surreal/resource_authority.rs (only the grant lookup statement at :1195 at 6846e7d4)",
-      "src/backend/handshake_core/src/knowledge_code_index/engine.rs (only the three verification SELECT sources in PERSIST_CLEAN_CODE_BATCH at :573; exact approved patch a73f29c817734f8ffee687b6ec804309357045948980a459db4574b0ca5cfad1)"
+      "src/backend/handshake_core/src/knowledge_code_index/engine.rs (only the three verification SELECT sources in PERSIST_CLEAN_CODE_BATCH at :573; exact approved patch a73f29c817734f8ffee687b6ec804309357045948980a459db4574b0ca5cfad1)",
+      "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs (only existing statement timing activation: shared tracing/task-local helper and two test-router calls; exact approved patch 6e822060c36a1f4b2e9c7197a69c2e94d5048d0cfb039f14751cf697a3824b1d)"
     ],
     "forbidden_write_paths": [
       "app/src/**",
@@ -296,7 +297,8 @@
       "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (timing tests only)",
       "src/backend/handshake_core/src/storage/surreal/workspaces.rs (only the delete_account_workspace $children lookup, :540 at 6846e7d4)",
       "src/backend/handshake_core/src/storage/surreal/resource_authority.rs (only the grant lookup statement at :1195 at 6846e7d4)",
-      "src/backend/handshake_core/src/knowledge_code_index/engine.rs (only the three verification SELECT sources in PERSIST_CLEAN_CODE_BATCH at :573; exact approved patch a73f29c817734f8ffee687b6ec804309357045948980a459db4574b0ca5cfad1)"
+      "src/backend/handshake_core/src/knowledge_code_index/engine.rs (only the three verification SELECT sources in PERSIST_CLEAN_CODE_BATCH at :573; exact approved patch a73f29c817734f8ffee687b6ec804309357045948980a459db4574b0ca5cfad1)",
+      "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs (only existing statement timing activation: shared tracing/task-local helper and two test-router calls; exact approved patch 6e822060c36a1f4b2e9c7197a69c2e94d5048d0cfb039f14751cf697a3824b1d)"
     ],
     "forbidden_paths": [
       "app/src/**",
@@ -1088,6 +1090,36 @@
         "recovery": "Same d4 candidate/source/compiler/profile/cache; correct existing SH/JSON binary ID and output suffixr10, then all3 still-unproven cases. Mandatory r8 compile and original34aa/51c green bindings retained.",
         "superseded_artifact": "Original manifest.json retained; explicit corrected manifest supersedes its log-array construction failure.",
         "status_effect": "NONE; lifecycle FAIL_V1 retained until independent full acceptance"
+      },
+      {
+        "id": "PR-WP012-MT168-WPV-AFFECTED-20261009-D4B-R10",
+        "check_id": "MT-168-DOWNSTREAM",
+        "executor": "WP_VALIDATOR-retained-wpv-WP-KERNEL-012",
+        "covers": ["MT-168"],
+        "commit": "d4b630a4f4ae3e3f3cedf179bbf637ffb8c29e08",
+        "tree": "775ee5ba4f2862b66e585c5eeea8207e04946cc3",
+        "completed_at_utc": "2026-10-09T12:04:18.8571786Z",
+        "result": "FAIL_REQUIRED_DOWNSTREAM_PROOF",
+        "core_nextest_exit_code": 100,
+        "wrapper_exit_code": 0,
+        "selected": 3,
+        "passed": 1,
+        "failed": 2,
+        "errors": 0,
+        "seconds": 328.284,
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt168-affected-d4b-r10.json",
+        "proof_sha256": "d30ccdb2f3dc452302b6210bb5db4d9dbf2c469108f0b56d26295becce9c0677",
+        "junit_sha256": "23f58bed0cb225d9875e820f74e8c8d3424487b445e69bfc02f5cdf764b6ff73",
+        "run_id": "54d5c7f9-f943-497f-b202-bd07a1efa102",
+        "account_boundary": "PASS18.578s: mounted_index_account_source_witness_revocation_and_workspace_delete",
+        "equal_rows": "FAIL99.728s: rich initial mounted request timed out before first-pass row report; mt008/FEMS partial equal-row reports do not prove complete parity",
+        "median": "FAIL209.922s: mt008 median16.4727306s exceeds5s; samples11.0508442/13.4685761/16.4727306/19.0942549/24.4214044s",
+        "projection_mt008_ms_including_warmup": [7757, 9380, 11584, 14689, 17318, 22565],
+        "input_binding": "Root opened actual numeric exits, JUnit cases, failure assertions and stage traces; all13 frozen inputs and7 proof artifacts independently matched. All16 original input/identity/producing-binary copies independently hashed before canonical write; clean d4b source/tree retained.",
+        "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-d4b630a-engine-r10-closed/manifest.json",
+        "preservation_manifest_sha256": "fbd2d51f9ebba29d057d94f319fede86e65861abad59b0df09dc8cbd76a9fcce",
+        "resource_released": true,
+        "status_effect": "NONE; lifecycle FAIL_V1 and historical MT111/136/170 verdicts retained; MT167 own verdict unchanged"
       }
     ],
     "running_record_ready13_20261008": {
@@ -1846,7 +1878,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "ENGINE_V3_COMPILE_PASS_AFFECTED_R10_PREPARED",
+    "state": "STATEMENT_TIMING_PATCH_APPROVED_BUILDER_NEXT",
     "candidate_commit": "d4b630a4f4ae3e3f3cedf179bbf637ffb8c29e08",
     "candidate_tree": "775ee5ba4f2862b66e585c5eeea8207e04946cc3",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -2054,7 +2086,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "R9 interrupted after Desktop restart with UNKNOWN numeric exit and no observed runtime/JUnit; original20 copies preserved. Corrected package-qualified r10 selector must prove all3 affected cases, complete equal rows and recorded non-growing projection medians using same warm target and unchanged d4 source/compiler/profile. Fresh r8 compile PASS, original34aa exact163 and original51c unaffected greens retain verified original bindings; private controls remain diagnostic only.",
+    "next_dependency": "Operator approved exact test-only patch6e822060 and one independent focused diagnostic run. Retained builder applies only reviewed test instrumentation, compiles/pushes changed candidate; then retained WPV attributes existing SurrealQL statement timings. Required no-growth/full equal-row proof remains false; diagnostic overhead is not unchanged acceptance timing. No additional EXPLAIN or unrelated product edit; original green proofs retain original input/binary bindings.",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
@@ -2197,6 +2229,36 @@
     "root_readback": "Actual exit/stdout/final observer opened; all10 execution input hashes independently matched; owned PIDs22188/11432/30284/22268 absent; clean34aa source/tree verified",
     "preserved_failed_attempts": "r1 failed SDK result extraction/exit capture before query; r2 compile0/probe1 missing-row record::table(NONE) before EXPLAIN; exact inputs and outputs retained; v2 not applied",
     "status_effect": "NONE; canonical FAIL_V1 retained"
+  },
+  "diagnosis_20261009_d4b_r10": {
+    "failure_proof_ref": "validation.proof_records[PR-WP012-MT168-WPV-AFFECTED-20261009-D4B-R10]",
+    "observed": "Account boundary PASS; rich parity request timed out; MT008 projection7757/9380/11584/14689/17318/22565ms and median16.4727306s still fail required downstream observation",
+    "cause": "UNVERIFIED at inner SurrealQL statement level; existing route-stage traces locate dominant projection but do not identify its statement",
+    "source_evidence": [
+      "surreal.rs:649 query_with_document_stats uses SDK with_stats only if StatementTimingContext::capture succeeds; :835 query_values_at consumes it",
+      "handshake_storage_support/src/diagnostics.rs:43/60/107 requires DOCUMENT_REQUEST_ID and PARENT_OBSERVATION; public observe supplies parent task-local scope",
+      "tests/mt167_code_nav_index_cost_tests.rs:198 enables only stage target; parity:441 has no subscriber; neither test Router scopes document diagnostics"
+    ],
+    "smallest_next_action": "Approved test-only activation of existing hooks; one changed-input focused attribution run after mandatory compile",
+    "limitations": "SDK slot timings arrive only after query response; timed-out queries may lack timings. Added diagnostic overhead must not be described as unchanged acceptance timing. Broad source scan alone does not prove cost causality.",
+    "remaining_explain_allowance": 0,
+    "counter_reset": false
+  },
+  "operator_decision_20261009_statement_timing": {
+    "decision_id": "MT168-OPERATOR-STATEMENT-TIMING-20261009",
+    "state": "APPROVED",
+    "authorized_by": "OPERATOR",
+    "operator_quote": "Approve this exact diagnostic patch and run",
+    "source": "Live async reply to the reviewed one-test-file patch and mandatory compile/one independent focused diagnostic run question",
+    "path": "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs",
+    "base_commit": "d4b630a4f4ae3e3f3cedf179bbf637ffb8c29e08",
+    "base_raw_source_sha256": "f61f2a7c947997804b34f5ea001cdbf9bd53eafead30c2603380aaf0ee733212",
+    "patch": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-test-statement-timing.proposed.patch",
+    "patch_sha256": "6e822060c36a1f4b2e9c7197a69c2e94d5048d0cfb039f14751cf697a3824b1d",
+    "scope": "Only shared test tracing/task-local helper, moving existing subscriber initialization and wrapping both existing test Routers; mandatory changed-candidate compile and one independent focused diagnostic runtime",
+    "review": "Builder apply-check and retained Buddy source review found no static blocker; root opened exact patch and existing capture/observe source. No compile or runtime claim yet.",
+    "preserved": ["Database queries/bindings, permissions, assertions, timeouts and acceptance criteria", "Compiler/profile, warm caches and sequential exclusive ownership", "All prior proof artifacts, pins and historical verdicts", "Zero remaining EXPLAIN allowance; other knowledge_code_index changes remain forbidden"],
+    "status_effect": "NONE; FAIL_V1 retained until all required independent proof passes"
   },
   "operator_decision_request_20261009_engine_v3": {
     "state": "APPROVED",
