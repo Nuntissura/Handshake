@@ -974,6 +974,28 @@
         "input_binding": "Exact six inputs in retained proof; root independently rehashed6/6 unchanged before WPV suffix update",
         "gates": {"before_round": "PASS44/44", "before_submit": "PASS11/11"},
         "exclusive_target_released_to": "WP_VALIDATOR"
+      },
+      {
+        "id": "PR-WP012-MT168-WPV-ACCEPTANCE-20261009-51C-R4",
+        "check_id": "MT-168-INDEPENDENT-ACCEPTANCE",
+        "commit": "51c53290264618cbd4e85825ef43d72aba5ef12a",
+        "tree": "324d1154270e7b82c0132d4ab8c7d74669665c86",
+        "executor": "WP_VALIDATOR-retained-wpv-WP-KERNEL-012",
+        "covers": ["MT-168"],
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt168-acceptance-51c-r4.json",
+        "proof_sha256": "bdb3c3a085d34cbaca2c9388da1ec0e97837c6e4d4d499500e8c8d9d54b720c5",
+        "completed_at_utc": "2026-10-09T04:37:03.5842591Z",
+        "result": "FAIL_REQUIRED_PROOF",
+        "wrapper_exit_code": 0,
+        "core_nextest_exit_code": 100,
+        "native_nextest_exit_code": 0,
+        "core_selected": 96,
+        "core_passed": 93,
+        "core_failed": 3,
+        "native_selected": 2,
+        "native_passed": 2,
+        "input_binding": "All13 frozen execution inputs independently rehashed unchanged after closure; original51c source/backend/input bindings retained in owning frozen-inputs manifest",
+        "runtime_verdict": "FAIL_REQUIRED_PROOF; lifecycle FAIL_V1 and historical verdicts retained"
       }
     ],
     "running_record_ready13_20261008": {
@@ -1732,9 +1754,9 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "COMPILE_PASS_AWAITING_FINAL_ACCEPTANCE",
-    "candidate_commit": "51c53290264618cbd4e85825ef43d72aba5ef12a",
-    "candidate_tree": "324d1154270e7b82c0132d4ab8c7d74669665c86",
+    "state": "EXACT163_REPAIR_COMPILE_PENDING",
+    "candidate_commit": "34aa1a4ddf9830a88ab75c358d51b864ebdee6d7",
+    "candidate_tree": "961422b711b087fe14ed859696404e9726fad42a",
     "product_worktree": "wtc-WP-KERNEL-012",
     "branch": "feat/WP-KERNEL-012",
     "failure_refs": [
@@ -1749,7 +1771,8 @@
     "repair": [
       "Bare-key candidate lookups preserve all workspace-delete filters and cardinality",
       "Timing fixture memory-pack parent and delete grant satisfy existing guard",
-      "Strict exact163 predecessor bridge advances164 by re-emitting only workspace-delete function"
+      "Strict exact163 predecessor bridge advances164 by re-emitting only workspace-delete function",
+      "34aa forced163 caller extracts the complete workspace-delete function up to the next definition; shared extractor, DDL, pins and tests unchanged"
     ],
     "independent_source_review": "buddy: NO_BLOCKING_PRODUCTION_SOURCE_FINDING for uncompiled/unvalidated checkpoint; no runtime acceptance",
     "static_evidence": {
@@ -1760,14 +1783,14 @@
       "compile_proof": false
     },
     "current_generated_sha256": "6fe8ffb1965993f3432f8978a08a6618408340b2e977ba4b18d9367f1f9861d3",
-    "current_info": "UNMEASURED; existing constant unchanged until independent measurement",
+    "current_info": "3d761f8df95c2869e5bb8a3b656f5f96a02a5cb863b2bb1f1d30306beff98ff7; independently measured then pinned51c; all six CURRENT consumers PASS in closed51c acceptance",
     "preserved_verdict": "FAIL_V1",
     "unclosed": [
-      "Final independent authority/timing, CURRENT catalogs, exact163 durable upgrade and downstream acceptance on51c53290",
+      "Exact163 durable upgrade FAIL: workspace-delete function extraction terminates at an inner unindented loop closure, producing malformed upgrade SQL; scoped34aa repair requires fresh builder compile and focused exact163 proof",
       "Historical PRE162 reconstruction static gap retained; no historical repin",
-      "MT167 downstream median failure remains distinct; no causal fix claimed"
+      "MT168-DOWNSTREAM observation remains false: MT167 equal-row case times out before full equality proof; median14.4494677s exceeds5s and measured code-index projection elapsed time grows across samples; residual cause UNVERIFIED, no MT167 verdict rewrite"
     ],
-    "next_actor": "WP_VALIDATOR final independent MT168 acceptance on pushed compiled51c53290",
+    "next_actor": "WP_VALIDATOR verified fixedexport34aa handoff; exclusive KERNEL_BUILDER fresh mandatory compile; WP_VALIDATOR focused exact163 proof",
     "preservation_checkpoints": [
       {
         "commit": "817bd35cfae235e754e0d6e447fda2cf137578ab",
@@ -1939,7 +1962,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "WP_VALIDATOR final independent MT168 acceptance on pushed compiled51c53290",
+    "next_dependency": "Fresh mandatory34aa builder compile and focused exact163 proof; measured downstream growth remains unclosed; reuse greens only under verified original51c bindings",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
@@ -2027,6 +2050,36 @@
       "runtime_verdict": null,
       "resource_released": true,
       "next_dependency": "Measured CURRENT INFO-only pin candidate; fresh mandatory compiler check, sixth full parity and required independent MT168 acceptance"
+    },
+    "wpv_acceptance_r4_20261009": {
+      "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt168-acceptance-51c-r4.json",
+      "proof_sha256": "bdb3c3a085d34cbaca2c9388da1ec0e97837c6e4d4d499500e8c8d9d54b720c5",
+      "candidate_commit": "51c53290264618cbd4e85825ef43d72aba5ef12a",
+      "completed_at_utc": "2026-10-09T04:37:03.5842591Z",
+      "core": {"exit_code": 100, "selected": 96, "passed": 93, "failed": 3, "errors": 0, "junit_sha256": "f07db74c9958229b8347c17a7f341205279779cb2db8e09a7cd9d27b031be62c"},
+      "native": {"exit_code": 0, "selected": 2, "passed": 2, "failed": 0, "errors": 0, "junit_sha256": "fd60e8015e701ba1194ad2ec0cd401c9c18057e5d35a1775db494a2ad3fc47e5"},
+      "check_results": {
+        "MT-168-VALIDATOR-AUTHORITY": "PASS; affected authority/deny/W positive/rollback routes green, zero stack-overflow cases",
+        "MT-168-VALIDATOR-TIMING": "PASS; all eight own measured ratios below2 and single-grant medians below250ms; authorized read/delete non-vacuous assertions PASS",
+        "CURRENT-CATALOG-CONSUMERS": "PASS6/6 including full-schema/bounded Atelier parity; no further repin",
+        "MT-168-EXACT163-UPGRADE": "FAIL4.563s: truncated workspace-delete DEFINE; COMMIT TRANSACTION parse error, expected function closing brace",
+        "MT-168-DOWNSTREAM": "FAIL_OBSERVATION; no complete equal-row proof and increasing code-index projection elapsed time; own MT167 verdict unchanged",
+        "CURRENT-BACKEND-NATIVE": "PASS2/2 with current51c rebuilt backend binary, BCV66.348s and canvas28.667s"
+      },
+      "own_timing_ratios": {"resource_select": 0.949, "ledger_access": 0.968, "has_grant": 0.917, "workspace_delete_guard": 1.187, "idempotency_select": 0.837, "document_access_check": 1.033, "loom_block_access": 1.043, "source_read": 1.345},
+      "downstream_failures": {
+        "equal_rows": "123.977s; reqwest code-nav/index request timed out before rich-parity second-pass per-file comparison/canonical reads; partial earlier parity rows are not full proof",
+        "median": "186.316s; mt008 median14.4494677s versus5s target, samples9.2027955/11.6358897/14.4494677/17.1954846/19.4396105s",
+        "classification": "MT168 proof explicitly requires downstream recorded medians and projection no longer growing per sample. Actual code-index projection times grow; row-count growth and residual cause are UNVERIFIED. Both failures remain live observations, without weakening criteria or changing MT167's own verdict."
+      },
+      "backend_binary_sha256": "1ccbd68a82b309297671a29aca7257f12ecc732924589ccc91a1d627efea8390",
+      "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-51c5329-before-exact163-repair/manifest.json",
+      "preservation_manifest_sha256": "ab2da518830874441c4e30a6593f2dc6c9f2a92b682a83a33f56b7999fa1b7ec",
+      "frozen_input_count": 13,
+      "all_frozen_hashes_unchanged_before_record_write": true,
+      "resource_released": true,
+      "preserved_verdict": "FAIL_V1",
+      "unchanged_green_reuse": "Only with original51c candidate/backend/config bindings plus inspected34aa changed-input reconciliation; exact163 and both failed downstream observations are not green reuse"
     }
   },
   "operator_decision_20261009_resource_override": {
@@ -2038,7 +2091,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "candidate_commit": "51c53290264618cbd4e85825ef43d72aba5ef12a",
+    "candidate_commit": "34aa1a4ddf9830a88ab75c358d51b864ebdee6d7",
     "operator_quotes": [
       "rip out those restrictions asap in parallel",
       "start fucking working and do not stop untill the mt gets validated pass.",
