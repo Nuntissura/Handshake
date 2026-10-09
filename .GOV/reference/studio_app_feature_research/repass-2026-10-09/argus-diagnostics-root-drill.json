@@ -1,0 +1,1404 @@
+{
+  "schema": "handshake.studio.argus_diagnostics_root_drill@1",
+  "file_id": "STUDIO-REPASS-ARGUS-DIAGNOSTICS-ROOT-DRILL-20261009",
+  "file_kind": "source_research_reference",
+  "updated_at": "2026-10-09",
+  "authority": false,
+  "scope": {
+    "handshake_product": "Pinned WP-KERNEL-012 source drill for shared Studio integration ports",
+    "repo_governance": "This reference artifact only",
+    "product_edits": "NONE",
+    "build_tests": "NONE",
+    "runtime_or_native_gui": "NOT_PERFORMED"
+  },
+  "baseline": {
+    "branch": "feat/WP-KERNEL-012",
+    "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6",
+    "locator": "Resolve feat/WP-KERNEL-012 with git worktree list --porcelain; inspected wtc-native-editors-v1",
+    "start_status": "EMPTY",
+    "master_spec": "v02.206 indexed manifest resolved directly through live kernel .GOV/spec/SPEC_CURRENT.md; copy/bump by parent may supersede this research baseline",
+    "end_status": "EMPTY; HEAD/tree unchanged at final review"
+  },
+  "method": {
+    "status": "SOURCE_INSPECTED",
+    "proof_strength": "Selected actual source functions, direct caller searches, typed data shapes and current live authority. No build, feature parity, concurrency correctness, visual quality, performance or production acceptance verdict.",
+    "source_limits": [
+      "Module inventory is bounded to Argus/native accessibility/diagnostic owners, selected backend FR/manual endpoints and Palmistry lifecycle/forwarding roots.",
+      "Existing test bodies and test-name search results are source navigation only; tests were not run and cannot establish acceptance.",
+      "Absence findings state the exact searched roots or selected composition inspected, not whole-product absence.",
+      "Comments are interpreted against executable bodies; stale 'design-only', 'deferred' or 'non-blocking' prose does not override actual call wiring.",
+      "AccessKit capture is a second egui render pass; this investigation did not perceive a running renderer or screenshot."
+    ],
+    "authority_reads": [
+      {
+        "path": ".GOV/codex/Handshake_Codex_v1.4.md",
+        "line": 1,
+        "kind": "live_kernel"
+      },
+      {
+        "path": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+        "line": 1,
+        "kind": "live_kernel"
+      },
+      {
+        "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+        "line": 1,
+        "kind": "live_kernel"
+      },
+      {
+        "path": ".GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md",
+        "line": 15,
+        "kind": "live_kernel"
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line": 22219,
+        "kind": "live_kernel"
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md",
+        "line": 1886,
+        "kind": "live_kernel"
+      }
+    ]
+  },
+  "authority_obligations": [
+    {
+      "id": "STU-OBS-AUTH-001",
+      "ids": [
+        "STU-MDL-001",
+        "STU-MDL-003",
+        "STU-MDL-004",
+        "STU-MDL-005"
+      ],
+      "requirement": "One typed Studio command authority; structured document reads/diffs/render receipts, dry_run, schema, undo/replay, model API and GUI projections through same StudioDocument promotion authority.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+          "line": 22223,
+          "kind": "live_kernel"
+        }
+      ]
+    },
+    {
+      "id": "STU-OBS-AUTH-002",
+      "ids": [
+        "STU-MDL-002",
+        "STU-PAR-001",
+        "STU-PAR-002",
+        "STU-PAR-004"
+      ],
+      "requirement": "Stable author_id and UI state; per-file CRDT/lease scope, real KernelActor attribution and deterministic promotion; operator/model project/module isolation.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+          "line": 22225,
+          "kind": "live_kernel"
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+          "line": 22243,
+          "kind": "live_kernel"
+        }
+      ]
+    },
+    {
+      "id": "STU-OBS-AUTH-003",
+      "ids": [
+        "HBR-INT-009",
+        "HBR-MAN-004"
+      ],
+      "requirement": "Record actual three-tier posture WIRED, NOT_APPLICABLE-with-reason or DEFERRED-with-reason. Same-change internal UserManual must include FR/EventLedger and diagnostic linkage; no parallel manual.",
+      "evidence": [
+        {
+          "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+          "line": 1,
+          "kind": "live_kernel"
+        }
+      ]
+    },
+    {
+      "id": "STU-OBS-AUTH-004",
+      "ids": [
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "ARGUS-007"
+      ],
+      "requirement": "Inspect real rendered/AccessKit state; action targets and post-action observations, runtime/renderer error scan, request-level agent_label for clients sharing one binding. Source inspection alone cannot satisfy GUI acceptance.",
+      "evidence": [
+        {
+          "path": ".GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md",
+          "line": 15,
+          "kind": "live_kernel"
+        },
+        {
+          "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+          "line": 1,
+          "kind": "live_kernel"
+        }
+      ]
+    },
+    {
+      "id": "STU-OBS-AUTH-005",
+      "ids": [
+        "STU-SHL-015",
+        "STU-MDL-110",
+        "STU-MDL-111"
+      ],
+      "requirement": "Widen existing AppCommand into UiDescriptor; one generated ParamSpec. Numeric role/bounds/value/time/keyframe state must match rendered controls.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+          "line": 30838,
+          "kind": "live_kernel"
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+          "line": 32628,
+          "kind": "live_kernel"
+        }
+      ]
+    },
+    {
+      "id": "STU-OBS-AUTH-006",
+      "ids": [
+        "Master Spec 5.9"
+      ],
+      "requirement": "Observability output is protected content; account/Principal/session/Space/resource scope filtered before display, export, retrieval or transmission.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md",
+          "line": 1932,
+          "kind": "live_kernel"
+        }
+      ]
+    }
+  ],
+  "execution_map": [
+    {
+      "id": "STU-OBS-ROOT-ARGUS",
+      "package": "handshake_native",
+      "owner": "mcp::{argus,server,session,tools,action,binding,screenshot}",
+      "public_ports": [
+        "SwarmMcpServer::bind",
+        "SwarmSafetyState",
+        "McpSession::dispatch_shared_async",
+        "ActionChannel::{enqueue,drain_revalidated_into_events,acknowledge_after_render,receipts}",
+        "ScreenshotResult"
+      ],
+      "private_ownership": [
+        "ServerState and request handle_line/dispatch_with_session",
+        "McpSession::decide and attribute_and_stamp",
+        "Completion token structs/private parsing",
+        "set_value/click token authoring helpers are pub(crate), not callable from an independent Studio crate until extracted/re-exported deliberately"
+      ],
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/mcp/server.rs",
+          "line": 66,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/mcp/session.rs",
+          "line": 170,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/mcp/action.rs",
+          "line": 97,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/mcp/action.rs",
+          "line": 214,
+          "kind": "product"
+        }
+      ]
+    },
+    {
+      "id": "STU-OBS-ROOT-UI",
+      "package": "handshake_native",
+      "owner": "accessibility::{live,snapshot,editor_action_registry,popup_projection}, command_registry, pane_registry, context_menu, pane_header, split_layout",
+      "public_ports": [
+        "emit_interactive_node attaches author_id to existing egui node without replacing role/actions",
+        "EditorActionRegistry and RegistrationHandle create pane instance action identities and dispatch targeted AccessKit Click payloads",
+        "collect_ui_tree_snapshot_with_viewport",
+        "AppCommand/all_commands"
+      ],
+      "visibility": "Same native package today; no standalone UI-primitives package was proved.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/accessibility/live.rs",
+          "line": 146,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/accessibility/editor_action_registry.rs",
+          "line": 232,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/command_registry.rs",
+          "line": 57,
+          "kind": "product"
+        }
+      ]
+    },
+    {
+      "id": "STU-OBS-ROOT-HOST",
+      "package": "handshake_native",
+      "owner": "HandshakeApp and interop::InteractionBus",
+      "public_ports": [
+        "InteractionBus::register_surface",
+        "EditorSurfaceRegistry callback registry",
+        "PaneFactory render/mount contract",
+        "HandshakeApp::diagnostics_view"
+      ],
+      "private_ownership": [
+        "refresh_mcp_snapshot and app-owned semantic completion observers",
+        "one InteractionBus shared selection/focus/workspace routing"
+      ],
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/app.rs",
+          "line": 12950,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/interop/interaction_bus.rs",
+          "line": 661,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/interop/interaction_bus.rs",
+          "line": 1598,
+          "kind": "product"
+        }
+      ]
+    },
+    {
+      "id": "STU-OBS-ROOT-TIER2",
+      "package": "handshake_native + handshake-diag-ring",
+      "owner": "diagnostics::{recorder,operation_watchdog,panic_hook,frame_timing,resource_counters,palmistry_launch,panel,survivor_forward}; shared diag_ring ABI",
+      "public_ports": [
+        "diagnostics::{install,record,record_with,heartbeat,snapshot_last_n}",
+        "OperationWatchdog::register_with_runtime_cap + OperationHandle::{tick,complete}",
+        "enqueue_palmistry_child_liveness_file / enqueue_palmistry_child_deregister"
+      ],
+      "private_ownership": [
+        "Process global recorder OnceLock",
+        "single serialized record producer behind buffer Mutex",
+        "UI-only disjoint heartbeat header writes",
+        "PalmistryHandle held by app lifecycle"
+      ],
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+          "line": 113,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/diagnostics/operation_watchdog.rs",
+          "line": 145,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/diag_ring/src/schema.rs",
+          "line": 158,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+          "line": 211,
+          "kind": "product"
+        }
+      ]
+    },
+    {
+      "id": "STU-OBS-ROOT-TIER3",
+      "package": "palmistry",
+      "owner": "main run_watcher, ring_reader, freeze_detect, lifecycle, control, child_registry/child_stall, crash_capture, survivor_store, fr_forward",
+      "public_ports": [
+        "ControlMessage::RegisterChild / DeregisterChild / Shutdown",
+        "passive shared-memory ring reader",
+        "SurvivorStore",
+        "FrForwarder"
+      ],
+      "private_ownership": [
+        "freeze and child-stall poll threads",
+        "parent process watcher / out-of-process minidumper server",
+        "recovery drain loop"
+      ],
+      "evidence": [
+        {
+          "path": "src/frontend/palmistry/src/main.rs",
+          "line": 773,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/palmistry/src/main.rs",
+          "line": 993,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/palmistry/src/control.rs",
+          "line": 34,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/palmistry/src/fr_forward.rs",
+          "line": 351,
+          "kind": "product"
+        }
+      ]
+    },
+    {
+      "id": "STU-OBS-ROOT-TIER1",
+      "package": "handshake_core",
+      "owner": "api::flight_recorder middleware, native event ingress/reconciler; storage EventLedger; FlightRecorder trait/driver",
+      "public_ports": [
+        "workspace-scoped native_editor_event and runtime_chat_event",
+        "GET flight_recorder/events through ResourceBroker",
+        "FlightRecorder trait (core dependency closure)"
+      ],
+      "private_ownership": [
+        "RecorderAuthority server-derived context",
+        "pending/completion EventLedger ingestion protocol",
+        "authorized record-user scoped reconciliation"
+      ],
+      "evidence": [
+        {
+          "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+          "line": 220,
+          "kind": "product"
+        },
+        {
+          "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+          "line": 425,
+          "kind": "product"
+        },
+        {
+          "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+          "line": 1166,
+          "kind": "product"
+        },
+        {
+          "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+          "line": 1479,
+          "kind": "product"
+        }
+      ]
+    },
+    {
+      "id": "STU-OBS-ROOT-MANUAL",
+      "package": "handshake_core + handshake_native",
+      "owner": "backend user_manual seed/store/registry/projection/freshness and api; native ManualRegistry/ManualPane/static editor content",
+      "public_ports": [
+        "backend pages/tools/features/quickstarts/freshness/access-points/resync routes",
+        "ManualRegistry::register_section and reusable ManualPaneMount"
+      ],
+      "private_ownership": [
+        "backend content and EventLedger receipts",
+        "native immutable content section Arc and pane selection state"
+      ],
+      "evidence": [
+        {
+          "path": "src/backend/handshake_core/src/api/user_manual.rs",
+          "line": 51,
+          "kind": "product"
+        },
+        {
+          "path": "src/backend/handshake_core/src/user_manual/store.rs",
+          "line": 559,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/app.rs",
+          "line": 7519,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/editor_pane_factories.rs",
+          "line": 2214,
+          "kind": "product"
+        }
+      ]
+    }
+  ],
+  "bounded_call_chains": [
+    {
+      "id": "STU-OBS-FLOW-ARGUS-MUTATION",
+      "steps": [
+        {
+          "fn": "HandshakeApp::spawn_mcp_server",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/app.rs",
+            "line": 8676,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "SwarmMcpServer::bind -> bind_with_safety_mode",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/mcp/server.rs",
+            "line": 103,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "serve_connection -> handle_line -> dispatch_with_session",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/mcp/server.rs",
+            "line": 419,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "McpSession::decide auth before lease; dispatch_shared_async exclusive widget acquire/retry",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/mcp/session.rs",
+            "line": 170,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "dispatch_request -> enqueue_response -> ActionChannel::enqueue",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/mcp/tools.rs",
+            "line": 375,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "raw_input_hook rejects queued model writes for operator mutation, else drain_revalidated_into_events",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/app.rs",
+            "line": 40003,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "Targeted egui::Event::AccessKitActionRequest consumed by real widget/EditorActionRegistry::take_dispatched_with_payload",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/accessibility/editor_action_registry.rs",
+            "line": 528,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "refresh_mcp_snapshot -> semantic observers -> acknowledge_after_render and snapshot publish under snapshot->channel order",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/app.rs",
+            "line": 13010,
+            "kind": "product"
+          }
+        }
+      ],
+      "status": "LIVE SOURCE WIRING; NOT RUNTIME VALIDATED",
+      "boundaries": "An enqueue ack is queued only; Applied requires exact typed causal predicate. Generic click/value changes terminate Indeterminate. GUI Argus mutation does not itself prove Studio backend command promotion."
+    },
+    {
+      "id": "STU-OBS-FLOW-SCREENSHOT",
+      "steps": [
+        {
+          "fn": "McpSession::dispatch_shared_async Screenshot -> spawn_blocking capture + 2s timeout",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/mcp/session.rs",
+            "line": 286,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "SwarmMcpServer production capture -> capture_handshake_window",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/mcp/server.rs",
+            "line": 214,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "Windows title + this PID selection -> capture_hwnd -> bounded WM_PRINT then BitBlt fallback -> GetDIBits -> PNG",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/mcp/screenshot.rs",
+            "line": 99,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "screenshot_from_png -> ScreenshotResult::to_json",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/mcp/screenshot.rs",
+            "line": 73,
+            "kind": "product"
+          }
+        }
+      ],
+      "status": "LIVE WINDOWS SOURCE PATH; NO PIXELS PERCEIVED",
+      "boundaries": "No document/session/revision/render-frame/action-receipt fields in ScreenshotResult. Separate Accessibility capture viewport does not prove pixel and document coherence. Non-Windows returns typed unsupported error. Timeout of spawned blocking work does not provide a cancellation protocol in inspected branch."
+    },
+    {
+      "id": "STU-OBS-FLOW-FR-MIRROR",
+      "steps": [
+        {
+          "fn": "NativeEditorEventEmitter::emit_accepted try_send bounded queue",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/event_emitter.rs",
+            "line": 1393,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "single off-frame async worker retries same event up to 3 posts",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/event_emitter.rs",
+            "line": 1234,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "workspace-scoped POST route -> authenticated session then ResourceBroker and record-user scope",
+          "evidence": {
+            "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+            "line": 407,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "record_native_editor_event validates envelope/actor/schema/save receipt -> durable pending EventLedger -> exact FR record -> completion EventLedger",
+          "evidence": {
+            "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+            "line": 1479,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "routes -> spawn_native_editor_reconciler -> reconciliation_authority + per-workspace record-user authorization -> matching existing FR or write -> completion",
+          "evidence": {
+            "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+            "line": 1152,
+            "kind": "product"
+          }
+        }
+      ],
+      "status": "LIVE SOURCE WIRING; NO DURABILITY/REPLAY RUN",
+      "boundaries": "This native editor envelope is closed current vocabulary, not a blanket typed Studio event ingress; extend canonical owner via accepted contracts. Argus ActionLog is separate in-memory attribution, not this durable path."
+    },
+    {
+      "id": "STU-OBS-FLOW-LOCAL-DIAGNOSTIC",
+      "steps": [
+        {
+          "fn": "diagnostics::record_with -> typed DiagEvent -> global DiagnosticsRecorder::record",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+            "line": 223,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "bounded process event buffer and serialized SPSC ring write",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+            "line": 113,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "HandshakeApp::update heartbeat independent -> frame/resource events -> diagnostics_view from producer and survivor files",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/app.rs",
+            "line": 40064,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "Palmistry run_watcher -> passive ring -> freeze/child-stall poll, crash server and parent watcher -> SurvivorStore",
+          "evidence": {
+            "path": "src/frontend/palmistry/src/main.rs",
+            "line": 773,
+            "kind": "product"
+          }
+        }
+      ],
+      "status": "SOURCE WIRING FOR TIER2/TIER3 PRODUCERS AND CONSUMERS",
+      "boundaries": "No runtime survival or x64/ARM proof. Process/thread/operation metrics contain no direct per-Studio-domain identifier. DiagnosticsRecorder record is Mutex serialized; heartbeat path is disjoint."
+    },
+    {
+      "id": "STU-OBS-FLOW-SURVIVOR-FORWARD",
+      "steps": [
+        {
+          "fn": "watcher startup opens survivor store -> constructs FrForwarder::for_existing_fr",
+          "evidence": {
+            "path": "src/frontend/palmistry/src/main.rs",
+            "line": 925,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "startup/recovery drain_and_forward snapshots unforwarded records",
+          "evidence": {
+            "path": "src/frontend/palmistry/src/main.rs",
+            "line": 707,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "for_existing_fr -> route_path None + runtime_chat_event_compatibility Incompatible",
+          "evidence": {
+            "path": "src/frontend/palmistry/src/fr_forward.rs",
+            "line": 292,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "forward returns SchemaIncompatible before URL/network POST; record remains local/pending",
+          "evidence": {
+            "path": "src/frontend/palmistry/src/fr_forward.rs",
+            "line": 351,
+            "kind": "product"
+          }
+        }
+      ],
+      "status": "PRODUCTION FORWARD BLOCKED BY DESIGN",
+      "boundaries": "Future compatible endpoint requires authenticated scope, faithful typed payload, idempotent ack and off-freeze-thread delivery. No schema reopening by this task."
+    },
+    {
+      "id": "STU-OBS-FLOW-MANUAL",
+      "steps": [
+        {
+          "fn": "core startup ensure_seeded -> compiled seed corpus -> UserManualStore::upsert_page atomically page/sections/anchors + EventLedger",
+          "evidence": {
+            "path": "src/backend/handshake_core/src/main.rs",
+            "line": 172,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "get_page fetch canonical DB page/children -> append manual read receipt -> response",
+          "evidence": {
+            "path": "src/backend/handshake_core/src/api/user_manual.rs",
+            "line": 205,
+            "kind": "product"
+          }
+        },
+        {
+          "fn": "native app separately register static editors_manual_section -> ManualPaneMount -> ManualPane::show",
+          "evidence": {
+            "path": "src/frontend/handshake_native/src/app.rs",
+            "line": 7519,
+            "kind": "product"
+          }
+        }
+      ],
+      "status": "TWO EXISTING CONTENT PATHS; CURRENT NATIVE PATH STATIC",
+      "boundaries": "This source chain proves no backend UserManualStore fetch in selected native ManualPaneMount. Reusable pane can be kept while content source is reconciled/generated from canonical manual contracts."
+    }
+  ],
+  "findings": [
+    {
+      "id": "STU-OBS-F001",
+      "claim": "The live native request supports client_session_id, while current authority names agent_label.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/mcp/server.rs",
+          "line": 457,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/mcp/tools.rs",
+          "line": 167,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/mcp/session.rs",
+          "line": 649,
+          "kind": "product"
+        },
+        {
+          "path": ".GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md",
+          "line": 15,
+          "kind": "live_kernel"
+        }
+      ],
+      "searched": "rg agent_label/client_session_id in pinned native mcp root: no agent_label occurrence; client_session_id explicit server branch",
+      "implication": "Preserve authoritative agent_label obligation and actual wire field; resolve alias/adapter at canonical Argus request parser. Client label is caller-chosen attribution, not security identity.",
+      "next_proof": "Exact shared-token two-client/reconnect/operator attribution and field-compatibility negative matrix under affected MT."
+    },
+    {
+      "id": "STU-OBS-F002",
+      "claim": "Current action completion is stronger than visible-change-only acknowledgement.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/mcp/action.rs",
+          "line": 1245,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/mcp/action.rs",
+          "line": 1310,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/mcp/action.rs",
+          "line": 1402,
+          "kind": "product"
+        }
+      ],
+      "implication": "Reuse completion token machinery and extend capability observers; do not build an independent Studio click receipt system.",
+      "constraints": "pub(crate) author helpers; bounded context/target/semantic strings; Closed schema rejects unknown fields. Must deliberately externalize narrow contract for modular assets.",
+      "next_proof": "Receipt ties command/actor/doc/revision/exact semantic transition; normalized numeric and timed property change cannot claim Applied from formatting alone."
+    },
+    {
+      "id": "STU-OBS-F003",
+      "claim": "Action receipts and screenshot results do not expose full visual causality.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/mcp/action.rs",
+          "line": 800,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/mcp/screenshot.rs",
+          "line": 30,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/accessibility/snapshot.rs",
+          "line": 239,
+          "kind": "product"
+        }
+      ],
+      "implication": "Add canonical visual receipt binding for StudioDocument revision, command/promotion receipt, renderer/frame/view, resource scope and render settings. Current expected_generation is snapshot captured_at_utc, not document version.",
+      "next_proof": "Concurrent edit/render stale frame counterfactual; before/after exact revision/hash; renderer errors, crop/viewport/color/proxy/time and asset lineage included."
+    },
+    {
+      "id": "STU-OBS-F004",
+      "claim": "Snapshot is generated by re-running self.ui on a fresh context after projecting selected live state.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/app.rs",
+          "line": 12950,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/app.rs",
+          "line": 12959,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/app.rs",
+          "line": 12970,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/app.rs",
+          "line": 13035,
+          "kind": "product"
+        }
+      ],
+      "implication": "Every future shared control/presenter must expose stable IDs and side-effect-free capture behavior. Rendering twice must never emit a second authority command or duplicate diagnostic/job.",
+      "next_proof": "Actual live vs capture popup/scroll/focus/reading/time/tool/control projection, snapshot side-effect count, and viewport/pixel congruence. No general full egui Memory clone should be assumed."
+    },
+    {
+      "id": "STU-OBS-F005",
+      "claim": "Per-widget leases and stable participant IDs protect queue admission but do not create per-actor views or authoritative permissions.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/mcp/session.rs",
+          "line": 338,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/mcp/session.rs",
+          "line": 563,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/interop/interaction_bus.rs",
+          "line": 661,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/app.rs",
+          "line": 40003,
+          "kind": "product"
+        }
+      ],
+      "searched": "No ResourceGrant/Principal/account_id/AccessSpace/ResourceBroker matches in selected mcp/accessibility/command_registry roots.",
+      "implication": "Reuse Argus targeting/lease path; add explicit actor/view/document/resource scope through canonical kernel broker. Same-document backend proposals need CRDT/promotion checks, independent views must not mutate shared focus/selection.",
+      "next_proof": "Two actors+operator same and different documents/projects; grant revocation at resolve/enqueue/dispatch/render/export; stale selection/view generation and no cross-scope pixels."
+    },
+    {
+      "id": "STU-OBS-F006",
+      "claim": "Argus ActionLog currently stamps successful enqueue; inspected stamp body does not attach receipt_id to the log call.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/mcp/session.rs",
+          "line": 459,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/mcp/session.rs",
+          "line": 481,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/mcp/action.rs",
+          "line": 800,
+          "kind": "product"
+        },
+        {
+          "path": ".GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md",
+          "line": 27,
+          "kind": "live_kernel"
+        }
+      ],
+      "implication": "Native in-memory attribution/receipt streams need canonical causal linkage to Studio command/promotion evidence, retaining existing log owner. Do not claim EventLedger mirroring merely because native editor event ingress exists.",
+      "next_proof": "Cross-link request id/participant/receipt/command event/render receipt and recover/replay after crash; successful enqueue distinguished from applied."
+    },
+    {
+      "id": "STU-OBS-F007",
+      "claim": "Current AppCommand and UiTreeNode are narrower than Studio's UiDescriptor/ParamSpec obligations.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/command_registry.rs",
+          "line": 57,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/accessibility/snapshot.rs",
+          "line": 204,
+          "kind": "product"
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+          "line": 30838,
+          "kind": "live_kernel"
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+          "line": 32630,
+          "kind": "live_kernel"
+        }
+      ],
+      "searched": "No UiDescriptor/ParamSpec/ResourceGrant symbol in selected pinned native command registry/accessibility/mcp roots.",
+      "implication": "Extend the existing command registry and snapshot type; one generated parameter record drives menu/palette/control/accessibility/manual. Create specialized presenters only for genuinely different interaction geometry/domain semantics.",
+      "next_proof": "Menu/palette/control dispatch same command; exact typed numeric/time/bounds enums; no duplicated range/default/unit literals; stable namespace per doc/view/instance."
+    },
+    {
+      "id": "STU-OBS-F008",
+      "claim": "EditorSurface callback plumbing exists, while its production registry is initialized empty.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/interop/interaction_bus.rs",
+          "line": 661,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/interop/interaction_bus.rs",
+          "line": 1585,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/interop/interaction_bus.rs",
+          "line": 1598,
+          "kind": "product"
+        }
+      ],
+      "searched": "EditorSurface implementations/register calls reviewed in root drill: mock/test consumers only; source comments alone not used to call dispatch inert.",
+      "implication": "Useful future same-host seam; it is not an already-mounted Studio surface or complete command authority. Register narrow capability presenters after canonical domain contract.",
+      "next_proof": "Production startup registers each capability once, routes selection/workspace generations/callback after queue acceptance, unregisters on lifecycle and exposes Argus/manual."
+    },
+    {
+      "id": "STU-OBS-F009",
+      "claim": "LayoutGuard has a real checkpoint/commit/rollback type but no production caller was found in pinned native src search.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/mcp/layout_guard.rs",
+          "line": 62,
+          "kind": "product"
+        }
+      ],
+      "searched": "rg LayoutGuard::checkpoint under pinned native src returns doc example and cfg(test) implementations only.",
+      "implication": "Do not claim protected agent layout mutation. Reuse or integrate canonical layout owner with explicit revision/conflict semantics rather than a new Studio layout rollback helper.",
+      "next_proof": "Operator layout priority, two client mutations, exact checkpoint-generation acceptance, rollback cannot clobber later accepted layout."
+    },
+    {
+      "id": "STU-OBS-F010",
+      "claim": "DiagnosticsRecorder::record is serialized by a Mutex; its public comment 'Non-blocking' is broader than the implementation.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+          "line": 113,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+          "line": 210,
+          "kind": "product"
+        }
+      ],
+      "implication": "Removing serialization from the existing SPSC shared-memory writer would invalidate producer safety. Studio realtime/render/audio paths need bounded non-blocking producer admission to one canonical diagnostic owner, not independent SPSC multiwriter access.",
+      "next_proof": "Adversarial producer concurrency, saturation/drop-count and ordering; callback deadline/jitter; no allocations/locks on realtime callback; valid ring payload under pressure."
+    },
+    {
+      "id": "STU-OBS-F011",
+      "claim": "Typed diagnostic ring event ABI has integers/enums only and no explicit module/domain/document/Principal fields.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/diag_ring/src/schema.rs",
+          "line": 158,
+          "kind": "product"
+        }
+      ],
+      "implication": "Use registered opaque mechanic IDs/versioned interpretation and scoped retrieval mapping outside the ring payload; keep project content out. Per-crate diagnostic coverage needs an explicit registry, not arbitrary counter conventions.",
+      "next_proof": "No project/sensitive strings; decode ID/version before rendering; unknown enum behavior; account/resource visibility after recovery and cross-account restart."
+    },
+    {
+      "id": "STU-OBS-F012",
+      "claim": "Operation watchdog supports optional total-runtime cap in addition to progress-gap deadline; production backend helper enables the cap.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/diagnostics/operation_watchdog.rs",
+          "line": 145,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/diagnostics/operation_watchdog.rs",
+          "line": 378,
+          "kind": "product"
+        }
+      ],
+      "implication": "Reuse for Studio operations with meaningful deadlines. A ticking operation is not completion; register hard caps when appropriate and connect cancellation/outcome receipts separately.",
+      "next_proof": "Healthy ticking, stopped progress, forever-ticking, cancelled, completed-before-stall, resource release and exact warning clearing."
+    },
+    {
+      "id": "STU-OBS-F013",
+      "claim": "Palmistry child watch queue is bounded but evicts oldest command, and app update drains synchronous control acknowledgements.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+          "line": 198,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+          "line": 237,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+          "line": 689,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/app.rs",
+          "line": 40066,
+          "kind": "product"
+        }
+      ],
+      "detail": "MAX_PENDING_CHILD_WATCH_COMMANDS 256; enqueue pop_front at capacity; ack read deadline 900ms; no per-frame drain budget in inspected drain function; failures logged and not requeued.",
+      "implication": "Under Studio worker volume, silent registration/deregistration loss and UI-frame acknowledgement wait are source risks. Extend current launcher/control owner with explicit admission/backpressure and off-frame ordered drain; no lock removal without ownership proof.",
+      "next_proof": "Queue full failure receipt, duplicate/coalesced controls, register/deregister causal order, unavailable/hung watcher, bounded frame budget, reconnect and stale child cleanup."
+    },
+    {
+      "id": "STU-OBS-F014",
+      "claim": "Palmistry production recovery forwarding cannot currently reach a faithful ingestion endpoint.",
+      "evidence": [
+        {
+          "path": "src/frontend/palmistry/src/main.rs",
+          "line": 950,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/palmistry/src/fr_forward.rs",
+          "line": 292,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/palmistry/src/fr_forward.rs",
+          "line": 351,
+          "kind": "product"
+        }
+      ],
+      "implication": "Per-Studio crate three-tier evidence must report local survivor capture separately from DEFERRED FR forwarding. Future compatible delivery requires faithful schema, authorization and canonical ledger idempotency, not chat-body smuggling.",
+      "next_proof": "Scoped authenticated survivor route, persisted before forward, exact ack identity, restart/double-drain dedupe; forward network cannot pause freeze poll."
+    },
+    {
+      "id": "STU-OBS-F015",
+      "claim": "Native manual pane is reusable but currently renders static editor sections separately from backend manual persistence.",
+      "evidence": [
+        {
+          "path": "src/frontend/handshake_native/src/app.rs",
+          "line": 7519,
+          "kind": "product"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/editor_pane_factories.rs",
+          "line": 2239,
+          "kind": "product"
+        },
+        {
+          "path": "src/backend/handshake_core/src/api/user_manual.rs",
+          "line": 205,
+          "kind": "product"
+        },
+        {
+          "path": "src/backend/handshake_core/src/user_manual/store.rs",
+          "line": 559,
+          "kind": "product"
+        }
+      ],
+      "implication": "Keep one native pane and one content contract. Project/generated shared manual sources into both backend query and operator pane; attach typed command/Argus/three-tier anchors at the same capability record.",
+      "next_proof": "No-context human/model discoverability, one content hash/version, shipped capability fields/enums exact, stale generated manual rejection, backend-down readable recovery."
+    },
+    {
+      "id": "STU-OBS-F016",
+      "claim": "Selected backend manual routes expose bootstrap header identity/read receipts and a resync actor-kind header gate, unlike inspected FR broker middleware.",
+      "evidence": [
+        {
+          "path": "src/backend/handshake_core/src/api/user_manual.rs",
+          "line": 51,
+          "kind": "product"
+        },
+        {
+          "path": "src/backend/handshake_core/src/api/user_manual.rs",
+          "line": 128,
+          "kind": "product"
+        },
+        {
+          "path": "src/backend/handshake_core/src/api/user_manual.rs",
+          "line": 564,
+          "kind": "product"
+        },
+        {
+          "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+          "line": 425,
+          "kind": "product"
+        }
+      ],
+      "implication": "This is a precise unresolved authorization seam, not an asserted exploit. Do not copy header-derived identity gate into Studio authority or assume all backend manual content is resource-authorized.",
+      "next_proof": "Inspect outer routing/auth/database permissions before verdict; bootstrap public corpus separated from protected project examples/receipts; signed session-derived resync authority and revocation cases."
+    },
+    {
+      "id": "STU-OBS-F017",
+      "claim": "Native editor Flight Recorder reconciliation is actually registered by the routes owner.",
+      "evidence": [
+        {
+          "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+          "line": 220,
+          "kind": "product"
+        },
+        {
+          "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+          "line": 1152,
+          "kind": "product"
+        },
+        {
+          "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+          "line": 1204,
+          "kind": "product"
+        }
+      ],
+      "implication": "Earlier root-drill recovery uncertainty can be narrowed: actual source startup spawns the loop when Tokio handle exists and authorizes each workspace. Crash/durability/idempotency runtime proof remains outstanding.",
+      "next_proof": "Restart with pending write, poison rows beyond100, denied workspace, matching/conflicting FR row, durable completion and no starvation."
+    }
+  ],
+  "canonical_reuse_ports": [
+    {
+      "id": "STU-OBS-PORT-COMMANDS",
+      "owner": "native command_registry::AppCommand -> future UiDescriptor; backend Studio typed command owner",
+      "reuse": "One capability contract with GUI, API, accessibility, menu/palette and manual projections.",
+      "extract_floor": "Pure descriptor/schema catalog free of core storage/runtime and independent generated command metadata.",
+      "avoid": "New per-domain menus, duplicated command enums or model shim."
+    },
+    {
+      "id": "STU-OBS-PORT-CONTROLS",
+      "owner": "Existing native pane/context-menu/header/splitter/theme/accessibility helpers",
+      "reuse": "Shared control assets receive descriptor IDs, value/availability state and commands; capability presenters compose them.",
+      "extract_floor": "UI shell crate may depend on egui and pure descriptors, not full core; Argus support intrinsic to each reused control.",
+      "avoid": "New textbox/slider/swatch/window per engine; side-effectful snapshot render."
+    },
+    {
+      "id": "STU-OBS-PORT-ARGUS",
+      "owner": "mcp and accessibility current canonical owners",
+      "reuse": "Stable target, guarded enqueue, causal token ack, snapshot and screenshot methods.",
+      "extract_floor": "Separate pure wire/receipt contract and host transport/action adapter only when existing private pub(crate) helpers become shared; host retains egui event execution.",
+      "avoid": "Independent Studio Argus daemon, attribution log or second receipt success policy."
+    },
+    {
+      "id": "STU-OBS-PORT-VISUAL",
+      "owner": "canonical renderer and Argus capture contract",
+      "reuse": "New capability render providers supply pixel artifact + exact state/receipt binding; current transport stays.",
+      "extract_floor": "Render receipt schema outside egui/core; actual renderer adapter owns pixel production and timing/color/proxy lineage.",
+      "avoid": "Calling screenshot timestamp a document revision, UI-node value a render receipt or success based solely on PNG existence."
+    },
+    {
+      "id": "STU-OBS-PORT-DIAGNOSTICS",
+      "owner": "global diagnostics facade + diag_ring ABI",
+      "reuse": "Per-engine typed IDs/operation progress; one bounded producer fan-in and independent heartbeat.",
+      "extract_floor": "Tiny allowlist contract/producer sink crate; host provides emitter, offline asset harness explicit sink. Do not add handshake_core dependency to pure engine crates.",
+      "avoid": "Per-crate logs/panels/rings or unsafe concurrent SPSC writers; mutex on realtime callback."
+    },
+    {
+      "id": "STU-OBS-PORT-PALMISTRY",
+      "owner": "native palmistry_launch and external Palmistry",
+      "reuse": "Track actual Studio worker process progress and lifecycle through existing control protocol; process ledger remains separate canonical owner.",
+      "extract_floor": "Pure typed child identity/progress contract; app handle controls lifecycle. In-process crate is not an OS child and should use operation watchdog instead.",
+      "avoid": "Watcher per engine or fabricated child registration; kill-on-parent watcher; claiming blocked forwarding WIRED."
+    },
+    {
+      "id": "STU-OBS-PORT-FR",
+      "owner": "core API auth/record-user EventLedger/FR mirror and native ordered producer",
+      "reuse": "Receipted business-event ingress/idempotency and scope; canonical EventLedger authoritative storage.",
+      "extract_floor": "Tiny shared event/receipt definitions and host-provided sink, avoid linking core/Surreal/DuckDB into every engine.",
+      "avoid": "Using diag ring as business event store, importing arbitrary Studio kind into closed native schema without approved contract."
+    },
+    {
+      "id": "STU-OBS-PORT-MANUAL",
+      "owner": "user_manual corpus/store/projection and reusable native ManualPane",
+      "reuse": "Single capability-derived dual-audience corpus with exact command/target/undo/failure/diagnostic anchors.",
+      "extract_floor": "Pure manual descriptor/content projection independent of DB; host persists current corpus and operator pane consumes it.",
+      "avoid": "Standalone Studio manual app, model-only clone or native/backend separately authored capability descriptions."
+    }
+  ],
+  "next_proof_requirements": [
+    {
+      "id": "STU-OBS-PROOF-001",
+      "surface": "Every implementation MT",
+      "requirement": "Bind affected command/control/domain to current HBR family applicability and explicit three-tier posture; run required proof for that MT before accepting it. This source research does not mark HBR PASS."
+    },
+    {
+      "id": "STU-OBS-PROOF-002",
+      "surface": "Shared-asset closure",
+      "requirement": "Separate compile proof for pure contracts/engines/UI adapters and full host integration; no hidden core/runtime-full dependency. Assets harness must exercise genuine controls and APIs, retain future kernel ports."
+    },
+    {
+      "id": "STU-OBS-PROOF-003",
+      "surface": "Parallel backend work",
+      "requirement": "Bounded admission per actor/document/capability, fairness, queue pressure receipt, cancellation/resource return, deterministic CRDT proposals/promotions; argue ownership before changing locks."
+    },
+    {
+      "id": "STU-OBS-PROOF-004",
+      "surface": "Visual outcome",
+      "requirement": "Exact model-command request -> authority revision/diff -> render receipt/pixels -> Argus current view/tree; inspect actual artifacts and runtime errors. Same document parallel actors and stale output negative cases."
+    },
+    {
+      "id": "STU-OBS-PROOF-005",
+      "surface": "Diagnostics/survivor delivery",
+      "requirement": "Producer fan-in is safe under pressure; heartbeat independent; worker-progress/freeze/crash survive parent; no scoped content leak; faithful forwarding remains explicitly deferred until actual canonical endpoint/recovery proof."
+    }
+  ],
+  "source_hashes": [
+    {
+      "path": ".GOV/codex/Handshake_Codex_v1.4.md",
+      "kind": "live_kernel",
+      "line_count": 255,
+      "sha256": "e29d113f213533c25ab7679cd6b051cf975befa672acb66b9369ba49cb5c084e"
+    },
+    {
+      "path": ".GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md",
+      "kind": "live_kernel",
+      "line_count": 29,
+      "sha256": "7cea6b3bbec41df34dc955364d9ed39bad5f009776dc1e9e1222256452db5c30"
+    },
+    {
+      "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      "kind": "live_kernel",
+      "line_count": 1830,
+      "sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57"
+    },
+    {
+      "path": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+      "kind": "live_kernel",
+      "line_count": 156,
+      "sha256": "b3fffc137dbd12096775bf9cc9d65b6f7acff88e872861e17bf6591861db7674"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md",
+      "kind": "live_kernel",
+      "line_count": 1936,
+      "sha256": "d0ede6e67b4107e829cb6e3042dcb3d240ffebccdcc9ced52b431ef720eb336b"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "kind": "live_kernel",
+      "line_count": 32959,
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b"
+    },
+    {
+      "path": "src/backend/handshake_core/src/api/flight_recorder.rs",
+      "kind": "product",
+      "line_count": 5559,
+      "sha256": "ac4cf9e013b9921f73e9fd099e496ccb7de952115aba6241a833fb34aa0642b5"
+    },
+    {
+      "path": "src/backend/handshake_core/src/api/user_manual.rs",
+      "kind": "product",
+      "line_count": 601,
+      "sha256": "13d1a073bd4d0bae934738dade3faff59128ad61837d5d071fd73f1486a80868"
+    },
+    {
+      "path": "src/backend/handshake_core/src/main.rs",
+      "kind": "product",
+      "line_count": 602,
+      "sha256": "564c5a4b04cb5d62c9a9c13f05a39e3e53f270180731775fcba295b3802172d8"
+    },
+    {
+      "path": "src/backend/handshake_core/src/user_manual/store.rs",
+      "kind": "product",
+      "line_count": 1141,
+      "sha256": "6252fef440594acd68409b164135fe570233a325f1ce52dc8021d3e4af2b3d61"
+    },
+    {
+      "path": "src/frontend/handshake_native/diag_ring/src/schema.rs",
+      "kind": "product",
+      "line_count": 381,
+      "sha256": "d10f36b9ef1613189d04d7c6a8eaf614eb2a8b910b55f1bbe3416eafc438cf7b"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/accessibility/editor_action_registry.rs",
+      "kind": "product",
+      "line_count": 1202,
+      "sha256": "f38842babc70c2578ddb71cd10befe938121a01f9860e684b017a469c4e0199a"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/accessibility/live.rs",
+      "kind": "product",
+      "line_count": 150,
+      "sha256": "a717a5dbb664500a146df1c48020f46254b5e9614e7393aab2a6c26e382944cc"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/accessibility/snapshot.rs",
+      "kind": "product",
+      "line_count": 750,
+      "sha256": "e746db556056736cb7ebc70747ca8e32689955f319eff54ba7e62f8eb7db8ac8"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/app.rs",
+      "kind": "product",
+      "line_count": 41301,
+      "sha256": "2a1360257a4199183f0a1b239e5f44b1d93442f171a370b50f6a9bbe99bbeec5"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/command_registry.rs",
+      "kind": "product",
+      "line_count": 1385,
+      "sha256": "9623d25b7b6271101213b9bc3a7f3d69ea6ee64452570a0dead6e0d5807570ce"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/diagnostics/operation_watchdog.rs",
+      "kind": "product",
+      "line_count": 423,
+      "sha256": "1a063dd3be6003d732de4203e57cd86e5217e619688f85fb0fbdcfe68700f796"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+      "kind": "product",
+      "line_count": 1333,
+      "sha256": "a44a48c1775f92b674293d5c6eca6c7d7cebd29139005f9e4ea3a07819aa775d"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "kind": "product",
+      "line_count": 359,
+      "sha256": "1eebcb2988cebad584a58958e7f856b075f6e855d972f6e6a0473bb68e3e18c7"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/editor_pane_factories.rs",
+      "kind": "product",
+      "line_count": 3974,
+      "sha256": "43477bcca4836ead05e2622e22cc0927cf32eaec9748c7babbcce3072d5873bc"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/event_emitter.rs",
+      "kind": "product",
+      "line_count": 2252,
+      "sha256": "7453d85fbaefd826452cfe0aa09a6cfffa128d0dbf6a8103bf31f8752238d220"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/interop/interaction_bus.rs",
+      "kind": "product",
+      "line_count": 2718,
+      "sha256": "e7dd3626f3b36354a052e4f3cdace287bd1a4ddd907b1e94d07219f96acc2685"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/mcp/action.rs",
+      "kind": "product",
+      "line_count": 4971,
+      "sha256": "fc867d6c557562e2909127c19709af99d066f20df654a94fe14dc804d85bb723"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/mcp/layout_guard.rs",
+      "kind": "product",
+      "line_count": 199,
+      "sha256": "6aad3255f07b1e538cf540b9371b70180b0fa4f4b53e86d407424d5bc071eba3"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/mcp/screenshot.rs",
+      "kind": "product",
+      "line_count": 375,
+      "sha256": "d230ed59e7f809d63dafe1953cef0b9f00fba2f572e7f5ca8d97d031a025ffe1"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/mcp/server.rs",
+      "kind": "product",
+      "line_count": 791,
+      "sha256": "f06247d5c87f6a2b2e9cb66199953fba31e7b6f11af40068129310d6603aaf10"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/mcp/session.rs",
+      "kind": "product",
+      "line_count": 918,
+      "sha256": "52d0722c3ce802e74bc54a68bbcbf921f29bc5da154a46406f4058f28c213075"
+    },
+    {
+      "path": "src/frontend/handshake_native/src/mcp/tools.rs",
+      "kind": "product",
+      "line_count": 875,
+      "sha256": "d4e36a46b689885a88081cc0d49867a1a708454ac7491b5cf85af1b6ec35cba5"
+    },
+    {
+      "path": "src/frontend/palmistry/src/control.rs",
+      "kind": "product",
+      "line_count": 364,
+      "sha256": "7046d10aa67b607fc1b26332a166cf82f901b39bafb42e1c84fe300ce91ccc09"
+    },
+    {
+      "path": "src/frontend/palmistry/src/fr_forward.rs",
+      "kind": "product",
+      "line_count": 601,
+      "sha256": "71feccd7d80ef3917ab7783dcd3626fe0bca0fd14bcb0720320e4793810bd3b9"
+    },
+    {
+      "path": "src/frontend/palmistry/src/main.rs",
+      "kind": "product",
+      "line_count": 1463,
+      "sha256": "953110b02aa6492e377c820ea9d78502819db783d9c2888bea5819de2a09f5e3"
+    }
+  ],
+  "final_review": {
+    "status": "EXACT_FILE_REREAD_AND_REFERENCES_REVIEWED",
+    "product_status": "source research only",
+    "runtime_verdict": "NONE",
+    "static_validation": "JSON parsed; 122 evidence anchors exist/in-range; 31 source hashes re-read unchanged; source HEAD/tree/status re-read"
+  },
+  "execution_notes": [
+    {
+      "id": "STU-OBS-NOTE-01",
+      "cause": "A Windows rg path-glob/interoperability.rs probe referenced nonexistent paths; corrected with rg --files and inspected actual interop/ directory. No source edits or expensive run."
+    },
+    {
+      "id": "STU-OBS-NOTE-02",
+      "cause": "Three tool orchestration inputs had an accidental unmatched quote around max_output_tokens; rejected before shell execution and reissued with valid JavaScript. No external side effect."
+    },
+    {
+      "id": "STU-OBS-NOTE-03",
+      "cause": "An initial diag-ring read used an unverified guessed package path and produced null indexing diagnostics; corrected from previously verified manifest inventory to handshake_native/diag_ring; subsequent probes fail-closed with ErrorActionPreference Stop."
+    },
+    {
+      "id": "STU-OBS-NOTE-04",
+      "cause": "One Argus protocol probe ran in product tree compatibility .GOV; direct live-kernel protocol was then read in full and exclusively cited as authority. No decision relies on copied product governance."
+    }
+  ]
+}

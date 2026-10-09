@@ -1,0 +1,33 @@
+{
+  "schema_id": "hsk.studio_spec_copy_baseline@1",
+  "file_id": "STUDIO-SPEC-COPY-207",
+  "source_bundle": ".GOV/spec/master-spec-v02.206",
+  "candidate_bundle": ".GOV/spec/master-spec-v02.207",
+  "preserved_archive": ".GOV/spec/spec_archive/master-spec-v02.206",
+  "operator_signature": "ilja091020261912",
+  "source_file_sha256": {
+    "INDEX.json": "3c4f2ca45766a4a01c83ffd569cb757ee035d42a94c8504376830602fdb10227",
+    "indexed-spec-manifest.json": "1f4585bc20a5e590189329b7280ed1cb29331b8d3947d368f1d29b908e53d152",
+    "README.md": "b202c2a4645357581cc880b7ad7833e2b8039b754b086cf0c663676f8efc186a",
+    "spec-changelog.jsonl": "597b1f8a0312eda4796c416cc7823a78126d102fafc1d2f66e38f77ea59ddd66",
+    "spec-modules/00-preamble.md": "4243631b6859c8b266953265ec9b190d8e6eb52176b863a00bc3b51eb290e7c6",
+    "spec-modules/01-vision-and-context.md": "eb176ce33156f6efcc1b0efbd67c28a3f3f4778cd06ce630eefe3ea587409bc3",
+    "spec-modules/02-system-architecture.md": "d318f94cf0a0034b2cd3922becb9b2d3dff74eddb14012ba65e4a84693cd7055",
+    "spec-modules/03-local-first-infrastructure.md": "4dbc453cc727e88eed05781943600ff5a0f439497bce7a656a7d5d9a9de6fbc6",
+    "spec-modules/04-llm-infrastructure.md": "74c36e6779d87c02ab21fe17f8d94ef099028fd1e3f5a44b19e8a98a796842b9",
+    "spec-modules/05-security-and-observability.md": "d0ede6e67b4107e829cb6e3042dcb3d240ffebccdcc9ced52b431ef720eb336b",
+    "spec-modules/06-mechanical-integrations.md": "9d0b69302fb0d24dcf29103119546c118df1b0b42c9599769d5dd1b436835533",
+    "spec-modules/07-6-development-roadmap.md": "3e2372155b49b3b098e91d6932c92a447d7103055ebc324521fae50b025cec63",
+    "spec-modules/07-user-experience-and-development.md": "1b0bd644ae8a15c6436e49f078b00fb48568e30fe7c4e730d3d3a52e37db3d70",
+    "spec-modules/08-reference.md": "ab8271d338a3b6d9f8ef1736c5b5b426633b0ecf0248abd50fc0e98ad79d111a",
+    "spec-modules/09-continuous-local-skill-distillation.md": "e8914f10e3646ef863c2ef7ea5b09c866eb719010affb9074194a2966781096e",
+    "spec-modules/10-product-surfaces.md": "9bfb82ad290f05feb624b389e4e17be63913873663db20bcfe22cc8a34e27e39",
+    "spec-modules/11-shared-dev-platform-and-oss-foundations.md": "be3708a08de802009f192e7ec7f2a6a4d05e395e52868d105c6278429f608708",
+    "spec-modules/12-end-of-file-appendices.md": "bcdd9e28f7708ea03606aacf60d181b3ce6c601c953b064058141546ecbc4272",
+    "spec-modules/13-tailor-cloth-garment-engine.md": "cda8aaebd50d905f9d988bcf631ea957a0ba403c7bf2b28c2ff4f103ae2ceb88",
+    "spec-modules/14-studio-creative-suite.md": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+    "spec-modules/README.md": "5162f57b2ed072f4c2893a88affca173f213b67292ff65eccef801d75ebc3ab9"
+  },
+  "copy_comparison": "EXACT_ALL_FILES_MATCH",
+  "pointer_changed": false
+}

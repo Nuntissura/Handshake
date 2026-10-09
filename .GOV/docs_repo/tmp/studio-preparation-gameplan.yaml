@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-PREPARATION
 parent: null
-generation: 25
+generation: 36
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -41,3 +41,14 @@ steps:
 - {id: GP-025, role: builder, at: any, do: confirm gameplan moment passed with --at flag, check: {type: confirm}, source: 'infra: positional show moment rejected on resume', state: active}
 - {id: GP-026, role: builder, at: any, do: confirm source paths resolved from manifests and rg --files, check: {type: confirm}, source: 'infra: guessed render/eval crate paths absent', state: active}
 - {id: GP-027, role: builder, at: any, do: confirm artifact counts read from current JSON not prior report, check: {type: confirm}, source: 'infra: Vector execution count asserted 11 then verified 10', state: active}
+- {id: GP-028, role: builder, at: any, do: confirm readiness checks use actual schema string NO, check: {type: confirm}, source: 'infra: static check assumed bool for ready_for_downstream_launch', state: active}
+- {id: GP-029, role: builder, at: any, do: require prerequisite check exit == 0 before checkpoint commit, check: {type: confirm}, source: 'infra: checkpoint command continued after validation assertion failure', state: active}
+- {id: GP-030, role: builder, at: any, do: verify MT filenames from current index before reads, check: {type: confirm}, source: 'infra: numeric last MT guessed instead of DER id from index', state: active}
+- {id: GP-031, role: builder, at: before_submit, do: confirm copied new spec bundle preserves prior bytes and baseline, check: {type: confirm}, source: KB-SPEC-001; approved signature ilja091020261912, state: active}
+- {id: GP-032, role: builder, at: before_submit, do: confirm all MTs retain original IDs and scope with asset-first HBR binding, check: {type: confirm}, source: 'Operator: all crates first and HBR checked per MT', state: active}
+- {id: GP-033, role: builder, at: before_submit, do: confirm independent adversarial findings resolved or explicitly bounded, check: {type: confirm}, source: 'Operator: several adversarial reviews of architecture methods pressure', state: active}
+- {id: GP-034, role: builder, at: any, do: confirm thread ids copied from successful create result before wait, check: {type: confirm}, source: 'infra: snapshot request used placeholder thread id', state: active}
+- {id: GP-035, role: builder, at: any, do: verify actual spec heading before insertion, check: {type: confirm}, source: 'infra: candidate authoring assumed heading level; no file written', state: active}
+- {id: GP-036, role: builder, at: any, do: require UTF8 BOM aware JSON template decoding, check: {type: confirm}, source: 'infra: WP template BOM; checklist verbs use canonical vocabulary', state: active}
+- {id: GP-037, role: builder, at: any, do: compare copy-first spec delta against preserved source, check: {type: confirm}, source: 'infra: added full archive exposes inherited whitespace; immutable source wins', state: active}
+- {id: GP-038, role: builder, at: before_submit, do: verify staged candidate bytes equal manifest file hashes, check: {type: confirm}, source: 'infra: Windows newline translation plus Git normalization changed candidate bytes', state: active}

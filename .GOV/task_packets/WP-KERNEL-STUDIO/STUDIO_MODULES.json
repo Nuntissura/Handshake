@@ -1,0 +1,1034 @@
+{
+  "schema_id": "hsk.studio_module_catalog@1",
+  "file_id": "STUDIO-MODULES-207",
+  "updated_at": "2026-10-09T18:25:41.225787+00:00",
+  "authority": "Approved Studio architecture planning under signature ilja091020261912; actual Rust implementation next session",
+  "spec_version": "v02.207",
+  "approval_ref": "STUDIO-APPROVAL-SPEC-207",
+  "product_root": "handshake-studio-assets",
+  "canonical_product_branch": "codex/handshake-studio-assets",
+  "mirror": {
+    "repository": "https://github.com/Nuntissura/assets",
+    "destination_prefix": "handshake-studio-assets/",
+    "role": "Deterministic product-subtree mirror; one writable canonical product owner in Studio worktree",
+    "status": "NOT_MATERIALIZED_NO_PRODUCT_CODE_YET",
+    "prohibited": [
+      ".GOV",
+      "source-cache",
+      "runtime state",
+      "credentials",
+      "build/proof output",
+      "original private production imports"
+    ],
+    "preserve_existing": [
+      "handpick/",
+      ".gitignore",
+      ".gitattributes"
+    ],
+    "proof": "Fresh destination branch/content census, source commit/tree/subtree path hashes, independent destination read equality; no force overwrite"
+  },
+  "workspace_owner": {
+    "id": "STUDIO-WORKSPACE",
+    "key": "workspace",
+    "source_root": "handshake-studio-assets",
+    "responsibility": "Virtual workspace/lockfile/toolchain/dependency-selection/mirror provenance; owns MT001 coordination, not Accord domain semantics"
+  },
+  "crate_count": 34,
+  "modules": [
+    {
+      "id": "STUDIO-MODULE-ACCORD",
+      "key": "accord",
+      "depends_on": [],
+      "responsibility": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies.",
+      "crate_name": "hsk-studio-accord",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-accord",
+      "build_unit_ref": "STUDIO-MODULE-ACCORD",
+      "foundation_capability": "Parse and validate stable IDs, units, revisions and one capability envelope; reject invalid/nonfinite/unknown required fields.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-OBSERVE",
+      "key": "observe",
+      "depends_on": [
+        "accord"
+      ],
+      "responsibility": "Typed diagnostic sink/progress and correlation ports; do not copy authority/FlightRecorder into each engine.",
+      "crate_name": "hsk-studio-observe",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-observe",
+      "build_unit_ref": "STUDIO-MODULE-OBSERVE",
+      "foundation_capability": "Execute correlation-preserving allowlisted success/error/cancel sink path with a real consumer; prove content redaction.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-FOLIO",
+      "key": "folio",
+      "depends_on": [
+        "accord"
+      ],
+      "responsibility": "One StudioDocument graph/schema and immutable snapshots shared by all domains, not per-vendor models. Photo virtual-copy/develop recipe links reference CKC asset identities; catalog keywords/collections/relink authority is CKC, never a Folio-private catalog.",
+      "crate_name": "hsk-studio-folio",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-folio",
+      "build_unit_ref": "STUDIO-MODULE-FOLIO",
+      "foundation_capability": "Construct/read immutable mixed graph; validate references/cycles/object identities and snapshot isolation.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-CHRONICLE",
+      "key": "chronicle",
+      "depends_on": [
+        "accord",
+        "folio",
+        "observe"
+      ],
+      "responsibility": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
+      "crate_name": "hsk-studio-chronicle",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-chronicle",
+      "build_unit_ref": "STUDIO-MODULE-CHRONICLE",
+      "foundation_capability": "Validate/apply real typed patch to immutable base; generate inverse/conflict and retain original on failure.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-PRISM",
+      "key": "prism",
+      "depends_on": [
+        "accord",
+        "observe"
+      ],
+      "responsibility": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+      "crate_name": "hsk-studio-prism",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-prism",
+      "build_unit_ref": "STUDIO-MODULE-PRISM",
+      "foundation_capability": "Execute one documented color transform with profile/version receipt and reject unsupported profile; retain non-identity oracle obligation.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-PIGMENT",
+      "key": "pigment",
+      "depends_on": [
+        "accord",
+        "prism",
+        "observe"
+      ],
+      "responsibility": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
+      "crate_name": "hsk-studio-pigment",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-pigment",
+      "build_unit_ref": "STUDIO-MODULE-PIGMENT",
+      "foundation_capability": "Execute masked tile mutation with deterministic damaged region and immutable preimage.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-NIB",
+      "key": "nib",
+      "depends_on": [
+        "accord",
+        "observe"
+      ],
+      "responsibility": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+      "crate_name": "hsk-studio-nib",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-nib",
+      "build_unit_ref": "STUDIO-MODULE-NIB",
+      "foundation_capability": "Execute fallible path operation preserving fill/style semantics; reject degenerate/nonfinite input without loss.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-TYPE",
+      "key": "type",
+      "depends_on": [
+        "accord",
+        "observe"
+      ],
+      "responsibility": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+      "crate_name": "hsk-studio-type",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-type",
+      "build_unit_ref": "STUDIO-MODULE-TYPE",
+      "foundation_capability": "Shape actual mixed-script/bidi text with explicit font resolver and stable glyph-run receipt; CJK/RTL scope retained.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-LAYOUT",
+      "key": "layout",
+      "depends_on": [
+        "accord",
+        "folio",
+        "type",
+        "nib",
+        "observe"
+      ],
+      "responsibility": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+      "crate_name": "hsk-studio-layout",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-layout",
+      "build_unit_ref": "STUDIO-MODULE-LAYOUT",
+      "foundation_capability": "Compose real frames with line layout/overset diagnostics using shared type/nib contracts.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-DEVELOP",
+      "key": "develop",
+      "depends_on": [
+        "accord",
+        "pigment",
+        "prism",
+        "observe"
+      ],
+      "responsibility": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
+      "crate_name": "hsk-studio-develop",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-develop",
+      "build_unit_ref": "STUDIO-MODULE-DEVELOP",
+      "foundation_capability": "Execute bounded source/develop recipe on known pixel input; source immutable, missing RAW decoder explicit.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-COMPONENTS",
+      "key": "components",
+      "depends_on": [
+        "accord",
+        "folio",
+        "layout",
+        "observe"
+      ],
+      "responsibility": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
+      "crate_name": "hsk-studio-components",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-components",
+      "build_unit_ref": "STUDIO-MODULE-COMPONENTS",
+      "foundation_capability": "Apply real instance property/constraint/variable resolution in same Folio graph without separate document authority.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-PULSE",
+      "key": "pulse",
+      "depends_on": [
+        "accord",
+        "folio",
+        "observe"
+      ],
+      "responsibility": "Canonical integer-tick sequence time at 254016000000 ticks/second per STU-VID-012 and normalized broadcast ticks/frame per STU-VID-013. Preserve declared field types with checked arithmetic/range; rational time is for interchange adapters, never a competing stored authority. Own edit/trim/ripple/multicam references and scheduling; media decoder behind typed port.",
+      "crate_name": "hsk-studio-pulse",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-pulse",
+      "build_unit_ref": "STUDIO-MODULE-PULSE",
+      "foundation_capability": "Execute tick-based trim/ripple of real sequence references with checked boundary/timebase behavior.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-SCORE",
+      "key": "score",
+      "depends_on": [
+        "accord",
+        "observe"
+      ],
+      "responsibility": "Pure audio sample/channel/timing, DSP/spectral/mix/routing/latency semantics and bounded offline block processing. Device I/O and plugin hosting are optional separate providers.",
+      "crate_name": "hsk-studio-score",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-score",
+      "build_unit_ref": "STUDIO-MODULE-SCORE",
+      "foundation_capability": "Process preallocated known audio block with channels/sample positions/latency receipt; offline/native host separate.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-REEL",
+      "key": "reel",
+      "depends_on": [
+        "accord",
+        "observe"
+      ],
+      "responsibility": "Decode/encode media/proxy-provider adapters; native codec bindings opt-in, never reachable from raster/type default closure.",
+      "crate_name": "hsk-studio-reel",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-reel",
+      "build_unit_ref": "STUDIO-MODULE-REEL",
+      "foundation_capability": "Decode/encode one real bounded media segment through selected provider with proxy/original receipt; no full-buffer video load.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-MOTION",
+      "key": "motion",
+      "depends_on": [
+        "accord",
+        "folio",
+        "nib",
+        "type",
+        "observe"
+      ],
+      "responsibility": "Keyframes/easing, compositing/effect graph semantics and expressions policy; shared exact time/schema comes from Accord/Folio. Sequence/media references use provider contracts, so composition/keyframe math does not unconditionally pull NLE edit algorithms. No vendor runtime.",
+      "crate_name": "hsk-studio-motion",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-motion",
+      "build_unit_ref": "STUDIO-MODULE-MOTION",
+      "foundation_capability": "Evaluate keyframe/expression-policy operation at exact ticks with deterministic result/rejection.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-COMPOSITE",
+      "key": "composite",
+      "depends_on": [
+        "accord",
+        "folio",
+        "prism",
+        "pigment",
+        "nib",
+        "type",
+        "observe"
+      ],
+      "responsibility": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
+      "crate_name": "hsk-studio-composite",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-composite",
+      "build_unit_ref": "STUDIO-MODULE-COMPOSITE",
+      "foundation_capability": "Build/evaluate real mixed-domain render plan against immutable revision using selected provider contracts.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-RENDER_CPU",
+      "key": "render_cpu",
+      "depends_on": [
+        "accord",
+        "prism",
+        "pigment",
+        "nib",
+        "type",
+        "observe"
+      ],
+      "responsibility": "CPU render backend/reference; opt-in professional reference cases require external independent oracles.",
+      "crate_name": "hsk-studio-render-cpu",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-render-cpu",
+      "build_unit_ref": "STUDIO-MODULE-RENDER_CPU",
+      "foundation_capability": "Render real plan to pixels with revision/color receipt and bounded sink, compare independent known reference.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-RENDER_GPU",
+      "key": "render_gpu",
+      "depends_on": [
+        "accord",
+        "prism",
+        "pigment",
+        "nib",
+        "type",
+        "observe"
+      ],
+      "responsibility": "wgpu backend/device lifecycle, residency and budgets; GPU API types hidden from document/contracts.",
+      "crate_name": "hsk-studio-render-gpu",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-render-gpu",
+      "build_unit_ref": "STUDIO-MODULE-RENDER_GPU",
+      "foundation_capability": "Execute real bounded GPU plan/readback at supported backend; explicit unavailable/device-loss result, never skipped PASS.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-PACKAGE",
+      "key": "package",
+      "depends_on": [
+        "accord",
+        "folio",
+        "observe"
+      ],
+      "responsibility": "Native document container serialization, manifest/hash references, atomic recovery and bounded loading. Stream asset bytes through CKC/PRIM-ArtifactService provider ports; no private catalog, preview cache, metadata store, watcher or second CAS under STU-ASSET-004/009/010. Standalone fixtures supply scoped in-memory resolver inputs rather than kernel imports.",
+      "crate_name": "hsk-studio-package",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-package",
+      "build_unit_ref": "STUDIO-MODULE-PACKAGE",
+      "foundation_capability": "Save/reopen actual mixed graph/bytes through bounded granted resolver with checksums and hostile input rejection.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-INTEROP_PSD",
+      "key": "interop_psd",
+      "depends_on": [
+        "accord",
+        "folio",
+        "pigment",
+        "prism",
+        "type",
+        "observe"
+      ],
+      "responsibility": "PSD/PSB conversion with provenance and structured unsupported/loss report; preserve originals/unknown bytes.",
+      "crate_name": "hsk-studio-interop-psd",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-interop-psd",
+      "build_unit_ref": "STUDIO-MODULE-INTEROP_PSD",
+      "foundation_capability": "Decode actual source structure into proposals and report every unmapped field; encode/edit/reopen minimal supported case.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-INTEROP_VECTOR",
+      "key": "interop_vector",
+      "depends_on": [
+        "accord",
+        "folio",
+        "nib",
+        "type",
+        "prism",
+        "observe"
+      ],
+      "responsibility": "SVG/AI vector import/export with fallible loss-aware proposals; PDF decoding/editing exposed through Press provider ports, not unconditional all-PDF engine.",
+      "crate_name": "hsk-studio-interop-vector",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-interop-vector",
+      "build_unit_ref": "STUDIO-MODULE-INTEROP_VECTOR",
+      "foundation_capability": "Import actual SVG/AI/PDF selected adapter and emit explicit fallback/loss; independent editable envelope proof later.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-INTEROP_FIG",
+      "key": "interop_fig",
+      "depends_on": [
+        "accord",
+        "folio",
+        "components",
+        "type",
+        "observe"
+      ],
+      "responsibility": "Offline .fig proprietary-version decoder and conversion adapter owner; decoder availability NOT_PROVEN. Preserve original/source-qualified IDs and map components/variants/variables/modes/auto-layout/prototypes with loss receipts. SVG/PNG/token/API interchange does not replace required editable .fig import.",
+      "crate_name": "hsk-studio-interop-fig",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-interop-fig",
+      "build_unit_ref": "STUDIO-MODULE-INTEROP_FIG",
+      "foundation_capability": "Execute real bounded .fig container/identity/opaque preservation/loss validation and reject unsupported versions; editable decoder feature remains explicitly blocked until original-produced semantic/render proof.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-INTEROP_LAYOUT",
+      "key": "interop_layout",
+      "depends_on": [
+        "accord",
+        "folio",
+        "layout",
+        "type",
+        "prism",
+        "observe"
+      ],
+      "responsibility": "IDML/INDD/print interchange conversion; no claim INDD readable without actual decoder proof.",
+      "crate_name": "hsk-studio-interop-layout",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-interop-layout",
+      "build_unit_ref": "STUDIO-MODULE-INTEROP_LAYOUT",
+      "foundation_capability": "Execute actual supported bounded IDML semantic decode/encode with loss and shared layout; missing INDD decoder remains separately blocked full-feature scope.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-INTEROP_MEDIA",
+      "key": "interop_media",
+      "depends_on": [
+        "accord",
+        "folio",
+        "observe"
+      ],
+      "responsibility": "Typed timeline/motion/audio interchange (PRPROJ/AEP/SESX included explicit missing-decoder scope), loss-aware proposals through neutral Folio contracts. No Lightroom parser or private catalog; lrcat has its own adapter.",
+      "crate_name": "hsk-studio-interop-media",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-interop-media",
+      "build_unit_ref": "STUDIO-MODULE-INTEROP_MEDIA",
+      "foundation_capability": "Execute actual timeline/develop/audio interchange mapping at exact time/resource identity with losses; PRPROJ/AEP/SESX gaps explicit.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-CONTROLS",
+      "key": "controls",
+      "depends_on": [
+        "accord",
+        "observe"
+      ],
+      "responsibility": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
+      "crate_name": "hsk-studio-controls",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-controls",
+      "build_unit_ref": "STUDIO-MODULE-CONTROLS",
+      "foundation_capability": "One real configured shared control edits typed value and exposes same descriptor to model/manual/accessibility; no per-domain mechanic clone.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-SESSION",
+      "key": "session",
+      "depends_on": [
+        "accord",
+        "folio",
+        "chronicle",
+        "package",
+        "observe"
+      ],
+      "responsibility": "Headless single-document operation orchestration, provider registration and test ports. Multi-output delivery captures immutable revision/presets/output verification and uses existing Job Runtime via a port for queue/watchfolder/cancel/retry, without a second job database or queue authority. No built-in all-engine mega dependency.",
+      "crate_name": "hsk-studio-session",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-session",
+      "build_unit_ref": "STUDIO-MODULE-SESSION",
+      "foundation_capability": "Actual document-scoped admission/proposal/cancel/retry via injected canonical job/resource/commit ports with bounded work and stale handling.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-HARNESS",
+      "key": "harness",
+      "depends_on": [
+        "accord",
+        "folio",
+        "session",
+        "controls",
+        "observe"
+      ],
+      "responsibility": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
+      "crate_name": "hsk-studio-harness",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-harness",
+      "build_unit_ref": "STUDIO-MODULE-HARNESS",
+      "foundation_capability": "Real headless consumer of all selected foundation interfaces plus controlled reusable UI asset route; no mandatory all-engine facade.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-KERNEL_BINDINGS",
+      "key": "kernel_bindings",
+      "depends_on": [
+        "accord",
+        "folio",
+        "session",
+        "observe"
+      ],
+      "responsibility": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
+      "crate_name": "hsk-studio-kernel-bindings",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-kernel-bindings",
+      "build_unit_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+      "foundation_capability": "Execute one real bridge protocol proposal/authorization/cancel/diagnostic round trip through scoped transient adapter and fail closed on rejected grant; no claim of production storage/host wiring.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-PRESS",
+      "key": "press",
+      "depends_on": [
+        "accord",
+        "folio",
+        "observe"
+      ],
+      "responsibility": "Bounded PDF object editing, projection proposals, forms/annotations/signature states, prepress/accessibility/redaction/full-save. PDF bytes are provider transport, never separate live document authority.",
+      "crate_name": "hsk-studio-press",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-press",
+      "build_unit_ref": "STUDIO-MODULE-PRESS",
+      "foundation_capability": "Read/edit/save one real PDF object through bounded granted ports, re-read exact output and reject signed/read-only or malformed mutation.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-WEB",
+      "key": "web",
+      "depends_on": [
+        "accord",
+        "folio",
+        "observe"
+      ],
+      "responsibility": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
+      "crate_name": "hsk-studio-web",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-web",
+      "build_unit_ref": "STUDIO-MODULE-WEB",
+      "foundation_capability": "Real source-to-DOM and DOM-to-source edit/preview with conflict and granted asset resolution.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-SCORE_DEVICE",
+      "key": "score_device",
+      "depends_on": [
+        "accord",
+        "score",
+        "observe"
+      ],
+      "responsibility": "Optional native device I/O provider; all configuration and allocation off realtime callback; preallocated fixed-capacity handoff.",
+      "crate_name": "hsk-studio-score-device",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-score-device",
+      "build_unit_ref": "STUDIO-MODULE-SCORE_DEVICE",
+      "foundation_capability": "Actual controlled input/output provider opens, transfers bounded blocks and reports device loss, overrun/discontinuity/underrun without callback blocking.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-SCORE_PLUGIN",
+      "key": "score_plugin",
+      "depends_on": [
+        "accord",
+        "score",
+        "observe"
+      ],
+      "responsibility": "Optional native plugin hosting provider; scoped process/lifetime/timeout and foreign resource budgets separate from pure DSP.",
+      "crate_name": "hsk-studio-score-plugin",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-score-plugin",
+      "build_unit_ref": "STUDIO-MODULE-SCORE_PLUGIN",
+      "foundation_capability": "Actual selected plugin host processes bounded preallocated blocks, reclaims resources off callback and reports crash/timeout safely.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-REEL_NATIVE",
+      "key": "reel_native",
+      "depends_on": [
+        "accord",
+        "reel",
+        "observe"
+      ],
+      "responsibility": "Optional native media codec provider; isolate FFI/toolchain/codec license/version/process boundaries from pure media contracts.",
+      "crate_name": "hsk-studio-reel-native",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-reel-native",
+      "build_unit_ref": "STUDIO-MODULE-REEL_NATIVE",
+      "foundation_capability": "Actual selected codec decodes/encodes bounded segment with errors/cancellation/provenance; no full-media buffering or swallowed failures.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    },
+    {
+      "id": "STUDIO-MODULE-INTEROP_LRCAT",
+      "key": "interop_lrcat",
+      "depends_on": [
+        "accord",
+        "folio",
+        "observe"
+      ],
+      "responsibility": "Internal bounded read-only Lightroom .lrcat file-byte decoder, fixed Lightroom semantic extraction only; explicitly granted stable main/WAL handles. No engine, query API, writable catalog or DB. Outputs CKC/Studio proposals through shared ports.",
+      "crate_name": "hsk-studio-interop-lrcat",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-interop-lrcat",
+      "build_unit_ref": "STUDIO-MODULE-INTEROP_LRCAT",
+      "foundation_capability": "Decode a real supported catalog/WAL slice with stable fingerprint and entity/loss reconciliation; reject malformed cycles/overflow/ungranted WAL and leave source bytes unchanged.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
+    }
+  ],
+  "foundation_barrier": {
+    "id": "STUDIO-ALL-FOUNDATIONS",
+    "members": [
+      "STUDIO-WORKSPACE",
+      "STUDIO-MODULE-ACCORD",
+      "STUDIO-MODULE-OBSERVE",
+      "STUDIO-MODULE-FOLIO",
+      "STUDIO-MODULE-CHRONICLE",
+      "STUDIO-MODULE-PRISM",
+      "STUDIO-MODULE-PIGMENT",
+      "STUDIO-MODULE-NIB",
+      "STUDIO-MODULE-TYPE",
+      "STUDIO-MODULE-LAYOUT",
+      "STUDIO-MODULE-DEVELOP",
+      "STUDIO-MODULE-COMPONENTS",
+      "STUDIO-MODULE-PULSE",
+      "STUDIO-MODULE-SCORE",
+      "STUDIO-MODULE-REEL",
+      "STUDIO-MODULE-MOTION",
+      "STUDIO-MODULE-COMPOSITE",
+      "STUDIO-MODULE-RENDER_CPU",
+      "STUDIO-MODULE-RENDER_GPU",
+      "STUDIO-MODULE-PACKAGE",
+      "STUDIO-MODULE-INTEROP_PSD",
+      "STUDIO-MODULE-INTEROP_VECTOR",
+      "STUDIO-MODULE-INTEROP_FIG",
+      "STUDIO-MODULE-INTEROP_LAYOUT",
+      "STUDIO-MODULE-INTEROP_MEDIA",
+      "STUDIO-MODULE-CONTROLS",
+      "STUDIO-MODULE-SESSION",
+      "STUDIO-MODULE-HARNESS",
+      "STUDIO-MODULE-KERNEL_BINDINGS",
+      "STUDIO-MODULE-PRESS",
+      "STUDIO-MODULE-WEB",
+      "STUDIO-MODULE-SCORE_DEVICE",
+      "STUDIO-MODULE-SCORE_PLUGIN",
+      "STUDIO-MODULE-REEL_NATIVE",
+      "STUDIO-MODULE-INTEROP_LRCAT"
+    ],
+    "feature_rule": "Every declared module has real bounded typed API and executable minimum consumer/failure path, independent compiler/closure evidence and HBR posture before feature MTs run. Foundation does not mean full vendor parity; missing proprietary decoder can expose real opaque/loss rejection while editable-decoder feature remains explicitly blocked. No no-op/canned PASS.",
+    "host_rule": "Host-neutral bridge foundation does not depend on core/native/DB; actual embedding MTs retain full later runtime acceptance and cannot be satisfied by transient asset proof"
+  },
+  "shared_owners": {
+    "live_database": "SurrealDB/EventLedger only; no SQL engine or additional DB; new proposal requires operator approval with reason and preferred database comparison",
+    "catalog": "Existing CKC and ArtifactService; no Studio-owned catalog/CAS/watcher/cache",
+    "jobs": "Existing logical Job Runtime through typed ports; Session admission adapter is not second scheduler authority",
+    "mutation": "Document-scoped proposal/commit actor with target/property revision read/write footprint; immutable parallel compute",
+    "controls": "Controls single mechanic owner with configured panel/widgets; extend capability before sibling asset",
+    "telemetry": "Observe shared ports to FlightRecorder/internal_diagnostics/Palmistry existing owners",
+    "manual": "Existing canonical UserManual fed by same command/control descriptors"
+  },
+  "forbidden_edges": [
+    {
+      "id": "ENG-DAG-FORBID-001",
+      "from": "Any Studio engine/contracts/document/interop/control/harness package",
+      "to": [
+        "handshake_core",
+        "handshake_native",
+        "SurrealDB/RocksDB"
+      ],
+      "reason": "Independent Studio asset development must not trigger kernel/native application graph."
+    },
+    {
+      "id": "ENG-DAG-FORBID-002",
+      "from": "folio/accord",
+      "to": [
+        "egui",
+        "eframe",
+        "wgpu",
+        "codec FFI",
+        "image decoder",
+        "runtime database"
+      ],
+      "reason": "Schema reuse and small-model work require a cheap pure boundary."
+    },
+    {
+      "id": "ENG-DAG-FORBID-003",
+      "from": "kernel business-event contract",
+      "to": "duplicated engine authority database/history",
+      "reason": "Avoid divergent EventLedger/CRDT/promotion state."
+    }
+  ],
+  "research_basis": [
+    "engineering.json",
+    "argus-diagnostics-root-drill.json",
+    "filmcraft-root-drill.json",
+    "light-effect-root-drill.json",
+    "backend-redteam/independent-adoption-redteam.json",
+    "backend-redteam/backpressure-architecture-review.json",
+    "adobe-original-team/original-suite-workflow-audit.json"
+  ],
+  "risks": "Source adoption is selective leaf code only with pinned hashes/patch/license provenance. Toolkit host pins stay0.33 family until separately approved upgrade; no measured compile improvement/runtime/parity claim.",
+  "plugin_owner": "Handshake-wide canonical extension/library/capability/sandbox owner; Studio domain plugin adapter only. Platform source decision under active backend team review; no private Studio extension catalog/runtime authority."
+}
