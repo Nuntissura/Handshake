@@ -1,6 +1,6 @@
 {
   "schema": "hsk.validator_round_selection@1",
-  "candidate": "92841e94ba2fad87f7c9980098c2dfab10106f74",
+  "candidate": "51c53290264618cbd4e85825ef43d72aba5ef12a",
   "mode": "targeted",
   "selection_file": "WPV-round-selection-targeted.sh",
   "output_suffix": "-mt168-pinmeasure-r2",

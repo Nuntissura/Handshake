@@ -942,6 +942,17 @@
           "exclusive_target_released_to": "WP_VALIDATOR"
         },
         "next_dependency": "WP_VALIDATOR CURRENT catalog measurement then authorized pin-only update and required independent MT168 proof bundle"
+      },
+      {
+        "id": "PR-WP012-MT168-WPV-CATALOG-20261009-92841",
+        "check_id": "MT-168-CURRENT-CATALOG-MEASUREMENT",
+        "commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
+        "result": "MEASURED_CURRENT_INFO_WITH_EXPECTED_STALE_PIN_ASSERTIONS",
+        "nextest_exit_code": 100,
+        "wrapper_exit_code": 0,
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt168-catalog-measurement-92841-r2.json",
+        "proof_sha256": "37222d308cf5753bb95aeac87b8eed1530eb97e479fc978dd3ccfadd01b0eec6",
+        "runtime_verdict": null
       }
     ],
     "running_record_ready13_20261008": {
@@ -1700,9 +1711,9 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "COMPILE_PASS_AWAITING_CURRENT_CATALOG_MEASUREMENT",
-    "candidate_commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
-    "candidate_tree": "6e699788f7e4ec44f827243c18d0dadbe6b72302",
+    "state": "MEASURED_CURRENT_PIN_PUSHED_AWAITING_FRESH_COMPILE",
+    "candidate_commit": "51c53290264618cbd4e85825ef43d72aba5ef12a",
+    "candidate_tree": "324d1154270e7b82c0132d4ab8c7d74669665c86",
     "product_worktree": "wtc-WP-KERNEL-012",
     "branch": "feat/WP-KERNEL-012",
     "failure_refs": [
@@ -1977,6 +1988,26 @@
       "runtime_executed": false,
       "resource_owner": "WP_VALIDATOR",
       "independent_root_readback": "Exact native exit0 and all six input hashes unchanged; historical failure and independent acceptance retained"
+    },
+    "wpv_catalog_measurement_20261009": {
+      "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt168-catalog-measurement-92841-r2.json",
+      "proof_sha256": "37222d308cf5753bb95aeac87b8eed1530eb97e479fc978dd3ccfadd01b0eec6",
+      "candidate_commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
+      "completed_at_utc": "2026-10-09T02:24:07.4045798Z",
+      "nextest_exit_code": 100,
+      "wrapper_exit_code": 0,
+      "selected_tests": 5,
+      "passed": 3,
+      "expected_stale_current_info_assertions": 2,
+      "observed_current_info_sha256": "3d761f8df95c2869e5bb8a3b656f5f96a02a5cb863b2bb1f1d30306beff98ff7",
+      "independent_producers": ["MT109_CURRENT_AUTHORITY_INFO_SHA256", "MT139_CURRENT_SCHEMA_INFO_SHA256"],
+      "frozen_input_count": 13,
+      "frozen_identity_sha256": "bff87c23e3a111b25e36ef84297deb470e8469c18512becba1c7ae701193459d",
+      "all_frozen_hashes_unchanged_before_record_write": true,
+      "unchanged_pin_proof": "Declarative and Loom checks PASS; canonical Atelier PASS with actual895ff21e digest printed three times",
+      "runtime_verdict": null,
+      "resource_released": true,
+      "next_dependency": "Measured CURRENT INFO-only pin candidate; fresh mandatory compiler check, sixth full parity and required independent MT168 acceptance"
     }
   },
   "operator_decision_20261009_resource_override": {
@@ -1988,7 +2019,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "candidate_commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
+    "candidate_commit": "51c53290264618cbd4e85825ef43d72aba5ef12a",
     "operator_quotes": [
       "rip out those restrictions asap in parallel",
       "start fucking working and do not stop untill the mt gets validated pass.",
