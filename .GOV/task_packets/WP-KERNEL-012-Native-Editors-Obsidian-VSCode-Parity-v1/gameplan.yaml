@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 516
+generation: 518
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -424,4 +424,5 @@ steps:
 - {id: GP-403, role: wp_validator, at: before_round, do: verify integration binary IDs include the actual package prefix from preserved runner metadata, check: {type: confirm}, source: 'infra: r9 filter omitted handshake_core:: before mt167 target; planned3 did not prove selected3', state: active}
 - {id: GP-404, role: wp_validator, at: before_round, do: verify interrupted run ownership from fresh PID identity and preserve unknown exit plus original inputs before restart, check: {type: confirm}, source: 'infra: r9 processes absent after Desktop restart with no exit; stale38812 now belongs to conhost', state: active}
 - {id: GP-405, role: wp_validator, at: before_round, do: verify preservation artifact arrays resolve individual files and every copied hash before writing the manifest, check: {type: confirm}, source: 'infra: r9 first manifest array construction failed for logs; corrected20-file manifest independently rehashed', state: active}
-- {id: GP-406, role: any, at: before_round, do: verify approved test router supplies request and parent scopes plus both timing targets before query capture, check: {type: confirm}, source: 'fail:r10 projection timings grew; parity lacked subscriber and inner statement capture scopes', state: active}
+- {id: GP-406, role: any, at: before_round, do: verify approved test router supplies request and parent scopes plus both timing targets before query capture, check: {type: confirm}, source: 'fail:r10 projection timings grew; parity lacked subscriber and inner statement capture scopes', state: retired}
+- {id: GP-407, role: any, at: before_round, do: verify approved link-loop repair and original MT167 test bytes before affected acceptance, check: {type: confirm}, source: 'fail:r12 link verification grew; diagnostic timing cannot replace original acceptance', state: active}
