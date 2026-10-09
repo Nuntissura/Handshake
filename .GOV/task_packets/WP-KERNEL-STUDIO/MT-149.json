@@ -266,7 +266,7 @@
     "title": "Automatic recovery + document-states surface [STU-LAY-013]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "parent": {
     "wp_contract_revision": null,
@@ -355,6 +355,24 @@
           }
         ],
         "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-LAY-107",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:5456",
+        "verbatim": "**[STU-LAY-107] Page object contract.** The captured page object declares these fields; Studio MUST",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 5456,
+            "end_line": 5484,
+            "body_sha256": "956dd47b30add87b74899b3b8396ab490d7efb93758984084606e8fe56f5f465",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete inspected current clause bound by verified_source_ranges"
       }
     ],
     "read_context": [
@@ -1997,7 +2015,7 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-layout --no-default-features --test recovery_history_projection recovery_history_projection -- --exact --nocapture. Public consumer: Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator. Failure/cancel/stale/loss: Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits. Independent oracle: Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host kill/relaunch/recovery proof remains host task requirement and is not satisfied by source synthetic history. Original claim: Auto-recovery from configurable location; no target/run claimed.",
+        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-layout --no-default-features --test recovery_history_projection recovery_history_projection -- --exact --nocapture. Public consumer: Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator. Failure/cancel/stale/loss: Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits. Independent oracle: Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history. Original claim: Auto-recovery from configurable location; no target/run claimed.",
         "expected": "Auto-recovery from configurable location",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
@@ -2019,7 +2037,7 @@
           "typed_output": "History-state inspection projection, typed recover/jump request and refusal/loss descriptor tied to canonical state/revision; no second undo store.",
           "consumer_assertion": "Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator.",
           "negative_path": "Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits.",
-          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host kill/relaunch/recovery proof remains host task requirement and is not satisfied by source synthetic history.",
+          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history.",
           "prerequisites": [
             "Create natural named target before handoff",
             "Bind locked toolchain/provider/features/dependency revisions and external artifact root; absent pin/provider is BLOCKED"
@@ -2039,7 +2057,7 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-layout --no-default-features --test recovery_history_projection recovery_history_projection -- --exact --nocapture. Public consumer: Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator. Failure/cancel/stale/loss: Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits. Independent oracle: Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host kill/relaunch/recovery proof remains host task requirement and is not satisfied by source synthetic history. Original claim: Document-states jump beyond linear undo; no target/run claimed.",
+        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-layout --no-default-features --test recovery_history_projection recovery_history_projection -- --exact --nocapture. Public consumer: Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator. Failure/cancel/stale/loss: Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits. Independent oracle: Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history. Original claim: Document-states jump beyond linear undo; no target/run claimed.",
         "expected": "Document-states jump beyond linear undo",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
@@ -2061,7 +2079,7 @@
           "typed_output": "History-state inspection projection, typed recover/jump request and refusal/loss descriptor tied to canonical state/revision; no second undo store.",
           "consumer_assertion": "Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator.",
           "negative_path": "Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits.",
-          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host kill/relaunch/recovery proof remains host task requirement and is not satisfied by source synthetic history.",
+          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history.",
           "prerequisites": [
             "Create natural named target before handoff",
             "Bind locked toolchain/provider/features/dependency revisions and external artifact root; absent pin/provider is BLOCKED"
@@ -2081,7 +2099,7 @@
         "claim_refs": [
           "AC-003"
         ],
-        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-layout --no-default-features --test recovery_history_projection recovery_history_projection -- --exact --nocapture. Public consumer: Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator. Failure/cancel/stale/loss: Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits. Independent oracle: Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host kill/relaunch/recovery proof remains host task requirement and is not satisfied by source synthetic history. Original claim: Kernel-history-backed, no private store; no target/run claimed.",
+        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-layout --no-default-features --test recovery_history_projection recovery_history_projection -- --exact --nocapture. Public consumer: Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator. Failure/cancel/stale/loss: Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits. Independent oracle: Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history. Original claim: Kernel-history-backed, no private store; no target/run claimed.",
         "expected": "Kernel-history-backed, no private store",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
@@ -2103,7 +2121,7 @@
           "typed_output": "History-state inspection projection, typed recover/jump request and refusal/loss descriptor tied to canonical state/revision; no second undo store.",
           "consumer_assertion": "Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator.",
           "negative_path": "Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits.",
-          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host kill/relaunch/recovery proof remains host task requirement and is not satisfied by source synthetic history.",
+          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history.",
           "prerequisites": [
             "Create natural named target before handoff",
             "Bind locked toolchain/provider/features/dependency revisions and external artifact root; absent pin/provider is BLOCKED"
@@ -2715,7 +2733,7 @@
           "typed_output": "History-state inspection projection, typed recover/jump request and refusal/loss descriptor tied to canonical state/revision; no second undo store.",
           "consumer_assertion": "Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator.",
           "negative_path": "Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits.",
-          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host kill/relaunch/recovery proof remains host task requirement and is not satisfied by source synthetic history.",
+          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history.",
           "terminal_proof_ref": "MT-149#/proof/checks",
           "status": "PENDING_NOT_RUN"
         },
@@ -2762,7 +2780,7 @@
           "typed_output": "History-state inspection projection, typed recover/jump request and refusal/loss descriptor tied to canonical state/revision; no second undo store.",
           "consumer_assertion": "Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator.",
           "negative_path": "Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits.",
-          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host kill/relaunch/recovery proof remains host task requirement and is not satisfied by source synthetic history.",
+          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history.",
           "terminal_proof_ref": "MT-149#/proof/checks",
           "status": "PENDING_NOT_RUN"
         },
@@ -2810,7 +2828,7 @@
           "typed_output": "History-state inspection projection, typed recover/jump request and refusal/loss descriptor tied to canonical state/revision; no second undo store.",
           "consumer_assertion": "Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator.",
           "negative_path": "Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits.",
-          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host kill/relaunch/recovery proof remains host task requirement and is not satisfied by source synthetic history.",
+          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history.",
           "terminal_proof_ref": "MT-149#/proof/checks",
           "status": "PENDING_NOT_RUN"
         },
@@ -2930,7 +2948,7 @@
             "typed_output": "History-state inspection projection, typed recover/jump request and refusal/loss descriptor tied to canonical state/revision; no second undo store.",
             "consumer_assertion": "Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator.",
             "negative_path": "Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits.",
-            "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host kill/relaunch/recovery proof remains host task requirement and is not satisfied by source synthetic history.",
+            "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history.",
             "terminal_proof_ref": "MT-149#/proof/checks",
             "status": "PENDING_NOT_RUN"
           },
@@ -2977,7 +2995,7 @@
             "typed_output": "History-state inspection projection, typed recover/jump request and refusal/loss descriptor tied to canonical state/revision; no second undo store.",
             "consumer_assertion": "Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator.",
             "negative_path": "Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits.",
-            "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host kill/relaunch/recovery proof remains host task requirement and is not satisfied by source synthetic history.",
+            "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history.",
             "terminal_proof_ref": "MT-149#/proof/checks",
             "status": "PENDING_NOT_RUN"
           },
@@ -3025,7 +3043,7 @@
             "typed_output": "History-state inspection projection, typed recover/jump request and refusal/loss descriptor tied to canonical state/revision; no second undo store.",
             "consumer_assertion": "Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator.",
             "negative_path": "Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits.",
-            "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host kill/relaunch/recovery proof remains host task requirement and is not satisfied by source synthetic history.",
+            "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history.",
             "terminal_proof_ref": "MT-149#/proof/checks",
             "status": "PENDING_NOT_RUN"
           },

@@ -256,7 +256,7 @@
     "title": "Alignment/distribution + gridified drawing [STU-LAY-012]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "parent": {
     "wp_contract_revision": null,
@@ -305,6 +305,24 @@
           }
         ],
         "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-VEC-166",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:4623",
+        "verbatim": "**[STU-VEC-166] Align target enumeration and distribute contract.** The captured align surface",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 4623,
+            "end_line": 4639,
+            "body_sha256": "d52f20cdc7f6e4e1f63f24a72326e70609d85217ca1708266ffa9456d8742713",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete inspected current clause bound by verified_source_ranges"
       }
     ],
     "read_context": [

@@ -277,7 +277,7 @@
     "title": "Page/spread container model + multi-page island spreads [STU-LAY-001,STU-LAY-002]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "parent": {
     "wp_contract_revision": null,
@@ -366,6 +366,24 @@
           }
         ],
         "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-LAY-106",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:5419",
+        "verbatim": "**[STU-LAY-106] Spread page-count contract.** SUPERSEDES the v02.205 [STU-LAY-002] statement that a",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 5419,
+            "end_line": 5441,
+            "body_sha256": "457b46e1cf23b5c3e5d19293b713af55cdcc2edf9d3762ab6cda3343cf83bb0e",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete inspected current clause bound by verified_source_ranges"
       }
     ],
     "read_context": [

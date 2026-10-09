@@ -255,7 +255,7 @@
     "title": "Liquid layout rules + Adjust Layout command [STU-LAY-009,STU-LAY-010]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "parent": {
     "wp_contract_revision": null,
@@ -324,6 +324,42 @@
           }
         ],
         "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-LAY-111",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:5552",
+        "verbatim": "**[STU-LAY-111] Liquid-rule enumeration.** SUPERSEDES the six-row informal table of",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 5552,
+            "end_line": 5571,
+            "body_sha256": "9257107317202bf4d46811ee19a387ff2f28c4a2e5d2dc03d687fe8b40190c13",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete inspected current clause bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-LAY-112",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:5572",
+        "verbatim": "**[STU-LAY-112] Adjust-layout contract.** The captured adjust-layout operation takes a PROPERTY BAG",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 5572,
+            "end_line": 5581,
+            "body_sha256": "dc3f07b7de24ca23f95ebbebaec7040e19c6a88d0b008cd62218068f84064d61",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete inspected current clause bound by verified_source_ranges"
       }
     ],
     "read_context": [

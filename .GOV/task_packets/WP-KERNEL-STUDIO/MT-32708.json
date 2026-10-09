@@ -112,6 +112,13 @@
     "applies": true
   },
   "hbr_obligations": [
+    "HBR-MODULE-LIFECYCLE-001",
+    "HBR-MODULE-LIFECYCLE-002",
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-005",
+    "HBR-MODULE-LIFECYCLE-006",
+    "HBR-MODULE-LIFECYCLE-007",
     "HBR-PRIV-001",
     "HBR-PRIV-002",
     "HBR-PRIV-003",
@@ -182,6 +189,7 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
+    "module_maintenance_refs": [".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/12/maintenance"],
     "specification_anchor_refs": [
       {
         "id": "STU-FX-134a",
@@ -212,9 +220,135 @@
     ],
     "pillar_refs": [
       {
+        "rule_id": "HBR-MODULE-LIFECYCLE-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/45",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_created_or_materially_modified",
+        "assessment": "APPLIES",
+        "reason": "MT-32708: Score public source/API,dependency/build/test closure and descriptor consumer are independently selectable; proof binds this task-specific execution contract and module maintenance.",
+        "scope_evidence_refs": [
+          "MT-32708#/execution",
+          "MT-32708#/context_capsule/module_maintenance_refs",
+          "MT-32708#/fulfillment/later_kernel"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-001",
+        "proof_destination_base": "Verified sole configured external CX-984 artifact root and actual owner binding before execution"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/46",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+        "assessment": "APPLIES",
+        "reason": "MT-32708: Score declared sample/parameter work uses caller-owned bounded capacity; overflow/admission/cancel/stale outcomes preserve immutable input. No global lock or callback UI/I/O blocking.",
+        "scope_evidence_refs": [
+          "MT-32708#/execution",
+          "MT-32708#/context_capsule/module_maintenance_refs",
+          "MT-32708#/fulfillment/later_kernel"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-002",
+        "proof_destination_base": "Verified sole configured external CX-984 artifact root and actual owner binding before execution"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/47",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_released_or_consumed",
+        "assessment": "APPLIES",
+        "reason": "MT-32708: Source publication must carry immutable revision,API/artifact/toolchain/lock digests; host consumes pins through separate adoption,never version label alone.",
+        "scope_evidence_refs": [
+          "MT-32708#/execution",
+          "MT-32708#/context_capsule/module_maintenance_refs",
+          "MT-32708#/fulfillment/later_kernel"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-003",
+        "proof_destination_base": "Verified sole configured external CX-984 artifact root and actual owner binding before execution"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/48",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_embedded_in_a_host",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "MT-32708: This standalone_source MT performs no host embedding. Exact adapter/native Handshake authorization/storage/Argus/diagnostics/Palmistry conformance remains required in mapped host_adoption MTs.",
+        "scope_evidence_refs": [
+          "MT-32708#/execution",
+          "MT-32708#/context_capsule/module_maintenance_refs",
+          "MT-32708#/fulfillment/later_kernel"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-004",
+        "proof_destination_base": "Verified sole configured external CX-984 artifact root and actual owner binding before execution"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/49",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_upgraded_or_moved",
+        "assessment": "APPLIES",
+        "reason": "MT-32708: Publishable Score source excludes private PCM/context/credentials/machine state;portable roots,settled in-flight output and rollback prerequisites belong module maintenance before publication.",
+        "scope_evidence_refs": [
+          "MT-32708#/execution",
+          "MT-32708#/context_capsule/module_maintenance_refs",
+          "MT-32708#/fulfillment/later_kernel"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-005",
+        "proof_destination_base": "Verified sole configured external CX-984 artifact root and actual owner binding before execution"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/50",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_or_mirrored",
+        "assessment": "APPLIES",
+        "reason": "MT-32708: Canonical assets source is authoritative;check source/base/target digests and reject concurrent drift;preserve customized targets. Installed/cached copies do not substitute for source publication.",
+        "scope_evidence_refs": [
+          "MT-32708#/execution",
+          "MT-32708#/context_capsule/module_maintenance_refs",
+          "MT-32708#/fulfillment/later_kernel"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-006",
+        "proof_destination_base": "Verified sole configured external CX-984 artifact root and actual owner binding before execution"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/51",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
+        "assessment": "APPLIES",
+        "reason": "MT-32708: Land Score change in canonical Nuntissura/assets first;independent remote revision/source proof before distinct mapped host adoption. No source/fixture/self-status substitutes for canonical landing.",
+        "scope_evidence_refs": [
+          "MT-32708#/execution",
+          "MT-32708#/context_capsule/module_maintenance_refs",
+          "MT-32708#/fulfillment/later_kernel"
+        ],
+        "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32708/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-007",
+        "proof_destination_base": "Verified sole configured external CX-984 artifact root and actual owner binding before execution"
+      },
+      {
         "rule_id": "HBR-PRIV-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/0",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope.",
@@ -240,7 +374,7 @@
       {
         "rule_id": "HBR-PRIV-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/1",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any resource authorization or discovery boundary",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove default deny for missing, invalid, stale, revoked, ambiguous, and mismatched account, Principal, session, AccessSpace, project, tenant, resource, and delegation context at every touched boundary. UI filtering alone cannot satisfy this rule.",
@@ -266,7 +400,7 @@
       {
         "rule_id": "HBR-PRIV-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/2",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Concurrent runtime tests use at least two accounts in the same project plus one unrelated account and prove that private resources and their existence metadata, names, counts, thumbnails, search hits, activity, logs, and traces remain invisible without explicit resource grants while intentionally shared resources remain usable.",
@@ -292,7 +426,7 @@
       {
         "rule_id": "HBR-PRIV-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/3",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; The derived object inherits an access scope no broader than all contributing source scopes unless an explicit authorized share or promotion event records the widening. Negative tests cover mixed-scope inputs and prove caches, indexes, summaries, embeddings, thumbnails, logs, traces, model contexts, exports, and sync mirrors cannot leak restricted source existence or content.",
@@ -318,7 +452,7 @@
       {
         "rule_id": "HBR-PRIV-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/4",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client (required_if the action runs for a delegated client). The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
@@ -344,7 +478,7 @@
       {
         "rule_id": "HBR-PRIV-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/5",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove logout, disablement, role change, AccessSpace switch, project removal, resource revocation, pass expiry, token rotation, and disconnect stop future access promptly and invalidate or re-evaluate affected caches, contexts, previews, downloads, and in-flight work. Existing runs stay pinned to immutable original context and are never silently retargeted.",
@@ -370,7 +504,7 @@
       {
         "rule_id": "HBR-PRIV-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/6",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; The remote operation carries stable local account/Principal identity, remote tenant and resource identity, audience-bound delegation, explicit resource scope, authorization receipt, content hash, provenance, expiry/revocation state, and resulting local owner/AccessSpace. Tests prove remote linking cannot merge accounts, reuse a token for another resource audience, or widen local visibility.",
@@ -396,7 +530,7 @@
       {
         "rule_id": "HBR-PRIV-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/7",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Argus or typed headless proof shows the active account, AccessSpace, relevant sharing/visibility state, and denial reason without revealing restricted resource metadata. Destructive sharing or widening actions require an explicit preview of affected resources and recipients; the visible state must match backend authorization under concurrent account/Space changes.",
@@ -422,7 +556,7 @@
       {
         "rule_id": "HBR-INT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/8",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any product behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior.",
@@ -448,7 +582,7 @@
       {
         "rule_id": "HBR-INT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/9",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model invocation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves a stored ContextBundle is dispatched through ModelAdapter, tool requests pass through ToolGate, and model outputs land in ArtifactStore. No model invocation may bypass these primitives.",
@@ -474,7 +608,7 @@
       {
         "rule_id": "HBR-INT-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/10",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP produces any artifact intended for authority state",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the artifact reaches authority state ONLY via PromotionGate event; negative test proves direct mutation paths fail closed.",
@@ -500,7 +634,7 @@
       {
         "rule_id": "HBR-INT-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/11",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any collaborative state surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves CRDT updates persist, replay correctly after reconnect, and promote through ValidationRunner before reaching authority state.",
@@ -526,7 +660,7 @@
       {
         "rule_id": "HBR-INT-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/12",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the lane normalizes into the same SessionRun event stream as every other lane; no lane-specific authority leak; the TraceProjection cannot tell which lane ran beyond a lane label.",
@@ -552,7 +686,7 @@
       {
         "rule_id": "HBR-INT-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/13",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-SCORE assess actual product role/agent/FEMS boundary only; do not revive retired repo memory rituals.",
@@ -578,7 +712,7 @@
       {
         "rule_id": "HBR-INT-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/14",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior is reconstructable from the Operator Surface TraceProjection using durable state alone (no chat history, no terminal scrollback, no provider memory).",
@@ -604,7 +738,7 @@
       {
         "rule_id": "HBR-INT-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/15",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates or modifies any UUID generation site in product code",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order).",
@@ -630,7 +764,7 @@
       {
         "rule_id": "HBR-INT-009",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/16",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
@@ -656,7 +790,7 @@
       {
         "rule_id": "HBR-SWARM-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/17",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any shared state surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Test runs at least two concurrent agent sessions plus simulated operator edits against the touched state. Passes only when there is no silent last-writer-wins, no lease starvation, no deadlock, and all conflicts surface as deterministic conflict reports or revision rejections.",
@@ -682,7 +816,7 @@
       {
         "rule_id": "HBR-SWARM-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/18",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Test proves leases expire correctly, stale sessions are recoverable, backpressure works under load, cancellation is honored within a bounded time, and loop counters prevent runaway.",
@@ -708,7 +842,7 @@
       {
         "rule_id": "HBR-SWARM-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/19",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any operator-facing surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Test proves the operator can keep editing CRDT-backed surfaces while an agent session is active on adjacent state. Presence and conflict state must be visible in the UI.",
@@ -734,7 +868,7 @@
       {
         "rule_id": "HBR-SWARM-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/20",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Every cross-agent message carries typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for); narrative-only routing is forbidden. Test proves a receiving agent can act from typed fields without parsing prose.",
@@ -760,7 +894,7 @@
       {
         "rule_id": "HBR-SWARM-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/21",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any cargo build, test, lint, benchmark, coverage, or tooling run by any worktree, role session, or sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped SurrealDB namespace/database, because divergent SurrealKit rollout sets across worktrees cannot share authority state safely.",
@@ -786,7 +920,7 @@
       {
         "rule_id": "HBR-SWARM-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/22",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Completion of any build, test, or tooling run, and completion of any sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (kernel-owned governance state, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not.",
@@ -812,7 +946,7 @@
       {
         "rule_id": "HBR-VIS-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/23",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
@@ -838,7 +972,7 @@
       {
         "rule_id": "HBR-VIS-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/24",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any captured frame produced for HBR-VIS-001",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
@@ -864,7 +998,7 @@
       {
         "rule_id": "HBR-VIS-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/25",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any feature visible at multiple viewports or states",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Capture matrix instead of a single shot: normal viewport, at least one constrained viewport, and at least one edge state (empty, error, loading, multi-item).",
@@ -890,7 +1024,7 @@
       {
         "rule_id": "HBR-VIS-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/26",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches a non-UI behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
@@ -916,7 +1050,7 @@
       {
         "rule_id": "HBR-VIS-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/27",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Treat the missing Argus path as HBR-VIS technical debt. If the missing visibility/steering path blocks proof of the implemented surface, it is an allowed same-MT/WP scope increase: remediate the minimum stable author_id, snapshot state, steering hook, or headless capture path before claiming DONE/PASS. If the role cannot remediate within authority, record a blocking HBR-VIS gap with the exact surface, missing Argus capability, affected proof, and recommended remediation.",
@@ -942,7 +1076,7 @@
       {
         "rule_id": "HBR-QUIET-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/28",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automated test or agent run",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
@@ -968,7 +1102,7 @@
       {
         "rule_id": "HBR-QUIET-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/29",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automation surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
@@ -994,7 +1128,7 @@
       {
         "rule_id": "HBR-QUIET-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/30",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Every background launch records ownership metadata (owner_session, owner_wp, owner_role, started_at) and is reclaimed at session close, failure, staleness, or operator cancel. Test proves no blank terminal windows and no orphan processes after a run, failure, or kill.",
@@ -1020,7 +1154,7 @@
       {
         "rule_id": "HBR-QUIET-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/31",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP requires foreground interaction that cannot be eliminated",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Declare the foreground requirement in the WP before any run. Use a bounded controlled test window or documented manual step. Surface an operator-visible warning before launch. The default is forbidden; exceptions must be justified and time-bounded.",
@@ -1046,7 +1180,7 @@
       {
         "rule_id": "HBR-MAN-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/32",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
@@ -1072,7 +1206,7 @@
       {
         "rule_id": "HBR-MAN-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/33",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any change to UserManual content",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
@@ -1098,7 +1232,7 @@
       {
         "rule_id": "HBR-MAN-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/34",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any UserManual entry that describes a wired code surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
@@ -1124,7 +1258,7 @@
       {
         "rule_id": "HBR-MAN-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/35",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
@@ -1150,7 +1284,7 @@
       {
         "rule_id": "HBR-STOP-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/36",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.",
@@ -1176,7 +1310,7 @@
       {
         "rule_id": "HBR-STOP-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/37",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Speculative capacity reasons do not justify dropping scope. Continue through justified actions under Codex CX-EXEC-003/004; never override the two-attempt approach-change or escalation threshold merely to keep running.",
@@ -1202,7 +1336,7 @@
       {
         "rule_id": "HBR-STOP-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/38",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer considers stopping work on an MT, WP, or session",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Claim completion only when required runtime proof establishes it. An explicit Operator stop or incomplete escalation under Codex CX-EXEC-003 permits ending the current execution loop without PASS or dropping scope; preserve work and report the exact blocker and needed decision/dependency.",
@@ -1228,7 +1362,7 @@
       {
         "rule_id": "HBR-STOP-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/39",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters a dependency that blocks completion of the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Perform justified dependency work within authority, then return to the outstanding work. Apply Codex CX-EXEC-003/004 to repeated failures; when no justified next action remains, report the exact dependency and preserve incomplete state instead of continuing diagnostics or builds indefinitely.",
@@ -1254,7 +1388,7 @@
       {
         "rule_id": "HBR-STOP-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/40",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
@@ -1280,7 +1414,7 @@
       {
         "rule_id": "HBR-COMPART-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/41",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches or creates more than one product module, or any MT is scaffolded for a product WP",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; The WP contract declares every touched and created module and a boundary_change disposition. Every MT binds exactly one owning module in execution.module_ref and its write scope derives from that module's declared roots. Until the compartment refactor lands crates, module refs are logical module paths; when crates exist they resolve to build units. Activation rejects dependency-direction violations and unsettled build-budget reviews.",
@@ -1306,7 +1440,7 @@
       {
         "rule_id": "HBR-COMPART-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/42",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any validation round of a product WP once build units exist",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; A change confined to one module must not rebuild the whole product. Each validation round measures warm incremental rebuild time and the count of relinked test binaries for the candidate commit and records them against the project build budgets; a budget breach opens a boundary review before the next activation touching that module.",
@@ -1332,7 +1466,7 @@
       {
         "rule_id": "HBR-COMPONENT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/43",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail.",
@@ -1358,7 +1492,7 @@
       {
         "rule_id": "HBR-COMPONENT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/44",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP declares a new canonical mechanic or capability owner",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-SCORE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; A new canonical mechanic is allowed only when no existing owner exists and the mechanic has a Master Spec primitive id; activation refuses a new capability that lacks its spec primitive or duplicates an existing owner.",
@@ -1466,6 +1600,7 @@
     ]
   },
   "execution": {
+    "module_change_stage": "standalone_source",
     "lane": "implementation",
     "module_ref": "STUDIO-MODULE-SCORE",
     "build_unit_ref": "STUDIO-MODULE-SCORE",
@@ -1575,34 +1710,180 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "scope": "Current STUDIO-MODULE-SCORE asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
-        "fulfillment_ref": "MT-32708#/fulfillment",
-        "module_catalog_ref": "STUDIO-MODULE-SCORE",
-        "immutable_input_and_revision_required": true
+        "scope": "GraphicEQ30Bands",
+        "canonical_repository_url": "https://github.com/Nuntissura/assets",
+        "source_subdirectory": "handshake-studio-assets/crates/hsk-studio-score",
+        "source_status": "PLANNED_NOT_IMPLEMENTED",
+        "source_rows": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18874",
+            "verbatim": "| GraphicEQ30Bands | dva_audio | 33 | 0 | _no vendor description recovered_ | `AudioFilter:GraphicEQ30Bands` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18651",
+            "verbatim": "| accuracy | in0 | 10 | 8192 | -- | -- | 999.997454 | 0.120997 | -- | -- | `value = normalised * (accuracy_max - accuracy_min) + accuracy_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18652",
+            "verbatim": "| gain | in1 | -64 | 64 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (gain_max - gain_min) + gain_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18653",
+            "verbatim": "| range | in2 | 1.5 | 120 | -- | -- | 47.808615 | 0.39079 | -- | -- | `value = normalised * (range_max - range_min) + range_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18654",
+            "verbatim": "| amp1 | in4 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18655",
+            "verbatim": "| amp2 | in5 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18656",
+            "verbatim": "| amp3 | in6 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18657",
+            "verbatim": "| amp4 | in7 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18658",
+            "verbatim": "| amp5 | in8 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18659",
+            "verbatim": "| amp6 | in9 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18660",
+            "verbatim": "| amp7 | in10 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18661",
+            "verbatim": "| amp8 | in11 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18662",
+            "verbatim": "| amp9 | in12 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18663",
+            "verbatim": "| amp10 | in13 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18664",
+            "verbatim": "| amp11 | in14 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18665",
+            "verbatim": "| amp12 | in15 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18666",
+            "verbatim": "| amp13 | in16 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18667",
+            "verbatim": "| amp14 | in17 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18668",
+            "verbatim": "| amp15 | in18 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18669",
+            "verbatim": "| amp16 | in19 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18670",
+            "verbatim": "| amp17 | in20 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18671",
+            "verbatim": "| amp18 | in21 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18672",
+            "verbatim": "| amp19 | in22 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18673",
+            "verbatim": "| amp20 | in23 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18674",
+            "verbatim": "| amp21 | in24 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18675",
+            "verbatim": "| amp22 | in25 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18676",
+            "verbatim": "| amp23 | in26 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18677",
+            "verbatim": "| amp24 | in27 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18678",
+            "verbatim": "| amp25 | in28 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18679",
+            "verbatim": "| amp26 | in29 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18680",
+            "verbatim": "| amp27 | in30 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18681",
+            "verbatim": "| amp28 | in31 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18682",
+            "verbatim": "| amp29 | in32 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:18683",
+            "verbatim": "| amp30 | in33 | -70 | 70 | -- | -- | 0 | 0.5 | -- | -- | `value = normalised * (amp_max - amp_min) + amp_min` |"
+          }
+        ],
+        "test_input": "Exact GraphicEQ30Bands catalogue/import record;malformed key,mismatched count,unsupported invocation,cancel/stale revision. Eventual DSP uses explicit48000 Hz stereo impulse/silence/channel-separated signal plus processor-specific authored real-media/oracle inputs,no guessed vendor reference.",
+        "unresolved_before_dispatch": [
+          "STU-FX-130/134a GraphicEQ30Bands:missing recovered behavior,algorithm/command interpretation,unrecovered parameters,units and independent positive oracle require binding."
+        ]
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "Bind GraphicEQ30Bands exact catalogue row in inputs;retain identity,engine,parameter/behavior counts,import key. Foreign engine is provenance,not native/dva_audio linkage;native Studio name distinct."
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "Consume GraphicEQ30Bands exact slot contract MT-32631: accuracy@in0, gain@in1, range@in2, amp1@in4, amp2@in5, amp3@in6, amp4@in7, amp5@in8, amp6@in9, amp7@in10, amp8@in11, amp9@in12, amp10@in13, amp11@in14, amp12@in15, amp13@in16, amp14@in17, amp15@in18, amp16@in19, amp17@in20, amp18@in21, amp19@in22, amp20@in23, amp21@in24, amp22@in25, amp23@in26, amp24@in27, amp25@in28, amp26@in29, amp27@in30, amp28@in31, amp29@in32, amp30@in33. Do not infer unrecovered slots or whole DSP from mappings."
       },
       {
         "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
+        "step": "Bind GraphicEQ30Bands actual transfer/state behavior,units,channel law,latency/tail and independent positive oracle before DSP;captured row has no recovered behavior. Full scope remains pending,not guessed algorithm."
       },
       {
         "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "Portable GraphicEQ30Bands lookup/dispatch decodes exact import key/row cardinality,rejects unknown key/slot without loss. Unavailable invocation returns unsupported/unproven,never PASS. Cancel/stale operation publishes no audio/parameter revision;preserve original payload for retry."
+      },
+      {
+        "n": 5,
+        "step": "Publish GraphicEQ30Bands canonical assets source/release/lock/API digests first;independent immutable remote revision/source proof before distinct host_adoption. Full original fulfillment.later_kernel acceptance stays PENDING;source proof never host parity."
       }
     ],
     "expected_outputs": [
-      "Owned real capability and failure path",
-      "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      "GraphicEQ30Bands public API/portable consumer and exact source behavior results",
+      "Independent GraphicEQ30Bands source-row reconciliation plus actual consumer output compared to bound positive processor/native oracle. Metadata/unsupported proves only those claims;DSP/native parity NOT_PROVEN while behavior/oracle missing.",
+      "Error/cancel/stale preserves original input/previous revision;shared descriptor supplies manual/inspection/recovery;immutable source proof precedes separate host adoption."
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1654,9 +1935,9 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": null,
+      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32708 --exact",
         "expected": "`GraphicEQ30Bands` satisfies the spec's stated studio effect: GraphicEQ30Bands",
-        "timeout_seconds": null,
+      "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1667,10 +1948,15 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
+        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+        "compile_timeout_seconds": 300,
+        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+        "target_materialization": "Create natural score_contract target and exact mt_32708 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+        "unresolved_before_dispatch": ["STU-FX-130/134a GraphicEQ30Bands:missing recovered behavior,algorithm/command interpretation,unrecovered parameters,units and independent positive oracle require binding."],
           "consumer_assertion": "`GraphicEQ30Bands` satisfies the spec's stated studio effect: GraphicEQ30Bands",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+        "negative_path": "Exact GraphicEQ30Bands catalogue/import record;malformed key,mismatched count,unsupported invocation,cancel/stale revision. Eventual DSP uses explicit48000 Hz stereo impulse/silence/channel-separated signal plus processor-specific authored real-media/oracle inputs,no guessed vendor reference.",
+        "oracle": "Independent GraphicEQ30Bands source-row reconciliation plus actual consumer output compared to bound positive processor/native oracle. Metadata/unsupported proves only those claims;DSP/native parity NOT_PROVEN while behavior/oracle missing."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -1685,9 +1971,9 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": null,
+      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32708 --exact",
         "expected": "`GraphicEQ30Bands` satisfies the spec's stated engine: dva_audio",
-        "timeout_seconds": null,
+      "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1698,10 +1984,15 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
+        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+        "compile_timeout_seconds": 300,
+        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+        "target_materialization": "Create natural score_contract target and exact mt_32708 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+        "unresolved_before_dispatch": ["STU-FX-130/134a GraphicEQ30Bands:missing recovered behavior,algorithm/command interpretation,unrecovered parameters,units and independent positive oracle require binding."],
           "consumer_assertion": "`GraphicEQ30Bands` satisfies the spec's stated engine: dva_audio",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+        "negative_path": "Exact GraphicEQ30Bands catalogue/import record;malformed key,mismatched count,unsupported invocation,cancel/stale revision. Eventual DSP uses explicit48000 Hz stereo impulse/silence/channel-separated signal plus processor-specific authored real-media/oracle inputs,no guessed vendor reference.",
+        "oracle": "Independent GraphicEQ30Bands source-row reconciliation plus actual consumer output compared to bound positive processor/native oracle. Metadata/unsupported proves only those claims;DSP/native parity NOT_PROVEN while behavior/oracle missing."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -1716,9 +2007,9 @@
         "claim_refs": [
           "AC-003"
         ],
-        "command_or_method": null,
+      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32708 --exact",
         "expected": "`GraphicEQ30Bands` satisfies the spec's stated params: 33",
-        "timeout_seconds": null,
+      "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1729,10 +2020,15 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
+        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+        "compile_timeout_seconds": 300,
+        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+        "target_materialization": "Create natural score_contract target and exact mt_32708 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+        "unresolved_before_dispatch": ["STU-FX-130/134a GraphicEQ30Bands:missing recovered behavior,algorithm/command interpretation,unrecovered parameters,units and independent positive oracle require binding."],
           "consumer_assertion": "`GraphicEQ30Bands` satisfies the spec's stated params: 33",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+        "negative_path": "Exact GraphicEQ30Bands catalogue/import record;malformed key,mismatched count,unsupported invocation,cancel/stale revision. Eventual DSP uses explicit48000 Hz stereo impulse/silence/channel-separated signal plus processor-specific authored real-media/oracle inputs,no guessed vendor reference.",
+        "oracle": "Independent GraphicEQ30Bands source-row reconciliation plus actual consumer output compared to bound positive processor/native oracle. Metadata/unsupported proves only those claims;DSP/native parity NOT_PROVEN while behavior/oracle missing."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -1747,9 +2043,9 @@
         "claim_refs": [
           "AC-004"
         ],
-        "command_or_method": null,
+      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32708 --exact",
         "expected": "`GraphicEQ30Bands` satisfies the spec's stated presets: 0",
-        "timeout_seconds": null,
+      "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1760,10 +2056,15 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
+        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+        "compile_timeout_seconds": 300,
+        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+        "target_materialization": "Create natural score_contract target and exact mt_32708 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+        "unresolved_before_dispatch": ["STU-FX-130/134a GraphicEQ30Bands:missing recovered behavior,algorithm/command interpretation,unrecovered parameters,units and independent positive oracle require binding."],
           "consumer_assertion": "`GraphicEQ30Bands` satisfies the spec's stated presets: 0",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+        "negative_path": "Exact GraphicEQ30Bands catalogue/import record;malformed key,mismatched count,unsupported invocation,cancel/stale revision. Eventual DSP uses explicit48000 Hz stereo impulse/silence/channel-separated signal plus processor-specific authored real-media/oracle inputs,no guessed vendor reference.",
+        "oracle": "Independent GraphicEQ30Bands source-row reconciliation plus actual consumer output compared to bound positive processor/native oracle. Metadata/unsupported proves only those claims;DSP/native parity NOT_PROVEN while behavior/oracle missing."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -1778,9 +2079,9 @@
         "claim_refs": [
           "AC-005"
         ],
-        "command_or_method": null,
+      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32708 --exact",
         "expected": "`GraphicEQ30Bands` satisfies the spec's stated description (from capture): _no vendor description recovered_",
-        "timeout_seconds": null,
+      "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1791,10 +2092,15 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
+        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+        "compile_timeout_seconds": 300,
+        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+        "target_materialization": "Create natural score_contract target and exact mt_32708 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+        "unresolved_before_dispatch": ["STU-FX-130/134a GraphicEQ30Bands:missing recovered behavior,algorithm/command interpretation,unrecovered parameters,units and independent positive oracle require binding."],
           "consumer_assertion": "`GraphicEQ30Bands` satisfies the spec's stated description (from capture): _no vendor description recovered_",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+        "negative_path": "Exact GraphicEQ30Bands catalogue/import record;malformed key,mismatched count,unsupported invocation,cancel/stale revision. Eventual DSP uses explicit48000 Hz stereo impulse/silence/channel-separated signal plus processor-specific authored real-media/oracle inputs,no guessed vendor reference.",
+        "oracle": "Independent GraphicEQ30Bands source-row reconciliation plus actual consumer output compared to bound positive processor/native oracle. Metadata/unsupported proves only those claims;DSP/native parity NOT_PROVEN while behavior/oracle missing."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -1809,9 +2115,9 @@
         "claim_refs": [
           "AC-006"
         ],
-        "command_or_method": null,
+      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32708 --exact",
         "expected": "`GraphicEQ30Bands` satisfies the spec's stated import key (provenance): `AudioFilter:GraphicEQ30Bands`",
-        "timeout_seconds": null,
+      "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1822,10 +2128,15 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
+        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+        "compile_timeout_seconds": 300,
+        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+        "target_materialization": "Create natural score_contract target and exact mt_32708 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+        "unresolved_before_dispatch": ["STU-FX-130/134a GraphicEQ30Bands:missing recovered behavior,algorithm/command interpretation,unrecovered parameters,units and independent positive oracle require binding."],
           "consumer_assertion": "`GraphicEQ30Bands` satisfies the spec's stated import key (provenance): `AudioFilter:GraphicEQ30Bands`",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+        "negative_path": "Exact GraphicEQ30Bands catalogue/import record;malformed key,mismatched count,unsupported invocation,cancel/stale revision. Eventual DSP uses explicit48000 Hz stereo impulse/silence/channel-separated signal plus processor-specific authored real-media/oracle inputs,no guessed vendor reference.",
+        "oracle": "Independent GraphicEQ30Bands source-row reconciliation plus actual consumer output compared to bound positive processor/native oracle. Metadata/unsupported proves only those claims;DSP/native parity NOT_PROVEN while behavior/oracle missing."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -1840,9 +2151,9 @@
         "claim_refs": [
           "AC-007"
         ],
-        "command_or_method": null,
+      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32708 --exact",
         "expected": "`GraphicEQ30Bands` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
-        "timeout_seconds": null,
+      "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1853,10 +2164,15 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
+        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+        "compile_timeout_seconds": 300,
+        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+        "target_materialization": "Create natural score_contract target and exact mt_32708 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+        "unresolved_before_dispatch": ["STU-FX-130/134a GraphicEQ30Bands:missing recovered behavior,algorithm/command interpretation,unrecovered parameters,units and independent positive oracle require binding."],
           "consumer_assertion": "`GraphicEQ30Bands` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+        "negative_path": "Exact GraphicEQ30Bands catalogue/import record;malformed key,mismatched count,unsupported invocation,cancel/stale revision. Eventual DSP uses explicit48000 Hz stereo impulse/silence/channel-separated signal plus processor-specific authored real-media/oracle inputs,no guessed vendor reference.",
+        "oracle": "Independent GraphicEQ30Bands source-row reconciliation plus actual consumer output compared to bound positive processor/native oracle. Metadata/unsupported proves only those claims;DSP/native parity NOT_PROVEN while behavior/oracle missing."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2459,6 +2775,9 @@
       }
     ],
     "later_kernel": {
+      "host_adoption_mt_refs": ["MT-36201"],
+      "qualified_ac_to_host_adoption_mts": {"MT-32708/AC-001":["MT-36201"],"MT-32708/AC-002":["MT-36201"],"MT-32708/AC-003":["MT-36201"],"MT-32708/AC-004":["MT-36201"],"MT-32708/AC-005":["MT-36201"],"MT-32708/AC-006":["MT-36201"],"MT-32708/AC-007":["MT-36201"]},
+      "host_allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/qualified_ac_to_host_adoption_mts",
       "phase": "SEPARATE_LATER_EMBEDDING",
       "status": "PENDING",
       "all_original_acceptance_refs": [
