@@ -3,9 +3,9 @@
   "wp_id": "WP-KERNEL-STUDIO",
   "generated_at_utc": "2026-07-09T00:00:00Z",
   "state_source": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
-  "verdict": "PREPARED_NON_EXECUTION_STUB_NOT_READY_FOR_DEV",
+  "verdict": "AUTHORING_IN_PROGRESS_NOT_READY_FOR_DEV",
   "ready_for_downstream_launch": "NO",
-  "ready_for_downstream_launch_reason": "Source and contract preparation is reconciled. Implementation is expressly next session and requires fresh activation/owner/recipe/artifact bindings; all materialized foundation, runtime, GUI, platform and later host proofs remain pending.",
+  "ready_for_downstream_launch_reason": "Source/split/host MT authoring and exact proof bindings incomplete; no canonical source release/runtime proof exists.",
   "user_signature": "ilja040920261532",
   "prepared_artifacts": [
     ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -396,7 +396,7 @@
       "rule_id": "HBR-STOP-005",
       "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
       "status": "PENDING_PER_MT_APPLICABILITY_AND_PROOF",
-      "required_action": "If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+      "required_action": "If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver â€” and when asking, the operator must be explicitly told the why and the full list of what I touched.",
       "evidence_kind": "end_of_task_self_evaluation_with_full_disclosure_waiver_request_to_operator",
       "proof_destination": "Owning MT acceptance/validation record; asset and later embedding evidence distinct",
       "not_applicable_policy": "Per-MT exact trigger assessment with reason only; never blanket NA"
@@ -477,7 +477,7 @@
     }
   ],
   "next_orchestrator_action": "Verify the committed v02.207 source checkpoint and recorded existing Studio worktree; next session activate the bounded workspace foundation MT-35528, then all 35 module foundations before any domain feature. Preserve other-device kernel priority.",
-  "updated_at_utc": "2026-10-09T20:57:14.345233+00:00",
+  "updated_at_utc": "2026-10-09T22:23:36.476462+00:00",
   "historical_readiness_before_2026_10_09": {
     "record_id": "STUDIO-READINESS-HISTORY-20261009",
     "note": "Prior dated assertions retained as historical inputs, not fresh verified proof.",
@@ -698,7 +698,7 @@
       "effective_operator_scope": {
         "modularity": "Supersedes prior planning shorthand of one studio-engine with many independent owned engine/UI/interop crates; exact spec enrichment proposed, not published.",
         "native_format": "Supersedes prior planning non-goal of a new on-disk format: native portable .handshake design requested; live authority stays Surreal/EventLedger/CRDT; exact spec enrichment proposed.",
-        "timeline": "Existing §14.25/26/27 retained; STU-VID-001 supersedes early STU-OVR-015. No current video exclusion.",
+        "timeline": "Existing Â§14.25/26/27 retained; STU-VID-001 supersedes early STU-OVR-015. No current video exclusion.",
         "lightroom": "Classic/desktop RAW and catalog included. Native .lrcat decoding policy conflict remains open.",
         "ai": "All vendor AI/generative implementation excluded.",
         "interop": "Adobe opening/conversion remains full target with typed partial/unsupported gaps; no full-parity claim.",
@@ -864,5 +864,51 @@
     "source_preparation": "RECONCILED_NO_IMPLEMENTATION_OR_RUNTIME_VERDICT",
     "checkpoint_boundary": "This source preparation awaits the scoped Git-byte and remote checkpoint proof. Next session must freshly verify the committed SPEC_CURRENT and declared origin/gov_kernel ancestry; this record is not sole proof of publication.",
     "implementation_authority": "NON_EXECUTION_STUB; next-session activation, exact owner/recipe/artifact bindings and independent foundation/feature/host proof remain required."
+  },
+  "pre_pack38_authoring_history": {
+    "checkpoint": "d8608d992d3653dc2aa356ae67c688c2f37bb505",
+    "execution_contract": {
+      "phase": "PREPARATION_NON_EXECUTABLE",
+      "product_branch": "codex/handshake-studio-assets",
+      "product_worktree_locator": "git worktree list --porcelain -> refs/heads/codex/handshake-studio-assets",
+      "verified_baseline": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "worktree_path_policy": "Resolve existing attached worktree by branch; no hardcoded profile/drive requirement and no new worktree. HANDSHAKE_GOV_ROOT resolves direct live gov_kernel.",
+      "product_root": "handshake-studio-assets",
+      "governance_root": "HANDSHAKE_GOV_ROOT; direct kernel reads, no .GOV copy/junction",
+      "mirror": {
+        "repository": "https://github.com/Nuntissura/assets",
+        "destination_prefix": "handshake-studio-assets/",
+        "role": "Deterministic product-subtree mirror; one writable canonical product owner in Studio worktree",
+        "status": "NOT_MATERIALIZED_NO_PRODUCT_CODE_YET",
+        "prohibited": [
+          ".GOV",
+          "source-cache",
+          "runtime state",
+          "credentials",
+          "build/proof output",
+          "original private production imports"
+        ],
+        "preserve_existing": [
+          "handpick/",
+          ".gitignore",
+          ".gitattributes"
+        ],
+        "proof": "Fresh destination branch/content census, source commit/tree/subtree path hashes, independent destination read equality; no force overwrite"
+      },
+      "implementation_authorization": "Next session only, after current pointer/spec/MT contracts and exact ownership bindings are reconciled; this preparation authorizes no build, product write or launch."
+    }
+  },
+  "module_lifecycle_authoring": {
+    "checkpoint": "a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89",
+    "hbr_version": "1.16.0",
+    "source_stage": "standalone_source",
+    "adoption_stage": "host_adoption",
+    "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json",
+    "all_foundations_barrier_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/foundation_barrier",
+    "source_repository_url": "https://github.com/Nuntissura/assets",
+    "source_first_condition": "Independent canonical assets remote revision and standalone contract proof before any host write",
+    "runtime_authorized": false,
+    "authoring_state": "IN_PROGRESS_NOT_IMPLEMENTATION_READY",
+    "original_scope_ac_preservation": "Original5484 IDs/21145 captured AC and all36 foundations/55 amendments remain immutable lineage; original host semantics map to distinct adoption MTs, never source-local PASS."
   }
 }
