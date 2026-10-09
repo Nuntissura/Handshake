@@ -1,0 +1,718 @@
+{
+  "schema_id": "hsk.studio_preparation_report@1",
+  "file_id": "STUDIO-MODULAR-VISUAL-PREPARATION-20261009",
+  "status": "AUTHORING_IN_PROGRESS_FOUNDATION_CHECKPOINT",
+  "updated_at": "2026-10-10",
+  "authority": "Research/proposal report only. Not a contract, template, activation, runtime verdict or new role protocol.",
+  "role_basis": [
+    "KB-PREP-001",
+    "KB-PREP-002",
+    "KB-PREP-003",
+    "KB-PREP-004",
+    "KB-PREP-005",
+    "Human-assigned bounded Studio preparation"
+  ],
+  "baseline": {
+    "observed_branch": "gov_kernel",
+    "observed_commit": "d8608d992d3653dc2aa356ae67c688c2f37bb505",
+    "spec": ".GOV/spec/master-spec-v02.207/indexed-spec-manifest.json",
+    "spec_module": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+    "hbr": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+    "hbr_version": "1.15.0",
+    "packet": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
+    "refinement": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
+    "module_registry": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+    "root_mirror_observation": "AGENTS/CLAUDE diff has three agent-name substitutions only; no semantic rule drift observed.",
+    "unrelated_dirty_at_entry": [
+      ".GOV/docs_repo/tmp/github-sync-gameplan.yaml",
+      ".GOV/docs_repo/tmp/studio-modular-authoring-gameplan.yaml"
+    ],
+    "artifact_root_observation": "../Handshake_Artifacts exists as an ordinary directory from the live kernel. No outputs created there in this report-only pass.",
+    "preservation": "No MT/packet/spec/template edits. Original 5484 intents/IDs and 21145 AC plus 36 foundations/55 amendments remain untouched; full preservation comparison is not independently re-proven by this report.",
+    "execution": "NON_EXECUTION_STUB; no code, build, runtime test, commit, push, branch/worktree creation, process disruption, WP012, gameplan pointer, Obsidian or skill writes."
+  },
+  "inventory": {
+    "method": "Read MT-*.json and group execution.module_ref against assigned STUDIO_MODULES keys; counts are primary-owner records, not all collaborating slices or feature readiness.",
+    "primary_owner_total": 3079,
+    "counts": {
+      "pigment": 441,
+      "nib": 488,
+      "layout": 268,
+      "develop": 98,
+      "components": 409,
+      "composite": 1159,
+      "render_cpu": 1,
+      "render_gpu": 1,
+      "press": 20,
+      "web": 181,
+      "interop_psd": 4,
+      "interop_vector": 3,
+      "interop_fig": 1,
+      "interop_layout": 4,
+      "interop_lrcat": 1
+    },
+    "scope_limit": "Inventory pass read all JSON for owner identification. Detailed semantic inspection is representative, not every one of 3079 contracts or every original AC. Cross-owner slices require partition coordinator allocation before edits."
+  },
+  "findings": [
+    {
+      "id": "VIS-PREP-001",
+      "severity": "BLOCKING_AUTHORING",
+      "evidence": [
+        "MT-016#/execution/implementation_steps",
+        "MT-020#/execution/implementation_steps",
+        "MT-34218#/execution/implementation_steps"
+      ],
+      "observed": "Four generic resolve/implement/materialize/submit steps lack algorithm and file responsibilities.",
+      "required_resolution": "Fill renewed canonical fields per exact scope/AC; a module-wide recipe cannot certify task-specific readiness."
+    },
+    {
+      "id": "VIS-PREP-002",
+      "severity": "BLOCKING_AUTHORING",
+      "evidence": [
+        "MT-188#/proof/checks",
+        "MT-34218#/proof/checks"
+      ],
+      "observed": "method_recipe and materialization_timing are strings containing PowerShell @{...} display text and System.Object[], losing typed arrays/fields.",
+      "required_resolution": "Populate typed objects from canonical renewed template. Root/partition coordinator owns broader serialization correction and independent source reconciliation."
+    },
+    {
+      "id": "VIS-PREP-003",
+      "severity": "BLOCKING_DISPATCH",
+      "evidence": [
+        "MT-35534#/proof/checks",
+        "MT-188#/proof/checks",
+        "MT-34218#/proof/checks"
+      ],
+      "observed": "command_or_method and timeout_seconds are null; feature policy unresolved. Foundation MT35534 retains typed recipe but not executable binding.",
+      "required_resolution": "Approve package/provider/features, natural method, oracle and bounded per-test timeout before coding; materialize targets during coding and independently run before handoff."
+    },
+    {
+      "id": "VIS-PREP-004",
+      "severity": "BLOCKING_PARITY",
+      "evidence": [
+        "STU-IO-186",
+        "STU-IO-189",
+        "STUDIO_MODULES.json#/modules"
+      ],
+      "observed": "FIG/INDD editable decoder availability remains unproven; opaque/container foundation cannot satisfy editable feature scope.",
+      "required_resolution": "Keep entire native feature PENDING/blocked for exact versioned decoder and original-produced semantic/render/edit/reopen oracles. No substitution by SVG, IDML, PNG or source-byte retention."
+    },
+    {
+      "id": "VIS-PREP-005",
+      "severity": "PROOF_RISK",
+      "evidence": [
+        "photocraft/crates/io/tests/composite.rs:10",
+        "photocraft/crates/io/tests/psd_structure.rs:60"
+      ],
+      "observed": "Upstream composite helper exports and imports through its own implementation; structure helper normalizes unknown blend mode to Normal.",
+      "required_resolution": "Reuse machinery as component tests only. Require independent original-produced output and explicit unsupported/loss mapping; forbid silent Normal fallback as parity proof."
+    },
+    {
+      "id": "VIS-PREP-006",
+      "severity": "SCOPE_PRESERVATION",
+      "evidence": [
+        "MT-30027#/scope",
+        "STU-RAS-106"
+      ],
+      "observed": "Unknown bounds are normative. Upstream numeric defaults and selected diagnostic corpus sizes are not spec hard bounds.",
+      "required_resolution": "Keep unknown classification/type-admitted values. Test resource budgets independently; do not turn proposed proof corpus parameters into product rejection limits."
+    }
+  ],
+  "research": {
+    "source_cache_manifest": ".GOV/docs_repo/studio-collaboration-2026-10-09/source-cache-manifest.json",
+    "cache_locator": "../gov_runtime/tools/studio-craft-source-cache",
+    "pins": {
+      "photocraft": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "vectorcraft": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+      "designcraft": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "lightcraft": "88ea1a804b35709e1fe436e3792adf0428b97daa",
+      "pdfcraft": "f626db25cca2c89f8fa3f7e30d22bf59faea65ec"
+    },
+    "direct_source_reads": [
+      {
+        "project": "photocraft",
+        "paths": [
+          "crates/raster/Cargo.toml",
+          "crates/raster/src/lib.rs",
+          "crates/gpu/Cargo.toml",
+          "crates/gpu/src/lib.rs",
+          "crates/io/tests/composite.rs",
+          "crates/io/tests/psd_structure.rs"
+        ],
+        "finding": "Copy-on-write sparse tiles, bounded chunk/sink GPU structure and dependency separation are reuse candidates. Self-generated roundtrips and renderer tolerances are not independent Adobe parity proof."
+      },
+      {
+        "project": "vectorcraft",
+        "paths": [
+          "crates/pathops/Cargo.toml",
+          "crates/pathops/src/boolean.rs"
+        ],
+        "finding": "Curve-preserving sweep topology through linesweeper and kurbo, fill-rule winding and refit tolerance are concrete reuse candidates; adopt only through canonical Nib geometry/types and declared precision."
+      },
+      {
+        "project": "designcraft",
+        "paths": [
+          "crates/compose/Cargo.toml",
+          "crates/compose/src/lib.rs",
+          "crates/idml/Cargo.toml"
+        ],
+        "finding": "Composition exposes shaping, line breaking, columns/threading/wrap and overset. IDML manifest uses quick-xml/zip. Availability is not proof of RTL/CJK, native INDD or a complete IDML mapping."
+      },
+      {
+        "project": "lightcraft",
+        "paths": [
+          "crates/develop/Cargo.toml",
+          "crates/raw/src/demosaic/bilinear.rs"
+        ],
+        "finding": "Non-destructive recipe package and scalar CFA neighborhood algorithm are useful references. Decoder/model/process-version coverage and integrated catalogs are not proven."
+      },
+      {
+        "project": "pdfcraft",
+        "paths": [
+          "crates/redact/Cargo.toml",
+          "crates/redact/src/sanitize.rs"
+        ],
+        "finding": "Redaction sanitizer selects hidden payload classes and forces full rewrite to discard prior revisions. Whole reachable payload and independent saved-byte verification remain necessary."
+      }
+    ],
+    "adobe_manuals": [
+      {
+        "url": "https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/",
+        "status": "OPENED",
+        "use": "PSD/PSB versioned sections, channel/resource/layer structures; detailed unsupported fields remain explicit."
+      },
+      {
+        "url": "https://helpx.adobe.com/indesign/desktop/language-and-proofing/arabic-and-hebrew/set-up-arabic-and-hebrew.html",
+        "status": "OPENED",
+        "use": "Separate multilingual composition workflow rather than proving Arabic/Hebrew through Latin frame reflow."
+      },
+      {
+        "url": "https://helpx.adobe.com/indesign/desktop/language-and-proofing/chinese-japanese-and-korean/use-kinsoku-settings.html",
+        "status": "OPENED",
+        "use": "Kinsoku-specific line-breaking cases; CJK is not satisfied by generic Unicode acceptance."
+      },
+      {
+        "url": "https://helpx.adobe.com/indesign/desktop/language-and-proofing/language-settings/adobe-world-ready-composer-overview.html",
+        "status": "OPENED",
+        "use": "World-Ready composition is a distinct parity surface requiring pinned font/script/source output."
+      },
+      {
+        "url": "https://helpx.adobe.com/acrobat/using/previewing-output-acrobat-pro.html",
+        "status": "OPENED",
+        "use": "Separations and overprint preview need distinct output observations; screen preview alone cannot prove all physical print properties."
+      },
+      {
+        "url": "https://helpx.adobe.com/lightroom-classic/desktop/technical-support/workflow-issues/catalog-issues/catalog-faq-lightroom.html",
+        "status": "OPENED",
+        "use": "Catalog workflow includes external assets/auxiliary files and develop context; count/parser success cannot establish complete semantics."
+      }
+    ],
+    "rejected_options": [
+      "Whole-app/provider graph adoption",
+      "Self-render or self-roundtrip as sole parity oracle",
+      "Optional missing Handshake source dependencies",
+      "Unconditional GPU/native/codec closure",
+      "New private Studio catalog/SQL engine",
+      "Freeform MT documents or template shape edits by authors"
+    ],
+    "source_proof_limit": "Source inspected, no source cache builds or runtime claims; no .fig/.indd/.lrcat decoder code inspection claimed. Components and Web provider source not inspected in this pass."
+  },
+  "proposal_policy": {
+    "status": "PROPOSED_FIELD_VALUES_NOT_EXECUTABLE_AUTHORITY",
+    "path_rule": "Relative file suggestions below are proposed responsibility paths under each existing owner root, not assertions that files exist. Exact coordinator allocation and renewed template publication precede contract edits.",
+    "types_rule": "Use exact canonical Accord/Folio types/IDs/units; descriptions below are semantic input/output requirements, not authorization to invent schemas or port names.",
+    "feature_rule": "All proposed packages use --no-default-features. Provider feature names/pins must bind actual materialized Cargo declarations before coding dispatch; proposals never assume names exist.",
+    "compile_method": "Implementer: cargo check --locked --tests -p <selected canonical package> --no-default-features with the exact approved provider feature set; selected-package dependency/static check excludes forbidden closure. No command run here.",
+    "runtime_method": "Independent validator: one checked-in runner/config union invocation for selected packages and exact named cases below, bounded per test. Root binds actual runner and feature syntax; no runtime env/flag invention.",
+    "timeouts": "Proposed per-case wall limits below are proof-run configuration, not product parameter limits. Large real resources need separately declared bounded cases, not silently extended timeouts.",
+    "controls": "Every inspector/tool panel uses configured Controls descriptors. Root/Controls owner extends missing canonical mechanics; no duplicate panel/control asset.",
+    "host_phase": "Asset outputs are immutable proposals/results. Actual grants, sandbox/promotion, CKC, CRDT, SurrealDB/EventLedger, FR, Argus/native and manual consumer acceptance remain separately mandatory phase2 with exact host owner.",
+    "diagnostics": "Bind same command/state descriptor to Observe, existing manual and Controls/Argus adapters; revision/profile/provenance on images. Do not duplicate diagnostic/manual authority."
+  },
+  "representative_proposals": [
+    {
+      "owner": "pigment",
+      "mt": "MT-35534",
+      "related": "MT-021",
+      "package": "hsk-studio-pigment",
+      "files": [
+        "src/tile.rs",
+        "src/masked_patch.rs",
+        "tests/masked_patch.rs"
+      ],
+      "algorithm": "Copy-on-write affected tiles; intersect stroke/mask damage with tile bounds; compute immutable patch and inverse preimage, no full-frame allocation or authority write.",
+      "inputs": "Canonical tile sample format/channel order/profile, integer pixel rectangles, mask coverage, target/property revision, cancel epoch and byte lease.",
+      "outputs": "Typed tile patch, exact damaged rectangle, inverse bytes, profile/revision receipt and loss/error outcome.",
+      "provider": "Photocraft raster candidate adapted through Accord/Prism; CPU-only, GPU/codec excluded.",
+      "cases": [
+        "masked_patch_changes_only_covered_samples",
+        "tile_preimage_survives_cancel",
+        "stale_target_patch_refused",
+        "malformed_stride_and_lease_exhaustion"
+      ],
+      "oracle": "Independent hand-computed tiny mask/sample matrices plus original-produced blend/brush corpus for feature parity; exact preimage digest unchanged on reject.",
+      "timeout_seconds": 20,
+      "gap": "Bind sample formats and every raster command's exact fields; MT021 host conformance is not asset-foundation acceptance."
+    },
+    {
+      "owner": "nib",
+      "mt": "MT-016",
+      "foundation": "MT-35535",
+      "package": "hsk-studio-nib",
+      "files": [
+        "src/path_boolean.rs",
+        "src/geometry_adapter.rs",
+        "tests/path_boolean.rs"
+      ],
+      "algorithm": "Normalize canonical paths, sweep curve intersections with winding rules, reconstruct contours/refit only within declared precision; preserve fill/stroke provenance.",
+      "inputs": "Canonical path/network IDs, anchors/handles in document points, fill rule, transform, exact precision classification, revision and cancellation.",
+      "outputs": "Editable paths/network patch, topology and approximation/loss receipt; immutable original.",
+      "provider": "Vectorcraft pathops/linesweeper/kurbo candidates; inspect exact transitive pins before adoption, no raster editor dependency.",
+      "cases": [
+        "union_difference_self_intersection_fill_rules",
+        "nonfinite_and_degenerate_path_typed_error",
+        "cancel_mid_sweep_retains_source",
+        "stale_geometry_target_refused"
+      ],
+      "oracle": "Independent analytic overlap area/winding plus original Illustrator-produced edited paths and reopening; do not merely compare two uses of same sweep kernel.",
+      "timeout_seconds": 30,
+      "gap": "Tolerance/default differs from upstream; must use spec exact field or unknown, not import upstream 0.01 silently."
+    },
+    {
+      "owner": "layout",
+      "mt": "MT-020",
+      "foundation": "MT-35537",
+      "package": "hsk-studio-layout",
+      "files": [
+        "src/threaded_reflow.rs",
+        "src/paragraph.rs",
+        "tests/threaded_reflow.rs"
+      ],
+      "algorithm": "Resolve shared Type shaping, paragraph breaks, columns/baselines/wrap and threaded frames; return overset spans. Component responsive constraints remain Components collaboration.",
+      "inputs": "Canonical stories/frame chain and font fingerprints, language/script/direction, page-point measurements, grid/wrap and revision footprints.",
+      "outputs": "Placed glyph/frame ranges, overset/preflight findings and revision-bound layout proposal.",
+      "provider": "Designcraft compose candidate through Type/Nib contracts; no duplicate shaping or component solver owner.",
+      "cases": [
+        "threaded_frame_reflow_and_overset",
+        "arabic_hebrew_bidi_with_numbers",
+        "cjk_kinsoku_ruby_vertical_layout",
+        "cyclic_thread_missing_font_cancel_stale"
+      ],
+      "oracle": "InDesign-produced exact story/font/settings fixtures with line/glyph/frame-position and overset comparison. Separate pinned RTL/CJK cases; Latin proof cannot cover them.",
+      "timeout_seconds": 45,
+      "gap": "Read implementation modules for each language capability and bind font resources; provider headline coverage does not prove multilingual parity."
+    },
+    {
+      "owner": "develop",
+      "mt": "MT-35538",
+      "related": "MT-30027",
+      "package": "hsk-studio-develop",
+      "files": [
+        "src/recipe.rs",
+        "src/pipeline.rs",
+        "tests/develop_recipe.rs"
+      ],
+      "algorithm": "Immutable process-version/enable-flag recipe, bounded CFA decode/develop chunks, scalar reference then optional SIMD dispatch; original bytes stay CKC-owned.",
+      "inputs": "Granted immutable RAW/pixel handle/fingerprint, CFA and black/white levels, canonical exposure/crop/profile/enable state, source and recipe revisions.",
+      "outputs": "Developed bounded tile stream, recipe and source fingerprints, explicit unsupported process/model and loss findings.",
+      "provider": "Lightcraft develop/scalar bilinear references; exact RAW decoder and SIMD feature pins unresolved, missing decoder explicitly blocked.",
+      "cases": [
+        "disabled_group_preserves_recipe_and_pixels",
+        "scalar_simd_cfa_edges_equivalent",
+        "recipe_reedit_preserves_original",
+        "unsupported_process_version_and_cancel_stale"
+      ],
+      "oracle": "Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance.",
+      "timeout_seconds": 45,
+      "gap": "Unknown limits remain unknown; original-file identity and CKC selection are ports here and real host proof later."
+    },
+    {
+      "owner": "components",
+      "mt": "MT-321",
+      "foundation": "MT-35539",
+      "package": "hsk-studio-components",
+      "files": [
+        "src/instance_resolution.rs",
+        "src/constraints.rs",
+        "tests/instance_resolution.rs"
+      ],
+      "algorithm": "Resolve canonical component properties/variants, aliases/modes and responsive constraints into same Folio graph; property-granular overrides retain provenance and cycle refusal.",
+      "inputs": "Canonical component/instance/variable IDs and exact value enums, modes, instance overrides, document-point constraints and revision footprints.",
+      "outputs": "Resolved property/layout proposal and per-field diagnostics; no second document or component database.",
+      "provider": "Provider NOT_INSPECTED; use existing canonical component mechanics. Controls owns interaction; Motion owns temporal sampling.",
+      "cases": [
+        "instance_override_mode_resolution",
+        "alias_cycle_and_type_mismatch",
+        "disjoint_property_concurrency",
+        "cancel_stale_prototype_action"
+      ],
+      "oracle": "Original editable component fixtures with named variant/variable/layout/prototype interactions and independent typed property snapshots; native FIG acceptance separate.",
+      "timeout_seconds": 30,
+      "gap": "Inspect property/constraint implementation and actual supported prototypes; no blanket Figma parity from foundation."
+    },
+    {
+      "owner": "composite",
+      "mt": "MT-35544",
+      "spec_refs": [
+        "STU-CMP-092",
+        "STU-CMP-093",
+        "STU-CMP-094"
+      ],
+      "package": "hsk-studio-composite",
+      "files": [
+        "src/lower_plan.rs",
+        "src/evaluate_static.rs",
+        "tests/static_plan.rs"
+      ],
+      "algorithm": "Lower Folio authored layer/operation graph into disposable revision-bound dependency plan; preserve semantic input order and explicit mask/matte/backdrop/effect addresses; evaluate immutable static snapshot.",
+      "inputs": "One Folio authored graph, profile/quantization boundaries, optional typed Motion-sampled properties, bounded resource handles and revision.",
+      "outputs": "Bounded render plan/stream, addressable intermediate outputs, revision/profile/loss diagnostics; never saved authoring authority.",
+      "provider": "Photocraft compose reference only; static closure excludes MotionJS/Reel/Score/native providers.",
+      "cases": [
+        "mask_matte_backdrop_order",
+        "layer_node_projection_same_authored_ids",
+        "fanout_cycle_refusal_cancel_stale",
+        "static_closure_no_temporal_provider"
+      ],
+      "oracle": "Independent original layer/matte/effect outputs plus authored-record equality across view switch/edit/reopen; self-render is component evidence only.",
+      "timeout_seconds": 45,
+      "gap": "1159 primary MTs require scope-specific contributions; Motion sampling owner must supply exact collaboration slice, no temporal semantics moved here."
+    },
+    {
+      "owner": "render_cpu",
+      "mt": "MT-35545",
+      "package": "hsk-studio-render-cpu",
+      "files": [
+        "src/plan_sink.rs",
+        "src/sample_math.rs",
+        "tests/cpu_plan.rs"
+      ],
+      "algorithm": "Execute selected static plan in bounded tiles/chunks to caller sink; retain sample/profile/alpha ordering and explicit unsupported operations.",
+      "inputs": "Canonical plan/revision, pixel extent/sample format/profile, sink lease and cancel epoch.",
+      "outputs": "Pixels plus revision/color/provenance receipt and counters; no native/GPU closure.",
+      "provider": "Photocraft compose/raster candidates; shared Prism color math, no forked ICC transform.",
+      "cases": [
+        "known_alpha_mask_sample_math",
+        "chunk_boundary_equals_independent_reference",
+        "sink_error_cancel_releases_bytes",
+        "unsupported_op_stale_result"
+      ],
+      "oracle": "Hand-computed tiny output and independent original image/print corpus. CPU-vs-GPU equality alone cannot prove both correct.",
+      "timeout_seconds": 30,
+      "gap": "Exact independent professional corpus and per-format tolerance must be bound before feature dispatch."
+    },
+    {
+      "owner": "render_gpu",
+      "mt": "MT-35546",
+      "package": "hsk-studio-render-gpu",
+      "files": [
+        "src/device.rs",
+        "src/residency.rs",
+        "src/plan_sink.rs",
+        "tests/gpu_plan.rs"
+      ],
+      "algorithm": "Bounded selected-backend upload/plan execution/readback with tile residency and byte leases; retire device generations safely, never label missing device PASS.",
+      "inputs": "Canonical immutable render plan, backend/device capability, extents/sample/profile, memory budget, revision/cancel.",
+      "outputs": "Readback/sink pixels, backend/provenance receipt, unavailable/device-loss/unsupported outcome and released residency.",
+      "provider": "Pinned Photocraft wgpu30 source is inspected candidate; exact backend Cargo features and device oracle remain unresolved. GPU types private to leaf.",
+      "cases": [
+        "gpu_readback_known_reference",
+        "device_loss_and_unavailable_are_explicit",
+        "residency_eviction_budget_cancel",
+        "stale_revision_sink_refused"
+      ],
+      "oracle": "Independent analytic/original-produced output plus CPU differential; backend-qualified real device proof, no skip-as-pass or implicit fallback.",
+      "timeout_seconds": 60,
+      "gap": "Host-neutral real GPU asset proof and later native device adapter proof are different acceptance rows."
+    },
+    {
+      "owner": "press",
+      "mt": "MT-188",
+      "foundation": "MT-35557",
+      "package": "hsk-studio-press",
+      "files": [
+        "src/pdf_edit.rs",
+        "src/prepress.rs",
+        "src/sanitized_save.rs",
+        "tests/pdf_delivery.rs"
+      ],
+      "algorithm": "Bounded PDF object mutation/full-save and ink/overprint/preflight output; sanitize entire reachable object/metadata/attachment/history set, atomically retain last-good on fault.",
+      "inputs": "Granted PDF bytes, exact object edit and signed/read-only state, output intent/profile, plate controls/trap/page settings, revision and byte budgets.",
+      "outputs": "Editable saved PDF and per-object/signature/loss/preflight report; separate sanitized versus preservation policy.",
+      "provider": "Pdfcraft redact/cos/edit references; Prism math shared. Provider selection cannot implicitly pull every PDF feature.",
+      "cases": [
+        "pdf_object_edit_save_independent_reopen",
+        "redacted_text_absent_all_reachable_streams",
+        "separations_overprint_output_intent",
+        "signed_readonly_cancel_stale_save_fault"
+      ],
+      "oracle": "Independent PDF parser/render/text extraction and original Acrobat output; tagged a11y reading order/forms/annotations need additional exact MT cases, not visual-only proof.",
+      "timeout_seconds": 60,
+      "gap": "MT188 typed recipe corruption, exact trap/ink bounds and whole native PDF feature-specific independent oracle need binding."
+    },
+    {
+      "owner": "web",
+      "mt": "MT-34218",
+      "foundation": "MT-35558",
+      "package": "hsk-studio-web",
+      "files": [
+        "src/source_dom_patch.rs",
+        "src/responsive.rs",
+        "tests/source_dom_patch.rs"
+      ],
+      "algorithm": "Parse source revision, map DOM edits to exact source spans preserving unrelated code/comments; responsive/template edits use same source and shared preview/editor ports.",
+      "inputs": "Canonical source bytes/language and revision, DOM target/span identity, breakpoint dimensions in CSS units, asset grants and patch preconditions.",
+      "outputs": "Source patch and revision-bound DOM/preview, unmappable/loss/conflict diagnostics; no new server/job/storage authority.",
+      "provider": "NOT_INSPECTED; parser/formatter/preview provider pin selection is blocking, no fake provider choice.",
+      "cases": [
+        "dom_edit_changes_exact_source_span",
+        "code_edit_refresh_same_revision",
+        "breakpoint_keyboard_a11y_preview",
+        "external_asset_denial_cancel_stale"
+      ],
+      "oracle": "Independent parsed DOM/source re-read and actual preview/accessibility tree; publish proof needs separately authorized exact target, no external upload here.",
+      "timeout_seconds": 45,
+      "gap": "Scope MT has zero original AC but full requirement still needs per-capability coverage; no narrow DOM-only claim for full web workflows."
+    },
+    {
+      "owner": "interop_psd",
+      "mt": "MT-35548",
+      "package": "hsk-studio-interop-psd",
+      "files": [
+        "src/psd_decode.rs",
+        "src/psd_encode.rs",
+        "src/loss_map.rs",
+        "tests/psd_edit_roundtrip.rs"
+      ],
+      "algorithm": "Bounded PSD/PSB sections/channels/layer/resources parse, map editable known properties to Folio, quarantine opaque bytes separately; encode known edit with version-qualified preservation/loss.",
+      "inputs": "Granted source bytes/version, channel dimensions/depth/profile, source-qualified IDs, edit proposal and recipient policy.",
+      "outputs": "Canonical editable proposal, original fingerprint, per-object/property retained/translated/approximate/unsupported/missing receipt and safe saved bytes.",
+      "provider": "Photocraft PSD/IO candidate and Adobe format specification; structured unknown mode refusal rather than silent Normal.",
+      "cases": [
+        "original_psd_edit_save_reopen_twice",
+        "psb_length_channel_overflow",
+        "opaque_layer_property_loss_explicit",
+        "cancel_stale_sanitized_export_no_hidden_original"
+      ],
+      "oracle": "Photoshop-produced source and independently reopened edited output with hierarchy/text/mask/profile/channel comparison and original rendering; self-roundtrip insufficient.",
+      "timeout_seconds": 60,
+      "gap": "Text effects/smart objects/versioned private blocks each require explicit supported mapping or blocked feature; retain full parity scope."
+    },
+    {
+      "owner": "interop_vector",
+      "mt": "MT-35549",
+      "package": "hsk-studio-interop-vector",
+      "files": [
+        "src/svg_adapter.rs",
+        "src/ai_adapter.rs",
+        "src/pdf_port.rs",
+        "tests/vector_edit_roundtrip.rs"
+      ],
+      "algorithm": "Fallible semantic vector import/export preserving editable paths/styles/transforms and source-qualified identity; PDF via Press port, native AI version gaps explicit.",
+      "inputs": "Granted SVG/AI/PDF bytes/version, length/unit/viewBox profile, font/linked resource grants and revision.",
+      "outputs": "Editable canonical proposal, unknown-byte provenance/loss report and edited vector transport.",
+      "provider": "Vectorcraft pathops inspected; actual SVG/AI decoder source NOT_INSPECTED. Press exposes PDF decoding/editing, not an all-PDF dependency.",
+      "cases": [
+        "svg_edit_transform_style_reopen_twice",
+        "ai_native_editability_or_explicit_blocker",
+        "external_entity_link_denial_budget_cancel",
+        "unit_loss_stale_profile"
+      ],
+      "oracle": "Original Illustrator-produced source and independent native reopen/render/edit comparison; PDF preview alone cannot prove native AI editability.",
+      "timeout_seconds": 60,
+      "gap": "Need decoder/provider/version pins and text/gradient/appearance/linked-image field mappings."
+    },
+    {
+      "owner": "interop_fig",
+      "mt": "MT-35550",
+      "package": "hsk-studio-interop-fig",
+      "files": [
+        "src/container.rs",
+        "src/version_map.rs",
+        "src/semantic_decode.rs",
+        "tests/fig_import.rs"
+      ],
+      "algorithm": "Bounded container/version/identity decoding with opaque preservation; actual offline semantic decoder must map variants/variables/modes/auto-layout/prototypes to Folio/Components.",
+      "inputs": "Granted immutable .fig bytes/version, source object IDs, compressed/inflated budgets, recipient policy and cancel epoch.",
+      "outputs": "Versioned editable proposals or explicit unsupported/loss/missing decoder outcome, source fingerprint and quarantined unknown bytes.",
+      "provider": "Decoder NOT_PROVEN/NOT_INSPECTED. Foundation container handling is permitted narrow capability, no declaration of editable conversion support.",
+      "cases": [
+        "fig_container_bounded_identity_loss",
+        "unsupported_version_duplicate_key_bomb_cancel",
+        "actual_fig_instance_variable_prototype_edit_reopen",
+        "stale_import_and_sanitized_policy"
+      ],
+      "oracle": "Original Figma-produced local FIG with actual semantic edit/reopen and original rendering/property snapshots; SVG/PNG/token/API substitutes rejected.",
+      "timeout_seconds": 60,
+      "gap": "Actual native decoder and independent original-app oracle resources block editable feature; scope stays retained."
+    },
+    {
+      "owner": "interop_layout",
+      "mt": "MT-35551",
+      "package": "hsk-studio-interop-layout",
+      "files": [
+        "src/idml_decode.rs",
+        "src/idml_encode.rs",
+        "src/indd_adapter.rs",
+        "tests/layout_edit_roundtrip.rs"
+      ],
+      "algorithm": "Bounded ZIP/XML IDML story/spread/style mapping through Layout/Type; native INDD separate versioned provider; preserve unknown data with explicit policy.",
+      "inputs": "Granted IDML/INDD bytes/version, archive/entry budgets, font/link grants, canonical page/story IDs and revisions.",
+      "outputs": "Editable layout proposals, missing font/link and per-property loss report, validated edited transport with atomic last-good save.",
+      "provider": "Designcraft IDML quick-xml/zip manifest inspected; full semantic decoder source and INDD provider NOT_INSPECTED/NOT_PROVEN.",
+      "cases": [
+        "idml_threaded_story_style_edit_reopen_twice",
+        "zip_traversal_duplicate_inflate_xml_entity",
+        "indd_actual_native_editability_or_blocker",
+        "rtl_cjk_overset_loss_cancel_stale"
+      ],
+      "oracle": "InDesign-produced fixtures and independent original reopen/render/property comparison; IDML success does not satisfy binary INDD.",
+      "timeout_seconds": 60,
+      "gap": "Native versioned editable decoder, multilingual/a11y/prepress preservation and original fonts must bind exact rows."
+    },
+    {
+      "owner": "interop_lrcat",
+      "mt": "MT-35562",
+      "package": "hsk-studio-interop-lrcat",
+      "files": [
+        "src/catalog_bytes.rs",
+        "src/wal_snapshot.rs",
+        "src/lightroom_map.rs",
+        "tests/catalog_decode.rs"
+      ],
+      "algorithm": "Fixed Lightroom semantic extraction from stable granted immutable main/WAL bytes using checked page/record/overflow traversal and cycle detection; no SQL engine/query API/write/repair/cache/catalog.",
+      "inputs": "Selected .lrcat and explicitly granted WAL handles, coherent source fingerprints/version, byte/page/record budgets and cancel epoch.",
+      "outputs": "Source-qualified photo/collection/keyword/develop proposals, exact process/Enable/unsupported entity and missing-asset losses; CKC/Studio promotion through existing ports later.",
+      "provider": "Internal bounded byte decoder required by CX503R/STU-IO-189; code NOT_INSPECTED and not adopted from any SQL catalog implementation.",
+      "cases": [
+        "real_catalog_wal_fixed_entity_reconciliation",
+        "overflow_cycle_ungranted_wal_and_changed_source",
+        "process_enable_smart_rule_unknown_loss",
+        "cancel_stale_no_source_write_no_sql_closure"
+      ],
+      "oracle": "Original Lightroom-produced catalog, fixed expected entity/develop export and independent source byte re-read; parser fixture proves decoding only, not SurrealDB authority or full conversion.",
+      "timeout_seconds": 45,
+      "gap": "Exact catalog versions/auxiliary entities/WAL coherence/native semantics resources unresolved; no count-only completion or private DB fallback."
+    }
+  ],
+  "next_checkpoint": {
+    "required_from_root": [
+      "Exact published renewed-template/governance commit",
+      "Coordinator exact MT file allocation including overlapping collaboration slices",
+      "Canonical typed field/schema locations for proposed values",
+      "Exact provider/feature/runner binding disposition"
+    ],
+    "before_then": "No MT/packet wholesale rewrite or lifecycle change. Return this report checkpoint; no polling loop.",
+    "after_then": "Rewrite only allocated existing typed fields, preserve original payload/AC IDs/meaning, keep every MT PENDING/nonexecution, separately bind asset/runtime and phase2 host proofs.",
+    "readiness_verdict": "NOT_IMPLEMENTATION_READY; no runtime/parity/foundation PASS asserted."
+  },
+  "authoring_checkpoint": {
+    "authority_commit": "a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89",
+    "hbr_version": "1.16.0",
+    "changed_files": [
+      {
+        "mt_id": "MT-35534",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35534.json",
+        "sha256": "be1f8b8cb4ff196619fcd77c2672c8d6b91b123a8dd719d2a8b2b340c572a19d",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35534.json",
+        "prior_git_blob_oid": "5ffd285d1b6722e2d3bfa37c0271823f1ecfb813"
+      },
+      {
+        "mt_id": "MT-35538",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35538.json",
+        "sha256": "e7e64253e45aaa7dee7b4b3d486d63250de8b6963b024a27fbeec28a41ec112f",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35538.json",
+        "prior_git_blob_oid": "30d734df597ea13170ed5c55bc167ce7e78f5cb7"
+      },
+      {
+        "mt_id": "MT-35544",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35544.json",
+        "sha256": "133d76679f844305cbd841fdbf3142b7fd55058bee0a4b49b56f36aef1f93414",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35544.json",
+        "prior_git_blob_oid": "ae88892b957216731397e937d4e5fe2d8a63ede0"
+      },
+      {
+        "mt_id": "MT-35545",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35545.json",
+        "sha256": "ce6d5ea59f07a6ca86405b3321a440dc85c4d5a231132d15388870cde332c3f7",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35545.json",
+        "prior_git_blob_oid": "42b011c06d36a5cf89c39ee48581596166b3d186"
+      },
+      {
+        "mt_id": "MT-35546",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json",
+        "sha256": "7e4e632c10b0bacea1a91aa708503568a3d9fa818e4f4d1ac53e25ca6c6f3da2",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json",
+        "prior_git_blob_oid": "4fe7addd22aa7acf7c026e4b04779a4b96f48732"
+      },
+      {
+        "mt_id": "MT-35557",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35557.json",
+        "sha256": "0f2c20033f05d2375743c1889562dfe0b9b857def9c47c27ebc4ff8702cf5e8f",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35557.json",
+        "prior_git_blob_oid": "7cb9c9187a37b64a2953953679c82ac62b7a1321"
+      },
+      {
+        "mt_id": "MT-35548",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35548.json",
+        "sha256": "8ecfaa08e1e7f30f0bf589bd0f43d9d641c057d1dafa4011da11cb6ea722939c",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35548.json",
+        "prior_git_blob_oid": "a82bddd3e4aa887931d1cab9cc0d31efbc9b486d"
+      },
+      {
+        "mt_id": "MT-35549",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35549.json",
+        "sha256": "dee2c87d85d5122a57615ac9e1f11f517ce6293ecf9277237712c1c95218985f",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35549.json",
+        "prior_git_blob_oid": "b1eb70f59589d76c4380b8308ff9d2cd267a63a2"
+      },
+      {
+        "mt_id": "MT-35551",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35551.json",
+        "sha256": "886a97036e856346592c5da409d540112d0a12f52503bd940f106dcd11a4eeb0",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35551.json",
+        "prior_git_blob_oid": "984a0250bf889db6d673ea138cd11ade9789e9f8"
+      },
+      {
+        "mt_id": "MT-35562",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35562.json",
+        "sha256": "537960e9b829cd67af3308870e604897e334f7d3c3a37b4abe30264f0238cc30",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "stage": "standalone_source",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35562.json",
+        "prior_git_blob_oid": "42d639086687ca93cbefdb16792d247ef7318941"
+      }
+    ],
+    "remaining": "5 foundations delegated disjointly; all visual features/amendments and assigned splits remain in scope",
+    "runtime_proof": "NONE",
+    "host_adoption": "Separate embedding-team MTs; final exact refs pending coordinator"
+  }
+}

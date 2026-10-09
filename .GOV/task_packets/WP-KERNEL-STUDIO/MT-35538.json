@@ -7,7 +7,7 @@
     "title": "STUDIO-MODULE-DEVELOP meaningful asset foundation",
     "group": "STUDIO_ASSET_FOUNDATION",
     "version": 2,
-    "contract_revision": 2
+    "contract_revision": 3
   },
   "parent": {
     "wp_contract_revision": null,
@@ -1327,7 +1327,10 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "54cef7a4dd8ec7f1e6a6676be587bafc9d93d0409b6429ac97d187fc0df5cbfc"
+    "context_digest": null,
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/9/maintenance"
+    ]
   },
   "closure_unit": {
     "outcome": "Execute bounded source/develop recipe on known pixel input; source immutable, missing RAW decoder explicit.",
@@ -1415,8 +1418,14 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "scope": "Current STUDIO-MODULE-DEVELOP asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
+        "scope": "Granted immutable RAW/pixel handle/fingerprint, CFA and black/white levels, canonical exposure/crop/profile/enable state, source and recipe revisions.",
         "fulfillment_ref": "MT-35538#/fulfillment",
+        "module_catalog_ref": "STUDIO-MODULE-DEVELOP",
+        "immutable_input_and_revision_required": true
+      },
+      {
+        "scope": "Lightcraft develop/scalar bilinear references; exact RAW decoder and SIMD feature pins unresolved, missing decoder explicitly blocked.",
+        "fulfillment_ref": "MT-35538#/foundation_contract",
         "module_catalog_ref": "STUDIO-MODULE-DEVELOP",
         "immutable_input_and_revision_required": true
       }
@@ -1424,25 +1433,25 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "handshake-studio-assets/crates/hsk-studio-develop/src/recipe.rs: Immutable process-version/enable-flag recipe, bounded CFA decode/develop chunks, scalar reference then optional SIMD dispatch; original bytes stay CKC-owned."
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "handshake-studio-assets/crates/hsk-studio-develop/src/pipeline.rs: Consume Granted immutable RAW/pixel handle/fingerprint, CFA and black/white levels, canonical exposure/crop/profile/enable state, source and recipe revisions. and emit Developed bounded tile stream, recipe and source fingerprints, explicit unsupported process/model and loss findings."
       },
       {
         "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
+        "step": "handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs: Materialize planned cases disabled_group_preserves_recipe_and_pixels, scalar_simd_cfa_edges_equivalent, recipe_reedit_preserves_original, unsupported_process_version_and_cancel_stale; compare Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance."
       },
       {
         "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs: Inject invalid/cancel/stale/unsupported and sink/lease failure before publication; retain input fingerprint, reject partial publication, release owned reservations; preserve full feature gaps: Unknown limits remain unknown; original-file identity and CKC selection are ports here and real host proof later."
       }
     ],
     "expected_outputs": [
-      "Owned real capability and failure path",
-      "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      "Developed bounded tile stream, recipe and source fingerprints, explicit unsupported process/model and loss findings.",
+      "Owned source/target files: handshake-studio-assets/crates/hsk-studio-develop/src/recipe.rs, handshake-studio-assets/crates/hsk-studio-develop/src/pipeline.rs, handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs",
+      "Planned case observations: disabled_group_preserves_recipe_and_pixels, scalar_simd_cfa_edges_equivalent, recipe_reedit_preserves_original, unsupported_process_version_and_cancel_stale; independent oracle: Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance."
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1482,7 +1491,8 @@
       "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
       "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/9",
       "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
-    }
+    },
+    "module_change_stage": "standalone_source"
   },
   "proof": {
     "parent_proof_refs": [],
@@ -1493,9 +1503,9 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": null,
-        "expected": "Current STUDIO-MODULE-DEVELOP asset contribution for AC-001 with immutable revision, typed loss/error and independently inspected output; original acceptance remains separately retained.",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes materialized handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs consumer cases disabled_group_preserves_recipe_and_pixels, scalar_simd_cfa_edges_equivalent, recipe_reedit_preserves_original, unsupported_process_version_and_cancel_stale through module maintenance test selector; exact runner config bound before dispatch.",
+        "expected": "Execute bounded source/develop recipe on known pixel input; source immutable, missing RAW decoder explicit. Source retained on invalid/cancel/stale/unsupported; no partial proposal publication and reservations released. Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance.",
+        "timeout_seconds": 45,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1504,13 +1514,18 @@
         ],
         "method_recipe": {
           "selected_package": "hsk-studio-develop",
-          "feature_selection": "LOCKED_OWNER_AND_DECLARED_DEPENDENCIES; exact selected features required before dispatch",
-          "consumer": "Publish and invoke the owned typed public port through a real dependency-closed consumer.",
-          "scenario": "Drive the behavior bound by AC-001 and cited exact clause; inspect output plus invalid/stale/cancel/loss case.",
-          "independent_oracle": "Actual source-authored fixture or independent consumer; no self-authored success label, optional skip or cached original result.",
-          "production_embedding": "Actual host consumer remains separately required."
+          "feature_selection": "no-default-features; exact candidate provider/feature binding is a dispatch prerequisite, no implied provider capability",
+          "consumer": "Immutable process-version/enable-flag recipe, bounded CFA decode/develop chunks, scalar reference then optional SIMD dispatch; original bytes stay CKC-owned.",
+          "scenario": [
+            "disabled_group_preserves_recipe_and_pixels",
+            "scalar_simd_cfa_edges_equivalent",
+            "recipe_reedit_preserves_original",
+            "unsupported_process_version_and_cancel_stale"
+          ],
+          "independent_oracle": "Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance.",
+          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1523,9 +1538,9 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": null,
-        "expected": "Current STUDIO-MODULE-DEVELOP asset contribution for AC-002 with immutable revision, typed loss/error and independently inspected output; original acceptance remains separately retained.",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes materialized handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs consumer cases disabled_group_preserves_recipe_and_pixels, scalar_simd_cfa_edges_equivalent, recipe_reedit_preserves_original, unsupported_process_version_and_cancel_stale through module maintenance test selector; exact runner config bound before dispatch.",
+        "expected": "Execute bounded source/develop recipe on known pixel input; source immutable, missing RAW decoder explicit. Source retained on invalid/cancel/stale/unsupported; no partial proposal publication and reservations released. Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance.",
+        "timeout_seconds": 45,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1534,13 +1549,18 @@
         ],
         "method_recipe": {
           "selected_package": "hsk-studio-develop",
-          "feature_selection": "LOCKED_OWNER_AND_DECLARED_DEPENDENCIES; exact selected features required before dispatch",
-          "consumer": "Publish and invoke the owned typed public port through a real dependency-closed consumer.",
-          "scenario": "Drive the behavior bound by AC-002 and cited exact clause; inspect output plus invalid/stale/cancel/loss case.",
-          "independent_oracle": "Actual source-authored fixture or independent consumer; no self-authored success label, optional skip or cached original result.",
-          "production_embedding": "Actual host consumer remains separately required."
+          "feature_selection": "no-default-features; exact candidate provider/feature binding is a dispatch prerequisite, no implied provider capability",
+          "consumer": "Immutable process-version/enable-flag recipe, bounded CFA decode/develop chunks, scalar reference then optional SIMD dispatch; original bytes stay CKC-owned.",
+          "scenario": [
+            "disabled_group_preserves_recipe_and_pixels",
+            "scalar_simd_cfa_edges_equivalent",
+            "recipe_reedit_preserves_original",
+            "unsupported_process_version_and_cancel_stale"
+          ],
+          "independent_oracle": "Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance.",
+          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1553,9 +1573,9 @@
         "claim_refs": [
           "AC-003"
         ],
-        "command_or_method": null,
-        "expected": "Current STUDIO-MODULE-DEVELOP asset contribution for AC-003 with immutable revision, typed loss/error and independently inspected output; original acceptance remains separately retained.",
-        "timeout_seconds": null,
+        "command_or_method": "cargo check --locked --tests -p hsk-studio-develop --no-default-features; inspect selected Cargo.lock/manifest closure against STUDIO-MODULE-DEVELOP dependencies and forbidden edges; source-stage only.",
+        "expected": "Selected hsk-studio-develop target compiles with no host/kernel/native/DB or unrelated provider closure; exact provider pins/feature syntax resolved before dispatch.",
+        "timeout_seconds": 120,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1564,13 +1584,18 @@
         ],
         "method_recipe": {
           "selected_package": "hsk-studio-develop",
-          "feature_selection": "LOCKED_OWNER_AND_DECLARED_DEPENDENCIES; exact selected features required before dispatch",
-          "consumer": "Publish and invoke the owned typed public port through a real dependency-closed consumer.",
-          "scenario": "Drive the behavior bound by AC-003 and cited exact clause; inspect output plus invalid/stale/cancel/loss case.",
-          "independent_oracle": "Actual source-authored fixture or independent consumer; no self-authored success label, optional skip or cached original result.",
-          "production_embedding": "Actual host consumer remains separately required."
+          "feature_selection": "no-default-features; exact candidate provider/feature binding is a dispatch prerequisite, no implied provider capability",
+          "consumer": "Immutable process-version/enable-flag recipe, bounded CFA decode/develop chunks, scalar reference then optional SIMD dispatch; original bytes stay CKC-owned.",
+          "scenario": [
+            "disabled_group_preserves_recipe_and_pixels",
+            "scalar_simd_cfa_edges_equivalent",
+            "recipe_reedit_preserves_original",
+            "unsupported_process_version_and_cancel_stale"
+          ],
+          "independent_oracle": "Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance.",
+          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1583,9 +1608,9 @@
         "claim_refs": [
           "AC-004"
         ],
-        "command_or_method": null,
-        "expected": "Current STUDIO-MODULE-DEVELOP asset contribution for AC-004 with immutable revision, typed loss/error and independently inspected output; original acceptance remains separately retained.",
-        "timeout_seconds": null,
+        "command_or_method": "Inspect current HBR1.16 trigger rows against MT-35538 scope and observed foundation outputs from disabled_group_preserves_recipe_and_pixels, scalar_simd_cfa_edges_equivalent, recipe_reedit_preserves_original, unsupported_process_version_and_cancel_stale; reuse bound source proof per row; actual host rows resolve to distinct coordinator/embedding MTs, never source PASS.",
+        "expected": "Asset-applicable rows bind observed source proof; full original host obligations retained with distinct owning host identities before activation; unresolved host mapping cannot become acceptance.",
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1594,13 +1619,18 @@
         ],
         "method_recipe": {
           "selected_package": "hsk-studio-develop",
-          "feature_selection": "LOCKED_OWNER_AND_DECLARED_DEPENDENCIES; exact selected features required before dispatch",
-          "consumer": "Publish and invoke the owned typed public port through a real dependency-closed consumer.",
-          "scenario": "Drive the behavior bound by AC-004 and cited exact clause; inspect output plus invalid/stale/cancel/loss case.",
-          "independent_oracle": "Actual source-authored fixture or independent consumer; no self-authored success label, optional skip or cached original result.",
-          "production_embedding": "Actual host consumer remains separately required."
+          "feature_selection": "no-default-features; exact candidate provider/feature binding is a dispatch prerequisite, no implied provider capability",
+          "consumer": "Immutable process-version/enable-flag recipe, bounded CFA decode/develop chunks, scalar reference then optional SIMD dispatch; original bytes stay CKC-owned.",
+          "scenario": [
+            "disabled_group_preserves_recipe_and_pixels",
+            "scalar_simd_cfa_edges_equivalent",
+            "recipe_reedit_preserves_original",
+            "unsupported_process_version_and_cancel_stale"
+          ],
+          "independent_oracle": "Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance.",
+          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1613,9 +1643,9 @@
         "claim_refs": [
           "AC-005"
         ],
-        "command_or_method": null,
-        "expected": "Current STUDIO-MODULE-DEVELOP asset contribution for AC-005 with immutable revision, typed loss/error and independently inspected output; original acceptance remains separately retained.",
-        "timeout_seconds": null,
+        "command_or_method": "Real selected hsk-studio-develop consumer enumerates owned input/output/error descriptors for disabled_group_preserves_recipe_and_pixels; compare same command ID/units/revision and negative/recovery outcomes through existing Observe, Controls and canonical manual ports.",
+        "expected": "Descriptor consumer exposes Granted immutable RAW/pixel handle/fingerprint, CFA and black/white levels, canonical exposure/crop/profile/enable state, source and recipe revisions. and Developed bounded tile stream, recipe and source fingerprints, explicit unsupported process/model and loss findings.; unsupported/cancel/stale outcomes are inspectable; no duplicate Controls/manual/diagnostic owner. Host Argus/FR/Palmistry integration separately pending.",
+        "timeout_seconds": 45,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1624,13 +1654,18 @@
         ],
         "method_recipe": {
           "selected_package": "hsk-studio-develop",
-          "feature_selection": "LOCKED_OWNER_AND_DECLARED_DEPENDENCIES; exact selected features required before dispatch",
-          "consumer": "Publish and invoke the owned typed public port through a real dependency-closed consumer.",
-          "scenario": "Drive the behavior bound by AC-005 and cited exact clause; inspect output plus invalid/stale/cancel/loss case.",
-          "independent_oracle": "Actual source-authored fixture or independent consumer; no self-authored success label, optional skip or cached original result.",
-          "production_embedding": "Actual host consumer remains separately required."
+          "feature_selection": "no-default-features; exact candidate provider/feature binding is a dispatch prerequisite, no implied provider capability",
+          "consumer": "Immutable process-version/enable-flag recipe, bounded CFA decode/develop chunks, scalar reference then optional SIMD dispatch; original bytes stay CKC-owned.",
+          "scenario": [
+            "disabled_group_preserves_recipe_and_pixels",
+            "scalar_simd_cfa_edges_equivalent",
+            "recipe_reedit_preserves_original",
+            "unsupported_process_version_and_cancel_stale"
+          ],
+          "independent_oracle": "Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance.",
+          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1640,10 +1675,14 @@
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-develop/**"
+      "handshake-studio-assets/crates/hsk-studio-develop/src/recipe.rs",
+      "handshake-studio-assets/crates/hsk-studio-develop/src/pipeline.rs",
+      "handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs",
+      "handshake-studio-assets/Cargo.lock",
+      "handshake-studio-assets/rust-toolchain.toml"
     ],
     "extra_build_proofs": [],
-    "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
+    "proof_materialization_status": "PLANNED_NOT_RUN_NON_EXECUTION"
   },
   "user_manual_obligation": {
     "required": true,
@@ -1749,8 +1788,8 @@
     }
   ],
   "acceptance_criteria_count": 5,
-  "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-09T19:43:36.132296+00:00",
+  "created_at_utc": "2026-10-09T21:14:47.14107+02:00",
+  "updated_at_utc": "2026-10-09T22:23:17.2163583Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35538.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -1905,5 +1944,44 @@
       "status": "PENDING",
       "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
     }
-  }
+  },
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-GIT-002",
+    "CX-VAL-002",
+    "CX-VAL-003",
+    "CX-VAL-004",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-VAL-005",
+    "CX-VAL-006",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-GP-001",
+    "CX-GP-002",
+    "CX-EXEC-015",
+    "CX-VAL-010",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
+  ]
 }
