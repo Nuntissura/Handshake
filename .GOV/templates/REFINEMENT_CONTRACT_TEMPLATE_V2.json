@@ -8,7 +8,8 @@
     "applicability.not_triggered_by includes remediation: a remediation round reuses the existing refinement and does not open a new one.",
     "hbr_pillar_review keeps the V1 pillar review inside matrix_resolution; red_team and reusable_solution_discovery live under refinement.reality_check.",
     "Value mapping for MT labels referenced here: PASS_Vn -> passed/passed; FAIL_Vn -> needs_remediation/failed; PARTIAL -> validating/inconclusive plus a blockers[] entry on the MT; BLOCKED -> blocked/blocked (CX-STATUS-003).",
-    "Placeholders are REPLACE_ME or empty arrays."
+    "Placeholders are REPLACE_ME or empty arrays.",
+    "Resolve module-owned maintenance refs and missing standalone/release/host contracts before new product authoring; preserve old pinned contracts. Separate standalone source and host adoption in the existing preliminary microtask graph; no additional dossier or review cycle."
   ],
   "instance_policy": {
     "omit_empty_optional_fields": true,
@@ -27,7 +28,12 @@
     "CX-503B1",
     "CX-131",
     "CX-CAP-001",
-    "CX-UNIT-001"
+    "CX-UNIT-001",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
   ],
   "_rule_refs_replaces": [
     "contract_authority",
@@ -122,7 +128,8 @@
           "prototype"
         ],
         "decision_reason": "REPLACE_ME"
-      }
+      },
+      "module_lifecycle_gaps": []
     }
   },
   "matrix_resolution": {
@@ -186,7 +193,8 @@
     },
     "implementation_relevant_truth": [],
     "constraints": [],
-    "ready_for_wp_derivation": false
+    "ready_for_wp_derivation": false,
+    "module_lifecycle_refs": []
   },
   "authority_files": {
     "refinement_contract": ".GOV/task_packets/{{WP_ID}}/refinement.json",

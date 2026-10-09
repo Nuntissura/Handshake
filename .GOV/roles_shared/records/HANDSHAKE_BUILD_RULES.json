@@ -1,14 +1,14 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
-  "updated_at": "2026-09-25T00:00:00.000Z",
+  "updated_at": "2026-10-09T22:16:36.949825Z",
   "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, Argus visual + operator-GUI verification, quiet/non-intrusive operation, in-product UserManual currency, UserManual diagnostic linkage, and account-bound ownership/visibility/privacy for every product resource. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
   "scope": {
     "trigger_phase": "build_time_and_handoff_time",
-    "applies_to": "every WP that touches Handshake product code or product behavior under /src/, /app/, /tests/, or product runtime",
+    "applies_to": "every WP that touches Handshake product code or product behavior under /src/, /app/, /tests/, or product runtime; future Handshake-governed standalone modules/reusable assets and their declared host-adoption work also apply, irrespective of their product source repository or root",
     "exempt": [
       "pure repo-governance-only changes scoped per CX-111 HARD_GOVERNANCE_NO_WP_REQUIRED",
       "operator-private staging changes per CX-215"
@@ -1700,6 +1700,355 @@
         "authored_at_utc": "2026-09-23T16:53:03Z",
         "origin_incident": "Handshake Creation Template pack v19 alignment (operator instruction 2026-09-23): compartmentalised build units and canonical component mechanics adopted as permanent pillars; contract_fields propagation adopted per BR-CONTRACT-SYNC-001."
       }
+    },
+    {
+      "id": "HBR-MODULE-LIFECYCLE-001",
+      "pillar": "COMPART",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "module_or_asset_is_created_or_materially_modified",
+      "applicability": {
+        "predicate_text": "module_or_asset_is_created_or_materially_modified",
+        "tags": [
+          "module_lifecycle",
+          "standalone_source",
+          "host_adoption"
+        ]
+      },
+      "required_action": "As a mandatory baseline for future Handshake-governed modules and reusable assets, give every module and reusable asset an accountable owner and independently selectable source, dependency, build, test and artifact closure in its existing manifest. Provide a standalone library, executable or asset harness with public contract proof, manual, model tools, inspection, diagnostics and recovery routes; no full host build is required for a module-only patch unless its declared dependency closure requires it.",
+      "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+      "contract_fields": {
+        "wp": [
+          "architecture_binding.module_lifecycle_refs"
+        ],
+        "mt": [
+          "context_capsule.module_maintenance_refs"
+        ],
+        "module": [
+          "maintenance"
+        ]
+      },
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-001"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-002"
+        }
+      ],
+      "not_applicable_when": [
+        "Pure repo-governance work",
+        "The declared trigger does not apply; record the concrete reason without waiving another applicable lifecycle rule"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "stock_rule_id": "BR-MODULE-LIFECYCLE-001",
+        "stock_pack_version": 38,
+        "adaptation_handoff_sha256": "5896ed94c3baadf68a6874e39c65cdde508ea8fe7b7841869c7a5a64132fa345",
+        "authored_by": "OPERATOR_INSTRUCTION_2026-10-10"
+      }
+    },
+    {
+      "id": "HBR-MODULE-LIFECYCLE-002",
+      "pillar": "COMPART",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+      "applicability": {
+        "predicate_text": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+        "tags": [
+          "module_lifecycle",
+          "standalone_source",
+          "host_adoption"
+        ]
+      },
+      "required_action": "Declare errors, concurrency and queue bounds, admission, backpressure, overflow, cancellation, drain, shutdown and recovery through public contracts. Reusable GUI/control assets declare inputs, events, styling, accessibility and headless inspection contracts; compose them without copying private implementation.",
+      "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+      "contract_fields": {
+        "wp": [
+          "architecture_binding.module_lifecycle_refs"
+        ],
+        "mt": [
+          "context_capsule.module_maintenance_refs"
+        ],
+        "module": [
+          "maintenance"
+        ]
+      },
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-001"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-002"
+        }
+      ],
+      "not_applicable_when": [
+        "Pure repo-governance work",
+        "The declared trigger does not apply; record the concrete reason without waiving another applicable lifecycle rule"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "stock_rule_id": "BR-MODULE-LIFECYCLE-002",
+        "stock_pack_version": 38,
+        "adaptation_handoff_sha256": "5896ed94c3baadf68a6874e39c65cdde508ea8fe7b7841869c7a5a64132fa345",
+        "authored_by": "OPERATOR_INSTRUCTION_2026-10-10"
+      }
+    },
+    {
+      "id": "HBR-MODULE-LIFECYCLE-003",
+      "pillar": "COMPART",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "module_or_asset_is_released_or_consumed",
+      "applicability": {
+        "predicate_text": "module_or_asset_is_released_or_consumed",
+        "tags": [
+          "module_lifecycle",
+          "standalone_source",
+          "host_adoption"
+        ]
+      },
+      "required_action": "Publish immutable versioned artifacts with canonical source revision, build inputs, toolchain and artifact digests, dependency closure, public API versioning, compatibility and deprecation policy. Consume exact pinned releases through existing bindings and lock; a version label alone never proves compatibility.",
+      "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+      "contract_fields": {
+        "wp": [
+          "architecture_binding.module_lifecycle_refs"
+        ],
+        "mt": [
+          "context_capsule.module_maintenance_refs"
+        ],
+        "module": [
+          "maintenance"
+        ]
+      },
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-001"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-002"
+        }
+      ],
+      "not_applicable_when": [
+        "Pure repo-governance work",
+        "The declared trigger does not apply; record the concrete reason without waiving another applicable lifecycle rule"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "stock_rule_id": "BR-MODULE-LIFECYCLE-003",
+        "stock_pack_version": 38,
+        "adaptation_handoff_sha256": "5896ed94c3baadf68a6874e39c65cdde508ea8fe7b7841869c7a5a64132fa345",
+        "authored_by": "OPERATOR_INSTRUCTION_2026-10-10"
+      }
+    },
+    {
+      "id": "HBR-MODULE-LIFECYCLE-004",
+      "pillar": "COMPART",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "module_or_asset_is_embedded_in_a_host",
+      "applicability": {
+        "predicate_text": "module_or_asset_is_embedded_in_a_host",
+        "tags": [
+          "module_lifecycle",
+          "standalone_source",
+          "host_adoption"
+        ]
+      },
+      "required_action": "Use an exact versioned embedding adapter declaring host and module responsibilities, required/provided services, capability and authorization mapping, data ownership, lifecycle, scheduling and conformance proof. Keep host-specific storage, telemetry and UI policies in the host adaptation; infer no network service, deployment or available runtime from a template declaration.",
+      "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+      "contract_fields": {
+        "wp": [
+          "architecture_binding.module_lifecycle_refs"
+        ],
+        "mt": [
+          "context_capsule.module_maintenance_refs"
+        ],
+        "module": [
+          "maintenance"
+        ]
+      },
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-001"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-002"
+        }
+      ],
+      "not_applicable_when": [
+        "Pure repo-governance work",
+        "The declared trigger does not apply; record the concrete reason without waiving another applicable lifecycle rule"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "stock_rule_id": "BR-MODULE-LIFECYCLE-004",
+        "stock_pack_version": 38,
+        "adaptation_handoff_sha256": "5896ed94c3baadf68a6874e39c65cdde508ea8fe7b7841869c7a5a64132fa345",
+        "authored_by": "OPERATOR_INSTRUCTION_2026-10-10"
+      }
+    },
+    {
+      "id": "HBR-MODULE-LIFECYCLE-005",
+      "pillar": "COMPART",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "module_or_asset_is_published_upgraded_or_moved",
+      "applicability": {
+        "predicate_text": "module_or_asset_is_published_upgraded_or_moved",
+        "tags": [
+          "module_lifecycle",
+          "standalone_source",
+          "host_adoption"
+        ]
+      },
+      "required_action": "Separate private state, credentials and machine-local configuration from publishable source/assets with an explicit publication allowlist and exclusion contract. Declare portable roots and state owners, upgrade prerequisites, migration versions and rollback reversibility, in-flight settlement and recovery boundary; prove standalone and affected host compatibility before integration.",
+      "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+      "contract_fields": {
+        "wp": [
+          "architecture_binding.module_lifecycle_refs"
+        ],
+        "mt": [
+          "context_capsule.module_maintenance_refs"
+        ],
+        "module": [
+          "maintenance"
+        ]
+      },
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-001"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-002"
+        }
+      ],
+      "not_applicable_when": [
+        "Pure repo-governance work",
+        "The declared trigger does not apply; record the concrete reason without waiving another applicable lifecycle rule"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "stock_rule_id": "BR-MODULE-LIFECYCLE-005",
+        "stock_pack_version": 38,
+        "adaptation_handoff_sha256": "5896ed94c3baadf68a6874e39c65cdde508ea8fe7b7841869c7a5a64132fa345",
+        "authored_by": "OPERATOR_INSTRUCTION_2026-10-10"
+      }
+    },
+    {
+      "id": "HBR-MODULE-LIFECYCLE-006",
+      "pillar": "COMPART",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "module_or_asset_is_published_or_mirrored",
+      "applicability": {
+        "predicate_text": "module_or_asset_is_published_or_mirrored",
+        "tags": [
+          "module_lifecycle",
+          "standalone_source",
+          "host_adoption"
+        ]
+      },
+      "required_action": "Publish and mirror from one canonical source with provenance and base/source/target digests checked at planning and commit. Reject concurrent drift, preserve customized destinations and provide recoverable publication; do not silently overwrite edits or substitute an installed copy for its source owner.",
+      "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+      "contract_fields": {
+        "wp": [
+          "architecture_binding.module_lifecycle_refs"
+        ],
+        "mt": [
+          "context_capsule.module_maintenance_refs"
+        ],
+        "module": [
+          "maintenance"
+        ]
+      },
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-001"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-002"
+        }
+      ],
+      "not_applicable_when": [
+        "Pure repo-governance work",
+        "The declared trigger does not apply; record the concrete reason without waiving another applicable lifecycle rule"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "stock_rule_id": "BR-MODULE-LIFECYCLE-006",
+        "stock_pack_version": 38,
+        "adaptation_handoff_sha256": "5896ed94c3baadf68a6874e39c65cdde508ea8fe7b7841869c7a5a64132fa345",
+        "authored_by": "OPERATOR_INSTRUCTION_2026-10-10"
+      }
+    },
+    {
+      "id": "HBR-MODULE-LIFECYCLE-007",
+      "pillar": "COMPART",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
+      "applicability": {
+        "predicate_text": "module_or_asset_changes_or_host_adopts_a_revision",
+        "tags": [
+          "module_lifecycle",
+          "standalone_source",
+          "host_adoption"
+        ]
+      },
+      "required_action": "Land every module or reusable asset change first in its declared canonical module GitHub repository through a standalone_source MT. Independently re-read the canonical remote revision and verify the source contract proof before a distinct host_adoption MT changes a host. The adoption MT consumes an explicit immutable source revision and artifact/dependency pins through existing bindings, declares the exact embedding adapter, and proves compatibility and integration. A local commit, copied source, test fixture or self-authored receipt never substitutes for canonical GitHub landing. Preserve host-specific law in the host adaptation; do not implement standalone module changes inside the host first.",
+      "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
+      "contract_fields": {
+        "wp": [
+          "architecture_binding.module_lifecycle_refs"
+        ],
+        "mt": [
+          "execution.module_change_stage",
+          "context_capsule.module_maintenance_refs",
+          "execution.depends_on",
+          "execution.source_adoption"
+        ],
+        "module": [
+          "maintenance"
+        ]
+      },
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-001"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-002"
+        }
+      ],
+      "not_applicable_when": [
+        "Pure repo-governance work",
+        "The declared trigger does not apply; record the concrete reason without waiving another applicable lifecycle rule"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "stock_rule_id": "BR-MODULE-LIFECYCLE-007",
+        "stock_pack_version": 38,
+        "adaptation_handoff_sha256": "5896ed94c3baadf68a6874e39c65cdde508ea8fe7b7841869c7a5a64132fa345",
+        "authored_by": "OPERATOR_INSTRUCTION_2026-10-10"
+      },
+      "contract_fields_required_if": {
+        "mt.execution.source_adoption": "execution.module_change_stage == host_adoption"
+      }
     }
   ],
   "deferred_pillars": [
@@ -1825,6 +2174,11 @@
       "version": "1.15.0",
       "at_utc": "2026-09-25T00:00:00.000Z",
       "change": "Aligned with the operator's Handshake Creation Template pack v31 (pack 30 BUILD-RULES terse pass). Hedges replaced by explicit required_if conditions in HBR-PRIV-005, HBR-MAN-001 and HBR-MAN-004; no obligation added or removed. HBR has no remediation rule (template BR-REMEDIATE-001 now points to CODEX-REMEDIATE-001; kernel owner Codex CX-EXEC-012) and no BR-CORE-EFFECT-001 equivalent. Mapping recorded in .GOV/roles_shared/records/TEMPLATE_ALIGNMENT.json."
+    },
+    {
+      "version": "1.16.0",
+      "at_utc": "2026-10-09T22:16:36.949825Z",
+      "change": "Selective stock pack 38 module-lifecycle alignment: seven COMPART rules, canonical module GitHub source before separate pinned host adoption, module-owned maintenance refs and V2 fields. Existing HBR rules, pillars, SurrealDB/Argus/FlightRecorder/Palmistry requirements and in-flight pins preserved. No new validator/check suite; existing contract workflow and Codex CX-VERIFY-001..003 govern minimum sufficient proof."
     }
   ]
 }

@@ -9,7 +9,8 @@
     "lifecycle.phase is authoritative; lifecycle.status is the derived label kept for old readers (CX-STATUS-003).",
     "mt_plan.clusters fold into microtask_graph.parallel_groups; build_target stays inside architecture_binding for the single-crate reality.",
     "Placeholders are REPLACE_ME or empty arrays; scope_waivers keep 012's waivers_granted names as aliases under _v1_alias.",
-    "gameplan_ref names the WP gameplan .GOV/task_packets/<WP_ID>/gameplan.yaml, created and edited only with the gameplan skill; MT gameplans under gameplans/<MT_ID>.yaml inherit from it (CX-GP-001)."
+    "gameplan_ref names the WP gameplan .GOV/task_packets/<WP_ID>/gameplan.yaml, created and edited only with the gameplan skill; MT gameplans under gameplans/<MT_ID>.yaml inherit from it (CX-GP-001).",
+    "Module lifecycle is mandatory for future product authoring; module_lifecycle_refs resolves each owning module maintenance contract. Fill task-specific methods and proof; declarations do not prove standalone or host behavior. Preserve active pins."
   ],
   "instance_policy": {
     "omit_empty_optional_fields": true,
@@ -35,7 +36,12 @@
     "CX-GP-001",
     "CX-PROOF-005",
     "CX-STATUS-003",
-    "CX-GP-002"
+    "CX-GP-002",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
   ],
   "_rule_refs_replaces": [
     "contract_authority",
@@ -234,7 +240,59 @@
       "test_root": "REPLACE_ME",
       "cargo_flag": "REPLACE_ME",
       "note": "REPLACE_ME"
-    }
+    },
+    "module_lifecycle_refs": [],
+    "_module_maintenance_entry_shape": {
+      "module_ref": "REPLACE_ME",
+      "maintenance": {
+        "contract_version": 1,
+        "owner_ref": "REPLACE_ME",
+        "unit_kind": "code",
+        "source": {
+          "canonical_repository_url": "REPLACE_ME"
+        },
+        "standalone": {
+          "source_root_refs": [],
+          "dependency_closure_ref": "REPLACE_ME",
+          "build_selector_ref": "REPLACE_ME",
+          "test_selector_ref": "REPLACE_ME",
+          "artifact_refs": [],
+          "entrypoint_ref": "REPLACE_ME",
+          "public_contract_refs": [],
+          "contract_proof_refs": []
+        },
+        "operation": {
+          "resource_limits_contract_ref": "REPLACE_ME",
+          "lifecycle_contract_ref": "REPLACE_ME",
+          "manual_ref": "REPLACE_ME",
+          "model_tools_ref": "REPLACE_ME",
+          "inspection_ref": "REPLACE_ME",
+          "diagnostics_ref": "REPLACE_ME",
+          "recovery_ref": "REPLACE_ME",
+          "gui_contract_ref": null
+        },
+        "release": {
+          "version_policy_ref": "REPLACE_ME",
+          "compatibility_contract_ref": "REPLACE_ME",
+          "provenance_ref": "REPLACE_ME",
+          "publication_allowlist_ref": "REPLACE_ME",
+          "private_data_exclusion_ref": "REPLACE_ME",
+          "mirror_policy_ref": "REPLACE_ME"
+        },
+        "embedding": {
+          "adapter_contract_refs": [],
+          "conformance_proof_refs": [],
+          "standalone_host_contract_ref": "REPLACE_ME"
+        },
+        "evolution": {
+          "portable_roots_ref": "REPLACE_ME",
+          "upgrade_ref": "REPLACE_ME",
+          "migration_ref": "REPLACE_ME",
+          "rollback_ref": "REPLACE_ME"
+        }
+      }
+    },
+    "_module_lifecycle_refs_note": "Nonempty for product work; reference existing owning module manifests/catalog records. The entry shape is author guidance, not a second editable module manifest. Stock pack 38 fields adapted under HBR-MODULE-LIFECYCLE-001..007."
   },
   "runtime_lanes": {
     "applicability": "REPLACE_ME",

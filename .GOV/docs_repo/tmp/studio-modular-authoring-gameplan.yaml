@@ -1,0 +1,35 @@
+schema_version: handshake.gameplan.v1
+template_version: 1
+kind: gameplan
+instance_policy:
+  omit_empty_optional_fields: true
+  policy_lives_in_rule_refs_not_instance_fields: true
+  schema_ref: repo-governance/schemas/gameplan.schema.yaml
+rule_refs: []
+writing: 'no prose; terse fragments; determinism > grammar; verb object [op value]'
+precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; correct the step'
+scope: session
+assignment: STUDIO-MODULAR-AUTHORING
+parent: null
+generation: 17
+expensive_actions: []
+steps:
+- {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
+- {id: GP-002, role: any, at: on_resume, do: confirm statuses recounted from source records; memory counts == 0, check: {type: confirm}, source: 'preset:resume', state: active}
+- {id: GP-003, role: any, at: on_resume, do: confirm half-written records finished before new work, check: {type: confirm}, source: 'preset:resume', state: active}
+- {id: GP-004, role: orchestrator, at: any, do: verify kernel branch equals gov_kernel, check: {type: git, branch: gov_kernel}, source: CX-212C; operator root authority-only assignment, state: active}
+- {id: GP-005, role: orchestrator, at: before_dispatch, do: confirm fresh chats have disjoint owned files and root performs no wholesale MT edits, check: {type: confirm}, source: 'Operator: fresh chats rewrite; root edits this repo authority and templates only', state: active}
+- {id: GP-006, role: orchestrator, at: before_dispatch, do: confirm renewed template publication precedes delegated MT writes, check: {type: confirm}, source: 'Operator: stock decision then repo templates then wholesale Studio authoring', state: active}
+- {id: GP-007, role: orchestrator, at: before_submit, do: confirm stock proposal mapped to project-specific law without removing existing requirements, check: {type: confirm}, source: 'Operator: external template chat reports stock changes; preserve Handshake-specific rules', state: active}
+- {id: GP-008, role: orchestrator, at: before_submit, do: verify scoped authority diff preserves IDs mirrors live references and in-flight governance pins, check: {type: confirm}, source: CX-GOV-PIN-001; other-device WP012 priority, state: active}
+- {id: GP-009, role: orchestrator, at: before_dispatch, do: require bounded UTF8 selectors rather than whole nested reports or combined protocol dumps, check: {type: confirm}, source: 'infra: whole protocol and nested MT reads truncated output', state: active}
+- {id: GP-010, role: orchestrator, at: before_submit, do: confirm WP and MT templates bind module identity release compatibility and separate embedding proof, check: {type: confirm}, source: 'Operator: standalone assets update before host integration', state: active}
+- {id: GP-011, role: orchestrator, at: before_verdict, do: verify all original Studio scope and acceptance maps exactly once into asset and embedding phases, check: {type: confirm}, source: 'Operator: complete wholesale refactor without feature or scope loss', state: active}
+- {id: GP-012, role: orchestrator, at: before_verdict, do: verify concrete per-MT methods steps selected build closure and applicable pillars replace generic authoring, check: {type: confirm}, source: 'Census: all5575 MTs share generic steps and have null proof commands', state: active}
+- {id: GP-013, role: orchestrator, at: before_submit, do: verify canonical Git byte hashes and distinct working-copy provenance before checkpoint, check: {type: confirm}, source: 'infra: prior CRLF report hashes differed from canonical Git bytes', state: active}
+- {id: GP-014, role: orchestrator, at: before_submit, do: verify stock foundation and interim skill share mechanical workflow fields IDs and generated projections, check: {type: confirm}, source: 'Operator correction: template is future Handshake governance; skill is exact transitional execution adapter', state: active}
+- {id: GP-015, role: orchestrator, at: before_submit, do: verify modularity is mandatory fixed stock law for Handshake-managed and interim skill-managed projects, check: {type: confirm}, source: 'Operator clarification: modularity belongs to every future project fixed ruleset', state: active}
+- {id: GP-016, role: orchestrator, at: any, do: require authority JSON size and scoped key selection before reading large alignment or protocol files, check: {type: confirm}, source: 'infra: full TEMPLATE_ALIGNMENT read truncated; key-scoped read retains applicable mappings', state: active}
+- {id: GP-017, role: orchestrator, at: any, do: require typed thread result filtering before displaying final handoff or proof paths, check: {type: confirm}, source: 'infra: unfiltered read_thread included excessive external stock output; bounded final extraction only', state: active}
+- {id: GP-018, role: orchestrator, at: before_submit, do: require gameplan confirmation notes <= 120 characters, check: {type: confirm}, source: 'infra: confirm rejected an overlong note; keep scoped confirmation concise', state: active}
+- {id: GP-019, role: orchestrator, at: before_dispatch, do: require completed stock handoff and pushed gov template checkpoint before dependent MT teams, check: {type: confirm}, source: 'Operator: stock first; additive repo rules committed and pushed; only then MT teams', state: active}

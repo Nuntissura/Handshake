@@ -56,6 +56,10 @@
 
 [CX-UNIT-001] Every WP names its touched and created modules and a boundary change; every MT binds exactly one owning module and its write scope derives from that module. Build units are logical module paths until the compartment refactor lands crates. Activation rejects dependency-direction violations and unsettled build-budget reviews.
 
+[CX-MODULE-LIFECYCLE-001] Independently maintainable modules and reusable assets are mandatory for future Handshake-governed product work. Resolve their module-owned maintenance contracts under HBR-MODULE-LIFECYCLE-001–007 through WP architecture_binding.module_lifecycle_refs and MT context_capsule.module_maintenance_refs. Fill task-specific scope, methods, inputs, outputs, acceptance and proof in the existing typed contracts; a generic checklist does not author an MT. Preserve active governance pins; older-module adoption inventories missing contracts through the existing refinement and authorized contract-change path. A shape declaration never proves standalone operation, release compatibility or host conformance.
+
+[CX-MODULE-LIFECYCLE-002] Use distinct standalone_source and host_adoption MTs. Land a module change first in its declared canonical module GitHub repository; independently re-read that remote revision and resolve the source proof before host writes. The host MT depends on the source MT, consumes its immutable revision and release/dependency pins through the exact embedding adapter, and owns affected host compatibility, integration and rollback proof. Do not patch module internals in Handshake first; Handshake-specific storage, Argus, Flight Recorder, diagnostics, Palmistry, authorization and UI bindings remain host adaptations. A module declaration authorizes no web service or deployment.
+
 [CX-CAP-001] Before adding any component, find the mechanic it presents (scroll, selection, popup, focus and the like) at the lowest layer that owns it, then consume, configure or extend that owner. One active owner per capability; no MT reimplements a capability owned by another active module. A new mechanic requires a spec primitive and no existing owner.
 
 [CX-LANE-001] A WP whose impact assessment marks change on a GUI matrix entry carries a gui-lane MT naming its backend MT and the shared surface. The GUI MT consumes only the backend's published contract and runs in parallel when write paths are disjoint.
@@ -135,6 +139,12 @@
 [CX-EXEC-005] Timeouts are per test, set in the test runner's configuration (for Rust: nextest slow-timeout with terminate-after). Never wrap a whole build, test run or round script in a wall-clock `timeout`; a killed run yields no results for the tests it never reached. Record a per-test expiry as TIMEOUT, distinct from pass and fail; a force-stopped process is never recorded as a result.
 
 [CX-EXEC-004] Batch related repairs within approved scope before expensive validation. During implementation, run focused proof when it determines the next edit; run required acceptance proof on stable batch inputs before readiness or PASS. A rerun requires changed relevant inputs, invalid/missing evidence, or a distinct evidence-based hypothesis. A new agent/session, MT boundary or report alone does not justify a rerun; reuse valid independent evidence under the assigned validator protocol.
+
+[CX-VERIFY-001] Use the minimum sufficient proof for the active contract's bound claims. Additional confidence, speculative risk or a new rule citation does not authorize extra suites, reviews, evaluations, tests of validators or new closure conditions; additional proof work requires explicit Operator instruction. Preserve required product acceptance and independent verdicts.
+
+[CX-VERIFY-002] Reuse one valid observation across every bound claim it proves. Recheck only changed relevant inputs, missing or invalid evidence, or explicitly required fresh proof; a different HEAD alone does not invalidate proof under CX-VAL-002.
+
+[CX-VERIFY-003] Once the active contract and required proof are satisfied, close that scope without extra paperwork, unrelated refactors or infrastructure. Route new scope through the existing authorized contract-change path; a concrete violation invalidates only its affected proof.
 
 [CX-EXEC-003B] CX-EXEC-003 also applies to a steering role's own rounds: a round that produces no pushed commit or verdict forces a changed approach in the next round.
 

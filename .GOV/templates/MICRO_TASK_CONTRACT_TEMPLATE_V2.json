@@ -15,7 +15,8 @@
     "Closure loop (CX-VAL-008): a fail verdict carries a typed remediation (_remediation_shape); a resubmission after a fail changes a path in remediation.affected_code_refs or cites a new diagnosis_id in submissions[].diagnosis_ref, else it is not admitted; a diagnosis is recorded once as blockers[].diagnosis (_diagnosis_shape) and cited by lifecycle.diagnosis_refs in recording order. Text fields of these shapes are one line of at most 120 chars, gameplan writing style.",
     "Proof binding (CX-VAL-009): verdicts[].test_run names the round candidate_commit, started_at and completed_at and one artifact_ref per failure; a failed decision needs at least one product failure_kind for this MT in that test_run; lifecycle.invalidated_by_commit records the round candidate whose diff intersected proof.relevant_input_paths and returned a passed MT to ready_for_validation. Every proof run uses the HBR test_entrypoint command and config only (CX-VAL-007).",
     "Retry routes and counters: a released claim clears lifecycle.claim_ref (phase ready); a blocked verdict with blocker kind dependency sets blocked_on_mt_ref and lifecycle.blocked_on (CX-STATUS-002); attempt_budget.max_fix_rounds_per_mt failed verdicts, then a fix_budget_exhausted blocker and an Operator decision before a new claim (CX-EXEC-015). submissions[].final_status is the implementer's status, never a verdict.",
-    "The closure-loop fields (remediation, diagnosis, diagnosis_ref, test_run binding, invalidated_by_commit) are checked by agents by hand until Handshake exists."
+    "The closure-loop fields (remediation, diagnosis, diagnosis_ref, test_run binding, invalidated_by_commit) are checked by agents by hand until Handshake exists.",
+    "Every product MT resolves nonempty module_maintenance_refs and one module_change_stage. Keep source changes and host adoption in distinct MTs, preserving original acceptance in explicit stage-specific fields. Author task-specific inputs, steps, outputs and proof instead of generic policy boilerplate; add no new check suite."
   ],
   "instance_policy": {
     "omit_empty_optional_fields": true,
@@ -54,7 +55,12 @@
     "CX-EXEC-015",
     "CX-VAL-010",
     "CX-STATUS-002",
-    "CX-STATUS-003"
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
   ],
   "_rule_refs_replaces": [
     "contract_authority",
@@ -101,7 +107,8 @@
     "inspection_route_refs": [],
     "account_bound_resource_refs": [],
     "consumed_capability_refs": [],
-    "context_digest": null
+    "context_digest": null,
+    "module_maintenance_refs": []
   },
   "closure_unit": {
     "outcome": "REPLACE_ME",
@@ -187,7 +194,26 @@
       "flags": null,
       "reference_runner": null
     },
-    "git_rules": []
+    "git_rules": [],
+    "module_change_stage": "standalone_source",
+    "_module_change_stage_enum": [
+      "standalone_source",
+      "host_adoption"
+    ],
+    "source_adoption": {
+      "source_mt_refs": [],
+      "canonical_repository_url": "REPLACE_ME",
+      "source_subdirectory": "REPLACE_ME",
+      "source_revision": "REPLACE_ME",
+      "release_artifact_refs": [],
+      "dependency_lock_ref": "REPLACE_ME",
+      "remote_verification_ref": "REPLACE_ME",
+      "standalone_proof_refs": [],
+      "embedding_adapter_ref": "REPLACE_ME",
+      "compatibility_proof_refs": [],
+      "rollback_ref": "REPLACE_ME"
+    },
+    "_source_adoption_note": "Required only for host_adoption; omit for standalone_source. Source MT refs also occur in execution.depends_on. Actual remote revision and source proof must be independently resolved before host writes; planned references are not execution evidence. Use immutable source revision and release/dependency pins."
   },
   "proof": {
     "parent_proof_refs": [],
