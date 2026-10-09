@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-STUDIO",
   "mt_id": "MT-033",
   "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-10-09T22:38:59.139Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-033.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-033.md",
@@ -265,7 +265,7 @@
     "title": "Geometric marquee + lasso family (freehand / polygonal / magnetic) [STU-RAS-018]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 2
+    "contract_revision": 3
   },
   "parent": {
     "wp_contract_revision": null,
@@ -1498,10 +1498,13 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "10c2f73be3a8eda5ab4e92db37ccf53f73f53965709b99cda6b5f2b901efaeaf"
+    "context_digest": null,
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"
+    ]
   },
   "closure_unit": {
-    "outcome": "Deliver STUDIO-MODULE-PIGMENT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
+    "outcome": "STUDIO-MODULE-PIGMENT standalone contribution: Geometric/freehand/polygon/magnetic coverage proposal and on-canvas primitive descriptors",
     "requirement_refs": [
       "STU-RAS-018"
     ],
@@ -1582,7 +1585,7 @@
       "MT-35561",
       "MT-35562",
       "MT-35563",
-      "MT-032-ASSET-PIGMENT"
+      "MT-032"
     ],
     "start_precondition": {
       "dispatch_allowed": false,
@@ -1651,7 +1654,7 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "scope": "Current STUDIO-MODULE-PIGMENT asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
+        "scope": "Document pixel geometry, rect/ellipse/row/column tool,typed fixed size/ratio,center/proportion modifiers,lasso point sequence,magnetic width pixels/contrast/frequency and revision",
         "fulfillment_ref": "MT-033#/fulfillment",
         "module_catalog_ref": "STUDIO-MODULE-PIGMENT",
         "immutable_input_and_revision_required": true
@@ -1660,25 +1663,25 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "handshake-studio-assets/crates/hsk-studio-pigment/src/geometric_lasso.rs: Rasterize geometric coverage with1pixel row/column rule; center/constraint applied before coverage. Close freehand or straight polygon contour through Nib port; magnetic lasso follows bounded edge cost corridor controlled by width/contrast/sample frequency and outputs same SelectionSet"
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "handshake-studio-assets/crates/hsk-studio-pigment/src/geometric_lasso.rs: Consume Document pixel geometry, rect/ellipse/row/column tool,typed fixed size/ratio,center/proportion modifiers,lasso point sequence,magnetic width pixels/contrast/frequency and revision; emit Geometric/freehand/polygon/magnetic coverage proposal and on-canvas primitive descriptors through the published STUDIO-MODULE-PIGMENT port. Consume genuine companion MT outputs; only this owner writes."
       },
       {
         "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
+        "step": "handshake-studio-assets/crates/hsk-studio-pigment/tests/geometric_lasso.rs: one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path Independent observation: Independent analytic areas and1pixel counts; synthetic known edge plus original-produced lasso result compared with source hash"
       },
       {
         "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "handshake-studio-assets/crates/hsk-studio-pigment/tests/geometric_lasso.rs: Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range"
       }
     ],
     "expected_outputs": [
-      "Owned real capability and failure path",
-      "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      "Geometric/freehand/polygon/magnetic coverage proposal and on-canvas primitive descriptors",
+      "Planned source handshake-studio-assets/crates/hsk-studio-pigment/src/geometric_lasso.rs and natural proof handshake-studio-assets/crates/hsk-studio-pigment/tests/geometric_lasso.rs; one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path",
+      "Failure/recovery: Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range"
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1716,7 +1719,7 @@
         "original_edge_retained": true,
         "kind": "asset_capability",
         "required_capability_refs": [
-          "MT-032-ASSET-PIGMENT"
+          "MT-032"
         ],
         "semantic_requirement_ref": "MT-032#/fulfillment/legacy_acceptance_map",
         "full_functional_scope_ref": "MT-032#/preserved_original/payload/scope",
@@ -1737,7 +1740,8 @@
       "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
       "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/5",
       "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
-    }
+    },
+    "module_change_stage": "standalone_source"
   },
   "proof": {
     "parent_proof_refs": [],
@@ -1748,9 +1752,9 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": null,
-        "expected": "Marquee (rect/ellipse/1px row+col)",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/geometric_lasso.rs public consumer via bound module test selector: one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path; Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range. Retain original AC-001: Marquee (rect/ellipse/1px row+col). Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "Geometric/freehand/polygon/magnetic coverage proposal and on-canvas primitive descriptors Successful case: one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path Failed/recovered case: Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1758,15 +1762,15 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Marquee (rect/ellipse/1px row+col)",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/geometric_lasso.rs",
+          "scenario": "one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path",
+          "negative_path": "Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+          "independent_oracle": "Independent analytic areas and1pixel counts; synthetic known edge plus original-produced lasso result compared with source hash",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1779,9 +1783,9 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": null,
-        "expected": "Freehand/polygonal/magnetic lasso all produce StudioSelectionSet",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/geometric_lasso.rs public consumer via bound module test selector: one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path; Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range. Retain original AC-002: Freehand/polygonal/magnetic lasso all produce StudioSelectionSet. Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "Geometric/freehand/polygon/magnetic coverage proposal and on-canvas primitive descriptors Successful case: one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path Failed/recovered case: Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1789,15 +1793,15 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Freehand/polygonal/magnetic lasso all produce StudioSelectionSet",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/geometric_lasso.rs",
+          "scenario": "one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path",
+          "negative_path": "Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+          "independent_oracle": "Independent analytic areas and1pixel counts; synthetic known edge plus original-produced lasso result compared with source hash",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1810,9 +1814,9 @@
         "claim_refs": [
           "AC-003"
         ],
-        "command_or_method": null,
-        "expected": "Constraints/modifiers",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/geometric_lasso.rs public consumer via bound module test selector: one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path; Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range. Retain original AC-003: Constraints/modifiers. Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "Geometric/freehand/polygon/magnetic coverage proposal and on-canvas primitive descriptors Successful case: one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path Failed/recovered case: Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1820,15 +1824,15 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Constraints/modifiers",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/geometric_lasso.rs",
+          "scenario": "one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path",
+          "negative_path": "Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+          "independent_oracle": "Independent analytic areas and1pixel counts; synthetic known edge plus original-produced lasso result compared with source hash",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1841,9 +1845,9 @@
         "claim_refs": [
           "AC-004"
         ],
-        "command_or_method": null,
-        "expected": "Magnetic controls proven",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/geometric_lasso.rs public consumer via bound module test selector: one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path; Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range. Retain original AC-004: Magnetic controls proven. Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "Geometric/freehand/polygon/magnetic coverage proposal and on-canvas primitive descriptors Successful case: one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path Failed/recovered case: Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1851,28 +1855,51 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Magnetic controls proven",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/geometric_lasso.rs",
+          "scenario": "one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path",
+          "negative_path": "Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+          "independent_oracle": "Independent analytic areas and1pixel counts; synthetic known edge plus original-produced lasso result compared with source hash",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-033-COMPILE",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-004"
+        ],
+        "command_or_method": "cargo check --locked --tests -p hsk-studio-pigment --no-default-features; inspect manifest/lock/API closure for declared accord, prism, observe dependencies; exclude kernel/native/database and unrelated providers",
+        "expected": "handshake-studio-assets/crates/hsk-studio-pigment/src/geometric_lasso.rs and handshake-studio-assets/crates/hsk-studio-pigment/tests/geometric_lasso.rs compile through selected owner closure; no copied cross-owner capability",
+        "timeout_seconds": 120,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate/source/lock/toolchain digest",
+          "Unchanged input digest across implementer check"
+        ],
+        "materialization_status": "PLANNED_NOT_EXECUTED"
       }
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-pigment/**"
+      "handshake-studio-assets/crates/hsk-studio-pigment/src/geometric_lasso.rs",
+      "handshake-studio-assets/crates/hsk-studio-pigment/tests/geometric_lasso.rs",
+      "handshake-studio-assets/crates/hsk-studio-pigment/Cargo.toml",
+      "handshake-studio-assets/Cargo.lock",
+      "handshake-studio-assets/rust-toolchain.toml"
     ],
     "extra_build_proofs": [],
-    "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
+    "proof_materialization_status": "PLANNED_NOT_RUN_NON_EXECUTION"
   },
   "activation": {
     "disposition": "NON_AI_CURRENT_SCOPE",
@@ -2296,7 +2323,7 @@
         "semantic_fulfillment": "Marquee (rect/ellipse/1px row+col)",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-033-ASSET-PIGMENT"
+          "MT-033"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2311,15 +2338,18 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Marquee (rect/ellipse/1px row+col)",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path",
+          "negative_path": "Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+          "oracle": "Independent analytic areas and1pixel counts; synthetic known edge plus original-produced lasso result compared with source hash"
         },
-        "later_embedding_ref": "MT-033-KERNEL-AC-001",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Marquee (rect/ellipse/1px row+col) Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-002",
@@ -2330,7 +2360,7 @@
         "semantic_fulfillment": "Freehand/polygonal/magnetic lasso all produce StudioSelectionSet",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-033-ASSET-PIGMENT"
+          "MT-033"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2345,15 +2375,18 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Freehand/polygonal/magnetic lasso all produce StudioSelectionSet",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path",
+          "negative_path": "Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+          "oracle": "Independent analytic areas and1pixel counts; synthetic known edge plus original-produced lasso result compared with source hash"
         },
-        "later_embedding_ref": "MT-033-KERNEL-AC-002",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Freehand/polygonal/magnetic lasso all produce StudioSelectionSet Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-003",
@@ -2364,7 +2397,7 @@
         "semantic_fulfillment": "Constraints/modifiers",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-033-ASSET-PIGMENT"
+          "MT-033"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2379,15 +2412,18 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Constraints/modifiers",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path",
+          "negative_path": "Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+          "oracle": "Independent analytic areas and1pixel counts; synthetic known edge plus original-produced lasso result compared with source hash"
         },
-        "later_embedding_ref": "MT-033-KERNEL-AC-003",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Constraints/modifiers Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-004",
@@ -2398,7 +2434,7 @@
         "semantic_fulfillment": "Magnetic controls proven",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-033-ASSET-PIGMENT"
+          "MT-033"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2413,25 +2449,25 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Magnetic controls proven",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path",
+          "negative_path": "Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+          "oracle": "Independent analytic areas and1pixel counts; synthetic known edge plus original-produced lasso result compared with source hash"
         },
-        "later_embedding_ref": "MT-033-KERNEL-AC-004",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Magnetic controls proven Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       }
     ],
     "later_kernel": {
       "phase": "SEPARATE_LATER_EMBEDDING",
       "status": "PENDING",
       "all_original_acceptance_refs": [
-        "MT-033-KERNEL-AC-001",
-        "MT-033-KERNEL-AC-002",
-        "MT-033-KERNEL-AC-003",
-        "MT-033-KERNEL-AC-004"
+        "MT-36194#/source_acceptance_coverage"
       ],
       "original_acceptance": [
         {
@@ -2524,7 +2560,7 @@
           "semantic_fulfillment": "Marquee (rect/ellipse/1px row+col)",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-033-ASSET-PIGMENT"
+            "MT-033"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2539,15 +2575,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Marquee (rect/ellipse/1px row+col)",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path",
+            "negative_path": "Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+            "oracle": "Independent analytic areas and1pixel counts; synthetic known edge plus original-produced lasso result compared with source hash"
           },
-          "later_embedding_ref": "MT-033-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Marquee (rect/ellipse/1px row+col) Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-002",
@@ -2558,7 +2597,7 @@
           "semantic_fulfillment": "Freehand/polygonal/magnetic lasso all produce StudioSelectionSet",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-033-ASSET-PIGMENT"
+            "MT-033"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2573,15 +2612,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Freehand/polygonal/magnetic lasso all produce StudioSelectionSet",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path",
+            "negative_path": "Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+            "oracle": "Independent analytic areas and1pixel counts; synthetic known edge plus original-produced lasso result compared with source hash"
           },
-          "later_embedding_ref": "MT-033-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Freehand/polygonal/magnetic lasso all produce StudioSelectionSet Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-003",
@@ -2592,7 +2634,7 @@
           "semantic_fulfillment": "Constraints/modifiers",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-033-ASSET-PIGMENT"
+            "MT-033"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2607,15 +2649,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Constraints/modifiers",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path",
+            "negative_path": "Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+            "oracle": "Independent analytic areas and1pixel counts; synthetic known edge plus original-produced lasso result compared with source hash"
           },
-          "later_embedding_ref": "MT-033-KERNEL-AC-003",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Constraints/modifiers Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-004",
@@ -2626,7 +2671,7 @@
           "semantic_fulfillment": "Magnetic controls proven",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-033-ASSET-PIGMENT"
+            "MT-033"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2641,15 +2686,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Magnetic controls proven",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "one_pixel_row_column_exact; constrained_center_rect_ellipse; freehand_polygon_closure; magnetic_edge_control_changes_path",
+            "negative_path": "Nonfinite/degenerate points, unavailable edge source, cancel or stale sample cannot replace selection; unknown hard/soft bounds never inferred from observed control range",
+            "oracle": "Independent analytic areas and1pixel counts; synthetic known edge plus original-produced lasso result compared with source hash"
           },
-          "later_embedding_ref": "MT-033-KERNEL-AC-004",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Magnetic controls proven Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         }
       ]
     },
@@ -2661,5 +2709,44 @@
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
-  }
+  },
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-GIT-002",
+    "CX-VAL-002",
+    "CX-VAL-003",
+    "CX-VAL-004",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-VAL-005",
+    "CX-VAL-006",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-GP-001",
+    "CX-GP-002",
+    "CX-EXEC-015",
+    "CX-VAL-010",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
+  ]
 }

@@ -1,0 +1,833 @@
+{
+  "schema_id": "hsk.studio_modular_authoring_preparation_report@1",
+  "file_id": "STUDIO-MODULAR-SHARED-PREPARATION-20261009",
+  "file_kind": "typed_preparation_report",
+  "updated_at": "2026-10-09",
+  "authority": "REFERENCE_PROPOSALS_ONLY_NOT_TEMPLATE_OR_EXECUTION_AUTHORITY",
+  "status": "FOUNDATION_AUTHORING_CHECKPOINT_FEATURES_IN_PROGRESS",
+  "authoring_checkpoint": {
+    "authority_commit": "a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89",
+    "status": "FOUNDATION_CHECKPOINT_FEATURE_AND_SPLIT_AUTHORING_CONTINUES",
+    "files": [
+      {
+        "id": "MT-35528",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json",
+        "revision": 3,
+        "sha256": "02337521a617ec8316d921b7d979cd403a49e0757aca3d419ed74529c3e42e99",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json",
+        "prior_git_blob_oid": "8687b5139b6d6ea7ecfe19f7df36665b245fb693"
+      },
+      {
+        "id": "MT-35529",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35529.json",
+        "revision": 3,
+        "sha256": "9c04048dc827555887d0e8754988f1c2f22f57d689a3747fbe4d4c91cc644100",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35529.json",
+        "prior_git_blob_oid": "54a0147debe785d26520236e724d9f0ba10b0f79"
+      },
+      {
+        "id": "MT-35530",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json",
+        "revision": 3,
+        "sha256": "dbccbe75ebabc15039c9b9bc0b12b218d612bcfdaad2cbeb7ff6350f15e7b544",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json",
+        "prior_git_blob_oid": "54e1033380ec02831021476d0d9208ebe08907d0"
+      },
+      {
+        "id": "MT-35531",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35531.json",
+        "revision": 3,
+        "sha256": "b95b63913f766f7549c5e8fdc6545db4cfd35b923ea4f0b136e029f13bbd5b02",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35531.json",
+        "prior_git_blob_oid": "c39bd31c78681c75e5ab42d4a1ee53ae6c77558b"
+      },
+      {
+        "id": "MT-35532",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35532.json",
+        "revision": 3,
+        "sha256": "46e6fca55e0ba8032900fc2c97dec37d1edaaf474d271acd62fb1c44e96b84cf",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35532.json",
+        "prior_git_blob_oid": "a2fc09461a1269f1a4e200de9896c1cc9e498ba8"
+      },
+      {
+        "id": "MT-35533",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35533.json",
+        "revision": 3,
+        "sha256": "fb3c74b0a1fdb78c3a6a2c842b3bf37a7e4dcabccb473dd36929f21f26730c1c",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35533.json",
+        "prior_git_blob_oid": "68d758fd1916f206edf1b6aaebb1e7ba38a99068"
+      },
+      {
+        "id": "MT-35536",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35536.json",
+        "revision": 3,
+        "sha256": "af31e350353352d284c72877534a1f82250015354be7c11d8b85128c665c2fb3",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35536.json",
+        "prior_git_blob_oid": "faa254e7fcdd3a88ee1c682fa23c217adef392a4"
+      },
+      {
+        "id": "MT-35547",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35547.json",
+        "revision": 3,
+        "sha256": "f830ba4d7f243f87adfaff5894788011d9b92d84c725ab61ebd83950c67069af",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35547.json",
+        "prior_git_blob_oid": "3889f068feb8f3b1b3ede599fe1d71512f15d911"
+      },
+      {
+        "id": "MT-35554",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35554.json",
+        "revision": 3,
+        "sha256": "ebaccdc650fb42b395906bd04b2a7844606c6fc44280f46c7eb2ba17e137fda4",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35554.json",
+        "prior_git_blob_oid": "ec631aca4658834aec7492421a2341e3843d0175"
+      },
+      {
+        "id": "MT-35555",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35555.json",
+        "revision": 3,
+        "sha256": "16ea9f91bde1337db26c59efaaf474c9170fc0ae2b60911c06a03c25fc42fac3",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35555.json",
+        "prior_git_blob_oid": "58c03848f6381db4c4f85934e52957c7862e9b6d"
+      },
+      {
+        "id": "MT-35556",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35556.json",
+        "revision": 3,
+        "sha256": "79f36cf6bd6d33ca1a6317a6e641eceacad9516ed9403ccfca314a692c9f1d4b",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35556.json",
+        "prior_git_blob_oid": "3cf12e22ab1e64a25daac18d1e588bd64522c5df"
+      }
+    ],
+    "inspected_preserved": [
+      "preserved_original",
+      "acceptance_criteria",
+      "lifecycle"
+    ],
+    "runtime_executed": false,
+    "dispatch": false,
+    "gameplan_check": "kernel_builder before_submit PASS1/1; GP020",
+    "remainder": "All assigned original feature/amendment MTs and347 nonControls splits; Controls agent owns747originals+24splits",
+    "current_hbr": "1.16.0;52assessments; original AC00445-rule text immutable; distinct host proof PENDING",
+    "additional_authored_ids": [
+      2,
+      30020,
+      30021,
+      30022,
+      30023,
+      34210,
+      35584,
+      11,
+      12,
+      33645,
+      33646,
+      33647,
+      33648,
+      33649,
+      33650,
+      33651,
+      33652,
+      35568,
+      35577,
+      35581,
+      35582
+    ],
+    "feature_files": [
+      {
+        "id": "MT-002",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-002.json",
+        "sha256": "083daf18c3fcf44119f11052396af0ea057c2bbc28aacd40268d02a873543c0a",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-002.json",
+        "prior_git_blob_oid": "4cd9eff1518ae2e9623204d6c8645d5f071ff6da"
+      },
+      {
+        "id": "MT-30020",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30020.json",
+        "sha256": "f9096284427a963178dda505d1d60eab8b4a5ebfe9284ca639e4de2fd1daa78b",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30020.json",
+        "prior_git_blob_oid": "4996a37b96f3d01e2b6be0eee89215f1693b3f25"
+      },
+      {
+        "id": "MT-30021",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30021.json",
+        "sha256": "a38586d33e4971aa521de473c446f2210ef7f88f504cf0d4ab139b90f6ab2ae5",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30021.json",
+        "prior_git_blob_oid": "ecb0ac27fef4baef6f294f62976e80f031658d6c"
+      },
+      {
+        "id": "MT-30022",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30022.json",
+        "sha256": "6270adef0aae107d6ee33ad14923889d998d34ff0ad4ce972f0d8810020dd486",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30022.json",
+        "prior_git_blob_oid": "92231c3ae7ce9db573501a8929160277c23fa247"
+      },
+      {
+        "id": "MT-30023",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30023.json",
+        "sha256": "cdf7b0571fe0b8742f176a5c5753019e28544d9698e56b61a606b8b83df83c9a",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-30023.json",
+        "prior_git_blob_oid": "48c03d54bd7c95fc7cd803d209530f75ffca8790"
+      },
+      {
+        "id": "MT-34210",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34210.json",
+        "sha256": "f2cbca01177c9ee4d1e7b4257c7889f2ed870a3614ca11f74ae13abc21f617f1",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-34210.json",
+        "prior_git_blob_oid": "9ecef6de3968857c86f198f3ae0f0bab48222d73"
+      },
+      {
+        "id": "MT-35584",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35584.json",
+        "sha256": "4f386c97615b528dc95094dd1022c7871c8b9ae970cce9727d96757c766dd793",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35584.json",
+        "prior_git_blob_oid": "2ba86303ba759d508dfc3d50e7774e5c386f9b44"
+      },
+      {
+        "id": "MT-011",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-011.json",
+        "sha256": "385ea880b42594cf234b503f051566f070d12534c854866fb04798c70ab12745",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-011.json",
+        "prior_git_blob_oid": "4013f4386341a7ef526ae28e35138b443bd57570"
+      },
+      {
+        "id": "MT-012",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-012.json",
+        "sha256": "50892ff7b6179ab90cf2df1375f89b505adf5ba2f7e1b27aa29f0bd3adbbd234",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-012.json",
+        "prior_git_blob_oid": "3cbb365082cbd280e6855c5dabc089a2cf9e2f66"
+      },
+      {
+        "id": "MT-33645",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33645.json",
+        "sha256": "86ba000c59f2d7b2468e79aed2a251ec131fc1b80887d16c592c9c7344761578",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-33645.json",
+        "prior_git_blob_oid": "078b1f2c480d6dc2d6b4645aa1d609fe2fa9d3a7"
+      },
+      {
+        "id": "MT-33646",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33646.json",
+        "sha256": "ba33cf720034d50343e054753e6c5ee1200bd68c5c0cb70242b4265370e90ecd",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-33646.json",
+        "prior_git_blob_oid": "46c53b85c67ad47d3f784a1848505f2d086b5660"
+      },
+      {
+        "id": "MT-33647",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33647.json",
+        "sha256": "a9633ec7fb93826c94452bb645e9592bacc6c7a4a331f6d0cfc7eae34a6b90ca",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-33647.json",
+        "prior_git_blob_oid": "e8149b09ac13d11a81fdc4099e1d5764281a8f9c"
+      },
+      {
+        "id": "MT-33648",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33648.json",
+        "sha256": "42b03cbb2049368ee357a6f7fe8328b46cae46651a5282e2bd075a33a5ea1a97",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-33648.json",
+        "prior_git_blob_oid": "c8273509b7c5ea9b03d1b7b867fd2c05ab09ff9c"
+      },
+      {
+        "id": "MT-33649",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33649.json",
+        "sha256": "3410857da6c910d0b7cab4a7fec2a70457889b4a30ee968ee024de05d48d8df2",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-33649.json",
+        "prior_git_blob_oid": "25c94a9d8c4614ba2be310beed68bf3fdc45d8d5"
+      },
+      {
+        "id": "MT-33650",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33650.json",
+        "sha256": "bbfd362616c0d98a6155ce9f2035960df7a300e7d3a02665524b451ea5fdb9bd",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-33650.json",
+        "prior_git_blob_oid": "d71ed765330fdf78f6c39f8480ef7382983681b8"
+      },
+      {
+        "id": "MT-33651",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33651.json",
+        "sha256": "c1dcde8265a2db94513e59c1225250e8194196e6d0cb91e364df60161e9b4d76",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-33651.json",
+        "prior_git_blob_oid": "7b0949f25a7c17da185fa79b93862925622fc18f"
+      },
+      {
+        "id": "MT-33652",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33652.json",
+        "sha256": "b2de2ffb77ffda8868dd98eb0c23bbe1b9a533e32d8e4471f016553d29807bcc",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-33652.json",
+        "prior_git_blob_oid": "3db29045c0d8c2268c36b290a3061be065c4d329"
+      },
+      {
+        "id": "MT-35568",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35568.json",
+        "sha256": "666add9ffb791e51986d1b035397ede16c33cc6e3c1bbcae762ee4eccc1aae16",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35568.json",
+        "prior_git_blob_oid": "73364e726fb0c096b1a1630dff71a5378cba365f"
+      },
+      {
+        "id": "MT-35577",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35577.json",
+        "sha256": "a49a35d735ec6403c6d45e2617f2b073086132264697cbd6c6b081c981d3e025",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35577.json",
+        "prior_git_blob_oid": "0930983437fa458dccf244c1d191e203d8c68f54"
+      },
+      {
+        "id": "MT-35581",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35581.json",
+        "sha256": "341976c0e5a05530b881d27bf556418d638276579589e97d1658b9f4463a1cb1",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35581.json",
+        "prior_git_blob_oid": "08962b264de00d08848ef18fe87618e2a7cf702c"
+      },
+      {
+        "id": "MT-35582",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35582.json",
+        "sha256": "3c33a934e27c8ae23dcea1b30b85213ea70dfdbff348f0cd7ce9ff146d8f313e",
+        "prior_contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35582.json",
+        "prior_git_blob_oid": "9b663ae293d99c374fbc806106bae6830e7b3a91"
+      }
+    ]
+  },
+  "baseline_commit_observed": "d8608d992d3653dc2aa356ae67c688c2f37bb505",
+  "scope": {
+    "handshake_product": "Read-only preparation for workspace, accord, observe, folio, chronicle, prism, type, package, controls, session, harness, kernel_bindings",
+    "repo_governance": "This assigned typed report only",
+    "role_authority": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md#KB-PREP-001..005; root clarified existing preparation permission, no new role",
+    "contract_changes": [],
+    "product_changes": [],
+    "builds_runtime_tests_process_control_git_mutations": "NONE",
+    "root_gameplan_changes": "NONE",
+    "readiness": "NOT_IMPLEMENTATION_READY",
+    "next_actor": "Root publishes renewed template/governance checkpoint and partition coordinator assigns exact MT files before any rewrite"
+  },
+  "authority_reads": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".GOV/codex/Handshake_Codex_v1.4.md",
+    ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+    ".GOV/spec/SPEC_CURRENT.md",
+    ".GOV/spec/master-spec-v02.207/INDEX.json",
+    ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md#STU-ARC-007..022,STU-CON-008,STU-IO-187..190,STU-TYP-008,STU-COL-006,STU-HIS-001,STU-PAR-001,STU-QUIET-005",
+    ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
+    ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
+    ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+    ".GOV/docs_repo/studio-collaboration-2026-10-09/source-cache-manifest.json"
+  ],
+  "inspection_limits": {
+    "all_mt_structures": "Primary-owner census reads every Studio MT JSON execution/proof/fulfillment structure; semantic body inspection is representative, not exhaustive approval",
+    "source": "Actual pinned upstream source ranges inspected; runtime and vendor parity NOT_RUN",
+    "host": "Read existing canonical asset worktree source only; source symbols do not prove live wiring",
+    "preservation": "No original or current MT changed; this report is not an independent full baseline preservation verdict",
+    "authority_mirror": "Diff shows only three Codex/Claude agent-name substitutions; no semantic rule drift observed",
+    "physical_roots": "Canonical sibling Handshake_Artifacts exists as ordinary directory; no outputs created. Concrete actor/session and resolved owner paths remain activation values"
+  },
+  "deficiencies": [
+    {
+      "id": "SHARED-PREP-D01",
+      "evidence": "MT-001#/execution/implementation_steps; primary-owner corpus census",
+      "finding": "All assigned primary owners currently use the same four implementation steps rather than task-specific algorithms, source ownership and consumer behavior",
+      "remediation": "Populate renewed canonical execution fields with ordered task-specific steps; do not merely restore boilerplate or fill nulls"
+    },
+    {
+      "id": "SHARED-PREP-D02",
+      "evidence": "MT-001#/proof/checks and MT-35529#/proof/checks",
+      "finding": "command_or_method and timeout_seconds are null; even compile/dependency closure rows are classified runtime",
+      "remediation": "Bind each AC to a natural compile/static or independent runtime method, exact selected closure and bounded per-test timeout before dispatch; create target during coding"
+    },
+    {
+      "id": "SHARED-PREP-D03",
+      "evidence": "MT-001#/fulfillment/legacy_acceptance_map; MT-35528#/proof/checks",
+      "finding": "Broad semantic summaries and current asset contribution placeholders do not define executable outputs; foundation AC002..005 remain generic",
+      "remediation": "Name observable outputs, input revision, consumer call and negative assertion for every row; preserve later host acceptance separately"
+    },
+    {
+      "id": "SHARED-PREP-D04",
+      "evidence": "MT-35531 HBR assessments label owned_gui true for a pure immutable Folio foundation",
+      "finding": "Module-level flags are not sufficient task-specific HBR applicability evidence",
+      "remediation": "Assess actual touched behavior per row and phase; pure schema work does not prove native GUI/swarm runtime. Retain applicable later embedding tests"
+    },
+    {
+      "id": "SHARED-PREP-D05",
+      "evidence": "packet.json#/reuse/consumed_capability_refs; module catalog contract_ports",
+      "finding": "Canonical ports are described generically; host wiring and concrete consumer signatures remain unresolved",
+      "remediation": "Bind exact published dependency contracts and owner symbols; distinguish portable descriptor publication from actual host adapters"
+    },
+    {
+      "id": "SHARED-PREP-D06",
+      "evidence": "STU-ARC-008,020; session foundation catalog",
+      "finding": "Budget, retry, cancellation and shutdown descriptors lack selected observable transition cases and numerical proof deadlines",
+      "remediation": "Use bounded injected ports and canonical authority receipt reconciliation; declare admission limits and cancellation/revision/lease-epoch outcomes per task"
+    }
+  ],
+  "source_research": [
+    {
+      "id": "SHARED-SRC-DOC",
+      "project": "designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "paths": [
+        "crates/doc/src/lib.rs:1-100"
+      ],
+      "observed": "Arc-shared data and copy-on-write document snapshots; local numeric IDs and embedded assets",
+      "reuse": "Snapshot isolation pattern only; canonical prefixed IDs and CKC links stay Studio-owned",
+      "reject": "Copying per-suite document/embedded-asset authority"
+    },
+    {
+      "id": "SHARED-SRC-PHOTO-DAG",
+      "project": "photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "paths": [
+        "crates/doc/Cargo.toml"
+      ],
+      "observed": "Document crate directly depends on raster and color",
+      "reuse": "Inspect leaf geometry/data algorithms independently",
+      "reject": "Transplanting this dependency closure into pure Folio/Accord"
+    },
+    {
+      "id": "SHARED-SRC-ENGINE",
+      "project": "designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "paths": [
+        "crates/engine/Cargo.toml",
+        "crates/engine/src/lib.rs:1-125",
+        "crates/engine/src/lib.rs:389-430"
+      ],
+      "observed": "Shared Session::execute command path, local undo/redo arrays and broad engine dependency fanout",
+      "reuse": "One command semantics for UI/model/CLI; immutable before-state guarded transitions",
+      "reject": "Upstream session/history/command registry as parallel Handshake authority or all-engine facade"
+    },
+    {
+      "id": "SHARED-SRC-FORMAT",
+      "project": "designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "paths": [
+        "crates/format/src/lib.rs:1-120"
+      ],
+      "observed": "ZIP mimetype/document/meta/assets layout; buffered save, read_to_end, permissive optional meta parsing",
+      "reuse": "Typed manifest/container discrimination pattern",
+      "reject": "Unbounded archive entry read, permissive metadata handling and whole-container buffering as Studio storage policy"
+    },
+    {
+      "id": "SHARED-SRC-CMS",
+      "project": "designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "paths": [
+        "crates/color/src/cms/mod.rs:1-130"
+      ],
+      "observed": "Explicit Cms settings plus ICC intents and typed errors; process-wide active settings also present",
+      "reuse": "Explicit per-call profile/intent/error interface and isolated native Rust transform candidates",
+      "reject": "Process-wide mutable color defaults and approximate CMYK as full ICC/OCIO conformity proof"
+    },
+    {
+      "id": "SHARED-SRC-TYPE",
+      "project": "designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "paths": [
+        "crates/fonts/Cargo.toml",
+        "crates/fonts/src/lib.rs:1-95"
+      ],
+      "observed": "harfrust/skrifa/unicode-bidi/script stack; glyph cluster/advance/offset receipts; optional build-time craft-fonts input may be empty",
+      "reuse": "Pinned Rust shaping leaf candidates and immutable font-scoped glyph outputs",
+      "reject": "Optional font absence silently certifying CJK or synthetic-font fixtures proving real font behavior"
+    },
+    {
+      "id": "SHARED-SRC-CONTROLS",
+      "project": "designcraft",
+      "commit": "66c7ce7e96ec286a091878cc2541ee8369aa79d6",
+      "paths": [
+        "crates/ui-egui/src/widgets.rs:1-115",
+        "crates/ui-egui/src/widgets.rs:136-200"
+      ],
+      "observed": "Stable control IDs, typed unit/number modes, bounds/spinner configuration; parser strips disallowed characters and returns Option",
+      "reuse": "Configuration-driven single shared numeric mechanic after canonical owner search",
+      "reject": "Permissive character stripping and silent clamp for invalid or hard-bound input; per-suite clones"
+    }
+  ],
+  "shared_contract_proposals": {
+    "destination": "Existing renewed typed MT execution/context/proof/fulfillment fields only after root publishes their shape",
+    "descriptors": "One owned command/control schema supplies model, AccessKit, UserManual and Argus descriptors; no independently maintained manual or UI command semantics",
+    "diagnostics": "Observe emits allowlisted correlation/state/error counters through ports. Flight Recorder business events, internal_diagnostics and Palmistry are distinct host owners; phase-one adapters do not establish three-tier production wiring",
+    "visual_receipt": "Bind command/actor, proposed or committed revision, renderer/version, region/frame, profile, original/proxy resolution and fresh resource grant; stale capture or skipped provider is NOT_PROVEN",
+    "actor": "Portable attribution fields now; actual authenticated principal, agent_label/client_session_id adapter and session claim at activation, never invented local identities",
+    "closure": "No default all-domain facade; explicitly select only dependency-closed packages/providers. Pure shared crates exclude handshake_core, native shell, DB, GPU/codec/device/JS engines",
+    "proof_roles": "Implementer compile/static only; independent validator executes runtime/GUI/production boundaries. No preparation run or generated template is a runtime verdict",
+    "provider_selection": "Empty optional feature set proposed for pure foundations; Controls selects headless egui mechanic with inspected host egui0.33 family, no eframe/native device. Type/Prism use explicit Rust leaf provider pins after dependency/license/source review",
+    "timeout_policy": "Values below are proposed per-test deadlines, not measured host facts; selected runner/config binds them before dispatch and does not abort remaining tests on individual failures",
+    "runtime_bindings": [
+      "actual existing product branch/worktree",
+      "governed actor/session owner",
+      "resolved absolute CX-984 root and disjoint owner directory",
+      "declared host profile/test entrypoint",
+      "candidate SHA/tree and relevant input closure"
+    ]
+  },
+  "representative_authored_field_proposals": [
+    {
+      "module": "workspace",
+      "foundation_mt": "MT-35528",
+      "representative_mts": [
+        "MT-001",
+        "MT-30010"
+      ],
+      "source_root": "handshake-studio-assets",
+      "anchors": [
+        "STU-ARC-009",
+        "STU-ARC-010",
+        "STU-ARC-016"
+      ],
+      "steps": [
+        "Author virtual workspace manifest, pinned toolchain and locked dependency selections without referencing absent host paths",
+        "Register materialized module manifests and reject duplicate package names or selected providers outside declared DAG",
+        "Inspect selected locked metadata closure and package provenance; correlate all36 foundation results without becoming a semantic owner"
+      ],
+      "consumer": "Cargo metadata/check selected manifests and independently inspect package graph; workspace coordination does not duplicate a domain runtime",
+      "negative": "Unknown package, duplicate member, absent optional host path or pure-leaf GPU dependency must fail selection/closure proof",
+      "proof": {
+        "compile_static": "Selected locked metadata/dependency inspection plus cargo check --locked --tests for only materialized selected packages; classify as compile/static",
+        "independent_runtime": "NONE for manifest-only rows; foundation barrier separately consumes every module runtime verdict",
+        "per_test_timeout_seconds": 30
+      },
+      "preserved_acceptance": "MT001 all original trait/compile/kernel boundary rows remain mapped; do not recreate studio-engine mega crate"
+    },
+    {
+      "module": "accord",
+      "foundation_mt": "MT-35529",
+      "representative_mts": [
+        "MT-33667",
+        "MT-33668"
+      ],
+      "source_root": "handshake-studio-assets/crates/hsk-studio-accord",
+      "anchors": [
+        "STU-CON-008",
+        "STU-ARC-007"
+      ],
+      "steps": [
+        "Bind canonical prefixed IDs/schema constants, field types, units and checked tick normalization to exact current spec rows",
+        "Implement finite/unit/range validation and versioned typed success/loss/cancel results without provider handles",
+        "Publish portable capability/input/output descriptors consumed by Folio and one dependency-local external consumer"
+      ],
+      "consumer": "Folio consumer parses canonical envelope and verifies normalized units/revision before graph construction",
+      "negative": "Invalid prefix, nonfinite geometry, checked tick overflow, unknown required version or canceled validation returns typed rejection without input mutation",
+      "proof": {
+        "compile_static": "Selected accord closure and public Send+Sync/schema checks",
+        "independent_runtime": "External consumer deserialize/validate/serialize cases compared to exact spec canonical values; overflow and unknown-version rejection",
+        "per_test_timeout_seconds": 30
+      },
+      "preserved_acceptance": "Schema-id and primitive semantics remain canonical; no generic UUID or widened stored tick replacement"
+    },
+    {
+      "module": "observe",
+      "foundation_mt": "MT-35530",
+      "representative_mts": [
+        "MT-35572"
+      ],
+      "source_root": "handshake-studio-assets/crates/hsk-studio-observe",
+      "anchors": [
+        "STU-ARC-015",
+        "STU-ARC-018"
+      ],
+      "steps": [
+        "Define allowlisted correlation/progress/outcome payloads using Accord attribution and bounded delivery contract",
+        "Implement success/error/cancel emission to caller-owned sink with explicit saturation behavior and content redaction",
+        "Use a Session consumer to count terminal outcomes and preserve command/revision correlation across failure"
+      ],
+      "consumer": "Session operation drives real sink callbacks and external collector independently reads emitted bytes",
+      "negative": "Inject project-text secret, rejected sink, saturation and canceled work; no sensitive bytes escape and no success is reported for lost required delivery",
+      "proof": {
+        "compile_static": "observe+accord closure; schema allowlist inspection",
+        "independent_runtime": "Real consumer callback trace and independently decoded allowlisted output; rejection/cancel/redaction cases",
+        "per_test_timeout_seconds": 30
+      },
+      "preserved_acceptance": "Argus visual receipt and all three diagnostic tiers remain later host proof, not no-op sink acceptance"
+    },
+    {
+      "module": "folio",
+      "foundation_mt": "MT-35531",
+      "representative_mts": [
+        "MT-002",
+        "MT-30020",
+        "MT-30021"
+      ],
+      "source_root": "handshake-studio-assets/crates/hsk-studio-folio",
+      "anchors": [
+        "STU-DOC-001",
+        "STU-DOC-002",
+        "STU-ARC-017"
+      ],
+      "steps": [
+        "Author one canonical mixed StudioDocument graph and schema derives; reference Accord IDs/units and CKC links",
+        "Validate graph references/cycles/identity uniqueness and clone immutable snapshot without private asset/catalog authority",
+        "Apply a consumer-created changed node to a new snapshot and verify old graph remains byte-identical"
+      ],
+      "consumer": "Chronicle patch validation and Package snapshot serializer consume the published graph contract",
+      "negative": "Cycle, dangling link, duplicate ID or invalid unit rejects graph; canceled consumer retains original snapshot",
+      "proof": {
+        "compile_static": "folio+accord closure and schema constants/derives",
+        "independent_runtime": "Mixed graph known-field roundtrip and old/new snapshot isolation; independent reference/cycle checks",
+        "per_test_timeout_seconds": 30
+      },
+      "preserved_acceptance": "MT002 original38 primitive/schema requirements retained; current spec enrichment may add types without dropping original identities or host record acceptance"
+    },
+    {
+      "module": "chronicle",
+      "foundation_mt": "MT-35532",
+      "representative_mts": [
+        "MT-011",
+        "MT-012"
+      ],
+      "source_root": "handshake-studio-assets/crates/hsk-studio-chronicle",
+      "anchors": [
+        "STU-HIS-001",
+        "STU-ARC-020"
+      ],
+      "steps": [
+        "Validate typed patch read/write set and target revision against immutable Folio base",
+        "Produce changed snapshot, inverse and conflict result atomically; failure leaves original untouched",
+        "Expose proposal/inverse contracts to Session; durable commit, EventLedger replay and history query stay host-owned"
+      ],
+      "consumer": "Session submits valid patch then inverse using real Folio snapshots, with one competing stale patch",
+      "negative": "Stale revision, overlapping changed property, malformed reference and precommit cancel cannot partially mutate base; postcommit cancel cannot erase accepted edit",
+      "proof": {
+        "compile_static": "chronicle+accord+folio+observe closure",
+        "independent_runtime": "Apply/invert semantic equality, two-property concurrency and deterministic stale rejection",
+        "per_test_timeout_seconds": 30
+      },
+      "preserved_acceptance": "MT011 deep per-file undo, >=1redo, ledger replay, history-query and UI panel remain separate host/Controls obligations"
+    },
+    {
+      "module": "prism",
+      "foundation_mt": "MT-35533",
+      "representative_mts": [
+        "MT-019",
+        "MT-231",
+        "MT-232"
+      ],
+      "source_root": "handshake-studio-assets/crates/hsk-studio-prism",
+      "anchors": [
+        "STU-COL-006",
+        "STU-ARC-018"
+      ],
+      "steps": [
+        "Bind explicit profile bytes/hash, intent, bit depth and engine version to immutable transform request",
+        "Implement selected native-Rust transform leaf without process-wide mutable defaults; keep profile-version cache caller-scoped",
+        "Publish transform receipt and typed unsupported/cancel result for rendering/layout consumers"
+      ],
+      "consumer": "Dependency-local color buffer consumer performs nonidentity source-to-target transform with pinned profiles",
+      "negative": "Unsupported/malformed profile, nonfinite channel, wrong bit depth or canceled transform never silently yields identity success",
+      "proof": {
+        "compile_static": "prism+accord+observe and only selected Rust CMM leaf; no platform CMM/kernel/GPU",
+        "independent_runtime": "Nonidentity known-color/profile vectors compared with independently derived reference values and declared tolerance; separate softproof/gamut/OCIO feature targets",
+        "per_test_timeout_seconds": 60
+      },
+      "preserved_acceptance": "MT019 ICC/OCIO, soft-proof and correctness remain full scope; one foundation transform cannot pass these complete feature obligations"
+    },
+    {
+      "module": "type",
+      "foundation_mt": "MT-35536",
+      "representative_mts": [
+        "MT-018",
+        "MT-191",
+        "MT-192"
+      ],
+      "source_root": "handshake-studio-assets/crates/hsk-studio-type",
+      "anchors": [
+        "STU-TYP-008",
+        "STU-TYP-126"
+      ],
+      "steps": [
+        "Accept explicit immutable font bytes/hash, script/language/direction and text/style revision through bounded font resolver",
+        "Shape with selected pinned Rust leaf; retain clusters, glyph IDs, advances, offsets, fallback and font provenance",
+        "Publish glyph runs for layout/composite consumer and typed missing-font/unsupported/cancel outcomes"
+      ],
+      "consumer": "Dependency-local run consumer shapes real Latin/Arabic/CJK strings with explicitly available hashed fonts; does not scan host fonts implicitly",
+      "negative": "Missing font, corrupt font, invalid variation axis, resolver revocation or cancellation returns explicit loss/failure, not empty run PASS",
+      "proof": {
+        "compile_static": "type+accord+observe and selected Rust shaping stack, no platform engine or native shell",
+        "independent_runtime": "Real-font glyph/cluster/bidi expectations from independent pinned reference; ligature toggle, variable axes and two-run deterministic comparison",
+        "per_test_timeout_seconds": 60
+      },
+      "preserved_acceptance": "MT018 OpenType, variable fonts and no platform/subscription dependency retained; fixture coverage expands to current CJK/RTL requirements"
+    },
+    {
+      "module": "package",
+      "foundation_mt": "MT-35547",
+      "representative_mts": [
+        "MT-33368",
+        "MT-33370"
+      ],
+      "source_root": "handshake-studio-assets/crates/hsk-studio-package",
+      "anchors": [
+        "STU-IO-187",
+        "STU-IO-188",
+        "STU-IO-190"
+      ],
+      "steps": [
+        "Serialize known Folio graph and manifest canonically through bounded granted streaming artifact ports; unknown bytes remain provenance-bound quarantine",
+        "Validate completed temporary container before atomic replacement; retain last-good on every failed path",
+        "Implement explicit reopen/import/fork identity policies with complete known reference rewrite proposals, fresh grants and preservation versus sanitized reachability"
+      ],
+      "consumer": "Session saves/reopens an edited mixed graph through bounded in-memory provider; independent reader inspects saved/decompressed bytes",
+      "negative": "Duplicate entry/key, traversal, decompression limit, checksum failure, revoked link, same-ID different-content collision and failure before replacement preserve last-good; opaque required rewrites block promotion",
+      "proof": {
+        "compile_static": "package+accord+folio+observe and selected archive provider, no second CAS/catalog/DB",
+        "independent_runtime": "Twice-roundtrip edited container, full reachable payload inspection, limit/revocation/fault matrix and mode-specific identity mapping",
+        "per_test_timeout_seconds": 120
+      },
+      "preserved_acceptance": "Export recipes and per-format editable mappings remain owned feature proofs; archive/parser success cannot establish authority publication or native parity"
+    },
+    {
+      "module": "controls",
+      "foundation_mt": "MT-35553",
+      "representative_mts": [
+        "MT-009",
+        "MT-010",
+        "MT-31477"
+      ],
+      "source_root": "handshake-studio-assets/crates/hsk-studio-controls",
+      "anchors": [
+        "STU-ARC-014",
+        "STU-ARC-015"
+      ],
+      "steps": [
+        "Inspect existing lowest shared mechanic owner; configure/extend one typed numeric control instead of copying domain widgets",
+        "Bind unit, hard/soft bounds, increments, enabled/focus/view state and command descriptor; reject malformed input rather than silently stripping/clamping",
+        "Expose same descriptor to model, AccessKit, UserManual and Argus projection, with agent-local navigation independent of Operator focus"
+      ],
+      "consumer": "Headless egui0.33 context consumer drives typed numeric edits and inspects state/accessibility; no full native app or GPU creation",
+      "negative": "Invalid text, hard-bound violation, disabled action, stale target and two separate actor views preserve value/focus as required; visible soft-bound warning stays explicit",
+      "proof": {
+        "compile_static": "controls+accord+observe; selected host-family egui0.33 mechanic, no eframe/native shell/GPU mandatory dependency",
+        "independent_runtime": "Real configured control event/state/accessibility assertions and same-descriptor manual/model equality; native Argus/pixel verification retained later",
+        "per_test_timeout_seconds": 60
+      },
+      "preserved_acceptance": "MT009 pane, stable author_ids, unified native surface, quiet operation and UI snapshot remain host obligations; headless control does not pass native pane acceptance"
+    },
+    {
+      "module": "session",
+      "foundation_mt": "MT-35554",
+      "representative_mts": [
+        "MT-008",
+        "MT-013",
+        "MT-014"
+      ],
+      "source_root": "handshake-studio-assets/crates/hsk-studio-session",
+      "anchors": [
+        "STU-ARC-008",
+        "STU-ARC-020",
+        "STU-PAR-001"
+      ],
+      "steps": [
+        "Compose injected job/resource/grant/commit ports over one immutable document and explicit selected providers",
+        "Use bounded admission before work, release permits on all exits and avoid authority locks while waiting",
+        "Bind principal/resource/action/payload hash/revision idempotency; handle retry, stale lease epoch and commit outcome reconciliation",
+        "Close admission and drain/checkpoint accepted outcomes through reserved bounded completion path"
+      ],
+      "consumer": "Real single-document consumer admits one proposal, completes or cancels it, and submits authorized retry through scoped transient ports",
+      "negative": "Capacity1 overload, fresh grant revocation, same-key changed payload, stale worker completion, lost commit acknowledgement and postcommit cancel have distinct results; shutdown deadline is explicit",
+      "proof": {
+        "compile_static": "session+accord+folio+chronicle+package+observe; providers injected, no all-engine dependency",
+        "independent_runtime": "Capacity1 admission/cancel/retry/revision transition tests with independently read final snapshot/receipt; proposed cancel acknowledgement <=1s and shutdown drain <=2s under test clock",
+        "per_test_timeout_seconds": 60
+      },
+      "preserved_acceptance": "Host Job Runtime lease fairness, CRDT presence, real promotion/restart and quiet runtime remain later independent proof; transient ports do not create job authority"
+    },
+    {
+      "module": "harness",
+      "foundation_mt": "MT-35555",
+      "representative_mts": [
+        "MT-005",
+        "MT-007",
+        "MT-015"
+      ],
+      "source_root": "handshake-studio-assets/crates/hsk-studio-harness",
+      "anchors": [
+        "STU-ARC-016",
+        "STU-QUIET-005"
+      ],
+      "steps": [
+        "Compose only selected published foundation contracts and providers; expose headless document operation route and reusable UI asset route",
+        "Collect typed outcome/revision/diagnostic/manual descriptors from real consumer calls, never canned registry success",
+        "Capture actual selected render output when required, report unavailable renderer explicitly and keep native/real-GPU visual proof separately scheduled"
+      ],
+      "consumer": "Headless load->propose edit->validate->serialize/reopen workflow consumes Folio/Chronicle/Package/Session and Controls descriptor",
+      "negative": "Unknown provider, unavailable render, stale capture, canceled work and mismatched descriptor revision produce explicit NOT_PROVEN/failure; no foreground focus",
+      "proof": {
+        "compile_static": "harness+accord+folio+session+controls+observe closure only; no all-engine defaults",
+        "independent_runtime": "End-to-end selected capability output and independent artifact/state inspection plus no-context descriptor operation; pixel/Argus proof where target actually supports it",
+        "per_test_timeout_seconds": 120
+      },
+      "preserved_acceptance": "Validation descriptor, MCP/model surface and canonical UserManual remain complete feature/host obligations; harness is development consumer, not a separately shipped suite"
+    },
+    {
+      "module": "kernel_bindings",
+      "foundation_mt": "MT-35556",
+      "representative_mts": [
+        "MT-003",
+        "MT-004",
+        "MT-006"
+      ],
+      "source_root": "handshake-studio-assets/crates/hsk-studio-kernel-bindings",
+      "anchors": [
+        "STU-ARC-010",
+        "STU-CON-008",
+        "STU-ARC-020"
+      ],
+      "steps": [
+        "Publish host-neutral versioned grant/proposal/promotion/resource/diagnostic port envelopes without AppState/SurrealDB/native imports",
+        "Execute proposal->authorization->decision->receipt roundtrip through scoped transient adapter and reject absent/revoked grant",
+        "Fence stale revision/lease outcomes and distinguish outcome-unknown from rejected commit; preserve cancellation semantics",
+        "Describe exact later canonical consumer adapters without implementing or claiming their runtime wiring"
+      ],
+      "consumer": "Dependency-local executable adapter invokes Session proposal and independently reconciles typed transient receipt",
+      "negative": "Rejected/revoked grant, stale revision, duplicate key with changed payload, late completion and lost acknowledgement cannot impersonate durable authority",
+      "proof": {
+        "compile_static": "kernel_bindings+accord+folio+session+observe; no optional missing host path dependency",
+        "independent_runtime": "Real transient protocol success/rejection/cancel/diagnostic roundtrip and external receipt/state reconciliation; no storage PASS",
+        "per_test_timeout_seconds": 60
+      },
+      "preserved_acceptance": "MT003 EventLedger variants, MT004 SCHEMAFULL/SurrealKit and MT006 actual sandbox/PromotionGate remain separate phase2 acceptance"
+    }
+  ],
+  "interface_questions": [
+    {
+      "id": "SHARED-Q01",
+      "owner": "Root/template owner",
+      "question": "Which renewed canonical fields bind module-local natural proof, dependencies/providers and preservation plus host-phase coverage?",
+      "blocks": "All MT rewrites; report proposals do not invent contract shape"
+    },
+    {
+      "id": "SHARED-Q02",
+      "owner": "Partition coordinator",
+      "question": "Which exact MT files are assigned for writing when shared slices occur inside another team's primary-owner MT?",
+      "blocks": "Avoid concurrent edits; primary ownership and slice ownership are different"
+    },
+    {
+      "id": "SHARED-Q03",
+      "owner": "Workspace and provider authors",
+      "question": "Which exact pinned Rust text/CMM/archive versions and explicit feature sets are selected after transitive source/license review?",
+      "blocks": "Feature/provider-dependent dispatch; alternatives in upstream source are candidates, not adopted facts"
+    },
+    {
+      "id": "SHARED-Q04",
+      "owner": "Canonical Controls host owner",
+      "question": "Which existing mechanic symbols should shared Controls consume/configure/extend; which exact actor wire adapter binds agent_label to client_session_id?",
+      "blocks": "Control-mechanic authoring and phase2 native actor attribution; inspected egui0.33 family is not owner absence proof"
+    },
+    {
+      "id": "SHARED-Q05",
+      "owner": "Host integration author",
+      "question": "Which exact canonical Job Runtime, ResourceBroker, ArtifactService, CKC, PromotionGate and diagnostics port signatures are publishable to asset consumers?",
+      "blocks": "Dependent port semantics; no private catalog/job/event/DB authority permitted"
+    },
+    {
+      "id": "SHARED-Q06",
+      "owner": "Independent validator/activation owner",
+      "question": "Which declared test entrypoint materializes per-test deadlines and exact native/ARM/x64/real-GPU proof allocation?",
+      "blocks": "Runtime dispatch; physical host/session ownership stays activation data"
+    }
+  ],
+  "checkpoint": {
+    "deliverable": "Assigned preparation report with observed structural gaps, source evidence and representative concrete field proposals",
+    "mt_status_changes": 0,
+    "dispatch_authorized": false,
+    "runtime_or_parity_proven": false,
+    "pending_required_input": [
+      "Exact published renewed-template/governance checkpoint",
+      "Exact file ownership allocation"
+    ],
+    "next_step": "Return this checkpoint for root retrieval; do not poll or rewrite MTs until those inputs arrive"
+  }
+}

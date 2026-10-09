@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-STUDIO",
   "mt_id": "MT-029",
   "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-10-09T22:38:41.522Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-029.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-029.md",
@@ -260,7 +260,7 @@
     "title": "placed_asset transforms/convert-to-layers/export-contents/statistical stack/package [STU-RAS-014]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 2
+    "contract_revision": 3
   },
   "parent": {
     "wp_contract_revision": null,
@@ -1493,10 +1493,13 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "f8d303a871f1224b0591fa47754b5ddb53edc16afdeaa6a90c766cd449b7f885"
+    "context_digest": null,
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"
+    ]
   },
   "closure_unit": {
-    "outcome": "Deliver STUDIO-MODULE-PIGMENT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
+    "outcome": "STUDIO-MODULE-PIGMENT standalone contribution: Non-destructive matrix/unpack proposal and statistical tile outputs; original-format export/package requests through companion ports",
     "requirement_refs": [
       "STU-RAS-014"
     ],
@@ -1571,20 +1574,20 @@
       "MT-35561",
       "MT-35562",
       "MT-35563",
-      "MT-002-ASSET-FOLIO",
-      "MT-002-ASSET-ACCORD",
-      "MT-006-ASSET-KERNEL_BINDINGS",
-      "MT-006-ASSET-CHRONICLE",
-      "MT-006-ASSET-ACCORD",
-      "MT-017-ASSET-COMPOSITE",
-      "MT-017-ASSET-PIGMENT",
-      "MT-017-ASSET-ACCORD",
-      "MT-017-ASSET-FOLIO",
-      "MT-017-ASSET-KERNEL_BINDINGS",
-      "MT-017-ASSET-MOTION",
-      "MT-017-ASSET-RENDER_GPU",
-      "MT-017-ASSET-RENDER_CPU",
-      "MT-027-ASSET-PIGMENT"
+      "MT-002",
+      "MT-35628",
+      "MT-006",
+      "MT-35637",
+      "MT-35638",
+      "MT-017",
+      "MT-35650",
+      "MT-35651",
+      "MT-35652",
+      "MT-35653",
+      "MT-35654",
+      "MT-35655",
+      "MT-35656",
+      "MT-027"
     ],
     "start_precondition": {
       "dispatch_allowed": false,
@@ -1653,7 +1656,7 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "scope": "Current STUDIO-MODULE-PIGMENT asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
+        "scope": "Placed source/container graph, accumulated transform matrix/reset command, native original bytes/format, statistical mode and selected stack sample grids, export/package grants and revision",
         "fulfillment_ref": "MT-029#/fulfillment",
         "module_catalog_ref": "STUDIO-MODULE-PIGMENT",
         "immutable_input_and_revision_required": true
@@ -1662,25 +1665,25 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "handshake-studio-assets/crates/hsk-studio-pigment/src/placed_operations.rs: Keep accumulated matrix separate from original source; reset to identity, unpack references in place via Folio proposal. Stream per-pixel mean/median/maximum/range reductions over bounded selected samples; delegate original-format export to interop and relocatable collection to Package companion tasks"
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "handshake-studio-assets/crates/hsk-studio-pigment/src/placed_operations.rs: Consume Placed source/container graph, accumulated transform matrix/reset command, native original bytes/format, statistical mode and selected stack sample grids, export/package grants and revision; emit Non-destructive matrix/unpack proposal and statistical tile outputs; original-format export/package requests through companion ports through the published STUDIO-MODULE-PIGMENT port. Consume genuine companion MT outputs; only this owner writes."
       },
       {
         "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
+        "step": "handshake-studio-assets/crates/hsk-studio-pigment/tests/placed_operations.rs: reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection Independent observation: Independent source hash/graph reread; analytic tiny stack values; independent native file reopen and relocated package census"
       },
       {
         "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "handshake-studio-assets/crates/hsk-studio-pigment/tests/placed_operations.rs: Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy"
       }
     ],
     "expected_outputs": [
-      "Owned real capability and failure path",
-      "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      "Non-destructive matrix/unpack proposal and statistical tile outputs; original-format export/package requests through companion ports",
+      "Planned source handshake-studio-assets/crates/hsk-studio-pigment/src/placed_operations.rs and natural proof handshake-studio-assets/crates/hsk-studio-pigment/tests/placed_operations.rs; reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection",
+      "Failure/recovery: Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy"
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1718,8 +1721,8 @@
         "original_edge_retained": true,
         "kind": "asset_capability",
         "required_capability_refs": [
-          "MT-002-ASSET-FOLIO",
-          "MT-002-ASSET-ACCORD"
+          "MT-002",
+          "MT-35628"
         ],
         "semantic_requirement_ref": "MT-002#/fulfillment/legacy_acceptance_map",
         "full_functional_scope_ref": "MT-002#/preserved_original/payload/scope",
@@ -1734,9 +1737,9 @@
         "original_edge_retained": true,
         "kind": "asset_capability",
         "required_capability_refs": [
-          "MT-006-ASSET-KERNEL_BINDINGS",
-          "MT-006-ASSET-CHRONICLE",
-          "MT-006-ASSET-ACCORD"
+          "MT-006",
+          "MT-35637",
+          "MT-35638"
         ],
         "semantic_requirement_ref": "MT-006#/fulfillment/legacy_acceptance_map",
         "full_functional_scope_ref": "MT-006#/preserved_original/payload/scope",
@@ -1751,14 +1754,14 @@
         "original_edge_retained": true,
         "kind": "asset_capability",
         "required_capability_refs": [
-          "MT-017-ASSET-COMPOSITE",
-          "MT-017-ASSET-PIGMENT",
-          "MT-017-ASSET-ACCORD",
-          "MT-017-ASSET-FOLIO",
-          "MT-017-ASSET-KERNEL_BINDINGS",
-          "MT-017-ASSET-MOTION",
-          "MT-017-ASSET-RENDER_GPU",
-          "MT-017-ASSET-RENDER_CPU"
+          "MT-017",
+          "MT-35650",
+          "MT-35651",
+          "MT-35652",
+          "MT-35653",
+          "MT-35654",
+          "MT-35655",
+          "MT-35656"
         ],
         "semantic_requirement_ref": "MT-017#/fulfillment/legacy_acceptance_map",
         "full_functional_scope_ref": "MT-017#/preserved_original/payload/scope",
@@ -1773,7 +1776,7 @@
         "original_edge_retained": true,
         "kind": "asset_capability",
         "required_capability_refs": [
-          "MT-027-ASSET-PIGMENT"
+          "MT-027"
         ],
         "semantic_requirement_ref": "MT-027#/fulfillment/legacy_acceptance_map",
         "full_functional_scope_ref": "MT-027#/preserved_original/payload/scope",
@@ -1792,7 +1795,8 @@
       "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
       "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/5",
       "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
-    }
+    },
+    "module_change_stage": "standalone_source"
   },
   "proof": {
     "parent_proof_refs": [],
@@ -1803,9 +1807,9 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": null,
-        "expected": "Reset-transforms/convert-to-layers/export-contents work",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/placed_operations.rs public consumer via bound module test selector: reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection; Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy. Retain original AC-001: Reset-transforms/convert-to-layers/export-contents work. Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "Non-destructive matrix/unpack proposal and statistical tile outputs; original-format export/package requests through companion ports Successful case: reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection Failed/recovered case: Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1813,15 +1817,15 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Reset-transforms/convert-to-layers/export-contents work",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/placed_operations.rs",
+          "scenario": "reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection",
+          "negative_path": "Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy",
+          "independent_oracle": "Independent source hash/graph reread; analytic tiny stack values; independent native file reopen and relocated package census",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1834,9 +1838,9 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": null,
-        "expected": "Statistical stack modes render",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/placed_operations.rs public consumer via bound module test selector: reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection; Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy. Retain original AC-002: Statistical stack modes render. Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "Non-destructive matrix/unpack proposal and statistical tile outputs; original-format export/package requests through companion ports Successful case: reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection Failed/recovered case: Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1844,15 +1848,15 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Statistical stack modes render",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/placed_operations.rs",
+          "scenario": "reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection",
+          "negative_path": "Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy",
+          "independent_oracle": "Independent source hash/graph reread; analytic tiny stack values; independent native file reopen and relocated package census",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1865,9 +1869,9 @@
         "claim_refs": [
           "AC-003"
         ],
-        "command_or_method": null,
-        "expected": "Package produces a relocatable folder",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/placed_operations.rs public consumer via bound module test selector: reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection; Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy. Retain original AC-003: Package produces a relocatable folder. Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "Non-destructive matrix/unpack proposal and statistical tile outputs; original-format export/package requests through companion ports Successful case: reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection Failed/recovered case: Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1875,28 +1879,50 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Package produces a relocatable folder",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/placed_operations.rs",
+          "scenario": "reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection",
+          "negative_path": "Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy",
+          "independent_oracle": "Independent source hash/graph reread; analytic tiny stack values; independent native file reopen and relocated package census",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-029-COMPILE",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC-001",
+          "AC-002",
+          "AC-003"
+        ],
+        "command_or_method": "cargo check --locked --tests -p hsk-studio-pigment --no-default-features; inspect manifest/lock/API closure for declared accord, prism, observe dependencies; exclude kernel/native/database and unrelated providers",
+        "expected": "handshake-studio-assets/crates/hsk-studio-pigment/src/placed_operations.rs and handshake-studio-assets/crates/hsk-studio-pigment/tests/placed_operations.rs compile through selected owner closure; no copied cross-owner capability",
+        "timeout_seconds": 120,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate/source/lock/toolchain digest",
+          "Unchanged input digest across implementer check"
+        ],
+        "materialization_status": "PLANNED_NOT_EXECUTED"
       }
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-pigment/**"
+      "handshake-studio-assets/crates/hsk-studio-pigment/src/placed_operations.rs",
+      "handshake-studio-assets/crates/hsk-studio-pigment/tests/placed_operations.rs",
+      "handshake-studio-assets/crates/hsk-studio-pigment/Cargo.toml",
+      "handshake-studio-assets/Cargo.lock",
+      "handshake-studio-assets/rust-toolchain.toml"
     ],
     "extra_build_proofs": [],
-    "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
+    "proof_materialization_status": "PLANNED_NOT_RUN_NON_EXECUTION"
   },
   "activation": {
     "disposition": "NON_AI_CURRENT_SCOPE",
@@ -2314,7 +2340,7 @@
         "semantic_fulfillment": "Reset-transforms/convert-to-layers/export-contents work",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-029-ASSET-PIGMENT"
+          "MT-029"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2329,15 +2355,18 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Reset-transforms/convert-to-layers/export-contents work",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection",
+          "negative_path": "Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy",
+          "oracle": "Independent source hash/graph reread; analytic tiny stack values; independent native file reopen and relocated package census"
         },
-        "later_embedding_ref": "MT-029-KERNEL-AC-001",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Reset-transforms/convert-to-layers/export-contents work Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-002",
@@ -2348,7 +2377,7 @@
         "semantic_fulfillment": "Statistical stack modes render",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-029-ASSET-PIGMENT"
+          "MT-029"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2363,15 +2392,18 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Statistical stack modes render",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection",
+          "negative_path": "Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy",
+          "oracle": "Independent source hash/graph reread; analytic tiny stack values; independent native file reopen and relocated package census"
         },
-        "later_embedding_ref": "MT-029-KERNEL-AC-002",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Statistical stack modes render Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-003",
@@ -2382,7 +2414,7 @@
         "semantic_fulfillment": "Package produces a relocatable folder",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-029-ASSET-PIGMENT"
+          "MT-029"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2397,24 +2429,25 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Package produces a relocatable folder",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection",
+          "negative_path": "Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy",
+          "oracle": "Independent source hash/graph reread; analytic tiny stack values; independent native file reopen and relocated package census"
         },
-        "later_embedding_ref": "MT-029-KERNEL-AC-003",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Package produces a relocatable folder Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       }
     ],
     "later_kernel": {
       "phase": "SEPARATE_LATER_EMBEDDING",
       "status": "PENDING",
       "all_original_acceptance_refs": [
-        "MT-029-KERNEL-AC-001",
-        "MT-029-KERNEL-AC-002",
-        "MT-029-KERNEL-AC-003"
+        "MT-36194#/source_acceptance_coverage"
       ],
       "original_acceptance": [
         {
@@ -2501,7 +2534,7 @@
           "semantic_fulfillment": "Reset-transforms/convert-to-layers/export-contents work",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-029-ASSET-PIGMENT"
+            "MT-029"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2516,15 +2549,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Reset-transforms/convert-to-layers/export-contents work",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection",
+            "negative_path": "Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy",
+            "oracle": "Independent source hash/graph reread; analytic tiny stack values; independent native file reopen and relocated package census"
           },
-          "later_embedding_ref": "MT-029-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Reset-transforms/convert-to-layers/export-contents work Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-002",
@@ -2535,7 +2571,7 @@
           "semantic_fulfillment": "Statistical stack modes render",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-029-ASSET-PIGMENT"
+            "MT-029"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2550,15 +2586,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Statistical stack modes render",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection",
+            "negative_path": "Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy",
+            "oracle": "Independent source hash/graph reread; analytic tiny stack values; independent native file reopen and relocated package census"
           },
-          "later_embedding_ref": "MT-029-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Statistical stack modes render Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-003",
@@ -2569,7 +2608,7 @@
           "semantic_fulfillment": "Package produces a relocatable folder",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-029-ASSET-PIGMENT"
+            "MT-029"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2584,15 +2623,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Package produces a relocatable folder",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "reset_keeps_original_bytes; unpack_preserves_layer_order; mean_median_max_range_hand_computed; portable_link_collection",
+            "negative_path": "Singular/mismatched samples/unsupported original format explicit; missing asset/cancel/stale container leaves sources intact, package cannot silently relink partial copy",
+            "oracle": "Independent source hash/graph reread; analytic tiny stack values; independent native file reopen and relocated package census"
           },
-          "later_embedding_ref": "MT-029-KERNEL-AC-003",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Package produces a relocatable folder Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         }
       ]
     },
@@ -2604,5 +2646,44 @@
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
-  }
+  },
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-GIT-002",
+    "CX-VAL-002",
+    "CX-VAL-003",
+    "CX-VAL-004",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-VAL-005",
+    "CX-VAL-006",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-GP-001",
+    "CX-GP-002",
+    "CX-EXEC-015",
+    "CX-VAL-010",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
+  ]
 }

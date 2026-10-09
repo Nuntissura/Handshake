@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-STUDIO",
   "mt_id": "MT-034",
   "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-10-09T22:39:01.342Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-034.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-034.md",
@@ -295,7 +295,7 @@
     "title": "Content-based selection: quick/selection brush, flood/magic-wand, color-range, tonal-range, luminosity [STU-RAS-018]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 2
+    "contract_revision": 3
   },
   "parent": {
     "wp_contract_revision": null,
@@ -1528,10 +1528,13 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "10c2f73be3a8eda5ab4e92db37ccf53f73f53965709b99cda6b5f2b901efaeaf"
+    "context_digest": null,
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"
+    ]
   },
   "closure_unit": {
-    "outcome": "Deliver STUDIO-MODULE-PIGMENT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
+    "outcome": "STUDIO-MODULE-PIGMENT standalone contribution: NonML selection coverage proposal,preview damage and operation-specific descriptors",
     "requirement_refs": [
       "STU-RAS-018"
     ],
@@ -1630,15 +1633,15 @@
       "MT-35561",
       "MT-35562",
       "MT-35563",
-      "MT-032-ASSET-PIGMENT",
-      "MT-017-ASSET-COMPOSITE",
-      "MT-017-ASSET-PIGMENT",
-      "MT-017-ASSET-ACCORD",
-      "MT-017-ASSET-FOLIO",
-      "MT-017-ASSET-KERNEL_BINDINGS",
-      "MT-017-ASSET-MOTION",
-      "MT-017-ASSET-RENDER_GPU",
-      "MT-017-ASSET-RENDER_CPU"
+      "MT-032",
+      "MT-017",
+      "MT-35650",
+      "MT-35651",
+      "MT-35652",
+      "MT-35653",
+      "MT-35654",
+      "MT-35655",
+      "MT-35656"
     ],
     "start_precondition": {
       "dispatch_allowed": false,
@@ -1707,7 +1710,7 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "scope": "Current STUDIO-MODULE-PIGMENT asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
+        "scope": "Immutable current/composited samples,seed point or brush path,tolerance/contiguous/alllayers options,tonal bands/luminance/alpha or sampled color fuzziness,shared combine mode and revision",
         "fulfillment_ref": "MT-034#/fulfillment",
         "module_catalog_ref": "STUDIO-MODULE-PIGMENT",
         "immutable_input_and_revision_required": true
@@ -1716,25 +1719,25 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "handshake-studio-assets/crates/hsk-studio-pigment/src/content_selection.rs: Use bounded flood region traversal for contiguous tolerance and complete sample scan for noncontiguous; selection brush region-growth edge cost receives brush footprint. Compute tonal/luminance/alpha/color similarity coverage using Prism profile conversion, publish live preview separate from committed SelectionSet"
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "handshake-studio-assets/crates/hsk-studio-pigment/src/content_selection.rs: Consume Immutable current/composited samples,seed point or brush path,tolerance/contiguous/alllayers options,tonal bands/luminance/alpha or sampled color fuzziness,shared combine mode and revision; emit NonML selection coverage proposal,preview damage and operation-specific descriptors through the published STUDIO-MODULE-PIGMENT port. Consume genuine companion MT outputs; only this owner writes."
       },
       {
         "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
+        "step": "handshake-studio-assets/crates/hsk-studio-pigment/tests/content_selection.rs: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges Independent observation: Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
       },
       {
         "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "handshake-studio-assets/crates/hsk-studio-pigment/tests/content_selection.rs: Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback"
       }
     ],
     "expected_outputs": [
-      "Owned real capability and failure path",
-      "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      "NonML selection coverage proposal,preview damage and operation-specific descriptors",
+      "Planned source handshake-studio-assets/crates/hsk-studio-pigment/src/content_selection.rs and natural proof handshake-studio-assets/crates/hsk-studio-pigment/tests/content_selection.rs; flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+      "Failure/recovery: Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback"
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1772,7 +1775,7 @@
         "original_edge_retained": true,
         "kind": "asset_capability",
         "required_capability_refs": [
-          "MT-032-ASSET-PIGMENT"
+          "MT-032"
         ],
         "semantic_requirement_ref": "MT-032#/fulfillment/legacy_acceptance_map",
         "full_functional_scope_ref": "MT-032#/preserved_original/payload/scope",
@@ -1787,14 +1790,14 @@
         "original_edge_retained": true,
         "kind": "asset_capability",
         "required_capability_refs": [
-          "MT-017-ASSET-COMPOSITE",
-          "MT-017-ASSET-PIGMENT",
-          "MT-017-ASSET-ACCORD",
-          "MT-017-ASSET-FOLIO",
-          "MT-017-ASSET-KERNEL_BINDINGS",
-          "MT-017-ASSET-MOTION",
-          "MT-017-ASSET-RENDER_GPU",
-          "MT-017-ASSET-RENDER_CPU"
+          "MT-017",
+          "MT-35650",
+          "MT-35651",
+          "MT-35652",
+          "MT-35653",
+          "MT-35654",
+          "MT-35655",
+          "MT-35656"
         ],
         "semantic_requirement_ref": "MT-017#/fulfillment/legacy_acceptance_map",
         "full_functional_scope_ref": "MT-017#/preserved_original/payload/scope",
@@ -1815,7 +1818,8 @@
       "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
       "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/5",
       "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
-    }
+    },
+    "module_change_stage": "standalone_source"
   },
   "proof": {
     "parent_proof_refs": [],
@@ -1826,9 +1830,9 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": null,
-        "expected": "Selection brush",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/content_selection.rs public consumer via bound module test selector: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges; Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback. Retain original AC-001: Selection brush. Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "NonML selection coverage proposal,preview damage and operation-specific descriptors Successful case: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges Failed/recovered case: Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1836,15 +1840,15 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Selection brush",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/content_selection.rs",
+          "scenario": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "independent_oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1857,9 +1861,9 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": null,
-        "expected": "Magic-wand",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/content_selection.rs public consumer via bound module test selector: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges; Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback. Retain original AC-002: Magic-wand. Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "NonML selection coverage proposal,preview damage and operation-specific descriptors Successful case: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges Failed/recovered case: Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1867,15 +1871,15 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Magic-wand",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/content_selection.rs",
+          "scenario": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "independent_oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1888,9 +1892,9 @@
         "claim_refs": [
           "AC-003"
         ],
-        "command_or_method": null,
-        "expected": "Color-range",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/content_selection.rs public consumer via bound module test selector: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges; Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback. Retain original AC-003: Color-range. Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "NonML selection coverage proposal,preview damage and operation-specific descriptors Successful case: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges Failed/recovered case: Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1898,15 +1902,15 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Color-range",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/content_selection.rs",
+          "scenario": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "independent_oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1919,9 +1923,9 @@
         "claim_refs": [
           "AC-004"
         ],
-        "command_or_method": null,
-        "expected": "Tonal-range",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/content_selection.rs public consumer via bound module test selector: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges; Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback. Retain original AC-004: Tonal-range. Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "NonML selection coverage proposal,preview damage and operation-specific descriptors Successful case: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges Failed/recovered case: Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1929,15 +1933,15 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Tonal-range",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/content_selection.rs",
+          "scenario": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "independent_oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1950,9 +1954,9 @@
         "claim_refs": [
           "AC-005"
         ],
-        "command_or_method": null,
-        "expected": "Luminosity select all produce StudioSelectionSet",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/content_selection.rs public consumer via bound module test selector: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges; Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback. Retain original AC-005: Luminosity select all produce StudioSelectionSet. Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "NonML selection coverage proposal,preview damage and operation-specific descriptors Successful case: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges Failed/recovered case: Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1960,15 +1964,15 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Luminosity select all produce StudioSelectionSet",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/content_selection.rs",
+          "scenario": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "independent_oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1981,9 +1985,9 @@
         "claim_refs": [
           "AC-006"
         ],
-        "command_or_method": null,
-        "expected": "Tolerance/contiguous/sample-all-layers",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/content_selection.rs public consumer via bound module test selector: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges; Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback. Retain original AC-006: Tolerance/contiguous/sample-all-layers. Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "NonML selection coverage proposal,preview damage and operation-specific descriptors Successful case: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges Failed/recovered case: Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1991,15 +1995,15 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Tolerance/contiguous/sample-all-layers",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/content_selection.rs",
+          "scenario": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "independent_oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -2012,9 +2016,9 @@
         "claim_refs": [
           "AC-007"
         ],
-        "command_or_method": null,
-        "expected": "Live preview proven",
-        "timeout_seconds": null,
+        "command_or_method": "Independent validator invokes handshake-studio-assets/crates/hsk-studio-pigment/tests/content_selection.rs public consumer via bound module test selector: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges; Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback. Retain original AC-007: Live preview proven. Asset contribution only; separately allocated host_adoption adjudicates retained host acceptance.",
+        "expected": "NonML selection coverage proposal,preview damage and operation-specific descriptors Successful case: flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges Failed/recovered case: Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2022,28 +2026,54 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pigment"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Live preview proven",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_package": "hsk-studio-pigment",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-pigment/src/content_selection.rs",
+          "scenario": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "independent_oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation"
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-034-COMPILE",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-004",
+          "AC-005",
+          "AC-006",
+          "AC-007"
+        ],
+        "command_or_method": "cargo check --locked --tests -p hsk-studio-pigment --no-default-features; inspect manifest/lock/API closure for declared accord, prism, observe dependencies; exclude kernel/native/database and unrelated providers",
+        "expected": "handshake-studio-assets/crates/hsk-studio-pigment/src/content_selection.rs and handshake-studio-assets/crates/hsk-studio-pigment/tests/content_selection.rs compile through selected owner closure; no copied cross-owner capability",
+        "timeout_seconds": 120,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate/source/lock/toolchain digest",
+          "Unchanged input digest across implementer check"
+        ],
+        "materialization_status": "PLANNED_NOT_EXECUTED"
       }
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-pigment/**"
+      "handshake-studio-assets/crates/hsk-studio-pigment/src/content_selection.rs",
+      "handshake-studio-assets/crates/hsk-studio-pigment/tests/content_selection.rs",
+      "handshake-studio-assets/crates/hsk-studio-pigment/Cargo.toml",
+      "handshake-studio-assets/Cargo.lock",
+      "handshake-studio-assets/rust-toolchain.toml"
     ],
     "extra_build_proofs": [],
-    "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
+    "proof_materialization_status": "PLANNED_NOT_RUN_NON_EXECUTION"
   },
   "activation": {
     "disposition": "NON_AI_CURRENT_SCOPE",
@@ -2500,7 +2530,7 @@
         "semantic_fulfillment": "Selection brush",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-034-ASSET-PIGMENT"
+          "MT-034"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2515,15 +2545,18 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Selection brush",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
         },
-        "later_embedding_ref": "MT-034-KERNEL-AC-001",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Selection brush Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-002",
@@ -2534,7 +2567,7 @@
         "semantic_fulfillment": "Magic-wand",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-034-ASSET-PIGMENT"
+          "MT-034"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2549,15 +2582,18 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Magic-wand",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
         },
-        "later_embedding_ref": "MT-034-KERNEL-AC-002",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Magic-wand Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-003",
@@ -2568,7 +2604,7 @@
         "semantic_fulfillment": "Color-range",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-034-ASSET-PIGMENT"
+          "MT-034"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2583,15 +2619,18 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Color-range",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
         },
-        "later_embedding_ref": "MT-034-KERNEL-AC-003",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Color-range Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-004",
@@ -2602,7 +2641,7 @@
         "semantic_fulfillment": "Tonal-range",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-034-ASSET-PIGMENT"
+          "MT-034"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2617,15 +2656,18 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Tonal-range",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
         },
-        "later_embedding_ref": "MT-034-KERNEL-AC-004",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Tonal-range Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-005",
@@ -2636,7 +2678,7 @@
         "semantic_fulfillment": "Luminosity select all produce StudioSelectionSet",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-034-ASSET-PIGMENT"
+          "MT-034"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2651,15 +2693,18 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Luminosity select all produce StudioSelectionSet",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
         },
-        "later_embedding_ref": "MT-034-KERNEL-AC-005",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Luminosity select all produce StudioSelectionSet Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-006",
@@ -2670,7 +2715,7 @@
         "semantic_fulfillment": "Tolerance/contiguous/sample-all-layers",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-034-ASSET-PIGMENT"
+          "MT-034"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2685,15 +2730,18 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Tolerance/contiguous/sample-all-layers",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
         },
-        "later_embedding_ref": "MT-034-KERNEL-AC-006",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Tolerance/contiguous/sample-all-layers Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-007",
@@ -2704,7 +2752,7 @@
         "semantic_fulfillment": "Live preview proven",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-034-ASSET-PIGMENT"
+          "MT-034"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2719,28 +2767,25 @@
           "selected_packages": [
             "hsk-studio-pigment"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Live preview proven",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+          "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+          "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
         },
-        "later_embedding_ref": "MT-034-KERNEL-AC-007",
+        "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "Live preview proven Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36194#/source_acceptance_coverage"
+        ]
       }
     ],
     "later_kernel": {
       "phase": "SEPARATE_LATER_EMBEDDING",
       "status": "PENDING",
       "all_original_acceptance_refs": [
-        "MT-034-KERNEL-AC-001",
-        "MT-034-KERNEL-AC-002",
-        "MT-034-KERNEL-AC-003",
-        "MT-034-KERNEL-AC-004",
-        "MT-034-KERNEL-AC-005",
-        "MT-034-KERNEL-AC-006",
-        "MT-034-KERNEL-AC-007"
+        "MT-36194#/source_acceptance_coverage"
       ],
       "original_acceptance": [
         {
@@ -2861,7 +2906,7 @@
           "semantic_fulfillment": "Selection brush",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-034-ASSET-PIGMENT"
+            "MT-034"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2876,15 +2921,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Selection brush",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+            "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+            "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
           },
-          "later_embedding_ref": "MT-034-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Selection brush Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-002",
@@ -2895,7 +2943,7 @@
           "semantic_fulfillment": "Magic-wand",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-034-ASSET-PIGMENT"
+            "MT-034"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2910,15 +2958,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Magic-wand",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+            "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+            "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
           },
-          "later_embedding_ref": "MT-034-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Magic-wand Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-003",
@@ -2929,7 +2980,7 @@
           "semantic_fulfillment": "Color-range",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-034-ASSET-PIGMENT"
+            "MT-034"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2944,15 +2995,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Color-range",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+            "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+            "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
           },
-          "later_embedding_ref": "MT-034-KERNEL-AC-003",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Color-range Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-004",
@@ -2963,7 +3017,7 @@
           "semantic_fulfillment": "Tonal-range",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-034-ASSET-PIGMENT"
+            "MT-034"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2978,15 +3032,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Tonal-range",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+            "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+            "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
           },
-          "later_embedding_ref": "MT-034-KERNEL-AC-004",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Tonal-range Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-005",
@@ -2997,7 +3054,7 @@
           "semantic_fulfillment": "Luminosity select all produce StudioSelectionSet",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-034-ASSET-PIGMENT"
+            "MT-034"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -3012,15 +3069,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Luminosity select all produce StudioSelectionSet",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+            "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+            "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
           },
-          "later_embedding_ref": "MT-034-KERNEL-AC-005",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Luminosity select all produce StudioSelectionSet Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-006",
@@ -3031,7 +3091,7 @@
           "semantic_fulfillment": "Tolerance/contiguous/sample-all-layers",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-034-ASSET-PIGMENT"
+            "MT-034"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -3046,15 +3106,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Tolerance/contiguous/sample-all-layers",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+            "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+            "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
           },
-          "later_embedding_ref": "MT-034-KERNEL-AC-006",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Tolerance/contiguous/sample-all-layers Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-007",
@@ -3065,7 +3128,7 @@
           "semantic_fulfillment": "Live preview proven",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-034-ASSET-PIGMENT"
+            "MT-034"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -3080,15 +3143,18 @@
             "selected_packages": [
               "hsk-studio-pigment"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Live preview proven",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "flood_contiguous_vs_whole_image; all_layers_differs_active_only; tonal_lumi_alpha_color_fuzziness; brush_add_subtract_edges",
+            "negative_path": "Invalid seed/source profile/missing layer explicit; traversal budget/cancel/stale preview retains original selection and releases reservations; no model/cloud fallback",
+            "oracle": "Independent seeded connectivity and sample-band matrix expected IDs/coverage; full graph source census for all-layers"
           },
-          "later_embedding_ref": "MT-034-KERNEL-AC-007",
+          "later_embedding_ref": "MT-36194#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "Live preview proven Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36194#/source_acceptance_coverage"
+          ]
         }
       ]
     },
@@ -3100,5 +3166,44 @@
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
-  }
+  },
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-GIT-002",
+    "CX-VAL-002",
+    "CX-VAL-003",
+    "CX-VAL-004",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-VAL-005",
+    "CX-VAL-006",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-GP-001",
+    "CX-GP-002",
+    "CX-EXEC-015",
+    "CX-VAL-010",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
+  ]
 }
