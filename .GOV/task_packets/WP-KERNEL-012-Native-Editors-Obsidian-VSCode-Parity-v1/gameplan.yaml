@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 522
+generation: 523
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -430,3 +430,4 @@ steps:
 - {id: GP-409, role: any, at: before_round, do: verify diagnostic execution host ownership and numeric capture survive parent exit; keep compiler/profile fixed, check: {type: confirm}, source: 'infra:r13 UNKNOWN after Codex hang; use recorded diagnostic-only Task Scheduler host, not app dependencies', state: active}
 - {id: GP-410, role: any, at: before_round, do: verify link batches <=32 and exact raw-pair count1 checks before original5s acceptance, check: {type: confirm}, source: 'fail:r14 flat projection median5.494s>5s; grouped-span saves zero fixture queries', state: active}
 - {id: GP-411, role: any, at: before_round, do: verify private link controls omit EXPLAIN and preserve exact snippets plus rollback checks, check: {type: confirm}, source: 'risk: prior SDK probe always runs EXPLAIN; bounded batching needs denied and chunk controls', state: active}
+- {id: GP-412, role: any, at: before_round, do: verify private valid endpoint witnesses exclude denied evidence and hidden pairs have exact canonical identities, check: {type: confirm}, source: 'infra:r16 crossed edge fixture visibility0; valid and denied evidence shared endpoint graph', state: active}
