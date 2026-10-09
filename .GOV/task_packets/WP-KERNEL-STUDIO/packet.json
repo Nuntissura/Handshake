@@ -17725,9 +17725,9 @@
   },
   "execution_contract": {
     "phase": "PREPARATION_NON_EXECUTABLE",
-    "product_branch": "codex/handshake-studio-assets",
-    "product_worktree_locator": "git worktree list --porcelain -> refs/heads/codex/handshake-studio-assets",
-    "verified_baseline": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "product_branch": null,
+    "product_worktree_locator": "UNRESOLVED_CANONICAL_ASSETS_SOURCE_CHECKOUT; see canonical_source_checkout_binding and retained historical_preparation_checkout_binding",
+    "verified_baseline": null,
     "worktree_path_policy": "Resolve existing attached worktree by branch; no hardcoded profile/drive requirement and no new worktree. HANDSHAKE_GOV_ROOT resolves direct live gov_kernel.",
     "product_root": "handshake-studio-assets",
     "governance_root": "HANDSHAKE_GOV_ROOT; direct kernel reads, no .GOV copy/junction",
@@ -17752,13 +17752,29 @@
       "proof": "Fresh destination branch/content census, source commit/tree/subtree path hashes, independent destination read equality; no force overwrite"
     },
     "implementation_authorization": "No product execution in this preparation; canonical source and distinct host tasks require concrete owner/worktree, proof, publication/adoption bindings and independent acceptance.",
-    "verified_worktree_state": "2026-10-09 fresh git status --short empty; existing assigned worktree at recorded baseline. Reverify branch/path/dirty state next session before writes.",
+    "verified_worktree_state": "Historical Handshake preparation checkout retained separately; canonical assets source checkout state not inspected/claimed.",
     "artifact_policy": "Resolve sole Handshake Worktrees/Handshake_Artifacts from canonical live kernel/enclosing Handshake project under CX-984-001/012/013, never from managed asset worktree. Verify existing root before output; pass absolute resolved root to subprocesses. Owned WP/MT/batch/owner children, disjoint mutable Cargo targets. Shared files use portable root references.",
     "canonical_source_repository_url": "https://github.com/Nuntissura/assets",
     "module_change_stages": [
       "standalone_source",
       "host_adoption"
-    ]
+    ],
+    "historical_preparation_checkout_binding": {
+      "product_branch": "codex/handshake-studio-assets",
+      "product_worktree_locator": "git worktree list --porcelain -> refs/heads/codex/handshake-studio-assets",
+      "verified_baseline": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "verified_worktree_state": "2026-10-09 fresh git status --short empty; existing assigned worktree at recorded baseline. Reverify branch/path/dirty state next session before writes."
+    },
+    "canonical_source_checkout_binding": {
+      "repository_url": "https://github.com/Nuntissura/assets",
+      "subtree": "handshake-studio-assets",
+      "source_branch": null,
+      "source_root": null,
+      "source_owner": null,
+      "activation_condition": "Separately authorized source implementation resolves actual canonical assets repository checkout/root/branch/owner and clean candidate identity before writes. Historical Handshake Studio checkout is preparation lineage, not independently verified canonical assets source execution.",
+      "status": "UNRESOLVED_PREPARATION_CONTINUES_NO_EXECUTION",
+      "forbidden": "No second writable canonical module owner or assumed copied/junctioned governance."
+    }
   },
   "preservation": {
     "original_contract_count": 5484,
