@@ -1985,9 +1985,9 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "LINK_VERIFICATION_REPAIR_APPROVED",
-    "candidate_commit": "128fce5d7b6f8079796901cdfa619fc47b1709c4",
-    "candidate_tree": "ff61cea74669c7892f48f53847bc0dd43a429b5b",
+    "state": "LINK_VERIFICATION_COMPILE_PREPARING",
+    "candidate_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "candidate_tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6",
     "product_worktree": "wtc-WP-KERNEL-012",
     "branch": "feat/WP-KERNEL-012",
     "failure_refs": [
@@ -2193,7 +2193,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Apply only approved combined70042102 repair plus original-test restoration, mandatory compile and pushed candidate; root closes all execution-input writes before one independent affected mounted-account/parity/timing proof. r12 diagnostic allowance consumed; unaffected independent greens retain original bindings and require reconciliation; no additional EXPLAIN or resource refusals.",
+    "next_dependency": "Pushed clean292d exact two-file repair and original test bytes verified. Root canonical/controller writes close before WPV fixed-export/profile/selector preparation returns warm target to builder for one mandatory r13 compile. After numeric compile PASS and target release, root reads exact proof and closes all input writes before independent original-acceptance3 runtime r14.",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
@@ -2444,7 +2444,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "candidate_commit": "128fce5d7b6f8079796901cdfa619fc47b1709c4",
+    "candidate_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
     "operator_quotes": [
       "rip out those restrictions asap in parallel",
       "start fucking working and do not stop untill the mt gets validated pass.",
@@ -2544,7 +2544,7 @@
     ],
     "scope": "Only LET aliases and existing span-index hints in the two link-verification SELECTs; exact reversal of approved6e822060 test helper/router instrumentation to original d4b bytes",
     "static_review": "Root opened exact combined patch and schema indexes; retained Buddy confirmed engine equals standalone9b6b4034 and reconstructed test equals immutable d4b Git blob; only two files",
-    "product_patch_applied": false,
+    "product_patch_applied": true,
     "proof_required": "Mandatory changed-candidate compile then independent affected mounted-account plus both MT167 original-acceptance cases; reuse unaffected original greens only after input reconciliation",
     "preserved": [
       "Natural-key AND predicates, count1, THROW, permission and transaction behavior",
@@ -2552,7 +2552,10 @@
       "Exact163 proof and all original/failed/interrupted artifacts; revision162 history/pins/tests and MT111/136/170 verdicts",
       "No EXPLAIN remaining, duplicate jobs, cleanup or foreign-process disruption"
     ],
-    "status_effect": "NONE; FAIL_V1 retained until independent acceptance"
+    "status_effect": "NONE; FAIL_V1 retained until independent acceptance",
+    "candidate_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "candidate_tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6",
+    "root_source_readback": "Actual128f-to292d two-file diff opened, clean tree/remote re-read; restored raw testSHA f61f2a7c and normalized immutable d4b bytes independently match"
   },
   "operator_decision_20261009_session_scope_waiver": {
     "decision_id": "MT168-OPERATOR-SESSION-SCOPE-WAIVER-20261009",
@@ -2563,5 +2566,23 @@
     "scope": "All scope expansions in the current live session are automatically approved and waived from this point; required MT168 remediation extensions proceed without another separate scope approval question",
     "application": "Retained builder owns product edits; retained WPV owns independent proof. Record concrete changed paths/candidate and the evidence-based repair. Required independent acceptance is unchanged.",
     "status_effect": "NONE; incomplete proof does not become PASS"
+  },
+  "operator_decision_20261009_diagnostic_tools": {
+    "state": "APPROVED",
+    "authorized_by": "OPERATOR",
+    "operator_quotes": [
+      "user your ability to orchestrate agents better to come to better conclusions, research online for help, etc. you can  instal software and tools that can help you and the agents. but the software availability must be recorded in the codex. and the usage must also recorded in the gameplan",
+      "aditional software or tools can not become dependencies for the app, feature or module to work. it is only to dignose.",
+      "diagnose, lint, checks, etc."
+    ],
+    "scope": "Additional software/tools may support diagnosis, lint and checks only; never dependencies required for Handshake app, feature or module runtime",
+    "recording": "Any software added must have availability recorded in Codex and usage recorded in gameplan",
+    "current_use": "Existing built-in online research tool checks official SurrealQL WITH/LET and upstream version3.2 sources; no additional software installed",
+    "sources": [
+      "https://surrealdb.com/docs/reference/query-language/clauses/with",
+      "https://surrealdb.com/docs/reference/query-language/statements/let",
+      "https://surrealdb.com/releases/3.2"
+    ],
+    "limits": "Current docs do not prove pinned3.2 planner choice or repaired performance; independent production-boundary proof remains required"
   }
 }
