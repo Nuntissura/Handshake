@@ -7,7 +7,7 @@
     "title": "STUDIO-MODULE-COMPONENTS meaningful asset foundation",
     "group": "STUDIO_ASSET_FOUNDATION",
     "version": 2,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "parent": {
     "wp_contract_revision": null,
@@ -1719,13 +1719,16 @@
           "consumer": "Actual public instance_resolution consumer in tests/instance_resolution.rs",
           "scenario": "Emit one footprint proposal after full success. Same-property stale is refused, disjoint-property changes remain admissible; budget/cancel retains authored overrides. Real consumer changes variant width/mode color/text override then re-edits original property; corrected alias/fresh footprint recovers.",
           "independent_oracle": "Independent expected typed property snapshot from original editable component fixture and canonical Folio reread after actual consumer apply; FIG decoder/prototype parity separate.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "provider_selection": "Selected module-owned deterministic graph/alias resolution through Folio/Accord/Layout. No external Figma provider selected; provider source not inspected, no invented pin.",
           "terminal_test_target": "instance_resolution",
           "exact_case_filters": [
             "variant_mode_override_resolution"
           ],
-          "runner_configuration_prerequisite": "Source implementation creates natural tests/instance_resolution.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/instance_resolution.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN.",
+          "production_embedding_refs": [
+            "MT-36199"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1755,13 +1758,16 @@
           "consumer": "Actual public instance_resolution consumer in tests/instance_resolution.rs",
           "scenario": "Emit one footprint proposal after full success. Same-property stale is refused, disjoint-property changes remain admissible; budget/cancel retains authored overrides. Real consumer changes variant width/mode color/text override then re-edits original property; corrected alias/fresh footprint recovers.",
           "independent_oracle": "Independent expected typed property snapshot from original editable component fixture and canonical Folio reread after actual consumer apply; FIG decoder/prototype parity separate.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "provider_selection": "Selected module-owned deterministic graph/alias resolution through Folio/Accord/Layout. No external Figma provider selected; provider source not inspected, no invented pin.",
           "terminal_test_target": "instance_resolution",
           "exact_case_filters": [
             "alias_type_disjoint_stale_cancel"
           ],
-          "runner_configuration_prerequisite": "Source implementation creates natural tests/instance_resolution.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/instance_resolution.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN.",
+          "production_embedding_refs": [
+            "MT-36199"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1791,8 +1797,11 @@
           "consumer": "Actual public instance_resolution consumer in tests/instance_resolution.rs",
           "scenario": "Emit one footprint proposal after full success. Same-property stale is refused, disjoint-property changes remain admissible; budget/cancel retains authored overrides. Real consumer changes variant width/mode color/text override then re-edits original property; corrected alias/fresh footprint recovers.",
           "independent_oracle": "Independent expected typed property snapshot from original editable component fixture and canonical Folio reread after actual consumer apply; FIG decoder/prototype parity separate.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
-          "provider_selection": "Selected module-owned deterministic graph/alias resolution through Folio/Accord/Layout. No external Figma provider selected; provider source not inspected, no invented pin."
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
+          "provider_selection": "Selected module-owned deterministic graph/alias resolution through Folio/Accord/Layout. No external Figma provider selected; provider source not inspected, no invented pin.",
+          "production_embedding_refs": [
+            "MT-36199"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1822,8 +1831,11 @@
           "consumer": "Actual public instance_resolution consumer in tests/instance_resolution.rs",
           "scenario": "Emit one footprint proposal after full success. Same-property stale is refused, disjoint-property changes remain admissible; budget/cancel retains authored overrides. Real consumer changes variant width/mode color/text override then re-edits original property; corrected alias/fresh footprint recovers.",
           "independent_oracle": "Independent expected typed property snapshot from original editable component fixture and canonical Folio reread after actual consumer apply; FIG decoder/prototype parity separate.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
-          "provider_selection": "Selected module-owned deterministic graph/alias resolution through Folio/Accord/Layout. No external Figma provider selected; provider source not inspected, no invented pin."
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
+          "provider_selection": "Selected module-owned deterministic graph/alias resolution through Folio/Accord/Layout. No external Figma provider selected; provider source not inspected, no invented pin.",
+          "production_embedding_refs": [
+            "MT-36199"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1853,13 +1865,16 @@
           "consumer": "Actual public instance_resolution consumer in tests/instance_resolution.rs",
           "scenario": "Emit one footprint proposal after full success. Same-property stale is refused, disjoint-property changes remain admissible; budget/cancel retains authored overrides. Real consumer changes variant width/mode color/text override then re-edits original property; corrected alias/fresh footprint recovers.",
           "independent_oracle": "Independent expected typed property snapshot from original editable component fixture and canonical Folio reread after actual consumer apply; FIG decoder/prototype parity separate.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "provider_selection": "Selected module-owned deterministic graph/alias resolution through Folio/Accord/Layout. No external Figma provider selected; provider source not inspected, no invented pin.",
           "terminal_test_target": "instance_resolution",
           "exact_case_filters": [
             "variant_mode_override_resolution"
           ],
-          "runner_configuration_prerequisite": "Source implementation creates natural tests/instance_resolution.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/instance_resolution.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN.",
+          "production_embedding_refs": [
+            "MT-36199"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1981,7 +1996,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-09T22:35:29.994Z",
+  "updated_at_utc": "2026-10-09T22:49:57.989Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35539.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2134,7 +2149,9 @@
     "status": "PENDING",
     "later_kernel": {
       "status": "PENDING",
-      "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance",
+      "semantic_acceptance_map": [],
+      "all_original_acceptance_refs": []
     }
   }
 }

@@ -3728,7 +3728,22 @@
           ],
           "foundation_mt_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35553.json",
           "feature_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35553.json#/execution/inputs",
-          "compiler_materialization": "Independent selected closure only; manifests/targets created by source implementation, not claimed present in preparation; provider pin/features resolved in owning MT before dispatch"
+          "compiler_materialization": "Independent selected closure only; manifests/targets created by source implementation, not claimed present in preparation; provider pin/features resolved in owning MT before dispatch",
+          "retained_authority_reference_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35412",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35413",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35414",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35415",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35416",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35417",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35418",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35419",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35420",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35421",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35422",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35423",
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35424"
+          ]
         },
         "public_behavior": {
           "responsibility": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",

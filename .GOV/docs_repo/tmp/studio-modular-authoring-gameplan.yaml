@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 18
+generation: 19
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -34,3 +34,4 @@ steps:
 - {id: GP-018, role: orchestrator, at: before_submit, do: require gameplan confirmation notes <= 120 characters, check: {type: confirm}, source: 'infra: confirm rejected an overlong note; keep scoped confirmation concise', state: active}
 - {id: GP-019, role: orchestrator, at: before_dispatch, do: require completed stock handoff and pushed gov template checkpoint before dependent MT teams, check: {type: confirm}, source: 'Operator: stock first; additive repo rules committed and pushed; only then MT teams', state: active}
 - {id: GP-020, role: builder, at: before_submit, do: verify scoped authoring files and preserve existing claims without product code or runtime execution, check: {type: confirm}, source: 'Operator: preparation only; inline proof text triggered WP012 hook; structured patches avoid execution', state: active}
+- {id: GP-021, role: builder, at: before_submit, do: verify cohort paths and hashes from one immutable author freeze snapshot before staging, check: {type: confirm}, source: 'infra: mutable freeze list expanded staging; fixed path and hash snapshot prevents stale cohort claims', state: active}

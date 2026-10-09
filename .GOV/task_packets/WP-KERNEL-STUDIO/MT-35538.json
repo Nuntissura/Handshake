@@ -7,7 +7,7 @@
     "title": "STUDIO-MODULE-DEVELOP meaningful asset foundation",
     "group": "STUDIO_ASSET_FOUNDATION",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -1711,7 +1711,7 @@
             "unsupported_process_version_and_cancel_stale"
           ],
           "independent_oracle": "Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance.",
-          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "terminal_test_target": "develop_recipe",
           "exact_case_filters": [
             "disabled_group_preserves_recipe_and_pixels",
@@ -1719,7 +1719,10 @@
             "recipe_reedit_preserves_original",
             "unsupported_process_version_and_cancel_stale"
           ],
-          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed."
+          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed.",
+          "production_embedding_refs": [
+            "MT-36198"
+          ]
         },
         "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
@@ -1754,7 +1757,7 @@
             "unsupported_process_version_and_cancel_stale"
           ],
           "independent_oracle": "Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance.",
-          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "terminal_test_target": "develop_recipe",
           "exact_case_filters": [
             "disabled_group_preserves_recipe_and_pixels",
@@ -1762,7 +1765,10 @@
             "recipe_reedit_preserves_original",
             "unsupported_process_version_and_cancel_stale"
           ],
-          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed."
+          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed.",
+          "production_embedding_refs": [
+            "MT-36198"
+          ]
         },
         "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
@@ -1797,7 +1803,7 @@
             "unsupported_process_version_and_cancel_stale"
           ],
           "independent_oracle": "Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance.",
-          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "terminal_test_target": "develop_recipe",
           "exact_case_filters": [
             "disabled_group_preserves_recipe_and_pixels",
@@ -1805,7 +1811,10 @@
             "recipe_reedit_preserves_original",
             "unsupported_process_version_and_cancel_stale"
           ],
-          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed."
+          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed.",
+          "production_embedding_refs": [
+            "MT-36198"
+          ]
         },
         "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
@@ -1840,7 +1849,7 @@
             "unsupported_process_version_and_cancel_stale"
           ],
           "independent_oracle": "Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance.",
-          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "terminal_test_target": "develop_recipe",
           "exact_case_filters": [
             "disabled_group_preserves_recipe_and_pixels",
@@ -1848,7 +1857,10 @@
             "recipe_reedit_preserves_original",
             "unsupported_process_version_and_cancel_stale"
           ],
-          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed."
+          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed.",
+          "production_embedding_refs": [
+            "MT-36198"
+          ]
         },
         "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
@@ -1883,7 +1895,7 @@
             "unsupported_process_version_and_cancel_stale"
           ],
           "independent_oracle": "Analytic CFA matrix for component correctness and original Camera Raw/Lightroom-produced output with exact process/version/profile for feature acceptance.",
-          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "terminal_test_target": "develop_recipe",
           "exact_case_filters": [
             "disabled_group_preserves_recipe_and_pixels",
@@ -1891,7 +1903,10 @@
             "recipe_reedit_preserves_original",
             "unsupported_process_version_and_cancel_stale"
           ],
-          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed."
+          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-develop/tests/develop_recipe.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed.",
+          "production_embedding_refs": [
+            "MT-36198"
+          ]
         },
         "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
@@ -2017,7 +2032,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T21:14:47.14107+02:00",
-  "updated_at_utc": "2026-10-09T22:33:48.850Z",
+  "updated_at_utc": "2026-10-09T22:47:21.776Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35538.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2170,7 +2185,9 @@
     "status": "PENDING",
     "later_kernel": {
       "status": "PENDING",
-      "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance",
+      "semantic_acceptance_map": [],
+      "all_original_acceptance_refs": []
     }
   },
   "rule_refs": [

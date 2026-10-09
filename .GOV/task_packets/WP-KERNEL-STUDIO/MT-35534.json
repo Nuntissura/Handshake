@@ -7,7 +7,7 @@
     "title": "STUDIO-MODULE-PIGMENT meaningful asset foundation",
     "group": "STUDIO_ASSET_FOUNDATION",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -1709,7 +1709,7 @@
             "malformed_stride_and_lease_exhaustion"
           ],
           "independent_oracle": "Independent hand-computed tiny mask/sample matrices plus original-produced blend/brush corpus for feature parity; exact preimage digest unchanged on reject.",
-          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "terminal_test_target": "masked_patch",
           "exact_case_filters": [
             "masked_patch_changes_only_covered_samples",
@@ -1717,7 +1717,10 @@
             "stale_target_patch_refused",
             "malformed_stride_and_lease_exhaustion"
           ],
-          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-pigment/tests/masked_patch.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed."
+          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-pigment/tests/masked_patch.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed.",
+          "production_embedding_refs": [
+            "MT-36194"
+          ]
         },
         "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
@@ -1752,7 +1755,7 @@
             "malformed_stride_and_lease_exhaustion"
           ],
           "independent_oracle": "Independent hand-computed tiny mask/sample matrices plus original-produced blend/brush corpus for feature parity; exact preimage digest unchanged on reject.",
-          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "terminal_test_target": "masked_patch",
           "exact_case_filters": [
             "masked_patch_changes_only_covered_samples",
@@ -1760,7 +1763,10 @@
             "stale_target_patch_refused",
             "malformed_stride_and_lease_exhaustion"
           ],
-          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-pigment/tests/masked_patch.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed."
+          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-pigment/tests/masked_patch.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed.",
+          "production_embedding_refs": [
+            "MT-36194"
+          ]
         },
         "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
@@ -1795,7 +1801,7 @@
             "malformed_stride_and_lease_exhaustion"
           ],
           "independent_oracle": "Independent hand-computed tiny mask/sample matrices plus original-produced blend/brush corpus for feature parity; exact preimage digest unchanged on reject.",
-          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "terminal_test_target": "masked_patch",
           "exact_case_filters": [
             "masked_patch_changes_only_covered_samples",
@@ -1803,7 +1809,10 @@
             "stale_target_patch_refused",
             "malformed_stride_and_lease_exhaustion"
           ],
-          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-pigment/tests/masked_patch.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed."
+          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-pigment/tests/masked_patch.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed.",
+          "production_embedding_refs": [
+            "MT-36194"
+          ]
         },
         "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
@@ -1838,7 +1847,7 @@
             "malformed_stride_and_lease_exhaustion"
           ],
           "independent_oracle": "Independent hand-computed tiny mask/sample matrices plus original-produced blend/brush corpus for feature parity; exact preimage digest unchanged on reject.",
-          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "terminal_test_target": "masked_patch",
           "exact_case_filters": [
             "masked_patch_changes_only_covered_samples",
@@ -1846,7 +1855,10 @@
             "stale_target_patch_refused",
             "malformed_stride_and_lease_exhaustion"
           ],
-          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-pigment/tests/masked_patch.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed."
+          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-pigment/tests/masked_patch.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed.",
+          "production_embedding_refs": [
+            "MT-36194"
+          ]
         },
         "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
@@ -1881,7 +1893,7 @@
             "malformed_stride_and_lease_exhaustion"
           ],
           "independent_oracle": "Independent hand-computed tiny mask/sample matrices plus original-produced blend/brush corpus for feature parity; exact preimage digest unchanged on reject.",
-          "production_embedding": "Distinct host_adoption MT owned by embedding team; no runtime/host result asserted",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "terminal_test_target": "masked_patch",
           "exact_case_filters": [
             "masked_patch_changes_only_covered_samples",
@@ -1889,7 +1901,10 @@
             "stale_target_patch_refused",
             "malformed_stride_and_lease_exhaustion"
           ],
-          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-pigment/tests/masked_patch.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed."
+          "runner_configuration_prerequisite": "During source implementation create handshake-studio-assets/crates/hsk-studio-pigment/tests/masked_patch.rs and bind exact checked-in feature/provider/toolchain/test timeout config; independent validator executes argv from canonical source checkout with CX-984 owner isolation. This is planned, not executed.",
+          "production_embedding_refs": [
+            "MT-36194"
+          ]
         },
         "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
@@ -2015,7 +2030,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T21:14:47.14107+02:00",
-  "updated_at_utc": "2026-10-09T22:33:46.964Z",
+  "updated_at_utc": "2026-10-09T22:47:18.072Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35534.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2167,7 +2182,9 @@
     "status": "PENDING",
     "later_kernel": {
       "status": "PENDING",
-      "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance",
+      "semantic_acceptance_map": [],
+      "all_original_acceptance_refs": []
     }
   },
   "rule_refs": [

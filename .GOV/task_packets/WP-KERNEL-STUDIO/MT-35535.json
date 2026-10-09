@@ -7,7 +7,7 @@
     "title": "STUDIO-MODULE-NIB meaningful asset foundation",
     "group": "STUDIO_ASSET_FOUNDATION",
     "version": 2,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "parent": {
     "wp_contract_revision": null,
@@ -1715,13 +1715,16 @@
           "consumer": "Actual public path_boolean consumer in tests/path_boolean.rs",
           "scenario": "External consumer unions and differences two 10x10 point rectangles offset 5 points; independently derive areas 150 and50 square points, verify topology/fill/styles. Invalid input/budget/cancel/stale exposes no patch; fresh revision retry succeeds.",
           "independent_oracle": "Independent shoelace/winding computation with analytic rectangle areas; independent source hash reread. Illustrator original editable path fixtures required before broader curve/parity proof.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "provider_selection": "Selected leaf winding sweep reference: vectorcraft825d4fdb8b527c597855d273fb4bcc1971855b6a crates/pathops/src/boolean.rs. Exact linesweeper/kurbo lock/license/patch bindings remain unresolved; no whole Vectorcraft graph.",
           "terminal_test_target": "path_boolean",
           "exact_case_filters": [
             "rectangle_union_difference_winding"
           ],
-          "runner_configuration_prerequisite": "Source implementation creates natural tests/path_boolean.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/path_boolean.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN.",
+          "production_embedding_refs": [
+            "MT-36195"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1751,13 +1754,16 @@
           "consumer": "Actual public path_boolean consumer in tests/path_boolean.rs",
           "scenario": "External consumer unions and differences two 10x10 point rectangles offset 5 points; independently derive areas 150 and50 square points, verify topology/fill/styles. Invalid input/budget/cancel/stale exposes no patch; fresh revision retry succeeds.",
           "independent_oracle": "Independent shoelace/winding computation with analytic rectangle areas; independent source hash reread. Illustrator original editable path fixtures required before broader curve/parity proof.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "provider_selection": "Selected leaf winding sweep reference: vectorcraft825d4fdb8b527c597855d273fb4bcc1971855b6a crates/pathops/src/boolean.rs. Exact linesweeper/kurbo lock/license/patch bindings remain unresolved; no whole Vectorcraft graph.",
           "terminal_test_target": "path_boolean",
           "exact_case_filters": [
             "nonfinite_degenerate_budget_cancel_stale"
           ],
-          "runner_configuration_prerequisite": "Source implementation creates natural tests/path_boolean.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/path_boolean.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN.",
+          "production_embedding_refs": [
+            "MT-36195"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1787,8 +1793,11 @@
           "consumer": "Actual public path_boolean consumer in tests/path_boolean.rs",
           "scenario": "External consumer unions and differences two 10x10 point rectangles offset 5 points; independently derive areas 150 and50 square points, verify topology/fill/styles. Invalid input/budget/cancel/stale exposes no patch; fresh revision retry succeeds.",
           "independent_oracle": "Independent shoelace/winding computation with analytic rectangle areas; independent source hash reread. Illustrator original editable path fixtures required before broader curve/parity proof.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
-          "provider_selection": "Selected leaf winding sweep reference: vectorcraft825d4fdb8b527c597855d273fb4bcc1971855b6a crates/pathops/src/boolean.rs. Exact linesweeper/kurbo lock/license/patch bindings remain unresolved; no whole Vectorcraft graph."
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
+          "provider_selection": "Selected leaf winding sweep reference: vectorcraft825d4fdb8b527c597855d273fb4bcc1971855b6a crates/pathops/src/boolean.rs. Exact linesweeper/kurbo lock/license/patch bindings remain unresolved; no whole Vectorcraft graph.",
+          "production_embedding_refs": [
+            "MT-36195"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1818,8 +1827,11 @@
           "consumer": "Actual public path_boolean consumer in tests/path_boolean.rs",
           "scenario": "External consumer unions and differences two 10x10 point rectangles offset 5 points; independently derive areas 150 and50 square points, verify topology/fill/styles. Invalid input/budget/cancel/stale exposes no patch; fresh revision retry succeeds.",
           "independent_oracle": "Independent shoelace/winding computation with analytic rectangle areas; independent source hash reread. Illustrator original editable path fixtures required before broader curve/parity proof.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
-          "provider_selection": "Selected leaf winding sweep reference: vectorcraft825d4fdb8b527c597855d273fb4bcc1971855b6a crates/pathops/src/boolean.rs. Exact linesweeper/kurbo lock/license/patch bindings remain unresolved; no whole Vectorcraft graph."
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
+          "provider_selection": "Selected leaf winding sweep reference: vectorcraft825d4fdb8b527c597855d273fb4bcc1971855b6a crates/pathops/src/boolean.rs. Exact linesweeper/kurbo lock/license/patch bindings remain unresolved; no whole Vectorcraft graph.",
+          "production_embedding_refs": [
+            "MT-36195"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1849,13 +1861,16 @@
           "consumer": "Actual public path_boolean consumer in tests/path_boolean.rs",
           "scenario": "External consumer unions and differences two 10x10 point rectangles offset 5 points; independently derive areas 150 and50 square points, verify topology/fill/styles. Invalid input/budget/cancel/stale exposes no patch; fresh revision retry succeeds.",
           "independent_oracle": "Independent shoelace/winding computation with analytic rectangle areas; independent source hash reread. Illustrator original editable path fixtures required before broader curve/parity proof.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "provider_selection": "Selected leaf winding sweep reference: vectorcraft825d4fdb8b527c597855d273fb4bcc1971855b6a crates/pathops/src/boolean.rs. Exact linesweeper/kurbo lock/license/patch bindings remain unresolved; no whole Vectorcraft graph.",
           "terminal_test_target": "path_boolean",
           "exact_case_filters": [
             "rectangle_union_difference_winding"
           ],
-          "runner_configuration_prerequisite": "Source implementation creates natural tests/path_boolean.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/path_boolean.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN.",
+          "production_embedding_refs": [
+            "MT-36195"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1977,7 +1992,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-09T22:35:07.855Z",
+  "updated_at_utc": "2026-10-09T22:49:42.298Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35535.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2128,7 +2143,9 @@
     "status": "PENDING",
     "later_kernel": {
       "status": "PENDING",
-      "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance",
+      "semantic_acceptance_map": [],
+      "all_original_acceptance_refs": []
     }
   }
 }

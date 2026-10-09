@@ -7,7 +7,7 @@
     "title": "STUDIO-MODULE-LAYOUT meaningful asset foundation",
     "group": "STUDIO_ASSET_FOUNDATION",
     "version": 2,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "parent": {
     "wp_contract_revision": null,
@@ -1721,13 +1721,16 @@
           "consumer": "Actual public threaded_reflow consumer in tests/threaded_reflow.rs",
           "scenario": "Real two-frame consumer compares all line starts/baselines/overset to original InDesign font/settings output; fresh font/revision retries missing/stale case. Latin foundation never certifies RTL/CJK/kinsoku/ruby/vertical feature scope.",
           "independent_oracle": "Original InDesign-produced two-frame story, exact font/settings and independent line/baseline/overset measurements; bind resource hashes before execution.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "provider_selection": "Selected module-owned frame fitting over Type/Nib contracts, informed by designcraft66c7ce7e96ec286a091878cc2541ee8369aa79d6 crates/compose/src/lib.rs; not whole compose/shaping adoption. Shared Type/font exact pins pending.",
           "terminal_test_target": "threaded_reflow",
           "exact_case_filters": [
             "two_frame_flow_overset"
           ],
-          "runner_configuration_prerequisite": "Source implementation creates natural tests/threaded_reflow.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/threaded_reflow.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN.",
+          "production_embedding_refs": [
+            "MT-36197"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1757,13 +1760,16 @@
           "consumer": "Actual public threaded_reflow consumer in tests/threaded_reflow.rs",
           "scenario": "Real two-frame consumer compares all line starts/baselines/overset to original InDesign font/settings output; fresh font/revision retries missing/stale case. Latin foundation never certifies RTL/CJK/kinsoku/ruby/vertical feature scope.",
           "independent_oracle": "Original InDesign-produced two-frame story, exact font/settings and independent line/baseline/overset measurements; bind resource hashes before execution.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "provider_selection": "Selected module-owned frame fitting over Type/Nib contracts, informed by designcraft66c7ce7e96ec286a091878cc2541ee8369aa79d6 crates/compose/src/lib.rs; not whole compose/shaping adoption. Shared Type/font exact pins pending.",
           "terminal_test_target": "threaded_reflow",
           "exact_case_filters": [
             "cyclic_missing_font_budget_cancel_stale"
           ],
-          "runner_configuration_prerequisite": "Source implementation creates natural tests/threaded_reflow.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/threaded_reflow.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN.",
+          "production_embedding_refs": [
+            "MT-36197"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1793,8 +1799,11 @@
           "consumer": "Actual public threaded_reflow consumer in tests/threaded_reflow.rs",
           "scenario": "Real two-frame consumer compares all line starts/baselines/overset to original InDesign font/settings output; fresh font/revision retries missing/stale case. Latin foundation never certifies RTL/CJK/kinsoku/ruby/vertical feature scope.",
           "independent_oracle": "Original InDesign-produced two-frame story, exact font/settings and independent line/baseline/overset measurements; bind resource hashes before execution.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
-          "provider_selection": "Selected module-owned frame fitting over Type/Nib contracts, informed by designcraft66c7ce7e96ec286a091878cc2541ee8369aa79d6 crates/compose/src/lib.rs; not whole compose/shaping adoption. Shared Type/font exact pins pending."
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
+          "provider_selection": "Selected module-owned frame fitting over Type/Nib contracts, informed by designcraft66c7ce7e96ec286a091878cc2541ee8369aa79d6 crates/compose/src/lib.rs; not whole compose/shaping adoption. Shared Type/font exact pins pending.",
+          "production_embedding_refs": [
+            "MT-36197"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1824,8 +1833,11 @@
           "consumer": "Actual public threaded_reflow consumer in tests/threaded_reflow.rs",
           "scenario": "Real two-frame consumer compares all line starts/baselines/overset to original InDesign font/settings output; fresh font/revision retries missing/stale case. Latin foundation never certifies RTL/CJK/kinsoku/ruby/vertical feature scope.",
           "independent_oracle": "Original InDesign-produced two-frame story, exact font/settings and independent line/baseline/overset measurements; bind resource hashes before execution.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
-          "provider_selection": "Selected module-owned frame fitting over Type/Nib contracts, informed by designcraft66c7ce7e96ec286a091878cc2541ee8369aa79d6 crates/compose/src/lib.rs; not whole compose/shaping adoption. Shared Type/font exact pins pending."
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
+          "provider_selection": "Selected module-owned frame fitting over Type/Nib contracts, informed by designcraft66c7ce7e96ec286a091878cc2541ee8369aa79d6 crates/compose/src/lib.rs; not whole compose/shaping adoption. Shared Type/font exact pins pending.",
+          "production_embedding_refs": [
+            "MT-36197"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1855,13 +1867,16 @@
           "consumer": "Actual public threaded_reflow consumer in tests/threaded_reflow.rs",
           "scenario": "Real two-frame consumer compares all line starts/baselines/overset to original InDesign font/settings output; fresh font/revision retries missing/stale case. Latin foundation never certifies RTL/CJK/kinsoku/ruby/vertical feature scope.",
           "independent_oracle": "Original InDesign-produced two-frame story, exact font/settings and independent line/baseline/overset measurements; bind resource hashes before execution.",
-          "production_embedding": "Distinct pinned host_adoption MT; no host/runtime PASS from source preparation.",
+          "production_embedding": "Exact distinct mapped host_adoption task retains original host acceptance; source proof cannot close host or runtime. PENDING_NOT_RUN.",
           "provider_selection": "Selected module-owned frame fitting over Type/Nib contracts, informed by designcraft66c7ce7e96ec286a091878cc2541ee8369aa79d6 crates/compose/src/lib.rs; not whole compose/shaping adoption. Shared Type/font exact pins pending.",
           "terminal_test_target": "threaded_reflow",
           "exact_case_filters": [
             "two_frame_flow_overset"
           ],
-          "runner_configuration_prerequisite": "Source implementation creates natural tests/threaded_reflow.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/threaded_reflow.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN.",
+          "production_embedding_refs": [
+            "MT-36197"
+          ]
         },
         "materialization_status": "PLANNED_NOT_RUN",
         "materialization_timing": {
@@ -1983,7 +1998,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-09T22:35:09.988Z",
+  "updated_at_utc": "2026-10-09T22:49:51.907Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35537.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2137,7 +2152,9 @@
     "status": "PENDING",
     "later_kernel": {
       "status": "PENDING",
-      "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance",
+      "semantic_acceptance_map": [],
+      "all_original_acceptance_refs": []
     }
   }
 }

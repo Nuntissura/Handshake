@@ -6176,7 +6176,20 @@
     "source_first_condition": "Independent canonical assets remote revision and standalone contract proof before any host write",
     "runtime_authorized": false,
     "authoring_state": "IN_PROGRESS_NOT_IMPLEMENTATION_READY",
-    "original_scope_ac_preservation": "Original5484 IDs/21145 captured AC and all36 foundations/55 amendments remain immutable lineage; original host semantics map to distinct adoption MTs, never source-local PASS."
+    "original_scope_ac_preservation": "Original5484 IDs/21145 captured AC and all36 foundations/55 amendments remain immutable lineage; original host semantics map to distinct adoption MTs, never source-local PASS.",
+    "spec_text_drift": [
+      {
+        "id": "STUDIO-SPEC-TEXT-DRIFT-AUT106",
+        "mt_ref": "MT-33459",
+        "anchor": "STU-AUT-106",
+        "spec_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md#STU-AUT-106",
+        "observed": "Heading says seven members; normative wire table defines eight, followed by explicit measured/number distinction. Distribution combines strings/lists statistically, not as one wire type.",
+        "binding": "Preserve reference,class,enumerated,measured,number,boolean,string,list table definitions and original payload/history. Concrete value-type source contract binds exact table/paragraph under CX-SPEC-TRUTH-001.",
+        "disposition": "NARROW_SPEC_TEXT_DRIFT_NOT_SOURCE_ACTIVATION_BLOCK",
+        "future_spec_correction": "Next separately authorized spec publication; no current spec edit or new validator.",
+        "runtime_proof": "PENDING_NOT_RUN"
+      }
+    ]
   },
   "resolved_context": {
     "module_lifecycle_refs": [
