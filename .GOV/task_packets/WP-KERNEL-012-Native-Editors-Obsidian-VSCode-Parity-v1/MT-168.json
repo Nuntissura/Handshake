@@ -107,7 +107,8 @@
       "src/backend/handshake_core/src/storage/surreal/schema.rs (only the revision/GENERATED/INFO pins and upgrade entries this change forces, MT-164 AC-164-5 pattern)",
       "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (timing tests only)",
       "src/backend/handshake_core/src/storage/surreal/workspaces.rs (only the delete_account_workspace $children lookup, :540 at 6846e7d4)",
-      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs (only the grant lookup statement at :1195 at 6846e7d4)"
+      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs (only the grant lookup statement at :1195 at 6846e7d4)",
+      "src/backend/handshake_core/src/knowledge_code_index/engine.rs (only the three verification SELECT sources in PERSIST_CLEAN_CODE_BATCH at :573; exact approved patch a73f29c817734f8ffee687b6ec804309357045948980a459db4574b0ca5cfad1)"
     ],
     "forbidden_write_paths": [
       "app/src/**",
@@ -116,7 +117,7 @@
       "src/backend/handshake_document/**",
       "any other schema.surql/schema.rs statement (table PERMISSIONS clauses stay as written)",
       "src/backend/handshake_core/src/knowledge_ingestion/** (MT-154)",
-      "src/backend/handshake_core/src/knowledge_code_index/** (MT-167)",
+      "src/backend/handshake_core/src/knowledge_code_index/** (MT-167; sole exception is the exact engine.rs:573 three-SELECT patch approved in operator_decision_20261009_engine_v3)",
       "any SQLite/PostgreSQL path (CX-503R)"
     ],
     "stop_conditions": [
@@ -294,7 +295,8 @@
       "src/backend/handshake_core/src/storage/surreal/schema.rs (only the revision/GENERATED/INFO pins and upgrade entries this change forces, MT-164 AC-164-5 pattern)",
       "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs (timing tests only)",
       "src/backend/handshake_core/src/storage/surreal/workspaces.rs (only the delete_account_workspace $children lookup, :540 at 6846e7d4)",
-      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs (only the grant lookup statement at :1195 at 6846e7d4)"
+      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs (only the grant lookup statement at :1195 at 6846e7d4)",
+      "src/backend/handshake_core/src/knowledge_code_index/engine.rs (only the three verification SELECT sources in PERSIST_CLEAN_CODE_BATCH at :573; exact approved patch a73f29c817734f8ffee687b6ec804309357045948980a459db4574b0ca5cfad1)"
     ],
     "forbidden_paths": [
       "app/src/**",
@@ -303,7 +305,7 @@
       "src/backend/handshake_document/**",
       "any other schema.surql/schema.rs statement (table PERMISSIONS clauses stay as written)",
       "src/backend/handshake_core/src/knowledge_ingestion/** (MT-154)",
-      "src/backend/handshake_core/src/knowledge_code_index/** (MT-167)",
+      "src/backend/handshake_core/src/knowledge_code_index/** (MT-167; sole exception is the exact engine.rs:573 three-SELECT patch approved in operator_decision_20261009_engine_v3)",
       "any SQLite/PostgreSQL path (CX-503R)"
     ],
     "acceptance_criteria": [
@@ -1796,7 +1798,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "EXACT163_PROOF_PASS_DOWNSTREAM_SCOPE_PENDING",
+    "state": "ENGINE_V3_SCOPE_APPROVED_IMPLEMENTATION_PENDING",
     "candidate_commit": "34aa1a4ddf9830a88ab75c358d51b864ebdee6d7",
     "candidate_tree": "961422b711b087fe14ed859696404e9726fad42a",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -1831,7 +1833,7 @@
       "Historical PRE162 reconstruction static gap retained; no historical repin",
       "MT168-DOWNSTREAM observation remains false: MT167 equal-row case times out before full equality proof; median14.4494677s exceeds5s and measured code-index projection elapsed time grows across samples; residual cause UNVERIFIED, no MT167 verdict rewrite"
     ],
-    "next_actor": "Operator exact v3 engine scope decision; retained builder then WPV affected proof upon approval",
+    "next_actor": "Retained builder applies exact approved v3 patch, compile and push; retained WPV affected independent runtime",
     "preservation_checkpoints": [
       {
         "commit": "817bd35cfae235e754e0d6e447fda2cf137578ab",
@@ -2003,7 +2005,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Exact163 compile/runtime proof closed on34aa; measured downstream growth remains unresolved; exact v3 engine proposal stays unapplied pending Operator scope approval; private entity controls passed, production transaction and downstream cost remain unproven; verified original greens retain original bindings",
+    "next_dependency": "Exact163 compile/runtime proof closed on34aa; Operator approved exact v3 engine patch; builder application/compile/push then affected independent mounted account and MT167 runtime; private controls are diagnostic only; verified original greens retain original bindings",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
@@ -2148,7 +2150,7 @@
     "status_effect": "NONE; canonical FAIL_V1 retained"
   },
   "operator_decision_request_20261009_engine_v3": {
-    "state": "PENDING",
+    "state": "APPROVED",
     "path": "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
     "line": 573,
     "requested_scope": "Only three verification SELECT sources in PERSIST_CLEAN_CODE_BATCH: distinct typed record IDs filtered by expected table before fetch; retain WHERE, raw counts, denial error and transaction",
@@ -2156,9 +2158,27 @@
     "patch_sha256": "a73f29c817734f8ffee687b6ec804309357045948980a459db4574b0ca5cfad1",
     "reason": "Required MT168 downstream projection still grows; private controls and original TableScan support a focused candidate repair, but current MT168 expressly forbids this file",
     "supersedes_proposal": "Earlier v2 table guard is defective for missing records and must not be applied",
-    "approval_received": false,
+    "approval_received": true,
     "product_patch_applied": false,
     "proof_required_after_approval": "Fresh candidate-bound mandatory compile and affected independent runtime, including exact163 and MT167 downstream acceptance; no criteria weakening or adjacent verdict rewrite"
+  },
+  "operator_decision_20261009_engine_v3": {
+    "decision_id": "MT168-OPERATOR-ENGINE-RECORDSET-20261009",
+    "state": "APPROVED",
+    "authorized_by": "OPERATOR",
+    "operator_quote": "approved continue",
+    "recorded_at_utc": "2026-10-09T09:41:56Z",
+    "source": "Live Operator reply to the pending exact v3 scope question",
+    "path": "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+    "approved_patch_sha256": "a73f29c817734f8ffee687b6ec804309357045948980a459db4574b0ca5cfad1",
+    "scope": "Only three verification SELECT sources in PERSIST_CLEAN_CODE_BATCH: distinct typed record IDs filtered by their expected table before fetch",
+    "preserved": [
+      "Original WHERE predicates, raw cardinality checks, denial error and transaction behavior",
+      "All schema/pin/test/history boundaries and acceptance criteria",
+      "Independent compile/runtime proof and unchanged proof reuse under VPX004",
+      "Other knowledge_code_index files/statements remain forbidden; no MT167 verdict rewrite"
+    ],
+    "status_effect": "NONE; FAIL_V1 retained pending independent acceptance"
   },
   "operator_decision_20261009_resource_override": {
     "decision_id": "MT168-OPERATOR-RESOURCE-OVERRIDE-20261009",
