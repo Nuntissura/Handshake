@@ -1,8 +1,8 @@
 {
   "artifact_type": "indexed-spec-manifest",
-  "status": "approved-candidate-pending-final-review-and-pointer",
+  "status": "current-versioned-indexed-spec-entrypoint",
   "generated_at": "2026-10-09T18:31:28.760229+00:00",
-  "activated_at": "2026-10-09T18:31:28.760229+00:00",
+  "activated_at": "2026-10-09T20:56:08.366836+00:00",
   "authority_pointer": ".GOV/spec/SPEC_CURRENT.md",
   "authority_pointer_current_entrypoint": ".GOV/spec/master-spec-v02.207/indexed-spec-manifest.json",
   "authority_pointer_unchanged": false,
@@ -183,14 +183,14 @@
       "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
       "source_line_start": 22293,
       "source_line_end": 24051,
-      "line_count": 1936,
-      "byte_count": 127585,
-      "sha256": "63ef53dab2455f7d99de83d930e0ef824a339e2e9999c1473edb93756be301d2",
-      "heading_count": 115,
+      "line_count": 1978,
+      "byte_count": 135707,
+      "sha256": "5e6947f665b59ab656d8de7e3f2cf56975d85f5d0effd728726731e0e0da0161",
+      "heading_count": 116,
       "heading_level_counts": {
         "1": 12,
         "2": 9,
-        "3": 45,
+        "3": 46,
         "4": 49
       },
       "spec_version": "v02.207",
@@ -198,11 +198,11 @@
       "metadata_schema": "handshake.indexed_spec.module@1",
       "source_baseline_version": "v02.182",
       "source_body_original_sha256": "e3019d9565e98421293edf35dda918ea27e94fd61f7906aac758d8373948763c",
-      "body_sha256": "a8b65cf85a560bac246e837e0b0658e8d596a6f0428c0f4d0002c72760121c87",
-      "body_byte_count": 127053,
-      "body_line_count": 1923,
-      "file_byte_count": 127585,
-      "file_line_count": 1936
+      "body_sha256": "000df3751f995392f194338bbfe3bd87c1e58f3b19aef72afd8ea6192575aa0e",
+      "body_byte_count": 135175,
+      "body_line_count": 1965,
+      "file_byte_count": 135707,
+      "file_line_count": 1978
     },
     {
       "module_id": "06",
@@ -492,13 +492,13 @@
       "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
       "source_line_start": null,
       "source_line_end": null,
-      "line_count": 33028,
-      "byte_count": 2889092,
-      "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c",
-      "heading_count": 520,
+      "line_count": 33001,
+      "byte_count": 2907691,
+      "sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+      "heading_count": 521,
       "heading_level_counts": {
         "1": 7,
-        "2": 123,
+        "2": 124,
         "3": 363,
         "4": 27
       },
@@ -507,11 +507,11 @@
       "metadata_schema": "handshake.indexed_spec.module@1",
       "source_baseline_version": "v02.199",
       "source_body_original_sha256": "6615c8092bf5ab965e42fef5a15fa543fb662759975b6b8287055e7144a22eb3",
-      "body_sha256": "63463fc6ccf94f980039af21cfa9abf8f8470bb8ff95e2ff03ba8cba1f7b2e2a",
-      "body_byte_count": 2888550,
-      "body_line_count": 33015,
-      "file_byte_count": 2889092,
-      "file_line_count": 33028
+      "body_sha256": "050fef420d1a950663bfe4964cfb122141063520308d572975e886ce3695adb3",
+      "body_byte_count": 2907149,
+      "body_line_count": 32988,
+      "file_byte_count": 2907691,
+      "file_line_count": 33001
     }
   ],
   "reconstruction": {
@@ -533,7 +533,7 @@
       "spec-modules/13-tailor-cloth-garment-engine.md",
       "spec-modules/14-studio-creative-suite.md"
     ],
-    "reconstructed_sha256": "6a1fb2b1d194e116cd3da0a6e82135e7c231bf03c593091b1e3e2de7e61eb095",
+    "reconstructed_sha256": "34c15e58e408dfa7b8060dbf9177808fb43a3cb32f1910c80c5847fc07e031ef",
     "matches_source_sha256": false,
     "byte_exact_match": false,
     "coverage": {
@@ -544,7 +544,7 @@
       "note": "Historical source ranges preserve baseline lineage; current module bytes/hash/order are validation authority, not original monolith range coverage."
     },
     "module_count": 16,
-    "reconstructed_sha1": "00467e0f3e946285df6c8d2f61527530814d5773",
+    "reconstructed_sha1": "e29736775a7f1fae31e7c70746f85f8d0240853c",
     "note": "The bundle no longer reconstructs the v02.182 baseline byte-for-byte, and has not since the section modules began diverging from it. The hash is kept so the bundle can verify itself against its own modules."
   },
   "module_resolver": ".GOV/spec/master-spec-v02.207/INDEX.json",
@@ -562,10 +562,10 @@
     "path": ".GOV/spec/master-spec-v02.207/spec-changelog.jsonl",
     "schema": "handshake.master_spec.changelog_entry@1",
     "required_on_version_change": true,
-    "sha256": "14bba010aae0181adf956c094a0fd467e4e1c3d40b6d98a742d3a01b7fd9f410",
+    "sha256": "451edaa894ea759ac488f8ec7d3174b10776cfffef2206e35cb0b112c3026613",
     "entry_count": 121,
     "current_version_entry_present": true,
-    "validation_status": "CURRENT_TYPED_AND_INDEPENDENT_READS_NO_RETIRED_JUST_GATES",
+    "validation_status": "INDEPENDENT_SOURCE_PREPARATION_REVIEW_COMPLETE_RUNTIME_NOT_RUN",
     "validation_commands": []
   },
   "internal_reference_refresh": {
@@ -596,5 +596,6 @@
   "module_root_path": ".GOV/spec/master-spec-v02.207/spec-modules",
   "changelog_path": ".GOV/spec/master-spec-v02.207/spec-changelog.jsonl",
   "archive_root_path": ".GOV/spec/spec_archive",
-  "updated_at": "2026-10-09T18:31:28.760229+00:00"
+  "updated_at": "2026-10-09T20:56:08.366836+00:00",
+  "authority_pointer_sha256_after": "48bf0385cdb6c3d71cedf819d0833bb1b358015c747235694de0630a708f26c0"
 }

@@ -1,7 +1,7 @@
 {
   "schema_id": "hsk.studio_module_catalog@1",
   "file_id": "STUDIO-MODULES-207",
-  "updated_at": "2026-10-09T18:25:41.225787+00:00",
+  "updated_at": "2026-10-09T19:10:12.816262+00:00",
   "authority": "Approved Studio architecture planning under signature ilja091020261912; actual Rust implementation next session",
   "spec_version": "v02.207",
   "approval_ref": "STUDIO-APPROVAL-SPEC-207",
@@ -33,7 +33,7 @@
     "source_root": "handshake-studio-assets",
     "responsibility": "Virtual workspace/lockfile/toolchain/dependency-selection/mirror provenance; owns MT001 coordination, not Accord domain semantics"
   },
-  "crate_count": 34,
+  "crate_count": 35,
   "modules": [
     {
       "id": "STUDIO-MODULE-ACCORD",
@@ -400,7 +400,7 @@
         "type",
         "observe"
       ],
-      "responsibility": "Keyframes/easing, compositing/effect graph semantics and expressions policy; shared exact time/schema comes from Accord/Folio. Sequence/media references use provider contracts, so composition/keyframe math does not unconditionally pull NLE edit algorithms. No vendor runtime.",
+      "responsibility": "Keyframes/easing and temporal/property-expression/time/seed/dependency policy; typed provider ports preserve pure Rust domain closure. Static composition plan belongs to Composite; optional JS engine belongs to MotionJS. No vendor runtime or unconditional NLE/audio/native provider dependency.",
       "crate_name": "hsk-studio-motion",
       "status": "PLANNED_NOT_IMPLEMENTED",
       "source_root": "handshake-studio-assets/crates/hsk-studio-motion",
@@ -936,6 +936,34 @@
         "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
         "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
       }
+    },
+    {
+      "id": "STUDIO-MODULE-MOTION_JS",
+      "key": "motion_js",
+      "depends_on": [
+        "accord",
+        "motion",
+        "observe"
+      ],
+      "responsibility": "Optional JavaScript expression provider; isolate C/FFI/toolchain/runtime quotas from pure Motion semantics. Shared host sandbox lifecycle; no private script/plugin authority.",
+      "crate_name": "hsk-studio-motion-js",
+      "status": "PLANNED_NOT_IMPLEMENTED",
+      "source_root": "handshake-studio-assets/crates/hsk-studio-motion-js",
+      "build_unit_ref": "STUDIO-MODULE-MOTION_JS",
+      "foundation_capability": "Actual selected engine evaluates a bounded deterministic expression through immutable Motion host ports, denies a hostile unsupported/budget case and retires owned runtime correctly; empty adapter is insufficient.",
+      "contract_ports": [
+        "Typed immutable input and loss/error/cancel outcome",
+        "Principal/resource/actor attribution and target revision preconditions",
+        "Budget and diagnostic descriptors; no provider types escape public schema",
+        "Executable parser/AST/lowering/checkpoint owner with source-map and trusted-cache identity",
+        "Single-owner VM lifetime, aggregate worker/heap/result/checkpoint/deadline ports; current host sandbox authority"
+      ],
+      "inspection": "Canonical command/state descriptors consumed by Argus adapter; render-capable outputs carry revision/frame/profile/provenance and current grant",
+      "manual": "Same command/control/diagnostic descriptor source feeds canonical UserManual; no parallel manual",
+      "proof_targets": {
+        "asset": "Owned meaningful foundation capability plus invalid input/cancel/closure check; executable target materializes in foundation implementation",
+        "embedding": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+      }
     }
   ],
   "foundation_barrier": {
@@ -975,7 +1003,8 @@
       "STUDIO-MODULE-SCORE_DEVICE",
       "STUDIO-MODULE-SCORE_PLUGIN",
       "STUDIO-MODULE-REEL_NATIVE",
-      "STUDIO-MODULE-INTEROP_LRCAT"
+      "STUDIO-MODULE-INTEROP_LRCAT",
+      "STUDIO-MODULE-MOTION_JS"
     ],
     "feature_rule": "Every declared module has real bounded typed API and executable minimum consumer/failure path, independent compiler/closure evidence and HBR posture before feature MTs run. Foundation does not mean full vendor parity; missing proprietary decoder can expose real opaque/loss rejection while editable-decoder feature remains explicitly blocked. No no-op/canned PASS.",
     "host_rule": "Host-neutral bridge foundation does not depend on core/native/DB; actual embedding MTs retain full later runtime acceptance and cannot be satisfied by transient asset proof"
@@ -1027,8 +1056,13 @@
     "light-effect-root-drill.json",
     "backend-redteam/independent-adoption-redteam.json",
     "backend-redteam/backpressure-architecture-review.json",
-    "adobe-original-team/original-suite-workflow-audit.json"
+    "adobe-original-team/original-suite-workflow-audit.json",
+    "backend-redteam/plugin-platform-decision.json",
+    "backend-redteam/expression-provider-adoption.json",
+    "adobe-original-team/open-contract-decisions.json",
+    "adobe-original-team/open-composition-controls-decisions.json",
+    "adobe-original-team/open-expression-decisions.json"
   ],
   "risks": "Source adoption is selective leaf code only with pinned hashes/patch/license provenance. Toolkit host pins stay0.33 family until separately approved upgrade; no measured compile improvement/runtime/parity claim.",
-  "plugin_owner": "Handshake-wide canonical extension/library/capability/sandbox owner; Studio domain plugin adapter only. Platform source decision under active backend team review; no private Studio extension catalog/runtime authority."
+  "plugin_owner": "Handshake-wide 5.1.6/11.8 canonical platform; Studio domain projections/providers only; shared lifecycle is planned prerequisite, not existing support."
 }

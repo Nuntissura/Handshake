@@ -1,0 +1,372 @@
+{
+  "schema_id": "hsk.source_drill@1",
+  "file_id": "STUDIO-PLUGIN-OWNER-SOURCE-DRILL-20261009",
+  "status": "SOURCE_ONLY_FINDINGS_NO_RUNTIME_VERDICT",
+  "risk_tier": "HIGH",
+  "scope": {
+    "product_lane": "Handshake (Product): read-only WP012 baseline and current/candidate Master Spec research",
+    "repo_governance_lane": "Repo Governance: this report only",
+    "source_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "source_root": "../wtc-native-editors-v1",
+    "current_spec": "v02.206 via .GOV/spec/SPEC_CURRENT.md",
+    "candidate_spec": "v02.207 inspected working snapshot; not current pointer authority",
+    "limitations": "Focused source paths and negative searches, not exhaustive every-line or repository-wide absence proof. No upstream execution, builds, tests, native GUI, process control, Git mutations, product/spec/MT changes. Source gates and types are not runtime isolation proof."
+  },
+  "owner_determination": {
+    "contract_owner": "Handshake-wide plugin/extension contract in Master Spec 5.1.3/5.1.5/5.2, capability registry 11.1, MEX 11.8, ResourceBroker and CKC asset authority. No verified canonical executable class named PluginPlatform or equivalent complete manager.",
+    "implemented_substrates": [
+      "MexRegistry and MexRuntime",
+      "GatedMcpClient and GateConfig.tool_registry",
+      "CapabilityRegistry",
+      "SandboxAdapterRegistry and SandboxAdapter",
+      "ResourceBroker-backed authority API",
+      "canonical UserManual registry"
+    ],
+    "planned_gap": "The inspected source does not establish a connected manifest validation/install/version/consent activation/extension registration/sandbox invoke/revoke/update/remove lifecycle. Shared substrates are concrete reuse seams, not proof that a complete platform already exists.",
+    "studio_boundary": "ScorePlugin owns optional native audio provider processing and foreign-resource lifecycle only. It must consume host-neutral typed ports; it must not own a private extension catalog, scheduler, library, capability registry, authoritative store or manual.",
+    "authority": [
+      "v206 05:189-358",
+      "v206 11:2790-2798,2990-3011,6162-6288",
+      "candidate207 14:207-249 STU-ARC-008/010/013/021/022",
+      "STUDIO_MODULES.json:863-896,1033"
+    ]
+  },
+  "execution_paths": [
+    {
+      "id": "PLUGIN-ROOT-REGISTRATION",
+      "evidence": [
+        "src/backend/handshake_core/src/mex/registry.rs:20-85",
+        "src/backend/handshake_core/src/workflows.rs:15565-15600"
+      ],
+      "observed": "MexRegistry loads mechanical_engines.json into engine/operation maps. Workflow construction installs shell, media downloader and calendar sync adapters. This is engine registration, not an installed plugin manifest/version lifecycle."
+    },
+    {
+      "id": "PLUGIN-ROOT-INVOKE",
+      "evidence": [
+        "src/backend/handshake_core/src/mex/runtime.rs:98-148,440-519,750-873",
+        "src/backend/handshake_core/src/mex/gates.rs:175-204,349-383"
+      ],
+      "observed": "EngineAdapter is a trusted async invoke trait. Runtime checks gates then directly awaits the selected adapter. Shell delegates to TerminalService with timeout/output limits and capability context. Generic adapter isolation and deadline cancellation do not follow solely from this trait or BudgetGate."
+    },
+    {
+      "id": "PLUGIN-ROOT-MCP",
+      "evidence": [
+        "src/backend/handshake_core/src/mcp/gate.rs:101-143,568-608,690-805,835-847,1004-1037,1253-1300"
+      ],
+      "observed": "GatedMcpClient resolves configured tools, checks shared capabilities and consent/session grants. Unknown tools are denied; alias ambiguity errors. Tool discovery is not install/update/remove ownership, and gate admission is not executable sandbox proof."
+    },
+    {
+      "id": "PLUGIN-ROOT-SANDBOX",
+      "evidence": [
+        "src/backend/handshake_core/src/sandbox/registry.rs:9-81",
+        "src/backend/handshake_core/src/sandbox/adapter.rs:163-186",
+        "src/backend/handshake_core/src/sandbox/types.rs:93-112,179-194",
+        "src/backend/handshake_core/src/sandbox/ledger_decorator.rs:139-157"
+      ],
+      "observed": "Shared adapters expose spawn/exec/fs_bind/net_policy/kill. ProcessSpec carries binds/network/resources/caps. Optional resource limits may be None/unlimited. Registry rejects unapproved Windows native jail selection. LedgerDecorator spawns first then writes START; failed recording returns error without a compensating kill in this inspected path."
+    },
+    {
+      "id": "PLUGIN-ROOT-RESOURCE-UI",
+      "evidence": [
+        "src/backend/handshake_core/src/api/authority.rs:1-65,1322-1342",
+        "src/backend/handshake_core/src/user_manual/registry.rs:108,1444",
+        "src/frontend/handshake_native/src/surface_extension_seam.rs:1-3,64-75"
+      ],
+      "observed": "Authority API describes shared account/principal/session/AccessSpace/capability/grant ResourceBroker boundaries and delegates protected-resource authorization. Native EditorSurface seam explicitly labels itself a design-only stub with no existing runtime caller. Complete installed plugin UI, inspection and manual contribution registration is not established by these excerpts."
+    }
+  ],
+  "INDEPENDENT_FINDINGS": [
+    {
+      "id": "PLUGIN-F01",
+      "severity": "HIGH",
+      "kind": "PLANNED_INTEGRATION_GAP",
+      "finding": "Existing shared contracts and runtime substrates do not establish a complete executable plugin lifecycle owner; building that lifecycle privately in Studio would fork authority.",
+      "evidence": [
+        "mex/registry.rs:47-85",
+        "workflows.rs:15565-15600",
+        "mcp/gate.rs:101-143,690-744",
+        "candidate207 STU-AUT-017/020/155/156",
+        "STUDIO_MODULES.json:1033"
+      ],
+      "counterexample": "An update changes plugin entry points or requested network domains while an old activated contribution remains registered. Engine registration and discovery alone provide no inspected uninstall/revoke transaction that removes that contribution and invalidates its grants.",
+      "remediation": "Declare one Handshake-wide owner for manifest identity/version, installation, contribution registration and lifecycle. Studio local registry UI must be a projection/consumer of that owner. Keep ScorePlugin limited to audio processing ports and provider lifecycle.",
+      "spec_delta_anchors": [
+        "5.1.3 Plugin Manifest & Registration",
+        "5.1.5 API Design Patterns",
+        "STU-AUT-017",
+        "STU-AUT-020",
+        "STU-AUT-155",
+        "STU-AUT-156",
+        "STU-ARC-010"
+      ],
+      "future_MT_proof": "Actual production install -> grant -> activate -> contribution invocation -> grant revoke -> update/remove path, fresh registry read, no stale contribution or authority; failed install rollback and concurrent version activation. Foundation fixtures cannot substitute for installed runtime proof."
+    },
+    {
+      "id": "PLUGIN-F02",
+      "severity": "HIGH",
+      "kind": "ADOPTION_BLOCKER",
+      "finding": "MEX BudgetGate validates presence/shape of limits; generic EngineAdapter invocation does not itself enforce runtime time/memory/queue/process ceilings or sandbox isolation.",
+      "evidence": [
+        "mex/gates.rs:349-383",
+        "mex/runtime.rs:474-484",
+        "sandbox/types.rs:179-194"
+      ],
+      "counterexample": "A registered adapter accepts a bounded PlannedOperation but its invoke never returns or allocates beyond budget. Admission can succeed while no generic termination boundary is visible in the inspected invoke path. This is a source counterexample, not an observed runaway process.",
+      "remediation": "Shared platform must translate admitted limits into enforced worker/process limits, cancellation and reclamation; reject omitted required limits. Preserve provider-specific TerminalService controls while adding the common lifecycle contract.",
+      "spec_delta_anchors": [
+        "11.8.2 invariants",
+        "11.8 PlannedOperation and conformance",
+        "STU-ARC-008",
+        "STU-AUT-018"
+      ],
+      "future_MT_proof": "Hanging, allocating and queue-flooding plugin cases produce typed budget outcomes; bounded cancel/reclaim; per-principal/document and aggregate fair admission; no callback blocking or second Studio scheduler."
+    },
+    {
+      "id": "PLUGIN-F03",
+      "severity": "HIGH",
+      "kind": "SOURCE_FAILURE_PATH",
+      "finding": "LedgerDecorator spawn returns an error after a successful inner spawn if START recording fails; this inspected path has no compensating process kill before returning.",
+      "evidence": [
+        "sandbox/ledger_decorator.rs:141-157"
+      ],
+      "counterexample": "Inner spawn succeeds, ledger record_start fails, and caller receives SpawnFailed without the ProcessHandle. A plugin manager that treats this error as no live process can lose cleanup ownership. No live leak was executed or observed.",
+      "remediation": "Shared sandbox owner must retain/return cleanup ownership or kill/reap on ledger/state-registration failure; do not implement divergent recovery in each Studio provider.",
+      "spec_delta_anchors": [
+        "11.8 no-bypass/FlightRecorder conformance",
+        "STU-AUT-018",
+        "STU-ARC-021"
+      ],
+      "future_MT_proof": "Inject START write and decorator-state failures after spawn; independently reconcile process registry, ledger and child lifetime; bounded reclamation and explicit cleanup failure diagnostics."
+    },
+    {
+      "id": "PLUGIN-F04",
+      "severity": "HIGH",
+      "kind": "CONTRACT_ADAPTATION",
+      "finding": "Studio plugin manifest and extension points must map to the shared platform contract without shadow capability, resource or storage authority.",
+      "evidence": [
+        "v206 05:191-236,342-358",
+        "v206 11:2790-2798",
+        "candidate207 14:21695-21707 STU-AUT-156-162",
+        "candidate207 STU-AUT-173",
+        "candidate207 STU-ASSET-010/017"
+      ],
+      "counterexample": "A domain plugin writes a local KV store under plugin_id but ignores account/ResourceBroker grants, or imports raw asset paths into a private index. Namespacing alone does not preserve revocation, account isolation, CKC provenance or authoritative node undo.",
+      "remediation": "Define versioned shared-manifest mapping for the exact Studio fields and closed extension/event sets. Node data remains StudioDocument undo/CRDT/export state; plugin KV remains shared platform plugin+account resource storage; assets remain CKC/ArtifactService references.",
+      "spec_delta_anchors": [
+        "STU-AUT-156",
+        "STU-AUT-157",
+        "STU-AUT-158",
+        "STU-AUT-159",
+        "STU-AUT-160",
+        "STU-AUT-173",
+        "STU-ASSET-010",
+        "STU-ASSET-017"
+      ],
+      "future_MT_proof": "Manifest rejection for unknown/invalid required fields, namespace collision, changed requested caps, unauthorized network and cross-account KV; grant revoke after discovery; secret-pattern node rejection, undo/CRDT/export round trip; asset permissions checked on fresh canonical identities."
+    },
+    {
+      "id": "PLUGIN-F05",
+      "severity": "HIGH",
+      "kind": "PLANNED_UI_DIAGNOSTIC_GAP",
+      "finding": "The native surface extension seam is explicitly design-only; installed plugin panels/commands and canonical Argus/UserManual propagation require real consumers.",
+      "evidence": [
+        "surface_extension_seam.rs:1-3,64-75",
+        "user_manual/registry.rs:108,1444",
+        "candidate207 STU-AUT-161/162",
+        "STUDIO_MODULES.json:875-895"
+      ],
+      "counterexample": "A panel appears in a plugin-local UI and its headless command works in a mock, but canonical command discovery, Argus structured state and UserManual omit it. The foundation can be executable while production usability remains absent.",
+      "remediation": "Contributions feed the same namespaced command/control/diagnostic descriptors consumed by canonical UI, Argus and UserManual through host-neutral ports; isolate plugin UI with a typed channel and current authorization.",
+      "spec_delta_anchors": [
+        "STU-AUT-001",
+        "STU-AUT-002",
+        "STU-AUT-161",
+        "STU-AUT-162",
+        "STU-AUT-171",
+        "STU-ARC-010"
+      ],
+      "future_MT_proof": "Fresh installed command/manual/Argus reads agree; hidden/headless and panel execution share the gate; unknown or removed contribution is rejected; isolated UI cannot acquire ambient host access. Source inspection here does not establish a complete Argus plugin path."
+    },
+    {
+      "id": "PLUGIN-F06",
+      "severity": "HIGH",
+      "kind": "NATIVE_PROVIDER_BOUNDARY",
+      "finding": "ScorePlugin native audio hosting needs its own bounded foreign processing seam while registration, grants, library and sandbox ownership stay shared.",
+      "evidence": [
+        "STUDIO_MODULES.json:863-896,1033",
+        "candidate207 STU-ARC-013/021",
+        "candidate207 STU-AUT-018"
+      ],
+      "counterexample": "A shared platform grants activation, but an audio provider serializes state, retires foreign instances, loads libraries or allocates during the device callback. Platform authorization does not prove callback safety or safe unload lifetime.",
+      "remediation": "Expose immutable grant/identity/version/processing-state handles and bounded prepared blocks; state save/load, activation, retirement and deallocation run off callback under shared worker/process lifetime ownership. Public asset ports contain no handshake_core/native/SurrealDB imports.",
+      "spec_delta_anchors": [
+        "STU-ARC-010",
+        "STU-ARC-013",
+        "STU-ARC-021",
+        "STU-AUT-018",
+        "STUDIO-MODULE-SCORE_PLUGIN"
+      ],
+      "future_MT_proof": "Real selected native host block processing with no callback allocation/blocking/state capture/foreign retirement; malformed plugin/crash/hang/unload races, stale version handle and revoked grant cases; isolated asset build closure separately from actual kernel embedding."
+    }
+  ],
+  "proposed_ports": {
+    "status": "PROPOSAL_NOT_EXISTING_IMPLEMENTATION",
+    "shared_platform_owned": [
+      "Versioned manifest and installed-plugin identity/registry view",
+      "Contribution registration and lifecycle receipts",
+      "Current capability/consent/resource grant handle",
+      "Sandbox worker/process invocation and budget/cancel/reclaim receipt",
+      "Plugin+account KV resource port",
+      "Canonical command/manual/Argus descriptor registration"
+    ],
+    "studio_owned": [
+      "Typed common node-view/event/patch port using StudioDocument revision preconditions",
+      "Domain contribution adapters for exact STU-AUT-157 extension points",
+      "ScorePlugin bounded prepared audio-block and off-callback state/retirement interface"
+    ],
+    "reuse": "MEX envelopes/gates/provenance and mechanical registry; MCP gate/session grant semantics; SandboxAdapterRegistry/ProcessSpec; ResourceBroker/Surreal authority; CKC/ArtifactService identities; JobRuntime admission; Observe diagnostics; canonical UserManual/Argus consumers. Connect and prove these paths rather than duplicating their authority.",
+    "MT_delta": "Amend owning plugin and embedding MT acceptance after approved spec enrichment; preserve existing IDs, baseline capabilities, extension/event enumerations and foundation/embedding separation. Name shared platform lifecycle dependency explicitly if not materialized; no fake foundation success implying installed production readiness."
+  },
+  "DIFF_ATTACK_SURFACES": [
+    "Source-baseline versus planned candidate contract; not a product patch review",
+    "Manifest and capability schema producer/consumer",
+    "Gate admission versus adapter/sandbox enforcement",
+    "Spawn versus ledger/cleanup ownership",
+    "Studio domain host versus shared registration/library/store",
+    "Plugin contribution versus canonical UI/manual/Argus"
+  ],
+  "INDEPENDENT_CHECKS_RUN": [
+    "Fresh source HEAD and SPEC_CURRENT read",
+    "Opened MEX registry/runtime/workflow caller and budget/capability gate",
+    "Opened MCP unknown-tool and session grant negative paths",
+    "Opened sandbox types, registry and spawn/ledger failure order",
+    "Compared candidate Studio plugin clauses and module ownership against shared Master Spec"
+  ],
+  "COUNTERFACTUAL_CHECKS": [
+    "If GatedMcpClient unknown-tool denial at gate.rs:1004-1037 were removed, unresolved tool invocation would lose its inspected closed-registry boundary.",
+    "If LedgerDecorator START recording at ledger_decorator.rs:144-149 fails after inner.spawn, caller cleanup ownership is not preserved by this inspected return path.",
+    "If MexRuntime adapter.invoke at runtime.rs:484 is replaced by an indefinitely pending adapter, BudgetGate limit-presence validation alone cannot terminate it."
+  ],
+  "BOUNDARY_PROBES": [
+    "Source comparison: PlannedOperation budget -> BudgetGate -> EngineAdapter invoke",
+    "Source comparison: inner sandbox spawn -> START ledger -> returned ProcessHandle",
+    "Source comparison: manifest Studio fields -> shared permissions/capability profile/resource ownership",
+    "Source comparison: module catalog foundation -> design-only native surface seam -> later embedding acceptance"
+  ],
+  "NEGATIVE_PATH_CHECKS": [
+    "Source inspected unknown/ambiguous MCP tool and missing session grants; actual denial preserved",
+    "Source inspected unapproved Windows sandbox registry selection",
+    "Source inspected ledger failure after spawn",
+    "Scoped searches PluginManifest/PluginRegistry/register_plugin/activate_plugin/plugin install found no complete backend manager; native install/manage plugin searches likewise did not establish a lifecycle; Cargo/lib plugin/Wasmtime/Extism/Pyodide search had no matches. These searches are bounded absence evidence only."
+  ],
+  "RESIDUAL_UNCERTAINTY": [
+    "No runtime isolation, timing, memory, process-cleanup, callback, installed UI or persistence proof was run",
+    "Uninspected adapters/callers may implement additional controls; findings do not assert universal absence",
+    "Candidate207 and module catalog are concurrently edited planning snapshots; SHA256 identities bind this report to exact final inspected file reads",
+    "No complete Argus plugin contribution path or package-install transaction was established in the inspected surface"
+  ],
+  "verdicts": {
+    "tests": "NOT_RUN_SOURCE_ONLY",
+    "spec_alignment": "PARTIAL_SUBSTRATES_AND_PLANNED_GAPS",
+    "runtime": "NOT_PROVEN",
+    "final": "NO_PASS_VERDICT"
+  },
+  "source_hashes": [
+    {
+      "path": ".GOV/spec/SPEC_CURRENT.md",
+      "sha256": "918f8e4ed12ec7b1b72ece03012dc5cfa4e6a4f20d9146131f8136d897245d79"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md",
+      "sha256": "d0ede6e67b4107e829cb6e3042dcb3d240ffebccdcc9ced52b431ef720eb336b"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/11-shared-dev-platform-and-oss-foundations.md",
+      "sha256": "be3708a08de802009f192e7ec7f2a6a4d05e395e52868d105c6278429f608708"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/07-6-development-roadmap.md",
+      "sha256": "3e2372155b49b3b098e91d6932c92a447d7103055ebc324521fae50b025cec63"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+      "sha256": "7a07ffa9f40f44c7d4b241c77763a428eea580f1dc5c1e8f408961c154af475b"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/mex/mod.rs",
+      "sha256": "c24f0336b35b17d238237f54fe6985a6150f19719ac0b8629bba025b5da54b19"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/mex/registry.rs",
+      "sha256": "4427f7afcee11520d48ca10a5ca8686137144cda5edc3eade4f2b6a7fcf776ab"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/mex/runtime.rs",
+      "sha256": "31cb0c06a082691e99ff387c5d60f5becc49da4d23033fb3203d546bf24ee6c4"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/mex/gates.rs",
+      "sha256": "318db6be72ba0ec18efa7a57c4ccecb31dc57211058e873e4af2159960f13562"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/workflows.rs",
+      "sha256": "367f0211cf1c732aa67b8fa4371c61d7abf13b226200406ff8bf4d87fa906f11"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/mcp/gate.rs",
+      "sha256": "b2030dacc5738befbb6b2fd61699d113b1529f22902878c71fbcbf362ada0dba"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/capabilities.rs",
+      "sha256": "e77a19eac25e8bf18ecf012d8dcc5a2965e6baa012a4917633a7a1c1f19a1231"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/capability_registry_workflow.rs",
+      "sha256": "4b7765d5d47f5608b1d45615898b74be023dc9ced318585a7a619811e6e75ec7"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/sandbox/registry.rs",
+      "sha256": "6eeaeb64d1ee96df4efb701a332d8a1a2dccd5ac49c764eae56114590a819d36"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/sandbox/adapter.rs",
+      "sha256": "c57253e1d5d75f1e8e7d3ed31ff13575864cd3721c3cb9bd507da977a966baa1"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/sandbox/types.rs",
+      "sha256": "1dbd322beb0291b3052585ac3fbcca76c13274cd2cddd2d35571d9681b8ac828"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/sandbox/ledger_decorator.rs",
+      "sha256": "8c39145d5201793c42b10a72a424fc15f617e96d0197e6bc107f14062867655b"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/api/authority.rs",
+      "sha256": "f1a434c71d3d71150c99ecf9bea75ab2e2f524f6fda72bde668d054f28a41274"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/user_manual/registry.rs",
+      "sha256": "2f1df934b7248c29198045ad73dcb97dac86656ec418a4c2ffd0b7255336a7f2"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/user_manual/seed.rs",
+      "sha256": "9bd127087c0117552c19c263e13987655bff4cce212dbe6ec0dcefe47c9a1c28"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/surface_extension_seam.rs",
+      "sha256": "554e165300231e481b5905957b4f475f274cf0e37305fa74fcf8fa0b8e94b844"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/Cargo.toml",
+      "sha256": "68dee1852524c5b2daaa7620c1dbd7ad4ccbdddad1dddb97e991f60ad2993981"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/lib.rs",
+      "sha256": "dc494b1bad6720398e171bb569807334ee392094e55ea0da4fe77a263875dc8d"
+    }
+  ]
+}

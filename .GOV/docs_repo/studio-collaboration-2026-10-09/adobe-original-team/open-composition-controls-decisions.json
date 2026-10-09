@@ -1,0 +1,578 @@
+{
+  "schema_id": "hsk.studio_open_composition_controls_decisions@1",
+  "file_id": "STUDIO-COMPOSITION-CONTROLS-DECISIONS-20261009",
+  "updated_at": "2026-10-09",
+  "owner": "design_original",
+  "status": "SELECTED_SOURCE_BASED_PROPOSALS_ROOT_REVIEW_REQUIRED",
+  "authority": "REFERENCE_ONLY_NOT_PUBLISHED_SPEC_OR_RUNTIME_VERDICT",
+  "scope": {
+    "handshake_product": "Bounded canonical composition and modifier decisions preserving full Studio scope",
+    "repo_governance": "Owned open-composition-controls-decisions.json only"
+  },
+  "spec_state": "SPEC_CURRENT points to 206; inspected207 is candidate, not published authority. No pointer/spec/MT modified.",
+  "decisions": [
+    {
+      "id": "OCCD-COMPOSITION-001",
+      "status": "SELECTED_PROPOSAL_FOR_ROOT_OPERATOR_SPEC_REVIEW_NOT_PUBLISHED_AUTHORITY",
+      "selection": "One Folio-authored typed composition operation graph with a lossless layer projection; Composite owns static dependency-plan lowering/evaluation and Motion owns temporal/keyframe/expression policy.",
+      "rationale": "A graph permits fanout/multi-input operations without abandoning ordered-layer/track-matte/precomposition semantics. Explicit typed layer operations preserve the normative layer model rather than forcing every arbitrary graph into a simple stack.",
+      "existing_owners": {
+        "accord": "Canonical IDs/schema/time/port/value primitives; reuse existing prefixes/schema IDs, no vendor-specific reminting.",
+        "folio": "One StudioDocument authored graph and immutable snapshots, including typed composition/layer/effect/property references; no second editable layer-document or graph database.",
+        "composite": "Static composition validation/lowering/evaluator semantic contract consuming immutable Folio snapshots and typed effect/time provider ports.",
+        "motion": "Temporal property evaluation, keyframes/easing and expression policy; existing engineering owner retains its effect/temporal semantics. Static Composite does not unconditionally depend on Motion.",
+        "controls": "One reusable descriptor-bound layer/node inspector/connector/parameter gesture mechanic; presentation adapter only.",
+        "chronicle": "Shared operation/proposal/undo history; no graph-specific independent undo ledger.",
+        "kernel_bindings": "Asset bridge only; actual AppState/SurrealDB/EventLedger/PromotionGate consumers remain host integration.",
+        "session": "Actor-local selection/view/layout/gesture state; no operator focus hijack."
+      },
+      "dependency_contract": {
+        "allowed": [
+          "Folio -> Accord only for canonical document schema/contracts; domain schema contributions declared through Accord/Folio contracts, not Folio -> compute implementation",
+          "Composite -> Folio/Accord plus declared Prism/Pigment/Nib/Type/Observe contracts",
+          "Motion consumes Folio/Accord snapshots and supplies typed temporal/effect ports",
+          "Render CPU/GPU providers consume compiled immutable plans and budgets",
+          "Controls consumes descriptor grammar and bound command ports; UI host adapts existing AccessKit/theme/Argus surfaces"
+        ],
+        "forbidden": [
+          "Folio depending on Composite/Motion evaluators",
+          "Composite importing native Loom authority tables or graph-search APIs",
+          "Static image render unconditionally pulling NLE/audio/native plugin/provider closure",
+          "Separate mutable graph store/private vendor project tree beside Folio",
+          "Generic Graphite TaggedValue or EffectCraft Project persisted as canonical Studio schema"
+        ]
+      },
+      "canonical_record_rules": [
+        "Preserve StudioComposition/StudioLayer/property/effect identity and order semantics through typed operations inside the one Folio document. Record output/input port identities and data types, exact time-domain mapping, content references, effect order, masks, transforms, track mattes, adjustments, isolation/collapse and precomposition links.",
+        "Layer ordering is semantic input order at the composition blend/stack operation. Layer panel reads that order; graph edits rewire that same canonical input sequence transactionally. A separate authoritative display layer-order list is forbidden.",
+        "A graph subnetwork needing non-stack fanout appears in the layer surface as an addressable editable composite/subnetwork row with explicit inputs and diagnostic disclosure; expansion opens the graph. It must not be flattened or hidden to pretend every node graph has a simple stack equivalent.",
+        "Existing layer APIs compile to atomic edits of recognized typed layer subgraphs with stable external layer IDs. Layer-only imports use these subgraphs and retain original opaque data/mappings/loss receipts.",
+        "A compiled per-frame DAG is a revision-bound disposable projection. It is not the saved authoring graph and cannot become a second writable source of truth.",
+        "Materialize stage output addresses for post-mask/post-effect/post-transform/post-matte and retained per-effect output. Fanout references one output with multiple consumers; copying pixels or duplicating layers is not required.",
+        "Emit explicit backdrop dependencies for adjustment layers/blend operations, parent-transform dependencies, matte dependencies, effect layer-reference dependencies, 3D-run grouping, quantization boundaries, working/blend-space conversions, source-time/precomp mapping and expression reads.",
+        "Source/footage/precomposition sampling and explicit state-provider dependencies are separately time-labelled and budgeted; state/delay providers must declare bounded horizon/recursion/state ownership. They do not relax the property-expression graph law: STU-MOT-077 requires topological property-expression evaluation and rejects any expression dependency cycle at expression commit, naming the participating property paths, including cycles presented as temporal sampling or routed through a delay/state provider. No provider can authorize an expression cycle."
+      ],
+      "projection_contract": {
+        "layer_to_graph": "A layer insert/duplicate/reorder/effect/matte command patches the typed graph at stable object/property ports, preserving all layer IDs and per-property mappings.",
+        "graph_to_layer": "Recognized layer-shaped subgraphs produce faithful stack rows; arbitrary subgraphs produce explicit composite rows with input/output inspector. Rows cannot invent a layer order for a graph with no equivalent.",
+        "roundtrip": "Switching surface or reopening changes no authored records/render semantics/history. Projection caches carry document and projection version/revision and may be discarded.",
+        "model_route": "Typed commands target the same canonical layer/node/property/port IDs with expected revision/read-write footprints; graph coordinates are optional view metadata.",
+        "accessibility": "Every row/node/port exposes stable address/type/connection/disabled reason; keyboard connect/disconnect/reorder and inspect-stage commands use same validation as pointer route.",
+        "import_fidelity": "Layer-native AEP/masks/track mattes/effect order/adjustments/parenting/time/stretch/3D runs remain typed editable graph operations with source mapping; nonmaterialized objects are preserved and disclosed. Binary preservation alone is not editable fidelity.",
+        "expression_commit_boundary": "Before any expression topology mutation is accepted, Motion validates the complete prospective property-expression dependency graph against current accepted Folio state; STU-MOT-077 cycle refusal remains mandatory. Composite temporal/evaluation planning or state-provider capability cannot bypass, postpone or weaken that commit check."
+      },
+      "rejected_options": [
+        {
+          "option": "Layer-only authored model with graph merely a read-only rendering preview",
+          "reason": "Fails requested multi-input/fanout graph authoring, topology undo and dependency-aware parallel editing."
+        },
+        {
+          "option": "Two independently editable canonical layer and node documents",
+          "reason": "Creates reconciliation ambiguity, two undo histories and impossible atomic dual ownership."
+        },
+        {
+          "option": "Unconstrained node document that treats imported layers as generic opaque flattened nodes",
+          "reason": "Loses existing editable layer/property/effect/time semantics and violates retained parity scope."
+        },
+        {
+          "option": "Use Loom graph backend as image-composition graph",
+          "reason": "Inspected WP012 graph owner is Loom knowledge wayfinding over block relations; its local/global/folder/tag/degree semantics are not typed image ports/evaluation. Reuse UI mechanics only."
+        },
+        {
+          "option": "Copy entire Graphite/EffectCraft application engine",
+          "reason": "Their source illustrates structure, not canonical Studio schemas/persistence/actor admission; Graphite current marketing marks alpha/experimental raster. No runtime or parity acceptance inferred."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c",
+          "lines": [
+            29570,
+            29648
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c",
+          "lines": [
+            205,
+            223
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/engineering.json",
+          "sha256": "db989e99ed60bc8a32b03fed2820ada431000bb33111fa07acb160280df63724",
+          "lines": [
+            554,
+            562
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/engineering.json",
+          "sha256": "db989e99ed60bc8a32b03fed2820ada431000bb33111fa07acb160280df63724",
+          "lines": [
+            697,
+            721
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs",
+          "sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+          "lines": [
+            849,
+            875
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs",
+          "sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+          "lines": [
+            1771,
+            1795
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/eval.rs",
+          "sha256": "a1915e7d3735eb25135cd788aa1fbdc19d81d8b1464060b30a46cafc219cd88d",
+          "lines": [
+            31,
+            71
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/graph/graph_view.rs",
+          "sha256": "45cf378c431d0473bc1c8efab4ff0b683a930603e9707db7da856d4b889c2dc6",
+          "lines": [
+            1,
+            65
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/graph/graph_controls.rs",
+          "sha256": "a1d0373689c03da5ba83271be6c1fbe99c162a30ee572d10c68a24206d051452",
+          "lines": [
+            1,
+            40
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c",
+          "lines": [
+            27499,
+            27502
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        }
+      ]
+    },
+    {
+      "id": "OCCD-CONTROLS-001",
+      "status": "SELECTED_PROPOSAL_FOR_ROOT_OPERATOR_SPEC_REVIEW_NOT_PUBLISHED_AUTHORITY",
+      "selection": "Retain current shared control defaults: Shift coarse x10; fine Ctrl on Windows/Linux and Command on macOS via existing Mod mapping; combined coarse+fine x100; Alt has no numeric magnitude meaning. Rebinding changes physical activation of semantic roles only.",
+      "rationale": "Candidate SHL106/190 already closes defaults; official Adobe current manual agrees with separate coarse/fine meanings. Combined x100 is Studio-authoritative, not inferred from Adobe or EffectCraft.",
+      "semantic_roles": {
+        "normal": 1,
+        "coarse": 10,
+        "fine": 0.1,
+        "coarse_and_fine": 100
+      },
+      "scope": "Continuous numeric ScrubValue drag/wheel; gesture routing is contextual, not global shortcut dispatch. Enum/integer behavior needs explicit preserved discrete descriptor rules.",
+      "rebind_contract": [
+        "One Controls gesture-binding configuration maps physical modifier predicates to named roles; per-domain copied maps forbidden. Default Windows/Linux fine maps Ctrl; macOS maps Command through the same native platform adapter as Mod.",
+        "Existing keymap parser REQUIRES exactly one non-modifier key, so do not pretend modifier-only gesture roles already work through KeymapSettings::chord_from_str. Extend existing settings/input owner with typed gesture predicates and conflict validation, reusing serialization/platform mapping rather than duplicating keyboard infrastructure.",
+        "Operator binding changes validate overlap/ambiguity within the active control context and reserved Alt duplicate/subtract/sample meanings; rejected setting leaves prior map active and exposes a reason. Restore-default and discoverable active hints required.",
+        "A modifier-only gesture handler may claim only an already-owned numeric pointer/wheel gesture. Menu/accelerator/graph-selection/pen modifiers retain their own context. Release, focus loss, modal OPENING and wheel inactivity of400ms close the correct actor gesture scope through its normal actor-specific approval route; Escape aborts that scope, restoring its captured pre-press draft value without overwriting another actor accepted mutation.",
+        "Accessibility exposes increment/decrement/coarse/fine/reset/type actions as semantic commands and announces effective range/unit/value/step. Operator can type exact values without holding a chord. Model commands address parameter IDs, semantic role or exact value, never synthesize keys.",
+        "During active drag sample role each update and accumulate delta in value space; no jump when modifiers change. Freeze the binding-profile version for the gesture; preference changes apply to next gesture, with clear hinting.",
+        "One shared descriptor route feeds pointer/key/wheel/AccessKit/model validation and diagnostics/manual/Argus/hintline. Agent gesture state is isolated per author/session and property."
+      ],
+      "numeric_reconciliation": {
+        "selected_shared_pointer_sensitivity": "Use current canonical SHL191 max(10^-precision, soft_range/200) for continuous pointer drag where terms are declared; omit undeclared terms. Preserve FX110 precision quantum as the discrete arrow/accessibility increment, and store pointer sensitivity separately so pixel travel is not conflated with one key press. Root must amend wording that presently equates them.",
+        "selected_soft_boundary": "Retain SHL192 reversible soft-bound resistance for pointer drag as an interaction affordance, never hard rejection; typing exact in-hard-range value bypasses resistance. FX110a free passage must be qualified to mean legal value acceptance, not forced absence of pointer resistance.",
+        "integer_enumeration": "Retain FX110 step=coarse_step=fine_step=1 for integer/enumeration discrete controls; do not make modifier scaling skip enum options. Root must explicitly scope SHL190 continuous map or distinguish continuous integer scrubs from discrete selector actions.",
+        "unknown_bounds": "SELECTED DESIGN DEFAULT: observed/unknown bounds remain nonconstraints. When no valid DECLARED finite increasing soft range is available, freeze v_anchor at pointer press or first wheel notch; q=10^(-precision) if precision is declared, otherwise q=0; step_default=max(q,max(abs(v_anchor),1)/200), in canonical stored value units per pixel/notch. Fine/coarse/combined roles multiply this resolved step by 0.1/10/100. This is a proposed Studio default chosen from the existing SHL191 magnitude-relative requirement, not a claim that an upstream implements it.",
+        "arithmetic_note": "SHL191 statement that max formula always makes 200px traverse the soft range exactly once is false when precision quantum exceeds soft_range/200. Preserve max formula, amend claim to at-most-200px traversal in that case with quantization; fixture required."
+      },
+      "required_spec_reconciliation": [
+        {
+          "refs": [
+            "STU-FX-149",
+            "STU-FX-110a",
+            "STU-SHL-106",
+            "STU-SHL-190"
+          ],
+          "change": "Retire open-default claim in favor of selected shared map; explicitly permit typed operator rebinding/platform adapter while semantic factors and Alt exclusion remain fixed."
+        },
+        {
+          "refs": [
+            "STU-FX-110",
+            "STU-SHL-191"
+          ],
+          "change": "Separate pointer sensitivity from discrete input quantum and correct exactly-200px assertion; avoid double multiplying resolved ParamSpec.coarse/fine plus modifier factors."
+        },
+        {
+          "refs": [
+            "STU-FX-110a",
+            "STU-SHL-192"
+          ],
+          "change": "Separate value legality from pointer-only reversible soft resistance and preserve typed entry rejection outside hard bounds."
+        },
+        {
+          "refs": [
+            "STU-SHL-191",
+            "STU-FX-110",
+            "STU-SHL-194"
+          ],
+          "change": "Declare OCCD-CONTROLS-FALLBACK-001 formula, canonical-unit reference1 and frozen gesture anchor. Replace FX110 unknown-bound fixed1 continuous fallback with this shared magnitude fallback while preserving discrete exception and existing IDs."
+        }
+      ],
+      "rejected_options": [
+        {
+          "option": "EffectCraft hot_number modifier code unchanged",
+          "reason": "Direct code tests Shift first then command, so combined Shift+command gives x10 rather than required x100; it applies supplied speed and clamp without Studio ParamSpec provenance."
+        },
+        {
+          "option": "Use raw egui DragValue as complete Studio control contract",
+          "reason": "WP012 inspected settings uses speed/range/suffix and AccessKit labels, useful host pattern but not evidence of Studio role maps, coalescing, typed descriptor or soft-bound semantics."
+        },
+        {
+          "option": "Alt for fine",
+          "reason": "Conflicts with canonical reserved Alt gestures and current Studio shared control rule."
+        },
+        {
+          "option": "Ask operator to pick a default already closed by SHL106",
+          "reason": "Existing canonical shared defaults provide the decision basis; only actual contradictory clauses/rebinding semantics need reconciliation."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c",
+          "lines": [
+            12662,
+            12680
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c",
+          "lines": [
+            19018,
+            19020
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c",
+          "lines": [
+            31684,
+            31684
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c",
+          "lines": [
+            32616,
+            32624
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/ui-egui/src/widgets.rs",
+          "sha256": "13b7b0990cdf53b5b599e6905cd18ce02a4cbbfc0ece658e01465b58477ea24b",
+          "lines": [
+            117,
+            137
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/settings_editor_section.rs",
+          "sha256": "8b7ad67957d577eddc41d0c63565650b3df432ed1579a0dcfa7832067d8ac40b",
+          "lines": [
+            596,
+            620
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/code_editor/keymap_settings.rs",
+          "sha256": "f93614f10b35caaf78cefe2b0333207d7d6d77a889c9e10fc2ba7254d2776741",
+          "lines": [
+            137,
+            182
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        },
+        {
+          "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/graph/canvas_board.rs",
+          "sha256": "4f0fd502d7eb1a1ab382df4cc5ea3548b401ce597923f1a3b74c97e84debd1ee",
+          "lines": [
+            2779,
+            2799
+          ],
+          "inspection": "DIRECT_SOURCE_BYTES"
+        }
+      ],
+      "unknown_bound_fallback": {
+        "id": "OCCD-CONTROLS-FALLBACK-001",
+        "status": "SELECTED_DESIGN_DEFAULT_FOR_ROOT_SPEC_PUBLICATION",
+        "trigger": "Continuous numeric value with no usable declared soft range; missing one endpoint, unknown/observed-only provenance, nonfinite or nonincreasing endpoints cannot manufacture a usable range. A valid declared soft range keeps SHL191 range-based sensitivity even when hard bounds are unknown.",
+        "formula": "q = precision declared ? 10^(-precision) : 0; magnitude = max(abs(v_anchor), 1); step_default = max(q, magnitude/200); step_fine=step_default/10; step_coarse=step_default*10; step_combined=step_default*100",
+        "unit": "One canonical stored value unit is the explicit minimum reference magnitude. Display percentage/unit conversion never changes the stored-domain step; the same profile/unit descriptor renders operator, accessible and model values.",
+        "anchor_lifetime": "Capture finite current value and descriptor/binding revision on press or first wheel notch, using SHL194 coalescing scope. Retain anchor and step through continuous role changes and wheel bursts; reset only for the next gesture after release, focus loss, modal OPENING, Escape or400ms after the last wheel notch. Never recompute magnitude from intermediate values, avoiding feedback acceleration and zero-crossing jumps.",
+        "accumulation": "Apply per-event signed travel to current accumulator with the effective role factor; keep fractions in value space. Clamp only declared hard bounds under current provenance; reject nonrepresentable/nonfinite arithmetic with structured diagnostic without inventing a bound. Unknown bounds do not imply legal NaN/infinity.",
+        "discrete_exception": "FX110 integer/enumeration discrete actions retain exactly-one-domain-step behavior and are not forced through floating magnitude fallback. Numeric precision is a resolution signal, not an inferred minimum/maximum.",
+        "examples": [
+          {
+            "anchor": 0,
+            "precision": null,
+            "step_default": 0.005,
+            "step_fine": 0.0005,
+            "step_coarse": 0.05,
+            "step_combined": 0.5
+          },
+          {
+            "anchor": -80,
+            "precision": null,
+            "step_default": 0.4,
+            "step_fine": 0.04,
+            "step_coarse": 4,
+            "step_combined": 40
+          },
+          {
+            "anchor": 0.2,
+            "precision": 2,
+            "step_default": 0.01,
+            "step_fine": 0.001,
+            "step_coarse": 0.1,
+            "step_combined": 1
+          }
+        ],
+        "rationale": [
+          "Reuses canonical SHL191 divisor200 rather than inventing a second sensitivity scale.",
+          "Absolute magnitude treats positive/negative values symmetrically; reference1 keeps zero and tiny values controllable with fine role.",
+          "Freezing the anchor at the existing SHL194 gesture boundary prevents nonlinear acceleration and modifier-induced jumps.",
+          "Canonical stored units avoid percent-display x100 double scaling; all routes expose the same resolved sensitivity.",
+          "Precision floor respects declared resolution; no precision, range, hard-bound or default metadata is invented."
+        ],
+        "proof_requirements": [
+          "Zero, negative, near-zero, very-large finite and precision-dominant anchors produce exact resolved metadata before interaction.",
+          "Changing intermediate value through zero does not recalculate sensitivity; modifier changes affect subsequent delta only.",
+          "A wheel burst shares one step until400ms idle; next gesture takes a fresh current-value anchor.",
+          "Unknown/observed endpoints introduce neither clamp nor fake soft resistance; declared endpoints retain their actual semantics.",
+          "Stored0..1 percent display uses stored-domain fallback and displays converted step consistently; no secondx100 factor.",
+          "Independent model/AccessKit/pointer routes read the same resolved descriptor and target identity; numeric overflow reports an explicit rejected operation.",
+          "Every exact SHL194 exit produces one history-scope entry: release, focus loss, modal OPENING and400ms_after_last_wheel_notch finalize through actor-specific approval; Escape records one aborted scope entry, restores draft pre-press value under conflict safeguards, produces no accepted document-content mutation and stays excluded from undo/redo cursor."
+        ]
+      },
+      "gesture_exit_contract": {
+        "id": "OCCD-CONTROLS-EXIT-001",
+        "source_refs": [
+          "STU-SHL-194",
+          "STU-SHL-107"
+        ],
+        "status": "SELECTED_PROPOSAL_ALIGNED_TO_EXACT_EXISTING_EXIT_MAP",
+        "scope_open": "Pointer press or first wheel notch opens one coalescing scope keyed by author_id; intermediate proposed values remain in that actor scope.",
+        "finalizing_exits": [
+          {
+            "trigger": "pointer_release",
+            "history_entries": 1
+          },
+          {
+            "trigger": "focus_loss",
+            "history_entries": 1
+          },
+          {
+            "trigger": "modal_OPENING",
+            "history_entries": 1
+          },
+          {
+            "trigger": "400ms_after_last_wheel_notch",
+            "history_entries": 1
+          }
+        ],
+        "finalizing_route": "Each valid finalizing exit closes into exactly one gesture history-scope entry and finalizes through the actor-specific normal approval/promotion route; no exit bypasses grants, read/write preconditions or model approval. Modal closing is not the trigger. Conflicts keep explicit rejected/conflicted disposition without overwriting current accepted content.",
+        "escape": {
+          "trigger": "Escape",
+          "history_entries": 1,
+          "disposition": "aborted",
+          "draft_value": "Restore captured pre-press value in the actor proposal/draft scope under conflict safeguards.",
+          "accepted_document_content_mutation": false,
+          "undo_redo_cursor_inclusion": false,
+          "rule": "Exactly one aborted history-scope entry is recorded for observability. It is excluded from the document undo/redo cursor; zero entries or an additional rollback content edit would violate selected exit semantics."
+        },
+        "independent_proof": "Drive each of the five exits separately, fresh scope each; independently reread history scope count/disposition and accepted document value/EventLedger plus undo/redo cursor. Scope entry count and document content transaction count are separate observations; fixture must not conflate them."
+      }
+    }
+  ],
+  "crdt_and_commit_conflicts": [
+    {
+      "id": "OCCD-CONFLICT-001",
+      "scenario": "Agents A and B edit color on node X and radius on node Y with independent read/write footprints.",
+      "decision": "Both admitted when current target versions/read dependencies still hold; do not whole-document-CAS reject B solely because A committed. Re-evaluate dependent outputs, not all unrelated frames."
+    },
+    {
+      "id": "OCCD-CONFLICT-002",
+      "scenario": "A connects X -> Y while B connects Y -> X; each patch was acyclic on its base.",
+      "decision": "CRDT draft may contain proposed conflicting edges; serialized promotion validates candidate against current accepted graph. Second transaction is rejected/conflicted with exact cycle path; never accept cycle or silently delete arbitrary edge."
+    },
+    {
+      "id": "OCCD-CONFLICT-003",
+      "scenario": "A rewires same target input as B; or deletes a node B reads/references.",
+      "decision": "Single input port is one register mutation with expected target version; conflicting reassignment/deletion needs explicit proposal resolution. No timestamp-last-wins promotion of an unintended source."
+    },
+    {
+      "id": "OCCD-CONFLICT-004",
+      "scenario": "A reorders layer above adjustment while B edits that adjustment strength expecting old backdrop.",
+      "decision": "Reorder writes composition input sequence and invalidates backdrop-read dependency stamps. B rechecks its intended read-set; stale semantic snapshot cannot be promoted as independent merely because scalar property differs."
+    },
+    {
+      "id": "OCCD-CONFLICT-005",
+      "scenario": "A inspects shared intermediate while B updates upstream and renderer finishes old revision.",
+      "decision": "Actor-local stage viewers keep explicit stale revision; obsolete render cannot publish as current. Cache keys bind graph/node/port/time/color/profile/provider/version/ROI/upstream content digest; budgets span fanout result retention."
+    },
+    {
+      "id": "OCCD-CONFLICT-006",
+      "scenario": "Lost reply after accepted topology edit or undo during another actor mutation.",
+      "decision": "Idempotency key resolves committed receipt on retry. Chronicle inverse operation checks expected property/topology state and actor scope; it cannot roll back another actor edit wholesale."
+    }
+  ],
+  "external_sources": [
+    {
+      "id": "OCCD-GRAPHITE-001",
+      "url": "https://github.com/GraphiteEditor/Graphite/blob/baf2403d7e6a55efd39ec0ddf086d9d366b3472f/node-graph/graph-craft/src/document.rs",
+      "commit": "baf2403d7e6a55efd39ec0ddf086d9d366b3472f",
+      "sha256": "ee2bdee3cc4b9e93b77e612bbac68dd33e865106e3c3fd7ca233c7a302c7d841",
+      "lines": [
+        [
+          36,
+          53
+        ],
+        [
+          177,
+          194
+        ],
+        [
+          309,
+          325
+        ],
+        [
+          535,
+          549
+        ]
+      ],
+      "inspection": "Bounded raw UTF8 read; structures directly printed/inspected",
+      "finding": "NodeNetwork stores typed document-node identities and exported ports; NodeInput distinguishes node reference/output index, value, imports and scopes; nested networks are explicit. Pattern only, not adopted schema or code."
+    },
+    {
+      "id": "OCCD-GRAPHITE-002",
+      "url": "https://github.com/GraphiteEditor/Graphite/blob/master/node-graph/README.md",
+      "finding": "Primary developer docs distinguish user document graph from proto executor and generate property controls from node signatures. Current unpinned docs are corroboration, not exact pinned implementation proof."
+    },
+    {
+      "id": "OCCD-GRAPHITE-003",
+      "url": "https://graphite.art/features/",
+      "finding": "Primary project describes hybrid layer/node editing and shared document structure; alpha/experimental raster limits explicitly retained. No Studio parity follows."
+    },
+    {
+      "id": "OCCD-AE-MODIFIERS-001",
+      "url": "https://helpx.adobe.com/after-effects/desktop/get-started/keyboard-shortcuts/keyboard-shortcuts-reference.html",
+      "web_lines": [
+        1077,
+        1082
+      ],
+      "finding": "Current official manual lists Shift-drag coarse x10 and Ctrl Windows/Command macOS fine x0.1. No combined x100 claim sourced to Adobe."
+    }
+  ],
+  "required_negative_proofs": [
+    {
+      "id": "OCCD-PROOF-001",
+      "required": "Layer-native edited fixture with mask/effect/transform/matte/adjustment/parent/precomp/3D/time/stretch quantization exports before/after surface switch; same canonical IDs, property values, render and undo receipt."
+    },
+    {
+      "id": "OCCD-PROOF-002",
+      "required": "Shared node fanout feeding two composites, arbitrary subgraph disclosure in layer view, node port viewer and live rewiring; no duplicated authoritative document/hidden flatten."
+    },
+    {
+      "id": "OCCD-PROOF-003",
+      "required": "All six conflict scenarios against actual promoted SurrealDB/EventLedger state and exact actor receipt; independently reread canonical graph after conflict and lost reply."
+    },
+    {
+      "id": "OCCD-PROOF-004",
+      "required": "Matte/adjustment/backdrop reads and separately time-labelled source/precomposition/provider sampling compare independent original-produced fixture. Attempt property-expression cycle directly and via temporal/delay/state-provider route; each refused at expression commit with participating property paths under STU-MOT-077. Bound sampling horizons independently."
+    },
+    {
+      "id": "OCCD-PROOF-005",
+      "required": "Continuous role changes mid-drag; combinedx100; Alt exclusion; separate pointer_release, focus_loss, modal_OPENING, Escape and400ms_after_last_wheel_notch cases each produce exactlyone history-scope entry. Escape entry aborted, no accepted document-content mutation and excluded from undo/redo cursor; valid remaining exits use actor-specific approval. Keyboard/AccessKit/model exact-target consistency."
+    },
+    {
+      "id": "OCCD-PROOF-006",
+      "required": "Rebind coarse/fine and reset; invalid modifier-only parsing cannot silently succeed; no menu/pen/graph selection interception. Separate agent/operator gestures preserve focus and scope."
+    },
+    {
+      "id": "OCCD-PROOF-007",
+      "required": "Precision-dominant versus range-dominant step, enum/integer step1, undeclared bounds, negative values, clamp turnaround and typed beyond-soft acceptance; no double scaling."
+    },
+    {
+      "id": "OCCD-PROOF-008",
+      "required": "Swarm admission over large shared intermediates/cancelled previews; byte leases retained across all consumers and released; stale revision is visible and never counted current."
+    },
+    {
+      "id": "OCCD-PROOF-009",
+      "required": "Frozen magnitude fallback fixtures plus exact five-exit OCCD-CONTROLS-EXIT-001 map; independently inspect history scope count/disposition separately from content mutation and undo/redo cursor. No runtime result claimed here."
+    }
+  ],
+  "existing_spec_refs": [
+    "STU-CMP-090",
+    "STU-CMP-092",
+    "STU-CMP-093",
+    "STU-CMP-094",
+    "STU-CMP-101",
+    "STU-ARC-007",
+    "STU-ARC-010",
+    "STU-ARC-011",
+    "STU-ARC-014",
+    "STU-FX-110",
+    "STU-FX-149",
+    "STU-SHL-106",
+    "STU-SHL-190",
+    "STU-SHL-191",
+    "STU-SHL-192",
+    "STU-SHL-194",
+    "STU-MOT-077"
+  ],
+  "scope_preservation": "No prior MT IDs/scopes deleted/renumbered or declared satisfied. Root may close decision clauses only after operator/spec review; all layer/native-format and graph/controls requirements retained. No new semantic owner names invented beyond inspected module catalog.",
+  "limits": [
+    "No build/test/runtime/native GUI or original visual parity proof",
+    "Selected source bodies only; no exhaustive Graphite or EffectCraft security audit",
+    "Pinned Graphite raw file read has exact byte hash; GitHub master docs may move",
+    "Existing WP012 Loom widget/UI patterns and keymap setting mechanics are reusable precedents, not already-implemented Studio typed image graph/modifier roles"
+  ],
+  "read_only_probe_failures": [
+    "PowerShell literal wildcard passed to rg produced invalid-path errors; corrected by rg --files / explicit verified paths. No repo mutation.",
+    "Graphite guessed network_interface.rs at pinned commit returned404; no retry/absence claim. document.rs succeeded. Root informed."
+  ],
+  "restart": "Read this report and exact current candidate revision, inspect source hashes, then perform only root-assigned followups. Original design audit is not restarted.",
+  "independent_review_corrections": [
+    {
+      "id": "OCCD-REVIEW-CORRECTION-001",
+      "change": "State/temporal sampling never bypasses expression-commit cycle refusal STU-MOT-077; exact history-scope exit map distinguishes aborted scope entry from accepted content mutation and undo/redo cursor."
+    }
+  ]
+}

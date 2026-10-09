@@ -1,0 +1,949 @@
+{
+  "schema_id": "hsk.studio_original_workflow_research@1",
+  "file_id": "STUDIO-ORIGINAL-MEDIA-20261009",
+  "updated_at": "2026-10-09",
+  "status": "FINAL_SOURCE_RESEARCH_COMPLETE_RUNTIME_NOT_INSPECTED",
+  "owner": "media_original",
+  "authority": "Research proposal only; root retains spec/MT editing and publishing authority",
+  "scope": [
+    "Premiere",
+    "After Effects",
+    "Audition",
+    "Media Encoder",
+    "Acrobat/PDF",
+    "retained Dreamweaver/web"
+  ],
+  "constraints": [
+    "No product/spec/MT/state edits",
+    "No upstream execution/build/test/native GUI",
+    "No Git/process mutations",
+    "No Adobe AI implementation",
+    "Preserve all prior MT IDs and scope",
+    "SurrealDB/EventLedger sole durable authority"
+  ],
+  "sources": [
+    {
+      "id": "CRAFT-EC-EXPORT",
+      "type": "pinned_source",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\effectcraft-2a460986ee7a4b32656a3d434849693904b486bc\\crates\\interchange\\src\\export.rs",
+      "sha256": "20d93e31f82bba3ea3262f78beaa19e68a2aa8669a7785e291f74fec6151adad",
+      "line_anchors": "111-140,188-205,243-273,424-452",
+      "inspection": "Selected source body inspected; runtime not executed"
+    },
+    {
+      "id": "CRAFT-EC-INTERCHANGE",
+      "type": "pinned_source",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\effectcraft-2a460986ee7a4b32656a3d434849693904b486bc\\crates\\interchange\\src\\lib.rs",
+      "sha256": "bdd352d623690045cb513015af45afcff770e778ce00759dd4c737f44065c1c4",
+      "line_anchors": "48-94",
+      "inspection": "Selected source body inspected; runtime not executed"
+    },
+    {
+      "id": "CRAFT-PDF-PREFLIGHT",
+      "type": "pinned_source",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\pdfcraft-f626db25cca2c89f8fa3f7e30d22bf59faea65ec\\crates\\preflight\\src\\lib.rs",
+      "sha256": "47b77370d2a749e4e905e325a9323ab315de53db2c11a7eb140a3bb4e0bba6ea",
+      "line_anchors": "28-56,181-330,401-530",
+      "inspection": "Selected source body inspected; runtime not executed"
+    },
+    {
+      "id": "CRAFT-PDF-REDACT",
+      "type": "pinned_source",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\pdfcraft-f626db25cca2c89f8fa3f7e30d22bf59faea65ec\\crates\\redact\\src\\lib.rs",
+      "sha256": "c58e373786ea29f098120795d2e55b801c4ddabee71dcac4e0840510b5f9c03d",
+      "line_anchors": "267-421",
+      "inspection": "Selected source body inspected; runtime not executed"
+    },
+    {
+      "id": "CRAFT-PDF-SANITIZE",
+      "type": "pinned_source",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\pdfcraft-f626db25cca2c89f8fa3f7e30d22bf59faea65ec\\crates\\redact\\src\\sanitize.rs",
+      "sha256": "f64c0b84d3091f91208d5115489aff03c02877e638167fe6d5fd986300ad82ad",
+      "line_anchors": "14-49,241-395",
+      "inspection": "Selected source body inspected; runtime not executed"
+    },
+    {
+      "id": "CRAFT-SC-MIXER",
+      "type": "pinned_source",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a\\crates\\model\\src\\mixer.rs",
+      "sha256": "f70fc319be9732443f6ce4584a41674c6f6a9f150987b461a81f0dcca0d2f621",
+      "line_anchors": "1-95",
+      "inspection": "Selected source body inspected; runtime not executed"
+    },
+    {
+      "id": "CRAFT-FC-INTERCHANGE",
+      "type": "pinned_source",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\filmcraft-7b6c134472287db4367fca80bcb498240ba36567\\crates\\interchange\\src\\lib.rs",
+      "sha256": "db12c574cbf6438155b8cf434bceffbcd03dc9f23dc46144860d55123e207cb5",
+      "line_anchors": "49-76",
+      "inspection": "Selected source body inspected; runtime not executed"
+    },
+    {
+      "id": "CRAFT-FC-TRIM-TEST",
+      "type": "pinned_source",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\filmcraft-7b6c134472287db4367fca80bcb498240ba36567\\crates\\ui-egui\\tests\\timeline_trim_ui.rs",
+      "sha256": "2174d28e7146f300141b52222618e1c1046396c51e77dd0c9ac1e219ae93e287",
+      "line_anchors": "1-95",
+      "inspection": "Selected source body inspected; runtime not executed"
+    },
+    {
+      "id": "LOCAL-AE-CHANGE-RENDER",
+      "type": "installed_readable_resource",
+      "path": "C:/Program Files/Adobe/Adobe After Effects 2026/Support Files/Scripts/Change Render Locations.jsx",
+      "sha256": "1769f3fc52ec93e4df0a3166a69c62983ba0be4f1fac279a9ce102876b2f470a",
+      "line_anchors": "14-26",
+      "inspection": "Read only, not executed"
+    },
+    {
+      "id": "LOCAL-DW-CSS-TOOLS",
+      "type": "installed_readable_resource",
+      "path": "C:/Program Files/Adobe/Adobe Dreamweaver 2021/configuration/Menus/MM/CSS_Layout_Tools.js",
+      "sha256": "4ef4684145fa9c7bef87077e680f69596a0bcca52f5e57a2de63d46013bfad51",
+      "line_anchors": "29-65",
+      "inspection": "Read only, not executed"
+    },
+    {
+      "id": "SPEC-VID-TRIM",
+      "type": "master_spec",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "line_anchors": "23120-23200",
+      "inspection": "Scoped authoritative body inspected"
+    },
+    {
+      "id": "SPEC-MOT-QUEUE",
+      "type": "master_spec",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "line_anchors": "27719-27799",
+      "inspection": "Scoped authoritative body inspected"
+    },
+    {
+      "id": "SPEC-PDF-PRESET",
+      "type": "master_spec",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "line_anchors": "20934-20986",
+      "inspection": "Scoped authoritative body inspected"
+    },
+    {
+      "id": "SPEC-WEB-SITE",
+      "type": "master_spec",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "line_anchors": "30412-30456",
+      "inspection": "Scoped authoritative body inspected"
+    },
+    {
+      "id": "MT-33711",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33711.json",
+      "sha256": "4fde054d9baac16360bb8852428e8fb4622114151f9dfe2af188df5eee338dc8",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria",
+        "validator_focus"
+      ],
+      "acceptance_rows": 0,
+      "inspection": "Relevant contract fields inspected"
+    },
+    {
+      "id": "MT-33715",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33715.json",
+      "sha256": "eb2752f475eaa3c5504ba72fe220731f2da4735dcf487e133d0d56e3cb2ac620",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria",
+        "validator_focus"
+      ],
+      "acceptance_rows": 4,
+      "inspection": "Relevant contract fields inspected"
+    },
+    {
+      "id": "MT-33716",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33716.json",
+      "sha256": "d6a76bc5c0b24d90e26f5c661a1bab30cbf443c39c0bdda97cbc81cfb12a12f1",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria",
+        "validator_focus"
+      ],
+      "acceptance_rows": 4,
+      "inspection": "Relevant contract fields inspected"
+    },
+    {
+      "id": "MT-33717",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33717.json",
+      "sha256": "03330aebdefbe49fadaf2904cc248e6a363b1e71c500fd2de320406a4ae57fd4",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria",
+        "validator_focus"
+      ],
+      "acceptance_rows": 4,
+      "inspection": "Relevant contract fields inspected"
+    },
+    {
+      "id": "MT-33718",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33718.json",
+      "sha256": "7dfdf87764525c506955c79d52e1034164911115d80d798127aeaf605d094210",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria",
+        "validator_focus"
+      ],
+      "acceptance_rows": 4,
+      "inspection": "Relevant contract fields inspected"
+    },
+    {
+      "id": "MT-34020",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34020.json",
+      "sha256": "8a808945d8fecab89ba0412f69627490156ce3f97479c71153d9804fba14e9a7",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria",
+        "validator_focus"
+      ],
+      "acceptance_rows": 0,
+      "inspection": "Relevant contract fields inspected"
+    },
+    {
+      "id": "MT-32617",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32617.json",
+      "sha256": "24c2464d8512f022f3a4c37f765b2a7fee7be59e80318f8952ebf9f1936c2616",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria",
+        "validator_focus"
+      ],
+      "acceptance_rows": 0,
+      "inspection": "Relevant contract fields inspected"
+    },
+    {
+      "id": "MT-32784",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32784.json",
+      "sha256": "3ae33341212823b4e315668ab3d9ca692ffdae96aef02f65986dc14538e5e628",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria",
+        "validator_focus"
+      ],
+      "acceptance_rows": 1,
+      "inspection": "Relevant contract fields inspected"
+    },
+    {
+      "id": "MT-33385",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33385.json",
+      "sha256": "a04d2e34527d64e6a16c0be759af1dabb8e5b1890b24b4635d42129ae4d64729",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria",
+        "validator_focus"
+      ],
+      "acceptance_rows": 0,
+      "inspection": "Relevant contract fields inspected"
+    },
+    {
+      "id": "MT-34341",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34341.json",
+      "sha256": "85b4a070e3a967c99eb43ad4193c18b8ab2293ae9424051d6a82137728ee4f58",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria",
+        "validator_focus"
+      ],
+      "acceptance_rows": 0,
+      "inspection": "Relevant contract fields inspected"
+    },
+    {
+      "id": "MT-34346",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34346.json",
+      "sha256": "9b62660f7d8a47e4843d4c2029912d9bd5a73b48b5d94320dd60ed043b3b4b01",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria",
+        "validator_focus"
+      ],
+      "acceptance_rows": 2,
+      "inspection": "Relevant contract fields inspected"
+    },
+    {
+      "id": "MT-34347",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34347.json",
+      "sha256": "547311c0356772110fb1566c359cb2c602a921ee10aaec5b6f5f5c4d93c017cc",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria",
+        "validator_focus"
+      ],
+      "acceptance_rows": 3,
+      "inspection": "Relevant contract fields inspected"
+    },
+    {
+      "id": "MT-34356",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34356.json",
+      "sha256": "82bbc7b01c440b13f9448f49739d02f39b3fe265c880b823cd0f8ace9e062f28",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria",
+        "validator_focus"
+      ],
+      "acceptance_rows": 3,
+      "inspection": "Relevant contract fields inspected"
+    },
+    {
+      "id": "ADOBE-PREMIERE-SLIP",
+      "type": "official_manual_or_sdk",
+      "url": "https://helpx.adobe.com/premiere/desktop/edit-projects/trim-clips/perform-slip-edits.html",
+      "checked_at": "2026-10-09",
+      "finding": "Slip changes both source bounds without timeline duration/location changes",
+      "provenance": "Web retrieval; no local byte capture/hash"
+    },
+    {
+      "id": "ADOBE-AE-TIME",
+      "type": "official_manual_or_sdk",
+      "url": "https://helpx.adobe.com/ca/after-effects/desktop/animate-in-after-effects/time-stretching-and-time-remapping/time-stretching-time-remapping.html",
+      "checked_at": "2026-10-09",
+      "finding": "Freeze Frame replaces remap keyframes with Hold",
+      "provenance": "Web retrieval; no local byte capture/hash"
+    },
+    {
+      "id": "ADOBE-AE-COLOR",
+      "type": "official_manual_or_sdk",
+      "url": "https://helpx.adobe.com/uk/after-effects/desktop/adjust-colors/color-management/color-management.html",
+      "checked_at": "2026-10-09",
+      "finding": "Color working space, linear blending and output simulation",
+      "provenance": "Web retrieval; no local byte capture/hash"
+    },
+    {
+      "id": "ADOBE-AUDITION-MULTITRACK",
+      "type": "official_manual_or_sdk",
+      "url": "https://helpx.adobe.com/audition/desktop/mixing-multitrack-sessions/basic-multitrack-controls.html",
+      "checked_at": "2026-10-09",
+      "finding": "Mono/stereo/5.1 and equal-power versus logarithmic panning",
+      "provenance": "Web retrieval; no local byte capture/hash"
+    },
+    {
+      "id": "ADOBE-AUDITION-EDITORS",
+      "type": "official_manual_or_sdk",
+      "url": "https://helpx.adobe.com/ca/audition/desktop/workspace-and-setup/viewing-zooming-navigating-audio.html",
+      "checked_at": "2026-10-09",
+      "finding": "Waveform versus Multitrack destructive repair",
+      "provenance": "Web retrieval; no local byte capture/hash"
+    },
+    {
+      "id": "ADOBE-AME-ENCODE",
+      "type": "official_manual_or_sdk",
+      "url": "https://helpx.adobe.com/nz/media-encoder/desktop/encoding-and-exporting/encode-export-video-audio.html",
+      "checked_at": "2026-10-09",
+      "finding": "Watch folders and multiple output instances",
+      "provenance": "Web retrieval; no local byte capture/hash"
+    },
+    {
+      "id": "ADOBE-AME-WATCH-API",
+      "type": "official_manual_or_sdk",
+      "url": "https://developer.adobe.com/media-encoder/uxp/media-encoder-api/watch-folder/",
+      "checked_at": "2026-10-09",
+      "finding": "Beta API since 27.0",
+      "provenance": "Web retrieval; no local byte capture/hash"
+    },
+    {
+      "id": "ADOBE-ACROBAT-REDACT",
+      "type": "official_manual_or_sdk",
+      "url": "https://helpx.adobe.com/sg/acrobat/desktop/protect-documents/redact-pdfs/redact.html",
+      "checked_at": "2026-10-09",
+      "finding": "Mark/apply plus optional sanitization and rewritten save",
+      "provenance": "Web retrieval; no local byte capture/hash"
+    },
+    {
+      "id": "ADOBE-DW-SERVER",
+      "type": "official_manual_or_sdk",
+      "url": "https://helpx.adobe.com/dreamweaver/desktop/set-up-sites/connect-remote-server.html",
+      "checked_at": "2026-10-09",
+      "finding": "Web URL and separate remote/testing server roles",
+      "provenance": "Web retrieval; no local byte capture/hash"
+    },
+    {
+      "id": "MT-441",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-441.json",
+      "sha256": "cccf5df67240ebedd2cdfcdb2c7d284c714631741d9887f53feee43d935c1918",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "inspection": "Relevant source body inspected"
+    },
+    {
+      "id": "MT-442",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-442.json",
+      "sha256": "16f81a79c47f070e5f456bcc34e34d1593fe250b9eeab67cf626c957d151b34e",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "inspection": "Relevant source body inspected"
+    },
+    {
+      "id": "MT-443",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-443.json",
+      "sha256": "af903279512fa03ed65acefbe2dda0daed1911e423804a3515533440af300bb2",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "inspection": "Relevant source body inspected"
+    },
+    {
+      "id": "MT-444",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-444.json",
+      "sha256": "85f6446ad2252113589925c431d577ae7173161cd2af467266971d378af10689",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "inspection": "Relevant source body inspected"
+    },
+    {
+      "id": "MT-459",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-459.json",
+      "sha256": "64b514a09cce5c40e2b93bade98d92fa123fa4f36618d1a0eee3d9888bcdb7d8",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "inspection": "Relevant source body inspected"
+    },
+    {
+      "id": "MT-464",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-464.json",
+      "sha256": "549345c6afa938bfde18bc1a8e95d72ee2e3df84e8966e63337a7776f0461e9c",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "inspection": "Relevant source body inspected"
+    },
+    {
+      "id": "MT-465",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-465.json",
+      "sha256": "4892a4bc5dd7ac55e50a37c9ac6b013788fd249c29e0af5ccfa46310fc64a13d",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "inspection": "Relevant source body inspected"
+    },
+    {
+      "id": "MT-478",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-478.json",
+      "sha256": "e092c71730613a11389c10861cdb90565a608f8d030b135ea5f4c3ce8124275e",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "inspection": "Relevant source body inspected"
+    },
+    {
+      "id": "MT-33392",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33392.json",
+      "sha256": "3678bf882fad90b52e15201cfb47a5fa33e7f8b0169b7a3c4780fe7cb00dbb6b",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "inspection": "Relevant source body inspected"
+    },
+    {
+      "id": "MT-33421",
+      "type": "microtask",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33421.json",
+      "sha256": "7002f2a3d00711169a9177493ae190a30a6584ea050b8e66a6c9e4df7b6dec06",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "inspection": "Relevant source body inspected"
+    },
+    {
+      "id": "CRAFT-PDF-WRITER",
+      "type": "pinned_source",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\pdfcraft-f626db25cca2c89f8fa3f7e30d22bf59faea65ec\\crates\\cos\\src\\writer.rs",
+      "sha256": "9fc9c16b42c55f064071fd877c98e5d224a8769bc899f0f5958168639d1307b9",
+      "line_anchors": "175-181,233-259",
+      "inspection": "Source implementation body inspected"
+    },
+    {
+      "id": "ADOBE-PREMIERE-SEQUENCE-SDK",
+      "type": "official_manual_or_sdk",
+      "url": "https://developer.adobe.com/premiere-pro/uxp/ppro-reference/classes/sequenceeditor",
+      "checked_at": "2026-10-09",
+      "finding": "Action object edits; typed TickTime; SDK since 25.6",
+      "provenance": "Web retrieval; no local byte capture/hash"
+    },
+    {
+      "id": "ADOBE-ACROBAT-OUTPUT",
+      "type": "official_manual_or_sdk",
+      "url": "https://helpx.adobe.com/acrobat/using/previewing-output-acrobat-pro.html",
+      "checked_at": "2026-10-09",
+      "finding": "Overprint simulation, plate toggles and object inspector differ; onscreen separation preview excludes hidden layers and is not trapping/halftone proof",
+      "provenance": "Web retrieval; no local byte capture/hash"
+    }
+  ],
+  "workflows": [
+    {
+      "id": "ORIG-MEDIA-WF-001",
+      "application": "Premiere",
+      "steps": [
+        "Ingest camera originals; establish source interpretation and sequence settings",
+        "Patch incoming video/audio streams separately from track targeting",
+        "Three/four-point insert or overwrite",
+        "Refine linked picture/sound with ripple, roll, slip, slide and modal trim",
+        "Nest/relink/conform; send audio post and composition interchange",
+        "Grade with declared measurement space; deliver source-range-specific outputs"
+      ],
+      "semantic_contract": "Slip keeps timeline start and duration fixed while moving both source bounds equally; roll preserves sequence duration; source patching is distinct from target navigation.",
+      "sources": [
+        "ADOBE-PREMIERE-SLIP",
+        "SPEC-VID-TRIM",
+        "MT-33711",
+        "MT-33715",
+        "MT-33716",
+        "MT-33717",
+        "MT-33718"
+      ],
+      "counterexample": "Three linked V/A clips, one sync-locked audio track and one unlocked track; negative slip at source zero, ripple across a locked neighbour, different track targeting and patching. Compare affected clip IDs, exact source/timeline bounds and undo, not only a screenshot."
+    },
+    {
+      "id": "ORIG-MEDIA-WF-002",
+      "application": "After Effects",
+      "steps": [
+        "Interpret footage and alpha; establish composition timebase and color working space",
+        "Compose nested layers, parenting, track mattes, adjustment layers and expressions",
+        "Retiming via Time Remap; differentiate frame mix and pixel motion",
+        "Inspect source-time versus composition-time at keyframes",
+        "Queue one composition with separate render settings and multiple output modules",
+        "Deliver mezzanine, proxy and image sequence; preserve editable source separately"
+      ],
+      "semantic_contract": "Freeze Frame replaces existing Time Remap keyframes with a Hold keyframe; current_settings is a live binding, not an explicit copied value. Baked visual interchange does not preserve editable expressions, masks or parenting.",
+      "sources": [
+        "ADOBE-AE-TIME",
+        "ADOBE-AE-COLOR",
+        "SPEC-MOT-QUEUE",
+        "LOCAL-AE-CHANGE-RENDER",
+        "CRAFT-EC-EXPORT"
+      ],
+      "counterexample": "Nested precomp with animated mask, expression, 3D parent, guide layer and a two-frame freeze; export with no prerender and missing prerender asset; queue RGB straight-alpha and premultiplied outputs from one composition. Assert semantic-loss manifest and alpha/color interpretation."
+    },
+    {
+      "id": "ORIG-MEDIA-WF-003",
+      "application": "Audition/audio post",
+      "steps": [
+        "Open Waveform for per-file destructive repair or Multitrack for reversible clip arrangement",
+        "Route mono/stereo/5.1 tracks through buses and sends",
+        "Set pan law and monitor track versus mix levels",
+        "Apply processing and automation; keep original media identity",
+        "Export stems/mix with explicit channel order, sample rate and loudness profile",
+        "Reimport into picture timeline and verify sync and handles"
+      ],
+      "semantic_contract": "Waveform edits and nondestructive multitrack operations must remain distinct; equal-power versus logarithmic panning and track versus mix meters are different controls. Channel-count enums alone do not prove channel-order routing.",
+      "sources": [
+        "ADOBE-AUDITION-MULTITRACK",
+        "ADOBE-AUDITION-EDITORS",
+        "CRAFT-SC-MIXER",
+        "MT-32617",
+        "MT-32784"
+      ],
+      "counterexample": "Mono narration centered into stereo, 5.1 impulse on each labeled channel, pre/post-fader send, mute/solo combination, automation crossing block boundary, 44.1-kHz source into 48-kHz session; compare independent rendered samples and source bytes."
+    },
+    {
+      "id": "ORIG-MEDIA-WF-004",
+      "application": "Media Encoder",
+      "steps": [
+        "Author source range and immutable preset identity",
+        "Attach multiple output instances to one source",
+        "Queue or watch-folder ingestion",
+        "Start queue; observe per-output state",
+        "Recover an interrupted output without overwriting completed siblings",
+        "Verify final codec, metadata, color, audio and duration independently"
+      ],
+      "semantic_contract": "Watch-folder discovery is not completion; one source can have multiple output instances and queued items are processed when the queue starts. UXP Watch Folder reference is public beta, since 27.0; do not assume installed 2026 supports it.",
+      "sources": [
+        "ADOBE-AME-ENCODE",
+        "ADOBE-AME-WATCH-API",
+        "SPEC-MOT-QUEUE"
+      ],
+      "counterexample": "Source arrives in chunks, two presets produce same basename, one output fails halfway, queue paused then restarted, 100 source jobs admitted by simultaneous agents. Prove bounded bytes and jobs, deterministic collision refusal and per-output recovery."
+    },
+    {
+      "id": "ORIG-MEDIA-WF-005",
+      "application": "Acrobat/PDF",
+      "steps": [
+        "Inspect page objects, fonts, color spaces, output intent, overprint and document structure",
+        "Mark redactions separately from applying them",
+        "Apply content removal and explicitly sanitize hidden information",
+        "Save a rewritten artifact and independently reopen it",
+        "Inspect separations/prepress and accessibility semantics separately",
+        "Validate the declared standard with an independent conformance engine"
+      ],
+      "semantic_contract": "Opaque rectangles are not redaction; redaction application and hidden-information sanitization are separate operations. PDF/A object-graph checks do not establish PDF/X or PDF/UA conformance.",
+      "sources": [
+        "ADOBE-ACROBAT-REDACT",
+        "CRAFT-PDF-REDACT",
+        "CRAFT-PDF-SANITIZE",
+        "CRAFT-PDF-PREFLIGHT",
+        "SPEC-PDF-PRESET",
+        "MT-33385"
+      ],
+      "counterexample": "Shared form XObject on two pages, ActualText/Alt containing removed text, hidden OCG, attachment, old incremental revision, partially intersecting image, transparency and spot overprint. Search decoded reachable and obsolete objects after rewritten save; compare independent rendering and structure extraction."
+    },
+    {
+      "id": "ORIG-MEDIA-WF-006",
+      "application": "Dreamweaver/web",
+      "steps": [
+        "Define local site root and remote/testing target distinctly",
+        "Choose document-relative versus site-root-relative links",
+        "Edit code, split and live views with focus-sensitive controls",
+        "Move asset and update all referring documents",
+        "Preview through testing server for root-relative links",
+        "Review sync plan with dependent assets and emit per-file publishing outcomes"
+      ],
+      "semantic_contract": "Site-relative link base requires site/server context; remote and testing roles differ. Existing server-language constructs must retain bytes even where generation is intentionally out of scope.",
+      "sources": [
+        "ADOBE-DW-SERVER",
+        "LOCAL-DW-CSS-TOOLS",
+        "SPEC-WEB-SITE",
+        "MT-34341",
+        "MT-34346",
+        "MT-34347",
+        "MT-34356"
+      ],
+      "counterexample": "Nested CSS URL and HTML srcset refer to renamed asset, mixed Unicode filenames, root-relative link under non-root deployment prefix, locked template region, PHP text not interpreted as HTML, partial SFTP publish. Compare complete canonical document set and per-file outcomes."
+    }
+  ],
+  "control_semantics": [
+    {
+      "id": "ORIG-MEDIA-CTRL-001",
+      "control": "Timeline tool gesture",
+      "requirement": "Bind edit-point side, tool mode, pointer-down target and modifier state; command and GUI must affect same clip IDs. Keyboard and pen paths need same refusal/undo semantics.",
+      "evidence": "FilmCraft timeline_trim_ui.rs executes pointer-down/move/release through FilmcraftApp test harness; this is test source, not a passing runtime result."
+    },
+    {
+      "id": "ORIG-MEDIA-CTRL-002",
+      "control": "Render locations",
+      "requirement": "Distinguish selected, queued and all queue items; each queued item can own several output modules.",
+      "evidence": "Installed Change Render Locations.jsx loops only RQItemStatus.QUEUED and then every numOutputModules, preserving oldLocation.name. Script opens Folder.selectDialog and alerts; inspect only, never execute in quiet research."
+    },
+    {
+      "id": "ORIG-MEDIA-CTRL-003",
+      "control": "Web visual aids",
+      "requirement": "Disabled state depends on active document, global Hide All Visual Aids, focus and split view; it is not a global boolean.",
+      "evidence": "Installed CSS_Layout_Tools.js canAcceptCommand checks dw.getActiveWindow(), getHideAllVisualAids(), dw.getFocus(), and dom.getView() == split."
+    },
+    {
+      "id": "ORIG-MEDIA-CTRL-004",
+      "control": "Audio pan and meters",
+      "requirement": "Expose pan law, track-format/channel labels, per-track and mix meters separately; assistive labels and keyboard scrubbing must identify unit and target.",
+      "evidence": "Adobe basic multitrack manual describes equal-power and logarithmic panning, mono/stereo/5.1 tracks; native accessibility behavior NOT_INSPECTED."
+    }
+  ],
+  "craft_findings": [
+    {
+      "id": "ORIG-MEDIA-CF-001",
+      "project": "EffectCraft",
+      "finding": "TimelineFormat enum contains Fcp7Xml/Fcpxml/Otio/Edl/Aaf/Omf; default export format is Fcp7Xml. export() forwards opts.format.fc() to FilmCraft interchange writer. This inspected path cannot substantiate native .prproj writing.",
+      "code_sources": [
+        "CRAFT-EC-EXPORT",
+        "CRAFT-EC-INTERCHANGE"
+      ],
+      "impact": "Calling interchange an editable native project export would hide lost editing semantics.",
+      "mitigation": "Use explicit format provenance and object-level loss map; retain native-format work as unresolved adapter requirement."
+    },
+    {
+      "id": "ORIG-MEDIA-CF-002",
+      "project": "EffectCraft",
+      "finding": "Plan::Render without supplied prerender media warns that layer was left out; PrerenderMode::None warns on unsupported features while native/nested processing continues.",
+      "code_sources": [
+        "CRAFT-EC-EXPORT"
+      ],
+      "impact": "Export success with warnings can yield missing layers or baked content.",
+      "mitigation": "Typed loss diagnostics must identify omitted/baked objects and missing assets, with explicit approval policy; compare pixels plus editable graph after independent reimport."
+    },
+    {
+      "id": "ORIG-MEDIA-CF-003",
+      "project": "PdfCraft",
+      "finding": "preflight Level enum exposes A2b and A3b; verify/convert operate on these levels. This API does not provide PDF/X/UA validation.",
+      "code_sources": [
+        "CRAFT-PDF-PREFLIGHT"
+      ],
+      "impact": "Standards panel or PDF/A label cannot prove print-ready spot/overprint output or accessible structure.",
+      "mitigation": "Separate archive, prepress and accessibility validators and standards evidence; independently validate each declared standard."
+    },
+    {
+      "id": "ORIG-MEDIA-CF-004",
+      "project": "PdfCraft",
+      "finding": "apply() performs Mode::Verify and returns Residue if content remains, then require_full_save(); sanitize removal also requires full save. Real code paths exist, but verifier shares implementation with mutator.",
+      "code_sources": [
+        "CRAFT-PDF-REDACT",
+        "CRAFT-PDF-SANITIZE"
+      ],
+      "impact": "Shared parser/coverage gaps can hide residue from both application and internal verification.",
+      "mitigation": "Independent decoded-object/text/resource extraction and full saved-byte reopen, including prior revisions; do not claim proof from internal check alone."
+    },
+    {
+      "id": "ORIG-MEDIA-CF-005",
+      "project": "SoundCraft",
+      "finding": "ChannelFormat enumerates mono/stereo/surround/Atmos/ambisonic channel widths in mixer model. Enum and channels() are source structure, not evidence of Audition session import or exact routing output.",
+      "code_sources": [
+        "CRAFT-SC-MIXER"
+      ],
+      "impact": "Counting supported channel variants overstates professional audio-post readiness.",
+      "mitigation": "Channel-labeled impulse, pan-law and stem delivery oracles; separately inspect session-format reader/writer and source destructiveness."
+    },
+    {
+      "id": "ORIG-MEDIA-CF-006",
+      "project": "FilmCraft",
+      "finding": "Interchange Format enum lists six timeline formats and inspected UI trim test uses demo-project pointer gestures. These are reusable implementation/proof patterns, not native Premiere interoperability or real GUI proof.",
+      "code_sources": [
+        "CRAFT-FC-INTERCHANGE",
+        "CRAFT-FC-TRIM-TEST"
+      ],
+      "impact": "Self-authored demo fixture can miss real media handles, mixed rates, locked tracks and assistive input.",
+      "mitigation": "Original-app-produced fixtures with independently observed graph/render truth; canonical media relink and edit identity assertions."
+    },
+    {
+      "id": "ORIG-MEDIA-CF-007",
+      "project": "PdfCraft",
+      "finding": "write_incremental checks full_save_required and delegates to write_full. write_full traverses refs from Root/Info/Encrypt into a newly numbered reachable-object set; this supports old-revision removal design, not independent runtime security proof.",
+      "code_sources": [
+        "CRAFT-PDF-WRITER"
+      ],
+      "impact": "Do not diagnose an incremental-revision leak merely from ordinary incremental-save support; source already has a full-save safeguard.",
+      "mitigation": "Independent post-save byte/object/text oracle must prove retained original/preservation blob never enters sanitized export."
+    }
+  ],
+  "spec_mt_deltas": [
+    {
+      "proposal_id": "ORIG-MEDIA-DELTA-001",
+      "classification": "proof hydration; preserve IDs/scope",
+      "targets": [
+        "MT-33711",
+        "MT-33715",
+        "MT-33716",
+        "MT-33717",
+        "MT-33718"
+      ],
+      "spec_anchors": [
+        "STU-VID-025",
+        "STU-VID-026"
+      ],
+      "delta": "Existing spec already defines patch/target separation and trim semantics. Hydrate named executable runtime proof with source handles, sync locks, exact timebase, illegal refusal, undo, GUI/headless equivalence and non-mutation of originals. No new trim taxonomy needed."
+    },
+    {
+      "proposal_id": "ORIG-MEDIA-DELTA-002",
+      "classification": "scope/proof enrichment; preserve original queue requirement",
+      "targets": [
+        "MT-34020"
+      ],
+      "spec_anchors": [
+        "STU-MOT-120",
+        "STU-MOT-121a"
+      ],
+      "delta": "Keep one-evaluation/multiple-output requirement; prove current_settings follows composition revision and copied explicit settings do not. Add per-output identity, partial failure recovery, input/preset revision, bounded admission and cancel cleanup under shared job contracts."
+    },
+    {
+      "proposal_id": "ORIG-MEDIA-DELTA-003",
+      "classification": "interop semantic-loss acceptance",
+      "targets": [
+        "MT-441",
+        "MT-442",
+        "MT-443",
+        "MT-444",
+        "MT-33421"
+      ],
+      "spec_anchors": [
+        "STU-IO-001",
+        "STU-IO-002",
+        "STU-IO-004",
+        "STU-IO-005",
+        "STU-IO-006",
+        "STU-IO-007",
+        "STU-IO-011",
+        "STU-IO-163"
+      ],
+      "delta": "Existing primitives, loss receipts/preservation gate, matrix registry, fixture harness and determinism are the reusable homes. Current 47-row matrix and native-family list contain no explicit .prproj/.aep/.sesx families (exact extension search no matches); operator-requested native media support is carried forward as explicit matrix/scope enrichment, not claimed already covered by those rows. Preserve existing MT IDs/scope, add matrix rows and dependent acceptance only under root approved enrichment. XML/AAF/OMF/prerender must name actual format and lost/baked/omitted objects; never count as native parity."
+    },
+    {
+      "proposal_id": "ORIG-MEDIA-DELTA-004",
+      "classification": "audio proof hydration",
+      "targets": [
+        "MT-32617",
+        "MT-32784"
+      ],
+      "spec_anchors": [
+        "STU-FX-137",
+        "STU-FX-147"
+      ],
+      "delta": "Prove routed samples/channel order, automation and pan-law behavior; resolve existing unknown loudness-standard enumeration through a named standards decision rather than copy a source enum. Preserve waveform repair versus nondestructive multitrack distinction."
+    },
+    {
+      "proposal_id": "ORIG-MEDIA-DELTA-005",
+      "classification": "PDF standard/semantic proof enrichment",
+      "targets": [
+        "MT-33385",
+        "MT-33392",
+        "MT-459",
+        "MT-464",
+        "MT-465",
+        "MT-478"
+      ],
+      "spec_anchors": [
+        "STU-IO-125",
+        "STU-IO-126",
+        "STU-IO-130",
+        "STU-IO-006",
+        "STU-IO-010"
+      ],
+      "delta": "Preserve complete-preset authority and all settings. MT-459 is PDF I/EP/X; MT-464 is PDF/X prepress X-only; MT-465 is tagged/accessible PDF X-only; MT-478 includes export security. Hydrate these existing homes with independent saved-output/standards/color/structure proof. They do not establish PDF/A general conformance or redaction acceptance. Redaction is separate DELTA007."
+    },
+    {
+      "proposal_id": "ORIG-MEDIA-DELTA-006",
+      "classification": "web site/proof enrichment",
+      "targets": [
+        "MT-34341",
+        "MT-34346",
+        "MT-34347",
+        "MT-34356"
+      ],
+      "spec_anchors": [
+        "STU-WEB-113",
+        "STU-WEB-118",
+        "STU-WEB-119",
+        "STU-WEB-127"
+      ],
+      "delta": "Carry Web URL/deployment prefix and testing versus remote server roles explicitly; prove link graph rewrites canonical site documents, not loaded tabs. Exercise partial transfer resume with credential-free per-file ledger receipts. Keep STU-WEB-126 server-generation exclusion unchanged."
+    },
+    {
+      "proposal_id": "ORIG-MEDIA-DELTA-007",
+      "classification": "genuine original-workflow scope gap; root authoring decision",
+      "targets": [
+        "No direct redaction/sanitization MT found in current 5484 MT text search"
+      ],
+      "spec_anchors": [
+        "Current Studio14 exact redaction/sanitize/hidden-information search: no matches"
+      ],
+      "delta": "Add explicitly approved redaction and selective hidden-information sanitization semantics with mark/apply/save distinction, shared-XObject isolation, ActualText/Alt/OCG/attachment removal, full-save artifact proof and independent residue oracle. Do not relabel PDF presets, permission encryption or PDF/X as this feature. Keep retained input/preservation authority separate from sanitized deliverable; retained original bytes must never be re-emitted into sanitized output. Reuse StudioHistory, StudioExportRecipe, resource grants, EventLedger and existing privacy/interop proofs; root decides stable spec/MT IDs without renumbering prior work."
+    }
+  ],
+  "fixture_gaps": [
+    {
+      "id": "ORIG-MEDIA-FIX-001",
+      "required": "Original Premiere-produced multi-stream/linked-track project and interchange exports, independent source handles/timecode truth",
+      "available": "NOT_INSPECTED"
+    },
+    {
+      "id": "ORIG-MEDIA-FIX-002",
+      "required": "Original AE composition with nested 3D/mattes/expressions/remap and straight/premultiplied renders plus native .aep",
+      "available": "NOT_INSPECTED"
+    },
+    {
+      "id": "ORIG-MEDIA-FIX-003",
+      "required": "Original Audition .sesx plus source WAV/BWF, named channel impulse fixtures, pan/automation/stem reference renders",
+      "available": "NOT_INSPECTED"
+    },
+    {
+      "id": "ORIG-MEDIA-FIX-004",
+      "required": "PDF redaction/incremental revision/shared XObject/ActualText/OCG fixture plus independent extractors; PDF/X spot-overprint and PDF/UA reading-order/CJK/RTL fixture",
+      "available": "NOT_INSPECTED"
+    },
+    {
+      "id": "ORIG-MEDIA-FIX-005",
+      "required": "Dreamweaver site with deployment prefix, templates and nested asset links; controlled remote/testing servers for publishing proof",
+      "available": "NOT_INSPECTED"
+    },
+    {
+      "id": "ORIG-MEDIA-FIX-006",
+      "required": "Real GUI keyboard/pen/accessibility behavior and runtime differential evidence",
+      "available": "Native GUI unavailable in this session; installed readable resources do not substitute for GUI inspection"
+    }
+  ],
+  "limitations": [
+    "No runtime, native GUI, accessibility or parity verdict issued",
+    "Vendor binaries not treated as source and not decompiled",
+    "No source archive/history/LFS completeness audit repeated",
+    "Two initial bounded discovery probes used guessed wildcard paths and failed; corrected via actual directory enumeration. A later rg MT wildcard-path probe also failed; corrected with directory plus --glob",
+    "No upstream instructions executed",
+    "Selected relevant MT contracts inspected; no claim that all 5484 acceptance surfaces are complete",
+    "External manuals support workflow semantics only; installed Adobe version and API support were not runtime verified",
+    "Proposed fixtures are counterexamples to test later, not observed runtime failures",
+    "Initial null proof extraction looked under scope; corrected inspection confirms derived MT acceptance is top-level and runtime/headless criteria exist",
+    "Single Studio engine crate requirement in inherited MT notes conflicts with latest operator modularity instruction; root owns refactor, no contract edited here",
+    "Adobe Acrobat SDK accessibility DOM page failed retrieval once; no API implementation claim derived from it"
+  ],
+  "contract_findings": [
+    {
+      "id": "ORIG-MEDIA-MT-GAP-001",
+      "targets": [
+        "MT-32617",
+        "MT-34020",
+        "MT-33385",
+        "MT-34341"
+      ],
+      "observed": "Substantive scope exists but acceptance_criteria is empty and acceptance_criteria_count == 0",
+      "action": "Hydrate existing contracts from exact spec behaviors before implementation; preserve IDs and scope; name executable proof per requirement"
+    },
+    {
+      "id": "ORIG-MEDIA-MT-GAP-002",
+      "targets": [
+        "MT-441",
+        "MT-442",
+        "MT-478"
+      ],
+      "observed": "Some existing acceptance proof_target_status values are REQUIRED",
+      "action": "Replace placeholders with contract-authorized runtime proof commands in root preparation, not a new reviewer-invented gate"
+    }
+  ]
+}

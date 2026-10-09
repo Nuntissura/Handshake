@@ -1,0 +1,581 @@
+{
+  "file_id": "STUDIO-PLUGIN-PLATFORM-ADVERSARIAL-20261009",
+  "schema_version": 1,
+  "review_status": "FINAL_CONTRACT_REVIEW_COMPLETE_RUNTIME_NOT_PROVEN",
+  "updated_at": "2026-10-09T18:46:43.839744+00:00",
+  "lanes": {
+    "Handshake (Product)": "read-only source/spec review; no product mutation",
+    "Repo Governance": "only this owned report"
+  },
+  "proof": {
+    "runtime": "NOT_RUN; NO_RUNTIME_PASS",
+    "scope": "Selected execution paths inspected, not exhaustive whole-repository audit",
+    "wp012_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "spec": "v02.206; candidate207 decision pending inspection"
+  },
+  "decision_review": {
+    "status": "CONTRACT_REVIEW_COMPLETE_CORRECTIONS_APPLIED_RUNTIME_NOT_PROVEN",
+    "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/plugin-platform-decision.json",
+    "sha256": "f19263526c9dd304e94a45bd7454849d2a0c47b2eca56064c042424bd132ac50",
+    "draft_status": "SOURCE_REVIEW_COMPLETE_INDEPENDENT_CORRECTIONS_APPLIED_RUNTIME_NOT_PROVEN",
+    "accepted_direction": [
+      "One Handshake-wide owner and explicit implementation gap",
+      "Same-build Rust, nonRT WIT and explicit core-Wasm compatibility lanes",
+      "Specialized isolated native audio provider",
+      "Current authorization, aggregate admission and affinity-correct retirement",
+      "Versioned host ports and explicit unsupported outcomes"
+    ],
+    "corrections": [
+      {
+        "id": "COR01",
+        "severity": "HIGH",
+        "target": "required_controls PLATFORM-04/05/10",
+        "text": "Instance/store/helper pools MUST be scoped to principal, resource grant, artifact hash and state version. Crossing a trust scope requires a fresh instance or independently proven complete reset. Revocation MUST discard retained private guest/helper memory and deny output promotion; immutable compiled artifacts may be shared without live grants or content state.",
+        "evidence": [
+          "E06",
+          "E02"
+        ],
+        "reason": "Aggregate budgets and current authorization do not prevent guest memory from one account influencing another account.",
+        "resolution": "ADDRESSED_IN_FINAL_BOUNDED_REREAD",
+        "addressed_by": "PLATFORM-17"
+      },
+      {
+        "id": "COR02",
+        "severity": "HIGH",
+        "target": "required_controls PLATFORM-06/07 and Section14 AUT157/158",
+        "text": "Event contributions MUST use bounded asynchronous dispatch with cause IDs, maximum propagation depth, duplicate suppression and per-plugin budgets. Host locks MUST NOT be held across guest or vendor callbacks; cancellation/completion capacity remains reserved. Replayed or recursive events MUST NOT create duplicate accepted mutations.",
+        "evidence": [
+          "E01",
+          "E11"
+        ],
+        "reason": "Typed bounded messages alone do not constrain synchronous feedback or event cycles.",
+        "resolution": "ADDRESSED_IN_REVIEWED_DRAFT",
+        "addressed_by": "PLATFORM14"
+      },
+      {
+        "id": "COR03",
+        "severity": "HIGH",
+        "target": "required_controls PLATFORM-07/08 and proposed_deltas Section14",
+        "text": "Native editor embedding, accessibility, Argus inspection and headless parameter control MUST be separate per-host compatibility entries. Unsupported foreign UI MUST return explicit unsupported outcome; quiet automated operation MUST NOT raise vendor windows. Canonical typed parameters/commands and manual recovery remain required for the supported subset.",
+        "evidence": [
+          "E10",
+          "E11"
+        ],
+        "reason": "DSP compatibility does not establish model-operable foreign editor behavior.",
+        "resolution": "ADDRESSED_IN_FINAL_BOUNDED_REREAD",
+        "addressed_by": "PLATFORM-18"
+      },
+      {
+        "id": "COR04",
+        "severity": "HIGH",
+        "target": "proposed_deltas Section14 STU-AUT-020",
+        "text": "Explicitly amend the source-ecosystem exclusion in STU-AUT-020 only for the operator-approved, isolated CLAP/VST3 adapter scope. Preserve other exclusions and require exact supported ABI, architecture, sandbox, lifecycle and UI matrices; discovery alone is not compatibility.",
+        "evidence": [
+          "E12"
+        ],
+        "reason": "Generic add-native-limits wording leaves the existing exclusion unresolved.",
+        "resolution": "ADDRESSED_IN_REVIEWED_DRAFT",
+        "addressed_by": "explicit STU-AUT-020 delta"
+      },
+      {
+        "id": "COR05",
+        "severity": "CRITICAL",
+        "target": "required_controls PLATFORM-01/02/10 and shared sandbox acceptance",
+        "text": "If child creation succeeds but START ledger or process-registry registration fails, the shared sandbox owner MUST retain cleanup ownership and either compensate kill/reap or return an explicit live cleanup handle. Error return MUST NOT imply absent child; permits remain held until confirmed retirement.",
+        "evidence": [
+          "E13"
+        ],
+        "reason": "Actual existing spawn failure path can lose the caller handle; generic quiescence requirement needs this specific rollback edge.",
+        "resolution": "ADDRESSED_IN_REVIEWED_DRAFT",
+        "addressed_by": "PLATFORM12"
+      },
+      {
+        "id": "COR06",
+        "severity": "HIGH",
+        "target": "required_controls PLATFORM-09 and native state acceptance",
+        "text": "State capture/restore MUST expose outcomes for each required component/controller phase. Failed required capture MUST preserve prior state and MUST NOT become empty success. Failed required restore MUST prevent complete success and accepted document commit; optional-state policy MUST be explicit.",
+        "evidence": [
+          "E14"
+        ],
+        "reason": "Typed complete/partial language should name the observed silently ignored controller failures.",
+        "resolution": "ADDRESSED_IN_REVIEWED_DRAFT",
+        "addressed_by": "PLATFORM16"
+      },
+      {
+        "id": "COR07",
+        "severity": "HIGH",
+        "target": "decision.embedding and proposed_deltas STUDIO_MODULES",
+        "text": "Portable host-neutral foundations MUST execute minimal platform lifecycle and adapter operations with explicit provider dependencies before domain feature implementation. Second-host proof verifies portability only; production Handshake authorization, sandbox, manual/Argus and canonical state paths require separate independent acceptance.",
+        "evidence": [
+          "E01",
+          "E11",
+          "E12"
+        ],
+        "reason": "Executable portable fixtures cannot discharge production embedding and cannot allow hollow foundations.",
+        "resolution": "ADDRESSED_IN_FINAL_BOUNDED_REREAD",
+        "addressed_by": "PLATFORM-19"
+      }
+    ],
+    "limitation": "Review applies to this exact draft hash; source report claims only become independent findings when relevant source opened directly.",
+    "revision_note": "Reread source-reconciled actual revision with PLATFORM11-16; corrections below are reassessed against that exact content. Earlier initial draft is not the reviewed final revision.",
+    "remaining_correction_text": [],
+    "final_bounded_reread": {
+      "scope": "Only PLATFORM17-19 additions compared verbatim with outstanding COR01/COR03/COR07; no broader rerun.",
+      "decision_sha256": "f19263526c9dd304e94a45bd7454849d2a0c47b2eca56064c042424bd132ac50",
+      "observed": "All three requested corrections present verbatim.",
+      "disposition": "Planning-contract direction supported; implementation/source blockers remain future acceptance obligations, no runtime PASS."
+    }
+  },
+  "evidence": [
+    {
+      "id": "E01",
+      "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/surface_extension_seam.rs",
+      "sha256": "554e165300231e481b5905957b4f475f274cf0e37305fa74fcf8fa0b8e94b844",
+      "lines": [
+        1,
+        180
+      ],
+      "observed": "Design-only Send+Sync EditorSurface trait, native typed callbacks and replacing HashMap registry; no production plugin lifecycle implementation in this file."
+    },
+    {
+      "id": "E02",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/storage/surreal/resource_authority.rs",
+      "sha256": "3e3a9dc75bcbff6a2ca40b5631ffce94868b282f6dc3811572d3d41c4e00dfc7",
+      "lines": [
+        1114,
+        1230
+      ],
+      "observed": "Protected resource authorization reads authenticated session and current grant/resource state including revoked_at, expiry, capability and delegation checks."
+    },
+    {
+      "id": "E03",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/sandbox/registry.rs",
+      "sha256": "6eeaeb64d1ee96df4efb701a332d8a1a2dccd5ac49c764eae56114590a819d36",
+      "lines": [
+        1,
+        95
+      ],
+      "observed": "Sandbox adapter registry; unapproved Windows Native Jail reports unavailable, rather than becoming a supported sandbox."
+    },
+    {
+      "id": "E04",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/plugins/src/runtime.rs",
+      "sha256": "f1620075f0d94b49a374b4bf6f79c4a5515c5a110e2c2045e07021c3e7b5be17",
+      "lines": [
+        13,
+        220
+      ],
+      "observed": "Bespoke core Wasm ABI, module/memory/recursion/fuel limits, no imports, fresh store; deadline checked between resumable fuel slices."
+    },
+    {
+      "id": "E05",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/effects/src/plugin.rs",
+      "sha256": "5532b727bbd6ea340234cc376a7b9909eab9769d2ab422115db44dd0ac873fe2",
+      "lines": [
+        1,
+        300
+      ],
+      "observed": "Global capped 64 OnceLock plugin slots; globally keyed ID/specs and leaked strings/spec allocations, no removal/replacement path in inspected registration functions."
+    },
+    {
+      "id": "E06",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/plugin/src/wasm.rs",
+      "sha256": "e82d91462d2a72ddd9fa86246725d8a48a61fa52c4d520d03ac88af30b73e6fe",
+      "lines": [
+        1,
+        165
+      ],
+      "observed": "One-GiB per-instance memory limit; idle-instance Vec pool, new instances on empty pool, successful instances returned without aggregate admission limit in inspected code; memory survives successful reuse."
+    },
+    {
+      "id": "E07",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/vst3-host/src/registry.rs",
+      "sha256": "f6a5e9cf14c8db54eeaf5e6ef8b0dca4520c273e743741c0f9f2aaf0dde8b101",
+      "lines": [
+        1,
+        125
+      ],
+      "observed": "Discovery loads each bundle and queries classes; processwide scan lock, ambient/default directories and extra_dirs, leaked information, failed-ID cache."
+    },
+    {
+      "id": "E08",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/vst3-host/src/ffi.rs",
+      "sha256": "b8a2bd6d80d704e2a2cf0acc28d6ff63ae7a03f632f6e735bcc7293dfe6f9da8",
+      "lines": [
+        97,
+        233
+      ],
+      "observed": "Processwide Bundle Arc cache intentionally retains loaded libraries; Bundle::load/open executes foreign module/factory code."
+    },
+    {
+      "id": "E09",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/vst3-host/src/ffi.rs",
+      "sha256": "b8a2bd6d80d704e2a2cf0acc28d6ff63ae7a03f632f6e735bcc7293dfe6f9da8",
+      "lines": [
+        895,
+        963
+      ],
+      "observed": "Unsafe Send Instance explicitly documents UI-affinity limitation when activation/controller calls occur after transfer to mixer; state uses foreign component/controller calls."
+    },
+    {
+      "id": "E10",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/vst3-host/src/ffi.rs",
+      "sha256": "b8a2bd6d80d704e2a2cf0acc28d6ff63ae7a03f632f6e735bcc7293dfe6f9da8",
+      "lines": [
+        1260,
+        1415
+      ],
+      "observed": "Drop tears down editor/controller/component; EditorLink mutex and main-thread editor opening, including raising visible window."
+    },
+    {
+      "id": "E11",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "lines": [
+        21630,
+        21644
+      ],
+      "observed": "AUT155-162 prescribe common plugin contract, closed extension/event sets, namespace/private-shared semantics, ResourceBroker account/plugin local store, isolated typed UI and headless operations."
+    },
+    {
+      "id": "E12",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "lines": [
+        21897,
+        21920
+      ],
+      "observed": "AUT017-020 prescribe common typed object model, process-tier default, explicit grants and promotion gates; local registry lifecycle; importing source-suite plugin ecosystems currently out of scope."
+    },
+    {
+      "id": "E13",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/sandbox/ledger_decorator.rs",
+      "sha256": "8c39145d5201793c42b10a72a424fc15f617e96d0197e6bc107f14062867655b",
+      "lines": [
+        139,
+        157
+      ],
+      "observed": "inner.spawn succeeds before ledger record_start and starts mutex; either later failure returns SpawnFailed without returning handle or compensating cleanup in inspected function."
+    },
+    {
+      "id": "E14",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/vst3-host/src/ffi.rs",
+      "sha256": "b8a2bd6d80d704e2a2cf0acc28d6ff63ae7a03f632f6e735bcc7293dfe6f9da8",
+      "lines": [
+        934,
+        974
+      ],
+      "observed": "Controller capture failure becomes empty default; controller setComponentState/setState return ignored; load_state returns true after component success."
+    }
+  ],
+  "findings": [
+    {
+      "id": "P01",
+      "severity": "HIGH",
+      "title": "Surface extension seam is not a platform implementation",
+      "evidence": [
+        "E01",
+        "E11",
+        "E12"
+      ],
+      "counterexample": "A second host registers native callbacks but cannot install, revoke, remove or replay a plugin without depending on Handshake-native AppState.",
+      "minimum_controls": [
+        "Handshake-wide platform owns registry and lifecycle; Studio is adapter only; explicit host capabilities and unsupported results; no private Score catalog, DB, scheduler or library.",
+        "All platform foundations must have executable minimal lifecycle paths before domain feature implementation."
+      ],
+      "future_acceptance": [
+        "Two host adapters execute install/activate/invoke/revoke/remove through the same owner; absent capabilities fail closed; inventory every production caller."
+      ]
+    },
+    {
+      "id": "P02",
+      "severity": "CRITICAL",
+      "title": "Native discovery executes foreign code",
+      "evidence": [
+        "E07",
+        "E08",
+        "E03"
+      ],
+      "counterexample": "A bundle in ambient VST3_PATH hangs or crashes module initialization during a registry scan holding shared locks; installing becomes code execution before consent.",
+      "minimum_controls": [
+        "Discovery, probing and processing in owned isolated helper with bounded IPC; never load vendor library in Studio/UI/authority process.",
+        "ResourceBroker-selected approved paths and content hashes; no ambient default scanning; unavailable process sandbox returns unsupported.",
+        "No locks held across foreign entrypoints; timeouts, quarantine and explicit retry policy."
+      ],
+      "future_acceptance": [
+        "Crash/hang/malicious discovery cases leave authority and UI responsive; sandbox-unavailable host fails without in-process fallback; discovery emits bounded privacy-safe receipts."
+      ]
+    },
+    {
+      "id": "P03",
+      "severity": "CRITICAL",
+      "title": "Native thread and lifetime guarantees need enforcement",
+      "evidence": [
+        "E09",
+        "E10"
+      ],
+      "counterexample": "Activation or controller/state/destructor work migrates to audio thread; a returned editor callback outlives its instance or blocks realtime processing.",
+      "minimum_controls": [
+        "Explicit UI/control/audio ownership state machine and vendor ABI-specific thread rules; no native Rust ABI assumption.",
+        "Audio callback has preallocated bounded data only; no RPC wait, allocation, state save, lock, unload or destructor.",
+        "Quiescence barrier, generation-tagged handles, no callbacks after revocation; teardown on designated owner."
+      ],
+      "future_acceptance": [
+        "Trace exact vendor calls and teardown ordering through rapid stop/reload/editor close; helper crash produces bounded fallback; no RT destructor or foreign pointer reuse."
+      ]
+    },
+    {
+      "id": "P04",
+      "severity": "HIGH",
+      "title": "Global permanent registrations defeat update and removal",
+      "evidence": [
+        "E05",
+        "E07",
+        "E08"
+      ],
+      "counterexample": "After remove/update the old plugin remains globally addressable or occupies its slot; replacing a file changes discovery identity without changing executable authority.",
+      "minimum_controls": [
+        "Canonical registry record keyed by account/plugin/version/content hash and activation generation; derive projections.",
+        "Install/update/remove atomic states, operation IDs and retry deduplication through existing authority/EventLedger; invalidate invocation and state handles on transition.",
+        "Bound registry metadata and explicit controlled retention; helper exit reclaims vendor caches."
+      ],
+      "future_acceptance": [
+        "Update/remove/retry/rollback and restart preserve one canonical selected generation; old handles deny; 64-slot exhaustion reported explicitly."
+      ]
+    },
+    {
+      "id": "P05",
+      "severity": "CRITICAL",
+      "title": "Per-instance Wasm limits do not bound aggregate pressure",
+      "evidence": [
+        "E06",
+        "E04"
+      ],
+      "counterexample": "Concurrent renders each obtain a new one-GiB-capable instance; large frames and buffers exhaust memory despite valid per-instance fuel limits.",
+      "minimum_controls": [
+        "ResourceBroker/JobRuntime aggregate byte, concurrency, queue and compile limits; bound pool size and idle memory; admission before allocations.",
+        "Separate realtime and offline/nonRT profiles; format/dimension arithmetic checked; stage parameters and pixels under content-class grants."
+      ],
+      "future_acceptance": [
+        "Concurrent adversarial frames cannot exceed admitted bytes; overflow/oversize reject before allocate; saturated queue preserves cancellation and fair progress."
+      ]
+    },
+    {
+      "id": "P06",
+      "severity": "CRITICAL",
+      "title": "Reused guest memory can cross privacy boundaries",
+      "evidence": [
+        "E06",
+        "E11",
+        "E02"
+      ],
+      "counterexample": "An Effect guest retains previous account pixels in linear memory and emits them in a later render; plugin state or manifest-derived logs reveal private content.",
+      "minimum_controls": [
+        "Fresh instance per principal/content-grant boundary or proven complete reset; never share unsanitized instance/state across accounts.",
+        "Reauthorize current grant at enqueue, dispatch and output promotion; revoke queued/running access and destroy retained guest/helper buffers.",
+        "State blobs and caches classified ResourceBroker resources, no document secrets or plugin-owned shadow DB."
+      ],
+      "future_acceptance": [
+        "Cross-account retained-memory/state attack; mid-run revocation denies output promotion and subsequent reads; logs/diagnostics do not carry unauthorized pixels/state."
+      ]
+    },
+    {
+      "id": "P07",
+      "severity": "HIGH",
+      "title": "Wasm SDK migration cannot inherit realtime or capability safety",
+      "evidence": [
+        "E04",
+        "E06"
+      ],
+      "counterexample": "A new WIT host import blocks while holding authority or allocates unbounded data; fuel and epoch controls stop guest instructions but not the blocking host function.",
+      "minimum_controls": [
+        "Versioned WIT/Component nonRT profile with explicit imports, resource handles, grants, budgets and bounded asynchronous host calls; no WASI ambient authority.",
+        "Photo pc_* and Effect ec_* are different existing core Wasm ABIs; adaptation requires contract/version checks, not rename.",
+        "Real-time extensions need separately validated restricted processing protocol and deterministic resource bounds."
+      ],
+      "future_acceptance": [
+        "Blocking host-call cancellation, recursion, allocation, invalid handles and schema version mismatch adversarial checks; native realtime evidence separate from offline guest success."
+      ]
+    },
+    {
+      "id": "P08",
+      "severity": "HIGH",
+      "title": "UI/manual observability is not inherited from foreign editors",
+      "evidence": [
+        "E10",
+        "E11"
+      ],
+      "counterexample": "Vendor floating UI steals focus or is invisible to Argus/headless commands; a successful DSP load is reported as full plugin UI compatibility.",
+      "minimum_controls": [
+        "Typed contributed commands and generic parameter UI under Argus/UserManual; namespace identifiers; quiet operation by default.",
+        "Host matrix independently declares foreign editor, accessibility, diagnostics and headless limitations; unsupported UI cannot become parity claim."
+      ],
+      "future_acceptance": [
+        "No-context agent can enumerate/install/invoke/recover through typed commands and manual; focus and editor availability verified per supported host."
+      ]
+    },
+    {
+      "id": "P09",
+      "severity": "HIGH",
+      "title": "Event callbacks can form unbounded feedback loops",
+      "evidence": [
+        "E01",
+        "E11"
+      ],
+      "counterexample": "A plugin subscribes to a shared mutation then emits another mutation synchronously; event replay causes recursion or duplicate promotion.",
+      "minimum_controls": [
+        "Closed event/extension enum and schema negotiation; capability checks per operation.",
+        "Bounded async queues, cause IDs/depth, deduplication and dispatch budgets using existing owners; never synchronous plugin reentry while host locks held."
+      ],
+      "future_acceptance": [
+        "Self-triggering subscriber, slow consumer, replay and revoke-under-backlog cases remain bounded and attributable."
+      ]
+    },
+    {
+      "id": "P10",
+      "severity": "HIGH",
+      "title": "Current spec excludes ecosystem import",
+      "evidence": [
+        "E12"
+      ],
+      "counterexample": "Implementation treats existing local-tool AUT020 as blanket permission for VST3/CLAP ecosystem hosting.",
+      "minimum_controls": [
+        "Root must explicitly enrich scoped operator-approved native adapter contracts and resolve the existing exclusion before dependent implementation.",
+        "Record supported exact vendor ABI/platform/sandbox matrix, rejected adapters and limited capabilities; preserve existing Studio scope."
+      ],
+      "future_acceptance": [
+        "Spec/MT trace maps operator approval to native adapter scope and acceptance; no imported ecosystem parity asserted from discovery alone."
+      ]
+    },
+    {
+      "id": "P11",
+      "severity": "CRITICAL",
+      "title": "Spawn failure after child creation must retain cleanup ownership",
+      "evidence": [
+        "E13"
+      ],
+      "counterexample": "START ledger write or starts mutex fails after successful child spawn; caller receives no process handle and assumes no child exists. Static failure-path finding, not observed live process leak.",
+      "minimum_controls": [
+        "Shared sandbox owner compensates kill/reap or returns explicit live cleanup ownership; permit and registry remain charged until independent reconciliation.",
+        "Do not solve by independent per-Studio cleanup implementations."
+      ],
+      "future_acceptance": [
+        "Inject ledger write and decorator lock failure after spawn; independently reread child/process registry and resource permits; zero unowned live helper."
+      ]
+    },
+    {
+      "id": "P12",
+      "severity": "HIGH",
+      "title": "Native state success must include required controller phases",
+      "evidence": [
+        "E14"
+      ],
+      "counterexample": "Required controller getState fails or setState refuses while component succeeds; saved or restored document still claims complete success.",
+      "minimum_controls": [
+        "Typed per-instance/per-phase completeness; preserve previous required state; do not default failed required capture to empty blob.",
+        "Bound state bytes, identity/version and migration; required restore must succeed before accepted state/document commit."
+      ],
+      "future_acceptance": [
+        "Controller refusal, absent/truncated/oversized blob and version mismatch produce typed partial/unavailable outcomes; canonical saved document and receipt independently reread."
+      ]
+    }
+  ],
+  "selected_tradeoffs": [
+    {
+      "choice": "Compiled Rust source interfaces only within same controlled build",
+      "condition": "Do not expose Rust ABI as stable third-party dynamic boundary."
+    },
+    {
+      "choice": "Versioned WIT/Component SDK for extensible nonRT work",
+      "condition": "Explicit platform imports, capabilities, budgets and per-host support; no automatic realtime claim."
+    },
+    {
+      "choice": "Isolated CLAP/VST3 adapter protocol",
+      "condition": "Versioned vendor C/C++ ABI, explicit thread/lifetime rules and supported process sandbox; no unsafe fallback."
+    },
+    {
+      "choice": "Existing authority and service owners behind ports",
+      "condition": "SurrealDB/EventLedger sole durable authority; reuse JobRuntime/ResourceBroker/Argus/UserManual/Palmistry; no Studio/Score private duplication."
+    }
+  ],
+  "rejected_tradeoffs": [
+    "Stable native Rust plugin ABI assumption",
+    "Arbitrary Wasm/WIT realtime-safety assumption",
+    "In-process untrusted vendor discovery or execution",
+    "Global permanent plugin slots as authoritative lifecycle registry",
+    "Ambient filesystem discovery",
+    "Second plugin catalog/library/scheduler/DB",
+    "Alternative host success substituted for production Handshake proof"
+  ],
+  "external_primary_sources": [
+    {
+      "url": "https://doc.rust-lang.org/reference/items/external-blocks.html",
+      "supports": "Rust ABI has no stability guarantees; C ABI targets platform conventions."
+    },
+    {
+      "url": "https://docs.wasmtime.dev/api/wasmtime/struct.Config.html",
+      "supports": "Fuel/epoch interruption cannot interrupt blocking host functions; conceptual limitation, not claim about wasmi API."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/free-audio/clap/main/include/clap/plugin.h",
+      "supports": "Distinct main/audio-thread callbacks, pointer lifetimes and destruction contract."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/free-audio/clap/main/include/clap/entry.h",
+      "supports": "Module initialization/deinitialization concurrency and GUI restrictions; discovery is executable entrypoint."
+    }
+  ],
+  "reconciled_inputs": [
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/plugin-owner-source-drill.json",
+      "sha256": "917d62d60bbf4f1600dac11af9ebe33cf415fbb8521eac8866991ea43d9d641b",
+      "status": "SOURCE_ONLY_FINDINGS_NO_RUNTIME_VERDICT",
+      "read_scope": "Bounded report reading; selected claims directly reconciled against E13/E14; not exhaustive corroboration."
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/plugin-host-research.json",
+      "sha256": "65890ce02ffef840ed9ae7b19a2043c20a95f8b8632e71d0d745492f2fe1affe",
+      "status": null,
+      "read_scope": "Bounded report reading; selected claims directly reconciled against E13/E14; not exhaustive corroboration."
+    }
+  ],
+  "DIFF_ATTACK_SURFACES": [
+    "Manifest/host ABI producer-consumer",
+    "Permission gate versus guest retained data",
+    "Native discovery/foreign callbacks/thread retirement",
+    "Shared sandbox spawn versus ledger/process ownership",
+    "Capture/restore versus accepted document completeness",
+    "Event contribution versus bounded dispatch",
+    "Portable foundations versus production embedding"
+  ],
+  "INDEPENDENT_CHECKS_RUN": [
+    "Direct bounded UTF8 source reads and SHA256 binding",
+    "Actual parent draft opened and compared to E01-E14",
+    "Owner/host reports opened; direct ledger/controller paths reconciled"
+  ],
+  "COUNTERFACTUAL_CHECKS": [
+    "Removing Photo import rejection would change closed guest capability surface.",
+    "Guest pool account reset omitted permits prior account state to affect later output.",
+    "Ignoring controller state rejection permits component-only restore to report full success.",
+    "Post-spawn ledger failure with no ownership compensation can orphan live child."
+  ],
+  "BOUNDARY_PROBES": [
+    "STATIC_ONLY: native discovery -> library entry/factory",
+    "STATIC_ONLY: admission -> pooled instances",
+    "STATIC_ONLY: spawn -> ledger -> returned handle",
+    "STATIC_ONLY: component/controller state phases -> boolean success"
+  ],
+  "NEGATIVE_PATH_CHECKS": [
+    "Unsupported Windows sandbox selection",
+    "Photo imports/version/module bounds",
+    "Effect empty pool expansion",
+    "VST controller defaulted/ignored errors",
+    "Ledger failure after spawn"
+  ],
+  "RESIDUAL_UNCERTAINTY": [
+    "No builds, tests, native GUI, runtime fault injection or process control executed.",
+    "Uninspected execution paths may supply additional controls; no universal absence claim.",
+    "Other-host portability and complete installed platform lifecycle are unproven.",
+    "Parent candidate changes after recorded hash require reread before acceptance."
+  ]
+}

@@ -1,0 +1,728 @@
+{
+  "schema_id": "hsk.studio_backpressure_adversarial_review@1",
+  "file_id": "STUDIO-BACKPRESSURE-REVIEW-20261009",
+  "updated_at": "2026-10-09",
+  "authority": false,
+  "owner": "backend-redteam/pressure",
+  "scope": {
+    "product": "Handshake (Product): source-only architecture review",
+    "repo_governance": "Repo Governance: this owned JSON artifact only",
+    "product_edits": "NONE",
+    "tests_builds_native_gui": "NOT_PERFORMED"
+  },
+  "verdict": {
+    "risk": "HIGH",
+    "design": "CONDITIONAL_RECOMMENDATION_WITH_REQUIRED_CONTRACTS",
+    "runtime": "NOT_PROVEN",
+    "independent_acceptance": "NOT_ISSUED",
+    "reason": "Ownership and bounded admission are suitable proposed patterns; neither inspected upstream code nor a library choice proves Studio production behavior."
+  },
+  "canonical_baseline": {
+    "spec": "v02.206",
+    "pointer": ".GOV/spec/SPEC_CURRENT.md",
+    "product_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "product_locator": "../wtc-native-editors-v1",
+    "contract": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
+    "contract_state_observed": "NON_EXECUTION_STUB",
+    "future_spec": "Root-owned v02.207 candidate; not treated as current authority"
+  },
+  "source_evidence": [
+    {
+      "id": "E-SPEC",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "lines": [
+        [
+          58,
+          77
+        ],
+        [
+          19951,
+          19951
+        ],
+        [
+          22243,
+          22247
+        ],
+        [
+          32668,
+          32668
+        ]
+      ],
+      "observed": "Composite mutation transaction, record-user privacy, per-component/property revision granularity, CRDT attribution and kernel job backpressure are already normative."
+    },
+    {
+      "id": "E-HBR",
+      "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      "lines": [
+        [
+          121,
+          346
+        ],
+        [
+          698,
+          781
+        ]
+      ],
+      "observed": "HBR-SWARM requires concurrent agent/operator edits, bounded cancellation, lease recovery and no starvation/deadlock; HBR-PRIV requires resource scope and negative boundary proof."
+    },
+    {
+      "id": "E-JOBS",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/jobs.rs",
+      "lines": [
+        [
+          30,
+          66
+        ]
+      ],
+      "observed": "create_job waits for startup recovery, persists AiJob then emits a best-effort FR event. This function is not proof of fair byte/job admission."
+    },
+    {
+      "id": "E-SWARM",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+      "lines": [
+        [
+          103,
+          131
+        ],
+        [
+          185,
+          246
+        ],
+        [
+          272,
+          283
+        ],
+        [
+          322,
+          396
+        ]
+      ],
+      "observed": "SessionHandle retains teardown completion, owned concurrency permit and committed-memory charge until terminal/teardown. Existing owner uses cancellation-safe memory and lifetime-spawn reservations, concurrency/cold-start permits, duplicate admission, breaker and budget checks. Reuse these owner patterns; they are not Studio worker implementation."
+    },
+    {
+      "id": "E-LEDGER",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+      "lines": [
+        [
+          331,
+          391
+        ],
+        [
+          565,
+          583
+        ],
+        [
+          627,
+          724
+        ]
+      ],
+      "observed": "Standalone append persists an event; bulk/event-pair helpers contain transactions. None of these inspected paths demonstrates a future composite Studio document mutation plus revision/projection transaction."
+    },
+    {
+      "id": "E-AUTH",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/api/loom.rs",
+      "lines": [
+        [
+          558,
+          585
+        ]
+      ],
+      "observed": "loom_account calls api::authority::authorize_request for exact resource/action/capability and maps failures to constant denial; reuse the authorization boundary rather than an engine-local ACL."
+    },
+    {
+      "id": "E-SOUND-ENGINE",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/engine/src/lib.rs",
+      "lines": [
+        [
+          89,
+          108
+        ],
+        [
+          137,
+          158
+        ]
+      ],
+      "observed": "Arc<Session> COW, revision bump, history, transport_requests Vec and journal Vec. Snapshot technique is reusable; buffers are not bounded swarm admission."
+    },
+    {
+      "id": "E-SOUND-RT",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/playback/src/lib.rs",
+      "lines": [
+        [
+          31,
+          34
+        ],
+        [
+          130,
+          156
+        ],
+        [
+          256,
+          269
+        ],
+        [
+          377,
+          397
+        ]
+      ],
+      "observed": "std::sync::mpsc::channel; callback fill invokes drain; drain loops try_recv until empty, handles session swap and allocates channel-format buffers; cpal callback invokes fill. Meter try_lock is present, but does not bound callback drain work."
+    },
+    {
+      "id": "E-SOUND-MIX",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/mix/src/lib.rs",
+      "lines": [
+        [
+          544,
+          594
+        ],
+        [
+          1003,
+          1017
+        ]
+      ],
+      "observed": "render collects a per-block work Vec, may resize scratch and dispatches native >=4 strips through rayon par_iter_mut. This is unsuitable as an unmodified strict real-time adoption boundary."
+    },
+    {
+      "id": "E-FILM",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/filmcraft-7b6c134472287db4367fca80bcb498240ba36567/crates/automation/src/server.rs",
+      "lines": [
+        [
+          238,
+          253
+        ]
+      ],
+      "observed": "Headless command run uses spawn_blocking then locks shared Session for g.execute. Do not transplant this automation host into the Studio commit path."
+    },
+    {
+      "id": "E-PIXEL",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/engine/src/analysis_cmds.rs",
+      "lines": [
+        [
+          415,
+          439
+        ]
+      ],
+      "observed": "Parallel row-band perimeter computation creates per-fold Vec accumulators sized by feature count. Admission estimate must cover scratch multiplied by concurrency, not only input pixel size."
+    }
+  ],
+  "primary_library_research": [
+    {
+      "name": "tokio bounded mpsc",
+      "url": "https://docs.rs/tokio/latest/src/tokio/sync/mpsc/bounded.rs.html",
+      "source_lines": [
+        [
+          159,
+          172
+        ],
+        [
+          196,
+          211
+        ],
+        [
+          758,
+          825
+        ],
+        [
+          1090,
+          1092
+        ]
+      ],
+      "selected": "Bounded non-RT mailbox implementation candidate behind existing job/actor ports",
+      "limitations": "Capacity is message count. send Ok is not delivery or commit. select cancellation can discard the owned message; reserve retains caller payload until admission but cancellation loses FIFO position. Outstanding permits affect channel closure. Pending send futures and allocations need their own bounds."
+    },
+    {
+      "name": "tower load_shed",
+      "url": "https://docs.rs/tower/latest/src/tower/load_shed/mod.rs.html",
+      "source_lines": [
+        [
+          44,
+          64
+        ]
+      ],
+      "selected": "Optional typed pre-admission overload boundary around an existing Service",
+      "limitations": "Reports ready while recording inner readiness and rejects call when not ready. No durable acceptance, byte accounting, scheduling fairness or cancel protocol; layer ordering must not hide overload behind an unbounded outer buffer."
+    },
+    {
+      "name": "arc-swap",
+      "version_observed": "1.9.2",
+      "url": "https://docs.rs/arc-swap/latest/src/arc_swap/lib.rs.html",
+      "limitations_url": "https://docs.rs/arc-swap/latest/arc_swap/docs/limitations/index.html",
+      "source_lines": [
+        [
+          98,
+          104
+        ],
+        [
+          481,
+          499
+        ],
+        [
+          623,
+          639
+        ]
+      ],
+      "selected": "Conditional snapshot publication candidate on non-RT reader paths",
+      "limitations": "1.9 source documents prior weak orderings; pin reviewed current version, do not reproduce atomics. Guards have limited fast slots and should not cross async yields. rcu retries closure; no I/O, ledger append or side effect in it. store drops replaced value, so destruction/reclamation cost needs an owned non-RT retirement path. Pointer CAS is not database revision or document merge semantics."
+    },
+    {
+      "name": "rtrb SPSC",
+      "url": "https://docs.rs/rtrb/latest/src/rtrb/lib.rs.html",
+      "source_lines": [
+        [
+          1,
+          20
+        ],
+        [
+          334,
+          343
+        ],
+        [
+          465,
+          466
+        ]
+      ],
+      "selected": "Conditional fixed-capacity control-to-audio and audio-to-control boundary with exactly one producer and one consumer",
+      "limitations": "Payload allocation/destruction can violate RT properties despite queue implementation. Full returns value, not overwrite. Consumer abandonment must be checked on control side. Swarm producers funnel through a bounded owner; this is not MPMC and no universal lock-free/wait-free engine claim follows."
+    }
+  ],
+  "DIFF_ATTACK_SURFACES": [
+    "Proposal admission to committed transaction",
+    "CRDT target identity to record-granular expected revision",
+    "Queued payload to worker scratch to result retention",
+    "CPU/GPU lease to completion mailbox",
+    "Audio control producer to device callback",
+    "Crash after commit before acknowledgment",
+    "Revocation while queued or rendering",
+    "Diagnostics and overload metadata across account scopes"
+  ],
+  "INDEPENDENT_CHECKS_RUN": [
+    {
+      "id": "IC-01",
+      "method": "Direct writer/consumer source comparison",
+      "result": "SoundCraft playback drain is unbounded per callback and uses std channel; mix render allocates and may wait for Rayon strip completion. No RT acceptance claim made."
+    },
+    {
+      "id": "IC-02",
+      "method": "Canonical spec versus proposed actor granularity",
+      "result": "STU-DS-163 and STU-SHL-221 require disjoint component/property success; blanket document expected-revision rejection would regress those obligations."
+    },
+    {
+      "id": "IC-03",
+      "method": "EventLedger transaction body versus composite Studio requirement",
+      "result": "Standalone append and event-pair transaction cannot prove atomicity of externally executed Studio patch."
+    },
+    {
+      "id": "IC-04",
+      "method": "Primary current library implementation and limitations inspection",
+      "result": "Bounded mpsc, LoadShed, ArcSwap and SPSC have different boundaries; none is a complete swarm scheduler or durable mutation authority."
+    }
+  ],
+  "INDEPENDENT_FINDINGS": [
+    {
+      "id": "BP-F01",
+      "severity": "P0",
+      "status": "PROPOSED_DESIGN_HAZARD",
+      "case": "Document patch commits, process dies before append/receipt, retry reapplies patch or replay loses committed edit",
+      "evidence": [
+        "E-SPEC",
+        "E-LEDGER"
+      ],
+      "fix": "Single typed SurrealDB transaction performs authorization-bound revision preconditions, patch, event, idempotency claim, stream/projection head. Acknowledged commit is recoverable even after actor death; snapshot publication is after commit. Timeout is outcome-unknown until canonical idempotency reconciliation, not canceled mutation.",
+      "spec_anchors": [
+        "STU-SDB-004",
+        "STU-SDB-008"
+      ],
+      "mt_mapping": [
+        "MT-30002",
+        "MT-004"
+      ],
+      "future_check": "Kill only validator-owned worker at each transaction/ack boundary; reopen namespace and query idempotency/event/document state, prove zero partial mutations and one event for successful receipt."
+    },
+    {
+      "id": "BP-F02",
+      "severity": "P0",
+      "status": "PROPOSED_DESIGN_HAZARD",
+      "case": "A 32-slot mailbox has 32 enormous decoded images plus thousands of blocked producers retaining input; process exhausts memory",
+      "evidence": [
+        "E-PIXEL",
+        "E-SOUND-MIX"
+      ],
+      "fix": "Bound producers/request body bytes before decoding; weighted bytes cover input, expanded image/audio geometry, scratch per worker, result and retained snapshot generations. Unknown expansion uses incremental chunk admission or refuses before expansion. Slot admission alone is insufficient; never spawn a task just to wait for a permit.",
+      "spec_anchors": [
+        "STU-PAR-001",
+        "STU-PAR-003"
+      ],
+      "mt_mapping": [
+        "MT-013"
+      ],
+      "future_check": "Flood mixed size compressed images/audio while holding consumers; report admitted/rejected bytes, resident high-water and lease count; no allocation is outside the measured budget except separately bounded baseline."
+    },
+    {
+      "id": "BP-F03",
+      "severity": "P0",
+      "status": "OBSERVED_ADOPTION_BLOCKER",
+      "case": "Session edits arrive continuously; callback drain never reaches rendering, or format swap allocates on callback; four strips invoke parallel Rayon work",
+      "evidence": [
+        "E-SOUND-RT",
+        "E-SOUND-MIX"
+      ],
+      "fix": "Prepare graph/buffers/plugins off callback; fixed SPSC descriptors, per-block maximum command count, preallocated emergency stop mechanism, bounded retired-object handoff. Do not call general Rayon, Tokio, database, logger, allocator or mutable document lock from RT callback. Failed enqueue retains prior valid graph and reports control-side typed outcome.",
+      "spec_anchors": [
+        "STU-PAR-001",
+        "STU-PAR-003",
+        "STU-QUIET-001"
+      ],
+      "mt_mapping": [
+        "MT-013",
+        "MT-014"
+      ],
+      "future_check": "Instrument allocation/free, callback work and deadline misses under edit+export+plugin pressure on actual device; device-loss and queue-full cases require audible/recorded-output inspection. No audio SLO passed here."
+    },
+    {
+      "id": "BP-F04",
+      "severity": "P1",
+      "status": "PROPOSED_DESIGN_HAZARD",
+      "case": "Commit actor uses document revision for every write; second disjoint property/component is rejected or stale full snapshot overwrites first",
+      "evidence": [
+        "E-SPEC"
+      ],
+      "fix": "Actor serializes authority commits, not broad conflict domains. Carry target revision vector and semantic patches; validate only impacted component/property/dependency records, assemble on latest snapshot after successful transaction, preserve CRDT actor causality. Structural edits declare the broader read/write set explicitly.",
+      "spec_anchors": [
+        "STU-DS-163",
+        "STU-SHL-221",
+        "STU-PAR-002"
+      ],
+      "mt_mapping": [
+        "MT-013",
+        "MT-30002"
+      ],
+      "future_check": "Two models and operator edit disjoint and same targets; both disjoint writes survive, same precondition produces one commit and one deterministic conflict with permitted metadata."
+    },
+    {
+      "id": "BP-F05",
+      "severity": "P1",
+      "status": "PROPOSED_DESIGN_HAZARD",
+      "case": "Queue full blocks worker result delivery while actor waits for that worker; cancel is behind saturated queue; lease cannot release",
+      "evidence": [
+        "E-SWARM"
+      ],
+      "fix": "Actor dispatches and returns to receive; no actor await on work that must reply to its own mailbox. Reserve completion/control slots at admission; cancel/deadline uses separately bounded reserved capacity and monotone cancellation epoch, with a per-turn service quota so control floods cannot starve commits. Release on every terminal path.",
+      "spec_anchors": [
+        "STU-PAR-001",
+        "STU-PAR-003"
+      ],
+      "mt_mapping": [
+        "MT-013"
+      ],
+      "future_check": "Saturate request/results/control independently and combined, inject blocked worker, inspect wait-for graph; cancel service bound holds, queues drain and all budgets return to baseline."
+    },
+    {
+      "id": "BP-F06",
+      "severity": "P1",
+      "status": "PROPOSED_DESIGN_HAZARD",
+      "case": "One actor floods FIFO permits, repeatedly cancels/retries or giant requests keep small independent documents waiting",
+      "evidence": [
+        "E-SWARM"
+      ],
+      "fix": "Existing scheduler owner supplies bounded per-actor/project/document admission quotas and cost-aware fair turns with aging. Charge incremental work and bound each non-preemptible chunk. A request larger than total budget is typed too-large, never infinite wait. Admission freshness and lease epoch are rechecked at dispatch.",
+      "spec_anchors": [
+        "STU-PAR-003"
+      ],
+      "mt_mapping": [
+        "MT-013"
+      ],
+      "future_check": "Heavy/light actors, continuous hot-document traffic and cancellation churn; record per-actor admitted/completed/rejected counts and maximum eligible service delay against declared policy, no starvation claim from FIFO alone."
+    },
+    {
+      "id": "BP-F07",
+      "severity": "P0",
+      "status": "PROPOSED_DESIGN_HAZARD",
+      "case": "Principal B reuses A's idempotency key or revoked worker exports pixels after access changed; overload diagnostics reveal document existence",
+      "evidence": [
+        "E-SPEC",
+        "E-AUTH"
+      ],
+      "fix": "Bind identity to principal/account, project/resource, action, canonical payload hash and target preconditions; mismatched key is conflict, never reused result. Authorize admission, dispatch, transaction and result delivery. Derived scope intersects every source. Queue and metrics visibility is broker-scoped; denied paths use non-disclosing shapes, including retry/pressure errors.",
+      "spec_anchors": [
+        "STU-SDB-005"
+      ],
+      "hbr": [
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-003",
+        "HBR-PRIV-004",
+        "HBR-PRIV-005",
+        "HBR-PRIV-006",
+        "HBR-PRIV-007",
+        "HBR-PRIV-008"
+      ],
+      "mt_mapping": [
+        "MT-004",
+        "MT-013",
+        "MT-30002"
+      ],
+      "future_check": "Authenticated record-user cross-account and same-project private resources; revoke while queued, during render and between commit/ack; no bytes, receipts, thumbnails, actor names or restricted existence leak."
+    },
+    {
+      "id": "BP-F08",
+      "severity": "P1",
+      "status": "PROPOSED_DESIGN_HAZARD",
+      "case": "Old immutable snapshots and GPU textures survive queue completion and evade released byte permits",
+      "evidence": [
+        "E-SOUND-ENGINE"
+      ],
+      "fix": "Separate request, execution, snapshot-retention and device leases; transfer charge with ownership, release only after last retained owner/device fence. Cap pinned generations/read leases; do not invalidate an active reader's memory unsafely. When cap is reached reject/pause new optional previews, preserving committed state and established readers.",
+      "spec_anchors": [
+        "STU-PAR-001",
+        "STU-PAR-003"
+      ],
+      "mt_mapping": [
+        "MT-013"
+      ],
+      "future_check": "Hold old readers while publishing new snapshots; memory plateau and visible pressure must match cap; induce device loss, stale completion, and allocation failure, then verify CPU fallback/typed unsupported route and lease recovery."
+    },
+    {
+      "id": "BP-F09",
+      "severity": "P1",
+      "status": "PROPOSED_DESIGN_HAZARD",
+      "case": "Latest-wins preview coalescing accidentally drops committed edit, final export or cancellation receipt",
+      "evidence": [
+        "E-SPEC",
+        "E-SOUND-ENGINE"
+      ],
+      "fix": "Coalescing applies only to explicitly replaceable uncommitted work keyed by principal+resource+operation+generation. Return superseded outcome to every displaced caller. Durable edits have committed receipt or typed precommit rejection; exports remain job identities with explicit cancellation. Never report mailbox send as accepted durable mutation.",
+      "spec_anchors": [
+        "STU-SDB-004",
+        "STU-PAR-001",
+        "STU-PAR-002"
+      ],
+      "mt_mapping": [
+        "MT-013",
+        "MT-30002"
+      ],
+      "future_check": "Mix scrubs, paint/undo, proposal promotion and final export under full queue; reconcile all request IDs with one permitted terminal outcome and compare final authoritative revision/history."
+    },
+    {
+      "id": "BP-F10",
+      "severity": "P1",
+      "status": "OBSERVED_ADOPTION_BLOCKER",
+      "case": "FilmCraft headless adapter submits blocking tasks which then serialize the entire Session under Mutex",
+      "evidence": [
+        "E-FILM"
+      ],
+      "fix": "Adopt deterministic computational leaves through typed ports and owned snapshot/proposal inputs; replace upstream automation host with Handshake-owned bounded admission/actor commit flow. Do not add a second MCP server, queue or DB; do not translate shared document Mutex into ArcSwap CAS mutation loops.",
+      "spec_anchors": [
+        "STU-PAR-001",
+        "STU-PAR-002",
+        "STU-SDB-002"
+      ],
+      "mt_mapping": [
+        "MT-013",
+        "MT-30002"
+      ],
+      "future_check": "Source boundary scan plus real command invocation through host verifies no upstream automation host/runtime is pulled into engine execution."
+    }
+  ],
+  "proposed_contract": {
+    "standing": "RECOMMENDATION_ONLY_ROOT_MUST_PUBLISH_APPROVED_SPEC_AND_MT_TEXT",
+    "ownership": "Document commit/proposal actor owns mutable authoring state and commit order. Compute workers consume immutable revisioned snapshots and return proposals/artifacts. Existing logical JobRuntime owns scheduling and execution; ResourceBroker owns authorization; EventLedger/SurrealDB owns authority; Argus owns observation. No new server/database/independent scheduler.",
+    "host_mapping_limit": "No literal Rust JobRuntime or ResourceBroker struct found in scoped WP012 searches. Actual inspected host reuse points are create_job/workflows startup recovery, swarm coordinator reservations, api::authority::authorize_request and surreal event_ledger. Resolve final typed port implementation mapping during foundations; logical owner labels are not new crate declarations.",
+    "admission_order": [
+      "Bound transport envelope and pending callers",
+      "Authorize exact principal/resource/action",
+      "Classify replaceability and compute bounded expansion estimate",
+      "Acquire fair owner-issued slot/byte/device budget atomically or release partial acquisition before waiting",
+      "Publish admitted request with deadline/revision/lease epoch/idempotency metadata",
+      "Dispatch bounded worker after freshness and authorization recheck"
+    ],
+    "request_fields": [
+      "request_id",
+      "principal/account/project/resource scope",
+      "actor/session label",
+      "operation_class",
+      "canonical_payload_hash",
+      "idempotency_key",
+      "expected_target_revision_vector",
+      "read_write_set",
+      "snapshot_generation",
+      "lease_epoch",
+      "deadline",
+      "cancel_epoch",
+      "estimated_and_actual_budget",
+      "replaceability_key"
+    ],
+    "overload_outcomes": {
+      "preview": "Typed superseded or pressure rejection; keep last valid preview and label its revision/staleness",
+      "edit": "Typed pressure rejection before commit with caller work retained; durable commit returns original receipt on authorized identical retry",
+      "export": "Job identity, bounded queue, explicit queued/running/cancel-requested/terminal outcomes; no silent replacement",
+      "audio_input_overrun": "Bounded lost-frame counter and marked discontinuity; do not label damaged recording complete",
+      "audio_output_underrun": "Defined silence/last-safe bounded fallback, non-RT diagnostic and recovery; no callback blocking",
+      "stop": "Reserved control path; bounded epoch/flag observation without queue-full starvation"
+    },
+    "commit_order": [
+      "Validate impacted target preconditions and current authorization",
+      "Apply patch+EventLedger+idempotency+heads in one authority transaction",
+      "Publish immutable snapshot carrying committed event/revision",
+      "Return receipt; if acknowledgment fails reconcile canonical idempotency on retry"
+    ],
+    "stale_results": "Proposal whose target/dependency revisions changed receives conflict/stale result; optional preview can be discarded with superseded outcome. CRDT causal operation merge is distinct from CAS record commit. No auto-retry with a refreshed revision unless operation-specific semantics and policy permit it.",
+    "cancellation": "Before commit may terminate without mutation. After committed transaction cancellation cannot erase edit; return committed receipt and cancel only pending compute/delivery work as allowed. Long compute cooperatively checks between bounded chunks. Native codec/plugin non-cooperation has explicit bounded host/process isolation policy and typed unavailable cancellation; no imaginary abort guarantee.",
+    "shutdown": "Close admission; retain accepted durable requests/outcomes; release or expire unused reservations, service reserved completion/cancel lane, drain or checkpoint within declared deadline, reconcile outcome-unknown transactions on restart. Persistent recovery state lives in existing authority records, not a second queue DB. Lease fencing blocks stale worker completions after actor restart.",
+    "foundations_first": "Each crate/module foundation executes its applicable narrow capability with a real consumer before dependent feature implementation. Pure math/validation leaves remain host-independent and demonstrate bounded deterministic input/output plus meaningful negative cases. Integration adapters/harnesses demonstrate snapshot-compute-proposal flow and bounded admission/cancel through existing host ports where applicable; do not pull DB/scheduler dependencies into every leaf. Manifest, no-op trait, empty registry or generated capability declaration alone cannot unlock feature work. Exact minimal per-module operations remain in the independently authored adoption review; this report does not replace that mapping.",
+    "diagnostics": "Scoped counters: pending callers/slots/bytes/old generations, running workers/device budget, age/service delay, cancellation latency, lease epochs, stale/conflict/replay outcomes, RT under/overruns. Argus/model command and manual explain overload/recovery; FR/internal_diagnostics/Palmistry attribution must not expose other resource scopes. Counters/threshold declarations are not proof."
+  },
+  "selected_rejected_tradeoffs": [
+    {
+      "selected": "Owned actor for commit plus immutable snapshots",
+      "rejected": "Coarse shared mutable document Mutex/RwLock and one worker per waiting request",
+      "cost": "Actor routing and explicit partial outcomes; preserves clear mutation owner without serializing compute"
+    },
+    {
+      "selected": "Target revision checks in atomic SurrealDB transaction",
+      "rejected": "Universal ArcSwap/CASmerge or actor-only durability",
+      "cost": "Transaction integration and target read/write sets must be implemented and tested"
+    },
+    {
+      "selected": "Bounded fair admission supplied by existing job owner",
+      "rejected": "Private Studio scheduler or external upstream automation server",
+      "cost": "Existing owner ports need exact executable capabilities; old API names alone are insufficient"
+    },
+    {
+      "selected": "Fixed SPSC queue carrying preallocated bounded RT payloads",
+      "rejected": "General async queue, unbounded callback drain, blocking lock, Rayon work stealing on callback",
+      "cost": "Single producer aggregation and off-RT graph preparation/retirement"
+    },
+    {
+      "selected": "Byte permits retained through results and snapshot retirement",
+      "rejected": "Release bytes at dequeue or count only channel slots",
+      "cost": "Shared storage accounting needs unique allocation ownership to avoid both double-charge and under-charge"
+    }
+  ],
+  "COUNTERFACTUAL_CHECKS": [
+    "If SurrealDB transaction integration is replaced by event_ledger::append after an external patch, STU-SDB-004 replay and crash atomicity break even if actor sequencing is correct.",
+    "If SoundCraft AudioState::drain130 is retained unchanged, continuously arriving commands can occupy callback fill256 before audio production; bounded control-to-RT drain must replace it.",
+    "If target revision vector is replaced by one document revision, STU-DS-163 and STU-SHL-221 disjoint same-document writes cannot both satisfy acceptance.",
+    "If swarm CommittedMemoryReservation::Drop209 pattern is omitted in proposed admission rollback, canceled partial acquisition can retain budget and starve later actors."
+  ],
+  "BOUNDARY_PROBES": [
+    "Read callback consumer AudioState::fill/drain against producer std channel construction; found no per-block command limit.",
+    "Read FilmCraft automation caller against Session lock execute; found broad owned-session mutation host unsuitable for reuse.",
+    "Read EventLedger append transaction scope against canonical Studio atomic mutation clause; composite guarantee remains unimplemented/unproven.",
+    "Read record-granular spec against per-document actor proposal; required explicit separation of serialization and conflict domain."
+  ],
+  "NEGATIVE_PATH_CHECKS": [
+    "Static counterexample: canceled mpsc send future can drop payload; no durable send acknowledgment assumption accepted.",
+    "Static counterexample: outstanding mpsc permit delays drain termination; shutdown requires permit lifetime cap.",
+    "Static counterexample: same key across principals or changed content must not disclose original receipt; canonical scope binding required.",
+    "Static counterexample: revoked queued result cannot use admission-time grants for output delivery."
+  ],
+  "future_proof_plan": {
+    "standing": "NOT_RUN; independent runtime validator owns execution and verdict",
+    "measured_budget_requirements": "Before proof declare actual host CPU/memory/GPU/device limits, max envelope/decoded bytes, per-actor quotas, eligible service delay, cancel deadline, max snapshot generations, callback sample/block rate and recording/output loss policy. Numeric thresholds require evidence and acceptance binding; this report asserts none passed.",
+    "matrix": [
+      {
+        "case": "Saturation",
+        "workload": "At least two agents plus operator; mixed image/PDF/audio exports, tiny and giant jobs; saturated request/result queues and held old snapshots",
+        "assert": "Every accepted identity has defined terminal outcome; memory/slots/workers/device usage stays within declared bounds including pending producers and scratch; no lost committed edit"
+      },
+      {
+        "case": "Fairness/deadlock",
+        "workload": "Hot actor/document, light independent actors, large reservation, completion congestion and cancel storm",
+        "assert": "Eligible actor service bound, cancellation bound and no wait-for cycle; exact ledger conflict outcomes and zero leaked permits after drain"
+      },
+      {
+        "case": "Transaction/retry",
+        "workload": "Disconnect/owned process crash before transaction, at commit and after commit before reply; duplicate/mismatched retries; same/disjoint target writes",
+        "assert": "Real official SDK canonical reread: rollback or one patch+event+receipt/head, original identical retry receipt, deterministic mismatch/conflict and full replay state"
+      },
+      {
+        "case": "Recovery/fencing",
+        "workload": "Restart actor/authority with accepted work and stale worker completion, expire lease, reconnect subscription",
+        "assert": "No stale epoch promotion; recover committed outcome and valid uncommitted work according to contract; stable IDs/revisions/order/scope survive"
+      },
+      {
+        "case": "RT",
+        "workload": "Actual device; automation burst, graph swaps, plugin change, sample/channel change, background CPU/GPU pressure, input overrun/output underrun/device loss",
+        "assert": "Callback no allocator/free/blocking DB/log/lock work; bounded commands per block; measured deadline misses within declared policy and flagged discontinuities, independently inspect saved audio"
+      },
+      {
+        "case": "Privacy",
+        "workload": "Authenticated record users from different accounts and same-project private scopes; revoke at admission/dispatch/commit/delivery; inspect Argus/FR/metrics/retries",
+        "assert": "No restricted bytes or existence metadata, derived scopes intersect, denied identical retry does not leak receipt, root credential proof rejected"
+      },
+      {
+        "case": "GPU/resource",
+        "workload": "Budget exhausted, allocation failure, device lost, stale fence completion and cancellation",
+        "assert": "Typed fallback/unsupported outcome, no orphan device lease, no authoritative revision rollback, measured retained memory returns to declared steady state"
+      }
+    ],
+    "proof_identity": "Bind validator result to exact commit/tree, Cargo.lock/feature set, real device configuration, source hashes, isolated SurrealDB namespace, actor identities and policy thresholds. Existing MT IDs and pinned acceptance remain; root enriches relevant rows rather than replacing 5484 MTs."
+  },
+  "RESIDUAL_UNCERTAINTY": [
+    "No build, runtime, device, GUI or upstream code execution performed.",
+    "Libraries were inspected as current primary online source; dependency versions in a future Studio lockfile are not selected or validated here.",
+    "No literal JobRuntime/ResourceBroker struct was located in scoped WP012 search; final owner-to-port wiring requires source proof, not a new parallel owner.",
+    "PhotoCraft, FilmCraft and SoundCraft observations are exact selected ranges; not whole-repository defect claims.",
+    "Native plugin/codec interruptibility and GPU fence recovery remain future target-specific proof.",
+    "Finite per-document actor scheduling cannot promise deadline guarantees for unbounded/non-cooperative operations; operation-specific chunking or bounded isolation is required.",
+    "Current spec remains v02.206 at review reads; final publication, numeric policies and MT contract edits belong to root.",
+    "Online docs.rs latest source links are current inspected research locators, not immutable dependency pins. Resolve reviewed source/version/hash and Cargo.lock at later dependency selection."
+  ],
+  "source_hashes": [
+    {
+      "evidence_id": "E-SPEC",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b"
+    },
+    {
+      "evidence_id": "E-HBR",
+      "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      "sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57"
+    },
+    {
+      "evidence_id": "E-JOBS",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/jobs.rs",
+      "sha256": "cd5d2ffc9515ef15841c7284dc6142723956aaa04dc4e800d87917f1ee1250c5"
+    },
+    {
+      "evidence_id": "E-SWARM",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+      "sha256": "14429bc41f97638f3e310f85ce9918b25968609bdd0d24ac67510f22b4d8ac04"
+    },
+    {
+      "evidence_id": "E-LEDGER",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+      "sha256": "49bde514e032da6c788bd2b01672dab66e37ecb4b00aeed1b65abad7c265fa30"
+    },
+    {
+      "evidence_id": "E-AUTH",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/api/loom.rs",
+      "sha256": "d11367813d1ad7c9b4523797a037e9523da5485e32a7a58e5c4ec2cfbfd61fc0"
+    },
+    {
+      "evidence_id": "E-SOUND-ENGINE",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/engine/src/lib.rs",
+      "sha256": "a664e53e000dedcb034fa12217549462e4e0830acd6519c39fd78b922ba0d9d7"
+    },
+    {
+      "evidence_id": "E-SOUND-RT",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/playback/src/lib.rs",
+      "sha256": "b092388e6039b84937d42d427050c968ed073687d801079b2ee63bf5dcef5c82"
+    },
+    {
+      "evidence_id": "E-SOUND-MIX",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/mix/src/lib.rs",
+      "sha256": "d70c54e42782b21b5a29a3c636a8fcc5b7cc23464c37c44da7f2837d1dab9fbc"
+    },
+    {
+      "evidence_id": "E-FILM",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/filmcraft-7b6c134472287db4367fca80bcb498240ba36567/crates/automation/src/server.rs",
+      "sha256": "ec3dd25807c1a62060e002a637f903f978261e92425ecb0539bb1aee585cd5b7"
+    },
+    {
+      "evidence_id": "E-PIXEL",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/engine/src/analysis_cmds.rs",
+      "sha256": "8af03150d3f156744df0aa0ed4d67d108d92ed81b1fc551d6cd564b7a64a6fa2"
+    }
+  ]
+}

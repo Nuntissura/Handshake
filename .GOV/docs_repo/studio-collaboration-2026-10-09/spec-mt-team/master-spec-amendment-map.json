@@ -1,0 +1,468 @@
+{
+  "schema_id": "hsk.studio_master_spec_amendment_map@1",
+  "file_id": "STUDIO-SPEC-AMENDMENTS-20261009",
+  "updated_at": "2026-10-09T18:06:54.748659+00:00",
+  "status": "FINAL_SOURCE_PREPARATION_MAP_NOT_EXECUTABLE_NOT_PARITY_PROOF",
+  "source_evidence": "spec-source-evidence.json",
+  "obsolete_owner_occurrence_count": 31,
+  "primary_conflicting_anchors": [
+    "STU-OVR-001",
+    "STU-OVR-003",
+    "STU-OVR-015",
+    "STU-ARC-001",
+    "STU-ARC-002",
+    "STU-ARC-006",
+    "STU-IO-001",
+    "STU-IO-166",
+    "STU-SDB-002",
+    "STU-VAL-002",
+    "STU-VAL-005",
+    "STU-VAL-006",
+    "STU-SHL-007"
+  ],
+  "amendments": [
+    {
+      "amendment_id": "SPEC207-STU-OVR-001",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-OVR-001",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 136,
+        "line_end": 136,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "[STU-OVR-001] Studio MUST be a Cargo workspace member set in the Handshake monorepo, not a separately versioned external crate, so the engines and the kernel binding are always tested together (mirrors [TAI-OVR-010]).",
+        "text_sha256_lf": "8cd8dc75dba4b5e1e901528050f8b7360d3f17566813e44a422481fbc4d37787"
+      },
+      "proposed_text": "[STU-OVR-001] Studio MUST be implemented as an independently buildable modular asset workspace in the Operator-declared canonical Studio asset workspace, with an explicitly governed product-subtree mirror into the approved assets repository and separately scheduled later Handshake integration. Asset leaf packages MUST compile and prove their declared dependency closures without requiring `handshake_core`, the native shell, SurrealDB, or unrelated Studio domains. Kernel-bound composition and integration proof MUST be scheduled separately and MUST preserve every integrated acceptance obligation. Governance remains in the live governance kernel. No single engine crate or unconditional all-domain facade may own or pull in all Studio implementations.",
+      "reason": "Asset-first approved change contradicts mandatory monorepo and always-together proof.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-ARC-001",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-ARC-001",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 179,
+        "line_end": 179,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "[STU-ARC-001] `handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`. All module files receive `AppState` (and thus the shared SurrealDB authority client, `LlmClient`, `SandboxRunner`, `PromotionGate`, and CRDT infrastructure) by reference; no separate initialization is permitted.",
+        "text_sha256_lf": "6cf7cf5ab2089defdf14c0c1799ea9c30c54cb4913e171ab09fabcfbb7ae15a5"
+      },
+      "proposed_text": "[STU-ARC-001] `handshake_core::studio` is the integrated authority binding, not the owner of compute/domain implementations. It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure. Independently selectable asset leaf crates own domain algorithms, shared document/contracts, reusable controls and provider adapters through typed ports. Their immutable inputs and proposed outputs carry canonical schemas, IDs, units and resource context; only the kernel binding may persist accepted integrated authority through the existing governed lifecycle. Concrete source paths and crate owners MUST be declared in the activated contracts rather than inferred from legacy `src/studio/<domain>/` examples. The existing `StudioEngineError` identifier and typed error semantics, `event_family` constants and canonical event-family values MUST be preserved at the named kernel-binding contract owner. Moving files or splitting providers MUST NOT silently remove or rename these contracts. The activated module/MT map MUST explicitly locate their definitions and API registration consumer, while retaining `storage_glue` responsibility at the binding without forcing legacy directory topology.",
+      "reason": "Moves implementation ownership while preserving AppState and authority boundary.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-ARC-002",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-ARC-002",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 181,
+        "line_end": 181,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "[STU-ARC-002] `handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. All GPU/compute code is isolated in the `studio-engine` workspace crate and reached through the `RasterEngine`/`VectorEngine`/`LayoutEngine`/`TextEngine`/`ColorEngine`/`RenderEngine: Send + Sync` trait boundaries defined in `studio-engine/src/lib.rs` (mirrors [TAI-OVR-009]).",
+        "text_sha256_lf": "c73dc0b67557ea449652a049ce058a9b20d9d7dfd9a0c29688973d52dd1a1f50"
+      },
+      "proposed_text": "[STU-ARC-002] `handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies. GPU, CPU render, raster, vector, layout, text, color, RAW, sequence, audio, motion, composition and import/export providers MUST be independently selectable crates behind typed `Send + Sync` ports. The existing RasterEngine, VectorEngine, LayoutEngine, TextEngine, ColorEngine and RenderEngine contract semantics remain preserved; new domain ports MUST be specified in canonical contracts before implementation. Contract/document crates MUST NOT depend on provider implementations, kernel, native shell, database, GPU or codec runtimes. No mandatory all-engine dependency facade is permitted.",
+      "reason": "Replaces single studio-engine and lib.rs trait owner without dropping isolation.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-ARC-006",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-ARC-006",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 189,
+        "line_end": 189,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "[STU-ARC-006] Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change. Individual `studio-engine` crates (raster compositor, vector geometry, text shaping, color) MAY be prototyped in isolation before the kernel binding is authored, because they have no `handshake_core` dependency.",
+        "text_sha256_lf": "f8fa685d52ebb1e583748a70c8df167f74c5857320a3e59fd62831f01519e2c6"
+      },
+      "proposed_text": "[STU-ARC-006] Studio asset workspace and module foundations MAY be activated for production implementation before the Handshake kernel baseline stabilizes, under approved asset-local contracts and independently scoped proofs. Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target. Empty shells, unconditional all-domain reexports and fake readiness do not satisfy this gate. Kernel embedding remains blocked until the concrete sandbox, PromotionGate, CRDT and native-shell surfaces that embedding uses are stable and independently proven; asset proof cannot replace embedding proof.",
+      "reason": "Approved all-crates-first asset production, not prototype-only until WP012 stable.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-OVR-015",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-OVR-015",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 140,
+        "line_end": 140,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "[STU-OVR-015] [ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motion surface (14.11) is keyframe animation + motion export (video/GIF/animated-SVG) and placing/rendering media; footage-clip non-linear editing is a separate Handshake concern (the `engine.director` mechanical engine, Spec \u00a711.8). Studio MAY place and render video media (14.6/14.11) but does not own footage clip-editing. This is recorded as an explicit, intentional scope edge, not an omission.",
+        "text_sha256_lf": "0335ded62ab01916dd7c4bc5d5b299b040f66161459d857d9eeb8b001aa8fa61"
+      },
+      "proposed_text": "[STU-OVR-015] The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX, grading, media delivery and audio-post remain in Studio scope at their current specified depth. `engine.director` is a consumer of StudioSequence output where applicable, not owner of interactive clip editing.",
+      "reason": "Remove earliest stale active exclusion while retain ID and later complete scope.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-IO-001",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-IO-001",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 21209,
+        "line_end": 21209,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "[STU-IO-001] NATIVE-FORMAT DECLARATION. Studio MUST NOT invent a new interchange document format to replace the existing creative formats. The native Studio document is the unified `StudioDocument` (14.3) persisted through Handshake document/project storage under SurrealDB/EventLedger authority ([STU-ARC-003]/[STU-ARC-004]) with CRDT live state; it is not a new file-on-disk interchange format competing with PSD/AI/IDML/`.af`/`.fig`. This restates and is bound by [STU-OVR-002]: interoperability with the source formats is in scope as import / edit-preserve / export / round-trip; a replacement interchange format and any runtime dependency on the source applications are out of scope. Where a deliverable file must leave Studio, it leaves through a `StudioExportRecipe` into one of the matrix formats below, never through a bespoke Studio-only container.",
+        "text_sha256_lf": "c96caff8b3e8d1b39b734ef485e5d3790269ee4cc5673da33a7378b805489b7a"
+      },
+      "proposed_text": "[STU-IO-001] NATIVE-FORMAT DECLARATION. Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs. It MUST preserve canonical IDs, schemas, units, integer timebase, color and provenance without workflow-switch flattening. The container is import/export/recovery transport; integrated durable and collaborative authority remains SurrealDB/EventLedger/CRDT, never a second database or catalog. Saving/loading MUST validate versions, graph/blob references and integrity, preserve originals and unknown safely retained semantics with explicit loss receipts, bound all untrusted materialization and perform crash-safe copy-first publication. Fresh permissions MUST be resolved on import; serialized grants never confer authority. Existing PSD/AI/INDD/IDML/Affinity/Figma/media interchange/edit-preserve/export/round-trip obligations survive; a native snapshot does not replace them or introduce vendor runtime dependencies. Integrated artifact bytes, caches and placed assets use existing ArtifactService/ArtifactManifest and CKC owners. Container wire layout/extension/schema are activation-blocking contract choices until specified and independently reviewed.",
+      "reason": "Explicit native-container authorization; no second authority or waived vendor parity.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-OVR-003",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-OVR-003",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 142,
+        "line_end": 142,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "[STU-OVR-003] Studio MUST NOT introduce a SQLite dependency anywhere (not in `studio-engine`, not in tests, not as a development cache). The `no_sqlite_tripwire` and SurrealDB-only startup tripwire in [STU-SDB-002] apply to Studio without exception. Durable Studio authority is SurrealDB/EventLedger only; live collaborative document state is CRDT; neither is SQLite-backed.",
+        "text_sha256_lf": "da04ced979fef9f02502c59354ed0c9b1d9ea91c11c4cdd53f2a906b496973ac"
+      },
+      "proposed_text": "[STU-OVR-003] Studio MUST NOT introduce a SQLite database/SQL-engine dependency anywhere (not in `studio-engine`, not in tests, not as a development cache). The `no_sqlite_tripwire` and SurrealDB-only startup tripwire in [STU-SDB-002] apply to Studio except for the explicitly bounded external file-byte decoder below. Durable Studio authority is SurrealDB/EventLedger only; live collaborative document state is CRDT; neither is SQLite-backed.\n\nThe sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
+      "reason": "Narrow approved read-only file decoder exception; avoid broad SQLite allowance.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-IO-166",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-IO-166",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 21130,
+        "line_end": 21130,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "**[STU-IO-166] Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]).",
+        "text_sha256_lf": "530aa627cf6f23fb712c75190ba7be332de056ddc3dc1375bdf2e3865324d266"
+      },
+      "proposed_text": "**[STU-IO-166] Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite database/SQL engine, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]).\n\nThe sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
+      "reason": "Narrow approved read-only file decoder exception; avoid broad SQLite allowance.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-SDB-002",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-SDB-002",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 36,
+        "line_end": 45,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "**[STU-SDB-002] Runtime authority.** Studio durable authority MUST use the Handshake-managed\nSurrealDB service through the official SurrealDB Rust SDK and the kernel's typed authority-store\nabstraction. `AppState` supplies that shared SurrealDB authority client; Studio and its standalone\nengine crates MUST NOT create a private authority database, use `PgPool`, issue `sqlx` queries,\naccept a PostgreSQL connection URL, or attempt PostgreSQL connectivity for migration or\nverification. PostgreSQL drivers, runtime lifecycle code, environment variables, configuration\nkeys, startup modes, provisioning scripts, health checks, and proof fixtures MUST be retired from\nthe active Studio dependency and acceptance surface. SQLite remains prohibited for authority,\ncaches, fixtures offered as runtime proof, and tests that claim production-storage equivalence.\nThere is no PostgreSQL fallback, dual authority, import lane, or transitional runtime.",
+        "text_sha256_lf": "621fd2cdd2f689ae33217ec8979b873d51c9be2654858d43545e144891066779"
+      },
+      "proposed_text": "**[STU-SDB-002] Runtime authority.** Studio durable authority MUST use the Handshake-managed\nSurrealDB service through the official SurrealDB Rust SDK and the kernel's typed authority-store\nabstraction. `AppState` supplies that shared SurrealDB authority client; Studio and its standalone\nengine crates MUST NOT create a private authority database, use `PgPool`, issue `sqlx` queries,\naccept a PostgreSQL connection URL, or attempt PostgreSQL connectivity for migration or\nverification. PostgreSQL drivers, runtime lifecycle code, environment variables, configuration\nkeys, startup modes, provisioning scripts, health checks, and proof fixtures MUST be retired from\nthe active Studio dependency and acceptance surface. SQLite remains prohibited for authority,\ncaches, fixtures offered as runtime proof, and tests that claim production-storage equivalence.\nThere is no PostgreSQL fallback, dual authority, import lane, or transitional runtime.\n\nThe sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
+      "reason": "Narrow approved read-only file decoder exception; avoid broad SQLite allowance.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-VAL-005",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-VAL-005",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 22384,
+        "line_end": 22384,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "[STU-VAL-005] NATIVE-RUNTIME + SURREALDB/CRDT DUTY. Studio durable authority is Handshake-managed SurrealDB/EventLedger; live collaborative state is CRDT with persistence/reconnect/replay/conflict-visibility and promotion into authority. No PostgreSQL fallback or dual authority, no SQLite, no SQL-portability shim, no mock-only resource as default proof, and no Docker/third-party-daemon/outside-app as a core-operation dependency or acceptance shortcut. Test-only/fixture-only proof cannot satisfy a runtime/storage/EventLedger/UI/replay MUST; storage and privacy proof MUST meet [STU-SDB-008].",
+        "text_sha256_lf": "436861277f66ac32e18711093347b1b6cf2ddceb0150c59b13b43e40dd3c94a1"
+      },
+      "proposed_text": "[STU-VAL-005] NATIVE-RUNTIME + SURREALDB/CRDT DUTY. Studio durable authority is Handshake-managed SurrealDB/EventLedger; live collaborative state is CRDT with persistence/reconnect/replay/conflict-visibility and promotion into authority. No PostgreSQL fallback or dual authority, no SQLite database/SQL engine (bounded external file-byte decoder exception below), no SQL-portability shim, no mock-only resource as default proof, and no Docker/third-party-daemon/outside-app as a core-operation dependency or acceptance shortcut. Test-only/fixture-only proof cannot satisfy a runtime/storage/EventLedger/UI/replay MUST; storage and privacy proof MUST meet [STU-SDB-008].\n\nThe sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
+      "reason": "Narrow approved read-only file decoder exception; avoid broad SQLite allowance.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-SHL-007",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-SHL-007",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 30814,
+        "line_end": 30814,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "**[STU-SHL-007] Storage law.** Every durable artefact this sub-section introduces \u2014 dock layouts, Layout Presets, panel registry rows, descriptor sets, manual seed rows, shortcut sets \u2014 MUST persist through Handshake-managed SurrealDB with the EventLedger as sole durable authority, embedded (no separate database process), per [STU-SDB-002]. SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. Operator-scoped preference layers persist through the shell preference client; document-scoped layers persist as a Studio-owned sibling schema discriminated by `schema_id`, never by extending the shell's own layout schema.",
+        "text_sha256_lf": "fc795de5ed4d834332bc0db0eeebaed733bc1ba1c75a1ff4c907962fe11857f4"
+      },
+      "proposed_text": "**[STU-SHL-007] Storage law.** Every durable artefact this sub-section introduces \u00e2\u20ac\u201d dock layouts, Layout Presets, panel registry rows, descriptor sets, manual seed rows, shortcut sets \u00e2\u20ac\u201d MUST persist through Handshake-managed SurrealDB with the EventLedger as sole durable authority, embedded (no separate database process), per [STU-SDB-002]. SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. Operator-scoped preference layers persist through the shell preference client; document-scoped layers persist as a Studio-owned sibling schema discriminated by `schema_id`, never by extending the shell's own layout schema.\n\nThe sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
+      "reason": "Narrow approved read-only file decoder exception; avoid broad SQLite allowance.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-VAL-002",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-VAL-002",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 22378,
+        "line_end": 22378,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "[STU-VAL-002] THREE-TIER DIAGNOSTICS (HBR-INT-009). Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events \u2014 WIRED at build); Tier 2 internal_diagnostics (frame-time on canvas/viewport renders, panic hooks in `studio-engine`, UI-thread heartbeat for Studio panes, GPU/CPU/RSS counters during render/filter jobs, diagnostic-event API for render-cache/GPU-device-lost/readback failures \u2014 DEFERRED-until-shipped per WP-KERNEL-012/016); Tier 3 Palmistry (external watcher over freeze/crash during heavy render \u2014 DEFERRED-until-shipped). Deferral is typed, never silent.",
+        "text_sha256_lf": "d35d64a6f8916e6b262b1e54b12e8bd550e55fef5234202ce30648a7db276566"
+      },
+      "proposed_text": "[STU-VAL-002] THREE-TIER DIAGNOSTICS (HBR-INT-009). Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners. Asset-only proof exercises the port and bounded telemetry/error/cancellation behavior; separately scheduled native embedding proof exercises real host diagnostics and the watcher. No global DEFERRED-until-shipped status may substitute for required production integration. Legitimate non-applicability and unresolved host dependencies MUST have typed per-behavior reasons and block corresponding required acceptance. Telemetry MUST preserve privacy, bounded buffers/drop counters and realtime safety; no engine may create a separate recorder/database/watcher authority.",
+      "reason": "Existing hardcoded deferrals conflict with production diagnostics every module.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-VAL-006",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-VAL-006",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 22386,
+        "line_end": 22386,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "[STU-VAL-006] HBR MATRIX. Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause; PASS closure is illegal while any required HBR row is PENDING/STEER/BLOCKED.",
+        "text_sha256_lf": "a646cdf4f36c28f813805f61019720dded22cd4d3b8fb481d335b7280bdcd4e9"
+      },
+      "proposed_text": "[STU-VAL-006] HBR MATRIX. Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets. Shared unchanged proof may be referenced with input identity; per-MT exclusions require reasons. Required rows resolve only to PROVED / justified NOT_APPLICABLE / BLOCKED; PENDING, STEER, deferred, or BLOCKED rows never count as PASS. No hardcoded subset of pillars or blanket metadata field satisfies the registry.",
+      "reason": "Old six-pillar list omits current mandatory rules.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-MAN-118",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-MAN-118",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 32901,
+        "line_end": 32901,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "**[STU-MAN-118] Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped.",
+        "text_sha256_lf": "49f7f6e60b343ca0c439e9a2034bfe0fb60ff5554b86e2af9e1deaf3fdeaff39"
+      },
+      "proposed_text": "**[STU-MAN-118] Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory.",
+      "reason": "No blanket diagnostics deferral via generated entries.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-ASSET-004",
+      "operation": "replace_clause_preserve_id",
+      "target": {
+        "anchor": "STU-ASSET-004",
+        "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+        "line_start": 30625,
+        "line_end": 30625,
+        "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+        "exact_old_text": "**[STU-ASSET-004] Prohibition \u2014 no parallel library.** Studio MUST NOT implement, and MUST NOT ship, any of the following: a second asset catalog; a second media or file browser rooted outside CKC; a second thumbnail or preview cache keyed independently of CKC's; a second metadata, keyword, rating, label or flag store; a second collection or smart-collection mechanism over assets; a second duplicate-detection index; a second folder-synchronisation watcher; or a second content-addressed blob tier. Each of these already exists in CKC, and duplicating one is a `[STU-SECTION-003]` violation, not an optimisation.",
+        "text_sha256_lf": "073c0eac3290c669a5e3c4f5e97f6c8eb853c6067091b50718983ce20305bbb8"
+      },
+      "proposed_text": "**[STU-ASSET-004] Prohibition \u2014 no parallel library.** Studio MUST NOT implement, and MUST NOT ship, any of the following: a second asset catalog; a second media or file browser rooted outside CKC; a second thumbnail or preview cache keyed independently of CKC's; a second metadata, keyword, rating, label or flag store; a second collection or smart-collection mechanism over assets; a second duplicate-detection index; a second folder-synchronisation watcher; or a second content-addressed blob tier. Each of these already exists in CKC, and duplicating one is a `[STU-SECTION-003]` violation, not an optimisation.\n\nStandalone reusable assets MUST consume artifact/catalog bytes through injected typed provider ports. They MUST NOT adopt upstream private catalog/CAS/cache authorities. A portable document container MAY carry immutable transport payloads; in integrated operation its bytes, previews and imported metadata MUST resolve/materialize through the existing CKC and ArtifactService owners, with no independently keyed duplicate tier. Asset-repository build source ownership is distinct from CKC runtime asset authority.",
+      "reason": "Prevent assets repository/native-format terminology from reviving second catalog.",
+      "preservation": "Preserve prior feature and acceptance scope, historical MT IDs and source provenance; only alter explicitly approved architecture/transport/parser/diagnostic sequencing."
+    },
+    {
+      "amendment_id": "SPEC207-STU-ARC-007",
+      "operation": "add_clause_new_reserved_id",
+      "anchor": "STU-ARC-007",
+      "id_availability_verified": true,
+      "proposed_text": "[STU-ARC-007] MODULE FOUNDATION AND OWNERSHIP. The approved module map MUST cover every current Studio domain and all shared contracts/document/color/time/transaction/control/diagnostic/manual/import/export/render/runtime-provider foundations before feature implementation. Each module MUST name one semantic owner, inputs/outputs, public ports, dependency/feature closure, integration consumer and asset-local plus later embedding proof. Shared capabilities reuse one owner across workflows; additional crates require a concrete isolation or responsibility boundary, not hollow stubs.",
+      "insert_after": "STU-ARC-006",
+      "reason": "Approved modularity/native/full-parity scope made explicit; no existing ID renumbering."
+    },
+    {
+      "amendment_id": "SPEC207-STU-ARC-008",
+      "operation": "add_clause_new_reserved_id",
+      "anchor": "STU-ARC-008",
+      "id_availability_verified": true,
+      "proposed_text": "[STU-ARC-008] BOUNDED SWARM ADMISSION. Every importer, decoder, render, export, preview, model and plugin job MUST enter bounded admission by actor/document/resource and job count, bytes in flight, decoded pixels/samples/frames, CPU/GPU memory, queue length and process count. Contracts MUST define observed limits, overload outcomes, fairness, cancellation/deadlines, stale-revision rejection, release on every exit and diagnostic counters. Waiting for a budget MUST NOT hold document authority/lease locks; promotion rechecks revisions/grants atomically. Realtime audio callbacks MUST NOT allocate, block on locks, decode or call the general recorder. Parallel distinct-property work must remain possible under [STU-SHL-221].",
+      "insert_after": "STU-ARC-007",
+      "reason": "Approved modularity/native/full-parity scope made explicit; no existing ID renumbering."
+    },
+    {
+      "amendment_id": "SPEC207-STU-ARC-009",
+      "operation": "add_clause_new_reserved_id",
+      "anchor": "STU-ARC-009",
+      "id_availability_verified": true,
+      "proposed_text": "[STU-ARC-009] ASSET MIRROR PROVENANCE. The asset workspace product subtree and Handshake mirror MUST be bound to exact source commit/tree, path/hash manifest, dependency/feature pins and applied patch provenance. Governance documentation stays in gov_kernel. Mirror refresh MUST be reviewable and preserve existing assets content; divergence or incompatible pins blocks embedding. Asset-local compilation never claims native runtime, storage, visual or parity acceptance.",
+      "insert_after": "STU-ARC-008",
+      "reason": "Approved modularity/native/full-parity scope made explicit; no existing ID renumbering."
+    },
+    {
+      "amendment_id": "SPEC207-STU-IO-186",
+      "operation": "add_clause_new_reserved_id",
+      "anchor": "STU-IO-186",
+      "id_availability_verified": true,
+      "proposed_text": "[STU-IO-186] NATIVE EDITABILITY SCOPE. Native editable INDD, PRPROJ, AEP and local FIG imports remain explicit requested scope in addition to existing interchange rows; INDD binary import is not satisfied by IDML, PRPROJ/AEP are not satisfied by rendered media, and FIG is not satisfied by SVG or preview extraction. Every format MUST report supported version and per-object/property editable mapping, preserved opaque data, unsupported/loss decisions, provenance and round-trip disposition. Missing decoders/fixtures are blocking scope gaps, never silent exclusions. Parser success, self-render or original-byte preservation is not editable-parity proof.",
+      "insert_after": "STU-IO-185",
+      "reason": "Approved modularity/native/full-parity scope made explicit; no existing ID renumbering."
+    },
+    {
+      "amendment_id": "SPEC207-STU-CON-008",
+      "operation": "add_clause_new_reserved_id",
+      "anchor": "STU-CON-008",
+      "id_availability_verified": true,
+      "proposed_text": "[STU-CON-008] CANONICAL PORT AND SERIALIZATION LAW. Every asset module MUST use the canonical Studio schema IDs, prefixed domain IDs, field types and units without reminting/forking them. Sequence storage preserves 254016000000 integer ticks per second, frame_rate.ticks_per_frame:u64 and the normative broadcast table/normalization receipts [STU-VID-011\u2013013a]. Intermediate arithmetic MUST be checked; widening stored types or changing schema meaning requires explicit versioned spec enrichment, not an invented i128 replacement. Rational/float time is interchange/display only. Typed importer outputs are proposals; CRDT is draft state and SurrealDB/EventLedger remains promotion/replay authority.",
+      "insert_after": "STU-CON-007",
+      "reason": "Approved modularity/native/full-parity scope made explicit; no existing ID renumbering."
+    }
+  ],
+  "execution": "Root sole editor/publisher; no spec/product/MT mutation; no runtime/parity PASS.",
+  "scope_continuity": [
+    "Preserve all 5484 prior MT IDs, scope and acceptance/provenance history. Reserve additional foundation IDs without renumbering.",
+    "Preserve non-AI professional Photoshop/Illustrator/InDesign/Figma/Premiere/AE/Lightroom+Classic/Adobe/Affinity/native-format/PDF/prepress/CJK/RTL/accessibility/web/prototyping/audio-post obligations.",
+    "Prior export/import/round-trip depth survives modularization and native container. No substitute edited previews or flat exports."
+  ],
+  "complete_owner_reference_inventory": "All 31 occurrences are in spec-source-evidence.json; update full quoted lines and owning clauses. Intro line18 and unanchored architecture list lines132\u2013134 also need reconciliation.",
+  "hbr": {
+    "version": "1.15.0",
+    "active_rule_count": 45,
+    "rule_ids": [
+      "HBR-PRIV-001",
+      "HBR-PRIV-002",
+      "HBR-PRIV-003",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "HBR-PRIV-006",
+      "HBR-PRIV-007",
+      "HBR-PRIV-008",
+      "HBR-INT-001",
+      "HBR-INT-002",
+      "HBR-INT-003",
+      "HBR-INT-004",
+      "HBR-INT-005",
+      "HBR-INT-006",
+      "HBR-INT-007",
+      "HBR-INT-008",
+      "HBR-INT-009",
+      "HBR-SWARM-001",
+      "HBR-SWARM-002",
+      "HBR-SWARM-003",
+      "HBR-SWARM-004",
+      "HBR-SWARM-005",
+      "HBR-SWARM-006",
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-VIS-003",
+      "HBR-VIS-004",
+      "HBR-VIS-005",
+      "HBR-QUIET-001",
+      "HBR-QUIET-002",
+      "HBR-QUIET-003",
+      "HBR-QUIET-004",
+      "HBR-MAN-001",
+      "HBR-MAN-002",
+      "HBR-MAN-003",
+      "HBR-MAN-004",
+      "HBR-STOP-001",
+      "HBR-STOP-002",
+      "HBR-STOP-003",
+      "HBR-STOP-004",
+      "HBR-STOP-005",
+      "HBR-COMPART-001",
+      "HBR-COMPART-002",
+      "HBR-COMPONENT-001",
+      "HBR-COMPONENT-002"
+    ],
+    "unresolved_canary_and_entrypoint": "REPLACE_ME placeholders remain activation blockers; no invented executable proof commands."
+  },
+  "limitations": [
+    "No native GUI, upstream builds/tests or parity proof run.",
+    "Current Handshake source owners inspected as source; their runtime completeness not independently validated.",
+    "Crosscut absolute import prohibitions reconciled separately below; historical SQL inventories stay non-executable."
+  ],
+  "crosscut_current_law_amendments": [
+    {
+      "anchor": "SURF-SDB-001",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/10-product-surfaces.md",
+      "line": 18,
+      "file_sha256": "9bfb82ad290f05feb624b389e4e17be63913873663db20bcfe22cc8a34e27e39",
+      "exact_old_text": "This override is current product law and takes precedence over all later Calendar, Catalog, Dev Command Center, Notes, Settings, and other product-surface storage text. All durable surface state and EventLedger persistence use Handshake-managed SurrealDB through typed stores. PostgreSQL and SQLite connectivity, dependencies, configuration, credentials, local authority databases, caches, fallbacks, importers, reconciliation, fixtures, mocks, tests, and proof paths are forbidden. Existing product features, fields, filters, recovery behavior, offline UX, exports, and operator workflows survive; their storage implementation is translated to `SCHEMAFULL` SurrealQL, authenticated record-user permissions plus ResourceBroker, and SurrealKit rollouts.",
+      "proposed_text": "This override is current product law and takes precedence over all later Calendar, Catalog, Dev Command Center, Notes, Settings, and other product-surface storage text. All durable surface state and EventLedger persistence use Handshake-managed SurrealDB through typed stores. PostgreSQL and SQLite connectivity, dependencies, configuration, credentials, local authority databases, caches, fallbacks, SQL/database importers, reconciliation, fixtures, mocks, tests, and proof paths are forbidden. Existing product features, fields, filters, recovery behavior, offline UX, exports, and operator workflows survive; their storage implementation is translated to `SCHEMAFULL` SurrealQL, authenticated record-user permissions plus ResourceBroker, and SurrealKit rollouts. The external Studio `.lrcat` file-byte decoder is the narrowly bounded exception defined by [STU-OVR-003]; no SQLite engine/database/import-connectivity path is authorized. Fresh SurrealDB/EventLedger cold genesis remains independent of imports.",
+      "scope": "Preserve unrelated database prohibitions.",
+      "text_sha256_lf": "800d111b3d1effd59763eaf885c7d6e8d721c7413d3928b9b3ec57e12351afa2"
+    },
+    {
+      "anchor": "OSS-SDB-001",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/11-shared-dev-platform-and-oss-foundations.md",
+      "line": 18,
+      "file_sha256": "be3708a08de802009f192e7ec7f2a6a4d05e395e52868d105c6278429f608708",
+      "exact_old_text": "Shared development-platform state follows the v02.205 exclusive database law. Handshake-managed SurrealDB is the only durable database authority and persists EventLedger semantics; PostgreSQL and SQLite are forbidden as MCP targets, transactional state, schema tools, caches, fallbacks, imports, reconciliation, fixtures, tests, and proof paths. Later PostgreSQL/SQLite/sqlite-utils material is comparative research or non-executable historical inventory only. Implementations use the official SurrealDB Rust SDK, typed store boundaries, `SCHEMAFULL` SurrealQL, authenticated record-user permissions plus ResourceBroker, and SurrealKit rollouts. DuckDB may exist only as an explicitly rebuildable, bounded analytics/diagnostic projection.",
+      "proposed_text": "Shared development-platform state follows the v02.205 exclusive database law. Handshake-managed SurrealDB is the only durable database authority and persists EventLedger semantics; PostgreSQL and SQLite are forbidden as MCP targets, transactional state, schema tools, caches, fallbacks, SQL/database imports, reconciliation, fixtures, tests, and proof paths. Later PostgreSQL/SQLite/sqlite-utils material is comparative research or non-executable historical inventory only. Implementations use the official SurrealDB Rust SDK, typed store boundaries, `SCHEMAFULL` SurrealQL, authenticated record-user permissions plus ResourceBroker, and SurrealKit rollouts. DuckDB may exist only as an explicitly rebuildable, bounded analytics/diagnostic projection. The external Studio `.lrcat` file-byte decoder is the narrowly bounded exception defined by [STU-OVR-003]; no SQLite engine/database/import-connectivity path is authorized. Fresh SurrealDB/EventLedger cold genesis remains independent of imports.",
+      "scope": "Preserve unrelated database prohibitions.",
+      "text_sha256_lf": "eae4b73089de68a962280379b98795ba837365fde5b02d7029b5a2217e0849d2"
+    },
+    {
+      "anchor": "2.3.13.0",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md",
+      "line_start": 2266,
+      "line_end": 2282,
+      "file_sha256": "d318f94cf0a0034b2cd3922becb9b2d3dff74eddb14012ba65e4a84693cd7055",
+      "exact_old_text": "#### 2.3.13.0 SurrealDB-exclusive authority supersession [ADD v02.204]\n\nThis v02.204 rule supersedes every earlier current-normative PostgreSQL physical-storage commitment in this module. Earlier PostgreSQL names, SQL examples, implementation types, packet names, and migration phases remain only as historical provenance until their contracts are remediated; they MUST NOT be interpreted as an allowed runtime, fallback, compatibility, fixture, test, cache, migration target, or second authority.\n\n- Handshake runtime authority MUST be Handshake-managed SurrealDB accessed through the official SurrealDB Rust SDK. `EventLedger` remains the semantic append-only authority primitive; its durable records live in SurrealDB.\n- The product MUST have no PostgreSQL runtime dependency, fallback, or dual-authority mode. Absence or failure of the configured SurrealDB authority MUST fail closed for startup and authoritative writes.\n- Authority records MUST use typed records and `SCHEMAFULL` schema definitions. Storage clients, record IDs, query values, and transaction boundaries MUST remain encapsulated by the storage boundary rather than leaking through `AppState` or feature services.\n- Protected tables MUST default-deny authenticated record users through SurrealDB table `PERMISSIONS`; field permissions MUST cover sensitive fields. Privacy proof MUST use authenticated record-user sessions and the Handshake ResourceBroker. Root, system, namespace, database-owner, or other privileged sessions bypass table permissions and MUST NOT be accepted as isolation proof.\n- Durable change feeds and projection wakeups MUST use SurrealDB live queries where a live subscription is required. Recovery authority remains EventLedger replay; a live-query notification is never authority.\n- Schema evolution MUST use SurrealKit rollout lifecycle (`start`, application cutover, `complete`, and tested rollback) with versioned, replay-safe transformations and independent schema/data verification.\n- SurrealDB authority MUST be initialized fresh, with a cold EventLedger authority head and deterministic bootstrap records created directly in SurrealDB. Existing PostgreSQL state has no migration value and MUST NOT be read, imported, replayed, reconciled, replicated, dual-written, or connected during activation.\n- PostgreSQL retirement is complete: remove its client/runtime dependencies, drivers, binaries, managed-process lifecycle, URLs, environment/config keys, credentials, schema/migration tooling, fixtures, health checks, tests, proof paths, and network connectivity. A PostgreSQL connection attempt from Handshake is a failing conformance defect.\n\nAll later references in this module to PostgreSQL/EventLedger authority, `PgPool`, `PostgresDatabase`, `sqlx`, JSONB, PostgreSQL RLS, `LISTEN/NOTIFY`, PostgreSQL migrations, PostgreSQL URLs, or PostgreSQL test provisioning resolve to the SurrealDB contracts above unless the text explicitly labels the reference as historical provenance.\n\n**Why**\nHandshake's local-first philosophy (\u00c2\u00a71.1.4) targets SurrealDB/EventLedger authority from the start. Building storage-boundary constraints prevents rework while avoiding stale SQLite, PostgreSQL, Docker, or outside-app fallback paths.",
+      "operation": "preserve_storage_law_add_qualification",
+      "proposed_text": "Bounded read-only `.lrcat` file-byte decoding under [STU-OVR-003] is external creative-file import, not database connectivity, legacy authority migration, fixture storage, or second authority. Outputs are untrusted proposals; accepted imports resolve fresh grants and existing CKC/Studio schemas and promotion. Cold SurrealDB/EventLedger genesis and all database migration prohibitions remain unchanged.",
+      "reason": "Overarching clause is PostgreSQL-specific; no database ban removal required.",
+      "text_sha256_lf": "7676709df7d04ee5bd6a0ad2687bdfa0464e740575cc70ee4838bfb7fa8a725c"
+    }
+  ],
+  "codex_required_amendment": {
+    "path": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "line": 45,
+    "exact_old_text": "[CX-503R] SurrealDB/EventLedger is the exclusive Handshake database authority, including runtime, tests, proof and future self-governance. Do not introduce or preserve SQLite/PostgreSQL connectivity, import, reconciliation, dual authority, fallback, cache, fixture, compatibility or temporary-adapter paths. Use fresh Handshake-managed SurrealDB state and SurrealKit rollouts.",
+    "file_sha256": "e29d113f213533c25ab7679cd6b051cf975befa672acb66b9369ba49cb5c084e",
+    "proposed_text": "[CX-503R] SurrealDB/EventLedger is the exclusive Handshake database authority, including runtime, tests, proof and future self-governance. Do not introduce or preserve SQLite/PostgreSQL connectivity, database-engine import, reconciliation, dual authority, fallback, cache, fixture, compatibility or temporary-adapter paths. Use fresh Handshake-managed SurrealDB state and SurrealKit rollouts. The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
+    "root_owned": true
+  },
+  "unanchored_patches": [
+    {
+      "line": 18,
+      "exact_old_text": "[ADD v02.200] v02.200 hardens Section 14 with the universal command contract [STU-CON-007] (every Studio tool/command/primitive in 14.4-14.15 MUST be model-invokable + parallel-safe + deterministic + visually-verifiable, so parallel model agents can deterministically edit photos/vector-masks/layouts across multiple files at once in conjunction with the visual tools), the no-operator-only-by-default rule [STU-MDL-006], and two scope clarifications ([STU-RAS-051] focus-stack/seamless-blend composite op; [STU-OVR-015] video-footage clip-editing out of scope).",
+      "proposed_text": "[ADD v02.200] v02.200 hardens Section 14 with the universal command contract [STU-CON-007] (every Studio tool/command/primitive in 14.4-14.15 MUST be model-invokable + parallel-safe + deterministic + visually-verifiable, so parallel model agents can deterministically edit photos/vector-masks/layouts across multiple files at once in conjunction with the visual tools), the no-operator-only-by-default rule [STU-MDL-006], and two scope clarifications ([STU-RAS-051] focus-stack/seamless-blend composite op; [STU-OVR-015] former video-footage exclusion superseded by [STU-VID-001])."
+    },
+    {
+      "line": 134,
+      "exact_old_text": "2. **`studio-engine`** \u2014 a standalone Rust workspace crate (no `handshake_core` dependency) that owns the compute-heavy, UI-agnostic engines: the raster compositor and pixel pipeline, the vector/path geometry and tessellation engine, the layout/reflow engine, the text-shaping/typography engine, the color-management engine, and the GPU render path (wgpu/WGSL). `handshake_core::studio` calls into `studio-engine` only through typed traits (`RasterEngine`, `VectorEngine`, `LayoutEngine`, `TextEngine`, `ColorEngine`, `RenderEngine`). Studio MUST NOT put `wgpu`/WGSL/GPU dependencies into `handshake_core`'s `Cargo.toml`; all GPU code is isolated in `studio-engine`, exactly as Tailor isolates GPU code in `tailor-solver` ([TAI-OVR-009]).",
+      "proposed_text": "2. **Independently selectable asset crates** own UI-agnostic domain engines and shared contracts, document graphs, reusable controls, diagnostics and provider adapters. No single studio-engine crate owns all compute. Integrated kernel binding consumes typed ports and preserves authority/privacy/promotion/CRDT; GPU/codec dependencies remain selected providers outside handshake_core."
+    }
+  ],
+  "crosscut_owner_evidence": "spec-source-evidence.json#/direct_source_owner_inspection",
+  "preserved_architecture": [
+    "ResourceBroker owns permissions; Argus attribution is not authorization.",
+    "Kernel CRDT drafts/proposals/agent leases remain canonical; local transaction/undo is not durable history.",
+    "Existing kernel PromotionGate/sandbox/EventLedger retain atomic accepted mutation/replay.",
+    "CKC atelier catalog/metadata/search/collections and ArtifactService bytes/previews are consumed via typed ports.",
+    "Existing native PaneRegistry/interaction_bus/accessibility/command_registry reusable owners extended once.",
+    "Canonical user_manual is target; model-manual shim is excluded.",
+    "Shared diag_ring/recorder/Palmistry adapted once with bounded off-audio-callback telemetry."
+  ],
+  "review_gaps": [
+    "Final canonical asset source direction and module names are root decisions.",
+    "All31 owner references have full original lines plus proposed generic owner text; final names/ports remain activation contract work.",
+    "Sequence stored position signedness/types resolve existing schemas; no invented i128.",
+    "Native PRPROJ/AEP absent in current matrix search; preserve requested scope gaps.",
+    "Container wire/schema/extension unresolved; ZIP64 reference is not adopted truth.",
+    "HBR REPLACE_ME canary/test_entrypoint/implementer_check block activation.",
+    "MAN120/121/122 manual shape/version/model-floor decisions remain unresolved."
+  ],
+  "probe_failures": [
+    "PowerShell brace path parsing failure corrected.",
+    "JSON read missing explicit UTF8 failed before writes; corrected.",
+    "Assumed promotion/mod.rs absent; actual promotion.rs and kb003_promotion/gate.rs located and opened before owner claim."
+  ],
+  "fresh_source_re_read": {
+    "observed_at": "2026-10-09T18:06:54.746034+00:00",
+    "read_path": "Path.read_bytes().decode(utf-8-sig), raw SHA256 independently computed",
+    "raw_spec_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+    "exact_match": true,
+    "mismatches": [],
+    "corrected_captured_artifact_anchors": [
+      "STU-OVR-015",
+      "STU-SHL-007",
+      "STU-VAL-002",
+      "STU-ASSET-004"
+    ],
+    "diagnosis": "Earlier report artifact captured UTF8 punctuation through a CP1252 interpretation: section sign became U+00C2 U+00A7; emdash became U+00E2 U+20AC U+201D. Current source contains correct punctuation and zero U+FFFD in affected clauses. Source-mutation claim retracted.",
+    "publication_gate": "No source mutation or encoding publication blocker. Proposed architecture/contract activation gaps remain separately recorded."
+  },
+  "retraction": "RETRACTED: prior claim that canonical source changed punctuation to U+FFFD. Raw hash unchanged; discrepancy was decoder/captured-artifact anomaly, not source mutation."
+}

@@ -1,0 +1,494 @@
+{
+  "schema_id": "hsk.studio_plugin_host_research@1",
+  "file_id": "STUDIO-PLUGIN-HOST-RESEARCH-20261009",
+  "updated_at": "2026-10-09",
+  "authority": false,
+  "owner": "backend-redteam/pressure",
+  "verdict": "SOURCE_REVIEW_COMPLETE_ADOPTION_CONDITIONAL_RUNTIME_NOT_VALIDATED",
+  "risk_tier": "HIGH",
+  "scope": {
+    "product": "Handshake (Product): source-only platform and domain plugin review",
+    "repo_governance": "Repo Governance: this owned JSON research artifact only",
+    "product_spec_mt_rootstate_git_process_mutations": "NONE",
+    "tests_builds_native_gui_upstream_execution": "NOT_RUN"
+  },
+  "authority_basis": {
+    "current_spec_at_review": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+    "anchors": [
+      "STU-SDB-004",
+      "STU-SDB-005",
+      "STU-AUT-157",
+      "STU-AUT-158",
+      "STU-AUT-159",
+      "STU-AUT-160",
+      "STU-AUT-161",
+      "STU-AUT-162",
+      "STU-AUT-169",
+      "STU-AUT-173"
+    ],
+    "scope_note": "Master Spec206 was canonical at inspection;207 is a parent-owned proposed candidate. This report neither publishes authority nor claims existing Studio plugin implementation.",
+    "product_worktree": "../wtc-native-editors-v1",
+    "product_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "stub": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
+    "stub_execution": "NON_EXECUTION_STUB",
+    "skill": "C:/Users/Ilja Smets/.codex/skills/adversarial-code-review/SKILL.md",
+    "gameplan": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml before_dispatch kernel_builder PASS22/22; no build/runtime acquisition",
+    "source_cache": "../gov_runtime/tools/studio-craft-source-cache/<snapshot_directory>; exact directory resolved from source-cache-manifest.json"
+  },
+  "selected_approach": [
+    {
+      "id": "PLUGIN-SEL-001",
+      "decision": "Preserve host-neutral pure compute/validation modules and same-build Rust traits. Supply scoped host ports only where the actual consumer needs a host capability. Domain types, validation and math must remain usable in another host without Handshake catalog, DB, scheduler or document ownership."
+    },
+    {
+      "id": "PLUGIN-SEL-002",
+      "decision": "Research-selected portable extension boundary is a versioned WIT world implemented through Wasmtime Component Model, with explicit resource ownership, typed errors and a closed import set. This is a proposed adapter and validation target, not an already implemented host. Preserve PhotoCraft/EffectCraft core-Wasm v1 through explicit legacy adapters; neither source implements Component Model."
+    },
+    {
+      "id": "PLUGIN-SEL-003",
+      "decision": "Native CLAP and VST3 use their specified native ABI and lifecycle in a separate audio domain adapter. ScorePlugin is the operator-specified domain adapter, not the owner of a second platform catalog/library/permission/scheduler/DB. No existing literal ScorePlugin implementation was established by source search."
+    },
+    {
+      "id": "PLUGIN-SEL-004",
+      "decision": "Handshake-wide existing logical owners remain behind ports: ResourceBroker authorization/reservations, JobRuntime scheduling, EventLedger receipts/transaction integration and Argus diagnostics. Where an executable shared plugin catalog, library, installation or grant interface is absent from inspected product source, mark a planned gap; do not pretend a new implementation already exists or duplicate an owner."
+    }
+  ],
+  "INDEPENDENT_FINDINGS": [
+    {
+      "id": "PLUGIN-F001",
+      "severity": "P0_ADOPTION_BLOCKER",
+      "finding": "SoundCraft reaches native CLAP state save from the device callback. playback drain handles CaptureStates, fill invokes drain and CPAL invokes fill; mix capture_states calls plugin save_state, CLAP delegates to the native state extension. CLAP1.2.7 specifies save/load on the main thread. This is a source-visible thread-contract mismatch; no observed runtime crash is claimed.",
+      "source": [
+        "soundcraft:crates/playback/src/lib.rs:130-145,256,395-397",
+        "soundcraft:crates/mix/src/lib.rs:410-426",
+        "soundcraft:crates/clap-host/src/plugin.rs:259-267",
+        "soundcraft:crates/clap-host/src/ffi.rs:1015-1041",
+        "PRIMARY-CLAP-STATE:23-28"
+      ],
+      "control": "Implement adapter-owned main/control-thread lifecycle and state lane with bounded commands and explicit acknowledgement. Coordinate audio stop/quiescence before unsafe transitions; keep state blobs, allocation, foreign UI/state calls and persistence outside the callback. Thread affinity is not satisfied by arbitrary spawn_blocking."
+    },
+    {
+      "id": "PLUGIN-F002",
+      "severity": "P0_ADOPTION_BLOCKER",
+      "finding": "Native plugin loading and processing execute arbitrary foreign code through dynamic libraries and unsafe FFI. A Wasm sandbox or catch_unwind does not contain native memory corruption, aborts or hangs, and scanning/loading itself can execute code.",
+      "source": [
+        "soundcraft:crates/clap-host/src/ffi.rs:98-129,989,1015-1031,1136-1166,1252-1264",
+        "soundcraft:crates/vst3-host/src/ffi.rs:103-152,904,934-974"
+      ],
+      "control": "For untrusted native plugins propose a product-managed isolated scanner/worker with OS restrictions, bounded memory/CPU/state/IPC, heartbeat and crash quarantine. The audio bridge requires ahead-of-time prepared fixed buffers, explicit deadline bypass and stable output policy. Measure IPC latency before choosing isolation granularity. No mandatory manually launched external app or daemon is implied."
+    },
+    {
+      "id": "PLUGIN-F003",
+      "severity": "P1",
+      "finding": "EffectCraft limits guest memory to1GiB per instance and fuel per render but its Mutex<Vec<Inst>> pool instantiates on empty and retains successful instances without a global count/byte cap. Concurrent callers can grow the high-water pool; per-instance limits do not bound aggregate resident memory or host scratch copies.",
+      "source": [
+        "effectcraft:crates/plugin/src/wasm.rs:15-20,43-63,92-102,115-157",
+        "PRIMARY-WASMTIME-LIMITS:9-30"
+      ],
+      "control": "Bound active plus idle instances, linear memory, compiled artifact memory and host scratch/result/state bytes per principal/document and globally. Acquire existing ResourceBroker permits before decode/compile/instantiate/copy; retain permits through queued, active and retiring lifetime, release once after confirmed teardown. Pool count and allocator limits must compose with scheduler admission."
+    },
+    {
+      "id": "PLUGIN-F004",
+      "severity": "P1_PRIVACY_AND_REPLAY",
+      "finding": "EffectCraft returns the same guest instance to a pool after success. Guest memory/state persists, while the EffectPlugin documentation requires deterministic results and allows parallel rendering. The inspected pool does not reset guest state or bind it to an account/document/revision. PhotoCraft registry is process-global and replaces by plugin id; EffectCraft also uses global registration slots. Cross-principal reuse or id shadowing is an adoption risk, not a proven leak.",
+      "source": [
+        "effectcraft:crates/plugin/src/wasm.rs:56-63,92-102,150-157",
+        "effectcraft:crates/effects/src/plugin.rs:1-23,225-251",
+        "photocraft:crates/plugins/src/registry.rs:1-90"
+      ],
+      "control": "Key immutable artifacts by verified content hash/API version; use account-scoped catalog grants. Bind instance pools to principal/resource/artifact/state version, reset or discard before reuse across trust scopes, and explicitly model any legitimate persistent domain state. Compare fresh-instance output with reordered pooled invocations using an independent replay oracle."
+    },
+    {
+      "id": "PLUGIN-F005",
+      "severity": "P1_DATA_INTEGRITY",
+      "finding": "VST3 capture replaces controller getState failure with an empty default; restore checks component setState but ignores controller setComponentState/setState results and returns success. Sound mix capture omits unavailable states. Required plugin state can therefore be partial without an equivalent typed partial-success document contract.",
+      "source": [
+        "soundcraft:crates/vst3-host/src/ffi.rs:934-974",
+        "soundcraft:crates/mix/src/lib.rs:410-426",
+        "PRIMARY-VST3:persistence-and-threading"
+      ],
+      "control": "Return per-instance/per-phase typed outcomes, preserve prior required state on capture failure, and reject a save/restore that claims completeness when required state is absent or refused. Validate state version, artifact identity and total aggregate blob size; perform migration/restore before accepted document commit. Explicit optional-state policy must not silently convert failure into success."
+    },
+    {
+      "id": "PLUGIN-F006",
+      "severity": "P1",
+      "finding": "PhotoCraft has module32MiB, memory512MiB, band4MiB, fuel and sliced wall-deadline checks with imports denied. These are useful sandbox patterns, but compilation, aggregate concurrent runs, host copies and host calls are distinct budgets. EffectCraft fuel alone provides no equivalent wall-deadline control in the inspected render path.",
+      "source": [
+        "photocraft:crates/plugins/src/runtime.rs:21-48,72-103,120-156,182-218",
+        "photocraft:crates/plugins/src/apply.rs:124-154",
+        "effectcraft:crates/plugin/src/wasm.rs:115-157",
+        "PRIMARY-WASMTIME-LIMITS:9-46",
+        "PRIMARY-WASMTIME-INTERRUPTION"
+      ],
+      "control": "Apply bounded compilation admission, fuel/epoch cancellation for guest execution, independent hostcall deadlines/cancellation and bounded outputs. ResourceLimiter covers selected guest resources, not all embedder memory; shared-memory growth requires separate control and should remain disabled until proven. Store lifetime owns instances; retiring stores and host allocations remain charged until reclaimed. Arbitrary Wasm is not real-time safe."
+    },
+    {
+      "id": "PLUGIN-F007",
+      "severity": "P1_INTERFACE",
+      "finding": "Native Rust ABI is not stable across compiler versions. EffectCraft's same-build EffectPlugin trait is a useful internal abstraction but does not establish a safe dynamic Rust trait-object plugin ABI. WIT defines a language-neutral interface and resource ownership, not capability policy, determinism or realtime guarantees.",
+      "source": [
+        "effectcraft:crates/effects/src/plugin.rs:1-23,225-233",
+        "PRIMARY-RUST-ABI",
+        "PRIMARY-WIT",
+        "PRIMARY-WASMTIME-COMPONENT:1-35"
+      ],
+      "control": "Use Rust traits only within the compatible build boundary; choose versioned WIT or the explicitly specified CLAP/VST3 ABI for independent artifacts. Manifest records adapter/world version and schema/state compatibility; incompatible versions fail before execution."
+    }
+  ],
+  "inspected_domain_contracts": {
+    "PhotoCraft": {
+      "engine": "wasmi2.0.0; custom core-Wasm ABI1",
+      "api": "pc_abi_version, packed manifest pointer/length, pc_alloc and typed filter; imports prohibited",
+      "lifecycle": "compiled Engine/Module shared; fresh Store/Instance for run",
+      "limits": "module32MiB/memory512MiB/band4MiB; one memory, four tables,100000 table elements, one instance, recursion1024; sliced fuel20million; native wall deadline60s",
+      "error": "bounds/type/version/import validation; resumable fuel and abort/deadline; errors captured per operation",
+      "refs": [
+        "crates/plugins/src/runtime.rs:13-48,53-61,120-218",
+        "Cargo.lock:6261-6264"
+      ]
+    },
+    "EffectCraft": {
+      "engine": "wasmi2.0.0; custom core-Wasm API1; optional wasm feature",
+      "api": "ec_api_version, manifest pointer/length, ec_alloc, ec_render; imports prohibited; host frame/parameter copies",
+      "lifecycle": "Mutex idle instance pool; repeated successful instance reuse",
+      "limits": "memory1GiB/manifest1MiB, one instance per Store; fuelbase50million plus perpixel20000; i32 addressability checked",
+      "error": "render status nonzero rejects; failed instance discarded; no aggregate pool cap/deadline seen",
+      "refs": [
+        "crates/plugin/src/wasm.rs:15-20,43-102,115-157",
+        "crates/effects/src/plugin.rs:225-251",
+        "Cargo.lock:5444-5447"
+      ]
+    },
+    "SoundCraft": {
+      "api": "CLAP and VST3 native ABI via libloading and unsafe foreign calls",
+      "lifecycle": "prepare/activate/process/state/control callbacks/deactivate/destroy; thread ownership must follow each native specification",
+      "state_limits": "64MiB native stream guard is not an aggregate session/document cap; VST3 component/controller state phases must retain distinct outcomes",
+      "refs": [
+        "crates/clap-host/src/plugin.rs:105-129,259-267",
+        "crates/clap-host/src/ffi.rs:55,1015-1041,1136-1166,1252-1264",
+        "crates/vst3-host/src/plugin.rs:166-195,321-325",
+        "crates/vst3-host/src/ffi.rs:45,934-974"
+      ]
+    }
+  },
+  "platform_contract_proposals": [
+    {
+      "id": "PLUGIN-CON-001",
+      "contract": "Platform manifest binds artifact hash, publisher identity supplied by existing account mechanism, adapter/API/world version, compatible domain hosts, declared closed capabilities, inputs/outputs/state schema, resource maxima and lifecycle. Installation/catalog metadata and domain session state are distinct. No shadow DB or platform scheduler in ScorePlugin."
+    },
+    {
+      "id": "PLUGIN-CON-002",
+      "contract": "Capability imports use scoped opaque revocable resources, never a raw DB handle, unrestricted filesystem/network or ambient WASI. Declared and granted capabilities must both match; ResourceBroker authorization rechecked at invocation and accepted proposal commit. Imported hostcalls carry cancellation, deadlines, bounded bytes and typed errors; guest cancellation cannot itself preempt an uncooperative hostcall."
+    },
+    {
+      "id": "PLUGIN-CON-003",
+      "contract": "Plugin code receives immutable inputs and emits bounded results/proposals. The existing document owner validates principal/resource/content hash/expected revision and accepted mutation plus idempotency/receipt in one transaction. Plugin local KV follows STU-AUT-160 and does not bypass document undo/revision/history. Raw plugin payloads, source paths, buffers and private state must not enter diagnostics by default."
+    },
+    {
+      "id": "PLUGIN-CON-004",
+      "contract": "Admission caps slots, bytes, workers, store/instance count and device capacity with fair principal/document allocation. Deadline/cancel lane remains available under saturation. Coalesce only replaceable uncommitted previews; never discard accepted edits or durable exports. Shutdown stops admission, cancels previews, resolves or durably records accepted operations, drains native affinity lanes and releases permits after terminal reclamation."
+    },
+    {
+      "id": "PLUGIN-CON-005",
+      "contract": "CLAP/VST lifecycle is a checked state machine with exact main/audio affinity. No compile, dynamic load, state capture/restore, allocation, unbounded command drain, UI calls or synchronous IPC wait on realtime callback. Native worker failure results in bounded bypass/silence defined by domain policy and recoverable diagnostics; committed edits remain durable."
+    },
+    {
+      "id": "PLUGIN-CON-006",
+      "contract": "WIT inputs use bounded chunk/handle protocols where copying arbitrary lists would amplify memory. Component Store/resource counts and retained artifacts receive explicit maxima. Reject shared memory/threads and unsupported imports unless separately budgeted and proven. Keep execution-engine choice replaceable behind the domain interface; benchmark wasmi compatibility lane before replacing it with Wasmtime."
+    }
+  ],
+  "rejected_approaches": [
+    {
+      "approach": "Universal native Rust dylib trait-object interface",
+      "reason": "Rust ABI offers no stability guarantee; same-build trait abstraction is not independently versioned ABI."
+    },
+    {
+      "approach": "Declare existing Photo/Effect v1 artifacts WIT components",
+      "reason": "Inspected exports implement distinct core-Wasm ABIs; migration requires an explicit adapter and independent ABI tests."
+    },
+    {
+      "approach": "Wasm sandbox plus fuel means hard realtime or total resource containment",
+      "reason": "Hostcalls, compilation, allocator/host scratch, reclamation, shared memory and aggregate instances need distinct controls."
+    },
+    {
+      "approach": "Run untrusted native scanner/process in application and rely on panic catching",
+      "reason": "Native faults and hangs cross Rust unwind safety; load-time execution is also a fault boundary."
+    },
+    {
+      "approach": "Global upstream plugin registry or per-domain platform catalog/DB/scheduler",
+      "reason": "Account isolation and shared platform ownership cannot be supplied by process-global registration or duplicate owners."
+    },
+    {
+      "approach": "Use current Wasmtime51 development docs as an installed dependency pin",
+      "reason": "Official API docs observed51.0.0-dev; stable docs.rs observation49.0.2 and tagged source49.0.2 are research references, not a new Cargo selection or runtime proof."
+    }
+  ],
+  "primary_sources": [
+    {
+      "id": "PRIMARY-RUST-ABI",
+      "url": "https://doc.rust-lang.org/reference/items/external-blocks.html",
+      "pin": "moving official reference inspected2026-10-09",
+      "claim": "Native Rust ABI no stability guarantees; explicit external ABI is separate."
+    },
+    {
+      "id": "PRIMARY-WIT",
+      "url": "https://component-model.bytecodealliance.org/design/wit.html",
+      "pin": "moving official documentation inspected2026-10-09",
+      "claim": "WIT worlds imports/exports and owned/borrowed resources define interfaces; they do not authorize resources or guarantee realtime behavior."
+    },
+    {
+      "id": "PRIMARY-WASMTIME-SECURITY",
+      "url": "https://docs.wasmtime.dev/security.html",
+      "pin": "moving official documentation inspected2026-10-09",
+      "claim": "Guest access depends on host imports; host policy remains part of security."
+    },
+    {
+      "id": "PRIMARY-WASMTIME-STORE",
+      "url": "https://docs.rs/wasmtime/latest/wasmtime/struct.Store.html",
+      "pin": "observed49.0.2, latest pointer may change",
+      "claim": "Store lifetime retains instances; resource limits and execution interruption are separate controls."
+    },
+    {
+      "id": "PRIMARY-WASMTIME-LIMITS",
+      "url": "https://raw.githubusercontent.com/bytecodealliance/wasmtime/v49.0.2/crates/wasmtime/src/runtime/limits.rs",
+      "pin": "tagv49.0.2",
+      "lines": "9-46",
+      "claim": "ResourceLimiter does not account all runtime/embedder memory or CPU; shared-memory growth is a limitation; explicitly set resource counts rather than defaults."
+    },
+    {
+      "id": "PRIMARY-WASMTIME-COMPONENT",
+      "url": "https://raw.githubusercontent.com/bytecodealliance/wasmtime/v49.0.2/crates/wasmtime/src/runtime/component/mod.rs",
+      "pin": "tagv49.0.2",
+      "lines": "1-35,103-124",
+      "claim": "Component API distinct from core modules; WIT bindgen generated host traits/types and gated features."
+    },
+    {
+      "id": "PRIMARY-WASMTIME-INTERRUPTION",
+      "url": "https://docs.wasmtime.dev/examples-interrupting-wasm.html",
+      "pin": "moving official documentation inspected2026-10-09",
+      "claim": "Fuel deterministic with overhead; epoch interruption nondeterministic; trapping and yielding have different semantics."
+    },
+    {
+      "id": "PRIMARY-CLAP-STATE",
+      "url": "https://raw.githubusercontent.com/free-audio/clap/1.2.7/include/clap/ext/state.h",
+      "pin": "tag1.2.7",
+      "lines": "23-28",
+      "claim": "State save/load main-thread contract."
+    },
+    {
+      "id": "PRIMARY-CLAP-LIFECYCLE",
+      "url": "https://raw.githubusercontent.com/free-audio/clap/1.2.7/include/clap/plugin.h",
+      "pin": "tag1.2.7",
+      "lines": "48-86",
+      "claim": "Init/destroy/activate/deactivate main-thread; start/stop/process audio-thread with state constraints."
+    },
+    {
+      "id": "PRIMARY-VST3",
+      "url": "https://steinbergmedia.github.io/vst3_dev_portal/pages/Technical%2BDocumentation/API%2BDocumentation/Index.html",
+      "pin": "moving official documentation inspected2026-10-09",
+      "claim": "Component/controller persistence sequencing, configuration/activation/processing lifecycle and main/audio threading requirements."
+    }
+  ],
+  "source_hashes": [
+    {
+      "project": "photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "archive_sha256": "e65a54d560d9075366b812778a59084665a064fdc8c47d8022ed6348b3919df3",
+      "path": "photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/plugins/src/runtime.rs",
+      "sha256": "f1620075f0d94b49a374b4bf6f79c4a5515c5a110e2c2045e07021c3e7b5be17"
+    },
+    {
+      "project": "photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "archive_sha256": "e65a54d560d9075366b812778a59084665a064fdc8c47d8022ed6348b3919df3",
+      "path": "photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/plugins/src/apply.rs",
+      "sha256": "ab2f8f6c69f83d6fdd12b2f15103cf1f93eee7d4ecf1fd4495634084a76f77ab"
+    },
+    {
+      "project": "photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "archive_sha256": "e65a54d560d9075366b812778a59084665a064fdc8c47d8022ed6348b3919df3",
+      "path": "photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/plugins/src/registry.rs",
+      "sha256": "e75550b2ab351e0071601711317912e763809431e8cf4d85910ca6f88e51fed9"
+    },
+    {
+      "project": "photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "archive_sha256": "e65a54d560d9075366b812778a59084665a064fdc8c47d8022ed6348b3919df3",
+      "path": "photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/plugins/Cargo.toml",
+      "sha256": "23f96f073e35c76e1efde3427648a58d7ddf7d8fb6020ae4fb1c9573d256690a"
+    },
+    {
+      "project": "photocraft",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "archive_sha256": "e65a54d560d9075366b812778a59084665a064fdc8c47d8022ed6348b3919df3",
+      "path": "photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/Cargo.lock",
+      "sha256": "73d0f08925dd4dec942ba6892d19f01676b66e21deb9f6d75dee8ec930a30da8"
+    },
+    {
+      "project": "effectcraft",
+      "commit": "2a460986ee7a4b32656a3d434849693904b486bc",
+      "archive_sha256": "8c14b551da83431cd1c8e1db8121b4e5371f744d200a9f279954a08c7984cbd9",
+      "path": "effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/plugin/src/wasm.rs",
+      "sha256": "e82d91462d2a72ddd9fa86246725d8a48a61fa52c4d520d03ac88af30b73e6fe"
+    },
+    {
+      "project": "effectcraft",
+      "commit": "2a460986ee7a4b32656a3d434849693904b486bc",
+      "archive_sha256": "8c14b551da83431cd1c8e1db8121b4e5371f744d200a9f279954a08c7984cbd9",
+      "path": "effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/effects/src/plugin.rs",
+      "sha256": "5532b727bbd6ea340234cc376a7b9909eab9769d2ab422115db44dd0ac873fe2"
+    },
+    {
+      "project": "effectcraft",
+      "commit": "2a460986ee7a4b32656a3d434849693904b486bc",
+      "archive_sha256": "8c14b551da83431cd1c8e1db8121b4e5371f744d200a9f279954a08c7984cbd9",
+      "path": "effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/Cargo.toml",
+      "sha256": "c29f1bfa25df524ede6c9498f27edae75ab50e4ea7a83051f4794b2368046ff2"
+    },
+    {
+      "project": "effectcraft",
+      "commit": "2a460986ee7a4b32656a3d434849693904b486bc",
+      "archive_sha256": "8c14b551da83431cd1c8e1db8121b4e5371f744d200a9f279954a08c7984cbd9",
+      "path": "effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/Cargo.lock",
+      "sha256": "09da330da6d6ce74e9d5393db580de38dac0196a62b9204194bcb130f7ec0e05"
+    },
+    {
+      "project": "soundcraft",
+      "commit": "eac0edd896cd6bdf27c0cdd0f9f9158c8956248a",
+      "archive_sha256": "2ac734a1e87397cb327904039908d001bf62d03a0546ee797919bfaafed230c7",
+      "path": "soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/playback/src/lib.rs",
+      "sha256": "b092388e6039b84937d42d427050c968ed073687d801079b2ee63bf5dcef5c82"
+    },
+    {
+      "project": "soundcraft",
+      "commit": "eac0edd896cd6bdf27c0cdd0f9f9158c8956248a",
+      "archive_sha256": "2ac734a1e87397cb327904039908d001bf62d03a0546ee797919bfaafed230c7",
+      "path": "soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/mix/src/lib.rs",
+      "sha256": "d70c54e42782b21b5a29a3c636a8fcc5b7cc23464c37c44da7f2837d1dab9fbc"
+    },
+    {
+      "project": "soundcraft",
+      "commit": "eac0edd896cd6bdf27c0cdd0f9f9158c8956248a",
+      "archive_sha256": "2ac734a1e87397cb327904039908d001bf62d03a0546ee797919bfaafed230c7",
+      "path": "soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/clap-host/src/plugin.rs",
+      "sha256": "503e43c13efe7bea7f37cd52f204805c4e6b52effe54031e8da39f3eb09f0bd2"
+    },
+    {
+      "project": "soundcraft",
+      "commit": "eac0edd896cd6bdf27c0cdd0f9f9158c8956248a",
+      "archive_sha256": "2ac734a1e87397cb327904039908d001bf62d03a0546ee797919bfaafed230c7",
+      "path": "soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/clap-host/src/ffi.rs",
+      "sha256": "b8c6a990e3544ca3e04fe210c09e09ec2ebf304d821608ad051f28b97bc383e8"
+    },
+    {
+      "project": "soundcraft",
+      "commit": "eac0edd896cd6bdf27c0cdd0f9f9158c8956248a",
+      "archive_sha256": "2ac734a1e87397cb327904039908d001bf62d03a0546ee797919bfaafed230c7",
+      "path": "soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/vst3-host/src/plugin.rs",
+      "sha256": "f6df47d506050dc860eff100406ed30a918e4fbeb3671a9d4dcc582a615eb6cb"
+    },
+    {
+      "project": "soundcraft",
+      "commit": "eac0edd896cd6bdf27c0cdd0f9f9158c8956248a",
+      "archive_sha256": "2ac734a1e87397cb327904039908d001bf62d03a0546ee797919bfaafed230c7",
+      "path": "soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/vst3-host/src/ffi.rs",
+      "sha256": "b8a2bd6d80d704e2a2cf0acc28d6ff63ae7a03f632f6e735bcc7293dfe6f9da8"
+    }
+  ],
+  "DIFF_ATTACK_SURFACES": [
+    "No product diff authorized; attack surfaces derive from proposed adoption compared directly with pinned source",
+    "ABI/manifest producer-consumer compatibility",
+    "Native thread affinity and destruction",
+    "Guest-host capability crossing",
+    "Aggregate memory/instance and hostcall budgets",
+    "State persistence and principal isolation",
+    "Shutdown and accepted mutation recovery"
+  ],
+  "INDEPENDENT_CHECKS_RUN": [
+    "Direct source call-chain review from CPAL callback to CLAP state FFI against official state.h",
+    "Direct VST3 capture/restore result-path inspection against official persistence sequence",
+    "Photo/Effect import, memory/fuel, pooling and registry inspection",
+    "Exact local source SHA256 reconciliation and Cargo.lock wasmi2.0.0 resolution",
+    "Tagged Wasmtime resource-limiter/component source inspected independently of latest documentation"
+  ],
+  "COUNTERFACTUAL_CHECKS": [
+    "If Photo runtime module.imports rejection were removed, empty linker alone would no longer express the intended closed-capability policy for a future adapter that adds imports.",
+    "If Effect take/give retained guest instances without principal binding in a multi-account host, previous guest state could affect later principals and replay.",
+    "If VST load_state ignored controller restore rejection, a document could report restored while processor/controller states disagree.",
+    "If CLAP state save remained inside playback fill, moving DB writes off the callback would still leave the main-thread ABI mismatch."
+  ],
+  "BOUNDARY_PROBES": [
+    {
+      "boundary": "audio caller versus CLAP state callee",
+      "method": "STATIC_CALL_CHAIN",
+      "result": "MISMATCH_REQUIRES_ADAPTER"
+    },
+    {
+      "boundary": "Wasm Store limit versus host aggregate",
+      "method": "STATIC_POOL_AND_LIMITER_INSPECTION",
+      "result": "AGGREGATE_GAP"
+    },
+    {
+      "boundary": "core-Wasm exports versus WIT component interfaces",
+      "method": "SOURCE_API_COMPARISON",
+      "result": "EXPLICIT_ADAPTER_REQUIRED"
+    }
+  ],
+  "NEGATIVE_PATH_CHECKS": [
+    {
+      "path": "VST controller get/set state failure",
+      "method": "STATIC_ERROR_BRANCH_INSPECTION",
+      "result": "FAILURE_DEFAULTED_OR_IGNORED"
+    },
+    {
+      "path": "Effect pool empty under concurrency",
+      "method": "STATIC_TAKE_GIVE_INSPECTION",
+      "result": "NEW_INSTANCE_WITHOUT_AGGREGATE_CAP"
+    },
+    {
+      "path": "Photo malformed/importing/oversized module",
+      "method": "STATIC_GUARD_INSPECTION",
+      "result": "GUARDS_PRESENT_RUNTIME_NOT_TESTED"
+    }
+  ],
+  "future_proof_plan": [
+    {
+      "id": "PLUGIN-PROOF-001",
+      "status": "NOT_RUN",
+      "proof": "Independent CLAP/VST thread-checking plugins and official validators; instrument lifecycle affinity and forbidden callback allocation/state calls; original-host save/load roundtrip with artifact identity and parameter/audio equivalence. Measure supported device block sizes and callback tails; do not invent passed SLOs."
+    },
+    {
+      "id": "PLUGIN-PROOF-002",
+      "status": "NOT_RUN",
+      "proof": "Hostile native load/init/process/state/destroy crashes and hangs in isolated worker; verify UI liveness, bounded bypass deadline, quarantine, clean restart and no lost accepted edits. Independent process/resource oracle needed; static FFI review cannot prove isolation."
+    },
+    {
+      "id": "PLUGIN-PROOF-003",
+      "status": "NOT_RUN",
+      "proof": "Multi-language WIT components exercise owned/borrowed resources, version mismatch, malformed handles, revocation during invocation, undeclared imports, large buffers, nested hostcalls, infinite guest loops and hostcall cancellation. Measure CPU/RSS/allocator/instance peaks across concurrent principals including compiled artifacts and teardown."
+    },
+    {
+      "id": "PLUGIN-PROOF-004",
+      "status": "NOT_RUN",
+      "proof": "Fresh versus pooled/reordered guest invocation and cross-principal sentinel tests; assert no private state/log/source-path leakage and deterministic domain result where promised. Leak checks cover failure, cancel, shutdown, restart and rejected proposals."
+    },
+    {
+      "id": "PLUGIN-PROOF-005",
+      "status": "NOT_RUN",
+      "proof": "Plugin state absent/truncated/oversized/version-mismatched/controller-refused with fault injection before/after accepted transaction. Independent DB re-read proves edit/state/receipt atomicity, stale conflicts and idempotent retries bound to principal/resource/content/expected revision; standalone EventLedger append is insufficient."
+    },
+    {
+      "id": "PLUGIN-PROOF-006",
+      "status": "NOT_RUN",
+      "proof": "Saturation/starvation/deadlock/drain proof across preview/export/realtime and cancellation; compare worst-case RSS/bytes/instance/device limits with admissions; verify permits retained through retirement, all terminal paths reclaim once, cancel lane available, accepted edits durable. Thresholds must be specified before execution."
+    }
+  ],
+  "RESIDUAL_UNCERTAINTY": [
+    "No upstream plugin/runtime execution, build, native GUI, fault injection or audio measurement performed.",
+    "Wasmtime stable49.0.2 tagged source is a research reference; dependency/platform compatibility and security release selection require fresh implementation-time review.",
+    "Current official documentation links are mutable; tagged sources are version references, not cryptographic commit attestations until accompanying fetched-byte hashes are verified.",
+    "Process isolation, hostcall cancellation and realtime transport are proposed controls requiring external runtime oracles.",
+    "Complete shared platform catalog/library/grant implementation was not established by inspected source; preserve planned-gap status."
+  ]
+}

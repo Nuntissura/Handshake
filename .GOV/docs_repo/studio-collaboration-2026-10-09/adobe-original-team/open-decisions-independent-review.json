@@ -1,0 +1,393 @@
+{
+  "schema_id": "hsk.studio.open_decisions_independent_review@1",
+  "file_id": "STUDIO-OPEN-DECISIONS-INDEPENDENT-20261009",
+  "updated_at": "2026-10-09",
+  "owner": "original_independent",
+  "authority": "REFERENCE_ONLY; no spec/MT/product edits, independent runtime acceptance or parity verdict",
+  "risk_tier": "HIGH",
+  "status": "SOURCE_DECISION_REVIEW_COMPLETE_PUBLICATION_AND_RUNTIME_PREDECESSORS_RETAINED",
+  "spec_state": "SPEC_CURRENT resolves206;207 inspected candidate, not published current authority",
+  "scope": {
+    "handshake_product": "Static adversarial decision review",
+    "repo_governance": "This owned JSON only"
+  },
+  "DIFF_ATTACK_SURFACES": [
+    "Default global history versus selective target revert and control-receipt navigation",
+    "Private preview, finalized proposal and promoted semantic history counts",
+    "Host policy versus fabricated operator approval",
+    "Draft CRDT tile merge versus serialized accepted authority",
+    "Durable FR pending/mirror/completion collision and privacy",
+    "Typed authored layer/graph semantics versus temporal execution projection",
+    "Pinned JavaScript behavior versus ambient Date/locale/random and unbounded builtin work"
+  ],
+  "INDEPENDENT_CHECKS_RUN": [
+    {
+      "id": "ODIR-CHECK-001",
+      "method": "Exact proposal-to-spec comparison",
+      "sources": [
+        "SPEC207"
+      ],
+      "observed": "HIS001 binds StudioHistoryEntry to promoted command batches; HIS002 defines most-recent promoted undo; HIS003 has deep undo/minimum one redo with open deeper contract. SHL194 explicitly names modal opening,400ms wheel inactivity and exactly one entry even Escape. Initial general event report aborted on focus loss; revised exact map finalizes and distinguishes aborted scope receipts.",
+      "result": "Exit-map defect corrected in proposal; scope receipt versus promoted history entry still needs explicit clause/count clarification"
+    },
+    {
+      "id": "ODIR-CHECK-002",
+      "method": "Host gate source inspection",
+      "sources": [
+        "PROMOTION"
+      ],
+      "observed": "decide225-275 requires genuine operator_review_receipt source, nonempty review receipt, artifact-matched validation and Passed outcome. Proposed policy approval is a host owner extension, not already supported or a Studio-only substitute.",
+      "result": "Host ownership and anti-counterfeit predecessor retained; runtime policy enforcement unproved"
+    },
+    {
+      "id": "ODIR-CHECK-003",
+      "method": "FR writer/recovery source inspection",
+      "sources": [
+        "FR-API",
+        "KERNEL-EVENTS"
+      ],
+      "observed": "1581-1635 persists pending envelope, re-reads exact event UUID, checks payload on existing/raced insert and appends completion only after mirror. Kernel event parsing493-504 uses required_first_slice_events; NewKernelEvent547-561 binds hash/actor/correlation/payload. No Studio runtime registration inferred.",
+      "result": "Durable mirror precedent corroborated; all22 mappings/poison recovery/privacy remain required proof"
+    },
+    {
+      "id": "ODIR-CHECK-004",
+      "method": "CRDT/draft ownership and composition semantics reconciliation",
+      "sources": [
+        "CRDT",
+        "SPEC207",
+        "CRAFT-RENDER"
+      ],
+      "observed": "crdt_adr72-81 selects Yjs-compatible update-log evidence before promotion. ARC011 separates it from serialized accepted footprint validation. EffectCraft render849-875 preserves consecutive3D runs and per-layer quantization. Proposed typed Folio graph retains those semantics, separate backdrop/matte reads, explicit temporal labels and one lossless layer projection.",
+      "result": "No scoped owner conflict or blanket all-time DAG claim found; actual lossless imports/temporal state-provider semantics unproved"
+    },
+    {
+      "id": "ODIR-CHECK-005",
+      "method": "Control source versus proposed shared grammar",
+      "sources": [
+        "CRAFT-WIDGETS",
+        "SPEC207"
+      ],
+      "observed": "EffectCraft widget120-129 tests Shift before command, yielding10 for combined input. Shared proposal deliberately retains combined100 from Studio contract and rejects direct copying. SHL191 max(precision quantum,range/200) does not guarantee exactly200px when precision dominates; report already proposes correction.",
+      "result": "Known modifier/sensitivity discrepancies correctly disclosed; no new guessed owner"
+    },
+    {
+      "id": "ODIR-CHECK-006",
+      "method": "Engine source and primary API documentation inspection",
+      "sources": [
+        "CRAFT-EXPR-RUNTIME",
+        "RESOURCE-CAPS"
+      ],
+      "observed": "EffectCraft runtime209-230 sets loop/recursion caps; inspected kernel ResourceCapEvaluator returns policy decisions from supplied usage. rquickjs0.14.0 documentation explicitly makes memory limit a no-op under custom allocator features and describes regular interrupt callbacks. Reports retain worker-level enforcement, AST fuel, Rust buffers and swarm budgets as separate requirements.",
+      "result": "Quota/isolation assertions limited appropriately; engine adoption and precise builtin interruption still unproved"
+    },
+    {
+      "id": "ODIR-CHECK-007",
+      "method": "Final restored exact Date/profile re-read against CON008",
+      "sources": [
+        "SPEC207",
+        "FINAL-EXPRESSION"
+      ],
+      "observed": "Final Date58-95 pins p254016000000/q1, immutable epoch/origin and canonical sample, integer intermediate checks/TimeClip, strict ISO-Z calendar parser, UTC constructor disclosure and refused local/locale/mutator methods. Foreign24000/1001 example is importer conversion only. Final composition text expressly forbids temporal provider bypass of MOT077 expression cycles.",
+      "result": "Proposal corrections independently inspected; root publication and runtime differential proof remain predecessors"
+    }
+  ],
+  "COUNTERFACTUAL_CHECKS": [
+    {
+      "id": "ODIR-CF-001",
+      "statement": "If the semantic-entry cursor in STUDIO-OPEN-REDO-001 were removed while each undo appended a history-control receipt, repeated undo could select its own last undo instead of the preceding applied edit.",
+      "status": "STATIC_DESIGN_COUNTERFACTUAL"
+    },
+    {
+      "id": "ODIR-CF-002",
+      "statement": "If PromotionGate::decide's approval_source check were weakened to accept a model-authored operator_review_receipt string, validation success could be falsely used as human approval; the proposed typed host policy variant must preserve authenticated grant provenance.",
+      "status": "STATIC_SOURCE_COUNTERFACTUAL"
+    },
+    {
+      "id": "ODIR-CF-003",
+      "statement": "If FR API1586/1602/1620 exact-envelope checks were removed, a same-ID/different-payload existing row could cause a false MIRROR_RECORDED completion.",
+      "status": "STATIC_SOURCE_COUNTERFACTUAL"
+    },
+    {
+      "id": "ODIR-CF-004",
+      "statement": "If composition graph lowering omitted draw_comp's per-layer quantization boundary or3D-run grouping, graph/layer surface equivalence could retain IDs but change pixels.",
+      "status": "STATIC_SOURCE_COUNTERFACTUAL"
+    },
+    {
+      "id": "ODIR-CF-005",
+      "statement": "If fuel counted only AST loops while regex/parser/host work ran outside bounded worker enforcement, a short expression could exceed CPU/RSS despite remaining below the semantic checkpoint count.",
+      "status": "DESIGN_COUNTEREXAMPLE_NOT_EXECUTED"
+    }
+  ],
+  "BOUNDARY_PROBES": [
+    {
+      "id": "ODIR-BP-001",
+      "boundary": "History query -> default Undo versus explicit target revert",
+      "case": "A edits exposure, then B edits unrelated title. Default global Undo targets B's most-recent semantic edit. To show undo of A preserves B, call explicit target-entry revert with property preconditions, rather than silently filtering default Undo by actor.",
+      "disposition": "Required exact proof-route distinction; no scoped design contradiction after cursor safeguard"
+    },
+    {
+      "id": "ODIR-BP-002",
+      "boundary": "Tile artifact publication -> CRDT draft -> accepted transaction -> host GC",
+      "case": "Importer writes blob and holds preparation lease; GC runs before accepted reference transaction. Host preparation/draft/proposal/history/export reachability and owned leases must protect the bytes through publication. A no-longer-current tile may still belong to reachable undo.",
+      "disposition": "Bounded lifecycle proof required; no observed eager deletion defect or cleanup authority granted"
+    },
+    {
+      "id": "ODIR-BP-003",
+      "boundary": "Static graph cycle versus temporal provider edge",
+      "case": "A(t) reads B(t-1), B(t) reads A(t-1). Labelled delay can terminate only under declared provider horizon/base-state rules. Same-evaluation expression cycle still violates MOT077 and cannot become allowed merely by using a depth cap.",
+      "disposition": "Typed edge classes, horizon/boundary semantics and expression-cycle refusal must be exercised; proposal already avoids universal temporal DAG claim"
+    },
+    {
+      "id": "ODIR-BP-004",
+      "boundary": "Syntax/host alias lowering -> evaluation binding",
+      "case": "A local value_at_time binding, object with to_comp key and computed thisLayer['value_at_time'] require different transformations. Detached host aliases and prototype/constructor paths must retain denied dynamic compilation.",
+      "disposition": "Existing proposal requires binding-aware AST and host alias table; implementation/source-map/facade proof remains pending"
+    }
+  ],
+  "NEGATIVE_PATH_CHECKS": [
+    {
+      "id": "ODIR-NP-001",
+      "case": "Policy grant revoked or overlap appears between preview and commit; scalar style operation activates external code",
+      "observed": "Final AUTOACCEPT semantic exclusion rejects irreversible/external/code outcomes even scalar encoded and rechecks policy/grants at promotion",
+      "status": "DESIGN_PROBE_NOT_RUNTIME"
+    },
+    {
+      "id": "ODIR-NP-002",
+      "case": "Pending FR row has same UUID but different envelope; one poison row precedes legitimate retries",
+      "observed": "Exact source collision checks exist; proposal explicitly requires poison non-starvation proof",
+      "status": "SOURCE_AND_DESIGN_PROBE_NOT_RUNTIME"
+    },
+    {
+      "id": "ODIR-NP-003",
+      "case": "Cancel while builtin/host callback executes; custom allocator unintentionally disables heap cap",
+      "observed": "Engine proposal disallows allocator feature path unless separately quota-proved and requires worker enforcement beyond interrupts",
+      "status": "DOCUMENTATION_AND_DESIGN_PROBE_NOT_RUNTIME"
+    },
+    {
+      "id": "ODIR-NP-004",
+      "case": "Date parse uses no-offset datetime or engine-specific textual date; same composition tick in different locale/timezone",
+      "observed": "Final restored Date profile explicitly refuses heuristic/no-offset/local Date forms and pins canonical tick sample/epoch; preserved source reports compatibility gaps",
+      "status": "FINAL_PROPOSAL_CORRECTION_INSPECTED_NOT_RUNTIME"
+    }
+  ],
+  "INDEPENDENT_FINDINGS": [
+    {
+      "id": "ODIR-FIND-001",
+      "severity": "HIGH",
+      "classification": "PROPOSAL_CORRECTED_ROOT_CLAUSE_CLARIFICATION_REQUIRED",
+      "finding": "General event focus-loss abort contradicted shared SHL194 finalization. Revised report now preserves release/focus/modal-opening/wheel400ms finalize, and Escape aborted scope receipt. HIS001 promoted semantic entries versus SHL194 exactly-one-Escape-entry still need explicit canonical type and count wording.",
+      "required_change": "Root clause publication must distinguish gesture-scope receipt lifecycle from promoted StudioHistoryEntry/cursor; preserve one receipted Escape disposition with zero content mutation, failed/pending approval states, and foreign-write preconditions. Do not claim report text already resolves published authority. Final main report explicitly records this reconciliation as a publication predecessor; no remaining contrary proposal assertion identified."
+    },
+    {
+      "id": "ODIR-FIND-002",
+      "severity": "HIGH",
+      "classification": "DATE_PROFILE_PROPOSAL_CORRECTED_PUBLICATION_AND_PROOF_REQUIRED",
+      "finding": "Final STUDIO-EXPR-DATE-001 explicitly persists epoch/origin, pins canonical254016000000 ticks/s and checked total-instant truncation/range, rejects heuristic/local parse forms, defines Date call/constructor/method behavior and preserves unsupported vendor source with diagnostics. Initial holes are corrected in the inspected proposal; this is not current published authority or implemented behavior.",
+      "required_change": "Root publishes exact Date profile identity/schema/semantics under existing owners without reminting tick types or shortening333 identifiers. Independent validator later proves canonical tick/range/calendar/prototype behavior, platform determinism and disclosed compatibility mappings. No per-job epoch or foreign timebase may enter canonical evaluation."
+    },
+    {
+      "id": "ODIR-FIND-003",
+      "severity": "HIGH",
+      "classification": "HOST_IMPLEMENTATION_AND_INDEPENDENT_PROOF_PREDECESSOR",
+      "finding": "Autoaccept is not available merely because a validation record Passed; current source requires genuine operator approval. Correct proposal routes typed host policy approval through existing owner with semantic allowlist and OFF default.",
+      "required_proof": "Forged grant/source denial, revocation-at-commit, actor separation, validator/catalog/profile binding, unavailable inverse, destructive scalar operation refusal and canonical accepted-row readback. No weakening or counterfeit review receipt."
+    },
+    {
+      "id": "ODIR-FIND-004",
+      "severity": "HIGH",
+      "classification": "BOUNDED_ENGINE_PROOF_NOT_CURRENT_CAPABILITY",
+      "finding": "AST checkpoints and regular interpreter interrupts alone do not bound parser/regex/host native work or total worker RSS. Current proposal acknowledges this and retains separate resource quotas/worker enforcement; no additional language-engine fallback is authorized.",
+      "required_proof": "Exact pinned engine/transitive source and allocator features, independent CPU/RSS/exit observation under hostile builtin/parser/callback cases, aggregate per-frame/swarm budgets, stable error receipt and no partial success cache/promotion. Deadlines are safety outcomes, not guaranteed deterministic operation counts."
+    },
+    {
+      "id": "ODIR-FIND-005",
+      "severity": "MEDIUM",
+      "classification": "SEMANTIC_COMPATIBILITY_DISCLOSURE_PROOF",
+      "finding": "UTF16 lexical localeCompare and UTC deterministic Date are intentional profile choices, not original vendor semantics. Seeded random and binding-aware dual spelling preserve scoped requirements only when exact signatures, stable identities and evaluation order are demonstrated.",
+      "required_proof": "Imported original text/profile retained; explicit per-expression compatibility mapping/loss diagnostics; accents/surrogates/options, Date forms, layer reorder, repeated/reversed frame traversal, shadowed/computed aliases and vector coercion tested independently. No333-identifier count as proof."
+    },
+    {
+      "id": "ODIR-FIND-006",
+      "severity": "MEDIUM",
+      "classification": "NO_SCOPED_OWNER_CONFLICT_FOUND_REQUIRED_DIFFERENTIAL_PROOF",
+      "finding": "Within inspected decisions, Folio authors one typed document, Composite lowers static plans, Motion owns temporal/expression policy, Controls presents shared mechanics, Chronicle owns history, and host owns grants/promotion/plugin/FR. Tile CRDT draft never directly approves authority. Layer-native semantics and34-foundation/5484-ID preservation are retained as obligations.",
+      "required_proof": "Lossless native layer fixtures through graph projection with masks/mattes/backdrops/precomps/3D/quantization, same canonical IDs/history; dynamic dependency/cycle conflict cases; tile reachability/leases and durable FR recovery. Selection is reference proposal, not implementation or parity."
+    }
+  ],
+  "RESIDUAL_UNCERTAINTY": [
+    "No builds, tests, upstream execution, native GUI, source edits or parity verdict",
+    "No exhaustive review of5484 contracts or full plugin platform; selected boundaries only",
+    "207 remains candidate while SPEC_CURRENT points206",
+    "QuickJS platform toolchain/transitive engine and worker enforcement not acquired/compiled/run",
+    "Final expression restoration and canonical Date refinement inspected at SHA921368a6...; all source-only Date/expression/platform behavior still requires independent runtime proof",
+    "Original expression/graph artifacts and source application differential traces were not acquired"
+  ],
+  "external_sources": [
+    {
+      "url": "https://docs.rs/rquickjs/latest/rquickjs/struct.Runtime.html",
+      "version_observed": "0.14.0",
+      "anchors": "110-146",
+      "finding": "Regular interrupt callback and custom-allocator memory-limit no-op corroborate separate isolation requirements",
+      "hash": "NOT_CAPTURED"
+    },
+    {
+      "url": "https://tc39.es/ecma262/multipage/numbers-and-dates.html",
+      "version_observed": "ECMAScript2027 current reference, not the selected2018 profile",
+      "anchors": "3807-3813,3557-3566",
+      "finding": "Ordinary Date.now observes call time; Date parsing admits implementation-specific formats and local-time interpretations, so deterministic profile needs explicit restrictions",
+      "hash": "NOT_CAPTURED"
+    }
+  ],
+  "read_probe_limits": [
+    "Initial combined report output was truncated; selected fields/source slices re-read",
+    "Versioned rquickjs URL fetch failed; latest API page independently identified0.14.0",
+    "ECMAScript2018 monolithic page exceeded fetch limit; current multipage document used only for corroborating ambient Date hazards, not2018 completeness",
+    "Writer serialization failure temporarily emptied owned expression report. Two null/missing-decisions snapshots were rejected and excluded. Writer restored exact prior snapshot and notified guarded final SHA; only independently reopened final valid bytes are bound."
+  ],
+  "source_bindings": [
+    {
+      "id": "SPEC207",
+      "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c",
+      "line_anchors": [
+        205,
+        225,
+        22328,
+        22346,
+        22422,
+        27492,
+        27511,
+        29570,
+        29648,
+        32618,
+        32624
+      ],
+      "inspection": "DIRECT_SOURCE_BODY_SELECTED_BOUNDARY"
+    },
+    {
+      "id": "PROMOTION",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/kernel/promotion.rs",
+      "sha256": "d7fb25724ce0f23978eef879bbf9b128a7a919199b4d7fdca814f6f6cca2c647",
+      "line_anchors": [
+        225,
+        275
+      ],
+      "inspection": "DIRECT_SOURCE_BODY_SELECTED_BOUNDARY"
+    },
+    {
+      "id": "FR-API",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/api/flight_recorder.rs",
+      "sha256": "ac4cf9e013b9921f73e9fd099e496ccb7de952115aba6241a833fb34aa0642b5",
+      "line_anchors": [
+        1581,
+        1635
+      ],
+      "inspection": "DIRECT_SOURCE_BODY_SELECTED_BOUNDARY"
+    },
+    {
+      "id": "KERNEL-EVENTS",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/kernel/mod.rs",
+      "sha256": "b7b707f86e30b7509dc073da32593feba5c5a1e9d998e27832137df10989fc8a",
+      "line_anchors": [
+        493,
+        504,
+        547,
+        561
+      ],
+      "inspection": "DIRECT_SOURCE_BODY_SELECTED_BOUNDARY"
+    },
+    {
+      "id": "CRDT",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/kernel/crdt_adr.rs",
+      "sha256": "b0fb2d35a5999c294da997a73dd155b030e2c9b1e6430c22e29d2337dcdcfcf5",
+      "line_anchors": [
+        72,
+        81
+      ],
+      "inspection": "DIRECT_SOURCE_BODY_SELECTED_BOUNDARY"
+    },
+    {
+      "id": "CRAFT-RENDER",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs",
+      "sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+      "line_anchors": [
+        849,
+        875
+      ],
+      "inspection": "DIRECT_SOURCE_BODY_SELECTED_BOUNDARY"
+    },
+    {
+      "id": "CRAFT-WIDGETS",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/ui-egui/src/widgets.rs",
+      "sha256": "13b7b0990cdf53b5b599e6905cd18ce02a4cbbfc0ece658e01465b58477ea24b",
+      "line_anchors": [
+        117,
+        137
+      ],
+      "inspection": "DIRECT_SOURCE_BODY_SELECTED_BOUNDARY"
+    },
+    {
+      "id": "CRAFT-EXPR-RUNTIME",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/runtime.rs",
+      "sha256": "67a85dd9390bac7b11543513d143c2b6b445c8becbcb7d2ede641b6ddf657bea",
+      "line_anchors": [
+        209,
+        230
+      ],
+      "inspection": "DIRECT_SOURCE_BODY_SELECTED_BOUNDARY"
+    },
+    {
+      "id": "RESOURCE-CAPS",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/kernel/sandbox/resource_caps.rs",
+      "sha256": "a81230df68e007165f353bde1516e9220ea0ee7184730301482e02cca69c2113",
+      "line_anchors": [
+        1,
+        12,
+        115,
+        160
+      ],
+      "inspection": "DIRECT_SOURCE_BODY_SELECTED_BOUNDARY"
+    },
+    {
+      "id": "FINAL-EXPRESSION",
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/open-expression-decisions.json",
+      "sha256": "921368a658a3abb3a6f5376f0af14ff5f99ba27e3fa681989be7aed3cff9d21c",
+      "line_anchors": [
+        58,
+        95
+      ],
+      "inspection": "DIRECT_FINAL_DATE_PROFILE_BODY"
+    },
+    {
+      "id": "PLUGIN-PLATFORM",
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/plugin-platform-decision.json",
+      "sha256": "f64928b63054c13f58c88a78fd36c7e967f65b1466165db8cea352732f1c002f",
+      "inspection": "DIRECT_DECISION_PROVIDER_SELECTION_BODY",
+      "line_anchors": []
+    }
+  ],
+  "report_bindings": [
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/open-contract-decisions.json",
+      "sha256": "29713b14bf25dffb9846469adcc6219885948d23375129cc8538e683fb4c5c13",
+      "inspection": "FINAL_VALID_SOURCE_SNAPSHOT",
+      "binding_policy": "Main report may later add reviewer hash/status only; these are pre-review-binding subject bytes to avoid circular hashes"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/open-expression-decisions.json",
+      "sha256": "921368a658a3abb3a6f5376f0af14ff5f99ba27e3fa681989be7aed3cff9d21c",
+      "inspection": "FINAL_VALID_SOURCE_SNAPSHOT",
+      "binding_policy": "Main report may later add reviewer hash/status only; these are pre-review-binding subject bytes to avoid circular hashes"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/open-composition-controls-decisions.json",
+      "sha256": "6b92ef24b526b081fe0c4ab846f5746eeea508c9947445c7cad5e8e26293cbf4",
+      "inspection": "FINAL_VALID_SOURCE_SNAPSHOT",
+      "binding_policy": "Main report may later add reviewer hash/status only; these are pre-review-binding subject bytes to avoid circular hashes"
+    }
+  ],
+  "restart": {
+    "next_actor": "parent/root",
+    "remaining": "Root publishes exact clause/owner/proof deltas; implementation and independent runtime verification later"
+  }
+}

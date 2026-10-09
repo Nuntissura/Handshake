@@ -1,0 +1,403 @@
+{
+  "file_id": "STUDIO-EXPRESSION-PROVIDER-ADVERSARIAL-20261009",
+  "schema_version": 1,
+  "risk_tier": "HIGH",
+  "updated_at": "2026-10-09T19:07:37.699009+00:00",
+  "status": "FINAL_CONTRACT_REVIEW_COMPLETE_RUNTIME_NOT_PROVEN",
+  "lanes": {
+    "Handshake (Product)": "read-only",
+    "Repo Governance": "owned report only"
+  },
+  "runtime": "NOT_RUN_NOT_PROVEN",
+  "evidence": [
+    {
+      "id": "E01",
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/open-expression-decisions.json",
+      "sha256": "921368a658a3abb3a6f5376f0af14ff5f99ba27e3fa681989be7aed3cff9d21c",
+      "lines": null,
+      "observed": "Parsed expression decisions: deterministic ES2018-shaped profile, bounded rquickjs0.14 candidate, clean realms, dynamic compilation denied, AST checkpoints, optional production adoption pending proof."
+    },
+    {
+      "id": "E02",
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-core-0.14.0/src/context/base.rs",
+      "sha256": "c5049fd11c92e56f602c4baf4c3b7a666b0b5623c5c03c546335984bc1a94fb5",
+      "lines": [
+        61,
+        93
+      ],
+      "observed": "base/custom always register BaseObjects; full registers all engine intrinsics."
+    },
+    {
+      "id": "E03",
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/quickjs/quickjs.c",
+      "sha256": "3a6b52a225c21709ef1fd314183efd3af862e867ce4ef8caabcae67922a745b3",
+      "lines": [
+        42336,
+        42403
+      ],
+      "observed": "Function constructor assembles source and uses JS_EvalObject."
+    },
+    {
+      "id": "E04",
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/quickjs/quickjs.c",
+      "sha256": "3a6b52a225c21709ef1fd314183efd3af862e867ce4ef8caabcae67922a745b3",
+      "lines": [
+        38242,
+        38274
+      ],
+      "observed": "Source evaluation requires eval_internal; absent intrinsic returns eval unsupported."
+    },
+    {
+      "id": "E05",
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/quickjs/quickjs.c",
+      "sha256": "3a6b52a225c21709ef1fd314183efd3af862e867ce4ef8caabcae67922a745b3",
+      "lines": [
+        58412,
+        58417
+      ],
+      "observed": "Eval intrinsic enables context-wide evaluator."
+    },
+    {
+      "id": "E06",
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/quickjs/quickjs.c",
+      "sha256": "3a6b52a225c21709ef1fd314183efd3af862e867ce4ef8caabcae67922a745b3",
+      "lines": [
+        58784,
+        58794
+      ],
+      "observed": "BaseObjects installs Function constructor and records context function_ctor."
+    },
+    {
+      "id": "E07",
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-core-0.14.0/src/runtime/raw.rs",
+      "sha256": "e7f70ab2752c2c91fcd36474d326fc24b3e4fd7c346dcc52a01673abb3eb36eb",
+      "lines": [
+        287,
+        307
+      ],
+      "observed": "Memory limit delegates engine; custom allocator caveat. Stack limit zero or >16MiB disables check; policy must validate limits before setter."
+    },
+    {
+      "id": "E08",
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/quickjs/quickjs.c",
+      "sha256": "3a6b52a225c21709ef1fd314183efd3af862e867ce4ef8caabcae67922a745b3",
+      "lines": [
+        8648,
+        8667
+      ],
+      "observed": "Interrupt polling occurs when counter expires; calls registered callback, throws interruption. No arbitrary parser/builtin/host-call preemption guarantee follows."
+    },
+    {
+      "id": "E09",
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-core-0.14.0/src/context/base.rs",
+      "sha256": "c5049fd11c92e56f602c4baf4c3b7a666b0b5623c5c03c546335984bc1a94fb5",
+      "lines": [
+        113,
+        140
+      ],
+      "observed": "Context.with holds runtime lock across callback; parallel Send/Sync is synchronized access, not concurrent execution or callback deadlock proof."
+    },
+    {
+      "id": "E10",
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-core-0.14.0/src/value/module.rs",
+      "sha256": "ca512e6669f55c705648885e53982f4c7f8798aef5af35bb97a8a57939f60f6d",
+      "lines": [
+        335,
+        349
+      ],
+      "observed": "unsafe bytecode load requires caller ensure valid bytes; engine ROM_DATA decode is not untrusted cache validation."
+    },
+    {
+      "id": "E11",
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/quickjs/quickjs.c",
+      "sha256": "3a6b52a225c21709ef1fd314183efd3af862e867ce4ef8caabcae67922a745b3",
+      "lines": [
+        40474,
+        40494
+      ],
+      "observed": "Bytecode checks format version and checksum; UINT32_MAX bypasses checksum for test corpus. Neither format version nor checksum establishes trusted compiler/profile identity."
+    },
+    {
+      "id": "E12",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/runtime.rs",
+      "sha256": "67a85dd9390bac7b11543513d143c2b6b445c8becbcb7d2ede641b6ddf657bea",
+      "lines": [
+        200,
+        280
+      ],
+      "observed": "Boa limits loops/recursion, caches source count, seed uses layer index and f64 identities, reusable runtime and host misses replay."
+    },
+    {
+      "id": "E13",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/runtime.rs",
+      "sha256": "67a85dd9390bac7b11543513d143c2b6b445c8becbcb7d2ede641b6ddf657bea",
+      "lines": [
+        286,
+        315
+      ],
+      "observed": "detach reads array elements and object members, allowing getter work; arrays truncated to 65536, detached host Vec outside JS heap."
+    },
+    {
+      "id": "E14",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/lib.rs",
+      "sha256": "f7a6792d056db223946648625b13892ad60bcacbc5df57e774fe7cd97ae9275a",
+      "lines": [
+        104,
+        156
+      ],
+      "observed": "FRAMES depth16 and up to2000 passes; misses recursively resolve and rerun; not shared semantic fuel."
+    },
+    {
+      "id": "E15",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/rewrite.rs",
+      "sha256": "b21528183623d0bafe41ee797ab135dffb87ef597a15711a908b5c312128969e",
+      "lines": [
+        1,
+        11
+      ],
+      "observed": "Lenient token/group rewrite copies unknown syntax and rewrites compound assignments."
+    },
+    {
+      "id": "E16",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/runtime.rs",
+      "sha256": "67a85dd9390bac7b11543513d143c2b6b445c8becbcb7d2ede641b6ddf657bea",
+      "lines": [
+        404,
+        425
+      ],
+      "observed": "ManuallyDrop runtime explicitly destroyed and recreated on one stack recovery retry; not universally never freed."
+    }
+  ],
+  "INDEPENDENT_FINDINGS": [
+    {
+      "id": "EX01",
+      "severity": "HIGH",
+      "title": "Trusted source compilation and denied dynamic compilation share engine machinery",
+      "evidence": [
+        "E02",
+        "E03",
+        "E04",
+        "E05",
+        "E06"
+      ],
+      "counterexample": "Deleting global Function/eval leaves constructors reachable through prototypes or host callables; omitting Eval also breaks source compilation. Constructor-generated code skips AST instrumentation.",
+      "minimum_controls": [
+        "Explicit trusted compiler/evaluator boundary and engine-level disabled eval_internal in execution realm, or separately inspected complete equivalent denial; never rely on source token blacklist/global deletion.",
+        "Prove constructor chains of ordinary functions, host callbacks, computed keys, Reflect/prototype routes and generator/async intrinsics; only allowlisted syntax enters trusted instrumenting compiler."
+      ],
+      "future_acceptance": [
+        "Independent dynamic-code bypass corpus; compile ordinary expressions successfully while every denied path fails with preserved original text and source diagnostics."
+      ]
+    },
+    {
+      "id": "EX02",
+      "severity": "HIGH",
+      "title": "Checkpoint budgets do not bound arbitrary engine/host work",
+      "evidence": [
+        "E08",
+        "E13",
+        "E14"
+      ],
+      "counterexample": "A single builtin, expensive getter, conversion, huge string or blocking host callback consumes work without another AST loop checkpoint; Pending retries amplify work.",
+      "minimum_controls": [
+        "Separate deterministic shared semantic fuel from nondeterministic safety deadline; charge parse/rewrite/compile, nested reads/retries, callbacks, result extraction/getters and host copies.",
+        "Worker-level enforced containment and bounded retirement; no exact interrupt/deadline guarantee for arbitrary C/host calls."
+      ],
+      "future_acceptance": [
+        "Long builtin/parser and hanging-hostcall negative cases; timeout outcome cannot promote partial result; independent worker liveness/resource oracle."
+      ]
+    },
+    {
+      "id": "EX03",
+      "severity": "HIGH",
+      "title": "Bytecode cache is a trusted executable artifact boundary",
+      "evidence": [
+        "E10",
+        "E11"
+      ],
+      "counterexample": "Imported/tampered cache has matching engine version or checksum but bypasses profile and AST checks; checksum escape accepted by engine does not authenticate artifacts.",
+      "minimum_controls": [
+        "Only trusted compiler-produced bytecode; never deserialize document/vendor-supplied bytecode.",
+        "Cache key binds original/canonical source, AST transform/instrumentation/source-map versions, engine C source/wrapper/build features/ABI/target/endianness, profile/host API semantics; integrity verified before unsafe load; compile source on mismatch.",
+        "Do not share runtime-bound function/value handles across runtimes; cache artifacts contain no live content/grants."
+      ],
+      "future_acceptance": [
+        "Tamper, engine-feature/profile change, wrong target and absent provenance reject before load; cache hit/miss yields equivalent budgeted semantics."
+      ]
+    },
+    {
+      "id": "EX04",
+      "severity": "HIGH",
+      "title": "Thread synchronization and memory setters are not complete worker bounds",
+      "evidence": [
+        "E07",
+        "E09"
+      ],
+      "counterexample": "A setting greater than16MiB disables stack checks; another dependency enables allocator feature; callback reenters locked runtime or one shared runtime stalls every property.",
+      "minimum_controls": [
+        "Validate stack0<limit<=16MiB and nonzero heap before execution; lockfile/feature closure verifies no custom allocator unless independently quota-proved.",
+        "Owned dedicated worker/runtime with no host lock across callback reentry; cancel signal does not wait for runtime lock.",
+        "Aggregate runtime/realm/compile/cache/snapshot/result/retiring-byte admission under existing owners, held until actual reclamation."
+      ],
+      "future_acceptance": [
+        "Feature-unification and bad-limit cases fail closed; callback reentry/saturation/cancel cases do not deadlock; measured aggregate host RSS includes retired realms and compilation."
+      ]
+    },
+    {
+      "id": "EX05",
+      "severity": "HIGH",
+      "title": "Deterministic profile requires closed reachable intrinsics",
+      "evidence": [
+        "E01",
+        "E02",
+        "E12"
+      ],
+      "counterexample": "Fresh realm still has engine Date/Math.random/locale behavior or mutable prototypes; host object conversion invokes nondeterministic methods.",
+      "minimum_controls": [
+        "Allowlisted intrinsics; deterministic Date/locale/random wrappers must cover prototype/constructor routes and use immutable canonical revision/tick/seed identity.",
+        "Disable async/job/module/shared-memory/native access at engine plus syntax boundary; wrappers and host data are read-only and namespace-protected; unsupported source preserved.",
+        "Version numeric/transcendental/nonfinite semantics and platform tolerance or exactness; never claim ES2018 shape proves full Adobe compatibility."
+      ],
+      "future_acceptance": [
+        "Changed OS locale/timezone/time and render order, layer reorder, prototype mutation and constructor routes; compare exact tick/property values and independent reference pixels."
+      ]
+    },
+    {
+      "id": "EX06",
+      "severity": "HIGH",
+      "title": "Source rewrite and replay must preserve semantics and exact identities",
+      "evidence": [
+        "E12",
+        "E14",
+        "E15"
+      ],
+      "counterexample": "Compound indexed assignment with side-effecting getter evaluates reference twice; integer IDs above2^53 collide; replay or layer reorder changes random results.",
+      "minimum_controls": [
+        "Real binding-aware AST lowering and source maps preserve evaluation order/coercion; stable opaque IDs and canonical tick, no f64 identity or layer-index seed.",
+        "Dependency graph commit checks plus guarded dynamic activation; nested replay consumes same budget; pure immutable host reads."
+      ],
+      "future_acceptance": [
+        "Side-effecting accessors/computed references and alias shadowing corpus; >2^53 identity distinction; cycle/replay/reorder deterministic independent oracle."
+      ]
+    },
+    {
+      "id": "EX07",
+      "severity": "HIGH",
+      "title": "Detachment must reject oversized and active outputs",
+      "evidence": [
+        "E13"
+      ],
+      "counterexample": "Result array silently truncates or accessor runs unbounded work while converting out of VM; Rust buffers exceed heap cap.",
+      "minimum_controls": [
+        "Strict bounded inert result schema; invalid/oversize returns typed error instead of truncation.",
+        "Budget depth/entries/bytes before copies; reject accessors/proxies or instrument and debit any permitted extraction work; host result allocation counted separately."
+      ],
+      "future_acceptance": [
+        "Oversized/deep/cyclic/proxy/getter outputs fail explicitly with no accepted partial result or leaked buffer."
+      ]
+    },
+    {
+      "id": "EX08",
+      "severity": "HIGH",
+      "title": "Motion remains engine-neutral and JS provider optional",
+      "evidence": [
+        "E01",
+        "E12"
+      ],
+      "counterexample": "Motion core links rquickjs/QuickJS C or exposes Context/JsValue types; missing JS engine disables unrelated keyframe/render foundations or causes silent Boa fallback.",
+      "minimum_controls": [
+        "Neutral typed Motion expression port; separate optional JS provider closure with failunsupported; no engine-native types/second store/scheduler leak.",
+        "All executable module foundations before features; provider source pin/version and independently proved host support, no automatic alternate engine fallback.",
+        "Reuse Effect semantic fixtures selectively, not Boa production isolation/runtime/cache ownership."
+      ],
+      "future_acceptance": [
+        "Base Motion build closure independent of JS/native C; optional provider absent returns explicit diagnostics while core capabilities execute; actual Handshake embedding distinct portability proof."
+      ]
+    }
+  ],
+  "DIFF_ATTACK_SURFACES": [
+    "compiler/evaluator intrinsic boundary",
+    "AST checkpoints versus C/host/getter work",
+    "trusted executable cache versus imported bytes",
+    "runtime lock versus nested callbacks",
+    "deterministic profile versus reachable intrinsics",
+    "Motion neutral closure versus optional C-backed JS"
+  ],
+  "INDEPENDENT_CHECKS_RUN": [
+    "Direct pinned QuickJS C function-constructor/BaseObjects/Eval call chain",
+    "Direct wrapper bytecode safety precondition versus engine format/checksum",
+    "Direct runtime lock/stack config compared to host callback/replay paths",
+    "Effect detach and seed/identity/rewrite boundaries"
+  ],
+  "COUNTERFACTUAL_CHECKS": [
+    "If JS_AddIntrinsicEval enables eval_internal in the executing realm, Function constructor can reach JS_EvalObject despite global-name deletion.",
+    "If Effect detach min(65536) is retained, an oversized array becomes truncated success.",
+    "If Context.with runtime lock is reentered through external host coordination, parallel Send/Sync alone does not prevent blocking."
+  ],
+  "BOUNDARY_PROBES": [
+    "STATIC compiler->Eval intrinsic->Function constructor",
+    "STATIC Module::load safety->QuickJS bytecode reader",
+    "STATIC expression VM->getter result detachment->Rust Vec",
+    "STATIC Pending->resolver->nested rerun"
+  ],
+  "NEGATIVE_PATH_CHECKS": [
+    "Missing eval_internal returns unsupported",
+    "Zero/oversize stack limit disables check",
+    "Bytecode UINT32_MAX checksum bypass",
+    "Oversize output truncation and depth condition",
+    "Stack recovery explicitly drops old runtime"
+  ],
+  "RESIDUAL_UNCERTAINTY": [
+    "No engine execution, builds, timeout measurements, runtime exploit or production proof.",
+    "Focused paths only; actual parent adoption draft not yet inspected.",
+    "Configured deterministic realm and engine-neutral Motion implementation do not exist in inspected upstream paths; controls are future acceptance."
+  ],
+  "decision_review": {
+    "status": "CONTRACT_REVIEW_COMPLETE_CORRECTIONS_APPLIED_RUNTIME_NOT_PROVEN",
+    "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/expression-provider-adoption.json",
+    "sha256": "5a08523a42dbc3c34caf2e22995325a0725833e551dcc199c6cde5b925a28c83",
+    "draft_status": "SOURCE_REVIEW_COMPLETE_INDEPENDENT_CORRECTIONS_APPLIED_RUNTIME_NOT_PROVEN",
+    "observed": "Actual draft includes explicit dynamic-compiler restriction, result conversion, ownership/reclamation, bounded aggregate resources and neutral optional JS provider. Own Rust preference correctly refers to domain/AST/profile implementation; Boa remains conditional candidate.",
+    "corrections": [
+      {
+        "id": "EX-COR01",
+        "target": "EXPR-PROVIDER-04/09 and selected_candidate.rust_preference",
+        "text": "The production JavaScript AST/parser/lowering/checkpoint-instrumentation owner is NOT_ESTABLISHED by rquickjs or Effect source. Name and implement that owner as an executable prerequisite; ordinary engine interrupt polls are not semantic AST fuel. Instrument every admitted control-flow and function/callback entry, preserve evaluation order and source maps, and charge nested reads, retries and result conversion to the same immutable job allowance. Activation fails when a syntax path lacks proved instrumentation.",
+        "evidence": [
+          "E08",
+          "E14",
+          "E15"
+        ],
+        "reason": "Existing language runtime and Rust preference do not establish a usable engine-neutral AST/fuel implementation; plan must make this connected predecessor explicit.",
+        "resolution": "ADDRESSED_VERBATIM_IN_FINAL_BOUNDED_REREAD",
+        "addressed_by": "EXPR-PROVIDER-13"
+      },
+      {
+        "id": "EX-COR02",
+        "target": "EXPR-PROVIDER-01/05/07",
+        "text": "Cached executable identity MUST include canonical source digest, parser/AST-lowering/checkpoint/source-map versions, deterministic profile and host API semantics, exact wrapper plus bundled C/build-feature/patch/target/endianness identity. Only trusted compiler-produced artifacts may enter unsafe bytecode decode; matching engine format version/checksum alone is insufficient. Cache mismatch recompiles preserved source or fails unavailable, never adopts supplied executable bytes.",
+        "evidence": [
+          "E10",
+          "E11"
+        ],
+        "reason": "Engine/profile/ABI/schema identity currently broad; explicitly bind trusted semantic transform and instrumentation inputs to avoid stale uninstrumented cached code.",
+        "resolution": "ADDRESSED_VERBATIM_IN_FINAL_BOUNDED_REREAD",
+        "addressed_by": "EXPR-PROVIDER-14"
+      }
+    ],
+    "accepted_controls": [
+      "Mandatory proved trusted compiler/evaluation boundary with no user dynamic compilation",
+      "Deterministic AST plus reachable intrinsic enforcement",
+      "Single-owner admitted worker and clean realm",
+      "Bounded result conversion and correct-owner retirement",
+      "Neutral Motion port with optional C-backed provider; no silent Boa fallback"
+    ],
+    "residual_scope": "No runtime exploit or compile/platform PASS; source blockers remain future executable and production proof obligations.",
+    "remaining_corrections": 0,
+    "final_bounded_reread": {
+      "scope": "EXPR-PROVIDER13/14 compared verbatim to EX-COR01/02 only; no broader source/hash/platform rerun.",
+      "observed": "Both exact corrections present.",
+      "disposition": "Planning adoption contract direction supported; source findings remain enforceable future implementation/proof obligations. No build/runtime/platform/compatibility PASS."
+    }
+  }
+}

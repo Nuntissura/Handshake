@@ -1,0 +1,350 @@
+{
+  "schema_id": "hsk.plugin_platform_decision_review@1",
+  "file_id": "STUDIO-PLUGIN-PLATFORM-DECISION-20261009",
+  "updated_at": "2026-10-09",
+  "status": "SOURCE_REVIEW_COMPLETE_INDEPENDENT_CORRECTIONS_APPLIED_RUNTIME_NOT_PROVEN",
+  "authority": "REFERENCE_ONLY_ROOT_AUTHORS_SPEC_AND_MT_CHANGES",
+  "scope": "Handshake-wide plugin platform ownership, Studio domain adapters and portable embedding contracts; no implementation or runtime verdict",
+  "runtime_parity": "NOT_RUN_NOT_PROVEN",
+  "decision": {
+    "owner": "Existing product-wide manifest, extension-host, capability/consent, sandbox and MEX authorities govern plugins. Do not create a competing Studio registry, library, scheduler, database or permission authority.",
+    "implementation_gap": "Inspected MEX engine-descriptor registry and trusted EngineAdapter registration are reusable execution seams, not proof of plugin installation, activation, update, uninstall or isolation. Platform lifecycle remains a planned gap requiring explicit owning work before Studio can claim it.",
+    "studio": "ScorePlugin is the native audio domain adapter. Other Studio extension points use a Studio adapter/projection of the shared platform. Preserve existing Studio extension payloads while correcting ownership.",
+    "embedding": "Studio modules depend on versioned host-neutral provider ports; the Handshake host binds those ports to its canonical authority. Other hosts supply their own equivalent authority ports and explicitly reject unsupported capabilities; embedding never copies live grants or creates a hidden Handshake database."
+  },
+  "provider_selection": [
+    {
+      "provider": "Same-build Rust",
+      "selected": "Safe facade traits and typed commands for statically linked host providers",
+      "limit": "No stable Rust dynamic ABI promise; Send+Sync facade does not prove foreign plugin instances are movable"
+    },
+    {
+      "provider": "WASM Component/WIT",
+      "selected": "Versioned portable extension interfaces for non-realtime operations behind a bounded host runtime provider",
+      "limit": "WIT defines interfaces, not complete permission, scheduler, resource or realtime policy; no universal WASI authority or Wasmtime adoption mandate"
+    },
+    {
+      "provider": "Existing core-Wasm",
+      "selected": "Explicit compatibility adapters for inspected Photo/Effect ABIs with version and budget negotiation",
+      "limit": "Custom core-Wasm ABIs are not Component/WIT implementations; per-instance fuel or memory cap does not bound aggregate pools"
+    },
+    {
+      "provider": "Native audio CLAP/VST3",
+      "selected": "Separate specialized ScorePlugin provider with declared host standards, thread affinity, bounded discovery/isolation and lifecycle",
+      "limit": "Native foreign code is not sandboxed by capability strings or safe Rust facade; no arbitrary WASM realtime safety promise"
+    }
+  ],
+  "required_controls": [
+    {
+      "id": "PLATFORM-01",
+      "contract": "Manifest identity/version/content digest, supported interface/host versions, permissions and typed contributions bind installed bytes. Quarantine untrusted packages and probe executables only in an authorized bounded isolation provider."
+    },
+    {
+      "id": "PLATFORM-02",
+      "contract": "Lifecycle explicitly defines install, verify, activate with current consent, invoke, revoke, drain, update/rollback and uninstall. Lease epochs fence stale completions; accepted durable outcomes reconcile before retirement. No automatic old grant reuse after package or scope change."
+    },
+    {
+      "id": "PLATFORM-03",
+      "contract": "Every invocation and restricted receipt lookup rechecks current principal/resource/action authorization and revocation epoch. Declared capabilities and copied granted-capability lists alone are insufficient."
+    },
+    {
+      "id": "PLATFORM-04",
+      "contract": "Resource admission charges aggregate executable/module bytes, worker/process/store/instance counts, queued producers/payload bytes, retained generations, devices and reclamation capacity. Reserve cancellation/completion paths; retain permits until actual retirement."
+    },
+    {
+      "id": "PLATFORM-05",
+      "contract": "Durable mutations remain host-authority proposals with payload/precondition-bound idempotency, atomic event/receipt commit and current authorization. Plugin private document data follows undo/export/privacy policy; local KV uses canonical scoped authority and contains no secrets or shadow document state."
+    },
+    {
+      "id": "PLATFORM-06",
+      "contract": "Versioned ports cover capabilities, jobs/resources, artifacts, document proposals/snapshots, typed errors, UI contributions, observations and manual/recovery help. Ports expose unsupported and partial outcomes explicitly without backend-specific types or authority bypass."
+    },
+    {
+      "id": "PLATFORM-07",
+      "contract": "UI uses isolated typed contribution schema, stable namespaced controls and bounded messages; Argus exposes identity/version/state/budgets/errors without secret payloads. Models receive discovery, invocation, cancellation and recovery instructions through the existing product manual."
+    },
+    {
+      "id": "PLATFORM-08",
+      "contract": "Native discovery is executable vendor code, not passive metadata reading. Separate bounded isolated probing from activation; record supported crash/hang containment, architecture and ABI negotiation. Never silently fall back to unsafe in-process probing."
+    },
+    {
+      "id": "PLATFORM-09",
+      "contract": "Realtime processing forbids blocking, allocation, unbounded command drain, logging, foreign state-save and wrong-thread destruction. State capture is versioned, deadline/byte bounded and explicitly complete/partial/unavailable off callback; reclamation is reserved before transfer."
+    },
+    {
+      "id": "PLATFORM-10",
+      "contract": "Update/uninstall cannot invalidate active borrowed code or snapshots. Stop admission, revoke/fence, resolve accepted outcomes, retire instances on permitted threads and release library/store/process resources only after actual quiescence; residual shared-global registries require explicit bounded ownership."
+    },
+    {
+      "contract": "Guest pools and state are partitioned by principal/resource/grant/artifact/state version. Use fresh instances across trust boundaries or independently prove complete reset; retained buffers/state remain classified and charged. Reauthorization occurs before dispatch and output promotion; revoked output cannot become durable authority.",
+      "id": "PLATFORM-11"
+    },
+    {
+      "contract": "Failed spawn registration, ledger START or decorator state update after actual child creation must retain cleanup ownership or compensate with bounded kill/reap and typed cleanup failure. An error result never implies no live child; shared sandbox owner reconciles actual process lifetime.",
+      "id": "PLATFORM-12"
+    },
+    {
+      "contract": "Host imports have separate enforced deadlines, cancellation and byte limits; fuel/epoch interruption cannot preempt blocking host code. Bounded chunk/opaque resource protocols avoid arbitrary list copying; unsupported shared-memory/thread/import profiles reject before execution.",
+      "id": "PLATFORM-13"
+    },
+    {
+      "contract": "Exact closed contribution/event enums and schema negotiation are preserved. Bound asynchronous subscription dispatch, cause depth, replay deduplication and output proposals; never synchronous reentry while host locks are held. Coalesce only replaceable uncommitted previews, never accepted edits or exports.",
+      "id": "PLATFORM-14"
+    },
+    {
+      "contract": "Native providers require supported OS isolation and approved content-hashed resource paths for discovery and untrusted execution; no ambient directory scan or in-process fallback when unavailable. Preallocated audio bridge declares measured latency, ahead-of-time buffers, deadline bypass/silence policy and quiet UI/headless capability matrix.",
+      "id": "PLATFORM-15"
+    },
+    {
+      "contract": "Native state capture/restore reports per-instance and per-component/controller phase outcomes. Empty defaults or ignored restoration errors cannot assert completeness; preserve prior required state on capture failure, validate artifact/schema/version and aggregate bytes before promotion.",
+      "id": "PLATFORM-16"
+    },
+    {
+      "contract": "On revocation, retained private buffers/state MUST be destroyed or rendered inaccessible within a bounded retirement deadline, including idle pools; already-copied bytes cannot be revoked by a capability-list change alone. Permits remain charged until confirmed retirement.",
+      "independent_correction": "COR01",
+      "id": "PLATFORM-17"
+    },
+    {
+      "contract": "Native editor embedding, accessibility and Argus inspection MUST be separate host-matrix entries from DSP/headless control. Unsupported foreign UI MUST be explicit; automated invocation MUST NOT raise vendor windows.",
+      "independent_correction": "COR03",
+      "id": "PLATFORM-18"
+    },
+    {
+      "contract": "Every planned platform and Studio module foundation MUST expose its executable minimum before domain feature implementation. Second-host proof establishes portability only and MUST NOT replace independent production Handshake authorization, sandbox, canonical state and Argus/UserManual acceptance.",
+      "independent_correction": "COR07",
+      "id": "PLATFORM-19"
+    }
+  ],
+  "rejected": [
+    "Studio-private plugin catalog/consent/database/scheduler authority",
+    "MEX registration or BudgetGate presence interpreted as lifecycle or enforced timeout/memory proof",
+    "Universal Rust dylib ABI",
+    "WIT or fuel interpreted as realtime safety",
+    "Per-instance cap interpreted as aggregate boundedness",
+    "Passive native discovery assumption",
+    "Global never-reclaimed plugin pool/spec leaks",
+    "Copied authorization lists replacing current resource authorization"
+  ],
+  "proposed_deltas": [
+    {
+      "surface": "Master Spec Sections5/11",
+      "change": "Declare canonical shared plugin lifecycle owner and explicit implementation gap, typed provider/lifecycle/resource/current-consent contracts and independent acceptance."
+    },
+    {
+      "surface": "Section14 Studio AUT manifest/registry/KV/UI and ScorePlugin",
+      "change": "Make Studio registry an adapter/projection of product-wide authority; preserve all existing extension points and domain behavior. Add portable host ports and native audio-specific thread/lifecycle limits."
+    },
+    {
+      "surface": "STUDIO_MODULES and MT derivation",
+      "change": "Attach shared platform prerequisites and executable adapter acceptance without adding a competing module authority. Preserve all original numeric MT IDs and original unit/AC lineage; append noncolliding explicit ownership rows."
+    },
+    {
+      "change": "Root must explicitly resolve approved native adapter scope against the existing source-ecosystem-import exclusion. Preserve existing domain intent while declaring exact supported ABI/host/isolation/UI limits; no inferred ecosystem parity.",
+      "surface": "STU-AUT-020 ecosystem exclusion"
+    }
+  ],
+  "external_oracle_gaps": [
+    "Real package install/activate/update/revoke/uninstall with canonical authority reread",
+    "Two embedded hosts and unsupported-capability cases",
+    "Malicious/trapping/hanging modules under aggregate pressure and reserved cancel paths",
+    "Native discovery crash/hang containment and exact plugin thread instrumentation",
+    "Audio state save/reopen and exactly-once affinity-correct destruction",
+    "Current authorization revocation between queued invocation and commit/receipt",
+    "No document/plugin secret leakage through artifact, UI, observation or retained originals"
+  ],
+  "inputs": [
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/plugin-owner-source-drill.json",
+      "sha256": "917d62d60bbf4f1600dac11af9ebe33cf415fbb8521eac8866991ea43d9d641b"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/plugin-host-research.json",
+      "sha256": "65890ce02ffef840ed9ae7b19a2043c20a95f8b8632e71d0d745492f2fe1affe"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/plugin-platform-adversarial.json",
+      "sha256": "0fa214afe3a4ac9f45845d6baf5ddaf577f34d9bb605a4368202b930852d6296"
+    }
+  ],
+  "independent_review": {
+    "sha256": "0fa214afe3a4ac9f45845d6baf5ddaf577f34d9bb605a4368202b930852d6296",
+    "reviewed_decision_sha256": "f19263526c9dd304e94a45bd7454849d2a0c47b2eca56064c042424bd132ac50",
+    "runtime": "NOT_RUN_NOT_PROVEN",
+    "disposition": "Independent actual reread confirms PLATFORM17-19 incorporate COR01/COR03/COR07 verbatim; contract review complete; no runtime verdict. Only report binding metadata updated after this reviewed revision.",
+    "report": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/plugin-platform-adversarial.json"
+  },
+  "source_chains": [
+    {
+      "id": "PLUGIN-ROOT-REGISTRATION",
+      "evidence": [
+        "src/backend/handshake_core/src/mex/registry.rs:20-85",
+        "src/backend/handshake_core/src/workflows.rs:15565-15600"
+      ],
+      "observed": "MexRegistry loads mechanical_engines.json into engine/operation maps. Workflow construction installs shell, media downloader and calendar sync adapters. This is engine registration, not an installed plugin manifest/version lifecycle."
+    },
+    {
+      "id": "PLUGIN-ROOT-INVOKE",
+      "evidence": [
+        "src/backend/handshake_core/src/mex/runtime.rs:98-148,440-519,750-873",
+        "src/backend/handshake_core/src/mex/gates.rs:175-204,349-383"
+      ],
+      "observed": "EngineAdapter is a trusted async invoke trait. Runtime checks gates then directly awaits the selected adapter. Shell delegates to TerminalService with timeout/output limits and capability context. Generic adapter isolation and deadline cancellation do not follow solely from this trait or BudgetGate."
+    },
+    {
+      "id": "PLUGIN-ROOT-MCP",
+      "evidence": [
+        "src/backend/handshake_core/src/mcp/gate.rs:101-143,568-608,690-805,835-847,1004-1037,1253-1300"
+      ],
+      "observed": "GatedMcpClient resolves configured tools, checks shared capabilities and consent/session grants. Unknown tools are denied; alias ambiguity errors. Tool discovery is not install/update/remove ownership, and gate admission is not executable sandbox proof."
+    },
+    {
+      "id": "PLUGIN-ROOT-SANDBOX",
+      "evidence": [
+        "src/backend/handshake_core/src/sandbox/registry.rs:9-81",
+        "src/backend/handshake_core/src/sandbox/adapter.rs:163-186",
+        "src/backend/handshake_core/src/sandbox/types.rs:93-112,179-194",
+        "src/backend/handshake_core/src/sandbox/ledger_decorator.rs:139-157"
+      ],
+      "observed": "Shared adapters expose spawn/exec/fs_bind/net_policy/kill. ProcessSpec carries binds/network/resources/caps. Optional resource limits may be None/unlimited. Registry rejects unapproved Windows native jail selection. LedgerDecorator spawns first then writes START; failed recording returns error without a compensating kill in this inspected path."
+    },
+    {
+      "id": "PLUGIN-ROOT-RESOURCE-UI",
+      "evidence": [
+        "src/backend/handshake_core/src/api/authority.rs:1-65,1322-1342",
+        "src/backend/handshake_core/src/user_manual/registry.rs:108,1444",
+        "src/frontend/handshake_native/src/surface_extension_seam.rs:1-3,64-75"
+      ],
+      "observed": "Authority API describes shared account/principal/session/AccessSpace/capability/grant ResourceBroker boundaries and delegates protected-resource authorization. Native EditorSurface seam explicitly labels itself a design-only stub with no existing runtime caller. Complete installed plugin UI, inspection and manual contribution registration is not established by these excerpts."
+    }
+  ],
+  "primary_research": [
+    {
+      "id": "PRIMARY-RUST-ABI",
+      "url": "https://doc.rust-lang.org/reference/items/external-blocks.html",
+      "pin": "moving official reference inspected2026-10-09",
+      "claim": "Native Rust ABI no stability guarantees; explicit external ABI is separate."
+    },
+    {
+      "id": "PRIMARY-WIT",
+      "url": "https://component-model.bytecodealliance.org/design/wit.html",
+      "pin": "moving official documentation inspected2026-10-09",
+      "claim": "WIT worlds imports/exports and owned/borrowed resources define interfaces; they do not authorize resources or guarantee realtime behavior."
+    },
+    {
+      "id": "PRIMARY-WASMTIME-SECURITY",
+      "url": "https://docs.wasmtime.dev/security.html",
+      "pin": "moving official documentation inspected2026-10-09",
+      "claim": "Guest access depends on host imports; host policy remains part of security."
+    },
+    {
+      "id": "PRIMARY-WASMTIME-STORE",
+      "url": "https://docs.rs/wasmtime/latest/wasmtime/struct.Store.html",
+      "pin": "observed49.0.2, latest pointer may change",
+      "claim": "Store lifetime retains instances; resource limits and execution interruption are separate controls."
+    },
+    {
+      "id": "PRIMARY-WASMTIME-LIMITS",
+      "url": "https://raw.githubusercontent.com/bytecodealliance/wasmtime/v49.0.2/crates/wasmtime/src/runtime/limits.rs",
+      "pin": "tagv49.0.2",
+      "lines": "9-46",
+      "claim": "ResourceLimiter does not account all runtime/embedder memory or CPU; shared-memory growth is a limitation; explicitly set resource counts rather than defaults."
+    },
+    {
+      "id": "PRIMARY-WASMTIME-COMPONENT",
+      "url": "https://raw.githubusercontent.com/bytecodealliance/wasmtime/v49.0.2/crates/wasmtime/src/runtime/component/mod.rs",
+      "pin": "tagv49.0.2",
+      "lines": "1-35,103-124",
+      "claim": "Component API distinct from core modules; WIT bindgen generated host traits/types and gated features."
+    },
+    {
+      "id": "PRIMARY-WASMTIME-INTERRUPTION",
+      "url": "https://docs.wasmtime.dev/examples-interrupting-wasm.html",
+      "pin": "moving official documentation inspected2026-10-09",
+      "claim": "Fuel deterministic with overhead; epoch interruption nondeterministic; trapping and yielding have different semantics."
+    },
+    {
+      "id": "PRIMARY-CLAP-STATE",
+      "url": "https://raw.githubusercontent.com/free-audio/clap/1.2.7/include/clap/ext/state.h",
+      "pin": "tag1.2.7",
+      "lines": "23-28",
+      "claim": "State save/load main-thread contract."
+    },
+    {
+      "id": "PRIMARY-CLAP-LIFECYCLE",
+      "url": "https://raw.githubusercontent.com/free-audio/clap/1.2.7/include/clap/plugin.h",
+      "pin": "tag1.2.7",
+      "lines": "48-86",
+      "claim": "Init/destroy/activate/deactivate main-thread; start/stop/process audio-thread with state constraints."
+    },
+    {
+      "id": "PRIMARY-VST3",
+      "url": "https://steinbergmedia.github.io/vst3_dev_portal/pages/Technical%2BDocumentation/API%2BDocumentation/Index.html",
+      "pin": "moving official documentation inspected2026-10-09",
+      "claim": "Component/controller persistence sequencing, configuration/activation/processing lifecycle and main/audio threading requirements."
+    }
+  ],
+  "independent_parent_checks": {
+    "direct_source_reads": [
+      "MEX registry/runtime/adapter registration",
+      "MEX BudgetGate349-383",
+      "LedgerDecorator spawn139-158",
+      "Effect instance pool92-102",
+      "Sound callback/state chain",
+      "native design-only surface seam",
+      "Studio AUT manifest/KV/registry clauses"
+    ],
+    "proof_scope": "Source and scoped contract evidence only; no installed plugin/runtime/wholebundle verdict",
+    "local_source_hash_rows": 53,
+    "mismatches": 0
+  },
+  "final_root_normative_review": {
+    "other_device_WP012": "NO_RECORD_OR_POINTER_EDITS",
+    "inputs": [
+      {
+        "clauses": [
+          "STU-CON-009–014",
+          "STU-MOT-255–259",
+          "STU-ARC-006/007",
+          "STU-AUT-020",
+          "STU-MOT-076"
+        ],
+        "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+        "sha256": "99aa278d35973496ce4bc42c2bb7fbf7191eb5650b899837644b897ae169b0d3"
+      },
+      {
+        "clauses": "HSK-PLG-001–020",
+        "path": ".GOV/spec/master-spec-v02.207/spec-modules/05-security-and-observability.md",
+        "sha256": "fc57e3ce81c9783201581805877609575888cfbe37a9af22aca573c54c85a41b"
+      }
+    ],
+    "findings": [
+      {
+        "quote": "Every planned platform and Studio foundation MUST expose its executable minimum before domain features begin",
+        "finding": "Unqualified platform-foundation plus actual-production proof wording can gate all pure asset domain development on the unfinished shared host lifecycle, contrary to explicit operator phase scope and STU-ARC-006.",
+        "severity": "HIGH",
+        "correction": "Require executable portable platform/provider adapter minima with bounded supported/unsupported consumer paths in the asset foundation barrier. Real shared host install/consent/activate/revoke/lifecycle and production authorization/sandbox/state/Argus/UserManual proof are hard predecessors for actual plugin activation and corresponding host embedding, not unrelated pure asset feature development. HSK-PLG-001 missing lifecycle remains real and is not waived.",
+        "id": "FINAL-NORM-001",
+        "target": "HSK-PLG-020"
+      },
+      {
+        "quote": "Use clean realms across trust boundaries",
+        "finding": "This names account/resource isolation but does not explicitly prevent same-document repeated evaluations from carrying mutated prototypes/global/closure/host state across ticks. MOT076 separately forbids evaluation-order dependence, so explicit provider control is required.",
+        "severity": "HIGH",
+        "correction": "Require fresh evaluation state for each independent sample/evaluation or independently proven complete reset isolating all mutable globals/prototypes/closures/host memoization. Immutable trusted compiled artifacts may be reused; retries share allowance and exact immutable inputs. Same-document/same-account reversed frame order and fresh-versus-reused worker must conform, not merely cross-account tests.",
+        "id": "FINAL-NORM-002",
+        "target": "STU-MOT-258"
+      },
+      {
+        "quote": "Mirror only after acceptance",
+        "finding": "Acceptance is ambiguous beside CON014 selection/proposal/rejection events which expressly do not claim document promotion. A consumer can require PromotionDecision Accepted and omit proposal/rejection audit events, or emit undurable view telemetry as accepted business authority.",
+        "severity": "MEDIUM",
+        "correction": "Define the boundary by event class: accepted document mutations mirror only after canonical promotion/event transaction; proposal/rejection/view audit business events mirror only after their own canonical typed record/event is durably accepted, without implying document promotion. Transient uncommitted previews remain distinct bounded diagnostics; same durable mirror-intent/retry/collision controls apply to all required business rows.",
+        "id": "FINAL-NORM-003",
+        "target": "STU-CON-013/014"
+      }
+    ],
+    "supported": "All six original openchallenge corrections are represented in CON011/013/014. Exact22 business rows preserve wire identities and existing dot-family vocabulary; planned Studio recorder category explicitly remains unimplemented. MOT258 names MotionJS parser/AST/checkpoint ownership, trusted cache identity, constructor/prototype hostile proof, single-owner reclamation and conversion budgets; source-only/runtime distinctions remain explicit.",
+    "status": "SCOPED_NORMATIVE_REVIEW_TARGETED_CORRECTIONS_REQUIRED_NO_RUNTIME_VERDICT",
+    "runtime": "NOT_RUN_NOT_PROVEN"
+  }
+}

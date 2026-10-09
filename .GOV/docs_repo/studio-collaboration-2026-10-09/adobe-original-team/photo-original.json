@@ -1,0 +1,638 @@
+{
+  "schema_id": "hsk.studio.original_photo_audit@1",
+  "file_id": "STUDIO-ORIGINAL-PHOTO-20261009",
+  "updated_at": "2026-10-09",
+  "status": "SOURCE_REVIEW_COMPLETE_RUNTIME_NOT_INSPECTED",
+  "authority": "Research proposal only; root owns spec and MT edits. Preserve all existing IDs and scope.",
+  "scope": {
+    "handshake_product": "Photoshop, Camera Raw, Lightroom and Lightroom Classic non-AI workflow research",
+    "repo_governance": "This owned report only",
+    "sql_boundary": "Approved read-only file-byte .lrcat/WAL parsing; no SQL engine, query interface, writable catalog or secondary authority. SurrealDB/EventLedger exclusively owns imported editable state."
+  },
+  "sources": [
+    {
+      "id": "ADOBE-PHOTO-S01",
+      "url": "https://helpx.adobe.com/lightroom-classic/desktop/manage-catalogs-and-files/photos.html",
+      "inspected": "body lines 481-500",
+      "finding": "Virtual copies are catalog metadata, can change master designation, materialize on export; stacks are context dependent."
+    },
+    {
+      "id": "ADOBE-PHOTO-S02",
+      "url": "https://helpx.adobe.com/lightroom-classic/desktop/viewing-photos/lightroom-smart-previews.html",
+      "inspected": "body lines 309-313",
+      "finding": "Lossy-DNG Smart Previews support disconnected editing and reconcile adjustments when originals reconnect."
+    },
+    {
+      "id": "ADOBE-PHOTO-S03",
+      "url": "https://helpx.adobe.com/lightroom-classic/desktop/technical-support/workflow-issues/sync-issues/sync-faq.html",
+      "inspected": "body lines 321-330",
+      "finding": "Classic sync omits history, snapshots, keywords and PSB; sync is not a complete migration channel."
+    },
+    {
+      "id": "ADOBE-PHOTO-S04",
+      "url": "https://helpx.adobe.com/lightroom/desktop/add-import-and-capture-photos/access-photos.html",
+      "inspected": "body lines 174-247",
+      "finding": "Lightroom Local browsing does not require catalog import; cloud/local copies are separate and rendered edits require export."
+    },
+    {
+      "id": "ADOBE-PHOTO-S05",
+      "url": "https://helpx.adobe.com/africa/camera-raw/desktop/get-started/overview-and-setup/process-versions.html",
+      "inspected": "body lines 130-154",
+      "finding": "Process version changes rendering algorithms and available controls; older generations are distinct."
+    },
+    {
+      "id": "ADOBE-PHOTO-S06",
+      "url": "https://helpx.adobe.com/in/lightroom-classic/desktop/organize-photos-in-lightroom-classic/metadata-basics-actions.html",
+      "inspected": "body lines 310 and 399-401",
+      "finding": "Proprietary RAW XMP sidecars differ from embedded JPEG/TIFF/PSD/DNG metadata; active-photo and selected-photo metadata views differ."
+    },
+    {
+      "id": "ADOBE-PHOTO-S07",
+      "url": "https://helpx.adobe.com/uk/photoshop/using/layer-opacity-blending.html",
+      "inspected": "body lines 466-477",
+      "finding": "Blend If addresses current and underlying content, gray or individual channels; Alt/Option splits transitions."
+    },
+    {
+      "id": "ADOBE-PHOTO-S08",
+      "url": "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/smart-objects-overview-and-benefits.html",
+      "inspected": "body and linked-object section",
+      "finding": "Embedded payload, shared instances and external linked content are distinct relationships; transforms retain source."
+    },
+    {
+      "id": "ADOBE-PHOTO-S09",
+      "url": "https://developer.adobe.com/photoshop/uxp/2022/ps-reference/media/executeasmodal",
+      "inspected": "body lines 149-202 and 252-254",
+      "finding": "Cancellation needs interruption points; swallowed exceptions defeat cancellation; history suspension coalesces edits."
+    },
+    {
+      "id": "ADOBE-PHOTO-S10",
+      "url": "https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/",
+      "inspected": "PSD/PSB and Additional Layer Information body",
+      "finding": "Native formats carry typed layers, channels and additional blocks; structural block parsing alone does not prove executable semantics."
+    },
+    {
+      "id": "ADOBE-PHOTO-S11",
+      "url": "https://helpx.adobe.com/uk/lightroom-classic/desktop/process-and-develop-photos/develop-module-options.html",
+      "inspected": "body lines 366-404",
+      "finding": "Soft proof is an output-profile simulation; proof-copy editing is separate from editing the original variant."
+    },
+    {
+      "id": "ADOBE-PHOTO-S12",
+      "url": "https://helpx.adobe.com/lightroom-classic/desktop/help/editing-photoshop.html",
+      "inspected": "body lines 340-354",
+      "finding": "RAW transfer, rendered-copy transfer and original/copy layered-file editing differ."
+    },
+    {
+      "id": "ADOBE-PHOTO-S13",
+      "url": "https://helpx.adobe.com/uk/photoshop/using/drawing-painting-graphics-tablet.html",
+      "inspected": "body lines 372-384",
+      "finding": "Pressure controls size and opacity separately; pen angle, rotation and wheel are input dimensions."
+    }
+  ],
+  "local_sources": [
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_sqlite.rs",
+      "sha256": "7076939ba61b4d53f9e0a51e9d37d73272b8b79ff05d6e07d34640b8186d1c3a",
+      "line_start": 1,
+      "line_end": 18,
+      "body_excerpt": "//! Small, read-only SQLite reader used by Lightroom catalog import.\n//!\n//! This is a clean-room implementation based on SQLite's public file-format\n//! description: <https://www.sqlite.org/fileformat.html> (sections 1.6, 1.7,\n//! 2.1, 2.2, 2.3, 2.4 and 2.5). It is deliberately a page reader, rather\n//! than a SQL engine. It never writes its input and has no SQLite runtime\n//! dependency.\n\nuse std::collections::{HashMap, HashSet};\n\nconst MAX_PAGE_ID: u32 = 16_777_216;\nconst MAX_COLUMNS: usize = 16_384;\nconst MAX_ROWS: usize = 1_000_000;\nconst MAX_CELLS: usize = 4_000_000;\nconst MAX_PAYLOAD: usize = 64 * 1024 * 1024;\nconst MAX_TABLE_PAYLOAD: usize = 256 * 1024 * 1024;\nconst MAX_OVERFLOW_PAGES: usize = 1_048_576;\nconst MAX_BTREE_DEPTH: usize = 64;"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs",
+      "sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+      "line_start": 814,
+      "line_end": 844,
+      "body_excerpt": "    });\n    for collection in ordered {\n        let Some(id) = albums.get(&number(collection, \"id_local\")).copied() else { continue };\n        let mut album = Album::new(id, text(collection, \"name\"));\n        album.parent = albums.get(&number(collection, \"parent\")).copied();\n        album.folder = text(collection, \"creationId\").contains(\"group\");\n        if text(collection, \"creationId\").contains(\"smart\") {\n            warnings.push(format!(\"{}: smart rules preserved in archive; imported current membership\", album.name));\n        }\n        if !album.folder {\n            album.photos = grouped_members\n                .get(&number(collection, \"id_local\"))\n                .into_iter()\n                .flatten()\n                .filter_map(|r| ids.get(&number(r, \"image\")).copied())\n                .collect();\n        }\n        if s.catalog.album(id).is_some() {\n            // Reimport preserves the user's album name/hierarchy, merges only new membership.\n            if let Some(old) = s.catalog.album(id).filter(|a| !a.folder && !a.is_smart()) {\n                let mut photos = old.photos.clone();\n                let mut seen: HashSet<_> = photos.iter().copied().collect();\n                for photo in album.photos {\n                    if seen.insert(photo) {\n                        photos.push(photo);\n                    }\n                }\n                ops.push(Op::SetAlbumPhotos { id, photos });\n            }\n        } else {\n            ops.push(Op::AddAlbum { album });"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_archive.rs",
+      "sha256": "68547b2b4cc252710af2f98d0685b3b19dca4deb09f866cdcd044659be4e2e14",
+      "line_start": 129,
+      "line_end": 135,
+      "body_excerpt": "/// Store source data when possible. An archive that reaches its bounded size is\n/// omitted with a warning so catalog import can still complete.\npub fn store_best_effort(directory: &Path, data: &CatalogImport) -> Result<Option<PathBuf>, String> {\n    match store(directory, data) {\n        Ok(path) => Ok(Some(path)),\n        Err(error) if error.contains(\"Lightroom archive exceeds 32 MiB\") => Ok(None),\n        Err(error) => Err(error),"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_job.rs",
+      "sha256": "717aea349d54cd1920ee7ae33f5669b3338ebc50f721e892c43ea3e67e4937a1",
+      "line_start": 27,
+      "line_end": 32,
+      "body_excerpt": "fn stage_archive(archive_dir: Option<&Path>, data: &mut CatalogImport) -> crate::Result<Option<PathBuf>> {\n    let archive_path = archive_dir.map(|dir| crate::lightroom_archive::store_best_effort(dir, data).map_err(error)).transpose()?.flatten();\n    if archive_dir.is_some() && archive_path.is_none() {\n        data.warnings.push(\"Lightroom source archive exceeded 32 MiB; archive skipped\".into());\n    }\n    Ok(archive_path)"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/crs.rs",
+      "sha256": "382ab0f9ba77749dfcf7f3ea835db8cfa92be4b3b0486759e82b9348883d35b0",
+      "line_start": 23,
+      "line_end": 44,
+      "body_excerpt": "\n/// `crs:` fields that describe the packet rather than an adjustment.\nconst NON_ADJUSTMENT: &[&str] = &[\n    \"crs:Version\",\n    \"crs:ProcessVersion\",\n    \"crs:Name\",\n    \"crs:ShortName\",\n    \"crs:Group\",\n    \"crs:UUID\",\n    \"crs:PresetType\",\n    \"crs:SupportsAmount\",\n    \"crs:SupportsColor\",\n    \"crs:SupportsMonochrome\",\n    \"crs:SupportsHighDynamicRange\",\n    \"crs:SupportsNormalDynamicRange\",\n    \"crs:SupportsSceneReferred\",\n    \"crs:SupportsOutputReferred\",\n    \"crs:CameraModelRestriction\",\n    \"crs:Copyright\",\n    \"crs:ContactInfo\",\n    \"crs:HasSettings\",\n    \"crs:AlreadyApplied\","
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/crs.rs",
+      "sha256": "382ab0f9ba77749dfcf7f3ea835db8cfa92be4b3b0486759e82b9348883d35b0",
+      "line_start": 152,
+      "line_end": 176,
+      "body_excerpt": "    // ---- Light (process version 2012+ names)\n    n(o, \"Exposure2012\", \"light.exposure\");\n    n(o, \"Contrast2012\", \"light.contrast\");\n    n(o, \"Highlights2012\", \"light.highlights\");\n    n(o, \"Shadows2012\", \"light.shadows\");\n    n(o, \"Whites2012\", \"light.whites\");\n    n(o, \"Blacks2012\", \"light.blacks\");\n    // older process versions (most `.lrtemplate` presets): approximate the 2012 sliders from the\n    // earlier ones, relative to their defaults (contrast 25, blacks 5, brightness 50)\n    let has = |o: &Value, path: &str| path.split('.').try_fold(o, |v, k| v.get(k)).is_some();\n    // presets written by newer versions keep the old fields at their defaults: ignore them there\n    let pv2012 = props.keys().any(|k| k.ends_with(\"2012\"));\n    let old = |o: &mut Value, crs: &str, path: &str, f: &dyn Fn(f64) -> f64| {\n        let v = num(props, &format!(\"crs:{crs}\"));\n        if !pv2012\n            && !has(o, path)\n            && let Some(v) = v\n        {\n            put(o, path, json!(f(v).clamp(-100.0, 100.0)));\n        }\n    };\n    old(o, \"Exposure\", \"light.exposure\", &|v| v);\n    old(o, \"Contrast\", \"light.contrast\", &|v| v - 25.0);\n    old(o, \"HighlightRecovery\", \"light.highlights\", &|v| -v);\n    old(o, \"FillLight\", \"light.shadows\", &|v| v);"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/crs.rs",
+      "sha256": "382ab0f9ba77749dfcf7f3ea835db8cfa92be4b3b0486759e82b9348883d35b0",
+      "line_start": 396,
+      "line_end": 416,
+      "body_excerpt": "    let off = |v: &[String]| v.iter().all(|s| s.trim() == \"0\");\n    let empty_points = |v: &[String]| v.iter().all(|s| s.split(',').all(|n| n.trim().parse::<f64>().is_ok_and(|x| x == -1.0) || n.trim().is_empty()));\n    let quiet = |k: &str| {\n        k.starts_with(\"Enable\")\n            || k.starts_with(\"ToneCurveName\")\n            || k == \"AutoTone\"\n            || k == \"AutoGrayscaleMix\"\n            || (k == \"HDREditMode\" && value_is(k, &off))\n            || (k == \"PointColors\" && value_is(k, &empty_points))\n    };\n    let mut unmapped: Vec<String> = props\n        .keys()\n        .filter(|k| k.starts_with(\"crs:\"))\n        .map(|k| k.split('/').next().unwrap_or(k))\n        .filter(|k| !NON_ADJUSTMENT.contains(k) && !read.contains(*k))\n        .map(|k| k.trim_start_matches(\"crs:\").to_string())\n        .filter(|k| !quiet(k))\n        .collect();\n    unmapped.dedup();\n    unmapped.extend(mask_skips);\n    (out, unmapped)"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/crs_masks.rs",
+      "sha256": "0798e3b00b3734565da10efb0ba704b1cc2a5fc8435b103b7dd300110edbfba1",
+      "line_start": 100,
+      "line_end": 128,
+      "body_excerpt": "\n/// One mask component → our component JSON; `Err(kind)` names an unsupported one.\nfn component(m: &XmpValue, aspect: f64) -> Result<Value, String> {\n    let what = text(m, \"crs:What\").unwrap_or(\"\");\n    let op = match num(m, \"crs:MaskBlendMode\").unwrap_or(0.0) as i64 {\n        1 => \"subtract\",\n        2 => \"intersect\",\n        _ => \"add\",\n    };\n    let invert = flag(m, \"crs:MaskInverted\").unwrap_or(false);\n    // positions are fractions of the image's width / height; our radii are in long-edge units\n    let (sx, sy) = if aspect >= 1.0 { (1.0, 1.0 / aspect) } else { (aspect, 1.0) };\n    let shape = match what {\n        \"Mask/Gradient\" => {\n            let g = |k: &str, d: f64| num(m, &format!(\"crs:{k}\")).unwrap_or(d);\n            json!({\"kind\": \"linear\", \"start\": pt(g(\"FullX\", 0.5), g(\"FullY\", 0.0)), \"end\": pt(g(\"ZeroX\", 0.5), g(\"ZeroY\", 1.0))})\n        }\n        \"Mask/CircularGradient\" => {\n            let g = |k: &str, d: f64| num(m, &format!(\"crs:{k}\")).unwrap_or(d);\n            let (l, r, t, b) = (g(\"Left\", 0.25), g(\"Right\", 0.75), g(\"Top\", 0.25), g(\"Bottom\", 0.75));\n            json!({\n                \"kind\": \"radial\",\n                \"center\": pt((l + r) / 2.0, (t + b) / 2.0),\n                \"rx\": ((r - l).abs() / 2.0 * sx).max(1e-3),\n                \"ry\": ((b - t).abs() / 2.0 * sy).max(1e-3),\n                \"angle\": g(\"Angle\", 0.0),\n                \"feather\": g(\"Feather\", 50.0).clamp(0.0, 100.0),\n                \"invert\": flag(m, \"crs:Flipped\").unwrap_or(false),\n            })"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/docs/xmp-interop.md",
+      "sha256": "0e0150986eab0f2882903561b57fbdb01fce98d5985c333a5b5cbf212103ad40",
+      "line_start": 1,
+      "line_end": 12,
+      "body_excerpt": "# XMP sidecars and interchange\n\nLightCraft keeps its catalog as the source of truth, and can also store each photo's metadata and develop settings in\nan XMP sidecar next to the original. Sidecars let edits travel with the files (backups, another LightCraft library,\nother tools), and let LightCraft pick up edits made elsewhere.\n\n## Sidecar files\n\n| | |\n|---|---|\n| Name | `<stem>.xmp` by default (`IMG_0001.CR3` → `IMG_0001.xmp`); `<file>.xmp` (`IMG_0001.CR3.xmp`) with `naming: \"full\"`. Reading accepts either (preferred first) and `.XMP`. With stem naming, files sharing a stem don't share a sidecar: see *Shared names* below. |\n| Write | `photo.saveMetadataToFile {ids?}` (Photo ▸ Save Metadata to File, ⌘S), or automatically after every change with `library.xmpPreferences {autoWrite: true}` (File ▸ Automatically Write Changes into XMP). Slider drags are written once, when the drag ends; undo/redo rewrite the sidecar. An existing sidecar is **merged into, never replaced** (see *Saving into an existing sidecar*). Written atomically (temp file, fsync, rename). The result lists `written`, `merged` and `backups`. |"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/docs/lightroom-catalog-import.md",
+      "sha256": "b0b48d9137c3e7e0075ed0cd2616429bd3fa90326a5ae2a73f45bb7fa595943b",
+      "line_start": 28,
+      "line_end": 43,
+      "body_excerpt": "`Interop/lightroom-index.json` records imported identities. Source catalogs and originals are\nnever overwritten.\n\nNative import is bounded to a 1 GiB database/WAL, 16 MiB XMP packets and one million rows per\ntable. The in-tree, read-only Rust SQLite B-tree reader follows SQLite’s public file-format\nspecification; it introduces no dependency or C runtime. Table payloads are capped at 256 MiB.\nOptional history, keyword and collection tables that exceed limits are skipped with warnings;\nrequired photo tables still report errors. Unrelated unsupported schemas are ignored. A needed\nWITHOUT ROWID or virtual table produces an explicit error, handled as a warning when optional.\n\nDevelop settings reuse the existing XMP/preset mapper. Supported sliders, curves and supported\nmask structures remain editable, but this is approximate rendering: camera profiles, Adobe AI\nmodels, some masking/retouch fields and process-version algorithms are not reproduced. Unmapped\nfields are reported. When a recovery archive is saved, it retains source settings/history/snapshots\nand original smart-collection rules. Smart collections become regular albums with current\nmembership. Archived history and snapshots are source data, not native LightCraft history yet."
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/psd/src/tagged.rs",
+      "sha256": "4b4340d2506da0909c4a996ad0578c8efa2ae8893841567f8769d31e33a29c59",
+      "line_start": 264,
+      "line_end": 312,
+      "body_excerpt": "    /// Strictly re-parses the internal structure of blocks whose data carries\n    /// its own sizes, so a block that a strict reader would reject is caught\n    /// here: `PlLd` (a `plcL` placed layer), `SoLd`/`SoLE` (`soLD` placed\n    /// layer data), `lnk2`/`lnk3`/`lnkD` (length-prefixed linked files) and\n    /// `lfx2` (object effects). Every inner length must stay inside the block\n    /// and the parse must end at the end of the data, apart from up to three\n    /// zero padding bytes. Other keys are not checked and return `Ok`.\n    ///\n    /// Layouts follow the Adobe Photoshop File Format specification\n    /// (\"Additional Layer Information\": Placed Layer, Placed Layer Data,\n    /// Linked Layer, Object Based Effects Layer Info).\n    pub fn check_structure(&self) -> Result<()> {\n        let d = &self.data[..];\n        let mut r = Reader::new(d);\n        match &self.key {\n            b\"PlLd\" => {\n                expect_kind(&mut r, b\"plcL\")?;\n                let _version = r.u32()?;\n                crate::io::read_pascal(&mut r, 1)?;\n                // Page, total pages, anti-alias policy, layer type; transform (8 doubles).\n                r.skip(4 * 4 + 8 * 8)?;\n                let _warp_version = r.u32()?;\n                crate::descriptor::VersionedDescriptor::read(&mut r)?;\n            }\n            b\"SoLd\" | b\"SoLE\" => {\n                expect_kind(&mut r, b\"soLD\")?;\n                let _version = r.u32()?;\n                let d = crate::descriptor::VersionedDescriptor::read(&mut r)?;\n                check_placed_descriptor(&d.descriptor).map_err(|e| PsdError::invalid(format!(\"{}: {e}\", self.key_str())))?;\n            }\n            b\"lfx2\" => {\n                let _effects_version = r.u32()?;\n                crate::descriptor::VersionedDescriptor::read(&mut r)?;\n            }\n            b\"lnk2\" | b\"lnk3\" | b\"lnkD\" => {\n                while r.remaining() >= 8 {\n                    let len = r.u64()?;\n                    let item = r.bytes_u64(len)?;\n                    if !matches!(item.get(..4), Some(b\"liFD\" | b\"liFE\" | b\"liFA\")) {\n                        return Err(PsdError::invalid(format!(\"{}: linked item of unknown type\", self.key_str())));\n                    }\n                    if item.get(..4) == Some(b\"liFD\") {\n                        check_embedded_item(item).map_err(|e| PsdError::invalid(format!(\"{}: embedded file: {e}\", self.key_str())))?;\n                    }\n                    // Items are padded to a multiple of 4.\n                    let pad = ((4 - len % 4) % 4).min(r.remaining() as u64);\n                    r.skip(pad as usize)?;\n                }\n            }"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/psd/src/layer.rs",
+      "sha256": "18812d5db436f481cc90ebc7df39465e6124b68915368bf6967ae24037dc6822",
+      "line_start": 324,
+      "line_end": 354,
+      "body_excerpt": "/// Layer blending ranges (\"Blend If\"), stored raw. The data is a sequence of\n/// 8-byte entries: composite gray first, then one per channel; each entry is\n/// source (black lo, black hi, white lo, white hi) then destination.\n#[derive(Debug, Clone, PartialEq, Eq, Default)]\n#[cfg_attr(feature = \"serde\", derive(serde::Serialize, serde::Deserialize))]\npub struct BlendingRanges {\n    /// Raw bytes.\n    pub data: Vec<u8>,\n}\n\n/// One blending range entry.\n#[derive(Debug, Clone, Copy, PartialEq, Eq)]\npub struct BlendRange {\n    /// Source range: black low, black high, white low, white high.\n    pub source: [u8; 4],\n    /// Destination range.\n    pub dest: [u8; 4],\n}\n\nimpl BlendingRanges {\n    /// Default \"full\" ranges for composite + `channels` channels.\n    pub fn full(channels: usize) -> Self {\n        let mut data = Vec::with_capacity((channels + 1) * 8);\n        for _ in 0..=channels {\n            data.extend_from_slice(&[0, 0, 255, 255, 0, 0, 255, 255]);\n        }\n        BlendingRanges { data }\n    }\n    /// Parsed entries (incomplete trailing bytes are ignored).\n    pub fn ranges(&self) -> Vec<BlendRange> {\n        self.data.as_chunks::<8>().0.iter().map(|c| BlendRange { source: [c[0], c[1], c[2], c[3]], dest: [c[4], c[5], c[6], c[7]] }).collect()"
+    },
+    {
+      "path": "C:/Program Files/Adobe/Adobe Photoshop 2026/Presets/Scripts/ArtBoards To PDF.jsx",
+      "sha256": "da36fe7d0fca43c1f15718065b9073ca7d905fc571493aa3f8b27f4e3a90151f",
+      "line_start": 12,
+      "line_end": 24,
+      "body_excerpt": " \n<javascriptresource>\n    <name>$$$/JavaScripts/ArtboardsToPDF/Menu=Artboards to PDF...</name>\n    <category>scriptexport</category>\n    <menu>export</menu>\n    <eventid>12fb03a7-e9af-426a-8377-3d423d7303e6</eventid>\n    <enableinfo>PSHOP_DocHasArtboards</enableinfo>\n<terminology><![CDATA[<< /Version 1 \n                         /Events << \n                          /12fb03a7-e9af-426a-8377-3d423d7303e6 [($$$/JavaScripts/ArtboardsToPDF/Action=Artboard to PDF) /noDirectParam <<\n                          >>] \n                         >> \n                      >> ]]></terminology>"
+    },
+    {
+      "path": "C:/Program Files/Adobe/Adobe Photoshop 2026/Presets/Scripts/ArtboardExport.inc",
+      "sha256": "3c45d0e4d47cf70e7e6a25e6fc13bb9809445c194de2da06874391cd421b5fd0",
+      "line_start": 105,
+      "line_end": 132,
+      "body_excerpt": "\n  // Check if there is an active document.\n  if (app.documents.length <= 0) {\n    if (DialogModes.NO != app.playbackDisplayDialogs) {\n      alert(strAlertDocumentMustBeOpened)\n    }\n    // quit, returning 'cancel' (dont localize) makes the actions palette not record our script\n    return 'cancel'\n  }\n\n  var origDoc = app.activeDocument\n  var sel_indxs = getSelectedLayersAMIdx(origDoc)\n  var abArray\n  // check to see if selected layers are artboards have artboardID.\n  var abArSelected = getArtBoards(sel_indxs)\n  if (abArSelected.length === 0) {\n    var isSelection = false\n  } else {\n    var isSelection = true\n  }\n  var artboardInfo = getABLayerInfo() // returns obj holding arrays of all and visible artboards\n  if (artboardInfo.numVisible == 0) { // no visible artboards to export\n    if (DialogModes.NO != app.playbackDisplayDialogs) {\n      alert(strAlertNoVisibleArtboards)\n    }\n    // quit, returning 'cancel' (dont localize) makes the actions palette not record our script\n    return 'cancel'\n  }"
+    },
+    {
+      "path": "C:/Program Files/Adobe/Adobe Photoshop 2026/Required/WorkspaceImportExport.jsx",
+      "sha256": "a5753925eac0283f7cd8aa9b80169161e9505f4fed084a324a6714eb62fb1681",
+      "line_start": 139,
+      "line_end": 150,
+      "body_excerpt": "function ImportScreenedWorkspaceFile(file, userFolder, modifiedFolder, outResult)\n\t{\n\tvar decodedFilename = decodeURI(file.name);\n\t\n\t// Extensions were added to workspace files in 15.0, so add extension during copy / remove\n\t// to ensure we are overwriting the existing one if there is one.\n\tvar decodedFilenameWithExt = EnsureWorkspaceExtension (decodedFilename);\n\t\n\tvar targetFile = new File(userFolder.fsName + \"/\" + decodedFilenameWithExt);\n\t\n\tvar copySucceeded = file.copy(targetFile);\n\t"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "line_start": 1725,
+      "line_end": 1733,
+      "body_excerpt": "**[STU-RAS-159] BLEND-IF RANGE MODEL — EIGHT VALUES PER CHANNEL, NOT FOUR.** A blend range is stored per\nchannel as **eight** values, not four: source black start, source black end, source white start,\nsource white end, and the same four for the destination. The paired values are what make a Blend-If\nslider *split* and feather; collapsing each pair to one number turns every split slider into a hard\ncut. Every value is in `levels_0_255` with hard bounds 0..255 (`declared`). The defaults are\n`source_black = (0, 0)`, `source_white = (255, 255)`, `destination_black = (0, 0)`,\n`destination_white = (255, 255)` — that is, the identity range — and these are `derived`. A blend-range\nentry additionally carries a channel reference, so the set is per-channel and the composite gray entry\nis one member of it, not a separate mechanism."
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-411.json",
+      "sha256": "adc527b8b4ff495e974e8320c4fe2ad2de0b64f4162d7f6abef364527883ed9a",
+      "line_start": 33,
+      "line_end": 43,
+      "body_excerpt": " \"spec_anchor\": [\n  \"STU-RAW-001\",\n  \"STU-RAW-002\",\n  \"STU-DOC-002\",\n  \"STU-ARC-004\"\n ],\n \"scope\": {\n  \"summary\": \"Implement the canonical StudioRawDevelop primitive (schema id hsk.studio.raw_develop@1, field-owned by 14.23) as a non-destructive, re-editable, ordered parametric graph over an immutable decoded raw input: every Basic/Curve/Detail/Color/Optics/Geometry/Effects/Calibration adjustment, mask, and Enhance result stored as parameters+derived buffers, fully reversible to the as-decoded state, and bit-reproducible under a fixed process version. Develop authority persists as typed SCHEMAFULL studio_* SurrealDB records bound to EventLedger (studio.raw/studio.raster family) per [STU-ARC-003]/[STU-ARC-004], with no XMP sidecar, proprietary raw-settings database, PostgreSQL, or SQLite cache.\",\n  \"allowed_paths\": [\n   \"src/studio/raw/**\",\n   \"studio-engine/**\","
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-422.json",
+      "sha256": "2b89038de0b9f8c47874f833869c58b605bd88b7a3f2e3aba8c328473d54930d",
+      "line_start": 32,
+      "line_end": 43,
+      "body_excerpt": " \"spec_anchor\": [\n  \"STU-RAW-012\",\n  \"STU-RAW-001\",\n  \"STU-RAW-018\"\n ],\n \"scope\": {\n  \"summary\": \"Add the Calibration group: the develop process version (the versioned rendering model governing demosaic + adjustment math) as a first-class field; Shadow tint calibration; and Red/Green/Blue primary hue + saturation calibration. Changing the process version is an EXPLICIT, RECEIPTED operation because it alters reproducibility ([STU-RAW-001]); imported documents MUST record their originating process version and MUST NOT be silently re-rendered under a newer version without an operator/model-visible migration receipt.\",\n  \"allowed_paths\": [\n   \"src/studio/raw/**\",\n   \"studio-engine/**\",\n   \"src/frontend/handshake_native/src/studio/**\",\n   \"tests/studio/**\""
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-062.json",
+      "sha256": "2549769658394687642c05c6ffe41fe82b7d312e87e87ad7c9b97a76e5c8750d",
+      "line_start": 32,
+      "line_end": 41,
+      "body_excerpt": "  \"validator_verdict\": \"PENDING\"\n },\n \"clause\": \"Advanced/conditional blending: Blend-If, knockout, per-channel, fill-vs-opacity [STU-RAS-041,STU-RAS-010]\",\n \"spec_anchor\": [\n  \"STU-RAS-041\",\n  \"STU-RAS-010\"\n ],\n \"scope\": {\n  \"summary\": \"Implement advanced/conditional blending on every layer as canonical StudioLayer fields: Blend-If sliders dropping/revealing pixels by gray or per-channel tonal ranges of this layer and the underlying composite, with split-slider feathering; knockout (shallow/deep) punching through group content; per-channel blend enablement; and interior-effects / clipped-effects / transparency-shapes-layer toggles. Include the independent Fill-opacity vs Layer-opacity fields (STU-RAS-010): fill-opacity fades pixel/fill content leaving StudioEffectStack effects at full strength; layer-opacity fades the whole layer including effects — both exposed, never collapsed.\",\n  \"allowed_paths\": ["
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34411.json",
+      "sha256": "bc8cd93ff89ef175ee6e8a609fd05de49eb02e9d3cb5f3a6ec5141e14a8faeb6",
+      "line_start": 10,
+      "line_end": 19,
+      "body_excerpt": "  \"rule\": \"One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.\",\n  \"derivation_key\": \"STU-ASSET-019#clause#0\",\n  \"unit_kind\": \"clause\",\n  \"spec_module\": \"14-studio-creative-suite.md\",\n  \"spec_heading\": \"4. Closures: what Studio builds instead\",\n  \"spec_line\": 30701,\n  \"reproducible\": \"Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.\"\n },\n \"lifecycle\": {\n  \"status\": \"PENDING\","
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-411.json",
+      "sha256": "adc527b8b4ff495e974e8320c4fe2ad2de0b64f4162d7f6abef364527883ed9a",
+      "line_start": 150,
+      "line_end": 172,
+      "body_excerpt": "  },\n  {\n   \"id\": \"AC-003\",\n   \"criterion\": \"Non-destructive reversible graph\",\n   \"evidence_kind\": \"runtime_assertion\",\n   \"proof_target\": \"PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.\",\n   \"proof_target_status\": \"REQUIRED\",\n   \"source\": \"split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original\"\n  },\n  {\n   \"id\": \"AC-004\",\n   \"criterion\": \"Authority-row persistence\",\n   \"evidence_kind\": \"ledger_proof\",\n   \"proof_target\": \"PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.\",\n   \"proof_target_status\": \"REQUIRED\",\n   \"source\": \"split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original\"\n  },\n  {\n   \"id\": \"AC-005\",\n   \"criterion\": \"No sidecar/SQLite\",\n   \"evidence_kind\": \"runtime_assertion\",\n   \"proof_target\": \"PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.\",\n   \"proof_target_status\": \"REQUIRED\","
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34411.json",
+      "sha256": "bc8cd93ff89ef175ee6e8a609fd05de49eb02e9d3cb5f3a6ec5141e14a8faeb6",
+      "line_start": 73,
+      "line_end": 76,
+      "body_excerpt": " \"validator_focus\": [\n  \"Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.\",\n  \"Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.\",\n  \"For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite.\""
+    },
+    {
+      "path": "C:/Program Files/Adobe/Adobe Photoshop 2026/Required/WorkspaceImportExport.jsx",
+      "sha256": "a5753925eac0283f7cd8aa9b80169161e9505f4fed084a324a6714eb62fb1681",
+      "line_start": 143,
+      "line_end": 174,
+      "body_excerpt": "\t// Extensions were added to workspace files in 15.0, so add extension during copy / remove\n\t// to ensure we are overwriting the existing one if there is one.\n\tvar decodedFilenameWithExt = EnsureWorkspaceExtension (decodedFilename);\n\t\n\tvar targetFile = new File(userFolder.fsName + \"/\" + decodedFilenameWithExt);\n\t\n\tvar copySucceeded = file.copy(targetFile);\n\t\n\tif (copySucceeded)\n\t\t{\n\t\toutResult.copiedAtLeastOne = true;\n\t\t\n\t\t// The copy succeeded. If we are copying over an existing workspace, reset it.\n\t\t// This does two things:\n\t\t// 1. Make sure we delete any \"modified\" file that may be around so we load the newly\n\t\t//\t  imported version of a workspace next time it is selected.\n\t\t// 2. If we imported over the current workspace, reload it now.\n\t\t// If it is not an existing workspace, just make sure we delete any modified version\n\t\t// that may be lying around.\n\t\t\n\t\t// The filename without extension should be the displayname for user workspaces, which\n\t\t// is what we are creating, so it works for resetting the workspace.\n\t\tif (IsLoadedWorkspace(decodedFilename))\n\t\t\tResetWorkspace (decodedFilename);\n\t\telse\n\t\t\t{\n\t\t\tvar modifiedFile = new File (modifiedFolder.fsName + \"/\" + decodedFilenameWithExt);\n\t\t\t\n\t\t\tif (modifiedFile.exists)\n\t\t\t\tmodifiedFile.remove();\n\t\t\t}\n\t\t}"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "line_start": 20806,
+      "line_end": 20806,
+      "body_excerpt": "Canonical primitive addition: `StudioRawDevelop` (schema id `hsk.studio.raw_develop@1`) joins the canonical Studio primitive set of [STU-DOC-002] alongside `StudioLayer`, `StudioMask`, `StudioSelectionSet`, `StudioAdjustment`, and `StudioColorProfile`; its field-level definition is owned by 14.23 and referenced (not redefined) here. All raw develop state is durable Studio authority under the SurrealDB/EventLedger contract of [STU-ARC-004] — there is no XMP sidecar file, no private raw-develop database, and no SQLite cache; the \"non-destructive settings storage\" behavior of the source suites is satisfied by the EventLedger + authority-record model, not by an external metadata file."
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "line_start": 30701,
+      "line_end": 30701,
+      "body_excerpt": "**[STU-ASSET-019] Catalog capability set inherited by Studio.** Studio's asset projection inherits, and MUST NOT re-implement, the catalog capabilities defined for the Library/DAM surface at Spec 10.10.4.5: import by copy, import by reference in place, import by move, content-hash duplicate detection, hierarchical keyword tagging, 0-to-5 star rating, colour labels, pick/reject/unflagged flags, manual collections, rule-based smart collections, filesystem folder synchronisation, EXIF/IPTC/XMP metadata read and write, face-region tagging and identity clustering, geotagging and map view, image stacking, and virtual copies. Where a Studio workflow needs one of these, it calls it; it does not rebuild it."
+    }
+  ],
+  "workflows": [
+    {
+      "id": "ORIGINAL-PHOTO-WF-001",
+      "name": "Event shoot ingestion, culling and delivery",
+      "steps": [
+        "Import references or copies with duplicate identity and missing-original status",
+        "Cull with active-photo versus all-selected metadata scope",
+        "Maintain hierarchical keywords, stacks, manual and rule collections",
+        "Create color and monochrome virtual copies",
+        "Develop selected fields only, retain per-photo masks/crops",
+        "Export selected variants with explicit profile, size, sharpening, naming and metadata policy"
+      ],
+      "counterexample": "A collapsed stack and filtered grid show 40 thumbnails from 500 canonical photos; all-collection export must not silently target only loaded rows.",
+      "proof": "Canonical membership read before/after; materialized variant hashes; independent export metadata/profile inspection; Argus active/selected scope and hidden-stack state."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-WF-002",
+      "name": "Legacy RAW re-edit and deterministic migration",
+      "steps": [
+        "Read RAW identity, EXIF orientation, originating process and camera/lens profile references",
+        "Preserve old tone controls and immutable source settings",
+        "Apply non-AI brush, radial, linear and range masks with add/subtract/intersect/invert",
+        "Explicitly migrate process version with before/after receipt",
+        "Render and reopen using pinned renderer/profile dependencies"
+      ],
+      "counterexample": "Legacy Exposure/Contrast/Blacks preset is converted to modern controls while ProcessVersion is treated as bookkeeping; labels and slider numbers survive but the look and future edit behavior change.",
+      "proof": "Compare independent source-authored renders and typed state for old/new process versions, unsupported-profile status, panel enable flags, crop/orientation and ordered masks; reject silent version conversion."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-WF-003",
+      "name": "Disconnected original editing",
+      "steps": [
+        "Build a bounded derived preview linked to immutable original identity",
+        "Disconnect original storage",
+        "Edit variant parameters",
+        "Reattach or relink original",
+        "Render full-resolution delivery with retained edit graph"
+      ],
+      "counterexample": "Preview itself is promoted as the full-resolution original; reconnect duplicates variants or applies the develop stack twice.",
+      "proof": "Independent original digest before/after; missing-original and proxy-resolution UI state; identical edit graph through reconnect; explicit delivery limit when original remains absent."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-WF-004",
+      "name": "Layered retouch and linked commercial composite",
+      "steps": [
+        "Open developed RAW as re-editable placed source",
+        "Create shared embedded instances and independent copies",
+        "Link another asset across two documents",
+        "Apply transformations, masks and Smart Filters",
+        "Blend current/underlying channels with split thresholds, fill/opacity and knockout",
+        "Save PSD/PSB, close, reopen and modify placed source"
+      ],
+      "counterexample": "An opaque SoLd block survives byte round-trip while the imported layer is only a flattened preview; updating source then fails to update intended instances.",
+      "proof": "Two-document and two-instance update behavior; source edit after reopen; masks/filter graph state; missing-link recovery; independent render against reference with high-bit-depth gradient and layer effects."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-WF-005",
+      "name": "Color-managed print variant",
+      "steps": [
+        "Keep wide-gamut master",
+        "Choose printer/paper proof profile and rendering intent",
+        "Inspect monitor and output gamut warnings",
+        "Create proof variant",
+        "Adjust proof variant without mutating master",
+        "Export with profile/intent and inspect delivery"
+      ],
+      "counterexample": "Proof profile is assigned to pixels instead of applied as a view transform; original changes when proof copy is edited.",
+      "proof": "Master state invariant; proof variant relation; ICC/profile digest, intent and paper/ink flags; independent color-managed render and output metadata, not screenshot-only similarity."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-WF-006",
+      "name": "Lightroom versus Classic migration",
+      "steps": [
+        "Identify whether source is Classic catalog, Local directory/XMP, cloud original or cloud Smart Preview",
+        "Read complete eligible canonical source set",
+        "Preserve separate local/cloud identities and edits",
+        "Transfer catalog-only variants/history/rules via file-byte importer when available",
+        "Report unsupported or missing artifacts per item"
+      ],
+      "counterexample": "A cloud sync export is presented as a complete Classic migration even though histories, snapshots and keywords never crossed the sync boundary.",
+      "proof": "Source-channel capability matrix and per-item reconciliation; missing source fields are explicit, never synthesized; no cloud runtime dependency or second catalog authority."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-WF-007",
+      "name": "Multi-artboard commercial PDF delivery",
+      "steps": [
+        "Resolve all versus selected and visible artboards",
+        "Select page ordering and export recipe",
+        "Render/export without changing open source",
+        "Inspect output page count, bounds, text, color and metadata"
+      ],
+      "counterexample": "Selected artboards are confused with selected layers; reverse order or hidden artboard policy is ignored.",
+      "proof": "Independent PDF object/page inspection and rendered comparison; source digest unchanged; zero-visible and cancellation leave no falsely successful output."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-WF-008",
+      "name": "Pen retouch and accessible precise controls",
+      "steps": [
+        "Choose pressure-size and pressure-opacity separately",
+        "Paint mask with tilt/rotation-capable input",
+        "Use numeric keyboard equivalent for split blend thresholds",
+        "Cancel active stroke or batch",
+        "Undo as one deliberate gesture"
+      ],
+      "counterexample": "A generic slider has two thresholds instead of eight per channel, or pen pressure modifies both size and opacity despite separate toggles.",
+      "proof": "Recorded device input trace and typed control state; Argus accessible keyboard operation, focus/units/ranges; cancellation, rollback and one-gesture history; unavailable pen dimensions reported."
+    }
+  ],
+  "control_semantics": [
+    {
+      "id": "ORIGINAL-PHOTO-CTRL-001",
+      "subject": "Blend If",
+      "semantics": "Eight values per channel: black/white start/end for source and destination; gray is a channel member. Keyboard/model path must preserve both halves.",
+      "spec": "STU-RAS-159",
+      "mt": "MT-062",
+      "classification": "Already specified; add concrete proof, do not create duplicate feature."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-CTRL-002",
+      "subject": "Develop panel preview enable",
+      "semantics": "Disable contribution while retaining every parameter; resetting parameters is not a preview toggle.",
+      "spec": "STU-RAW-105",
+      "classification": "Already specified; verify imported enable flags and per-panel before/after."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-CTRL-003",
+      "subject": "Metadata selection scope",
+      "semantics": "Active image and all selected images differ, including mixed values and destructive overwrite semantics.",
+      "sources": [
+        "ADOBE-PHOTO-S06"
+      ],
+      "classification": "Proof enrichment candidate; full Library owning contract not inspected here."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-CTRL-004",
+      "subject": "Virtual copy and master",
+      "semantics": "Variant metadata sharing original bytes, independent edit state and master designation; physical copy occurs only on materialization.",
+      "spec": "STU-ASSET-019",
+      "mt": "MT-34411"
+    },
+    {
+      "id": "ORIGINAL-PHOTO-CTRL-005",
+      "subject": "Cancellation/history",
+      "semantics": "Bounded cancellation checkpoints, no post-cancel mutations, one logical undo unit; committed and prepared work distinguished.",
+      "sources": [
+        "ADOBE-PHOTO-S09"
+      ],
+      "classification": "Adapt behavior to kernel promotion/concurrency; do not import Adobe modal-global lock architecture."
+    }
+  ],
+  "craft_findings": [
+    {
+      "id": "ORIGINAL-PHOTO-CRAFT-001",
+      "severity": "HIGH",
+      "evidence": "lightroom_sqlite.rs:1-18,43-53",
+      "finding": "Actual code is a read-only page reader with B-tree limits and committed-WAL overlay; this is a reuse candidate within approved byte-parser boundary, not permission for catalog authority.",
+      "reuse": "Port parser behind bounded importer; transaction and identity publication use SurrealDB/EventLedger only.",
+      "limit": "Full parser correctness, adversarial WAL cases and memory high-water behavior not executed."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-CRAFT-002",
+      "severity": "HIGH",
+      "evidence": "lightroom_catalog.rs:80-86,431-438,814-843; lightroom_archive.rs:129-135; lightroom_job.rs:27-32",
+      "finding": "Code skips optional tables with warnings, constructs Album::new and current membership for smart collections, and can skip archive above 32 MiB. Thus successful photo import is not lossless migration.",
+      "mitigation": "Per-entity retained/translated/opaque/unsupported/missing outcome with durable provenance; retain rules as typed authority or explicitly unsupported; preservation outcome cannot be inferred from aggregate imported count."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-CRAFT-003",
+      "severity": "HIGH",
+      "evidence": "crs.rs:23-44,152-176,396-416",
+      "finding": "ProcessVersion is excluded from unmapped adjustment reports; legacy sliders are converted into modern controls relative to defaults; Enable-prefixed fields are quiet-filtered. This cannot prove STU-RAW process-version and panel-enable preservation.",
+      "mitigation": "Preserve version and full source values before mapping, explicit compatibility/approximation status, profile and enable-flag reconciliation; do not reuse unmapped count as full loss detector."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-CRAFT-004",
+      "severity": "MEDIUM",
+      "evidence": "docs/xmp-interop.md versus crs.rs:159-176",
+      "finding": "Documentation says only modern 2012 names are read, but inspected code also approximates old controls. Docs alone would miss the conversion.",
+      "mitigation": "Use exact code-body evidence and independent fixture; do not promote documentation tables as engine truth."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-CRAFT-005",
+      "severity": "HIGH",
+      "evidence": "docs/xmp-interop.md:Saving into an existing sidecar and Limits",
+      "finding": "Foreign crs/hierarchical keywords can survive byte-preserving export while becoming stale relative to new native settings. This is a semantic divergence risk, not necessarily byte loss.",
+      "mitigation": "XMP is import/export interoperability, never authority. Define owned/foreign/conflicting fields and post-edit export outcomes; reopen exported metadata in independent parser."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-CRAFT-006",
+      "severity": "MEDIUM",
+      "evidence": "photocraft crates/psd/src/tagged.rs:264-312; layer.rs:324-354",
+      "finding": "PSD code checks structure of placed/linked blocks and preserves eight-byte blend range entries. This is useful format evidence but does not establish runtime linked-object/filter/compositing parity.",
+      "mitigation": "Separate opaque byte retention, parsed editable semantics and render behavior in every native-format outcome."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-CRAFT-007",
+      "severity": "MEDIUM",
+      "evidence": "lightroom_catalog.rs:833-840",
+      "finding": "Reimport of existing albums merges new membership while preserving old members; source deletions are not reflected by this loop.",
+      "mitigation": "Define source reconciliation versus native edits; fixture removing a source collection member must produce explicit policy outcome rather than accumulate silently."
+    },
+    {
+      "id": "ORIGINAL-PHOTO-CRAFT-008",
+      "severity": "MEDIUM",
+      "evidence": "Installed WorkspaceImportExport.jsx:54-67,98-116,143-174",
+      "finding": "Inspected function bodies screen workspace name conflicts, copy supplied file bytes, reload/reset workspaces and remove modified workspace residue. This does not parse workspace panel/control semantics.",
+      "mitigation": "Treat installed source as workflow/control evidence only; validate native Studio workspace schema and conflict outcomes independently. Do not copy foreground/reset/deletion behavior into quiet model operation."
+    }
+  ],
+  "spec_mt_deltas": [
+    {
+      "id": "PROPOSED-PHOTO-DELTA-001",
+      "kind": "proof_enrichment",
+      "existing_anchors": [
+        "STU-RAW-001",
+        "STU-RAW-002",
+        "STU-RAW-012",
+        "STU-RAW-105",
+        "STU-RAW-106"
+      ],
+      "existing_mts": [
+        "MT-411",
+        "MT-422"
+      ],
+      "delta": "Require legacy-process/profile/enable-flag fixture with explicit render-compatibility status and receipt; preserve source process independently of Studio renderer version.",
+      "proof": "Independent imported-state read plus source-authored reference render; native determinism alone does not prove Adobe parity."
+    },
+    {
+      "id": "PROPOSED-PHOTO-DELTA-002",
+      "kind": "import_acceptance_enrichment",
+      "existing_anchors": [
+        "STU-ASSET-019",
+        "STU-ARC-004"
+      ],
+      "existing_mts": [
+        "MT-34411"
+      ],
+      "delta": "Require catalog-only histories, snapshots, virtual copies, rule definitions, missing originals and reimport identity reconciliation; byte retention and editable semantics separate.",
+      "proof": "Source entity inventory reconciled to canonical SurrealDB records and retained immutable payloads, with every unsupported entity named; source .lrcat/WAL bytes unchanged.",
+      "boundary": "Library/DAM owns catalog features; do not rebuild in Studio or copy LightCraft catalog store/journal."
+    },
+    {
+      "id": "PROPOSED-PHOTO-DELTA-003",
+      "kind": "proof_enrichment",
+      "existing_anchors": [
+        "STU-RAS-041",
+        "STU-RAS-159"
+      ],
+      "existing_mts": [
+        "MT-062"
+      ],
+      "delta": "Four split transitions in source/destination gray plus one non-gray channel, tested with fill versus opacity and knockout.",
+      "proof": "Independent gradient reference render, per-channel state after PSD reopen, keyboard/model/pen-independent control paths; existing eight-value feature retained."
+    },
+    {
+      "id": "PROPOSED-PHOTO-DELTA-004",
+      "kind": "native_interchange_proof",
+      "existing_anchors": [
+        "STU-DOC-002"
+      ],
+      "existing_mts": [
+        "MT-023"
+      ],
+      "delta": "Placed-asset import proof must distinguish external linked asset, embedded shared instances and independent embedded copies; no flattening disguised as smart-object parity.",
+      "proof": "Change source after reopen in two documents; verify intended instance updates, independent copy invariant, missing links and retained filter/mask/transform graph.",
+      "limit": "MT-023 layer-kind summary inspected; exact placed-asset dependency MT chain still requires root reconciliation."
+    },
+    {
+      "id": "PROPOSED-PHOTO-DELTA-005",
+      "kind": "cross_module_workflow_proof",
+      "existing_anchors": [
+        "STU-ASSET-019",
+        "STU-RAW-001"
+      ],
+      "existing_mts": [
+        "MT-34411",
+        "MT-411"
+      ],
+      "delta": "Require disconnected preview editing, full-resolution reconnect and print proof variants as composed workflows; generic catalog/RAW component proof is insufficient.",
+      "proof": "Canonical original/variant/profile state, artifact/profile hashes, Argus operator route and model route; FR/internal_diagnostics/UserManual/Palmistry evidence per root modular plan."
+    },
+    {
+      "id": "PROPOSED-PHOTO-DELTA-006",
+      "kind": "proof_boundary_clarification",
+      "existing_anchors": [
+        "STU-ARC-004"
+      ],
+      "existing_mts": [
+        "MT-411",
+        "MT-34411"
+      ],
+      "delta": "Resolve the literal no-XMP-sidecar-file wording at Studio 14 line 20806 against STU-ASSET-019 EXIF/IPTC/XMP read/write inheritance. Proposed resolution: sidecars are interoperability artifacts only, not authority; approved read-only .lrcat bytes are input, never SQL-queryable/writable second database. Root must publish the clarification, not assume it already exists.",
+      "proof": "Importer publishes only through promotion/EventLedger; source bytes invariant; bounded job/byte admission, cancel before publish, late generation rejected and principal/access-space provenance."
+    },
+    {
+      "id": "PROPOSED-PHOTO-DELTA-007",
+      "kind": "proof_contract_hydration",
+      "existing_anchors": [
+        "STU-RAW-001",
+        "STU-RAW-002",
+        "STU-ASSET-019"
+      ],
+      "existing_mts": [
+        "MT-411",
+        "MT-34411"
+      ],
+      "delta": "MT-411 inspected row proof targets still contain PROOF TARGET REQUIRED / status REQUIRED; MT-34411 has no proof-command field and validator_focus requires executable-runtime proof. Hydrate concrete independent commands during root contract preparation without deleting scope or changing IDs.",
+      "proof": "Source reconciliation and canonical-state reread for each acceptance row; validator owns runtime execution. No current command invented or executed."
+    }
+  ],
+  "fixture_gaps": [
+    {
+      "id": "PHOTO-FIXTURE-001",
+      "required": "Source-authored legacy PV RAW plus current-PV sibling with camera/lens profile and reference renders",
+      "purpose": "Expose numeric mapping without rendering or edit parity",
+      "availability": "NOT_ACQUIRED"
+    },
+    {
+      "id": "PHOTO-FIXTURE-002",
+      "required": "Classic .lrcat plus committed/uncommitted/torn WAL, virtual master swap, snapshot/history, smart rule, removed collection member and missing original",
+      "purpose": "Per-entity migration and retry/source-stability proof",
+      "availability": "NOT_ACQUIRED; no SQL execution permitted"
+    },
+    {
+      "id": "PHOTO-FIXTURE-003",
+      "required": "Non-AI brush/radial/linear mask with subtract/intersect/invert/range feather, EXIF 6 and mirrored orientation",
+      "purpose": "Ordered geometry and coordinate-space preservation",
+      "availability": "NOT_ACQUIRED"
+    },
+    {
+      "id": "PHOTO-FIXTURE-004",
+      "required": "PSD/PSB nested embedded/shared/independent/linked placed objects, split per-channel Blend If, filters, fill opacity and knockout",
+      "purpose": "Executable editable semantics beyond opaque block retention",
+      "availability": "NOT_ACQUIRED"
+    },
+    {
+      "id": "PHOTO-FIXTURE-005",
+      "required": "RAW/JPEG same stem, foreign XMP namespaces, hierarchical keyword removal, unknown profile and AlreadyApplied flag",
+      "purpose": "Export conflict/staleness and double-application prevention",
+      "availability": "NOT_ACQUIRED"
+    },
+    {
+      "id": "PHOTO-FIXTURE-006",
+      "required": "Wide-gamut 16/32-bit gradient, printer ICC, proof-copy recipe and independent output reference",
+      "purpose": "Proof-transform versus profile-assignment and delivery loss",
+      "availability": "NOT_ACQUIRED"
+    },
+    {
+      "id": "PHOTO-FIXTURE-007",
+      "required": "Real pressure/tilt/rotation trace and accessible split-control keyboard route",
+      "purpose": "Input-dimension isolation and discoverable alternatives",
+      "availability": "Native GUI/device access unavailable; no runtime claim"
+    },
+    {
+      "id": "PHOTO-FIXTURE-008",
+      "required": "Over-limit optional table/archive plus many concurrent imports and cancel/reopen same path",
+      "purpose": "Preservation failure, bounded total resident memory and stale result publication",
+      "availability": "Fixture requirements only; no execution"
+    }
+  ],
+  "limits": [
+    "Native Adobe GUI was not controlled or launched. Installed scripts are readable source only, vendor binaries are not source.",
+    "No upstream code, parser, SQL engine, builds or tests executed.",
+    "No runtime, format-parity or acceptance PASS issued.",
+    "Studio module and selected MT contracts inspected; complete 5484-MT absence or completeness is not asserted.",
+    "Adobe AI features excluded from implementation proposals; supported non-AI manual masks remain in scope.",
+    "Reference fixtures listed are concrete acquisition requirements, not fabricated passing evidence."
+  ],
+  "next_actor": "Root reconciles proposed deltas with all preserved MTs and approved modular spec publication; independent reviewer challenges fixtures and data-loss findings."
+}

@@ -8,7 +8,7 @@ title: "14. Studio -- Unified Creative Suite"
 source_baseline_version: "v02.199"
 source_baseline_path: ".GOV/spec/Handshake_Master_Spec_v02.182.md"
 source_body_original_sha256: "81e296ec522d1058614cf2480b05bfdc0359fa2da85258a2fffc43c3ec756a15"
-body_sha256: "63463fc6ccf94f980039af21cfa9abf8f8470bb8ff95e2ff03ba8cba1f7b2e2a"
+body_sha256: "050fef420d1a950663bfe4964cfb122141063520308d572975e886ce3695adb3"
 metadata_rule: "frontmatter is machine metadata; body follows after this block"
 ---
 # 14. Studio -- Unified Creative Suite [STU-SECTION-001]
@@ -212,7 +212,7 @@ Studio binds to the kernel exactly as Tailor does (§13.11). This sub-section st
 
 [STU-CON-008] CANONICAL PORT AND SERIALIZATION LAW. Every asset module MUST use the canonical Studio schema IDs, prefixed domain IDs, field types and units without reminting/forking them. Sequence storage preserves 254016000000 integer ticks per second, frame_rate.ticks_per_frame:u64 and the normative broadcast table/normalization receipts [STU-VID-011–013a]. Intermediate arithmetic MUST be checked; widening stored types or changing schema meaning requires explicit versioned spec enrichment, not an invented i128 replacement. Rational/float time is interchange/display only. Typed importer outputs are proposals; CRDT is draft state and SurrealDB/EventLedger remains promotion/replay authority.
 
-[STU-ARC-010] MODULE CATALOG. The canonical asset module roots are `handshake-studio-assets/crates/hsk-studio-{accord,observe,folio,chronicle,prism,pigment,nib,type,layout,develop,components,pulse,score,reel,motion,composite,render-cpu,render-gpu,package,interop-psd,interop-vector,interop-fig,interop-layout,interop-media,controls,session,harness,kernel-bindings,press,web,score-device,score-plugin,reel-native,interop-lrcat}`. The workspace owner coordinates manifests, lockfile, toolchain, closure and mirror provenance; it is not Accord. Every root MUST have its declared semantic owner and public contracts. The asset kernel-bindings root owns host-neutral bridge contracts/consumers; actual AppState/native/SurrealDB consumers live later in the Handshake integration target outside this isolated workspace. No optional path dependency to missing Handshake source may make the mirrored workspace unresolved.
+[STU-ARC-010] MODULE CATALOG. The canonical asset module roots are `handshake-studio-assets/crates/hsk-studio-{accord,observe,folio,chronicle,prism,pigment,nib,type,layout,develop,components,pulse,score,reel,motion,composite,render-cpu,render-gpu,package,interop-psd,interop-vector,interop-fig,interop-layout,interop-media,controls,session,harness,kernel-bindings,press,web,score-device,score-plugin,reel-native,interop-lrcat,motion-js}`. The workspace owner coordinates manifests, lockfile, toolchain, closure and mirror provenance; it is not Accord. Every root MUST have its declared semantic owner and public contracts. The asset kernel-bindings root owns host-neutral bridge contracts/consumers; actual AppState/native/SurrealDB consumers live later in the Handshake integration target outside this isolated workspace. No optional path dependency to missing Handshake source may make the mirrored workspace unresolved.
 
 [STU-ARC-011] MUTATION OWNERSHIP. A document-scoped actor MUST serialize accepted commits while compute consumes immutable snapshots and proposes patches. Target/object/property read/write footprints and expected revision vectors MUST admit disjoint changes according to current conflict semantics, including [STU-DS-163]; a blanket whole-document CAS MUST NOT replace them. Commit validation rechecks current grants and target preconditions and writes accepted patch, authority heads, EventLedger and idempotency outcome in one SurrealDB transaction. A lost acknowledgment/restart MUST rediscover the committed receipt rather than apply twice. CRDT draft merge and durable transaction commit are separate boundaries.
 
@@ -224,7 +224,7 @@ Studio binds to the kernel exactly as Tailor does (§13.11). This sub-section st
 
 [STU-ARC-015] VISUAL RECEIPTS. Every visual mutation/check MUST bind Argus observation to exact committed/proposed revision, command/actor, frame/region, renderer/version, color/profile, original/proxy resolution and current resource grant. A screenshot of a previous revision, original cached composite, unlabelled proxy or unsupported fallback MUST NOT prove the edited result. Every render/import error and unavailable device/provider MUST return typed loss/failure; optional early-return test paths are NOT_PROVEN, never PASS.
 
-[STU-ARC-016] FOUNDATION PROOF AND BUILD. All 34 module foundations and workspace coordination MUST precede any feature MT. A foundation implements a narrow real bounded capability with a real consumer and failure path; a missing proprietary decoder MAY expose actual container/opaque/loss validation, while the editable decoder feature remains explicitly blocked. Hollow registries, canned responses, no-op sinks and empty tests do not satisfy foundations. Locked selected-package dependency/feature closure and actual compiler evidence MUST distinguish pure leaves, optional native providers and later embedding. Measured rebuild fanout at a stable source path, external owner-specific artifact root and exact candidate identity are required before claiming compile improvement. ARM-host and x64-product proof remain separate; neither silently substitutes for the other.
+[STU-ARC-016] FOUNDATION PROOF AND BUILD. All 35 module foundations and workspace coordination MUST precede any feature MT. A foundation implements a narrow real bounded capability with a real consumer and failure path; a missing proprietary decoder MAY expose actual container/opaque/loss validation, while the editable decoder feature remains explicitly blocked. Hollow registries, canned responses, no-op sinks and empty tests do not satisfy foundations. Locked selected-package dependency/feature closure and actual compiler evidence MUST distinguish pure leaves, optional native providers and later embedding. Measured rebuild fanout at a stable source path, external owner-specific artifact root and exact candidate identity are required before claiming compile improvement. ARM-host and x64-product proof remain separate; neither silently substitutes for the other.
 
 [STU-ARC-017] MT PRESERVATION. Architecture migration MUST preserve every prior MT ID, original scope, acceptance payload, rationale and proof obligation with baseline identity and explicit fulfillment mapping to asset-local work plus separately retained kernel embedding. Compound scopes MUST name contributing module owners. Every current HBR rule MUST carry per-MT applicability trigger/reason and proof destination; shared proof is reusable only with unchanged input identity. Foundation completion does not mark old vendor-parity or kernel acceptance complete.
 
@@ -233,6 +233,10 @@ Studio binds to the kernel exactly as Tailor does (§13.11). This sub-section st
 [STU-IO-188] PRESERVATION AND SANITIZED DELIVERY. Preservation snapshots and sanitized deliverables MUST use distinct explicit export policies. Sanitized output MUST exclude disallowed originals, opaque records, thumbnails, history, attachments and metadata from the full reachable payload set; preserving an input file MUST NOT reintroduce removed content. Imports/render/read/retry/export/delivery MUST resolve fresh recipient grants, including linked files and explicitly selected WAL bytes; serialized permission tokens are provenance only. Independent saved/decompressed-byte inspection, fault/revocation and twice-roundtrip edited fixtures are required.
 
 [STU-IO-189] NATIVE AUDIO AND CATALOG INTEROP. `.sesx` editable session transport and Lightroom catalog/develop/WAL provenance MUST have explicit versioned per-entity mapping/loss outcomes alongside INDD/PRPROJ/AEP/FIG requirements [STU-IO-186]. Unsupported process-version/Enable flags, smart rules, archive entities or plugin/effect graphs MUST be retained/translated/approximate/unsupported/missing explicitly; successful parser/count is not full conversion. The .lrcat decoder public API is fixed-format semantic extraction from bounded immutable granted bytes, never a generic table/query/database API.
+
+
+[STU-IO-190] Native identity and reopen. `.handshake` is a snapshot/interchange transport, never a grant or live database. Explicit reopen preserves document/object IDs only when the host independently resolves current authorized workspace/document identity and verifies the package's source head, schema, revision and content manifest; divergent state becomes an inspectable import/reconcile proposal, not a blind overwrite or automatic grant. Default import, duplicate/copy and fork allocate fresh canonical destination IDs and rewrite the complete reachable known typed reference graph atomically, retaining original source IDs/digests as provenance. They never copy authority receipts, capabilities or principal/session identities as destination grants. Missing/external/ambiguous references stay explicit; unknown opaque content is preserved/quarantined with its original mapping, and inability to rewrite required editable references blocks promotion rather than silently dropping data. IDs colliding with existing destination records cannot overwrite them. Validate mode-specific roundtrips, private/history/artifact reachability, same-ID/different-content collisions, partial save/recovery and current authorization before container activation. A host lacking these ports exposes read-only inspection/proposals, not counterfeit Handshake authority.
+
 
 [STU-PDF-001] PDF REDACTION. Press MUST expose separate reversible marking and irreversible apply-redaction proposal semantics, selective sanitize and full-save disposition, including signed/read-only states and explicit removed-content scope. Accepted destructive application MUST go through normal proposal/promotion and provenance. Full reachable-object rewrite and exclusion of prior revisions/source preservation payloads MUST be independently checked against text, graphics, metadata, attachments and decompressible bytes; exporter self-verification is insufficient.
 
@@ -250,7 +254,7 @@ Studio binds to the kernel exactly as Tailor does (§13.11). This sub-section st
 
 ## 14.3 Unified Document Model and Studio Primitive Set
 
-[STU-DOC-001] `StudioDocument` (schema id `hsk.studio.document@1`) is the single unified document type spanning all Studio domains. One document holds a tree of `StudioLayer` nodes over one or more `StudioArtboard`/`StudioPageSpread` containers; a layer's `kind` selects its domain payload (`raster`, `vector`, `text`, `group`, `adjustment`, `live_filter`, `mask`, `fill`, `component_instance`, `frame`, `placed_asset`). There is no per-source-app document silo: a raster edit, a vector edit, and a layout edit operate on layers in the same `StudioDocument` through the same selection, history, color, and export surfaces. `StudioDocument` MUST derive `schemars::JsonSchema` so its MCP `inputSchema` is auto-generated, and it is the single type shared between the model's output surface, the engines' input surface, and the typed SurrealDB object field (`studio_documents.doc_json`).
+[STU-DOC-001] `StudioDocument` (schema id `hsk.studio.document@1`) is the single unified document type spanning all Studio domains. One Folio document retains the containment hierarchy of `StudioLayer` nodes over `StudioArtboard`/`StudioPageSpread` containers and their typed composition-operation/port edges under [STU-CMP-092]; containment and render dependencies have distinct semantics within the same authored records, not separate mutable layer/graph documents; a layer's `kind` selects its domain payload (`raster`, `vector`, `text`, `group`, `adjustment`, `live_filter`, `mask`, `fill`, `component_instance`, `frame`, `placed_asset`). There is no per-source-app document silo: a raster edit, a vector edit, and a layout edit operate on layers in the same `StudioDocument` through the same selection, history, color, and export surfaces. `StudioDocument` MUST derive `schemars::JsonSchema` so its MCP `inputSchema` is auto-generated, and it is the single type shared between the model's output surface, the engines' input surface, and the typed SurrealDB object field (`studio_documents.doc_json`).
 
 [STU-DOC-002] The canonical Studio primitive set is normative and deduped (one primitive per shared capability): `StudioDocument`, `StudioArtboard`, `StudioPageSpread`, `StudioLayer`, `StudioLayerGraph`, `StudioSelectionSet`, `StudioMask`, `StudioRasterTile`, `StudioVectorPath`, `StudioVectorNetwork`, `StudioTextStory`, `StudioTypeStyle`, `StudioColorProfile`, `StudioSwatch`, `StudioGradient`, `StudioPattern`, `StudioEffectStack`, `StudioAdjustment`, `StudioLiveFilter`, `StudioBlendMode`, `StudioComponent`, `StudioComponentInstance`, `StudioVariable`, `StudioVariableCollection`, `StudioStyleRegistry`, `StudioLayoutGrid`, `StudioConstraint`, `StudioAutoLayout`, `StudioPrototypeFlow`, `StudioMotionTimeline`, `StudioExportRecipe`, `StudioImportProfile`, `StudioHistoryEntry`, `StudioEditProposal`, `StudioModelAdapter`, `StudioValidationDescriptor`, `StudioRenderHarness`. The full field-level canonical definitions live in 14.23; the per-domain catalogs (14.4-14.15) reference these primitives rather than redefining them.
 
@@ -2952,7 +2956,7 @@ canonical contracts and MUST NOT redefine their fields; where any statement here
 14.23, 14.23 wins.
 
 The compute-heavy geometry, tessellation, boolean, stroking, and brush-instancing work is owned by
-the `VectorEngine` trait in the the owning modular Studio asset crate crate (14.2); the integrated Studio vector binding
+the `VectorEngine` trait in the owning modular Studio asset crate (14.2); the integrated Studio vector binding
 reaches it only through that typed boundary and never embeds GPU/tessellation dependencies in
 `handshake_core` ([STU-ARC-002]). Durable vector authority is SurrealDB/EventLedger only
 ([STU-SDB-002]); no second store, cache or fixture database is permitted anywhere in this domain,
@@ -5086,7 +5090,7 @@ test hooks and its UserManual entry all exist and its geometry round-trips throu
 **[STU-VEC-179] Engine boundary and determinism.** All geometry evaluation named in 14.5 --
 tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp
 evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the
-the owning modular Studio asset crate crate and MUST be deterministic: identical inputs (geometry, z-order, parameter
+the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter
 values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce
 byte-identical outputs on every host. `handshake_core` MUST NOT gain `wgpu`, WGSL or any GPU
 dependency for this domain ([STU-ARC-002]); GPU acceleration of these operations is permitted only
@@ -7566,7 +7570,7 @@ other. They are enumerated here so the work is derivable rather than asserted in
 
 **[STU-LAY-167] Engine boundary and determinism.** Layout composition, reflow, threading, table
 composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the
-the owning modular Studio asset crate crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a
+the owning modular Studio asset crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a
 native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text
 engine even where one would be easier. `handshake_core` MUST NOT gain `wgpu`, WGSL or any GPU
 dependency for this domain ([STU-ARC-002]). Composition MUST be deterministic: identical inputs
@@ -8032,7 +8036,7 @@ shared linked-resource surface.
 
 **[STU-TYP-126] Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).**
 The Studio text-shaping and text-layout stack MUST be native Rust of the
-cosmic-text / rustybuzz / swash class, owned by the the owning modular Studio asset crate crate behind the
+cosmic-text / rustybuzz / swash class, owned by the owning modular Studio asset crate behind the
 `TextEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on DirectWrite, Core Text,
 Pango, HarfBuzz-via-C, ICU-via-C, or any platform, OS, browser or subscription-gated shaping,
 line-breaking, bidi, normalisation, hyphenation or font-enumeration service at runtime, on any
@@ -9410,7 +9414,7 @@ Conversion between `point` and `area` MUST be a non-destructive operation preser
 
 ### 2. Native Shaping & Line-Breaking Engine (`TextEngine`)
 
-[STU-TYP-008] Native-Rust shaping mandate. The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the the owning modular Studio asset crate crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on a platform text engine (DirectWrite, Core Text, Pango) or any external/subscription-gated shaping service at runtime ([STU-OVR-002]). Shaping, line-breaking, justification, and glyph selection are deterministic given identical inputs so that model-authored and operator-authored layout produce byte-identical results across hosts (a promotion-equivalence requirement of 14.24).
+[STU-TYP-008] Native-Rust shaping mandate. The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on a platform text engine (DirectWrite, Core Text, Pango) or any external/subscription-gated shaping service at runtime ([STU-OVR-002]). Shaping, line-breaking, justification, and glyph selection are deterministic given identical inputs so that model-authored and operator-authored layout produce byte-identical results across hosts (a promotion-equivalence requirement of 14.24).
 
 [STU-TYP-009] Unified complex-script shaping. ONE engine MUST handle Latin, Cyrillic, Greek, Arabic, Hebrew, Indic, Southeast-Asian, and CJK scripts with script-aware shaping, right-to-left and bidirectional runs, Kashida justification and diacritic positioning for Arabic/Hebrew, and CJK line-breaking (kinsoku) and inter-character spacing (mojikumi) rules (provenance: Photoshop unified text engine + international scripts; Illustrator RTL/Kashida + Asian composers; InDesign World-Ready + Japanese composers). There is no separate "world-ready" build; complex-script support is always present.
 
@@ -12353,7 +12357,7 @@ These clauses were NOT redefined by the rebuilt sub-section above, so they remai
 
 [STU-COL-005] OCIO for 32-bit / scene-linear: for 32-bit float documents, Studio MUST support an OpenColorIO (OCIO v2-class) configuration path driving color-space transforms and a display transform (choice of ICC display transform, unmanaged linear light, or OCIO display transform), plus a non-destructive 32-bit preview control (exposure/gamma, EDR/HDR display) that changes screen presentation only and leaves document values unchanged (provenance: Affinity OCIO v2 pipeline + 32-bit Preview panel, deduped). Exporting an adjustment-stack grade as a 3D LUT is an optional color-pipeline export (provenance: Affinity export-3D-LUT).
 
-[STU-COL-006] Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation math are owned by the the owning modular Studio asset crate crate behind the `ColorEngine: Send + Sync` trait ([STU-ARC-002]); Studio MUST NOT depend on a platform CMM or subscription color service ([STU-OVR-002]). Transforms are deterministic given identical profiles and intents (a promotion-equivalence requirement of 14.24).
+[STU-COL-006] Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation math are owned by the owning modular Studio asset crate behind the `ColorEngine: Send + Sync` trait ([STU-ARC-002]); Studio MUST NOT depend on a platform CMM or subscription color service ([STU-OVR-002]). Transforms are deterministic given identical profiles and intents (a promotion-equivalence requirement of 14.24).
 
 [STU-COL-031] Mode conversion MUST be an explicit, reversible-where-lossless operation between the models of [STU-COL-002], carrying model-specific conversion options: Bitmap conversion exposes method (50% threshold, pattern dither, diffusion dither, halftone screen with frequency/angle/shape, custom pattern) and output resolution; Indexed conversion exposes palette type, color count, forced colors, transparency, matte, and dither with an editable color table; Duotone conversion exposes mono/duo/tri/quadtone ink slots with per-ink transfer curves and overprint colors; Grayscale conversion exposes the tonal mapping (provenance: Photoshop mode-conversion option dialogs, deduped). Lossy conversions warn before discarding channels.
 
@@ -12659,25 +12663,9 @@ labelled as one, never written back into the parameter record. In the recovered 
 
 ### 8. The scrubbable numeric control
 
-[STU-FX-110] **Every numeric parameter is scrubbable, and the scrub increments are part of the
-parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press;
-`coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and
-deterministic so that two Studio builds agree:
+[STU-FX-110] **Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges.
 
-- If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`,
-  `coarse_step = step * 10`.
-- If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`,
-  `fine_step = step / 10`, `coarse_step = step * 10`.
-- If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`.
-- An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`.
-
-**[STU-FX-110a]** Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass
-freely through `soft_min`/`soft_max`, extending the control. Typed entry follows [STU-FX-104]:
-inside hard bounds it succeeds regardless of soft bounds; outside hard bounds it is rejected, not
-clamped. The scrub gesture, the typed entry, the arrow-key path and the AccessKit-exposed
-increment/decrement actions MUST all route through one clamp implementation so an assistive-
-technology adjustment cannot reach a value the pointer path forbids, and vice versa. The exact
-coarse and fine modifier keys are an open operator decision recorded in [STU-FX-149].
+**[STU-FX-110a]** Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exact typing bypasses resistance: in-hard-range values succeed and out-of-hard-range values reject rather than clamp. Pointer, typed, arrow, accessibility and model routes use one descriptor/validation owner with explicit action semantics. [STU-FX-149] closes modifier defaults; no domain creates a copied clamp, step or gesture implementation.
 
 ### 9. Parameter kinds
 
@@ -19015,9 +19003,7 @@ tolerance per effect kind and a golden-image set; neither exists yet for any of 
 here. The tolerances are authored in 14.24 and this sub-section requires only that every catalogue
 row is covered.
 
-**[STU-FX-149] OPEN DECISION -- the scrubbable control's coarse and fine modifier keys.** The
-derivation of the increments is fixed by [STU-FX-110]; which modifier selects which increment is an
-operator decision, recorded here so that the two are not conflated.
+**[STU-FX-149] RESOLVED -- shared numeric gesture roles.** [STU-SHL-190] owns coarse Shift x10, fine Ctrl (Windows/Linux) or Command (macOS) /10, and combined coarse+fine x100. Alt has no numeric magnitude role. One typed Controls binding configuration may rebind physical predicates to these fixed semantic roles, with contextual conflict validation, platform mapping, restore-default and visible/accessibility hints. Exact-value/model commands need no synthesized chord. Extend the existing input/settings owner; a modifier-only gesture predicate is not an existing accelerator chord.
 
 **[STU-FX-150] GAP -- vendor prose for 573 of 635 effect identities.** Per [STU-FX-129] only 62
 carry a recovered description. Studio's own behaviour statements in the catalogues are normative;
@@ -21193,23 +21179,22 @@ The sole exception is bounded read-only decoding of an Operator-selected externa
 
 ### 8. Microtask Derivation
 
-**[STU-IO-168] Derivation rule (NORMATIVE).** The interoperability microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else:
+**[STU-IO-168] Derivation rule (NORMATIVE).** The interoperability microtask set is derived mechanically from explicit source units, not editorially. Preserved baseline units retain their original identities and acceptance payloads under [STU-ARC-017] and [STU-ARC-022]. ONE new microtask corresponds to ONE of the following units; the baseline lists below remain applicable to their captured clauses:
 
 1. Each numbered clause that states a **parameter-model rule** ([STU-IO-101], [STU-IO-102], [STU-IO-103], [STU-IO-106], [STU-IO-107], [STU-IO-108], [STU-IO-109], [STU-IO-110], [STU-IO-144], [STU-IO-145]), a **closed enumeration or value domain** ([STU-IO-104], [STU-IO-105], [STU-IO-128], [STU-IO-136], [STU-IO-150], [STU-IO-151]), a **settings record shape** ([STU-IO-111], [STU-IO-112], [STU-IO-113], [STU-IO-114], [STU-IO-115], [STU-IO-116], [STU-IO-117], [STU-IO-127], [STU-IO-130], [STU-IO-131], [STU-IO-132], [STU-IO-133], [STU-IO-139], [STU-IO-141], [STU-IO-143], [STU-IO-146], [STU-IO-147], [STU-IO-148]), a **numeric contract table** ([STU-IO-129], [STU-IO-137], [STU-IO-138]), a **preset or group contract** ([STU-IO-125], [STU-IO-126], [STU-IO-134], [STU-IO-135]), an **encoding contract** ([STU-IO-142]), a **scale contract** ([STU-IO-140], [STU-IO-152], [STU-IO-153], [STU-IO-154]), or an **execution guarantee** ([STU-IO-162], [STU-IO-163]), where that clause can be implemented and proven independently of its siblings.
 2. Each **validation-descriptor clause** in sub-section 9, [STU-IO-173] through [STU-IO-185]. Each of the 13 descriptors named in [STU-IO-165] is stated as its own clause precisely so it yields its own microtask: a check is a unit of implementable, independently provable work, and one microtask reading "implement 13 checks" is not implementable by the small models these contracts are sized for. A descriptor list inside a single clause, whether as prose or as a table, is one unit to any derivation tool and therefore loses 12 units of real work.
 
-No other unit yields a microtask. Exactly 6 clauses in this module yield nothing, and they are:
+3. Each v02.207 interoperability amendment [STU-IO-186] through [STU-IO-190] yields one clause unit with an append-only, noncolliding MT ID and explicit acceptance mapping under [STU-ARC-022]. These clauses yield regardless of their physical section placement. Their compound obligations MUST remain fully represented in acceptance criteria and contributing-owner mappings; one clause unit does not imply one implementation owner or one proof.
 
-- **Baseline, scope-fence and supersession clauses** — [STU-IO-100], which sits under the bookkeeping heading `0. Baseline, supersession and disposition`. These are discharged when the v02.206 bundle lands, not by a work packet.
-- **This derivation sub-section itself** — its five clauses yield nothing.
+No other unit yields under this interoperability rule. The following six clauses yield no implementation unit: [STU-IO-100] and [STU-IO-168] through [STU-IO-172]. This no-yield disposition applies only to those named anchors; it MUST NOT suppress amendment units or their required fulfillment mappings.
 
-Every other clause yields at least one unit. This list is the module's declared non-yielding set and is the authority a derivation tool reconciles against.
+Every other clause covered by this rule yields at least one unit. The explicit yielding classes and named no-yield set are reconciled against the captured source version; other Studio families use their own derivation contracts. Prior numeric IDs, original unit identities and acceptance payloads MUST NOT be regenerated or renumbered.
 
 **[STU-IO-169] Open items and blocked dependencies.** This module declares no BLOCKED dependency. It does declare a large number of UNKNOWN bounds — every `hard_min` or `hard_max` marked `unknown` in [STU-IO-129], [STU-IO-137] and [STU-IO-143]. An unknown bound is NOT an open item: [STU-IO-103] settles it normatively by requiring the parameter be passed unclamped and the encoder's own error surfaced. Those clauses therefore yield ordinary microtasks. Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency — reading the named surface, obtaining the named decision, or raising a BLOCKED record with the exact blocker. A declared gap MUST NOT be dropped from the yields index.
 
 **[STU-IO-170] Microtask content obligation.** A microtask derived under [STU-IO-168] MUST carry into its own body: the clause anchor; the SEVEN parameter-contract fields of every parameter it touches, as SEPARATE fields, with `unknown` and `absent` preserved and never collapsed per [STU-IO-103]; the complete member list of every enumerated value domain it touches, with its `domain_completeness` marking where the domain is partial; the real unit token, never a guess, per [STU-IO-160]; and the determinism obligation of [STU-IO-163] where it touches a writer. A microtask that says "implement the PDF image settings" without the eleven-setting family of [STU-IO-127] and the value domains of [STU-IO-128] does not satisfy this clause.
 
-**[STU-IO-171] Yields index (NORMATIVE).** The counts below are the derivation surface of this module under [STU-IO-168]. They are not estimates: they are the measured output of applying that rule to this module's text, and every row states which unit kinds it contributes.
+**[STU-IO-171] Yields index (NORMATIVE).** The retained table below records the captured v02.206 derivation baseline and its original unit identities; it is not a measured count of amended v02.207 text. The current yields index MUST separately enumerate all baseline units and new amendment units under [STU-IO-168], bind exact source hashes, and report independently reconciled totals. Baseline counts MUST NOT be copied as current totals or used to suppress new units.
 
 | Unit group | Clauses | Units by kind | Yields |
 |---|---|---|---|
@@ -21224,9 +21209,9 @@ Every other clause yields at least one unit. This list is the module's declared 
 | Clauses yielding nothing | 6 clauses, listed in [STU-IO-168] | — | 0 |
 | **Module total** | | **73 clauses** | **71** |
 
-Of this module's 73 clauses, 6 yield nothing and 67 yield at least one unit; tables inside yielding clauses contribute the remainder. The module total is **71**. The last numeric column is the yields count.
+The retained baseline records 73 clauses, six non-yielding clauses and 71 units. Current v02.207 totals remain unverified until exact unit-set reconciliation completes; no baseline count constitutes current completeness proof.
 
-**[STU-IO-172] Anchor binding.** A microtask derived from this module cites its clause anchor directly. A microtask staged before this module landed carries `spec_anchor_status = "PROVISIONAL"`; binding it to an anchor in [STU-IO-100]–[STU-IO-185], or to a preserved v02.205 anchor in [STU-IO-001]–[STU-IO-014], clears that status. A microtask that cannot cite either is out of scope for the interoperability domain and MUST be re-derived or retired, not activated.
+**[STU-IO-172] Anchor binding.** A microtask derived from this interoperability domain cites its clause anchor directly. A microtask staged before its source module landed carries `spec_anchor_status = "PROVISIONAL"`; binding it to [STU-IO-100] through [STU-IO-190], or a preserved [STU-IO-001] through [STU-IO-014], clears that status only after the exact source-unit and acceptance mapping is verified. New amendment units use append-only, noncolliding IDs under [STU-ARC-022]; binding alone does not prove scope or acceptance coverage. A microtask outside these anchor sets requires an explicit approved domain/source mapping or re-derivation before activation. Retirement requires explicit authority and MUST preserve original lineage and scope history; it is not a remedy for newly added clauses omitted by a legacy extractor.
 
 ---
 
@@ -21260,7 +21245,7 @@ Each descriptor below is its own clause because each is its own unit of implemen
 
 **[STU-IO-185] `export_credential_in_recipe_record`.** The interoperability validator MUST reject, with severity `error`, a document or command in which a recipe record contains a credential, token, password or private key rather than a reference into the kernel credential store, enforcing [STU-IO-147]. The diagnostic MUST name the recipe and the offending field name only, never the secret value.
 
-### 14.13.CARRIED Clauses carried forward unchanged from v02.205
+### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract
 
 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written. They are gathered here rather than left in place so that the rebuilt text reads in one sequence and nothing is lost in the merge.
 
@@ -21957,7 +21942,7 @@ The object-model domains below are the normative deduped exposure surface. Each 
 
 ### 7. Plugin / extension surface
 
-[STU-AUT-017] Studio MUST provide a Handshake-native **plugin/extension model** so third parties and models can extend Studio, deduplicating the source Plugin API, Widget API, and Dev-Mode plugin concepts into one Studio plugin contract. A plugin declares a **manifest**: identity, the editor/document modes it targets, the command capabilities it requests, any network domains it needs (with stated reasoning), and its extension points (panels/UI, codegen, find/change/text-review participation, board widgets, and relaunch/quick-run entry points). Plugins operate on scene nodes only through the typed command contract of Section 1 — they receive the same typed object-model view ([STU-AUT-006]) and the same descriptor path ([STU-AUT-007]) that operators and model lanes use; there is no privileged private plugin document model.
+[STU-AUT-017] Studio MUST expose domain adapters through the one Handshake-wide plugin platform in 5.1.6 and MEX in 11.8. Source Plugin API, Widget API and Dev-Mode concepts map to that shared manifest/capability/consent contract; Studio MUST NOT own a second registry, lifecycle, sandbox or permission schema. A manifest declares content-bound identity/version, targeted modes, command capabilities, reasoned network domains and typed extension points (panels/UI, codegen, find/change/text review, board widgets, relaunch/quick run). Plugins use the same typed scene-node commands, object-model view ([STU-AUT-006]) and descriptor route ([STU-AUT-007]) as operators/models, without private document authority. Portable Studio modules use [HSK-PLG-008] host ports.
 
 [STU-AUT-018] Plugins MUST run under the kernel capability/consent gate system and MUST NEVER run unsandboxed. A plugin's manifest-declared capabilities are inert until consent-granted; the granted set gates every command the plugin can resolve ([STU-AUT-005]). Plugin execution is sandboxed (process-tier by default, as with model edits per [STU-ARC-005]); a plugin has no ambient filesystem, network, or authority access beyond its consent-granted capabilities. Document mutations authored by a plugin carry a `KernelActor` plugin identity in their receipts and pass the sandbox → validation → `PromotionGate` lifecycle. Plugin UI runs in an isolated surface with no direct access to the native shell's internals; it communicates with the sandboxed plugin logic through a typed message channel.
 
@@ -21980,7 +21965,7 @@ The object-model domains below are the normative deduped exposure surface. Each 
 | Dev tooling | Typed stubs, hot reload, and a developer console for plugin development | plugin dev tooling (typings/hot reload/console) |
 | Local registry distribution | Discover, install, update, and remove plugins from a local/native registry | plugins marketplace posture; private plugin distribution |
 
-[STU-AUT-020] Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account. Importing a source suite's plugin ecosystem is out of scope; the manifest/capability/consent contract is the Studio-native model. This preserves the local-first, no-account posture of [STU-OVR-002].
+[STU-AUT-020] Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency. The approved scope now includes explicitly supported native CLAP/VST3 provider adapters under [HSK-PLG-002], [HSK-PLG-010] and [HSK-PLG-017]; each exact platform/ABI/editor/state combination requires its own capability and proof. This does not imply universal binary compatibility with every source-suite plugin ecosystem. Unsupported plugins remain disclosed, preserved where safe and unavailable; no unsandboxed fallback or separate Studio library is permitted. The earlier ecosystem exclusion is superseded only for these selected adapters; [STU-OVR-002]'s local-first posture remains.
 
 ### 8. External API, inspect / codegen, and MCP posture
 
@@ -22341,7 +22326,7 @@ Studio MUST provide per-file history/undo with revert-of-undo. This sub-section 
 
 [STU-HIS-002] UNDO. Undo reverts the most recent promoted `StudioHistoryEntry` by applying its inverse command or a snapshot revert, and is itself a ledger-recorded, receipted, replayable operation (`STUDIO_HISTORY_UNDONE`) — never a hidden in-memory state pop.
 
-[STU-HIS-003] REVERT-OF-UNDO (redo). After an undo, Studio MUST support reverting the undo (redo) at least one level deep per file — Reading B, the minimum floor. Reading A (recommended, normative default): Studio maintains a per-file undo stack with at least one-level redo, and SHOULD support deep undo with a redo depth of >= 1; redo is a ledger-recorded, receipted operation (`STUDIO_HISTORY_REDONE`). The exact redo depth (>1) is an open contract point (14.24 open questions); the floor is: undo is deep per file, and at least one level of revert-of-undo is available per file.
+[STU-HIS-003] REVERT-OF-UNDO (redo). The earlier one-level minimum is superseded by retained-history deep Undo/Redo under [STU-CON-009]. Revert-of-Undo remains a ledger-recorded receipted `STUDIO_HISTORY_REDONE` operation. Resident cache eviction cannot reduce durable redo depth; explicit branch/cursor and current inverse preconditions apply.
 
 [STU-HIS-004] SNAPSHOT SEMANTICS. For raster-destructive or large-payload operations where inverse-command replay is impractical, history entries reference content-addressed snapshots so undo/redo remain correct and replayable. Snapshots live in product-managed artifact storage; history/authority truth resolves through SurrealDB/EventLedger + CRDT, never SQLite.
 
@@ -22411,15 +22396,52 @@ where 14.23 uses a legacy database-specific form, the v02.204 SurrealDB override
 
 [STU-CON-001] CANONICAL PRIMITIVES. The canonical Studio primitive set is defined in 14.3 [STU-DOC-002]. Each primitive's field-level struct is authored here as implementation lands; the per-domain catalogs (14.4-14.15) reference these primitives and MUST NOT fork them. Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.
 
-[STU-CON-002] SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = "hsk.studio.*@N"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`.
+[STU-CON-002] SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = "hsk.studio.*@N"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`, `hsk.studio.business_event@1`, `hsk.studio.expression_profile@1`.
 
 [STU-CON-003] EVENT VARIANTS. Canonical `KernelEventType` additions (wire `STUDIO_*` SCREAMING_SNAKE_CASE): `STUDIO_DOCUMENT_CREATED`, `STUDIO_DOCUMENT_PROMOTED`, `STUDIO_LAYER_CREATED`, `STUDIO_LAYER_MUTATED`, `STUDIO_SELECTION_CHANGED`, `STUDIO_MASK_APPLIED`, `STUDIO_ADJUSTMENT_APPLIED`, `STUDIO_EFFECT_APPLIED`, `STUDIO_VECTOR_PATH_EDITED`, `STUDIO_TEXT_EDITED`, `STUDIO_STYLE_APPLIED`, `STUDIO_COMPONENT_PUBLISHED`, `STUDIO_VARIABLE_SET`, `STUDIO_PROTOTYPE_EDITED`, `STUDIO_RAW_DEVELOPED`, `STUDIO_EXPORT_RENDERED`, `STUDIO_IMPORT_COMPLETED`, `STUDIO_EDIT_PROPOSAL_RECORDED`, `STUDIO_EDIT_PROMOTED`, `STUDIO_EDIT_REJECTED`, `STUDIO_HISTORY_UNDONE`, `STUDIO_HISTORY_REDONE`. The Flight Recorder business-event family is `FR-EVT-STUDIO-*` (14.24). Every variant registers in `required_first_slice_events()`.
 
 [STU-CON-004] TABLES. Canonical `studio_*` SurrealDB `SCHEMAFULL` tables (all preserving the specified prefixed domain ids, all with a required typed `event_ledger_event_id` record reference, all protected by authenticated record-user and field permissions plus `ResourceBroker`, and all evolved through SurrealKit): `studio_documents` (SDOC-), `studio_layers` (SLYR-), `studio_artboards` (SART-), `studio_page_spreads` (SPGS-), `studio_masks` (SMSK-), `studio_vector_paths` (SVPT-), `studio_text_stories` (STXT-), `studio_type_styles` (STYS-), `studio_color_profiles` (SCPF-), `studio_swatches` (SSWT-), `studio_effect_stacks` (SEFX-), `studio_components` (SCMP-), `studio_component_instances` (SCIN-), `studio_variables` (SVAR-), `studio_variable_collections` (SVCL-), `studio_style_registries` (SSTY-), `studio_prototype_flows` (SPTF-), `studio_motion_timelines` (SMTL-), `studio_export_recipes` (SXPR-), `studio_import_profiles` (SIMP-), `studio_history_entries` (SHIS-), `studio_edit_proposals` (SEPR-). Typed field definitions, assertions, indexes, permissions, and rollout manifests are authored here as each table's implementing MT lands.
 
-[STU-CON-005] UNITS & DETERMINISM. Unit law per [STU-DOC-003]. Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).
+[STU-CON-005] UNITS & DETERMINISM. Unit law per [STU-DOC-003]. Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]). Exact source/artifact/package bytes retain hashes for portable cross-host identity, integrity, transport, replay inputs and receipt/idempotency fingerprinting. Byte identity MUST NOT substitute for cross-backend render-equivalence proof, and epsilon comparison MUST NOT accept corrupted artifact bytes.
 
-[STU-CON-006] OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.
+[STU-CON-006] RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.
+
+[STU-CON-009] Retained history. Chronicle MUST support undo/redo through all retained reachable promoted history, without an arbitrary one-level or resident-cache depth cap. Default Undo selects the most recent still-applied semantic edit in the per-file global order across actors. Explicit older-entry revert is a separate typed operation. Inverses check current object/property read/write conditions; conflict never overwrites unrelated work. Undo/redo record receipted control lineage with a semantic-entry cursor, so repeated Undo cannot undo its own control receipt. A new accepted edit after Undo starts a new active branch; prior branch remains queryable and explicit replayable as a proposal. Bound resident cache and load old entries on demand; missing artifacts report unavailable. Draft-local origin-scoped Yjs undo stays separate from promoted authority.
+
+[STU-CON-010] Semantic gesture batches. Bind actor/session/document, command/gesture ID, base target revisions and descriptor/profile version at begin. Bounded private draft chunks retain ordered nonreplaceable inputs, pressure/time samples, seeds/provider identity or immutable replay artifacts. Preserve all 22 [STU-CON-003] event identities; a promoted batch may emit several ordered typed events with sequence/correlation/causation, payload digests and one receipt/history entry. Only same-actor/document/gesture/output-slot uncommitted previews may supersede. Accepted input/events cannot be coalesced away. [STU-SHL-194] defines exact finalized versus aborted scope dispositions; pending approval is not acceptance, and postacceptance cancellation uses Chronicle Undo. Retry/restart resolves the same promotion key.
+
+[STU-CON-011] Host policy approval. Auto-accept defaults OFF. Only an authenticated operator-enrolled, immutable versioned host policy may approve deterministic reversible parameter/style edits to existing granted objects, with valid inverse and no blocking validation/schema loss. Semantic allowlists exclude destructive/delete/flatten, external writes/export, replacement import, code/expression/plugin activation, network/process/credentials, retirement and governance even if encoded as a scalar. Manual and policy approvals require independently resolved canonical host evidence, authenticated principal/resource/action, exact proposal/artifact digest, target footprints/revisions, validator run/catalog/version and inverse; caller strings or generated receipt IDs never establish approval. Reconcile the actual production PromotionGate, typed/legacy adapters, DCC Inbox, GUI/API/model/headless consumers and receipts through the existing host owner before enabling policy approval. Enrollment/update/revoke is operator-authorized. Recheck policy/grants at serialized acceptance and atomically consume any cumulative allowance with mutation/dedup outcome; identical retry never charges twice. Revocation/version/payload/validator/inverse/precondition races deny or reconcile an unknown committed outcome. Never counterfeit a manual operator-review source. Accepted work remains in history after later revocation.
+
+[STU-CON-012] Raster references. Folio stores typed tile identity (object/layer/grid, format/color/schema, dimensions, content digest) and existing artifact references; bulk pixels live in the host artifact tier, never CRDT blobs or a private tile database. Validate/persist immutable bytes before atomically accepting references, events, head and idempotency outcome in SurrealDB. Draft Yjs carries addressable operations/proposals and refs, not authority. Disjoint writes promote only while all declared reads remain valid; backdrop/effect/filter dependencies can conflict despite disjoint pixel regions. History reuses refs; the existing host lifecycle accounts for every reachable accepted/history/draft/proposal/export ref before reclaim. Reserve decoded/retained bytes before decode/fanout. Missing/hash-mismatched bytes are integrity failures.
+
+[STU-CON-013] Flight Recorder binding. Map each of the 22 canonical wire variants explicitly to its `studio.*` event family, exact `FR-EVT-STUDIO-*` business ID, payload schema/version and actual recorder storage category/producer. Extend the existing typed registry and machine manifest together; required-enum parsing and a generic Diagnostic/System mirror do not prove business payload registration. Validate at actual ingestion. Accepted authority transactions MUST durably bind immutable mirror intent or a canonical replayable event sufficient to derive it together with head/events/dedup outcome; no commit-to-pending crash gap is allowed. For authority mutations mirror only after canonical promotion acceptance. Required selection/proposal/rejection audit events instead mirror after their own typed canonical durable ledger acceptance, without pretending they are promoted document edits; replaceable transient previews are not durable business events. Completion requires an exact matching canonical FR row, with deterministic workspace-partitioned identity and immutable-envelope collision refusal. Shared reconciliation is bounded, fair, paginated and poison-row safe with reserved cancellation; accepted backlog survives outages and resident-queue overflow without dropping or prematurely labelling mirrored. Each behavior separately assigns business emitter, production FR diagnostic, internal_diagnostics, Palmistry/watcher and manual/model recovery consumer, current grants/privacy/retention and asset-local versus actual-host proof. Callback telemetry uses preallocated bounded handoff to off-thread aggregation, never a locking general recorder; overrun records a discontinuity with safe bounded output.
+
+[STU-CON-014] Business-event catalog. The following exact mapping preserves [STU-ARC-003]'s existing family names and [STU-CON-003]'s 22 wire identities. Each row uses tagged `hsk.studio.business_event@1` payload validation and the planned `FlightRecorderEventType::Studio` business category, added through the existing recorder owner; no Diagnostic/System projection fulfills it. Authenticated KernelActor attribution maps to existing Human/Agent/System recorder classes with principal/plugin identity preserved in the protected envelope. The binding, not a leaf engine, emits after the canonical event. Selection/proposal/rejection events describe their typed view/audit/proposal state and MUST NOT claim document promotion. Payloads bind workspace/document, actor/client_session_id, batch/promotion (when accepted), event/sequence/correlation/causation, exact revision, command/input/output digests and typed artifact references, with current grant/retention filtering. Planned registry entries remain unimplemented until actual ingestion/producer proof.
+
+| Wire variant | event_family | Business ID |
+|---|---|---|
+| `STUDIO_DOCUMENT_CREATED` | `studio.document` | `FR-EVT-STUDIO-DOCUMENT-CREATED` |
+| `STUDIO_DOCUMENT_PROMOTED` | `studio.document` | `FR-EVT-STUDIO-DOCUMENT-PROMOTED` |
+| `STUDIO_LAYER_CREATED` | `studio.document` | `FR-EVT-STUDIO-LAYER-CREATED` |
+| `STUDIO_LAYER_MUTATED` | `studio.document` | `FR-EVT-STUDIO-LAYER-MUTATED` |
+| `STUDIO_SELECTION_CHANGED` | `studio.document` | `FR-EVT-STUDIO-SELECTION-CHANGED` |
+| `STUDIO_MASK_APPLIED` | `studio.raster` | `FR-EVT-STUDIO-MASK-APPLIED` |
+| `STUDIO_ADJUSTMENT_APPLIED` | `studio.color` | `FR-EVT-STUDIO-ADJUSTMENT-APPLIED` |
+| `STUDIO_EFFECT_APPLIED` | `studio.effect` | `FR-EVT-STUDIO-EFFECT-APPLIED` |
+| `STUDIO_VECTOR_PATH_EDITED` | `studio.vector` | `FR-EVT-STUDIO-VECTOR-PATH-EDITED` |
+| `STUDIO_TEXT_EDITED` | `studio.typography` | `FR-EVT-STUDIO-TEXT-EDITED` |
+| `STUDIO_STYLE_APPLIED` | `studio.layout` | `FR-EVT-STUDIO-STYLE-APPLIED` |
+| `STUDIO_COMPONENT_PUBLISHED` | `studio.design_system` | `FR-EVT-STUDIO-COMPONENT-PUBLISHED` |
+| `STUDIO_VARIABLE_SET` | `studio.design_system` | `FR-EVT-STUDIO-VARIABLE-SET` |
+| `STUDIO_PROTOTYPE_EDITED` | `studio.prototype` | `FR-EVT-STUDIO-PROTOTYPE-EDITED` |
+| `STUDIO_RAW_DEVELOPED` | `studio.color` | `FR-EVT-STUDIO-RAW-DEVELOPED` |
+| `STUDIO_EXPORT_RENDERED` | `studio.export` | `FR-EVT-STUDIO-EXPORT-RENDERED` |
+| `STUDIO_IMPORT_COMPLETED` | `studio.document` | `FR-EVT-STUDIO-IMPORT-COMPLETED` |
+| `STUDIO_EDIT_PROPOSAL_RECORDED` | `studio.proposal` | `FR-EVT-STUDIO-EDIT-PROPOSAL-RECORDED` |
+| `STUDIO_EDIT_PROMOTED` | `studio.proposal` | `FR-EVT-STUDIO-EDIT-PROMOTED` |
+| `STUDIO_EDIT_REJECTED` | `studio.proposal` | `FR-EVT-STUDIO-EDIT-REJECTED` |
+| `STUDIO_HISTORY_UNDONE` | `studio.history` | `FR-EVT-STUDIO-HISTORY-UNDONE` |
+| `STUDIO_HISTORY_REDONE` | `studio.history` | `FR-EVT-STUDIO-HISTORY-REDONE` |
 
 [STU-CON-007] [ADD v02.200] UNIVERSAL COMMAND CONTRACT (HARD). Every Studio command, tool, and primitive defined in sub-sections 14.4-14.15 — without exception and regardless of domain — MUST satisfy ALL FOUR of the following properties. A per-domain obligation clause MUST enumerate all four; omission of any one for a shipped command is a spec-conformance defect, not domain discretion; and each domain's acceptance surface MUST carry a conformance check proving all four hold for that domain's commands.
 
@@ -27390,12 +27412,7 @@ complete list is normative as the capability target.** These are not a convenien
 the language's standard surface, and an expression system missing the space-transform or the
 interpolation families cannot express rigging or easing.
 
-**[STU-MOT-073a] Dual spelling is a real compatibility contract.** The identifier table ships both
-a legacy `snake_case` and a modern `camelCase` spelling for most members -- `point_of_interest` and
-`pointOfInterest`, `value_at_time` and `valueAtTime`, `to_comp` and `toComp`. Studio's language MUST
-accept both spellings and MUST normalise to one canonical spelling on write, so that imported
-expressions keep working and newly-authored ones are consistent. Which spelling is canonical is a
-named decision, recorded as [STU-MOT-144].
+**[STU-MOT-073a] Dual spelling.** Accept the exact declared snake_case/camelCase pairs and emit camelCase canonical host identifiers on write under [STU-MOT-144]. Preserve original source, engine/profile provenance and source maps. Normalize only AST references resolved to host bindings; never rename locals, arbitrary keys, comments or strings, nor guess aliases by removing underscores.
 
 **[STU-MOT-073b] 206 of the 333 identifiers carry no category header on disk.** They form the
 table's leading block and are real members -- the camera, light, mask, path, velocity, text-style
@@ -27539,15 +27556,7 @@ one expression. Every one of these is reachable as a typed command.
 **[STU-MOT-082] The pick-whip inserts a stable path, never a display name.** This is the single
 most common source of broken expressions in the field, and [STU-MOT-011] exists to prevent it.
 
-**[STU-MOT-083] DECLARED DECISION -- the expression language itself.** This sub-section specifies
-the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error
-model and the property-state machine. It does NOT specify which language syntax Studio implements.
-The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String
-methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the
-compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset,
-a Rust-embedded scripting language, or a purpose-built deterministic expression language is an
-architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079]
-sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed.
+**[STU-MOT-083] Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced.
 
 ---
 
@@ -28798,7 +28807,7 @@ continuity state packed into the same bytes, and that packing is not decoded.
 
 **[STU-MOT-141] GAP -- spatial tangent on-disk layout.** Per [STU-MOT-036b].
 
-**[STU-MOT-142] OPEN DECISION -- the expression language implementation.** Per [STU-MOT-083].
+**[STU-MOT-142] RESOLVED -- expression implementation boundary.** Motion owns property/dependency/time/seed semantics and typed evaluation ports. The independently selectable MotionJS provider hosts the selected JavaScript engine candidate under [STU-MOT-258], outside pure Motion/schema/control closures. QuickJS/rquickjs is a candidate pending exact native source, toolchain, quota, isolation and independent semantic proof; its C implementation MUST NOT be described as pure Rust. An alternative requires equivalent proved compatibility and bounds, not silent fallback.
 
 **[STU-MOT-143] GAP -- the shape-operator parameter contracts.** 21 operator families and 137 shape
 property keys are recovered as topology, and the child property keys per operator are listed, but
@@ -28806,7 +28815,7 @@ their bounds, defaults, units and precisions were NOT recovered. Every shape ope
 needs its parameter records authored under 14.9.1 before it can be implemented, and MUST NOT be
 implemented with guessed ranges. The same applies to the 99 text animator properties.
 
-**[STU-MOT-144] OPEN DECISION -- canonical identifier spelling.** Per [STU-MOT-073a].
+**[STU-MOT-144] RESOLVED -- canonical spelling.** Canonical host API spelling is camelCase, with exact declared legacy aliases accepted through one versioned table. Pick-whip/snippets resolve stable property/object paths; ambiguous/missing imported names remain unresolved with precise source diagnostics. Computed host keys use the same table. Normalize binding-aware AST references, preserve evaluation order and original/source-map provenance, and prove shadowed/computed alias behavior; identifier counts alone are not compatibility proof.
 
 **[STU-MOT-145] GAP -- categorisation of 206 expression identifiers.** Per [STU-MOT-073b]. They are
 real and enumerated; their grouping for the operator-facing reference must be authored.
@@ -28967,6 +28976,19 @@ binding it to an anchor here clears that status. A microtask that cannot cite an
 sub-section is out of scope for the motion domain and MUST be re-derived or retired, not activated.
 
 ---
+
+
+## 14.26.ADD v02.207 Deterministic expression and provider contract
+
+[STU-MOT-255] Language profile. The initial profile is synchronous ECMAScript-2018-shaped JavaScript with numeric/string/boolean/null/array/object expressions, lexical declarations, conditionals/loops, functions and closures under aggregate bounds. Preserve all 333 host identifier and 37 exact argument/default signature targets. Host reads bind immutable document revision, canonical evaluation tick, stable paths/assets, profile/provider and explicit seeds. Seeded random follows MOT074/076; Math.random is unavailable unless an approved explicit semantics mapping exists. Default localeCompare is deterministic UTF-16 lexical order with a disclosed compatibility mapping; unsupported locale options diagnose rather than consult the machine. Filesystem/network/process/environment, dynamic import/loaders, eval/Function/constructor-chain compilation, native FFI, async jobs/timers/Promises/shared memory and runtime plugins are unavailable. Preserve original unsupported source/profile with exact positions and disabled-by-error fallback/error render receipts, never silent baking. AST vector-operator compatibility preserves evaluation order. Validate prospective dependencies before activation; nested reads/retries share fuel and cycles refuse at commit.
+
+[STU-MOT-256] Deterministic Date clock. Persist expression-profile epoch_ms as exact UTC integer milliseconds since 1970-01-01T00:00:00.000Z (inclusive +/-8640000000000000, default0) and origin_tick using the existing canonical Studio tick type (default0). At the exact effective sample tick after declared time remapping/posterizeTime, compute checked mathematical N=epoch_ms*254016000000+(evaluation_tick-origin_tick)*1000. Reject abs(N)>8640000000000000*254016000000 before truncation; otherwise utc_ms=trunc_toward_zero(N/254016000000), zero canonical+0. This is internal checked arithmetic, not a widened stored tick schema. Date.now(), new Date() and no-argument Date() read one immutable instant for the evaluation; Date() returns canonical ISO UTC or literal Invalid Date. No clock/timezone/locale/file timestamp/traversal-order input is allowed. Missing legacy epoch/origin maps explicitly to0/0 with provenance. Foreign frame/timebases convert through named import adapters before evaluation and never change the canonical254016000000 ticks/s.
+
+[STU-MOT-257] Date forms/calendar. Admit new Date(Number epoch_ms), clone of a profile Date, exact ASCII YYYY-MM-DDTHH:mm:ss[.sss]Z or signed six-digit expanded-year forms for new Date(string)/Date.parse, Date.UTC with1..7 Number arguments and new Date(year,month,...) with2..7 Number arguments. Omitted fractions mean000; supplied fractions have exactly3 digits. Use proleptic Gregorian UTC,86400000ms/day and floor division/nonnegative modulo for negative dates; no leap seconds. Numeric fields truncate toward zero; numeric years0..99 map1900..1999, months normalize by floor(month/12), then add day/hour/minute/second/millisecond offsets with checked carry and TimeClip range. Parsed years are literal (including0000); validate month/day, hour00..23, minute/second00..59 and milliseconds000..999 without carry. Nonfinite/out-of-range numeric or admitted-shape invalid calendar values produce invalid Date/NaN. Unadmitted parsing/coercion/arity, whitespace/date-only/local/offset/locale/RFC forms,24:00 and negative expanded zero year MUST NOT fall through to engine parsing. Admit getTime/valueOf, UTC getters, toISOString/toJSON: invalid getters NaN, invalid toISOString RangeError, invalid toJSON null; serialize4-digit years0000..9999 otherwise signed6 digits, always .sssZ. Local/locale/legacy/mutating setters and unlisted prototype routes remain unsupported, preserved compatibility gaps. Disclose UTC-constructor/clock/parse mappings; Date(args) without new is unsupported. Prove endpoints, calendar carry, negative ticks, total-instant truncation, prototype bypass and machine-clock independence without shortening the final import target.
+
+[STU-MOT-258] Engine candidate and safety. MotionJS owns the executable JavaScript parser/AST/lowering/checkpoint implementation prerequisite and isolates optional QuickJS/rquickjs native implementation behind Motion ports; exact transitive source/pin/features and compile/runtime/platform proof precede adoption. Configure nonzero memory/stack bounds before untrusted parsing/compilation/evaluation, rejecting values that map to zero/unlimited; custom allocators require source-verified quota enforcement. Each independent evaluation/sample MUST use a fresh realm or independently proved complete reset of globals, prototypes, closures and host memo state, including repeated samples by the same principal/document; retries still share the original allowance. Use separate realms across trust boundaries and byte/count/version-bound immutable compiled caches. Cache identity binds source, parser/lowering/checkpoint/source-map, profile/host semantics, wrapper/transitive C/build features/patches/target/endianness; only trusted compiler artifacts enter unsafe bytecode decode, never imported executable bytes. Every admitted control-flow/function/callback path requires proved shared checkpoint charging before activation. Runtime/values/finalizers remain single-owner and retire on the correct thread with permits held until quiescence. Bound result conversion nodes/depth/bytes and reject getters/proxies/coercion that can execute uncontrolled user work. Denying eval/Function names alone MUST NOT assert constructor-chain denial: trusted compilation, binding-aware AST enforcement and all prototype/accessor/constructor routes require independent hostile proof. Cooperative interrupts/fuel cannot preempt parser/long native builtins or blocking host work; the shared sandbox independently bounds worker CPU/RSS/deadline/lifetime and each host read/callback. No partial output promotes after a budget failure. Proposed versioned initial limits are source262144B, JS heap33554432B, stack262144B, result1048576B, dependency depth64, host reads4096, semantic checkpoints100000, interactive safety50ms/offline500ms, compiled cache33554432B/1024entries. These are design defaults, not measured guarantees. All runtimes, bytes, nested/retried evaluations and retained generations charge the shared composition/frame/swarm budget; no unrestricted runtime per property. Unsupported target/isolation/feature returns unavailable, not an unsafe provider fallback. Independent acceptance proves exact allocation, interruption, cancellation, retirement/thread affinity, language/host semantics and original-app differential fixtures.
+
+[STU-MOT-259] Expression diagnostics and portability. Motion exposes stable parse/unsupported/alias/reference-missing/reference-ambiguous/dependency-cycle/budget/output-type outcomes with source spans, profile/provider/revision/tick/seed attribution and current-grant Argus/manual diagnostics. These are planned typed outcomes, not claims of existing APIs. Pure Motion, Folio, Controls and CPU-only consumers MUST resolve without the MotionJS C/toolchain closure. Host-neutral providers never gain authority, approval, a private database or ambient capabilities; per-behavior Flight Recorder/internal_diagnostics/Palmistry and actual-host proof remain required.
 
 ## 14.27
 
@@ -29593,59 +29615,11 @@ preference. They are different DOCUMENT MODELS:
 | Model steerability | A model edits properties and stack positions. | A model edits a graph -- which is a structure models manipulate well. |
 | Discoverability for a non-specialist | Higher. The stack matches how people describe a composite. | Lower. A graph is more powerful and less immediately legible. |
 
-[STU-CMP-092] **OPEN DECISION: whether Studio's compositing document model is layer-based only, or
-layer-based with a node-graph surface, or node-based with a layer projection.** The decision is
-named, it is open, and it is NOT taken in this sub-section. What is recorded:
+[STU-CMP-092] **RESOLVED -- one authored graph, two editing projections.** Folio owns one typed composition operation graph retaining StudioComposition/StudioLayer/property/effect IDs, semantic stack input order, masks, mattes, adjustments, parenting, source time, precompositions, 3D groups and color/quantization boundaries. Layer insert/reorder/edit commands atomically patch recognized layer subgraphs. Layer and node views edit those same records; no second graph database, parallel layer-order authority or vendor project tree exists. Arbitrary subnetworks appear as addressable editable composite rows with explicit inputs/output and expansion, never hidden/flattened to fake a stack equivalent. Reusing Loom UI mechanics does not reuse its knowledge-graph authority as an image graph.
 
-1. **Why it is not decided from evidence.** No captured application provides a node-graph reference.
-   The green room parsed installed applications, and the compositing application it parsed is
-   layer-based. A node model would need its own reference basis, gathered deliberately, and
-   inventing one here would be exactly the speculation this specification forbids.
-2. **Handshake already has node-graph precedent, and this is the argument for taking the question
-   seriously rather than deferring it forever.** The Loom graph surface and the canvas board exist
-   in the current shell, with an addressing scheme (`loom://` over workspace and block identity)
-   that already treats every document, rich-text block, canvas node and graph node as an addressable
-   node. Studio would not be introducing graph infrastructure from nothing; it would be reusing a
-   primitive the product already has, which changes the cost calculation substantially.
-3. **The closest open-source field reference is a Rust, node-based, GPU-rendered 2D graphics editor**
-   (Graphite, node-based, Vello-rendered), which is architecturally adjacent to Studio's own stack
-   and is the natural place to start a reference gathering exercise under [GLOBAL-RESEARCH].
-4. **The parallel-agent argument is the strongest one on the node side and it is Studio-specific.**
-   Studio's defining constraint is that multiple models edit in parallel ([STU-CON-007], 14.17). A
-   graph's dependency edges make "these two edits do not interact" a mechanical question. In a
-   layer stack the same question requires reasoning about backdrop reads, adjustment-layer extent
-   and stack order. That is not decisive, but it is the consideration most specific to this product
-   and it should not be lost.
-5. **The discoverability argument is the strongest one on the layer side**, together with the fact
-   that every piece of captured evidence, every import path, and every one of the 482-plus effect
-   identities in 14.9 is expressed in layer terms today.
+**[STU-CMP-093] Explicit evaluation.** Composite lowers revision-bound immutable disposable render plans; Motion owns keyframe/expression/time policy. Materialize post-mask/effect/transform/matte and per-effect output addresses, fanout and typed backdrop/parent/matte/effect/precomposition dependencies. Plans are not saved authoring authority. Static image rendering MUST NOT unconditionally pull NLE/audio/native providers. Time-labelled state/sampling providers declare bounded horizon/state/recursion, but cannot permit an expression cycle: Motion validates the complete prospective property-expression graph against current Folio before commit and refuses cycles under [STU-MOT-077], including temporal/delay routes.
 
-**[STU-CMP-093] What MUST NOT be assumed while the decision is open.** Three forward-compatibility
-constraints bind any implementation built from this sub-section, and they cost little now and save a
-rewrite later:
-
-1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s
-   order is a specification of semantics, not a mandate to implement it as nested function calls. An
-   implementation that materialises the per-frame render as an explicit dependency graph can later
-   grow a node surface over the same evaluator; one that hard-codes the order into control flow
-   cannot.
-2. **Every intermediate result MUST be addressable.** A layer's post-mask, post-effect, post-
-   transform and post-matte results are the points a node graph would expose as edges. Naming them
-   internally is what [STU-FX-012b]'s region-of-interest re-render and the Argus diagnostics need
-   anyway.
-3. **No clause in this sub-section may be written in a way that requires a layer's inputs to be
-   exactly one.** `layer_reference` parameters ([STU-FX-120]) and track mattes already make a layer
-   multi-input in practice; the type system must not pretend otherwise.
-
-**[STU-CMP-094] Decision criteria, recorded so the decision can be made rather than re-litigated.**
-The question should be resolved against: (a) a gathered node-graph reference basis per
-[GLOBAL-RESEARCH], since none exists today; (b) whether the Loom graph surface can carry an image
-graph without distorting its own purpose; (c) the parallel-model editing argument in
-[STU-CMP-092.4] measured against a concrete conflict scenario rather than in the abstract; (d) the
-cost of maintaining two projections if both surfaces ship; and (e) whether import fidelity from
-layer-based material is achievable through a node projection without loss. The decision belongs to
-the operator and requires a Spec Proposal; it is out of scope for this sub-section, which records
-it as [STU-CMP-101].
+**[STU-CMP-094] Projection proof.** Layer-to-graph-to-layer switching/reopen MUST preserve authored records, IDs, history and rendering semantics. Recognized layer graphs project faithfully; arbitrary graphs disclose their composite/subnetwork form without inventing stack order. View caches bind document/revision/projection version and are disposable. Keyboard/accessibility/model commands address the same nodes/ports/properties and preconditions as pointer commands. Independent differential proof covers native layer imports, masks/mattes/backdrops/precomps/3D/effect order/time/stretch and foreign concurrent edits. Graphite/EffectCraft source is reference evidence, not full-application adoption or parity proof.
 
 ---
 
@@ -29702,8 +29676,7 @@ is actually done, and a single-view viewer makes [STU-CMP-035] unusable in pract
 **[STU-CMP-100] GAP -- assisted rotoscoping.** Per [STU-CMP-034]. Manual mask-path animation is
 specified; boundary propagation is not.
 
-**[STU-CMP-101] OPEN DECISION -- layer versus node compositing model.** Per [STU-CMP-092]. Requires
-a gathered reference basis and an operator decision.
+**[STU-CMP-101] RESOLVED -- layer/node model.** [STU-CMP-092] through [STU-CMP-094] select one Folio-authored graph with lossless layer and node projections. Preserve original owner MT and imported layer semantics; actual projection/evaluation/parallel acceptance remains implementation proof, not a remaining product-choice question.
 
 **[STU-CMP-102] GAP -- renderer inventory and capability sets.** [STU-CMP-060] specifies the
 contract a renderer declaration must satisfy; which renderers Studio ships and what each supports is
@@ -32613,15 +32586,15 @@ The generator MUST read two DIFFERENT mechanisms here: group boundaries are para
 
 **[STU-SHL-189] Wheel.** The wheel over the hovered field steps by `step_default` with no click required, and the field CONSUMES the event. Panel scrollability is guaranteed by the reserved 10px scroll lane and by wheel-over-label ([STU-SHL-105]).
 
-**[STU-SHL-190] Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10; `Ctrl` is FINE and divides the step by 10; `Shift+Ctrl` multiplies by 100; `Alt` is excluded and MUST NOT acquire a magnitude meaning, because it is already the duplicate, subtract-from-selection and sample-alternate modifier in every captured application and is load-bearing in the timeline surface where scrubbing matters most. Modifiers MUST be sampled CONTINUOUSLY during the gesture rather than latched at press, and accumulation MUST happen in VALUE space so the value does not jump when the operator changes magnitude mid-drag. No modifier may change which parameter is written, only by how much. The full reasoning, including why the objection to `Ctrl` is defeated by claim-at-press, is in [STU-SHL-106].
+**[STU-SHL-190] Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100. Defaults are Shift coarse and Ctrl fine on Windows/Linux, Command fine on macOS through the shared modifier adapter. Alt remains excluded. Typed physical rebinding follows [STU-FX-149]; integer/enumeration discrete actions follow [STU-FX-110]. Sample roles continuously, accumulate in value space without jumps, and freeze binding/descriptor versions for the gesture. No modifier changes the target. Contextual claim-at-press preserves other pen/selection/menu/accelerator meanings.
 
-**[STU-SHL-191] Sensitivity.** `step_default = max(10^(−precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default × 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value.
+**[STU-SHL-191] Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110].
 
 **[STU-SHL-192] Clamping.** Clamping is ALWAYS to `hard_min` / `hard_max`. Approaching a SOFT bound DECELERATES the drag and parks there; crossing a soft bound requires dragging through a short resistance zone or typing the value. Reaching a HARD clamp shows a visual stop but does NOT end the gesture, so dragging back returns immediately rather than after re-traversing the overshoot. Where `bound_provenance` is `observed`, no hard clamp is applied ([STU-SHL-173]).
 
 **[STU-SHL-193] Formatting.** Rendered at `ParamSpec.precision` with `unit` or `display_unit` appended. The `PERCENT` display flag renders a stored 0..1 as 0..100%. The rendered string and the accessible value string MUST be the SAME string ([STU-MDL-113]).
 
-**[STU-SHL-194] Undo.** One entry per GESTURE, per [STU-SHL-107]. The press, or the first wheel notch, opens a coalescing scope keyed by `author_id`. Intermediate values update the document LIVE but write into the open scope. The scope closes into ONE entry on release, on focus loss, on a modal opening, on `Escape` (which aborts and restores the pre-press value), or 400ms after the last wheel notch. A test MUST drive EACH exit path and assert exactly one entry.
+**[STU-SHL-194] Gesture disposition.** Press/first wheel notch opens one actor/session/document/property scope and updates its private live preview. Release, focus loss, modal opening or 400ms after the last notch finalizes valid work once through actor-specific host approval/promotion, rechecking grants and foreign-write footprints. Escape restores the pre-press private draft value and closes exactly one receipted ABORTED scope disposition with unchanged document content; explicit cancellation does likewise. Aborted/failed scopes are not promoted semantic `StudioHistoryEntry` edits and are excluded from Undo/Redo navigation. Successful acceptance yields one promoted semantic history entry; pending approval is not acceptance. Stale epoch/conflict closes failed scope without overwriting foreign accepted work. After acceptance cancellation requires Chronicle Undo. Drive every exit and prove exactly one disposition, its class, content/head and history cursor, including restart/idempotency.
 
 **[STU-SHL-195] Double-click and secondary-click.** Double-click resets to `ParamSpec.default` — free, because defaults are captured for 980, 1,177, 741, 84 and 140 parameters across the five sources. Secondary-click opens: reset to default, copy value, paste value, add or remove a keyframe at the playhead, add or edit an expression, and "what does this do" opening the manual anchor ([STU-SHL-233]).
 

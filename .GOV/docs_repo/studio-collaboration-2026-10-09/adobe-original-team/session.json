@@ -1,0 +1,82 @@
+{
+  "schema_id": "hsk.studio_adobe_original_session@1",
+  "file_id": "STUDIO-ADOBE-ORIGINAL-20261009-SESSION",
+  "updated_at": "2026-10-09",
+  "status": "OPEN_DECISION_SOURCE_RESEARCH_AND_INDEPENDENT_REVIEW_COMPLETE",
+  "authority": "REFERENCE_ONLY; root retains spec/MT publication authority",
+  "root_thread_id": "01a12168-a212-7991-8b69-454deae05b60",
+  "owned_directory": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team",
+  "required_outputs": [
+    "original-suite-workflow-audit.json",
+    "independent-original-parity-redteam.json"
+  ],
+  "lanes": [
+    {
+      "agent": "/root/photo_original",
+      "owned_output": "photo-original.json",
+      "status": "COMPLETE_SOURCE_ONLY"
+    },
+    {
+      "agent": "/root/design_original",
+      "owned_output": "design-original.json",
+      "status": "COMPLETE_SOURCE_ONLY"
+    },
+    {
+      "agent": "/root/media_original",
+      "owned_output": "media-original.json",
+      "status": "COMPLETE_SOURCE_ONLY"
+    },
+    {
+      "agent": "/root/original_independent",
+      "owned_output": "independent-original-parity-redteam.json",
+      "status": "COMPLETE_SOURCE_ONLY"
+    }
+  ],
+  "verification": {
+    "branch": "gov_kernel",
+    "before_dispatch_gameplan": "PASS 19/19",
+    "native_gui": "UNAVAILABLE_NOT_INSPECTED",
+    "runtime_parity": "NOT_EXECUTED"
+  },
+  "constraints": [
+    "No product/spec/MT/root-state edits",
+    "No builds/tests/native GUI/upstream execution",
+    "No Git mutations or process disruption",
+    "No SQL engine/query/writable catalog/second database",
+    "Preserve prior 5484 MT scope/IDs",
+    "Source findings are not parity PASS"
+  ],
+  "completed": [
+    "17 source-backed workflow scenarios",
+    "Final lane reports independently challenged; corrected stale-comment/mapping claims",
+    "Required original-suite-workflow-audit.json and independent-original-parity-redteam.json persisted",
+    "91 existing local evidence hash records matched; report bindings read back"
+  ],
+  "root_followup": [
+    "Publish approved spec/MT enrichment and preserve all original 5484 IDs/scope",
+    "Resolve XMP wording and composer drift",
+    "Add explicit native media-format families and redaction/sanitization scope",
+    "Hydrate concrete proof and acquire original-produced fixtures before implementation/runtime parity"
+  ],
+  "restart": "Owned open-contract source-decision closure complete. Read four open reports and exact hashbindings before root publication. Root owns spec/MT and actual host/GUI/runtime acceptance; do not restart prior completed source audits.",
+  "active_assignment": {
+    "root_notified": true,
+    "outcome": "Close current207 open Studio contracts before implementation",
+    "independent_review": "Complete: seven scoped checks, six findings; corrected proposals inspected; root publication/runtime proof remain",
+    "outputs": [
+      "open-contract-decisions.json",
+      "open-expression-decisions.json",
+      "open-composition-controls-decisions.json"
+    ],
+    "source_only": true,
+    "recovery": "Exact report recovery matched prior hash; final canonicaltick correction parsed and independently inspected; invalid reads excluded",
+    "final_source_revalidation": {
+      "fresh_sha256": "9ca181fb8855ed9211f8a5878ce25c70ce69fc0a8feaa5d071bb00b1fc242f0f",
+      "inspected_sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c",
+      "matched": 10,
+      "changed": 1,
+      "changed_path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "diff_inspected": "8added/9removed: IO168/171/172 derivation and carried-heading; no selected open-contract anchors changed. Existing citations remain tied to inspected bytes/line positions; root final publication verification required."
+    }
+  }
+}

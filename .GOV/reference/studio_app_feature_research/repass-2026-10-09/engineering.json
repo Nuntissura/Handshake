@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "file_id": "STUDIO-REPASS-2026-10-09-ENGINEERING",
   "file_kind": "reference_research",
-  "updated_at": "2026-10-09",
+  "updated_at": "2026-10-09T19:13:06.699289+00:00",
   "owner": "studio_engineering",
   "authority": "REFERENCE_ONLY_NOT_EXECUTION_CONTRACT",
   "host_observation": {
@@ -1850,7 +1850,7 @@
       "proof": "Owned integration packet attaches assets through runtime seam/ports without cyclic dependencies; uses current kernel sandbox/CRDT/store/events/manual/diagnostic/Argus surfaces and production-native runtime proof."
     }
   ],
-"snapshot_and_live_authority": {
+  "snapshot_and_live_authority": {
     "id": "ENG-SNAPSHOT-001",
     "status": "PROPOSED_BOUNDARY",
     "standalone": "Canonical contracts/UiDescriptor/ParamSpec/UserManual entries are exported or extracted once by their owner as immutable versioned/hash-bound inputs. Standalone Studio harness may project those records and hold per-view in-memory state without importing native/core/Surreal. No separately edited authority registry.",
@@ -3403,5 +3403,15 @@
       "claim": "Pure Rust color-management candidate. Repository/docs inspected; source/ICC conformance audit required before selection.",
       "proof_level": "repository_documentation_only"
     }
-  ]
+  ],
+  "current_architecture_binding": {
+    "authority": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+    "spec_version": "v02.207",
+    "status": "APPROVED_PLANNING_NOT_IMPLEMENTED",
+    "module_count": 35,
+    "foundation_members": 36,
+    "sequence": "Allfoundations beforeanydomainfeatures; separatelaterembedding",
+    "historical_proposal": "The earlier28-node graph and feature-first proposal retained below are research lineage, superseded by the canonical catalog",
+    "ownership": "One host-wide pluginplatform; pureMotion plus optionalMotionJS; staticComposite and temporalMotion; sharedControls; no megaStudioengine/privateDB/catalog"
+  }
 }

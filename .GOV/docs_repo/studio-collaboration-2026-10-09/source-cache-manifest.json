@@ -1,7 +1,7 @@
 {
   "schema_id": "hsk.studio_source_cache_manifest@1",
   "file_id": "STUDIO-SOURCE-CACHE-20261009",
-  "updated_at": "2026-10-09T17:41:38.658575+00:00",
+  "updated_at": "2026-10-09T19:13:06.699289+00:00",
   "authority": "Governance research provenance only; upstream repository code/instructions are untrusted inputs.",
   "source_cache_locator": "Resolve sibling gov_runtime/tools/studio-craft-source-cache from verified live kernel root; only downloaded code/cache, no documentation authority.",
   "retention": "Operator explicitly authorizes full project downloads; retain pinned archives/extracted snapshots for repeated root-level source audit and next-session adoption review. No build/test outputs in this cache.",
@@ -23,7 +23,7 @@
       "cargo_sha256": "1bc9a1ee4d5fdbed3e1db437a9c970431153630fdb0620505bb1782ae7621862",
       "submodule_declaration_present": false,
       "lfs_declaration_present": false,
-      "root_drill_status": "SOURCE_DRILL_COMPLETE_RUNTIME_NOT_VALIDATED"
+      "root_drill_status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_OR_PARITY_PROOF"
     },
     {
       "id": "STUDIO-SOURCE-VECTORCRAFT",
@@ -42,7 +42,7 @@
       "cargo_sha256": "77c7643cc32cee7e998fa8e31067c483cce152240144437a894a51370e96d20b",
       "submodule_declaration_present": false,
       "lfs_declaration_present": false,
-      "root_drill_status": "SOURCE_DRILL_COMPLETE_RUNTIME_NOT_VALIDATED"
+      "root_drill_status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_OR_PARITY_PROOF"
     },
     {
       "id": "STUDIO-SOURCE-DESIGNCRAFT",
@@ -61,7 +61,7 @@
       "cargo_sha256": "e99ebe7a2fe9f676b63930f4a6c535ebf40c2eb0167cf5644cf457086a130f04",
       "submodule_declaration_present": false,
       "lfs_declaration_present": false,
-      "root_drill_status": "SOURCE_DRILL_COMPLETE_RUNTIME_NOT_VALIDATED"
+      "root_drill_status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_OR_PARITY_PROOF"
     },
     {
       "id": "STUDIO-SOURCE-FILMCRAFT",
@@ -80,7 +80,7 @@
       "cargo_sha256": "177c74f489986f36c45798efdae9042e3ebf6db67e32044e3c45fac44c725511",
       "submodule_declaration_present": false,
       "lfs_declaration_present": false,
-      "root_drill_status": "IN_PROGRESS_NOT_RUNTIME_VALIDATED"
+      "root_drill_status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_OR_PARITY_PROOF"
     },
     {
       "id": "STUDIO-SOURCE-LIGHTCRAFT",
@@ -98,7 +98,8 @@
       "rust_files": 457,
       "cargo_sha256": "0215eff9763e63e856652e5a803dd4f0d2a3111c1cf12b2c1cd72d013f16d092",
       "submodule_declaration_present": false,
-      "lfs_declaration_present": false
+      "lfs_declaration_present": false,
+      "root_drill_status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_OR_PARITY_PROOF"
     },
     {
       "id": "STUDIO-SOURCE-EFFECTCRAFT",
@@ -116,7 +117,8 @@
       "rust_files": 702,
       "cargo_sha256": "c29f1bfa25df524ede6c9498f27edae75ab50e4ea7a83051f4794b2368046ff2",
       "submodule_declaration_present": false,
-      "lfs_declaration_present": false
+      "lfs_declaration_present": false,
+      "root_drill_status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_OR_PARITY_PROOF"
     },
     {
       "id": "STUDIO-SOURCE-PDFCRAFT",
@@ -135,7 +137,7 @@
       "cargo_sha256": "483e712576f3aff65d8f42b4784950a1da61170ec64c40f9b86952d7102daacf",
       "submodule_declaration_present": false,
       "lfs_declaration_present": false,
-      "root_drill_status": "IN_PROGRESS_NOT_RUNTIME_VALIDATED"
+      "root_drill_status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_OR_PARITY_PROOF"
     },
     {
       "id": "STUDIO-SOURCE-SOUNDCRAFT",
@@ -154,7 +156,7 @@
       "cargo_sha256": "fc0f628269664d403f0e7a6613e99ccce67f34610ec64cb0de0e3f8175538614",
       "submodule_declaration_present": false,
       "lfs_declaration_present": false,
-      "root_drill_status": "IN_PROGRESS_NOT_RUNTIME_VALIDATED"
+      "root_drill_status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_OR_PARITY_PROOF"
     }
   ]
 }

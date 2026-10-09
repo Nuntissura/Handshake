@@ -1,0 +1,1232 @@
+{
+  "schema_id": "hsk.studio_asset_contract_independent_review@1",
+  "file_id": "STUDIO-ASSET-CONTRACT-INDEPENDENT-REVIEW",
+  "updated_at": "2026-10-09T20:58:58.062676+00:00",
+  "status": "SOURCE_REVIEW_COMPLETE_RECORDED_FINDINGS_CORRECTED_FROZEN_SUBSTANTIVE_BINDINGS_MATCH_NOT_RUNTIME_VERDICT",
+  "scope": {
+    "repo_governance": "Owned review JSON only",
+    "product": "Four preparation contracts only, no product/MT edits or runtime execution"
+  },
+  "snapshots": [
+    {
+      "sha256": "8aa73b0f82f04457b636895dec87d1ecd9ef25feb7a1912a481c5f5d880247fd",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+    },
+    {
+      "sha256": "64be0acbe41474ff75f2ec95aa42fb8ca36b274639cccb6046b8a8943914de66",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json"
+    },
+    {
+      "sha256": "7a310603195873a2077a14c85a2e627616961a9fd25c53265a32ae1ba960b81a",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/ACTIVATION_READINESS.json"
+    },
+    {
+      "sha256": "5717a26501022afe89c883e62f3a88cc496b88cfe2265064b7dedd7587688da3",
+      "path": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json"
+    },
+    {
+      "sha256": "38dcaaa3714b92604820221c74379508886f4b0efb3b3c94780b4c6acc3e42d1",
+      "path": ".GOV/templates/WORK_PACKET_CONTRACT_TEMPLATE.json"
+    },
+    {
+      "sha256": "e392d4ef8a9c3986ae2ad02191dda6eea7f1d78a2eb3ec2fc876e2554a85532c",
+      "path": ".GOV/templates/REFINEMENT_CONTRACT_TEMPLATE.json"
+    },
+    {
+      "sha256": "b3fffc137dbd12096775bf9cc9d65b6f7acff88e872861e17bf6591861db7674",
+      "path": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
+    },
+    {
+      "sha256": "df923cb68267d2c42dcfc3588255c35e82680a11a06dcccfe1e4ad3723e0b82a",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json"
+    }
+  ],
+  "authority": [
+    ".GOV/templates/WORK_PACKET_CONTRACT_TEMPLATE.json",
+    ".GOV/templates/REFINEMENT_CONTRACT_TEMPLATE.json",
+    ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json"
+  ],
+  "findings": [
+    {
+      "required_disposition": "Preserve exact former steps in historical_content; replace active steps with current approval/spec/MT reconciliation and verification of existing codex/handshake-studio-assets worktree. Never create diverging worktree or require obsolete signature merely to activate.",
+      "severity": "HIGH",
+      "json_pointer": "/activation_contract",
+      "id": "ACIR-001",
+      "path": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
+      "observed": "Active required_activation_steps names confirm_user_signature_ilja090720260901 and create_wtc_worktree_and_feat_branch; deferred list repeats creation. Current lifecycle baseline signature040920261532 and approved enrichment091020261912 plus existing product branch locator contradict these required steps.",
+      "lines": [
+        237,
+        241,
+        245
+      ],
+      "disposition": "CORRECTED_ON_FRESH_SOURCE_REREAD",
+      "observed_after_correction": "Active activation steps retain040920261532/091020261912, verify existing branch/worktree, worktree_creation explicitly NOT_REQUIRED; coder/validator remain false."
+    },
+    {
+      "required_disposition": "Replace active posture with PENDING asset-port proof and separately scheduled real FlightRecorder/internal_diagnostics/Palmistry integration according to each behavior trigger; record exact justified NA or unresolved required host dependency. Historical claim stays provenance, never current WIRED.",
+      "line": 261,
+      "severity": "HIGH",
+      "json_pointer": "/hbr_applicability/int_009_three_tier",
+      "id": "ACIR-002",
+      "path": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
+      "observed": "Active stub says FR-EVT-STUDIO-* WIRED at build and internal_diagnostics/Palmistry DEFERRED-until-shipped. It is outside historical blocks and contradicts current per-behavior asset port versus mandatory real later production tier consumers.",
+      "disposition": "CORRECTED_ON_FRESH_SOURCE_REREAD",
+      "observed_after_correction": "All three tiers separately PENDING_IMPLEMENTATION_AND_INDEPENDENT_PROOF; typed asset sink and real production embedding consumer requirement retained;45 HBR rule rows now explicit."
+    },
+    {
+      "required_disposition": "Explicitly tag this legacy path provenance-only if touched; keep current branch/GOV/artifact locators portable. Do not delete historical path or treat its existence as fresh backup proof.",
+      "severity": "LOW",
+      "json_pointer": "/greenroom_fold/backup_of_previous_packet",
+      "id": "ACIR-003",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/ACTIVATION_READINESS.json",
+      "observed": "Dated top-level legacy greenroom_fold retains absolute D-drive backup path and old reports. history_policy treats dated legacy blocks as provenance, so this is not an active execution locator.",
+      "disposition": "CORRECTED_ON_FRESH_SOURCE_REREAD",
+      "observed_after_correction": "Top-level greenroom_fold and colour_accuracy_resolution removed; original full snapshot retains greenroom history."
+    }
+  ],
+  "observed_gates": {
+    "implementation_timing": "NEXT_SESSION_ONLY",
+    "hbr_proof_status": "PENDING_PER_MT_APPLICABILITY_AND_PROOF",
+    "approval_original": "ilja040920261532",
+    "readiness_launch": "NO",
+    "packet_execution_authority": "NON_EXECUTION_STUB",
+    "readiness_verdict": "PREPARED_NON_EXECUTION_STUB_NOT_READY_FOR_DEV",
+    "stub_validator": false,
+    "packet_hbr_rules": 45,
+    "stub_coder": false,
+    "packet_status": "STUB (NOT READY FOR DEV)",
+    "readiness_hbr_rules": 45,
+    "registry_count": 35,
+    "barrier_includes_workspace": true,
+    "approval_enrichment": "ilja091020261912"
+  },
+  "preservation_checks": {
+    "declared_acceptance_count": 21145,
+    "packet_original_id_count": 5484,
+    "baseline_record_count": 5484,
+    "limit": "No archived pre-authoring source byte comparison available in this scoped review; full original payload preservation not certified merely by snapshots or matching ID/AC counts.",
+    "baseline_original_acceptance_count": 21145,
+    "exact_id_set_difference": 0,
+    "historical_snapshot_present_all_four": false,
+    "baseline_hash_matches": true
+  },
+  "retained_contracts": [
+    "All current registry foundations plus workspace precede domain features; count snapshots not frozen barrier limit.",
+    "Real bounded capability/consumer/failure per foundation, no canned/hollow PASS; independent scoped acceptance and later host embedding preserved.",
+    "Portable existing-worktree locator and direct HANDSHAKE_GOV_ROOT; backup status explicitly not verified.",
+    "Shared platform5.1/MEX11.8 owns manifests/lifecycle/grants/sandbox; no private Studio extension/server/database/job authority.",
+    "LRCAT/WAL exception limited to selected immutable bounded file-byte semantic extraction; no SQL engine/query/connectivity/writable catalog/cache or second database.",
+    "Full45HBR rule actions/status/proof destinations pending per MT; no proof duplication mandated solely by rule count."
+  ],
+  "counterfactuals": [
+    "If obsolete create_wtc_worktree step is acted on instead of current existing-worktree locator, next session can fork a second canonical WP execution tree.",
+    "If active diagnostics sentence is accepted as current proof, blanket defer can discharge host tier acceptance without real consumers."
+  ],
+  "negative_checks": [
+    "No launch/coding authority derived from approved enrichment signature.",
+    "No active runtime PASS observed outside stale stub diagnostics posture; historical statuses explicitly non-authoritative.",
+    "Publication/proof selectors/native oracles remain named blockers, not launch-ready proof."
+  ],
+  "residual_uncertainty": [
+    "Root is changing registry/MTs concurrently; review binds only captured fourfile/registry hashes.",
+    "No MT runtime verdict, no spec publication verdict, no native/plugin/device/visual/parity proof.",
+    "Full baseline scope/AC semantic payload preservation requires independent final migration reconciliation."
+  ],
+  "remaining_preparation_gaps": [
+    "Coherent207 publication/pointer/manifest/resolver/changelog is pending named root blocker.",
+    "Exact final original5484scope/unit/21145AC plus append-only new-unit/foundation fulfillment and index independently reconciled before activation; counts alone insufficient.",
+    "Concrete per-MT target/features/runner/canary/resource/consumer proof remains next-session activation work, never satisfied by these contracts.",
+    "Historical source snapshots present but original pre-authoring byte equality not independently verified by this scoped review."
+  ],
+  "final_technical_default_reread": {
+    "observed": "Full clause source inspected: retained reachable history/undo lineage; nonreplaceable semantic batches; host policy autoaccept OFF with canonical evidence/grants; artifact tile refs and no private DB; actual typed business FR registration and durable mirror intent/reconciliation. Selected planning defaults are resolved; actual consumers/providers/runtime proof remain future acceptance.",
+    "clauses": [
+      "STU-CON-006",
+      "STU-CON-009",
+      "STU-CON-010",
+      "STU-CON-011",
+      "STU-CON-012",
+      "STU-CON-013"
+    ],
+    "lines": [
+      22403,
+      22405,
+      22407,
+      22409,
+      22411,
+      22413
+    ],
+    "refinement_status": "TECHNICAL_DEFAULTS_RESOLVED_IN_APPROVED207_CANDIDATE_BUNDLE_PUBLICATION_PENDING",
+    "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+    "proof_level": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+    "sha256": "38716664baf4f5fd3ec2207d53fe793f8f98dcb3508144fb9032b6e820f067f7",
+    "shared_platform_anchor": "5.1.6",
+    "packet_candidate_digest_matches_actual": true
+  },
+  "latest_scoped_refresh": {
+    "shared_platform": {
+      "path": ".GOV/spec/master-spec-v02.207/spec-modules/05-security-and-observability.md",
+      "lines": [
+        366,
+        404
+      ],
+      "inspected_anchors": "HSK-PLG-001..020",
+      "current_sha256": "5e6947f665b59ab656d8de7e3f2cf56975d85f5d0effd728726731e0e0da0161",
+      "observed": "One shared platform; lifecycle prerequisites explicit; WIT interface does not select runtime; native isolation/realtime/retirement and host proof required"
+    },
+    "findings": [
+      {
+        "required_disposition": "At coherent publication/activation bind final actual module/registry identities or clearly retain observed revision as historical. Explicit publication pending already blocks launch; mismatch is not runtime failure.",
+        "id": "ACIR-004",
+        "severity": "MEDIUM",
+        "status": "CORRECTED_ON_FRESH_FINAL_REREAD",
+        "observed": "All fourfiles retain source digest captured before explicit IO190/CON014 publication and foundation registry observation hash before current registry revision.",
+        "disposition": "Allfour module14/mod05 source digests and current registry digest match actual frozen sources. IO190 and CON014 directly inspected; pending clause list empty. Later metadata publication requires identity refresh before activation without implying substantive or runtime verdict."
+      }
+    ],
+    "proof_level": "SOURCE_ONLY_NOT_MT_PRESERVATION_RUNTIME_OR_ADOPTION",
+    "studio": {
+      "binding_status": "Frozen substantive source digest matches final four contracts; pending_root_clause_publication empty",
+      "inspected_anchors": [
+        "STU-MOT-255",
+        "STU-MOT-256",
+        "STU-MOT-257",
+        "STU-MOT-258",
+        "STU-MOT-259",
+        "STU-IO-190",
+        "STU-CON-014"
+      ],
+      "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "bound_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+      "current_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+      "expression_lines": [
+        28983,
+        28985,
+        28987,
+        28989,
+        28991
+      ]
+    },
+    "expression_proof": {
+      "id": "STUDIO-PROOF-EXPRESSION-PROVIDER",
+      "observed": "Exact wrapper/transitive C/pins/features/target proof, binding-aware AST/checkpoints, trusted cache identity, prototype/constructor routes, allocator/host CPU/RSS/deadline/retirement and original-app semantic reference plus pure Motion closure required. Candidate is not adopted by these declarations.",
+      "independent": true
+    },
+    "contract_files": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/ACTIVATION_READINESS.json",
+      ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json"
+    ],
+    "registry": {
+      "current_sha256": "df923cb68267d2c42dcfc3588255c35e82680a11a06dcccfe1e4ad3723e0b82a",
+      "motion_dependency": "motion remains accord/folio/nib/type/observe; does not require motion_js",
+      "includes_motion_js": true,
+      "identity_matches_current": true,
+      "module_count": 35,
+      "observed_contract_hash": "df923cb68267d2c42dcfc3588255c35e82680a11a06dcccfe1e4ad3723e0b82a",
+      "barrier_count": 36,
+      "provider_dependency": "motion_js depends accord/motion/observe; optional native runtime side isolated"
+    },
+    "gates_retained": "NON_EXECUTION/STUB/launchNO and explicit next-session implementation remain; baseline references unchanged; no fresh actualMTpreservation claim"
+  },
+  "final_freeze_review": {
+    "phase_gate": {
+      "actual_shared_lifecycle_grant_sandbox_consumers_before_dependent_plugin_activation_or_embedding": true,
+      "packet_old_WP_dependencies": "Embedding-only explicitly at packet.dependencies.wp_gate_phase",
+      "whole_host_platform_or_WP012_not_predecessor_for_independent_assets": true,
+      "all36_portable_foundations_before_asset_features": true,
+      "claim_limit": "No foundation runtime, device implementation, actual MT semantic preservation, source adoption or production integration claimed"
+    },
+    "platform_sha256": "5e6947f665b59ab656d8de7e3f2cf56975d85f5d0effd728726731e0e0da0161",
+    "studio_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+    "registry_sha256": "df923cb68267d2c42dcfc3588255c35e82680a11a06dcccfe1e4ad3723e0b82a",
+    "metadata_rebind": "Refresh changed frontmatter/manifest source hashes at coherent publication/activation; do not rerun runtime proof or infer substantive change from metadata alone",
+    "business_catalog": {
+      "observed": "Full22-row table read; business category and exact family/FR IDs explicitly planned, not implemented; proposal/view/rejection events cannot falsely claim promotion. Actual recorder ingestion/producer proof remains required.",
+      "unique_wire_variants": 22,
+      "lines": [
+        22419,
+        22423,
+        22444
+      ],
+      "rows": 22,
+      "anchor": "STU-CON-014"
+    },
+    "native_identity": {
+      "observed": "Reopen requires independently current host identity/head/schema/revision/manifest; import/fork allocates fresh IDs and rewrites reachable known graph, never copied grants; unresolved opaque/editable refs remain explicit or block promotion.",
+      "line": 238,
+      "anchor": "STU-IO-190"
+    }
+  },
+  "final_bounded_clause_refresh": {
+    "preserved_gates": "Prior non-execution/launchNO/current signatures/allHBR pending foundation/runtime gates remain; no runtime/adoption inference",
+    "inspected": [
+      {
+        "anchor": "STU-ARC-016",
+        "line": 227,
+        "observed": "35modules+workspace, meaningful bounded consumer/failure foundation; no proprietary-decoder fake feature closure."
+      },
+      {
+        "anchor": "STU-DOC-001",
+        "line": 257,
+        "observed": "One authored Folio record contains containment and composition-port graph with distinct semantics; no second mutable document graph."
+      },
+      {
+        "anchor": "STU-CON-013",
+        "line": 22417,
+        "observed": "Authority mutations mirror after promotion; selection/proposal/rejection audit mirrors after own typed durable ledger acceptance, never document promotion; transient previews excluded from business events."
+      },
+      {
+        "anchor": "STU-MOT-258",
+        "line": 28989,
+        "observed": "Actual parser/AST/lowering/checkpoint prerequisite, exact source/feature proof precedes candidate adoption; each independent sample fresh realm or independently proved complete reset, retries share allowance; trusted cache identity and bounded nonexecuting result conversion required."
+      },
+      {
+        "anchor": "HSK-PLG-020",
+        "line": 404,
+        "observed": "Portable asset foundations before asset features; actual shared lifecycle/authorization/sandbox/Argus/manual consumers separately before dependent plugin activation or embedding, not entire host prerequisite for isolated assets."
+      }
+    ],
+    "studio_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+    "scope": "Only existing review JSON updated; no broader audit or source edits",
+    "registry_sha256": "df923cb68267d2c42dcfc3588255c35e82680a11a06dcccfe1e4ad3723e0b82a",
+    "migration_coordination": "Root-reported original5484 migration +36foundations +55amendments expected5575 is coordination only; no current index/full payload independent read in this bounded review and no MT preservation verdict.",
+    "platform_sha256": "5e6947f665b59ab656d8de7e3f2cf56975d85f5d0effd728726731e0e0da0161",
+    "all_four_source_and_registry_bindings_match": true
+  },
+  "migrated_mt_spot_and_metadata_review": {
+    "review_id": "STUDIO-MIGRATED-MT-SPOT-AND-METADATA-20261009",
+    "updated_at": "2026-10-09T20:41:17.071223+00:00",
+    "scope": "Read-only requested substantive spotreview, not full5484 baseline audit. Existing report only; no MT/spec/status/Git/product/WP012 edits.",
+    "status": "NINE_RECORDED_FINDINGS_CLOSED_AT_SOURCE_CONTRACT_LEVEL",
+    "acceptance_boundary": "No actual implementation/runtime/provider-adoption/MT completion/full-migration or whole-bundle publication verdict.",
+    "selected_original_observations": [
+      {
+        "mt_id": "MT-001",
+        "source_sha256_at_report": "c8744cc705e0de4054a754dcf5e37d75fa71b5ad97a5f75f4e06b49cdb2373d2",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-WORKSPACE",
+        "allowed_write_paths": [
+          "handshake-studio-assets/Cargo.toml",
+          "handshake-studio-assets/Cargo.lock",
+          "handshake-studio-assets/rust-toolchain.toml"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 4,
+        "active_proof_checks": 4,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-200",
+        "source_sha256_at_report": "68e1e80a9cbf026c01a02fb48ab2d15a5b3bc1e662e475539461f89c130dee9c",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-TYPE",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-type/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 4,
+        "active_proof_checks": 4,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-007",
+        "source_sha256_at_report": "fed940f93700a79a5e7474fc2a4cdd40c0b53a899e1e7d09b0a4c2a5761cd1ab",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-HARNESS",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-harness/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 3,
+        "active_proof_checks": 3,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-016",
+        "source_sha256_at_report": "266aa6ae0a7dff047443903bb93875710627eb5f9024c3a8c678db60da5201a1",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-NIB",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-nib/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 3,
+        "active_proof_checks": 3,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-017",
+        "source_sha256_at_report": "60f89e32c7519479340260ce93848c86740d7dcbaf2f9cb805bc33ceb3e5b4f9",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-COMPOSITE",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-composite/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 4,
+        "active_proof_checks": 4,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-018",
+        "source_sha256_at_report": "16262217fd695d287437eee61c4d1bec6a0154b899e5357f3aa4fbd2c5983750",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-TYPE",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-type/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 3,
+        "active_proof_checks": 3,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-019",
+        "source_sha256_at_report": "9d23ddeb7d24afb145974806513dd3008e6320a74fa123891a9121862ff901cc",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-PRISM",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-prism/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 3,
+        "active_proof_checks": 3,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-020",
+        "source_sha256_at_report": "b7ef05656365afadaba120806418088408be3fdda188e67ffdd51b74c0870148",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-LAYOUT",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-layout/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 3,
+        "active_proof_checks": 3,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-188",
+        "source_sha256_at_report": "8d26f587935d5ef39441aa2742a9763ee572d3d2665488f8ee63daa991a36492",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-PRESS",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-press/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 6,
+        "active_proof_checks": 6,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-198",
+        "source_sha256_at_report": "2a49371ddc74d6b10df313b27530e93b8593789400c9ec25ca2f88f6e1cf7c5b",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-TYPE",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-type/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 3,
+        "active_proof_checks": 3,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-009",
+        "source_sha256_at_report": "9c9218f206c6614bd286016d4ab267e1c7954489371cd3b7a076f8eb4ac8d64a",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-CONTROLS",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-controls/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 4,
+        "active_proof_checks": 4,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-181",
+        "source_sha256_at_report": "891f04f12afb1b065e331955e80f3a50fccf1b62b30a6ab638b7cd77f148a38e",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-LAYOUT",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-layout/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 2,
+        "active_proof_checks": 2,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-065",
+        "source_sha256_at_report": "89e2fd321c294a089b7ec6eeb2b851e0e76610e6bebc86d666cf7b36e8783dc0",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-PIGMENT",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-pigment/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 4,
+        "active_proof_checks": 4,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-261",
+        "source_sha256_at_report": "5566e86b37f18a31be9711a8f68ee9b4f65c11e1ca284719e6ffac99f17138a7",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-PIGMENT",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-pigment/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 5,
+        "active_proof_checks": 5,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-30308",
+        "source_sha256_at_report": "b1c1729186a1100918efb80ad9c911721c275db7676cbe4bb29921e511513a4b",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-DEVELOP",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-develop/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 2,
+        "active_proof_checks": 2,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-33368",
+        "source_sha256_at_report": "19c86bb4bf458a4a299f2a4392edd6d99f75d25d66a2fd84c5543812302ecac8",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-PACKAGE",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-package/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 1,
+        "active_proof_checks": 1,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-33848",
+        "source_sha256_at_report": "427c2d7f949627f2cd7b473b5e72c7389153d76bc0604f808a3638ee1efec358",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-MOTION",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-motion/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 0,
+        "active_proof_checks": 0,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      },
+      {
+        "mt_id": "MT-34070",
+        "source_sha256_at_report": "df4c8d066d6ffd2e756d811ca64969f83527717d9905ce3ca67eae980e90732d",
+        "preserved_scope_equals_baseline": true,
+        "preserved_acceptance_equals_baseline": true,
+        "active_owner": "STUDIO-MODULE-COMPOSITE",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-composite/**"
+        ],
+        "dispatch_allowed": false,
+        "original_acceptance_rows": 0,
+        "active_proof_checks": 0,
+        "later_kernel_phase": "SEPARATE_LATER_EMBEDDING",
+        "current_migration_boundary": "Source snapshots may change while vector applies reported corrections; frozen reread required for dispositions."
+      }
+    ],
+    "foundation_review": {
+      "range": "MT-35528..MT-35563",
+      "count": 36,
+      "all_registry_capability_and_dependency_bindings_match": true,
+      "declared_dependency_cycles": 0,
+      "all_foundation_self_barrier_members_empty": true,
+      "proof_commands_and_timeouts_unmaterialized": true,
+      "dispatch_blocked": true,
+      "hbr_rows_each": 45,
+      "limitations": "These logical/source checks do not prove actual Cargo closure, resource limits, ownership consumers or runtime behavior."
+    },
+    "positive_observations": [
+      "Selected exact original scope/acceptance arrays retained",
+      "Primary execution paths do not authorize sibling roots; compound slices require separate claim",
+      "Later kernel acceptance and original dependencies retained as pending, never discharged by asset proof",
+      "MT065 original AI intent retained/PENDING with FUTURE_AI_NOT_THIS_ACTIVATION and dispatch false",
+      "HBR45 rows include differentiated APPLIES/CONDITIONAL/APPLIES_ON_NAMED_TRIGGER and pending evidence; no blanket all-APPLIES or fake PASS",
+      "Unmaterialized command_or_method fields explicitly gate dispatch, rather than inventing runner or success"
+    ],
+    "findings": [
+      {
+        "id": "MT-SPOT-001",
+        "severity": "HIGH",
+        "sources": [
+          "MT-001#/execution/inputs/0/scope",
+          "MT-001#/proof/checks/1/expected",
+          "MT-001#/closure_unit/materialized_acceptance"
+        ],
+        "observed": "Active input still directs old core/per-domain plus studio-engine crate and active asset expected says Studio-engine crate compile despite authority_migration declaring top-level scope historical.",
+        "required": "Keep exact original text solely historical; active workspace/Accord/host-neutral binding contributions and proof expectations must name current independent roots and separately scheduled concrete host wiring.",
+        "status": "CLOSED_SOURCE_CONTRACT_LEVEL_IMPLEMENTATION_PROOF_PENDING",
+        "prior_status_before_frozen_reread": "ROOT_VECTOR_CORRECTION_IN_FLIGHT_FROZEN_REREAD_REQUIRED",
+        "frozen_reread_disposition": {
+          "updated_at": "2026-10-09T19:56:13.869870+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "MT001 active input names current workspace slice; active compile expectation requires independently selected 35 packages and later concrete kernel consumer, explicitly forbids recreating studio-engine. Original payload remains historical."
+        },
+        "disposition_history": [
+          {
+            "status": "SOURCE_CORRECTED_RUNTIME_NOT_PROVEN",
+            "frozen_reread_disposition": {
+              "updated_at": "2026-10-09T19:56:13.869870+00:00",
+              "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+              "observed": "MT001 active input names current workspace slice; active compile expectation requires independently selected 35 packages and later concrete kernel consumer, explicitly forbids recreating studio-engine. Original payload remains historical."
+            }
+          }
+        ],
+        "corrected_frozen_reread_disposition": {
+          "updated_at": "2026-10-09T20:41:17.071223+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "Current workspace inputs and independently selected 35-package compile/later kernel consumer expectations remain current; studio-engine is explicitly excluded from active compile requirement."
+        }
+      },
+      {
+        "id": "MT-SPOT-002",
+        "severity": "HIGH",
+        "sources": [
+          "MT-001#/fulfillment/legacy_acceptance_map",
+          "MT-017#/fulfillment/legacy_acceptance_map",
+          "MT-018#/fulfillment/legacy_acceptance_map",
+          "MT-188#/fulfillment/legacy_acceptance_map"
+        ],
+        "observed": "Each original acceptance row is linked to every contributing slice with identical generic owner-domain contribution text; owner-specific semantic behavior, input/output/consumer and per-AC contribution are not yet materialized. Primary writes stay in one root, but generic cross-links cannot prove substantive scope fulfillment.",
+        "required": "Materialize exact per-AC contributing owner/behavior/proof phase and independent slice claim before dispatch; do not grant parent write scope over siblings.",
+        "status": "CLOSED_SOURCE_CONTRACT_LEVEL_IMPLEMENTATION_PROOF_PENDING",
+        "prior_status_before_frozen_reread": "ROOT_VECTOR_CORRECTION_IN_FLIGHT_FROZEN_REREAD_REQUIRED",
+        "frozen_reread_disposition": {
+          "updated_at": "2026-10-09T19:56:13.869870+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "Contributions now identify exact owner roots, scoped responsibilities and per-AC required_behavior/proof recipes; MT017/018 wildcard source resolution remains explicitly non-dispatchable. MT200 owner_contributions/0/required_behavior still requires four closed composers while active semantic fulfillment requires six independent combinations. This active field is not marked historical; correction required."
+        },
+        "disposition_history": [
+          {
+            "status": "PARTIAL_SOURCE_CORRECTION_ONE_ACTIVE_CONTRADICTION_REMAINS",
+            "frozen_reread_disposition": {
+              "updated_at": "2026-10-09T19:56:13.869870+00:00",
+              "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+              "observed": "Contributions now identify exact owner roots, scoped responsibilities and per-AC required_behavior/proof recipes; MT017/018 wildcard source resolution remains explicitly non-dispatchable. MT200 owner_contributions/0/required_behavior still requires four closed composers while active semantic fulfillment requires six independent combinations. This active field is not marked historical; correction required."
+            }
+          }
+        ],
+        "corrected_frozen_reread_disposition": {
+          "updated_at": "2026-10-09T20:41:17.071223+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "MT017 now has explicit Composite plan/provider-port versus Pigment tile/pipeline contributions. MT200 owner_contributions now requires all six combinations and separates Type compose/errors, Layout threaded-frame consume/reflow, and Controls existing shared paragraph GUI/model/schema/accessibility/manual/Argus configuration. Old four-composer row remains historical only. Navigation-only families do not grant all family features or sibling writes."
+        }
+      },
+      {
+        "id": "MT-SPOT-003",
+        "severity": "HIGH",
+        "sources": [
+          "MT-33848#/closure_unit/materialized_acceptance",
+          "MT-34070#/proof/checks"
+        ],
+        "observed": "Original MOT001/CMP004 contracts contain zero acceptance rows; migrated acceptance/proof is also empty. Preserving empty arrays cannot make the substantive requested behavior executable.",
+        "required": "Keep original payload exactly; add explicit acceptance-materialization blocker and append-only active acceptance derived from complete current normative behavior with independent owner/phase proof mapping.",
+        "status": "CLOSED_SOURCE_CONTRACT_LEVEL_IMPLEMENTATION_PROOF_PENDING",
+        "prior_status_before_frozen_reread": "REPORTED_DISPATCH_MUST_REMAIN_BLOCKED_UNTIL_MATERIALIZED",
+        "frozen_reread_disposition": {
+          "updated_at": "2026-10-09T19:56:13.869870+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "MT33848 and MT34070 preserve zero original acceptance rows but append active_acceptance_criteria ASSET-AC-001 plus one materialized closure and one proof check each, sourced to complete current clause ranges. No executable target/result exists yet; required materialization gates remain."
+        },
+        "disposition_history": [
+          {
+            "status": "SOURCE_CORRECTED_RUNTIME_NOT_PROVEN",
+            "frozen_reread_disposition": {
+              "updated_at": "2026-10-09T19:56:13.869870+00:00",
+              "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+              "observed": "MT33848 and MT34070 preserve zero original acceptance rows but append active_acceptance_criteria ASSET-AC-001 plus one materialized closure and one proof check each, sourced to complete current clause ranges. No executable target/result exists yet; required materialization gates remain."
+            }
+          }
+        ],
+        "corrected_frozen_reread_disposition": {
+          "updated_at": "2026-10-09T20:41:17.071223+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "MOT001/CMP004 still retain zero original AC rows, one append-only active acceptance and one proof check each; substantive full body is source-bound. No executable target/result claimed."
+        }
+      },
+      {
+        "id": "MT-SPOT-004",
+        "severity": "HIGH",
+        "sources": [
+          "MT-001#/execution/artifact_isolation",
+          "MT-200#/execution/artifact_isolation",
+          "MT-35528#/execution/artifact_isolation",
+          "MT-35563#/context_capsule/pillar_refs"
+        ],
+        "observed": "artifact_root ../Handshake_Artifacts and HBR destinations lack explicit resolver basis in inspected MTs; resolving from the managed C-drive asset cwd selects a different root.",
+        "required": "Anchor sole CX984 artifact resolution to verified HANDSHAKE_GOV_ROOT/enclosing canonical Handshake project, verify existing root and pass resolved absolute root to subprocesses; never resolve from asset cwd.",
+        "status": "CLOSED_SOURCE_CONTRACT_LEVEL_IMPLEMENTATION_PROOF_PENDING",
+        "prior_status_before_frozen_reread": "ROOT_VECTOR_CORRECTION_IN_FLIGHT_FROZEN_REREAD_REQUIRED",
+        "frozen_reread_disposition": {
+          "updated_at": "2026-10-09T19:56:13.869870+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "Inspected artifact isolation and HBR destinations explicitly resolve sole CX984 external root from verified HANDSHAKE_GOV_ROOT, forbid asset-cwd resolution and require absolute owner root/slug binding before running. Unbound templates are explicitly NON_EXECUTABLE."
+        },
+        "disposition_history": [
+          {
+            "status": "SOURCE_CORRECTED_RUNTIME_BINDING_PENDING",
+            "frozen_reread_disposition": {
+              "updated_at": "2026-10-09T19:56:13.869870+00:00",
+              "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+              "observed": "Inspected artifact isolation and HBR destinations explicitly resolve sole CX984 external root from verified HANDSHAKE_GOV_ROOT, forbid asset-cwd resolution and require absolute owner root/slug binding before running. Unbound templates are explicitly NON_EXECUTABLE."
+            }
+          }
+        ],
+        "corrected_frozen_reread_disposition": {
+          "updated_at": "2026-10-09T20:41:17.071223+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "Selected artifact roots continue to anchor verified HANDSHAKE_GOV_ROOT/CX984 and require actual absolute owner binding before running, never asset-cwd resolution."
+        }
+      },
+      {
+        "id": "MT-SPOT-005",
+        "severity": "HIGH",
+        "sources": [
+          "MT-35528#/execution/allowed_write_paths",
+          "MT-35528#/foundation_contract/capability",
+          "MT-35528#/acceptance_criteria/0",
+          "all dependent foundations#/execution/contract_dependency_kind"
+        ],
+        "observed": "Workspace foundation requires running real selected consumer/negative capability, but write scope only allows Cargo.toml/Cargo.lock/rust-toolchain.toml. Every other foundation depends on its completion. Explicit DAG has no cycle, but no legal consumer source creates a behavioral bootstrap conflict.",
+        "required": "Grant one explicit workspace-owned bounded bootstrap consumer source, or split manifest-ready predecessor from final real consumer proof after Accord without falsely accepting complete workspace foundation early. Materialize proof recipe before coding and executable target/result after creation before handoff.",
+        "status": "CLOSED_SOURCE_CONTRACT_LEVEL_IMPLEMENTATION_PROOF_PENDING",
+        "prior_status_before_frozen_reread": "ROOT_VECTOR_CORRECTION_REQUESTED_FROZEN_REREAD_REQUIRED",
+        "frozen_reread_disposition": {
+          "updated_at": "2026-10-09T19:56:13.869870+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "MT35528 allowed_write_paths now grants workspace-owned tools/workspace-probe.rs. Materialized acceptance separates manifest/toolchain/package-selection/provenance probe from final all36 actual module/provider compile barrier. Focused method/features/timeout approval remains required before coding; actual target/output before handoff."
+        },
+        "disposition_history": [
+          {
+            "status": "SOURCE_CORRECTED_BOOTSTRAP_RUNTIME_NOT_PROVEN",
+            "frozen_reread_disposition": {
+              "updated_at": "2026-10-09T19:56:13.869870+00:00",
+              "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+              "observed": "MT35528 allowed_write_paths now grants workspace-owned tools/workspace-probe.rs. Materialized acceptance separates manifest/toolchain/package-selection/provenance probe from final all36 actual module/provider compile barrier. Focused method/features/timeout approval remains required before coding; actual target/output before handoff."
+            }
+          }
+        ],
+        "corrected_frozen_reread_disposition": {
+          "updated_at": "2026-10-09T20:41:17.071223+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "Workspace retains explicit tools/workspace-probe.rs write scope; bootstrap materialization is permitted without falsely accepting any owner/barrier before independent actual proofs. Final36 foundation barrier retained."
+        }
+      },
+      {
+        "id": "MT-SPOT-006",
+        "severity": "MEDIUM",
+        "sources": [
+          "MT-35528#/activation/semantic_trigger_flags/ui",
+          "MT-35529#/context_capsule/pillar_refs/HBR-VIS-003"
+        ],
+        "observed": "Workspace/Accord get ui=true and VIS003 APPLIES with declared visible control rationale, although current workspace writes are manifests and Accord capability is typed envelope parsing. All45 rows and differing assessments exist, but copied semantic flags are not per-scope trigger evidence.",
+        "required": "Separate actual visible Controls/Harness capture-matrix triggers from pure schema/non-UI descriptor/TraceProjection posture; preserve later applicable host GUI obligations and exact conditional triggers.",
+        "status": "CLOSED_SOURCE_CONTRACT_LEVEL_IMPLEMENTATION_PROOF_PENDING",
+        "prior_status_before_frozen_reread": "REPORTED_PER_MT_TRIGGER_MATERIALIZATION_REQUIRED",
+        "frozen_reread_disposition": {
+          "updated_at": "2026-10-09T19:56:13.869870+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "MT35528/35529 owned_gui=false; HBR-VIS-003 CONDITIONAL reasons name no owned GUI and preserve later visible consuming-integration viewport/state matrix. No capture-matrix result claimed."
+        },
+        "disposition_history": [
+          {
+            "status": "SOURCE_CORRECTED_SCOPE_ASSESSMENT_RUNTIME_PENDING",
+            "frozen_reread_disposition": {
+              "updated_at": "2026-10-09T19:56:13.869870+00:00",
+              "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+              "observed": "MT35528/35529 owned_gui=false; HBR-VIS-003 CONDITIONAL reasons name no owned GUI and preserve later visible consuming-integration viewport/state matrix. No capture-matrix result claimed."
+            }
+          }
+        ],
+        "corrected_frozen_reread_disposition": {
+          "updated_at": "2026-10-09T20:41:17.071223+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "Workspace/Accord remain owned_gui=false and VIS003 CONDITIONAL for later visible consumers. Inspected Controls/Reel VIS003 remains APPLIES; source stance does not claim actual capture results."
+        }
+      },
+      {
+        "id": "MT-SPOT-007",
+        "severity": "HIGH",
+        "sources": [
+          "MT-33368#/context_capsule/specification_anchor_refs",
+          "MT-33848#/context_capsule/specification_anchor_refs",
+          "MT-34070#/context_capsule/specification_anchor_refs"
+        ],
+        "observed": "Inspected RAW001/MOT001/CMP004 context verbatim fields quote only clause first lines; actual normative continuation bodies contain immutable/reversible RAW, unified history/color/export/precomp and bidirectional composition/opacity/navigation obligations.",
+        "required": "Bind recoverable complete exact clause bodies/ranges/hash, not first-line snippets as sufficient no-context source; preserve original derivation identity while refreshing active source.",
+        "status": "CLOSED_SOURCE_CONTRACT_LEVEL_IMPLEMENTATION_PROOF_PENDING",
+        "prior_status_before_frozen_reread": "REPORTED_FULL_CLAUSE_REFRESH_REQUIRED",
+        "frozen_reread_disposition": {
+          "updated_at": "2026-10-09T19:56:13.869870+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "MOT001 MT33848 lines25456..25464, CMP004 MT34070 lines29021..29030 and RAW001 MT30308 lines1950..1954 bind complete normative ranges with independently recomputed matching body hashes and explicit first-line-excerpt labels. Prior finding incorrectly named MT33368 as RAW001; actual RAW001 inspected is MT30308. CMP004 active criterion also carries trailing section headings; clause body itself is retained, headings are editorial residue rather than missing normative scope."
+        },
+        "disposition_history": [
+          {
+            "status": "SOURCE_CORRECTED_HASH_VERIFIED_RANGES",
+            "frozen_reread_disposition": {
+              "updated_at": "2026-10-09T19:56:13.869870+00:00",
+              "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+              "observed": "MOT001 MT33848 lines25456..25464, CMP004 MT34070 lines29021..29030 and RAW001 MT30308 lines1950..1954 bind complete normative ranges with independently recomputed matching body hashes and explicit first-line-excerpt labels. Prior finding incorrectly named MT33368 as RAW001; actual RAW001 inspected is MT30308. CMP004 active criterion also carries trailing section headings; clause body itself is retained, headings are editorial residue rather than missing normative scope."
+            }
+          }
+        ],
+        "corrected_frozen_reread_disposition": {
+          "updated_at": "2026-10-09T20:41:17.071223+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "Complete bound normative ranges independently rehashed in selected records: 154 occurrences with no mismatches, including RAW102 MT30311 lines2015..2032. All20 HSKPLG001..020 MT35599..35618 bind current05 lines366..405, each independently matching body hash. RAW001/MOT001/CMP004 complete ranges retained. Seven wildcard MTs have navigation_only family_catalog references plus exact preserved-scope refs; unresolved_source_anchors emptied for those navigation families, not expanded whole-family assignments."
+        }
+      },
+      {
+        "id": "MT-SPOT-008",
+        "severity": "HIGH",
+        "sources": [
+          "MT-200#/execution/depends_on",
+          "MT-200#/fulfillment/later_kernel/original_dependencies",
+          "MT-188#/execution/depends_on",
+          "MT-188#/fulfillment/later_kernel/original_dependencies"
+        ],
+        "observed": "Active feature dependencies contain only all36 foundation IDs. Original200 dependency198 text behavior and188 dependency019 color behavior/181 output dispatcher survive only under later_kernel.original_dependencies. Narrow foundations do not prove those full feature capabilities.",
+        "required": "Explicitly reconcile each original prerequisite into asset-slice/capability completion versus later host-only phase; preserve disjoint asset work without waiting for full old MT kernel acceptance, and forbid using an unvalidated feature as dependency.",
+        "status": "CLOSED_SOURCE_CONTRACT_LEVEL_IMPLEMENTATION_PROOF_PENDING",
+        "prior_status_before_frozen_reread": "REPORTED_ACTIVE_DEPENDENCY_DISPOSITION_REQUIRED",
+        "frozen_reread_disposition": {
+          "updated_at": "2026-10-09T19:56:13.869870+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "MT200 original198/009 and MT188 original019/181 now have required_capability_dependencies naming concrete asset-slice refs, ASSET_CAPABILITY_ACCEPTED blocking phase and separately retained later-host-only refs. Pending capability proof cannot be replaced by foundation completion or full-host readiness."
+        },
+        "disposition_history": [
+          {
+            "status": "SOURCE_CORRECTED_CAPABILITY_PROOF_PENDING",
+            "frozen_reread_disposition": {
+              "updated_at": "2026-10-09T19:56:13.869870+00:00",
+              "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+              "observed": "MT200 original198/009 and MT188 original019/181 now have required_capability_dependencies naming concrete asset-slice refs, ASSET_CAPABILITY_ACCEPTED blocking phase and separately retained later-host-only refs. Pending capability proof cannot be replaced by foundation completion or full-host readiness."
+            }
+          }
+        ],
+        "corrected_frozen_reread_disposition": {
+          "updated_at": "2026-10-09T20:41:17.071223+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "MT200198/009 and MT188019/181 asset-capability accepted-phase dependencies remain explicit. Named172/184 and332/340 mutual edges now group_internal_source_materialization, pending/not accepted capability; external dependencies remain independent accepted-capability gates under nondispatchable packet groups."
+        }
+      },
+      {
+        "id": "MT-SPOT-009",
+        "severity": "MEDIUM",
+        "sources": [
+          "MT-35529#/execution/may_create_canonical_capability",
+          "MT-35542#/closure_unit/requirement_refs",
+          "MT-35553#/context_capsule/pillar_refs/HBR-COMPONENT-002",
+          "MT-35555#/closure_unit/requirement_refs",
+          "MT-35556#/closure_unit/requirement_refs"
+        ],
+        "observed": "All36 foundations grant may_create_canonical_capability=true while sampled requirement refs only cite architecture anchors and COMPONENT002 promises future owner search; concrete primitive and existing-versus-new mechanic bindings missing.",
+        "required": "Make exact current Master Spec primitive ID, existing owner/reuse/extension search evidence and bounded new mechanic permission a dispatch predecessor; catalog membership alone never authorizes duplicated Controls/platform capability.",
+        "status": "CLOSED_SOURCE_CONTRACT_LEVEL_IMPLEMENTATION_PROOF_PENDING",
+        "prior_status_before_frozen_reread": "REPORTED_CONCRETE_OWNER_BINDING_REQUIRED",
+        "frozen_reread_disposition": {
+          "updated_at": "2026-10-09T19:56:13.869870+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "Inspected workspace/Accord/Controls/platform-related foundation samples now deny may_create_canonical_capability and new_owner_authorization. Packet exact primitive inventory and per-module unresolved owner-search refs are explicit prerequisites; catalog presence is not absence proof or new-owner permission."
+        },
+        "disposition_history": [
+          {
+            "status": "SOURCE_CORRECTED_OWNER_SEARCH_DISPATCH_GATE_PENDING",
+            "frozen_reread_disposition": {
+              "updated_at": "2026-10-09T19:56:13.869870+00:00",
+              "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+              "observed": "Inspected workspace/Accord/Controls/platform-related foundation samples now deny may_create_canonical_capability and new_owner_authorization. Packet exact primitive inventory and per-module unresolved owner-search refs are explicit prerequisites; catalog presence is not absence proof or new-owner permission."
+            }
+          }
+        ],
+        "corrected_frozen_reread_disposition": {
+          "updated_at": "2026-10-09T20:41:17.071223+00:00",
+          "claim_class": "SOURCE_ONLY_NO_RUNTIME_VERDICT",
+          "observed": "Inspected samples continue to deny new canonical capability creation and current dispatch. Owner/reuse/registered primitive binding remains a required unresolved implementation predecessor, not granted by catalog membership."
+        }
+      }
+    ],
+    "metadata_review": {
+      "module_count": 16,
+      "raw_and_body_sha256_counts_frontmatter_version_matches": true,
+      "index_modules_and_reconstruction_equal_manifest": true,
+      "ordered_raw_reconstruction": {
+        "bytes": 8159300,
+        "sha256": "34c15e58e408dfa7b8060dbf9177808fb43a3cb32f1910c80c5847fc07e031ef",
+        "sha1": "e29736775a7f1fae31e7c70746f85f8d0240853c",
+        "matches_declared": true,
+        "method": "Raw module bytes concatenated in declared reconstruction.module_order; body-only concatenation is not declared reconstruction."
+      },
+      "archive206": {
+        "files": 21,
+        "original_files": 21,
+        "path_differences": 0,
+        "content_differences": 0,
+        "method": "Independent byte equality against canonical original206 bundle, not summary/count alone."
+      },
+      "changelog": {
+        "approval": "ilja091020261912",
+        "before_hash_rows": 16,
+        "after_hash_rows": 16,
+        "entries": 121,
+        "before_matches_archive": true,
+        "after_matches207": true,
+        "count_and_hash_matches": true
+      },
+      "current_pointer_observed": "v02.206",
+      "source_snapshots": [
+        {
+          "path": ".GOV/spec/master-spec-v02.207/indexed-spec-manifest.json",
+          "sha256": "448fc510ec37318b0b3cce7539c6b0d79df70c36f21a17f56c423b209165ba82"
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/INDEX.json",
+          "sha256": "c7d06840b3d1cda02ba44ec93b062d82d0563cdf263da7f9f8e374ec75ba1d3c"
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-changelog.jsonl",
+          "sha256": "1ed525604c71521582d79e7533c30c1fc7dfa88b19b6eeecdf91961ee28fb138"
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3"
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/05-security-and-observability.md",
+          "sha256": "5e6947f665b59ab656d8de7e3f2cf56975d85f5d0effd728726731e0e0da0161"
+        }
+      ],
+      "reviewer": "Independent proposal_challenge read-only metadata check; parent inspected manifest schema/reconstruction and scoped changed clauses.",
+      "verdict_limit": "Metadata alignment only, not product acceptance or pointer activation."
+    },
+    "frozen_nine_finding_reread": {
+      "updated_at": "2026-10-09T19:56:13.869870+00:00",
+      "claim_class": "SOURCE_ONLY_NO_RUNTIME_PASS",
+      "bounded_scope": "Nine existing findings, selected MTs only; no duplicated full5484 preservation/96-row/deep-semantic audit. No contract, MT, spec, index or publication-pointer writes.",
+      "root_declared_ordered_corpus_sha256": "6fa3eb59bc75e38a57af88df1496aadd36597745cd857e6f411409ca93a00c60",
+      "ordered_corpus_independently_recomputed_here": false,
+      "fresh_index_sha256": "df15279894f9ec9e488d684343c095d9f37d955f2b5f6253b59eb4c4afac00d9",
+      "selected_mt_sha256": {
+        "MT-001": "a68ece2e5fbfa7c1e9b44ef6e894d802112ea3fd1e0e2a8c041be7065109483c",
+        "MT-017": "85787dac9cb12704ca1b93cbe42261334e33f9f1e7bf8ce9906e0f8822c23044",
+        "MT-018": "200e362ca84dbbf44121690f4cd35cebd76879037138b7a8ac136277ca380c34",
+        "MT-188": "5da126183fbe6ee7d3b8909f9d8fce4ea385b708ccfe2ab271deb0d047202abf",
+        "MT-200": "db700b8313ca2602a01bb054c06e2ea67c70d62e76f738115eed777c7a74f1dd",
+        "MT-30308": "6ec83800b58c01f591e13a8399ffcf06a882d45288a146eb81088d1c370707fa",
+        "MT-33848": "c704d6c9f938dd6836f40d020ae457fd79081466e16fed36111976042f3575d5",
+        "MT-34070": "a2e4371fc6d4d7a817ed0c457003534db19eee5b3e489c386c32651756571218",
+        "MT-35528": "70be487edb8659775af3f283c879b6fb2d95f693d6767eed711653871272c754",
+        "MT-35529": "32ad6c9b0d811f21b602ba32d7cc474b7213b04804133ac1fcd788d03f639626",
+        "MT-35542": "79e8b80cf751a2dcde0a0799723e5f0879a33e53e6cf0709779ed711e18cf913",
+        "MT-35553": "c578fe66e7427ee8813e7c1a3c9de10c328e67af114898588157f92936815f2c",
+        "MT-35555": "3141ef7409ebe8dee7ff91419ac6b1537c84493511e9458dfdd5d960aa2a45bc",
+        "MT-35556": "92daa072da2b4a00792024e438b9c44bc9929d10848d961554f26dd870453250",
+        "MT-35563": "4676bcc0ff9215b188dbb85b7527cabbb77487f29418251d5f5ed55b140e58f0"
+      },
+      "four_frozen_contract_sha256": {
+        ".GOV\\task_packets\\WP-KERNEL-STUDIO\\packet.json": "8aa73b0f82f04457b636895dec87d1ecd9ef25feb7a1912a481c5f5d880247fd",
+        ".GOV\\task_packets\\WP-KERNEL-STUDIO\\refinement.json": "64be0acbe41474ff75f2ec95aa42fb8ca36b274639cccb6046b8a8943914de66",
+        ".GOV\\task_packets\\WP-KERNEL-STUDIO\\ACTIVATION_READINESS.json": "7a310603195873a2077a14c85a2e627616961a9fd25c53265a32ae1ba960b81a",
+        ".GOV\\task_packets\\stubs\\WP-KERNEL-STUDIO.contract.json": "5717a26501022afe89c883e62f3a88cc496b88cfe2265064b7dedd7587688da3"
+      },
+      "remaining_source_blockers": [
+        {
+          "source_ref": "MT-200#/fulfillment/legacy_acceptance_map/0/owner_contributions/0/required_behavior",
+          "observed": "4 Studio-native composers selectable per paragraph",
+          "required": "Current independent composition_scope single_line/every_line by composition_engine latin_cjk/world_ready/adornment, all six combinations and extensible composer_name; four-value text only historical."
+        }
+      ],
+      "separate_pending_conditions": [
+        "Seven broad wildcard original scopes 007/016/017/018/019/020/188 retain explicit unresolved source-navigation blockers; root reviewing exact-family expansion/current supersession without assigning whole families or broadening scope.",
+        "Exact scoped owner/reuse search and primitive binding before dispatch.",
+        "Focused natural method/package/features/timeout approval before coding.",
+        "Verified absolute configured artifact root and actual owner slug before run.",
+        "Actual generated targets and independent output before handoff.",
+        "Fresh implementation-session authorization and applicable independent review/publication gates."
+      ],
+      "runtime_result": "NOT_RUN_NOT_PROVEN"
+    },
+    "corrected_frozen_nine_finding_reread": {
+      "updated_at": "2026-10-09T20:41:17.071223+00:00",
+      "claim_class": "SOURCE_ONLY_PREPARATION_NOT_EXECUTABLE",
+      "scope": "Only nine recorded findings and root-named bounded samples; Photo owns whole-input preservation/graph/provenance audit and Kernel owns detailed semantic spots. No MT/index/contracts/source/pointer writes.",
+      "fresh_index_sha256": "c3df9e9fab9fbbc316be2f007a9eb9b5287b5f493670efa0b844b7250afa3fa6",
+      "root_declared_ordered_corpus_sha256": "1060970bc38404ac29327b27b83e3a606daf304bc6d93a1c5d414790aa146f2f",
+      "ordered_corpus_independently_recomputed_here": false,
+      "selected_mt_sha256": {
+        "MT-001": "bf9099b4829fbf568e7094f22bd61ff269369654ae59c9f4dcd61d4cc95ab8a8",
+        "MT-007": "ce224b71360bcf1ebc07abb538b48e41aba58714b2d28f26d2cba152f9d436d3",
+        "MT-016": "3f933b34ce3a0eb41d0073b03b9360628fbab54293f10427728ac80b5b9a19fa",
+        "MT-017": "e0b6be281bfb12f81600ae6a8f6a7f77b547c3bae8a98aaa541eea78b405052c",
+        "MT-018": "0b9db7273501819f0afc182f15e6108eea3eab3bda1776fbbf8a1ed605685168",
+        "MT-019": "521d8316e838afd8016b20c5168ab8b9abbdb041da1f709264cb2e5c880958ac",
+        "MT-020": "b3634131d19b70ffc06bea0233d6e5d3e422df93788b6a4ee22323a2d282b066",
+        "MT-172": "c4e21698e7c14ae4a1753b5076d93e74a7a09c9cf13bd0c453e685c46068637b",
+        "MT-184": "f9754135ac4892993914ba9b2390ff019c48414b4bd2b2c2ac64e5af725cc46e",
+        "MT-188": "1a66d580758ffc0eb7f715643354cf2db57b979506774abd22c366b7d0905f40",
+        "MT-200": "372ad5c34472c02afb1c5ba50b8135f5d8d3859c28cd38d059a2a763ccbcb599",
+        "MT-332": "331e1496b4ad69f6ae8cc246cb2c58764e758f6a1e419d6559071baaddf04d14",
+        "MT-340": "a5ff0066f9f99366be68a8957a1100d08851de11c20eaacc509152f0d2d87a0f",
+        "MT-509": "173a7eb53ccaf2ed6ecd8cb6a78e7032fabd12da80a9b4c0d8bd52b27f28b4aa",
+        "MT-30308": "a1151f9fccf8509652bd7e1e00dfd258950760562a2a520a848faa5fda0cbb91",
+        "MT-30311": "c3f46d660459edf149be4b69666193a4c6b33fff391b941ec67d8319c4b35025",
+        "MT-33848": "7dbb536044b7ad00ac2c6a457da8ddba42d26a5f96c0b1fdb4e25b6a16a604a8",
+        "MT-34070": "312969f0c76b897f86ae2a14aac9ce18a1afdfbbe33c8a3d104d922b8d68ebbf",
+        "MT-35528": "70be487edb8659775af3f283c879b6fb2d95f693d6767eed711653871272c754",
+        "MT-35529": "32ad6c9b0d811f21b602ba32d7cc474b7213b04804133ac1fcd788d03f639626",
+        "MT-35542": "79e8b80cf751a2dcde0a0799723e5f0879a33e53e6cf0709779ed711e18cf913",
+        "MT-35553": "c578fe66e7427ee8813e7c1a3c9de10c328e67af114898588157f92936815f2c",
+        "MT-35555": "3141ef7409ebe8dee7ff91419ac6b1537c84493511e9458dfdd5d960aa2a45bc",
+        "MT-35556": "279b647aea275dcc2d5e127267bf9a733b98d18ea52c3549850d42c15ff7ac55",
+        "MT-35563": "ac9e1c9b64790a399ead2994f102819fbef559010ff04b6527207718c94205ac",
+        "MT-35599": "d47f2253e4c09c7fde1954aba1217cc7cde9225420afe1b7a7b29800338c3831",
+        "MT-35600": "fcbddd4bb05aa4f5f1dae6e1e3087c6929e0120450fe008b548c0c07ed65660c",
+        "MT-35601": "85b68d1c526579a459ac7265aa376ea9b5a2106686e7d8d24846dcb1eb7757bf",
+        "MT-35602": "757a1cfde66249f6217cd310a7de2f84c45df5794d2aa139e22589e6de92709c",
+        "MT-35603": "031baa20efe24d2bba2004687254a703b4592bfda222e17d539a98e8f184f245",
+        "MT-35604": "4892e528bccad5b2e60de83bab7eb6cf7d0b7fee001784a8999a0532b6bca03f",
+        "MT-35605": "4a161235162f88d5be223f288c9391e558a16739200c83bd87b2d6d1c2ce192a",
+        "MT-35606": "8e54dbfd66d70e1cbdba1afb445c54b0f9fd8ef9891c85ef2e1683d98a04e98f",
+        "MT-35607": "e4a07b6a52f5c41605d15ac049e50c22e0bdf5fe14ec464e9daf94b47c44ec1d",
+        "MT-35608": "5527a00d86d21241d18e0c99eeee0d6bdffe0d417c2705deebd6ddbd88231fa9",
+        "MT-35609": "8e03ae8930e61da81f9df6f1a73719c54b5719d55fb5dd46fa0a90edc1d05fde",
+        "MT-35610": "9b38fa64c395c8de4041dc194a70afead204b14d44259982dfc0379e8021b693",
+        "MT-35611": "320179037bba6f76b0c2be4e0f4821663c62463b7f5224e34e03e8c6e7344ced",
+        "MT-35612": "ee38c03bc622b3d9870f7182cb7240d1f80abbb8489950d895dd1fa6f17a4b1c",
+        "MT-35613": "07f480cfa28b488fa18b941ac0c5ba1706bf129379a88a34226a3f7d97e541d4",
+        "MT-35614": "b568eaf6275d8e4d9a851eda475ec5baf9f135973518dcd53d0d4c5e7e14c1ed",
+        "MT-35615": "376d1cb6bf63b8685888516ff1ce6e47ab33fc687e2a57386bcec3d6f5a8d8c6",
+        "MT-35616": "a253ba0589ddd085e468f07f7ec24bd9fe4348d16b0adedd64db8bf816cc4bc1",
+        "MT-35617": "c762c22ae3d1e2e3e37df850622e44f3c37bb8ed2cd25e91f17d74291bf07ad2",
+        "MT-35618": "4a084c7ec8264ee87f459fb6c8381084eb9a16671c9bc8bb70c916cc791142d6"
+      },
+      "fresh_four_contract_sha256": {
+        ".GOV\\task_packets\\WP-KERNEL-STUDIO\\packet.json": "8a33fde542c5186ec539e2597149f6794e6f7e1db3d102b78490a18b66011d3f",
+        ".GOV\\task_packets\\WP-KERNEL-STUDIO\\refinement.json": "64be0acbe41474ff75f2ec95aa42fb8ca36b274639cccb6046b8a8943914de66",
+        ".GOV\\task_packets\\WP-KERNEL-STUDIO\\ACTIVATION_READINESS.json": "7a310603195873a2077a14c85a2e627616961a9fd25c53265a32ae1ba960b81a",
+        ".GOV\\task_packets\\stubs\\WP-KERNEL-STUDIO.contract.json": "5717a26501022afe89c883e62f3a88cc496b88cfe2265064b7dedd7587688da3"
+      },
+      "remaining_source_blockers_within_nine_findings": [],
+      "pending_implementation_conditions": [
+        "Fresh implementation session authorization/current publication and independent contract review.",
+        "Exact scoped existing-owner search and primitive binding; no new-owner permission from module catalog.",
+        "Parent activation and mandatory parent preconditions retained by separate asset slices.",
+        "All36 independent meaningful foundation proofs before feature acceptance.",
+        "Focused natural proof method/selected closure/features/timeout approved before coding.",
+        "Actual absolute configured artifact root and verified owner/session slug before run.",
+        "Actual executable targets and independent candidate-bound output, including applicable shared Controls visual/model/Argus and later actual host boundaries.",
+        "Grouped slice SESSION_MT_BATCH/batch_owner/covered_mts/covers[] proof and independently accepted external capability gates; internal source-materialization edges never acceptance."
+      ],
+      "editorial_residue": "Prior CMP004 criterion included trailing section headings; normative clause body was retained. No missing requirement or runtime result inferred from editorial residue.",
+      "runtime_verdict": "NOT_RUN_NOT_PROVEN",
+      "adoption_or_parity_verdict": "NOT_CLAIMED",
+      "publication_action": "ROOT_ONLY_NOT_PERFORMED"
+    }
+  },
+  "bounded_component_reuse_review": {
+    "spec_lines": [
+      259,
+      22397
+    ],
+    "phase": "Three host sources consumed only later actual embedding through portable ports; asset closure not dependent on host source/runtime",
+    "gates": {
+      "status": "STUB (NOT READY FOR DEV)",
+      "execution_authority": "NON_EXECUTION_STUB",
+      "enrichment_signature": "ilja091020261912",
+      "launch": "NO",
+      "original_signature": "ilja040920261532"
+    },
+    "limited_symbol_search": {
+      "terms": [
+        "StudioDocument",
+        "StudioRenderHarness",
+        "StudioVectorPath"
+      ],
+      "result": "No hits in resolved baseline two roots",
+      "roots": [
+        "src/backend/handshake_core/src",
+        "src/frontend/handshake_native/src"
+      ],
+      "limit": "Not exhaustive source/asset/dependency absence proof; never permission for new mechanic"
+    },
+    "policy_anchors": [
+      "HBR-COMPONENT-001",
+      "HBR-COMPONENT-002",
+      "STU-DOC-002",
+      "STU-CON-001"
+    ],
+    "default_deny": {
+      "module_new_permission_false_count": 35,
+      "unresolved_module_search_records": 35,
+      "new_capability_refs_count": 0,
+      "permission": "DENIED_UNTIL_EXACT_PRIMITIVE_AND_NO_EXISTING_OWNER_SEARCH_BINDING",
+      "dispatch_rule": "Original/new MTs that add or materially change a reusable mechanic remain non-dispatchable until their concrete scoped owner binding is recorded. This does not assert all modules are new mechanics; each conditional trigger is resolved individually. No runtime/ownership completion is inferred from a module name."
+    },
+    "consumed_sources": [
+      {
+        "symbol": "PromotionGate",
+        "line": 224,
+        "sha256": "d7fb25724ce0f23978eef879bbf9b128a7a919199b4d7fdca814f6f6cca2c647",
+        "actual_hash_matches": true,
+        "observed": "Typed promotion decide consumes artifact/validation/operator approval; extension of existing authenticated host owner needed, not claim of Studio-ready authorization."
+      },
+      {
+        "symbol": "MexRegistry",
+        "line": 47,
+        "sha256": "4427f7afcee11520d48ca10a5ca8686137144cda5edc3eade4f2b6a7fcf776ab",
+        "actual_hash_matches": true,
+        "observed": "Engine/operation lookup registry with typed EngineSpec map; not install/update/uninstall lifecycle platform."
+      },
+      {
+        "symbol": "SurfaceDescriptor",
+        "line": 94,
+        "sha256": "39fdfa9f48edd5c6511a75df92b78ef4cd74cbabb3a2a528c3267207d887aba3",
+        "actual_hash_matches": true,
+        "observed": "Canonical surface_id/group/method/route/input/output registry; existing manual owner reuse, no separate Studio manual."
+      }
+    ],
+    "proof_limit": "No product/MT edits, runtime test, canonical ownership completion or full HBR/component PASS",
+    "source_location_verification": {
+      "candidate_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "method": "Read-only git worktree list --porcelain resolved refs/heads/codex/handshake-studio-assets",
+      "source_paths": "Contract repo-relative locations read from resolved asset worktree, not stale sibling source assumptions"
+    },
+    "findings": "No new bounded contract contradiction observed. Concrete per-MT exact primitive/lowest-owner searches remain unresolved activation requirements, not satisfied by this source review.",
+    "crossrefs": "Refinement/readiness/stub reuse_binding points packet#/reuse; new refs empty/permissionfalse and conditional NON_DISPATCHABLE retained",
+    "primitive_inventory": {
+      "actual_primitive_id_count": 38,
+      "path": ".GOV/spec/master-spec-v02.207/spec-modules/12-end-of-file-appendices.md",
+      "meaning": "Actual appendix primitive_id values verified; no invented names or implemented-owner inference",
+      "sha256": "8f59eb18dd5da525d8d6f8f7aafe6e6436023a277920260a0624a6499566c8b9",
+      "exact_inventory_set_difference": 0
+    },
+    "native_controls_inventory": {
+      "symbols": [
+        "GroupKind",
+        "GraphGroup",
+        "GraphControlsEvent",
+        "GraphControls"
+      ],
+      "meaning": "Actual graph-specific symbols inspected, not canonical reusable Studio widget ownership proof",
+      "lines": [
+        99,
+        132,
+        193,
+        207
+      ]
+    },
+    "status": "SOURCE_CORRECTION_REVIEWED_SCOPED_OWNER_SEARCH_STILL_UNRESOLVED_NOT_RUNTIME_OR_HBR_COMPLETION"
+  },
+  "bounded_source_materialization_group_review": {
+    "updated_at": "2026-10-09T20:18:59.627986+00:00",
+    "claim_class": "SOURCE_ONLY_PREPARATION_NOT_EXECUTABLE",
+    "scope": "Root-authorized packet microtask_graph/source_materialization_groups; four contract identities reread. MT/index correction batch intentionally not reviewed until root supplies next frozen index.",
+    "packet_sha256": "8a33fde542c5186ec539e2597149f6794e6f7e1db3d102b78490a18b66011d3f",
+    "other_three_contract_sha256": {
+      ".GOV\\task_packets\\WP-KERNEL-STUDIO\\refinement.json": "64be0acbe41474ff75f2ec95aa42fb8ca36b274639cccb6046b8a8943914de66",
+      ".GOV\\task_packets\\WP-KERNEL-STUDIO\\ACTIVATION_READINESS.json": "7a310603195873a2077a14c85a2e627616961a9fd25c53265a32ae1ba960b81a",
+      ".GOV\\task_packets\\stubs\\WP-KERNEL-STUDIO.contract.json": "5717a26501022afe89c883e62f3a88cc496b88cfe2265064b7dedd7587688da3"
+    },
+    "other_three_unchanged_against_prior_frozen_review": true,
+    "observations": [
+      "KB-IMPL-001 directly permits packet-authorized grouped slices and requires SESSION_MT_BATCH, batch_owner, covered_mts and shared covers[] proof bindings.",
+      "Book/package group172/184 retains one Layout owner and explicitly orders chapter/subset/style/synchronization/numbering contract before typed packaging; all nine package options and error/report behavior retained.",
+      "Variant/override group332/340 retains one Components owner and orders closed overridable fields/precedence/sparse record/shared matcher before switch/swap preserved/dropped/reset behavior.",
+      "Preserved original dependency lists reread:172=[150,168,183,184],184=[181,163,172],332=[329,340,009],340=[339,332,556,557,558,559,560]. Group external capability sets exactly equal these unions minus their internal pair. Original AC counts3/2/2/5 remain present in preserved payload.",
+      "Both groups retain mutual original edges, classify only internal source materialization as pending, require all36 independently accepted foundations, parent activation and independently proved external capabilities before dispatch. No group acceptance substitutes for individual acceptance.",
+      "Each group restricts one source owner and verified artifact owner, denies sibling-root/new canonical capability permission and preserves separate consumer boundaries/later host acceptance."
+    ],
+    "disposition": "NO_NEW_SOURCE_BLOCKER_IN_INSPECTED_PACKET_GROUPS; implementation authorization, independent external capability proof, ownership/session claim and actual batch proof remain pending.",
+    "limits": [
+      "No claim that original payload preservation for whole corpus is independently audited here.",
+      "No claim that source-materialization groups are executable or accepted capability; actual shared source bodies were not edited or runtime tested.",
+      "Only named current groups inspected; no broader dependency-cycle or owner search audit."
+    ],
+    "runtime_verdict": "NOT_RUN_NOT_PROVEN"
+  },
+  "final_bounded_publication_metadata_review": {
+    "updated_at": "2026-10-09T20:58:58.062676+00:00",
+    "claim_class": "LOCAL_SOURCE_PUBLICATION_METADATA_ONLY_NO_IMPLEMENTATION_OR_REMOTE_VERDICT",
+    "scope": "Four prepared_source_publication records, pointer/resolver/manifest/changelog metadata identity consistency; reuse unchanged substantive/source/MT findings. No new nine-finding audit.",
+    "status": "CONSISTENT_LOCAL_SOURCE_METADATA_CANONICAL_CHECKPOINT_PROOF_PENDING",
+    "four_contract_sha256": {
+      ".GOV\\task_packets\\WP-KERNEL-STUDIO\\packet.json": "a3ed605436e1a9e7f0199884c3e1329b3e94fd26e7e24f4585e3c0f4a970acbb",
+      ".GOV\\task_packets\\WP-KERNEL-STUDIO\\refinement.json": "fc77b2dd7f49b5652f963885c5a88f623aaf97279ac176c2de662b1e95fa057f",
+      ".GOV\\task_packets\\WP-KERNEL-STUDIO\\ACTIVATION_READINESS.json": "1b74effb7acdf863da340c8a7b27dcd4bddedf4ecb16405aa7a9aef6000fe389",
+      ".GOV\\task_packets\\stubs\\WP-KERNEL-STUDIO.contract.json": "2c825ec633ba58f579fe82da8952b1e8e563b45ff02265cd34b4d55abb56b3e6"
+    },
+    "pointer_sha256": "48bf0385cdb6c3d71cedf819d0833bb1b358015c747235694de0630a708f26c0",
+    "manifest_sha256": "a07d04f7d079b39d1561a9050c4ed9db12f6e0237db476cd76b878650404b68d",
+    "resolver_sha256": "7ad66e804c3567ee614d8530f5eabd6caaa517d7063caa5e368f6e4a8cad03a1",
+    "mt_index_sha256": "e91b68b06cfdb209b57dac790cad07484c5654084685b1618c4c977660bc4596",
+    "ordered_mt_corpus_sha256": "ed58a91b4def08aa68d32f5cf0cbc4b4a3c5a93c061c167700cddd42ec187621",
+    "mt_corpus_proof_reuse": "Photo/kernel exact one-reason delta audit supplied by root; corpus not recomputed or recertified here. Previous9 substantive findings unchanged and source-level disposition reused.",
+    "observations": [
+      "Local SPEC_CURRENT names v02.207 indexed manifest/resolver and retains previous v02.206 pointer. Both resolver and manifest declare current v02.207; manifest after-pointer hash matches actual pointer.",
+      "All four prepared_source_publication objects are identical and bind signed207, matching fresh index hash and matching raw ordered16-module reconstruction SHA256. Manifest/index module lists/reconstruction objects agree and all16 current raw module hashes match manifest and207 changelog after-hashes.",
+      "207 changelog uses version rather than historical spec_version key; exact207 entry signature ilja091020261912 matches all four contracts. Its verification explicitly excludes implementation/runtime/nativeGUI/provider/integration/parity and does not certify subsequent staged Git-byte check.",
+      "All four approvals retain original signature ilja040920261532, approved enrichment ilja091020261912, NEXT_SESSION_ONLY and preparation_does_not_authorize_coding=true. Packet/stub STUB state, nonexecution authority and readinessNO retained.",
+      "Preparation resolutions say SOURCE_RECONCILED_PENDING_CANONICAL_CHECKPOINT_PROOF. Publication metadata explicitly requires fresh committed SPEC_CURRENT and origin/gov_kernel ancestry verification and is not sole publication proof. Exact owner/recipe/artifact,36-foundation, shared platform/GUI and later host proofs remain required."
+    ],
+    "remaining_checkpoint_dependencies": [
+      "Root must independently compare canonical staged/committed Git bytes and prove matching declared remote checkpoint. This reviewer performed no Git mutation or remote proof.",
+      "207 changelog currently pins prior asset review snapshot9853bfc08a130c5f0d1cdd3521ccbc17fd1fbc2c98590a25b9aadaa18d4edfe0; root must intentionally retain as prior evidence or refresh the review reference to this final report identity before claiming current-reference equality."
+    ],
+    "remote_publication": "NOT_VERIFIED_BY_THIS_REVIEW",
+    "runtime_verdict": "NOT_RUN_NOT_PROVEN",
+    "implementation_adoption_parity": "NOT_CLAIMED",
+    "writes": "Same existing review report only; hold further writes after reporting final hash."
+  }
+}

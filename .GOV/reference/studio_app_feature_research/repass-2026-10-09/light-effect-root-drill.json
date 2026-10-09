@@ -3,7 +3,7 @@
   "file_id": "STUDIO-LIGHT-EFFECT-ROOT-DRILL-20261009",
   "file_kind": "source_research",
   "updated_at": "2026-10-09",
-  "status": "SOURCE_DRILL_IN_PROGRESS_RUNTIME_NOT_RUN",
+  "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF",
   "authority": "Research evidence only; current Handshake Master Spec and contracts own product authority. Third-party source is untrusted research material.",
   "owner": "photocraft_root_drill",
   "scope": [
@@ -12,6 +12,39 @@
     "No upstream build.rs/scripts/tests/GUI executed; no runtime or Adobe parity verdict"
   ],
   "source_cache": "Sibling gov_runtime/tools/studio-craft-source-cache; archives and complete pinned source retained for next-session adoption review; documentation only in gov_kernel",
+  "inspection_limits": {
+    "coverage_state": "FULL_ARCHIVE_AND_MANIFEST_ROOT_CENSUS_SELECTED_BODY_TRACE_ONLY",
+    "inventory_method": "All regular archive files hashed; all resolved workspace member Cargo manifests read; root lib.rs/main.rs module and public declaration text enumerated. Textual declarations are not an AST/type-check proof. Immediate cfg guards are recorded where adjacent; full feature/target manifests remain available.",
+    "not_claimed": [
+      "Every function body read",
+      "All dependency source acquired",
+      "All member algorithms independently verified",
+      "Runtime success or professional Adobe parity",
+      "Actual compilation speed improvement",
+      "Installed original Adobe GUI/code inspection by this lane"
+    ],
+    "runtime": {
+      "upstream_scripts_executed": false,
+      "build_rs_executed": false,
+      "builds_run": false,
+      "tests_run": false,
+      "gui_run": false,
+      "original_adobe_apps_inspected_or_launched": false,
+      "hardware_or_codec_validation": "NOT_RUN"
+    },
+    "policy_at_inspection": {
+      "spec_pointer": ".GOV/spec/SPEC_CURRENT.md",
+      "version": "v02.206",
+      "read_only_lrcat_approval": ".GOV/docs_repo/studio-collaboration-2026-10-09/session.json:STUDIO-APPROVAL-LRCAT",
+      "approval_scope": "Read-only external .lrcat file parsing only; no SQL engine, query interface, writable source catalog or second database; sole SurrealDB/EventLedger authority.",
+      "spec_propagation": "Root-owned approved enrichment; reread final current spec before adoption.",
+      "catalog_and_cas_owner": "CKC per STU-ASSET004",
+      "time_contract": "254016000000 ticks per second; no new i128 persistence mandate"
+    },
+    "reuse_state": "No candidate crate adopted, forked, built, modified or wired into Handshake by this lane. Dispositions are research candidates and explicit rejection boundaries.",
+    "source_retention": "Complete pinned tar archives and extracted regular files remain in authorized sibling gov_runtime cache for next-session adoption review.",
+    "followup_owner": "Root/new authorized original-app, backend and spec teams; this lane does not substitute source inspection for their runtime/original-app or final-authority work."
+  },
   "projects": [
     {
       "id": "STUDIO-SOURCE-LIGHTCRAFT",
@@ -23,7 +56,7 @@
       "archive_bytes": 14824700,
       "source_relative_cache_path": "lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa",
       "tree_file_digest_sha256": "53d1dc27898b80c32bc2b228d8e02c8440efc519517f9c2cd39f8777129645c3",
-      "tree_digest_algorithm": "sorted relative POSIX file path + NUL + SHA256 bytes; newline joined UTF-8; SHA256",
+      "tree_digest_algorithm": "Sort relative POSIX paths by tuple of Unicode-casefolded path components (WindowsPath ordering); join relative path + NUL + file SHA256 with newline; hash UTF-8 bytes",
       "regular_files": 655,
       "source_bytes": 24840280,
       "rust_files": 457,
@@ -8477,7 +8510,16 @@
       },
       "coverage": "All archive regular files hashed; all actual workspace manifests and root declarations enumerated; all function bodies NOT read; selected bodies independently listed. Registry/git dependency source not acquired by these archives.",
       "gitattributes_present": false,
-      "gitmodules_present": false
+      "gitmodules_present": false,
+      "canonical_posix_tree_file_digest_sha256": "750f632382c6ce754ddd36c404dbb1af67cd2a5a4ed8f821967a0dc8e24d85c7",
+      "canonical_posix_tree_digest_algorithm": "Sort case-sensitive complete relative POSIX path strings; join path + NUL + file SHA256 with newline; hash UTF-8 bytes",
+      "archive_members": 791,
+      "inventory_summary": {
+        "workspace_members": 28,
+        "member_src_physical_lines": 165128,
+        "root_module_declarations": 316,
+        "root_public_api_declarations": 575
+      }
     },
     {
       "id": "STUDIO-SOURCE-EFFECTCRAFT",
@@ -8489,7 +8531,7 @@
       "archive_bytes": 10730040,
       "source_relative_cache_path": "effectcraft-2a460986ee7a4b32656a3d434849693904b486bc",
       "tree_file_digest_sha256": "81a50e111562ba9f5580c1e46c578a8a03ac9415eec53ac8a8ce565422652166",
-      "tree_digest_algorithm": "sorted relative POSIX file path + NUL + SHA256 bytes; newline joined UTF-8; SHA256",
+      "tree_digest_algorithm": "Sort relative POSIX paths by tuple of Unicode-casefolded path components (WindowsPath ordering); join relative path + NUL + file SHA256 with newline; hash UTF-8 bytes",
       "regular_files": 971,
       "source_bytes": 25075592,
       "rust_files": 702,
@@ -20710,7 +20752,17 @@
       },
       "coverage": "All archive regular files hashed; all actual workspace manifests and root declarations enumerated; all function bodies NOT read; selected bodies independently listed. Registry/git dependency source not acquired by these archives.",
       "gitattributes_present": false,
-      "gitmodules_present": false
+      "gitmodules_present": false,
+      "canonical_posix_tree_file_digest_sha256": "a3d3c0c04549085057f54e10ebc0b0743b86ab3f0c4b6189ca9b47d3fc32c1e7",
+      "canonical_posix_tree_digest_algorithm": "Sort case-sensitive complete relative POSIX path strings; join path + NUL + file SHA256 with newline; hash UTF-8 bytes",
+      "archive_members": 1133,
+      "inventory_summary": {
+        "workspace_members": 36,
+        "member_src_physical_lines": 296157,
+        "root_module_declarations": 442,
+        "root_public_api_declarations": 993,
+        "direct_filmcraft_git_dependencies": 16
+      }
     }
   ],
   "deep_read_ranges": [
@@ -20720,7 +20772,9 @@
       "start_line": 260,
       "end_line": 383,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "RAW probe, camera preview fallback, preview development and non-RAW decode"
+      "focus": "RAW probe, camera preview fallback, preview development and non-RAW decode",
+      "source_sha256": "9eb0348abd2524b38dcc37894d5c53536f202be88c959080269fe5af02ef0273",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/files.rs#L260"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20728,7 +20782,9 @@
       "start_line": 297,
       "end_line": 340,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Container and vendor dispatch"
+      "focus": "Container and vendor dispatch",
+      "source_sha256": "f1c5d520ac9817f8ea3bfab401a067ba1b30f2a03d4e2501963117131ad2857c",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/raw/src/lib.rs#L297"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20736,7 +20792,9 @@
       "start_line": 679,
       "end_line": 736,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Normalization, black correction, CFA crop, opcodes and demosaic"
+      "focus": "Normalization, black correction, CFA crop, opcodes and demosaic",
+      "source_sha256": "f1c5d520ac9817f8ea3bfab401a067ba1b30f2a03d4e2501963117131ad2857c",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/raw/src/lib.rs#L679"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20744,7 +20802,9 @@
       "start_line": 1,
       "end_line": 24,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Working-space and stage contract"
+      "focus": "Working-space and stage contract",
+      "source_sha256": "7c30472856f53d3a348e38f2269ea1898ce7658a4dea52db1366e97fe9d22707",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/pipeline/src/lib.rs#L1"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20752,7 +20812,9 @@
       "start_line": 452,
       "end_line": 543,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "CPU render, geometry cache and deep output paths"
+      "focus": "CPU render, geometry cache and deep output paths",
+      "source_sha256": "7c30472856f53d3a348e38f2269ea1898ce7658a4dea52db1366e97fe9d22707",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/pipeline/src/lib.rs#L452"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20760,7 +20822,9 @@
       "start_line": 800,
       "end_line": 813,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "GPU selection and CPU fallback"
+      "focus": "GPU selection and CPU fallback",
+      "source_sha256": "b8078d01fc9427588b48c06b0287bb513da29d6f84cf1ba8e66366edbe79dc79",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/media.rs#L800"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20768,7 +20832,9 @@
       "start_line": 333,
       "end_line": 385,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "GPU eligibility, error scopes, panic and allocation handling"
+      "focus": "GPU eligibility, error scopes, panic and allocation handling",
+      "source_sha256": "7ac1aa9c7e160666b282a7acd5f0d071bf6e49109c43cb9d3fb54edf47db25a5",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/gpu/src/lib.rs#L333"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20776,7 +20842,9 @@
       "start_line": 1198,
       "end_line": 1231,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Deep export precision, profile and format dispatch"
+      "focus": "Deep export precision, profile and format dispatch",
+      "source_sha256": "a2913b0b0ca080e1ae24f5e14085abd695fef870ac1273ce9f0c13d6df51300e",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/export.rs#L1198"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20784,7 +20852,9 @@
       "start_line": 1367,
       "end_line": 1428,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Captured export job, original-plus-sidecar and DNG routes"
+      "focus": "Captured export job, original-plus-sidecar and DNG routes",
+      "source_sha256": "a2913b0b0ca080e1ae24f5e14085abd695fef870ac1273ce9f0c13d6df51300e",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/export.rs#L1367"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20792,7 +20862,9 @@
       "start_line": 99,
       "end_line": 140,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "DNG writer validation and initial metadata tags; remaining writer body not deeply read"
+      "focus": "DNG writer validation and initial metadata tags; remaining writer body not deeply read",
+      "source_sha256": "de81b8bc18bd2fe7057daf45ebb19e20cb4d115aaca4af3a27d5598d7d81e058",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/raw/src/dngwrite.rs#L99"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20800,7 +20872,9 @@
       "start_line": 368,
       "end_line": 429,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Command journal, persistence and undo commit"
+      "focus": "Command journal, persistence and undo commit",
+      "source_sha256": "d054db14d0ed6783a798219aa21999a79603d23c4b1599513e792daa52915b0a",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lib.rs#L368"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20808,7 +20882,9 @@
       "start_line": 613,
       "end_line": 697,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Develop interaction, auto-sync and history operations"
+      "focus": "Develop interaction, auto-sync and history operations",
+      "source_sha256": "d054db14d0ed6783a798219aa21999a79603d23c4b1599513e792daa52915b0a",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lib.rs#L613"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20816,7 +20892,9 @@
       "start_line": 381,
       "end_line": 455,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Copy-on-write photo mutation and inverse operations"
+      "focus": "Copy-on-write photo mutation and inverse operations",
+      "source_sha256": "e84fdbaf4df102f7fc3e1afd003f56aa275369457559cf1361097531f7fd45d5",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/catalog/src/lib.rs#L381"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20824,7 +20902,9 @@
       "start_line": 623,
       "end_line": 640,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Batch application and inverse rollback"
+      "focus": "Batch application and inverse rollback",
+      "source_sha256": "e84fdbaf4df102f7fc3e1afd003f56aa275369457559cf1361097531f7fd45d5",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/catalog/src/lib.rs#L623"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20832,7 +20912,9 @@
       "start_line": 458,
       "end_line": 498,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "CRC and sequence append, partial-tail recovery"
+      "focus": "CRC and sequence append, partial-tail recovery",
+      "source_sha256": "8b061baa2ff44beafc9d1cba0de2381308039ad6ff1f40dd1454f69a8759682a",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/catalog/src/journal.rs#L458"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20840,7 +20922,9 @@
       "start_line": 85,
       "end_line": 159,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Snapshot temporary write, sync, rename and journal durability"
+      "focus": "Snapshot temporary write, sync, rename and journal durability",
+      "source_sha256": "bc7137e46f63a9f9f70a0713272872019d910dfba6876d2fb1a5aa19bcdcde5f",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/catalog/src/store.rs#L85"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20848,7 +20932,9 @@
       "start_line": 255,
       "end_line": 277,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Library lock acquisition and host storage boundary"
+      "focus": "Library lock acquisition and host storage boundary",
+      "source_sha256": "8dbbcbfc7dc87a373c453a9c77593ea1a376aa3a2bcc3e46be962355ba1c5dd0",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/library.rs#L255"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20856,7 +20942,9 @@
       "start_line": 429,
       "end_line": 450,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Pending journal retention after failed persistence"
+      "focus": "Pending journal retention after failed persistence",
+      "source_sha256": "8dbbcbfc7dc87a373c453a9c77593ea1a376aa3a2bcc3e46be962355ba1c5dd0",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/library.rs#L429"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20864,7 +20952,9 @@
       "start_line": 96,
       "end_line": 119,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Busy lock rejection versus other locking errors opening unprotected"
+      "focus": "Busy lock rejection versus other locking errors opening unprotected",
+      "source_sha256": "37cf983de1aa2a7ecda9b707b2013feaf909b6263313f815f1a6001c625c0d4d",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/catalog/src/lock.rs#L96"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20872,7 +20962,9 @@
       "start_line": 301,
       "end_line": 474,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Committed WAL validation, source consistency and catalog table mapping"
+      "focus": "Committed WAL validation, source consistency and catalog table mapping",
+      "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L301"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20880,7 +20972,9 @@
       "start_line": 87,
       "end_line": 147,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "SQLite header, page overlay, encoding and schema initialization"
+      "focus": "SQLite header, page overlay, encoding and schema initialization",
+      "source_sha256": "7076939ba61b4d53f9e0a51e9d37d73272b8b79ff05d6e07d34640b8186d1c3a",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_sqlite.rs#L87"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20888,7 +20982,9 @@
       "start_line": 481,
       "end_line": 496,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Lua develop settings through CRS mapping"
+      "focus": "Lua develop settings through CRS mapping",
+      "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L481"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20896,7 +20992,9 @@
       "start_line": 646,
       "end_line": 854,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Import identity, duplicate policy, virtual copies, history and smart collections"
+      "focus": "Import identity, duplicate policy, virtual copies, history and smart collections",
+      "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L646"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20904,7 +21002,9 @@
       "start_line": 180,
       "end_line": 262,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Preparation, cancellation, library identity and owner-side application"
+      "focus": "Preparation, cancellation, library identity and owner-side application",
+      "source_sha256": "717aea349d54cd1920ee7ae33f5669b3338ebc50f721e892c43ea3e67e4937a1",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_job.rs#L180"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20912,7 +21012,9 @@
       "start_line": 27,
       "end_line": 31,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Best-effort archive size limit"
+      "focus": "Best-effort archive size limit",
+      "source_sha256": "717aea349d54cd1920ee7ae33f5669b3338ebc50f721e892c43ea3e67e4937a1",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_job.rs#L27"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20920,7 +21022,9 @@
       "start_line": 1,
       "end_line": 30,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Archive omission and byte-budget contract"
+      "focus": "Archive omission and byte-budget contract",
+      "source_sha256": "68547b2b4cc252710af2f98d0685b3b19dca4deb09f866cdcd044659be4e2e14",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_archive.rs#L1"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20928,7 +21032,9 @@
       "start_line": 1,
       "end_line": 59,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Documented source preservation and conversion limits"
+      "focus": "Documented source preservation and conversion limits",
+      "source_sha256": "b0b48d9137c3e7e0075ed0cd2616429bd3fa90326a5ae2a73f45bb7fa595943b",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/docs/lightroom-catalog-import.md#L1"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20936,7 +21042,9 @@
       "start_line": 21,
       "end_line": 56,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Serializable develop defaults, partial merge and hash"
+      "focus": "Serializable develop defaults, partial merge and hash",
+      "source_sha256": "2decdd210692f5f95da90959fed1b64a590f9087079fdd61c848c4959e09ba8d",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/develop/src/lib.rs#L21"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20944,7 +21052,9 @@
       "start_line": 350,
       "end_line": 370,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Owned XMP fields and preservation of read failures"
+      "focus": "Owned XMP fields and preservation of read failures",
+      "source_sha256": "889a1519b7e8e394ca00c37120a713db3c33c2315699db62c7ded04ff7c89299",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/sidecar.rs#L350"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20952,7 +21062,9 @@
       "start_line": 456,
       "end_line": 511,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Sidecar writes, virtual copy restriction and warning handling"
+      "focus": "Sidecar writes, virtual copy restriction and warning handling",
+      "source_sha256": "889a1519b7e8e394ca00c37120a713db3c33c2315699db62c7ded04ff7c89299",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/sidecar.rs#L456"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20960,7 +21072,9 @@
       "start_line": 94,
       "end_line": 173,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Byte gate, urgent bypass and permit release"
+      "focus": "Byte gate, urgent bypass and permit release",
+      "source_sha256": "6b0a447c88f1aec6200fa4ad2149bfb8b6533654ebb297af9fc7a19a8bb96ca5",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/memory.rs#L94"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20968,7 +21082,9 @@
       "start_line": 1047,
       "end_line": 1156,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Scoped transfer workers and DNG memory admission"
+      "focus": "Scoped transfer workers and DNG memory admission",
+      "source_sha256": "c497f8ef02591fd28efc94fedd4bdb042af7b86ee7aed8e88491ffac725fd625",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/import.rs#L1047"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20976,7 +21092,9 @@
       "start_line": 1,
       "end_line": 89,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Model workflow instructions, resource and tool boundaries"
+      "focus": "Model workflow instructions, resource and tool boundaries",
+      "source_sha256": "c651d1d3355478d6b373620e9dc416bef26dbeaea78ae2000173d66d0a31c565",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/mcp/src/server.rs#L1"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20984,7 +21102,9 @@
       "start_line": 1,
       "end_line": 77,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "CPU comparison tolerances and missing-adapter skip"
+      "focus": "CPU comparison tolerances and missing-adapter skip",
+      "source_sha256": "623b2e0f21de8c0da02c2fd4c7284311bd7519c389093095380bef8b1ba58a14",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/gpu/tests/equivalence.rs#L1"
     },
     {
       "project": "LIGHTCRAFT",
@@ -20992,7 +21112,9 @@
       "start_line": 1041,
       "end_line": 1081,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Crop dimension oracles"
+      "focus": "Crop dimension oracles",
+      "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L1041"
     },
     {
       "project": "LIGHTCRAFT",
@@ -21000,7 +21122,9 @@
       "start_line": 16,
       "end_line": 85,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Feature existence claims and documented Lightroom fidelity gap"
+      "focus": "Feature existence claims and documented Lightroom fidelity gap",
+      "source_sha256": "513d02f37e018e9e0d7d6c8b4adcadde824dd2917e60f04f6a694110feb0655a",
+      "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/docs/parity.md#L16"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21008,7 +21132,9 @@
       "start_line": 557,
       "end_line": 638,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Command registry, checked parameters and copy-on-edit history"
+      "focus": "Command registry, checked parameters and copy-on-edit history",
+      "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L557"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21016,7 +21142,9 @@
       "start_line": 12,
       "end_line": 39,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Explicit property resolution with editor time"
+      "focus": "Explicit property resolution with editor time",
+      "source_sha256": "99ee96412637be0b2b206c9522fffa9352f3b45417cdb0353081e4b33aaba0c6",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/prop.rs#L12"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21024,7 +21152,9 @@
       "start_line": 1,
       "end_line": 85,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Typed parameter UI metadata and property identifiers"
+      "focus": "Typed parameter UI metadata and property identifiers",
+      "source_sha256": "16e2b4a2f0de642ac13cc99bb48de16c825b8dc5a374ee7d3a07748994e057b9",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/project/src/props.rs#L1"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21032,7 +21162,9 @@
       "start_line": 40,
       "end_line": 91,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "EC project read, JSON/XML serialization and save"
+      "focus": "EC project read, JSON/XML serialization and save",
+      "source_sha256": "96c39c9e825d416dcacb0ab3b007ce2c04b9c5862608486f0f74d4aba4efcec1",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/file.rs#L40"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21040,7 +21172,9 @@
       "start_line": 1288,
       "end_line": 1315,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Serialization preflight and schema acceptance"
+      "focus": "Serialization preflight and schema acceptance",
+      "source_sha256": "fc20ee846d443082b1e4acee1ca75affd8674b4a426842ba441f91fc316e648a",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/project/src/lib.rs#L1288"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21048,7 +21182,9 @@
       "start_line": 98,
       "end_line": 138,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Services filesystem defaults and capability boundary"
+      "focus": "Services filesystem defaults and capability boundary",
+      "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L98"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21056,7 +21192,9 @@
       "start_line": 155,
       "end_line": 169,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Autosave write and pruning"
+      "focus": "Autosave write and pruning",
+      "source_sha256": "c029fa088af81d18cd97fa7ebed9f195f389cded5877f7393557fd2862659ccf",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/autosave.rs#L155"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21064,7 +21202,9 @@
       "start_line": 823,
       "end_line": 829,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Renderer construction"
+      "focus": "Renderer construction",
+      "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L823"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21072,7 +21212,9 @@
       "start_line": 746,
       "end_line": 875,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "GPU/CPU selection, render depth and layer ordering"
+      "focus": "GPU/CPU selection, render depth and layer ordering",
+      "source_sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs#L746"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21080,7 +21222,9 @@
       "start_line": 921,
       "end_line": 1084,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Effect dispatch, masks, nested composition, proxy and footage routes"
+      "focus": "Effect dispatch, masks, nested composition, proxy and footage routes",
+      "source_sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs#L921"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21088,7 +21232,9 @@
       "start_line": 51,
       "end_line": 105,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Property, expression and source-time evaluation"
+      "focus": "Property, expression and source-time evaluation",
+      "source_sha256": "a1915e7d3735eb25135cd788aa1fbdc19d81d8b1464060b30a46cafc219cd88d",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/eval.rs#L51"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21096,7 +21242,9 @@
       "start_line": 461,
       "end_line": 522,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Hold, interpolation and Bezier evaluation"
+      "focus": "Hold, interpolation and Bezier evaluation",
+      "source_sha256": "75777df251c430273f1f503f23142f001bed1bbce5dedc87c128bcc48e6917fd",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/keyframe/src/lib.rs#L461"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21104,7 +21252,9 @@
       "start_line": 1,
       "end_line": 83,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Tick representation, conversion and rational arithmetic"
+      "focus": "Tick representation, conversion and rational arithmetic",
+      "source_sha256": "36a40443f3fe7706df2080b1f79a12ed47527db0e601a6dd8cdc4b76174cd8da",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/time/src/lib.rs#L1"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21112,7 +21262,9 @@
       "start_line": 50,
       "end_line": 156,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Recursion and host-request passes"
+      "focus": "Recursion and host-request passes",
+      "source_sha256": "f7a6792d056db223946648625b13892ad60bcacbc5df57e774fe7cd97ae9275a",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/lib.rs#L50"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21120,7 +21272,9 @@
       "start_line": 209,
       "end_line": 281,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Boa limits, host functions and compilation cache"
+      "focus": "Boa limits, host functions and compilation cache",
+      "source_sha256": "67a85dd9390bac7b11543513d143c2b6b445c8becbcb7d2ede641b6ddf657bea",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/runtime.rs#L209"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21128,7 +21282,9 @@
       "start_line": 407,
       "end_line": 437,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Thread-local runtime and stack-limit recovery"
+      "focus": "Thread-local runtime and stack-limit recovery",
+      "source_sha256": "67a85dd9390bac7b11543513d143c2b6b445c8becbcb7d2ede641b6ddf657bea",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/runtime.rs#L407"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21136,7 +21292,9 @@
       "start_line": 1,
       "end_line": 90,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Existing expression diagnostics with property identity"
+      "focus": "Existing expression diagnostics with property identity",
+      "source_sha256": "2fa15cee236810c8d554021576e07abfd889b47ab0149a157f9588691c1c9e6e",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/expr_tools.rs#L1"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21144,7 +21302,9 @@
       "start_line": 68,
       "end_line": 111,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Pixel LRU and miss-gate initialization"
+      "focus": "Pixel LRU and miss-gate initialization",
+      "source_sha256": "4e84ce5e312d7b6adc7ea5034ee6027de10c0960b8420eecd66e3be73e76820f",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/cache.rs#L68"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21152,7 +21312,9 @@
       "start_line": 505,
       "end_line": 623,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Time, source, layer and property cache identity"
+      "focus": "Time, source, layer and property cache identity",
+      "source_sha256": "4e84ce5e312d7b6adc7ea5034ee6027de10c0960b8420eecd66e3be73e76820f",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/cache.rs#L505"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21160,7 +21322,9 @@
       "start_line": 397,
       "end_line": 426,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Unsupported transform representation"
+      "focus": "Unsupported transform representation",
+      "source_sha256": "2dc690682a68269bd6b1eac715ea71782bc33cf9c8b0ba2dd1d6dbe5abfb16e0",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/effects/src/ocio_config.rs#L397"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21168,7 +21332,9 @@
       "start_line": 573,
       "end_line": 594,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Unsupported transform identity behavior and missing file diagnostics"
+      "focus": "Unsupported transform identity behavior and missing file diagnostics",
+      "source_sha256": "2dc690682a68269bd6b1eac715ea71782bc33cf9c8b0ba2dd1d6dbe5abfb16e0",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/effects/src/ocio_config.rs#L573"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21176,7 +21342,9 @@
       "start_line": 723,
       "end_line": 763,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Unsupported inventory and global path/text configuration cache"
+      "focus": "Unsupported inventory and global path/text configuration cache",
+      "source_sha256": "2dc690682a68269bd6b1eac715ea71782bc33cf9c8b0ba2dd1d6dbe5abfb16e0",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/effects/src/ocio_config.rs#L723"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21184,7 +21352,9 @@
       "start_line": 415,
       "end_line": 481,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Render queue validation and captured worker request"
+      "focus": "Render queue validation and captured worker request",
+      "source_sha256": "dd82115548dbb895b3379450d7807cecf24f52b2eb8e6974de0e02530929a544",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/render_queue.rs#L415"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21192,7 +21362,9 @@
       "start_line": 164,
       "end_line": 230,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Export format dispatch, progress cancellation and CPU worker count"
+      "focus": "Export format dispatch, progress cancellation and CPU worker count",
+      "source_sha256": "7552d0f280d2b431cc7605724b6fb4877800a7897e517d6e3bf21e1fa4c872e5",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/export/src/lib.rs#L164"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21200,7 +21372,9 @@
       "start_line": 100,
       "end_line": 159,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Frame renderer, field sampling and parallel rendering"
+      "focus": "Frame renderer, field sampling and parallel rendering",
+      "source_sha256": "c92307bae8d2b05b8d4f3bd4a7f198b375f224f7fd9703ca8ed9821bbb506af6",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/export/src/pipeline.rs#L100"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21208,7 +21382,9 @@
       "start_line": 1,
       "end_line": 103,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Bounded GPU pass count, asynchronous settle and block_on polling"
+      "focus": "Bounded GPU pass count, asynchronous settle and block_on polling",
+      "source_sha256": "a1726aec5a405f2e48953cf6368fa893538c7174349cba7af3688b4142dd3d17",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/passes.rs#L1"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21216,7 +21392,9 @@
       "start_line": 23,
       "end_line": 195,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Task spawning, progress, cancellation and owner-side result application"
+      "focus": "Task spawning, progress, cancellation and owner-side result application",
+      "source_sha256": "e03bbdc90554584cd5f249c0cb55b01c8daf508156ae0cb3e2f775a79dbb6fd8",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/jobs.rs#L23"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21224,7 +21402,9 @@
       "start_line": 104,
       "end_line": 151,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Input reader, unbounded channel and dispatcher"
+      "focus": "Input reader, unbounded channel and dispatcher",
+      "source_sha256": "88c0fd877e38480d70706266c91c9d77d057ca15a246f27614bbf27ba8385115",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/automation/src/server.rs#L104"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21232,7 +21412,9 @@
       "start_line": 35,
       "end_line": 80,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Wasm per-instance memory/fuel and import boundary"
+      "focus": "Wasm per-instance memory/fuel and import boundary",
+      "source_sha256": "e82d91462d2a72ddd9fa86246725d8a48a61fa52c4d520d03ac88af30b73e6fe",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/plugin/src/wasm.rs#L35"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21240,7 +21422,9 @@
       "start_line": 1,
       "end_line": 105,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Timeline formats and documented omissions"
+      "focus": "Timeline formats and documented omissions",
+      "source_sha256": "bdd352d623690045cb513015af45afcff770e778ce00759dd4c737f44065c1c4",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/interchange/src/lib.rs#L1"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21248,7 +21432,9 @@
       "start_line": 1,
       "end_line": 22,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "Empty menu stub registry and limited claim"
+      "focus": "Empty menu stub registry and limited claim",
+      "source_sha256": "8180d65bb5ea03731c92f63ab701d181d7ea632fe96cde8af9d501554f0bd75b",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/stubs.rs#L1"
     },
     {
       "project": "EFFECTCRAFT",
@@ -21256,7 +21442,9 @@
       "start_line": 1,
       "end_line": 64,
       "coverage": "SELECTED_RANGE_READ_NOT_FULL_FILE_AUDIT",
-      "focus": "CPU oracle tolerances and GPU skips"
+      "focus": "CPU oracle tolerances and GPU skips",
+      "source_sha256": "bd85952a38feb9f38faa3e31ac341e5745a1cda0c03cbcaed93516f684a2acb2",
+      "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/gpu/src/tests.rs#L1"
     }
   ],
   "call_chains": [
@@ -21271,12 +21459,16 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/files.rs",
-              "line": 260
+              "line": 260,
+              "source_sha256": "9eb0348abd2524b38dcc37894d5c53536f202be88c959080269fe5af02ef0273",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/files.rs#L260"
             },
             {
               "project": "LIGHTCRAFT",
               "path": "crates/raw/src/lib.rs",
-              "line": 325
+              "line": 325,
+              "source_sha256": "f1c5d520ac9817f8ea3bfab401a067ba1b30f2a03d4e2501963117131ad2857c",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/raw/src/lib.rs#L325"
             }
           ]
         },
@@ -21286,7 +21478,9 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/raw/src/lib.rs",
-              "line": 679
+              "line": 679,
+              "source_sha256": "f1c5d520ac9817f8ea3bfab401a067ba1b30f2a03d4e2501963117131ad2857c",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/raw/src/lib.rs#L679"
             }
           ]
         },
@@ -21296,17 +21490,23 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/files.rs",
-              "line": 287
+              "line": 287,
+              "source_sha256": "9eb0348abd2524b38dcc37894d5c53536f202be88c959080269fe5af02ef0273",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/files.rs#L287"
             },
             {
               "project": "LIGHTCRAFT",
               "path": "crates/raw/src/lib.rs",
-              "line": 721
+              "line": 721,
+              "source_sha256": "f1c5d520ac9817f8ea3bfab401a067ba1b30f2a03d4e2501963117131ad2857c",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/raw/src/lib.rs#L721"
             },
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/files.rs",
-              "line": 313
+              "line": 313,
+              "source_sha256": "9eb0348abd2524b38dcc37894d5c53536f202be88c959080269fe5af02ef0273",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/files.rs#L313"
             }
           ]
         },
@@ -21316,7 +21516,9 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/files.rs",
-              "line": 356
+              "line": 356,
+              "source_sha256": "9eb0348abd2524b38dcc37894d5c53536f202be88c959080269fe5af02ef0273",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/files.rs#L356"
             }
           ]
         }
@@ -21334,7 +21536,9 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/lib.rs",
-              "line": 368
+              "line": 368,
+              "source_sha256": "d054db14d0ed6783a798219aa21999a79603d23c4b1599513e792daa52915b0a",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lib.rs#L368"
             }
           ]
         },
@@ -21344,12 +21548,16 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/lib.rs",
-              "line": 613
+              "line": 613,
+              "source_sha256": "d054db14d0ed6783a798219aa21999a79603d23c4b1599513e792daa52915b0a",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lib.rs#L613"
             },
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/lib.rs",
-              "line": 662
+              "line": 662,
+              "source_sha256": "d054db14d0ed6783a798219aa21999a79603d23c4b1599513e792daa52915b0a",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lib.rs#L662"
             }
           ]
         },
@@ -21359,12 +21567,16 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/catalog/src/lib.rs",
-              "line": 389
+              "line": 389,
+              "source_sha256": "e84fdbaf4df102f7fc3e1afd003f56aa275369457559cf1361097531f7fd45d5",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/catalog/src/lib.rs#L389"
             },
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/lib.rs",
-              "line": 420
+              "line": 420,
+              "source_sha256": "d054db14d0ed6783a798219aa21999a79603d23c4b1599513e792daa52915b0a",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lib.rs#L420"
             }
           ]
         },
@@ -21374,12 +21586,16 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/catalog/src/journal.rs",
-              "line": 458
+              "line": 458,
+              "source_sha256": "8b061baa2ff44beafc9d1cba0de2381308039ad6ff1f40dd1454f69a8759682a",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/catalog/src/journal.rs#L458"
             },
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/library.rs",
-              "line": 429
+              "line": 429,
+              "source_sha256": "8dbbcbfc7dc87a373c453a9c77593ea1a376aa3a2bcc3e46be962355ba1c5dd0",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/library.rs#L429"
             }
           ]
         }
@@ -21397,7 +21613,9 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/media.rs",
-              "line": 800
+              "line": 800,
+              "source_sha256": "b8078d01fc9427588b48c06b0287bb513da29d6f84cf1ba8e66366edbe79dc79",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/media.rs#L800"
             }
           ]
         },
@@ -21407,7 +21625,9 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/gpu/src/lib.rs",
-              "line": 333
+              "line": 333,
+              "source_sha256": "7ac1aa9c7e160666b282a7acd5f0d071bf6e49109c43cb9d3fb54edf47db25a5",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/gpu/src/lib.rs#L333"
             }
           ]
         },
@@ -21417,12 +21637,16 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/pipeline/src/lib.rs",
-              "line": 469
+              "line": 469,
+              "source_sha256": "7c30472856f53d3a348e38f2269ea1898ce7658a4dea52db1366e97fe9d22707",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/pipeline/src/lib.rs#L469"
             },
             {
               "project": "LIGHTCRAFT",
               "path": "crates/pipeline/src/lib.rs",
-              "line": 513
+              "line": 513,
+              "source_sha256": "7c30472856f53d3a348e38f2269ea1898ce7658a4dea52db1366e97fe9d22707",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/pipeline/src/lib.rs#L513"
             }
           ]
         },
@@ -21432,7 +21656,9 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/pipeline/src/lib.rs",
-              "line": 521
+              "line": 521,
+              "source_sha256": "7c30472856f53d3a348e38f2269ea1898ce7658a4dea52db1366e97fe9d22707",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/pipeline/src/lib.rs#L521"
             }
           ]
         }
@@ -21450,12 +21676,16 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/lightroom_catalog.rs",
-              "line": 301
+              "line": 301,
+              "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L301"
             },
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/lightroom_catalog.rs",
-              "line": 347
+              "line": 347,
+              "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L347"
             }
           ]
         },
@@ -21465,12 +21695,16 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/lightroom_sqlite.rs",
-              "line": 87
+              "line": 87,
+              "source_sha256": "7076939ba61b4d53f9e0a51e9d37d73272b8b79ff05d6e07d34640b8186d1c3a",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_sqlite.rs#L87"
             },
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/lightroom_catalog.rs",
-              "line": 383
+              "line": 383,
+              "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L383"
             }
           ]
         },
@@ -21480,12 +21714,16 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/lightroom_catalog.rs",
-              "line": 481
+              "line": 481,
+              "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L481"
             },
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/lightroom_catalog.rs",
-              "line": 646
+              "line": 646,
+              "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L646"
             }
           ]
         },
@@ -21495,12 +21733,16 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/lightroom_job.rs",
-              "line": 180
+              "line": 180,
+              "source_sha256": "717aea349d54cd1920ee7ae33f5669b3338ebc50f721e892c43ea3e67e4937a1",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_job.rs#L180"
             },
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/lightroom_job.rs",
-              "line": 228
+              "line": 228,
+              "source_sha256": "717aea349d54cd1920ee7ae33f5669b3338ebc50f721e892c43ea3e67e4937a1",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_job.rs#L228"
             }
           ]
         }
@@ -21518,7 +21760,9 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/export.rs",
-              "line": 1367
+              "line": 1367,
+              "source_sha256": "a2913b0b0ca080e1ae24f5e14085abd695fef870ac1273ce9f0c13d6df51300e",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/export.rs#L1367"
             }
           ]
         },
@@ -21528,12 +21772,16 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/export.rs",
-              "line": 1398
+              "line": 1398,
+              "source_sha256": "a2913b0b0ca080e1ae24f5e14085abd695fef870ac1273ce9f0c13d6df51300e",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/export.rs#L1398"
             },
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/export.rs",
-              "line": 1198
+              "line": 1198,
+              "source_sha256": "a2913b0b0ca080e1ae24f5e14085abd695fef870ac1273ce9f0c13d6df51300e",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/export.rs#L1198"
             }
           ]
         },
@@ -21543,12 +21791,16 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/export.rs",
-              "line": 1403
+              "line": 1403,
+              "source_sha256": "a2913b0b0ca080e1ae24f5e14085abd695fef870ac1273ce9f0c13d6df51300e",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/export.rs#L1403"
             },
             {
               "project": "LIGHTCRAFT",
               "path": "crates/raw/src/dngwrite.rs",
-              "line": 99
+              "line": 99,
+              "source_sha256": "de81b8bc18bd2fe7057daf45ebb19e20cb4d115aaca4af3a27d5598d7d81e058",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/raw/src/dngwrite.rs#L99"
             }
           ]
         }
@@ -21566,7 +21818,9 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/import.rs",
-              "line": 1047
+              "line": 1047,
+              "source_sha256": "c497f8ef02591fd28efc94fedd4bdb042af7b86ee7aed8e88491ffac725fd625",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/import.rs#L1047"
             }
           ]
         },
@@ -21576,7 +21830,9 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/import.rs",
-              "line": 1146
+              "line": 1146,
+              "source_sha256": "c497f8ef02591fd28efc94fedd4bdb042af7b86ee7aed8e88491ffac725fd625",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/import.rs#L1146"
             }
           ]
         },
@@ -21586,7 +21842,9 @@
             {
               "project": "LIGHTCRAFT",
               "path": "crates/engine/src/memory.rs",
-              "line": 94
+              "line": 94,
+              "source_sha256": "6b0a447c88f1aec6200fa4ad2149bfb8b6533654ebb297af9fc7a19a8bb96ca5",
+              "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/memory.rs#L94"
             }
           ]
         }
@@ -21604,12 +21862,16 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/lib.rs",
-              "line": 557
+              "line": 557,
+              "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L557"
             },
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/lib.rs",
-              "line": 581
+              "line": 581,
+              "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L581"
             }
           ]
         },
@@ -21619,7 +21881,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/commands/prop.rs",
-              "line": 12
+              "line": 12,
+              "source_sha256": "99ee96412637be0b2b206c9522fffa9352f3b45417cdb0353081e4b33aaba0c6",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/prop.rs#L12"
             }
           ]
         },
@@ -21629,12 +21893,16 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/lib.rs",
-              "line": 594
+              "line": 594,
+              "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L594"
             },
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/lib.rs",
-              "line": 629
+              "line": 629,
+              "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L629"
             }
           ]
         },
@@ -21644,7 +21912,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/lib.rs",
-              "line": 637
+              "line": 637,
+              "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L637"
             }
           ]
         }
@@ -21662,7 +21932,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/commands/file.rs",
-              "line": 40
+              "line": 40,
+              "source_sha256": "96c39c9e825d416dcacb0ab3b007ce2c04b9c5862608486f0f74d4aba4efcec1",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/file.rs#L40"
             }
           ]
         },
@@ -21672,7 +21944,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/project/src/lib.rs",
-              "line": 1288
+              "line": 1288,
+              "source_sha256": "fc20ee846d443082b1e4acee1ca75affd8674b4a426842ba441f91fc316e648a",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/project/src/lib.rs#L1288"
             }
           ]
         },
@@ -21682,12 +21956,16 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/commands/file.rs",
-              "line": 68
+              "line": 68,
+              "source_sha256": "96c39c9e825d416dcacb0ab3b007ce2c04b9c5862608486f0f74d4aba4efcec1",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/file.rs#L68"
             },
             {
               "project": "EFFECTCRAFT",
               "path": "crates/project/src/lib.rs",
-              "line": 1288
+              "line": 1288,
+              "source_sha256": "fc20ee846d443082b1e4acee1ca75affd8674b4a426842ba441f91fc316e648a",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/project/src/lib.rs#L1288"
             }
           ]
         },
@@ -21697,7 +21975,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/autosave.rs",
-              "line": 155
+              "line": 155,
+              "source_sha256": "c029fa088af81d18cd97fa7ebed9f195f389cded5877f7393557fd2862659ccf",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/autosave.rs#L155"
             }
           ]
         }
@@ -21715,7 +21995,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/lib.rs",
-              "line": 823
+              "line": 823,
+              "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L823"
             }
           ]
         },
@@ -21725,7 +22007,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/render/src/lib.rs",
-              "line": 746
+              "line": 746,
+              "source_sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs#L746"
             }
           ]
         },
@@ -21735,12 +22019,16 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/render/src/lib.rs",
-              "line": 785
+              "line": 785,
+              "source_sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs#L785"
             },
             {
               "project": "EFFECTCRAFT",
               "path": "crates/render/src/lib.rs",
-              "line": 1014
+              "line": 1014,
+              "source_sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs#L1014"
             }
           ]
         },
@@ -21750,7 +22038,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/render/src/lib.rs",
-              "line": 921
+              "line": 921,
+              "source_sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs#L921"
             }
           ]
         },
@@ -21760,7 +22050,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/render/src/lib.rs",
-              "line": 875
+              "line": 831,
+              "source_sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs#L831"
             }
           ]
         }
@@ -21778,7 +22070,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/time/src/lib.rs",
-              "line": 1
+              "line": 1,
+              "source_sha256": "36a40443f3fe7706df2080b1f79a12ed47527db0e601a6dd8cdc4b76174cd8da",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/time/src/lib.rs#L1"
             }
           ]
         },
@@ -21788,7 +22082,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/keyframe/src/lib.rs",
-              "line": 461
+              "line": 461,
+              "source_sha256": "75777df251c430273f1f503f23142f001bed1bbce5dedc87c128bcc48e6917fd",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/keyframe/src/lib.rs#L461"
             }
           ]
         },
@@ -21798,17 +22094,23 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/render/src/eval.rs",
-              "line": 51
+              "line": 51,
+              "source_sha256": "a1915e7d3735eb25135cd788aa1fbdc19d81d8b1464060b30a46cafc219cd88d",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/eval.rs#L51"
             },
             {
               "project": "EFFECTCRAFT",
               "path": "crates/expr/src/lib.rs",
-              "line": 50
+              "line": 50,
+              "source_sha256": "f7a6792d056db223946648625b13892ad60bcacbc5df57e774fe7cd97ae9275a",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/lib.rs#L50"
             },
             {
               "project": "EFFECTCRAFT",
               "path": "crates/expr/src/runtime.rs",
-              "line": 209
+              "line": 209,
+              "source_sha256": "67a85dd9390bac7b11543513d143c2b6b445c8becbcb7d2ede641b6ddf657bea",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/runtime.rs#L209"
             }
           ]
         },
@@ -21818,12 +22120,16 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/render/src/eval.rs",
-              "line": 68
+              "line": 68,
+              "source_sha256": "a1915e7d3735eb25135cd788aa1fbdc19d81d8b1464060b30a46cafc219cd88d",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/eval.rs#L68"
             },
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/commands/expr_tools.rs",
-              "line": 1
+              "line": 1,
+              "source_sha256": "2fa15cee236810c8d554021576e07abfd889b47ab0149a157f9588691c1c9e6e",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/expr_tools.rs#L1"
             }
           ]
         }
@@ -21841,7 +22147,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/render_queue.rs",
-              "line": 415
+              "line": 415,
+              "source_sha256": "dd82115548dbb895b3379450d7807cecf24f52b2eb8e6974de0e02530929a544",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/render_queue.rs#L415"
             }
           ]
         },
@@ -21851,7 +22159,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/export/src/lib.rs",
-              "line": 164
+              "line": 164,
+              "source_sha256": "7552d0f280d2b431cc7605724b6fb4877800a7897e517d6e3bf21e1fa4c872e5",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/export/src/lib.rs#L164"
             }
           ]
         },
@@ -21861,7 +22171,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/export/src/pipeline.rs",
-              "line": 100
+              "line": 100,
+              "source_sha256": "c92307bae8d2b05b8d4f3bd4a7f198b375f224f7fd9703ca8ed9821bbb506af6",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/export/src/pipeline.rs#L100"
             }
           ]
         },
@@ -21871,7 +22183,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/render/src/passes.rs",
-              "line": 21
+              "line": 21,
+              "source_sha256": "a1726aec5a405f2e48953cf6368fa893538c7174349cba7af3688b4142dd3d17",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/passes.rs#L21"
             }
           ]
         }
@@ -21889,7 +22203,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/automation/src/server.rs",
-              "line": 104
+              "line": 104,
+              "source_sha256": "88c0fd877e38480d70706266c91c9d77d057ca15a246f27614bbf27ba8385115",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/automation/src/server.rs#L104"
             }
           ]
         },
@@ -21899,7 +22215,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/jobs.rs",
-              "line": 118
+              "line": 118,
+              "source_sha256": "e03bbdc90554584cd5f249c0cb55b01c8daf508156ae0cb3e2f775a79dbb6fd8",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/jobs.rs#L118"
             }
           ]
         },
@@ -21909,12 +22227,16 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/jobs.rs",
-              "line": 23
+              "line": 23,
+              "source_sha256": "e03bbdc90554584cd5f249c0cb55b01c8daf508156ae0cb3e2f775a79dbb6fd8",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/jobs.rs#L23"
             },
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/jobs.rs",
-              "line": 157
+              "line": 157,
+              "source_sha256": "e03bbdc90554584cd5f249c0cb55b01c8daf508156ae0cb3e2f775a79dbb6fd8",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/jobs.rs#L157"
             }
           ]
         },
@@ -21924,7 +22246,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/engine/src/jobs.rs",
-              "line": 157
+              "line": 157,
+              "source_sha256": "e03bbdc90554584cd5f249c0cb55b01c8daf508156ae0cb3e2f775a79dbb6fd8",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/jobs.rs#L157"
             }
           ]
         }
@@ -21942,7 +22266,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/effects/src/ocio_config.rs",
-              "line": 397
+              "line": 397,
+              "source_sha256": "2dc690682a68269bd6b1eac715ea71782bc33cf9c8b0ba2dd1d6dbe5abfb16e0",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/effects/src/ocio_config.rs#L397"
             }
           ]
         },
@@ -21952,7 +22278,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/effects/src/ocio_config.rs",
-              "line": 573
+              "line": 573,
+              "source_sha256": "2dc690682a68269bd6b1eac715ea71782bc33cf9c8b0ba2dd1d6dbe5abfb16e0",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/effects/src/ocio_config.rs#L573"
             }
           ]
         },
@@ -21962,7 +22290,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/effects/src/ocio_config.rs",
-              "line": 723
+              "line": 723,
+              "source_sha256": "2dc690682a68269bd6b1eac715ea71782bc33cf9c8b0ba2dd1d6dbe5abfb16e0",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/effects/src/ocio_config.rs#L723"
             }
           ]
         }
@@ -21980,7 +22310,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/interchange/src/lib.rs",
-              "line": 1
+              "line": 1,
+              "source_sha256": "bdd352d623690045cb513015af45afcff770e778ce00759dd4c737f44065c1c4",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/interchange/src/lib.rs#L1"
             }
           ]
         },
@@ -21990,7 +22322,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/interchange/src/lib.rs",
-              "line": 23
+              "line": 23,
+              "source_sha256": "bdd352d623690045cb513015af45afcff770e778ce00759dd4c737f44065c1c4",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/interchange/src/lib.rs#L23"
             }
           ]
         },
@@ -22000,7 +22334,9 @@
             {
               "project": "EFFECTCRAFT",
               "path": "crates/interchange/src/lib.rs",
-              "line": 105
+              "line": 105,
+              "source_sha256": "bdd352d623690045cb513015af45afcff770e778ce00759dd4c737f44065c1c4",
+              "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/interchange/src/lib.rs#L105"
             }
           ]
         }
@@ -22019,12 +22355,16 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/Cargo.toml",
-          "line": 1
+          "line": 1,
+          "source_sha256": "89c4bb654d646b38ab08602e7463653a8f55fed8adce1b7b2a2ec3ff2c6be7dd",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/Cargo.toml#L1"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lib.rs",
-          "line": 368
+          "line": 368,
+          "source_sha256": "d054db14d0ed6783a798219aa21999a79603d23c4b1599513e792daa52915b0a",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lib.rs#L368"
         }
       ],
       "risk": "A renamed all-in-one Studio facade would preserve rebuild coupling and duplicate Handshake ownership.",
@@ -22045,22 +22385,30 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/files.rs",
-          "line": 268
+          "line": 268,
+          "source_sha256": "9eb0348abd2524b38dcc37894d5c53536f202be88c959080269fe5af02ef0273",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/files.rs#L268"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/files.rs",
-          "line": 289
+          "line": 289,
+          "source_sha256": "9eb0348abd2524b38dcc37894d5c53536f202be88c959080269fe5af02ef0273",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/files.rs#L289"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/raw/src/lib.rs",
-          "line": 325
+          "line": 325,
+          "source_sha256": "f1c5d520ac9817f8ea3bfab401a067ba1b30f2a03d4e2501963117131ad2857c",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/raw/src/lib.rs#L325"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/raw/src/lib.rs",
-          "line": 679
+          "line": 679,
+          "source_sha256": "f1c5d520ac9817f8ea3bfab401a067ba1b30f2a03d4e2501963117131ad2857c",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/raw/src/lib.rs#L679"
         }
       ],
       "risk": "A successful open can be mistaken for full-fidelity editable RAW support.",
@@ -22081,12 +22429,16 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_sqlite.rs",
-          "line": 87
+          "line": 87,
+          "source_sha256": "7076939ba61b4d53f9e0a51e9d37d73272b8b79ff05d6e07d34640b8186d1c3a",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_sqlite.rs#L87"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_catalog.rs",
-          "line": 347
+          "line": 347,
+          "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L347"
         }
       ],
       "authority_evidence": [
@@ -22112,22 +22464,30 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_catalog.rs",
-          "line": 646
+          "line": 646,
+          "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L646"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_catalog.rs",
-          "line": 821
+          "line": 821,
+          "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L821"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_archive.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "68547b2b4cc252710af2f98d0685b3b19dca4deb09f866cdcd044659be4e2e14",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_archive.rs#L1"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_job.rs",
-          "line": 27
+          "line": 27,
+          "source_sha256": "717aea349d54cd1920ee7ae33f5669b3338ebc50f721e892c43ea3e67e4937a1",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_job.rs#L27"
         }
       ],
       "risk": "A conversion can appear complete while losing executable rules, edit history, opaque records or oversized archive provenance.",
@@ -22148,17 +22508,23 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_catalog.rs",
-          "line": 301
+          "line": 301,
+          "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L301"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_catalog.rs",
-          "line": 347
+          "line": 347,
+          "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L347"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_sqlite.rs",
-          "line": 87
+          "line": 87,
+          "source_sha256": "7076939ba61b4d53f9e0a51e9d37d73272b8b79ff05d6e07d34640b8186d1c3a",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_sqlite.rs#L87"
         }
       ],
       "risk": "Large/adversarial files can delay cancellation; length/mtime stability does not alone establish a content snapshot during concurrent writes.",
@@ -22179,17 +22545,23 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_job.rs",
-          "line": 228
+          "line": 228,
+          "source_sha256": "717aea349d54cd1920ee7ae33f5669b3338ebc50f721e892c43ea3e67e4937a1",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_job.rs#L228"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lib.rs",
-          "line": 613
+          "line": 613,
+          "source_sha256": "d054db14d0ed6783a798219aa21999a79603d23c4b1599513e792daa52915b0a",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lib.rs#L613"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/mcp/src/server.rs",
-          "line": 27
+          "line": 27,
+          "source_sha256": "c651d1d3355478d6b373620e9dc416bef26dbeaea78ae2000173d66d0a31c565",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/mcp/src/server.rs#L27"
         }
       ],
       "risk": "Parallel models can target another actor's active selection or time/context without an OS-level data race.",
@@ -22210,32 +22582,44 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lib.rs",
-          "line": 392
+          "line": 392,
+          "source_sha256": "d054db14d0ed6783a798219aa21999a79603d23c4b1599513e792daa52915b0a",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lib.rs#L392"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/library.rs",
-          "line": 429
+          "line": 429,
+          "source_sha256": "8dbbcbfc7dc87a373c453a9c77593ea1a376aa3a2bcc3e46be962355ba1c5dd0",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/library.rs#L429"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/catalog/src/journal.rs",
-          "line": 458
+          "line": 458,
+          "source_sha256": "8b061baa2ff44beafc9d1cba0de2381308039ad6ff1f40dd1454f69a8759682a",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/catalog/src/journal.rs#L458"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/catalog/src/store.rs",
-          "line": 85
+          "line": 85,
+          "source_sha256": "bc7137e46f63a9f9f70a0713272872019d910dfba6876d2fb1a5aa19bcdcde5f",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/catalog/src/store.rs#L85"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/catalog/src/lock.rs",
-          "line": 96
+          "line": 96,
+          "source_sha256": "37cf983de1aa2a7ecda9b707b2013feaf909b6263313f815f1a6001c625c0d4d",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/catalog/src/lock.rs#L96"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/sidecar.rs",
-          "line": 456
+          "line": 456,
+          "source_sha256": "889a1519b7e8e394ca00c37120a713db3c33c2315699db62c7ded04ff7c89299",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/sidecar.rs#L456"
         }
       ],
       "risk": "The operator/model can confuse visible edit success with durable save or accidentally write an unprotected store.",
@@ -22257,22 +22641,30 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/pipeline/src/lib.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "7c30472856f53d3a348e38f2269ea1898ce7658a4dea52db1366e97fe9d22707",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/pipeline/src/lib.rs#L1"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/pipeline/src/lib.rs",
-          "line": 521
+          "line": 521,
+          "source_sha256": "7c30472856f53d3a348e38f2269ea1898ce7658a4dea52db1366e97fe9d22707",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/pipeline/src/lib.rs#L521"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/gpu/src/lib.rs",
-          "line": 333
+          "line": 333,
+          "source_sha256": "7ac1aa9c7e160666b282a7acd5f0d071bf6e49109c43cb9d3fb54edf47db25a5",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/gpu/src/lib.rs#L333"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/export.rs",
-          "line": 1198
+          "line": 1198,
+          "source_sha256": "a2913b0b0ca080e1ae24f5e14085abd695fef870ac1273ce9f0c13d6df51300e",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/export.rs#L1198"
         }
       ],
       "risk": "Preview equivalence can hide deep export, profile, soft-proof and clipping errors.",
@@ -22293,22 +22685,30 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/memory.rs",
-          "line": 94
+          "line": 94,
+          "source_sha256": "6b0a447c88f1aec6200fa4ad2149bfb8b6533654ebb297af9fc7a19a8bb96ca5",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/memory.rs#L94"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/memory.rs",
-          "line": 139
+          "line": 139,
+          "source_sha256": "6b0a447c88f1aec6200fa4ad2149bfb8b6533654ebb297af9fc7a19a8bb96ca5",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/memory.rs#L139"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/import.rs",
-          "line": 1047
+          "line": 1047,
+          "source_sha256": "c497f8ef02591fd28efc94fedd4bdb042af7b86ee7aed8e88491ffac725fd625",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/import.rs#L1047"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/import.rs",
-          "line": 1146
+          "line": 1146,
+          "source_sha256": "c497f8ef02591fd28efc94fedd4bdb042af7b86ee7aed8e88491ffac725fd625",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/import.rs#L1146"
         }
       ],
       "risk": "Swarm requests can exceed aggregate bytes or remain parked after cancellation; notify_all can cause repeated contention.",
@@ -22330,22 +22730,30 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/gpu/tests/equivalence.rs",
-          "line": 17
+          "line": 17,
+          "source_sha256": "623b2e0f21de8c0da02c2fd4c7284311bd7519c389093095380bef8b1ba58a14",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/gpu/tests/equivalence.rs#L17"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/gpu/tests/equivalence.rs",
-          "line": 44
+          "line": 44,
+          "source_sha256": "623b2e0f21de8c0da02c2fd4c7284311bd7519c389093095380bef8b1ba58a14",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/gpu/tests/equivalence.rs#L44"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_catalog.rs",
-          "line": 1041
+          "line": 1041,
+          "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L1041"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "docs/parity.md",
-          "line": 73
+          "line": 73,
+          "source_sha256": "513d02f37e018e9e0d7d6c8b4adcadde824dd2917e60f04f6a694110feb0655a",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/docs/parity.md#L73"
         }
       ],
       "risk": "Feature names, internal reference agreement or skipped hardware runs are mistaken for professional parity.",
@@ -22366,12 +22774,16 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/Cargo.toml",
-          "line": 1
+          "line": 1,
+          "source_sha256": "f386d25ef4548e7b85215167c089955fb2bc4f74cb91ea5d44346e7aed4d760c",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/Cargo.toml#L1"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/lib.rs",
-          "line": 594
+          "line": 594,
+          "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L594"
         }
       ],
       "risk": "A Studio sub-application duplicates common authority and retains expensive facade dependency closure.",
@@ -22387,17 +22799,21 @@
       "project": "EFFECTCRAFT",
       "severity": "DEPENDENCY_DIVERGENCE",
       "title": "FilmCraft dependency source is pinned outside the EffectCraft archive",
-      "observed": "Cargo.lock contains 26 FilmCraft git package records at revision 2c5ba7a72619935f0481f99d59409e0d1844b234. Root dependency declarations use this pin. The separately retained current FilmCraft source uses 7b6c134 as a different revision; this EffectCraft archive does not contain the old FilmCraft source.",
+      "observed": "Cargo.lock contains 26 FilmCraft git package records at revision 2c5ba7a72619935f0481f99d59409e0d1844b234. Root dependency declarations use this pin. The separately retained current FilmCraft source uses 7b6c134472287db4367fca80bcb498240ba36567 as a different revision; this EffectCraft archive does not contain the old FilmCraft source.",
       "evidence": [
         {
           "project": "EFFECTCRAFT",
           "path": "Cargo.toml",
-          "line": 1
+          "line": 1,
+          "source_sha256": "c29f1bfa25df524ede6c9498f27edae75ab50e4ea7a83051f4794b2368046ff2",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/Cargo.toml#L1"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "Cargo.lock",
-          "line": 1
+          "line": 1,
+          "source_sha256": "09da330da6d6ce74e9d5393db580de38dac0196a62b9204194bcb130f7ec0e05",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/Cargo.lock#L1"
         }
       ],
       "risk": "A current FilmCraft audit cannot prove the old dependency APIs, parsers or codec behavior required by this EffectCraft pin.",
@@ -22418,22 +22834,30 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/time/src/lib.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "36a40443f3fe7706df2080b1f79a12ed47527db0e601a6dd8cdc4b76174cd8da",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/time/src/lib.rs#L1"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/time/src/lib.rs",
-          "line": 74
+          "line": 74,
+          "source_sha256": "36a40443f3fe7706df2080b1f79a12ed47527db0e601a6dd8cdc4b76174cd8da",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/time/src/lib.rs#L74"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/keyframe/src/lib.rs",
-          "line": 461
+          "line": 461,
+          "source_sha256": "75777df251c430273f1f503f23142f001bed1bbce5dedc87c128bcc48e6917fd",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/keyframe/src/lib.rs#L461"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/render/src/eval.rs",
-          "line": 51
+          "line": 51,
+          "source_sha256": "a1915e7d3735eb25135cd788aa1fbdc19d81d8b1464060b30a46cafc219cd88d",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/eval.rs#L51"
         }
       ],
       "risk": "Malformed rates or extreme durations can silently become valid-looking times; f64 interpolation can lose distinctions at long durations.",
@@ -22454,17 +22878,23 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/lib.rs",
-          "line": 594
+          "line": 594,
+          "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L594"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/lib.rs",
-          "line": 629
+          "line": 629,
+          "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L629"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/commands/prop.rs",
-          "line": 32
+          "line": 32,
+          "source_sha256": "99ee96412637be0b2b206c9522fffa9352f3b45417cdb0353081e4b33aaba0c6",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/prop.rs#L32"
         }
       ],
       "risk": "Concurrent actors can cause logical target/time/history conflicts even if mutation is serialized by one owner.",
@@ -22485,22 +22915,30 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/commands/file.rs",
-          "line": 40
+          "line": 40,
+          "source_sha256": "96c39c9e825d416dcacb0ab3b007ce2c04b9c5862608486f0f74d4aba4efcec1",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/file.rs#L40"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/commands/file.rs",
-          "line": 49
+          "line": 49,
+          "source_sha256": "96c39c9e825d416dcacb0ab3b007ce2c04b9c5862608486f0f74d4aba4efcec1",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/file.rs#L49"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/project/src/lib.rs",
-          "line": 1288
+          "line": 1288,
+          "source_sha256": "fc20ee846d443082b1e4acee1ca75affd8674b4a426842ba441f91fc316e648a",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/project/src/lib.rs#L1288"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/lib.rs",
-          "line": 98
+          "line": 98,
+          "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L98"
         }
       ],
       "risk": "Unknown fields are discarded and a partial capability adapter can still permit ambient access; EC XML could be misrepresented as Adobe AEPX.",
@@ -22521,22 +22959,30 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/render/src/lib.rs",
-          "line": 785
+          "line": 785,
+          "source_sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs#L785"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/render/src/lib.rs",
-          "line": 921
+          "line": 921,
+          "source_sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs#L921"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/render/src/eval.rs",
-          "line": 68
+          "line": 68,
+          "source_sha256": "a1915e7d3735eb25135cd788aa1fbdc19d81d8b1464060b30a46cafc219cd88d",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/eval.rs#L68"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/commands/expr_tools.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "2fa15cee236810c8d554021576e07abfd889b47ab0149a157f9588691c1c9e6e",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/expr_tools.rs#L1"
         }
       ],
       "risk": "An image can look plausible while unsupported effects, nesting or expressions were not evaluated.",
@@ -22557,17 +23003,23 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/expr/src/lib.rs",
-          "line": 50
+          "line": 50,
+          "source_sha256": "f7a6792d056db223946648625b13892ad60bcacbc5df57e774fe7cd97ae9275a",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/lib.rs#L50"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/expr/src/runtime.rs",
-          "line": 209
+          "line": 209,
+          "source_sha256": "67a85dd9390bac7b11543513d143c2b6b445c8becbcb7d2ede641b6ddf657bea",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/runtime.rs#L209"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/expr/src/runtime.rs",
-          "line": 407
+          "line": 407,
+          "source_sha256": "67a85dd9390bac7b11543513d143c2b6b445c8becbcb7d2ede641b6ddf657bea",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/runtime.rs#L407"
         }
       ],
       "risk": "Many expression jobs can consume aggregate CPU/memory despite per-evaluation loop limits, and cancelled work can persist until a local budget is exhausted.",
@@ -22588,12 +23040,16 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/effects/src/ocio_config.rs",
-          "line": 573
+          "line": 573,
+          "source_sha256": "2dc690682a68269bd6b1eac715ea71782bc33cf9c8b0ba2dd1d6dbe5abfb16e0",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/effects/src/ocio_config.rs#L573"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/effects/src/ocio_config.rs",
-          "line": 723
+          "line": 723,
+          "source_sha256": "2dc690682a68269bd6b1eac715ea71782bc33cf9c8b0ba2dd1d6dbe5abfb16e0",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/effects/src/ocio_config.rs#L723"
         }
       ],
       "risk": "Missing/unsupported or later-repaired configurations can yield plausible untransformed output or stale failure state.",
@@ -22614,17 +23070,23 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/interchange/src/lib.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "bdd352d623690045cb513015af45afcff770e778ce00759dd4c737f44065c1c4",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/interchange/src/lib.rs#L1"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/interchange/src/lib.rs",
-          "line": 23
+          "line": 23,
+          "source_sha256": "bdd352d623690045cb513015af45afcff770e778ce00759dd4c737f44065c1c4",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/interchange/src/lib.rs#L23"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/interchange/src/lib.rs",
-          "line": 105
+          "line": 105,
+          "source_sha256": "bdd352d623690045cb513015af45afcff770e778ce00759dd4c737f44065c1c4",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/interchange/src/lib.rs#L105"
         }
       ],
       "risk": "An extension/alias can create a misleading support claim and conceal non-editable or missing workflow data.",
@@ -22645,17 +23107,23 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/automation/src/server.rs",
-          "line": 104
+          "line": 104,
+          "source_sha256": "88c0fd877e38480d70706266c91c9d77d057ca15a246f27614bbf27ba8385115",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/automation/src/server.rs#L104"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/jobs.rs",
-          "line": 118
+          "line": 118,
+          "source_sha256": "e03bbdc90554584cd5f249c0cb55b01c8daf508156ae0cb3e2f775a79dbb6fd8",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/jobs.rs#L118"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/jobs.rs",
-          "line": 157
+          "line": 157,
+          "source_sha256": "e03bbdc90554584cd5f249c0cb55b01c8daf508156ae0cb3e2f775a79dbb6fd8",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/jobs.rs#L157"
         }
       ],
       "risk": "A fast or malformed swarm can accumulate input lines, queued jobs, threads, snapshots and result memory without a bounded overload outcome.",
@@ -22677,17 +23145,23 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/render/src/passes.rs",
-          "line": 21
+          "line": 21,
+          "source_sha256": "a1726aec5a405f2e48953cf6368fa893538c7174349cba7af3688b4142dd3d17",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/passes.rs#L21"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/render/src/passes.rs",
-          "line": 95
+          "line": 95,
+          "source_sha256": "a1726aec5a405f2e48953cf6368fa893538c7174349cba7af3688b4142dd3d17",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/passes.rs#L95"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/export/src/lib.rs",
-          "line": 164
+          "line": 164,
+          "source_sha256": "7552d0f280d2b431cc7605724b6fb4877800a7897e517d6e3bf21e1fa4c872e5",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/export/src/lib.rs#L164"
         }
       ],
       "risk": "A hung GPU/driver pass can hold a job indefinitely; polling wastes CPU and ignores bounded job lifetime.",
@@ -22708,12 +23182,16 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/render/src/cache.rs",
-          "line": 68
+          "line": 68,
+          "source_sha256": "4e84ce5e312d7b6adc7ea5034ee6027de10c0960b8420eecd66e3be73e76820f",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/cache.rs#L68"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/render/src/cache.rs",
-          "line": 505
+          "line": 505,
+          "source_sha256": "4e84ce5e312d7b6adc7ea5034ee6027de10c0960b8420eecd66e3be73e76820f",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/cache.rs#L505"
         }
       ],
       "risk": "A version/local hash is not collision-resistant provenance or complete external-resource identity, and separate cache ownership can duplicate CKC budgets.",
@@ -22734,17 +23212,23 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/plugin/src/wasm.rs",
-          "line": 35
+          "line": 35,
+          "source_sha256": "e82d91462d2a72ddd9fa86246725d8a48a61fa52c4d520d03ac88af30b73e6fe",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/plugin/src/wasm.rs#L35"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/plugin/src/wasm.rs",
-          "line": 62
+          "line": 62,
+          "source_sha256": "e82d91462d2a72ddd9fa86246725d8a48a61fa52c4d520d03ac88af30b73e6fe",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/plugin/src/wasm.rs#L62"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/plugin/src/wasm.rs",
-          "line": 71
+          "line": 71,
+          "source_sha256": "e82d91462d2a72ddd9fa86246725d8a48a61fa52c4d520d03ac88af30b73e6fe",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/plugin/src/wasm.rs#L71"
         }
       ],
       "risk": "Many allowed plugin instances can exceed process memory even when each respects its individual limit.",
@@ -22765,12 +23249,16 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/commands/stubs.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "8180d65bb5ea03731c92f63ab701d181d7ea632fe96cde8af9d501554f0bd75b",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/stubs.rs#L1"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/gpu/src/tests.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "bd85952a38feb9f38faa3e31ac341e5745a1cda0c03cbcaed93516f684a2acb2",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/gpu/src/tests.rs#L1"
         }
       ],
       "risk": "Broad feature labels and self-reference tests can conceal missing native semantics and independent visual differences.",
@@ -22809,17 +23297,23 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/raw/src/lib.rs",
-          "line": 325
+          "line": 325,
+          "source_sha256": "f1c5d520ac9817f8ea3bfab401a067ba1b30f2a03d4e2501963117131ad2857c",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/raw/src/lib.rs#L325"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/raw/src/lib.rs",
-          "line": 679
+          "line": 679,
+          "source_sha256": "f1c5d520ac9817f8ea3bfab401a067ba1b30f2a03d4e2501963117131ad2857c",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/raw/src/lib.rs#L679"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/files.rs",
-          "line": 268
+          "line": 268,
+          "source_sha256": "9eb0348abd2524b38dcc37894d5c53536f202be88c959080269fe5af02ef0273",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/files.rs#L268"
         }
       ],
       "rejection_boundary": "Do not equate container open with professional RAW processing; do not fork duplicate parser copies for each workflow."
@@ -22850,17 +23344,23 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/develop/src/lib.rs",
-          "line": 21
+          "line": 21,
+          "source_sha256": "2decdd210692f5f95da90959fed1b64a590f9087079fdd61c848c4959e09ba8d",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/develop/src/lib.rs#L21"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/pipeline/src/lib.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "7c30472856f53d3a348e38f2269ea1898ce7658a4dea52db1366e97fe9d22707",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/pipeline/src/lib.rs#L1"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/pipeline/src/lib.rs",
-          "line": 452
+          "line": 452,
+          "source_sha256": "7c30472856f53d3a348e38f2269ea1898ce7658a4dea52db1366e97fe9d22707",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/pipeline/src/lib.rs#L452"
         }
       ],
       "rejection_boundary": "Do not create a second document/persistence model or duplicate shared color transforms."
@@ -22889,17 +23389,23 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_sqlite.rs",
-          "line": 87
+          "line": 87,
+          "source_sha256": "7076939ba61b4d53f9e0a51e9d37d73272b8b79ff05d6e07d34640b8186d1c3a",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_sqlite.rs#L87"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_catalog.rs",
-          "line": 301
+          "line": 301,
+          "source_sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs#L301"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/lightroom_job.rs",
-          "line": 228
+          "line": 228,
+          "source_sha256": "717aea349d54cd1920ee7ae33f5669b3338ebc50f721e892c43ea3e67e4937a1",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_job.rs#L228"
         }
       ],
       "rejection_boundary": "Do not silently narrow full catalog migration to XMP or broaden approval into SQLite runtime authority."
@@ -22927,12 +23433,16 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/catalog/src/journal.rs",
-          "line": 458
+          "line": 458,
+          "source_sha256": "8b061baa2ff44beafc9d1cba0de2381308039ad6ff1f40dd1454f69a8759682a",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/catalog/src/journal.rs#L458"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/library.rs",
-          "line": 429
+          "line": 429,
+          "source_sha256": "8dbbcbfc7dc87a373c453a9c77593ea1a376aa3a2bcc3e46be962355ba1c5dd0",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/library.rs#L429"
         }
       ],
       "rejection_boundary": "Do not adopt its independent catalog store, selection authority, memory gate or engine dependency closure wholesale."
@@ -22960,12 +23470,16 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/gpu/src/lib.rs",
-          "line": 333
+          "line": 333,
+          "source_sha256": "7ac1aa9c7e160666b282a7acd5f0d071bf6e49109c43cb9d3fb54edf47db25a5",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/gpu/src/lib.rs#L333"
         },
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/src/media.rs",
-          "line": 800
+          "line": 800,
+          "source_sha256": "b8078d01fc9427588b48c06b0287bb513da29d6f84cf1ba8e66366edbe79dc79",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/media.rs#L800"
         }
       ],
       "rejection_boundary": "Do not claim high-depth GPU equivalence from U8 tests; merge internals were enumerated rather than fully read."
@@ -22996,7 +23510,9 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/mcp/src/server.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "c651d1d3355478d6b373620e9dc416bef26dbeaea78ae2000173d66d0a31c565",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/mcp/src/server.rs#L1"
         }
       ],
       "rejection_boundary": "Shared active photo/selection cannot be the only target authority for a swarm."
@@ -23021,7 +23537,9 @@
         {
           "project": "LIGHTCRAFT",
           "path": "crates/engine/Cargo.toml",
-          "line": 1
+          "line": 1,
+          "source_sha256": "89c4bb654d646b38ab08602e7463653a8f55fed8adce1b7b2a2ec3ff2c6be7dd",
+          "source_url": "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/Cargo.toml#L1"
         }
       ],
       "rejection_boundary": "No blanket removal of all masking or noise reduction merely because candidate engine also has model features."
@@ -23052,12 +23570,16 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/time/src/lib.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "36a40443f3fe7706df2080b1f79a12ed47527db0e601a6dd8cdc4b76174cd8da",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/time/src/lib.rs#L1"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/keyframe/src/lib.rs",
-          "line": 461
+          "line": 461,
+          "source_sha256": "75777df251c430273f1f503f23142f001bed1bbce5dedc87c128bcc48e6917fd",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/keyframe/src/lib.rs#L461"
         }
       ],
       "rejection_boundary": "Root module enumeration of path/raster does not prove full body review; no invented i128 storage requirement."
@@ -23089,17 +23611,23 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/render/src/lib.rs",
-          "line": 746
+          "line": 746,
+          "source_sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs#L746"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/render/src/lib.rs",
-          "line": 921
+          "line": 921,
+          "source_sha256": "99364ee54d0af7bdccaef0be1f98f36402edc51b66563c75004b1d44f7a9ec93",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/lib.rs#L921"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/render/src/cache.rs",
-          "line": 505
+          "line": 505,
+          "source_sha256": "4e84ce5e312d7b6adc7ea5034ee6027de10c0960b8420eecd66e3be73e76820f",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/render/src/cache.rs#L505"
         }
       ],
       "rejection_boundary": "Do not adopt global cache/color/resource authority or claim every effect/tracker/text body deeply audited."
@@ -23129,17 +23657,23 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/expr/src/runtime.rs",
-          "line": 209
+          "line": 209,
+          "source_sha256": "67a85dd9390bac7b11543513d143c2b6b445c8becbcb7d2ede641b6ddf657bea",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/runtime.rs#L209"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/plugin/src/wasm.rs",
-          "line": 35
+          "line": 35,
+          "source_sha256": "e82d91462d2a72ddd9fa86246725d8a48a61fa52c4d520d03ac88af30b73e6fe",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/plugin/src/wasm.rs#L35"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/commands/expr_tools.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "2fa15cee236810c8d554021576e07abfd889b47ab0149a157f9588691c1c9e6e",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/commands/expr_tools.rs#L1"
         }
       ],
       "rejection_boundary": "Per-instance limits do not establish process bounds; script crate bodies were enumerated, not comprehensively audited."
@@ -23172,17 +23706,23 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/export/src/lib.rs",
-          "line": 164
+          "line": 164,
+          "source_sha256": "7552d0f280d2b431cc7605724b6fb4877800a7897e517d6e3bf21e1fa4c872e5",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/export/src/lib.rs#L164"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/export/src/pipeline.rs",
-          "line": 100
+          "line": 100,
+          "source_sha256": "c92307bae8d2b05b8d4f3bd4a7f198b375f224f7fd9703ca8ed9821bbb506af6",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/export/src/pipeline.rs#L100"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/interchange/src/lib.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "bdd352d623690045cb513015af45afcff770e778ce00759dd4c737f44065c1c4",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/interchange/src/lib.rs#L1"
         }
       ],
       "rejection_boundary": "No native prproj/AEP support claim from XML aliases or normalized timelines; codec body completeness unproven."
@@ -23212,17 +23752,23 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/project/src/props.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "16e2b4a2f0de642ac13cc99bb48de16c825b8dc5a374ee7d3a07748994e057b9",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/project/src/props.rs#L1"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/lib.rs",
-          "line": 581
+          "line": 581,
+          "source_sha256": "cdfd63d5452a4d95e577320c2b27905124dfa1af172286ec383446719732ee86",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/lib.rs#L581"
         },
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/src/jobs.rs",
-          "line": 157
+          "line": 157,
+          "source_sha256": "e03bbdc90554584cd5f249c0cb55b01c8daf508156ae0cb3e2f775a79dbb6fd8",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/src/jobs.rs#L157"
         }
       ],
       "rejection_boundary": "Do not carry forward unbounded automation channel, thread-per-task dispatcher, whole-project global history or separate EC native authority."
@@ -23251,7 +23797,9 @@
         {
           "project": "EFFECTCRAFT",
           "path": "Cargo.toml",
-          "line": 1
+          "line": 1,
+          "source_sha256": "c29f1bfa25df524ede6c9498f27edae75ab50e4ea7a83051f4794b2368046ff2",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/Cargo.toml#L1"
         }
       ],
       "rejection_boundary": "These members are manifest/root-module enumerated only in this drill; effectcraft-model is not classified as AI simply from its name."
@@ -23279,7 +23827,9 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/project/src/props.rs",
-          "line": 1
+          "line": 1,
+          "source_sha256": "16e2b4a2f0de642ac13cc99bb48de16c825b8dc5a374ee7d3a07748994e057b9",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/project/src/props.rs#L1"
         }
       ],
       "rejection_boundary": "No separate EffectCraft-style app shell or near-identical panel per workflow."
@@ -23300,7 +23850,9 @@
         {
           "project": "EFFECTCRAFT",
           "path": "crates/engine/Cargo.toml",
-          "line": 1
+          "line": 1,
+          "source_sha256": "f386d25ef4548e7b85215167c089955fb2bc4f74cb91ea5d44346e7aed4d760c",
+          "source_url": "https://github.com/storytold/effectcraft/blob/2a460986ee7a4b32656a3d434849693904b486bc/crates/engine/Cargo.toml#L1"
         }
       ],
       "rejection_boundary": "Do not rename learned segmentation as a classical engine or narrow the user's non-AI mask/roto target."
@@ -23523,5 +24075,32 @@
         "LE-E10"
       ]
     }
-  ]
+  ],
+  "source_integrity_recheck": {
+    "status": "ARCHIVE_AND_EXTRACTED_BYTES_RECONCILED",
+    "projects": [
+      {
+        "project": "LIGHTCRAFT",
+        "archive_sha256": "a149555383849991478b463608d6f204f3f39e4009b96fc5abbf5c3d65dbba5e",
+        "regular_files": 655,
+        "original_windows_order_tree_digest": "53d1dc27898b80c32bc2b228d8e02c8440efc519517f9c2cd39f8777129645c3",
+        "canonical_posix_string_tree_digest": "750f632382c6ce754ddd36c404dbb1af67cd2a5a4ed8f821967a0dc8e24d85c7",
+        "extracted_file_bytes_match_every_archive_regular_member": true,
+        "mismatches": 0
+      },
+      {
+        "project": "EFFECTCRAFT",
+        "archive_sha256": "8c14b551da83431cd1c8e1db8121b4e5371f744d200a9f279954a08c7984cbd9",
+        "regular_files": 971,
+        "original_windows_order_tree_digest": "81a50e111562ba9f5580c1e46c578a8a03ac9415eec53ac8a8ce565422652166",
+        "canonical_posix_string_tree_digest": "a3d3c0c04549085057f54e10ebc0b0743b86ab3f0c4b6189ca9b47d3fc32c1e7",
+        "extracted_file_bytes_match_every_archive_regular_member": true,
+        "mismatches": 0
+      }
+    ],
+    "ordering_correction": "Earlier algorithm prose omitted Windows component ordering; actual stored digests are retained and portable POSIX-string digests added. No source bytes changed.",
+    "all_evidence_paths_line_bounds_and_file_hashes_checked": true,
+    "evidence_files": 54,
+    "not_runtime_proof": true
+  }
 }

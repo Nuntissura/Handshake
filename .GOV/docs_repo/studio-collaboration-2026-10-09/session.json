@@ -1,7 +1,7 @@
 {
   "schema_id": "hsk.studio_research_session@1",
   "file_id": "STUDIO-COLLAB-20261009",
-  "updated_at": "2026-10-09T18:38:34.916385+00:00",
+  "updated_at": "2026-10-09T21:00:56.753562+00:00",
   "wp_id": "WP-KERNEL-STUDIO",
   "scope": "Preparation/research/design only; full user parity target preserved; implementation new session.",
   "authority_entrypoint": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
@@ -16,7 +16,7 @@
     "Prior Studio scope/5484 MTs preserved, typed readiness remains non-executable",
     "Full pinned source archives acquired and safely extracted for PhotoCraft/VectorCraft/DesignCraft/PdfCraft/SoundCraft; root archive/hash/file-count reads recorded."
   ],
-  "current_phase": "SPEC207_AND_ASSET_FIRST_MT_AUTHORING_INDEPENDENT_REVIEWS",
+  "current_phase": "PREPARATION_RECONCILED_CHECKPOINT_IN_THIS_CHANGE_IMPLEMENTATION_NEXT_SESSION",
   "root_chat": {
     "thread_id": "01a12168-a212-7991-8b69-454deae05b60",
     "title": "handshake studio",
@@ -41,6 +41,12 @@
       "id": "STUDIO-APPROVAL-ASSETS",
       "repository": "https://github.com/Nuntissura/assets",
       "scope": "Asset-first Studio worktree; mirror product subtree under handshake-studio-assets; preserve existing handpick content"
+    },
+    {
+      "id": "STUDIO-APPROVAL-EXACT-PRESERVATION-7726",
+      "answer": "approved",
+      "scope": "Push7726newbackupbranch;mergeorigin/gov_kernelpreservinghistories;pushcombinednoforce",
+      "outcome": "SUCCEEDED5d7e9077;noapprovalforforcepush/deletion"
     }
   ],
   "additional_scope": [
@@ -55,72 +61,44 @@
       "thread_id": "01a121cc-a69b-78a2-86d0-a35ddc223852",
       "title": "Studio original Adobe workflow research",
       "directory": "adobe-original-team",
-      "status": "RECOVERED_RUNNING_TARGETED_FOLLOWUP"
+      "status": "SOURCE_RESEARCH_AND_TARGETED_REVIEWS_COMPLETE_NOT_RUNTIME_VERDICT"
     },
     {
       "thread_id": "01a121cc-f3d9-7f43-b9ac-adf517c42cbd",
       "title": "Studio backend and adoption red team",
       "directory": "backend-redteam",
-      "status": "RECOVERED_RUNNING_TARGETED_FOLLOWUP"
+      "status": "SOURCE_RESEARCH_AND_TARGETED_REVIEWS_COMPLETE_NOT_RUNTIME_VERDICT"
     },
     {
       "thread_id": "01a121cd-6da7-7561-8f88-e28327369650",
       "title": "Studio Master Spec and MT review",
       "directory": "spec-mt-team",
-      "status": "RECOVERED_RUNNING_TARGETED_FOLLOWUP"
+      "status": "SOURCE_RESEARCH_AND_TARGETED_REVIEWS_COMPLETE_NOT_RUNTIME_VERDICT"
     }
   ],
   "remaining": [
     {
-      "id": "STUDIO-DRILL-HANDSHAKE",
-      "owner": "kernel_root_drill",
-      "output": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/handshake-root-drill.json",
-      "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF"
-    },
-    {
-      "id": "STUDIO-DRILL-PHOTO",
-      "owner": "photocraft_root_drill",
-      "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF",
-      "focus": "PhotoCraft full crate/module maps and pixel/edit/save/render/import execution"
-    },
-    {
-      "id": "STUDIO-DRILL-VECTOR-DESIGN",
+      "id": "STUDIO-MT-MIGRATION",
       "owner": "vector_design_root_drill",
-      "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF",
-      "focus": "VectorCraft/DesignCraft geometry/shaping/layout/style/interop execution roots"
+      "status": "SOURCE_PREPARATION_RECONCILED_FROZEN"
     },
     {
-      "id": "STUDIO-DRILL-FILM",
-      "owner": "vector_design_root_drill",
-      "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF",
-      "focus": "FilmCraft codec/sequence/media/delivery execution and realtime boundaries"
-    },
-    {
-      "id": "STUDIO-DRILL-LIGHT-EFFECT",
+      "id": "STUDIO-MT-INDEPENDENT-PRESERVATION",
       "owner": "photocraft_root_drill",
-      "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF",
-      "focus": "LightCraft raw/develop/catalog and EffectCraft eval/render/keyframes/expression/color roots"
+      "status": "INDEPENDENT_SOURCE_ONLY_PRESERVATION_ACCEPTED_RUNTIME_NOT_RUN"
     },
     {
-      "id": "STUDIO-DRILL-PDF-AUDIO",
-      "owner": null,
-      "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF",
-      "focus": "PdfCraft PDF object/save/forensics/accessibility and SoundCraft stream/mix/DSP/plugin roots"
-    },
-    {
-      "id": "STUDIO-DRILL-ARGUS",
-      "owner": "kernel_root_drill",
-      "status": "SOURCE_DRILL_COMPLETE_NOT_RUNTIME_PROOF",
-      "focus": "Handshake actual UI/Argus/diagnostics/manual roots vs reusable capability owners"
-    },
-    {
-      "id": "STUDIO-DRILL-RECONCILIATION",
+      "id": "STUDIO-SPEC-PUBLISH",
       "owner": "root",
-      "status": "PENDING",
-      "focus": "Cross-source canonical owners, pinned version/patch compatibility, explicit missing implementations, verify revised contracts and scoped diff"
+      "status": "LOCAL_POINTER_207_RECONCILED_VERIFY_CANONICAL_CHECKPOINT"
+    },
+    {
+      "id": "STUDIO-FINAL-PUBLISH",
+      "owner": "root",
+      "status": "SOURCE_PREPARATION_RECONCILED_VERIFY_CANONICAL_CHECKPOINT"
     }
   ],
-  "restart": "Read saved gameplan/session first. Current pointer still206 pending independent draft review. Resume root authoring of207, modulecatalog and actual MT migration; no implementation. Existing three research chats recovered after Codex update; use saved IDs, never create replacements merely because app restarted.",
+  "restart": "Read the shared Studio gameplan, this record, SPEC_CURRENT and the approved typed Studio packet/MT index. Source preparation is reconciled, with 35 crates plus one workspace foundation and all 5,484 original MT payloads preserved. Final MT/index hashes are recorded here. Verify the canonical Git checkpoint through the publication locator; do not infer remote publication from this record. Reuse the existing Studio worktree and three research chats. In a new implementation session, activate and bind the bounded workspace MT-35528, then all 35 meaningful module foundations before domain features. All MTs remain PENDING, readiness NO and runtime/native GUI/provider/parity proof NOT_RUN. Asset source must remain independent of Handshake kernel compilation; actual host integration is a separate retained acceptance phase. Other-device WP-KERNEL-012 work takes priority; preserve its worktree, MTs, tools and selector.",
   "operator_correction": "Documentation collaboration is in kernel .GOV/docs_repo. Earlier runtime docs path only contains empty directories; no documentation was saved there.",
   "latest_steering": [
     "User asks broader specialist team rotation and root-level code drilling",
@@ -133,5 +111,89 @@
   ],
   "gameplan_recovery_checks": "GP010..026 record kernel docs, pinned sources, canonical worktree, non-execution and source-probe/UTF-8/CLI/path preparation",
   "module_catalog": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
-  "new_plugin_decision": "backend-redteam/plugin-platform-decision.json (being authored)"
+  "new_plugin_decision": "backend-redteam/plugin-platform-decision.json",
+  "selected_decisions": {
+    "module_catalog": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+    "module_count": 35,
+    "foundation_members": 36,
+    "foundation_order": "Allbeforefeatures;actualkernelconsumeracceptance separatelyretained",
+    "plugin_platform": "Handshake-wide5.1.6/MEX11.8;Studioadapters only,sharedlifecyclenotimplemented",
+    "expression": "JavaScriptcompat profile/typedMotionsemantics/optionalMotionJSprovider;QuickJScandidatenotadopted,pinnedsource+hostileproofprerequisites",
+    "composition": "OneFolio authoredgraph,losslesslayer/nodeviews;staticComposite/temporalMotion",
+    "history": "AllretainedglobalsemanticUndoRedo/currentinversepreconditions",
+    "autoaccept": "OFFdefault,authenticatedoperator-enrolledhostpolicyonly;consumerunimplemented",
+    "nativeformat": ".handshake boundedZIP64transport;explicitreopen/importfork/collisionprivacy, noauthority/grants",
+    "database": "SurrealDB/EventLedgeronly;boundedexternalLRCATbyteparseronlyexception"
+  },
+  "preserved_priority_work": {
+    "remote_baseline": "77b260f1",
+    "combined_commit": "5d7e9077e4a74d717153d42a6067751caca1c8e6",
+    "checkpoint_backup_branch": "codex/studio-preparation-checkpoint-7726e7d0",
+    "checkpoint_commit": "7726e7d0e07acc5f2b77a0239316d856da1b21d1",
+    "proof": "IndependentlypushedSHAequality;priorityMT168/WP012gameplan identicaltoincoming77b"
+  },
+  "research_limitations": [
+    "Installed Adobe GUI and proprietary engine source NOT_INSPECTED; readable installed resources/scripts and official manuals inspected.",
+    "Source inventories and deep call chains are selective inspected evidence, not a complete function-body read or professional parity proof.",
+    "Craft and native JS adoption remain source candidates; actual build/runtime, ARM/x64, host platform, native interoperability and original-app oracle proof NOT_RUN.",
+    "Product asset mirror NOT_MATERIALIZED; no Rust implementation in this preparation session."
+  ],
+  "correction_snapshot": {
+    "index_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json",
+    "index_sha256": "e91b68b06cfdb209b57dac790cad07484c5654084685b1618c4c977660bc4596",
+    "ordered_mt_corpus_sha256": "ed58a91b4def08aa68d32f5cf0cbc4b4a3c5a93c061c167700cddd42ec187621",
+    "changed_records": 5541,
+    "total_records": 5575,
+    "runtime": "NOT_RUN",
+    "mutation_hold": "Final MT/index bytes are frozen; first consolidated changes and subsequent one-reason delta are separately recorded in the index."
+  },
+  "publication": {
+    "version": "v02.207",
+    "signature": "ilja091020261912",
+    "source_sha256": "34c15e58e408dfa7b8060dbf9177808fb43a3cb32f1910c80c5847fc07e031ef",
+    "prepared_at_git_commit": "5d7e9077e4a74d717153d42a6067751caca1c8e6",
+    "checkpoint_locator": "git log -1 -- .GOV/spec/SPEC_CURRENT.md; freshly verify origin/gov_kernel contains that commit and canonical pointer resolves v02.207. This file is not sole publication proof.",
+    "mt_review_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/mt-preservation-independent-review.json",
+    "mt_review_sha256": "5aabda1aa16aa7d7f59702f456d9d8afff48d2694382f2a62b75ba62034acb7d",
+    "semantic_review_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/root-independent-review.json",
+    "semantic_review_sha256": "7435f764d4e668997d41f7821b56ca9b5b68aa450b3e4c02545d83b3d2895288",
+    "runtime": "NOT_RUN",
+    "implementation": "NEXT_SESSION_ONLY_NON_EXECUTION_STUB",
+    "product_mirror": "NOT_MATERIALIZED_NO_PRODUCT_CODE_YET",
+    "contract_review_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/spec-mt-team/asset-contract-independent-review.json",
+    "contract_review_sha256": "81ea8acb3a4698f29cc2dadc6b697a49765a5e7075d41d3e91bf96d6a41a0e42",
+    "review_reference_hash_provenance": "CANONICAL_GIT_BLOB_BYTES; working snapshots retained separately",
+    "review_byte_provenance": [
+      {
+        "ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/mt-preservation-independent-review.json",
+        "canonical_git_sha256": "5aabda1aa16aa7d7f59702f456d9d8afff48d2694382f2a62b75ba62034acb7d",
+        "git_blob_oid": "4602d04c37b28055573a81c703ae8f68f53af207",
+        "working_copy_snapshot": {
+          "sha256": "5aabda1aa16aa7d7f59702f456d9d8afff48d2694382f2a62b75ba62034acb7d",
+          "byte_count": 28561069,
+          "provenance": "REVIEWED_WORKING_COPY_BYTES_NOT_CANONICAL_GIT_BLOB_IDENTITY"
+        }
+      },
+      {
+        "ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/root-independent-review.json",
+        "canonical_git_sha256": "7435f764d4e668997d41f7821b56ca9b5b68aa450b3e4c02545d83b3d2895288",
+        "git_blob_oid": "18889a8ec0f324d219e357c8f495258dc5297ecf",
+        "working_copy_snapshot": {
+          "sha256": "b076563aa0d7f314984f02f9c5e9f3eb2e3701df92d145c427934ea45d1a7cf6",
+          "byte_count": 160518,
+          "provenance": "REVIEWED_WORKING_COPY_BYTES_NOT_CANONICAL_GIT_BLOB_IDENTITY"
+        }
+      },
+      {
+        "ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/spec-mt-team/asset-contract-independent-review.json",
+        "canonical_git_sha256": "81ea8acb3a4698f29cc2dadc6b697a49765a5e7075d41d3e91bf96d6a41a0e42",
+        "git_blob_oid": "22b1366eca96baedb2181cf67ff895c047fbf5ba",
+        "working_copy_snapshot": {
+          "sha256": "6a132279e584c4b6974a7d8918d4f6075e9324ece7226dedf106a8cb523e965a",
+          "byte_count": 81642,
+          "provenance": "REVIEWED_WORKING_COPY_BYTES_NOT_CANONICAL_GIT_BLOB_IDENTITY"
+        }
+      }
+    ]
+  }
 }

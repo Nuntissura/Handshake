@@ -1,0 +1,207 @@
+{
+  "schema_id": "hsk.studio_open_contract_challenge@1",
+  "file_id": "STUDIO-OPEN-CONTRACT-INDEPENDENT-CHALLENGE-20261009",
+  "updated_at": "2026-10-09",
+  "authority": "REFERENCE_ONLY_ROOT_PUBLISHES_SPEC_AND_MT",
+  "status": "DIRECTION_SUPPORTED_TARGETED_CONTRACT_CORRECTIONS_REQUIRED",
+  "scope": {
+    "Handshake (Product)": "Read-only selected original-team autoaccept and Flight Recorder decisions, pinned WP012 source and actual candidate clauses",
+    "Repo Governance": "This owned report only",
+    "other_device_WP012_records_pointer": "NOT_MODIFIED"
+  },
+  "preparation": "Shared gameplan resume and before_dispatch shown; fresh before_dispatch PASS24/24",
+  "reviewed_artifact": {
+    "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/open-contract-decisions.json",
+    "sha256": "f115c62e072d87c1a80282e4193669c05a24d2e4fd971d5135bcaec9cf990ec3"
+  },
+  "supported_direction": [
+    "Autoaccept OFF by default; explicit operator enrollment, semantic reversible allowlist and genuine host-owned approval variant",
+    "No model selfapproval, synthetic review receipt, parallel Studio gate or validation-PASS-as-approval",
+    "Preserve all22 Studio business wire events and canonical namespace; separate immutable mirror pending/completion and exact collision checks",
+    "No callback general recorder; bounded off-thread diagnostic handoff",
+    "Existing shared plugin decision remains separately reviewed; original cross-team inspected PLATFORM01-13 subset does not constitute review of PLATFORM14-19"
+  ],
+  "findings": [
+    {
+      "id": "OPEN-CHALLENGE-001",
+      "severity": "HIGH",
+      "target": "STUDIO-OPEN-AUTOACCEPT-001 basis and host variant",
+      "evidence": [
+        "kernel/promotion.rs:187-206,233-275",
+        "kernel/kb003_promotion/gate.rs:50-89,99-107"
+      ],
+      "finding": "The basis overstates source proof as validating a genuine operator source. Inspected functions accept caller-constructed strings; constructor generates a review UUID, and gate checks presence/source label/fixture markers plus passed artifact-bound validation. These checks do not independently establish authenticated canonical receipt provenance. No production bypass is asserted from these excerpts.",
+      "counterexample": "A caller supplies plausible operator_id, receipt_id and operator_review_receipt strings without fixture keywords. Shape validation alone cannot distinguish those values from an authenticated enrolled policy or actual canonical review.",
+      "correction": "Replace the genuine-source proof claim with exact shape/validation checks. Both manual and policy variants require host-authenticated principal plus canonical immutable approval or policy reference, current enrollment/resource grant and author separation. Resolve that evidence through the actual owning host path; proposal fields never construct approval authority. Deny a valid-looking nonexistent or wrong-principal receipt.",
+      "proof": "Actual host requests with forged but plausible evidence, another principal's policy, nonexistent receipt and changed artifact/precondition fail before authority writes; canonical authorized receipt read independently proves provenance."
+    },
+    {
+      "id": "OPEN-CHALLENGE-002",
+      "severity": "HIGH",
+      "target": "Host approval variant owner reconciliation",
+      "evidence": [
+        "kernel/promotion.rs:224-293",
+        "kernel/kb003_promotion/gate.rs:46-111",
+        "kernel/dcc_kb003_promotion_control_state.rs:73-89,123-137",
+        "STU-PW-003"
+      ],
+      "finding": "The inspected baseline contains both legacy promotion.rs and typed kb003_promotion PromotionGate/evidence, plus DCC approval control state. A new source label in only the cited legacy gate cannot establish consistent UI/API/typed-receipt behavior.",
+      "counterexample": "Host policy approves a proposal, but typed gate or DCC still requires a manual receipt; alternatively a shim sets approval_received without a genuine typed decision and bypasses the canonical gate.",
+      "correction": "Declare the actual production PromotionGate consumer and reconcile legacy/typed interfaces, approval evidence/decision/receipt, DCC Inbox/control state, API/model/headless and manual diagnostics under that owner. A policy variant is a proposed platform contract change and remains disabled until independently accepted; do not edit or redefine other-device WP012 contracts or pointers.",
+      "proof": "Trace installed GUI/model/headless policy and manual decisions through the same production owner; OFF/unsupported path cannot promote. Exact typed receipts preserve operator-policy provenance without counterfeit manual-review fields."
+    },
+    {
+      "id": "OPEN-CHALLENGE-003",
+      "severity": "HIGH",
+      "target": "Autoaccept policy consumption and transaction",
+      "evidence": [
+        "STUDIO-OPEN-AUTOACCEPT-001 contract limits and recheck",
+        "STU-ARC-020",
+        "STU-ARC-011"
+      ],
+      "finding": "Per-proposal diff limits and expiry checks do not define cumulative enrollment allowance or concurrent consumption semantics. A mutable validator profile or proposal payload after review also defeats a genuine policy decision unless bound.",
+      "counterexample": "Two concurrent proposals each meet a policy's remaining edit/byte quota, both pass checks, and collectively exceed its allowance; retry double-consumes quota. Policy revoke or validator change races final promotion.",
+      "correction": "Bind approval to policy version/digest, authenticated principal/resource/action, exact proposal/artifact digest, target read/write revisions, validator run/catalog/version and inverse evidence. If policy has cumulative allowances, reserve/consume with accepted mutation and dedup receipt under canonical serialization; identical retry never consumes twice. Revoke/version/precondition changes before acceptance deny; unknown atomic outcome reconciles before any retry. Policy enrollment/update/revoke itself requires host operator authority.",
+      "proof": "Concurrent quota exhaustion, identical retry, policy revoke during queue/commit, validator/payload/inverse substitution and postcommit ack failure independently reconcile exact accepted events, policy usage and receipts."
+    },
+    {
+      "id": "OPEN-CHALLENGE-004",
+      "severity": "HIGH",
+      "target": "STUDIO-OPEN-FR-001 registration and ownership",
+      "evidence": [
+        "STU-CON-003",
+        "kernel/mod.rs:494-504,750-780",
+        "flight_recorder/fr_event_registry.rs:6-28,36-60",
+        "flight_recorder/mod.rs:46-59"
+      ],
+      "finding": "KernelEventType wire list, dot-namespaced Studio event_family, FR-EVT-STUDIO business IDs and FlightRecorderEventType storage categories are distinct contracts. required_first_slice_events parsing proves accepted enum names, not strict payload/schema validation. Generic kernel mirror currently emits Diagnostic/System projection metadata, which is not the promised business registration.",
+      "counterexample": "All22 names parse but business payload validation is absent; a diagnostic kernel mirror is counted as the business family, or family generation changes wire IDs without an explicit mapping.",
+      "correction": "Publish an explicit bijective or declared many-to-one mapping for each of the22 canonical wire variants to exact FR business ID, version/payload schema, Studio event_family and actual recorder storage category/actor/producer. Extend existing typed FR registry and its machine manifest together; preserve generic mirror diagnostics as a separate projection if retained, never as business fulfillment. Validate payload schemas at actual ingestion, not only enum parser.",
+      "proof": "Exact22-set reconciliation across canonical spec, kernel required list, FR typed registry/manifest, ingestion schema and actual producer; malformed payload/version and ambiguous or missing mappings deny. Independent canonical FR row read verifies business identity rather than merely Diagnostic kernel mirror existence."
+    },
+    {
+      "id": "OPEN-CHALLENGE-005",
+      "severity": "HIGH",
+      "target": "FR durable pending/outage boundary",
+      "evidence": [
+        "api/flight_recorder.rs:1573-1635",
+        "STUDIO-OPEN-FR-001 durable receipt before mirror",
+        "STU-ARC-011/020"
+      ],
+      "finding": "The inspected native-editor path writes pending before FR and only then completion, a useful standalone telemetry precedent. Studio mutation plus mirror intent must be atomic with accepted authority; merely writing an authority receipt and later scheduling pending leaves a crash window. Bounded queues also cannot drop accepted mirror intent during outage.",
+      "counterexample": "Authority commit succeeds, crash occurs before pending creation; restart has no durable work item to mirror. During a prolonged FR outage, a bounded preview-style queue drops accepted business events or blocks cancellation.",
+      "correction": "Accepted Studio transaction durably binds immutable mirror intent or a replayable canonical event sufficient to derive it, together with event/head/idempotency outcome. Shared host reconciler uses bounded fair paginated work, reserved cancellation and poison-row isolation; accepted intent remains durable until exact matching FR row plus completion. Declare durable retention/backlog admission semantics and outage recovery, with no silent drop or premature mirrored label.",
+      "proof": "Crash immediately after authority commit, before pending dispatch, during FR insert and before completion; prolonged outage exceeding resident queue cap; poison first row with later valid row. Canonical authority-to-FR identity reconciliation proves no missing or duplicate accepted business events."
+    },
+    {
+      "id": "OPEN-CHALLENGE-006",
+      "severity": "HIGH",
+      "target": "FR business versus three-tier diagnostics and privacy",
+      "evidence": [
+        "STU-VAL-002",
+        "STU-MAN-118",
+        "STUDIO-OPEN-FR-001 owners",
+        "kernel/mod.rs:759-776"
+      ],
+      "finding": "Business event registration and safe callback handoff do not assign internal_diagnostics/Palmistry/watcher and per-behavior manual posture. Actor/document IDs, revisions and artifact refs in mirrors remain protected metadata; workspace filtering alone does not prove current resource grants or bounded privacy-safe payloads.",
+      "counterexample": "A module emits correct business events but a native plugin hang has no watcher/recovery/manual link; diagnostic payload copies private state or artifact URLs which a revoked viewer can access.",
+      "correction": "Each observable behavior declares separate business emitter, production FR diagnostic, internal_diagnostics, Palmistry/watcher and manual/model recovery consumer using existing owners and shared typed ports. Bind per-tier applicability/blocker and independent asset-local versus actual embedding proof. Diagnostic paths use bounded redacted metadata and counters; no secret/pixel/plugin-state payload by default. Protected event/artifact reads reauthorize current principal/resource grants; no raw artifact paths granting access.",
+      "proof": "Real host fault/cancel/hang and recovery appears through applicable diagnostic tiers and canonical manual/Argus; cross-principal and mid-revocation event/artifact access denied; saturated callback telemetry has exact drop/discontinuity accounting without claiming lossless diagnostic success."
+    }
+  ],
+  "other_decisions": "Undo/event/raster direction read for context only; no exhaustive independent acceptance or implementation verdict. Existing plugin-platform normative controls remain separately reviewed.",
+  "sources": [
+    {
+      "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c",
+      "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "inspection": "DIRECT_SCOPED_SOURCE_READ"
+    },
+    {
+      "sha256": "d7fb25724ce0f23978eef879bbf9b128a7a919199b4d7fdca814f6f6cca2c647",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/kernel/promotion.rs",
+      "inspection": "DIRECT_SCOPED_SOURCE_READ"
+    },
+    {
+      "sha256": "7c1c3e33fb4cefb68d84168441a13abdc4654bbef7d9f6861253972a44df6002",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/kernel/kb003_promotion/gate.rs",
+      "inspection": "DIRECT_SCOPED_SOURCE_READ"
+    },
+    {
+      "sha256": "3b46842c09f3a535cb829a1326c60728d41a11f407247a066bb8368b9443553b",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/kernel/dcc_kb003_promotion_control_state.rs",
+      "inspection": "DIRECT_SCOPED_SOURCE_READ"
+    },
+    {
+      "sha256": "b7b707f86e30b7509dc073da32593feba5c5a1e9d998e27832137df10989fc8a",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/kernel/mod.rs",
+      "inspection": "DIRECT_SCOPED_SOURCE_READ"
+    },
+    {
+      "sha256": "ea0a3e8b3a48cada8fe4af0d297afeb79873d713f819310c734f4c8295d6878b",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/flight_recorder/fr_event_registry.rs",
+      "inspection": "DIRECT_SCOPED_SOURCE_READ"
+    },
+    {
+      "sha256": "3864a66337e2510498e68638cc3acf4ea5e0e8c4cd903505509384cefa2ce497",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/flight_recorder/mod.rs",
+      "inspection": "DIRECT_SCOPED_SOURCE_READ"
+    },
+    {
+      "sha256": "ac4cf9e013b9921f73e9fd099e496ccb7de952115aba6241a833fb34aa0642b5",
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/api/flight_recorder.rs",
+      "inspection": "DIRECT_SCOPED_SOURCE_READ"
+    }
+  ],
+  "runtime_tests_GUI_parity": "NOT_RUN_NOT_PROVEN",
+  "root_action": "Reconcile targeted correction text into original-team decisions and approved spec/MT owner maps; preserve original scope/IDs and keep other-device WP012 state untouched. No implementation enabled by this review.",
+  "final_root_normative_review": {
+    "other_device_WP012": "NO_RECORD_OR_POINTER_EDITS",
+    "inputs": [
+      {
+        "clauses": [
+          "STU-CON-009–014",
+          "STU-MOT-255–259",
+          "STU-ARC-006/007",
+          "STU-AUT-020",
+          "STU-MOT-076"
+        ],
+        "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+        "sha256": "99aa278d35973496ce4bc42c2bb7fbf7191eb5650b899837644b897ae169b0d3"
+      },
+      {
+        "clauses": "HSK-PLG-001–020",
+        "path": ".GOV/spec/master-spec-v02.207/spec-modules/05-security-and-observability.md",
+        "sha256": "fc57e3ce81c9783201581805877609575888cfbe37a9af22aca573c54c85a41b"
+      }
+    ],
+    "findings": [
+      {
+        "quote": "Every planned platform and Studio foundation MUST expose its executable minimum before domain features begin",
+        "finding": "Unqualified platform-foundation plus actual-production proof wording can gate all pure asset domain development on the unfinished shared host lifecycle, contrary to explicit operator phase scope and STU-ARC-006.",
+        "severity": "HIGH",
+        "correction": "Require executable portable platform/provider adapter minima with bounded supported/unsupported consumer paths in the asset foundation barrier. Real shared host install/consent/activate/revoke/lifecycle and production authorization/sandbox/state/Argus/UserManual proof are hard predecessors for actual plugin activation and corresponding host embedding, not unrelated pure asset feature development. HSK-PLG-001 missing lifecycle remains real and is not waived.",
+        "id": "FINAL-NORM-001",
+        "target": "HSK-PLG-020"
+      },
+      {
+        "quote": "Use clean realms across trust boundaries",
+        "finding": "This names account/resource isolation but does not explicitly prevent same-document repeated evaluations from carrying mutated prototypes/global/closure/host state across ticks. MOT076 separately forbids evaluation-order dependence, so explicit provider control is required.",
+        "severity": "HIGH",
+        "correction": "Require fresh evaluation state for each independent sample/evaluation or independently proven complete reset isolating all mutable globals/prototypes/closures/host memoization. Immutable trusted compiled artifacts may be reused; retries share allowance and exact immutable inputs. Same-document/same-account reversed frame order and fresh-versus-reused worker must conform, not merely cross-account tests.",
+        "id": "FINAL-NORM-002",
+        "target": "STU-MOT-258"
+      },
+      {
+        "quote": "Mirror only after acceptance",
+        "finding": "Acceptance is ambiguous beside CON014 selection/proposal/rejection events which expressly do not claim document promotion. A consumer can require PromotionDecision Accepted and omit proposal/rejection audit events, or emit undurable view telemetry as accepted business authority.",
+        "severity": "MEDIUM",
+        "correction": "Define the boundary by event class: accepted document mutations mirror only after canonical promotion/event transaction; proposal/rejection/view audit business events mirror only after their own canonical typed record/event is durably accepted, without implying document promotion. Transient uncommitted previews remain distinct bounded diagnostics; same durable mirror-intent/retry/collision controls apply to all required business rows.",
+        "id": "FINAL-NORM-003",
+        "target": "STU-CON-013/014"
+      }
+    ],
+    "supported": "All six original openchallenge corrections are represented in CON011/013/014. Exact22 business rows preserve wire identities and existing dot-family vocabulary; planned Studio recorder category explicitly remains unimplemented. MOT258 names MotionJS parser/AST/checkpoint ownership, trusted cache identity, constructor/prototype hostile proof, single-owner reclamation and conversion budgets; source-only/runtime distinctions remain explicit.",
+    "status": "SCOPED_NORMATIVE_REVIEW_TARGETED_CORRECTIONS_REQUIRED_NO_RUNTIME_VERDICT",
+    "runtime": "NOT_RUN_NOT_PROVEN"
+  }
+}

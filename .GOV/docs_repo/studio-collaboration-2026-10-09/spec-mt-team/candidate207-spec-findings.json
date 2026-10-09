@@ -1,0 +1,291 @@
+{
+  "schema_id": "hsk.studio_candidate_spec_review@1",
+  "file_id": "STUDIO-CANDIDATE207-SPEC-REVIEW-20261009",
+  "updated_at": "2026-10-09T18:34:13.527292+00:00",
+  "status": "SOURCE_FINDINGS_ONLY_NOT_BUNDLE_OR_PARITY_VERDICT",
+  "scope": {
+    "handshake_product": "Candidate207 vs preserved206 and shared authority source review only",
+    "repo_governance": "This owned findings JSON only"
+  },
+  "method": "Direct raw read_bytes().decode(utf-8-sig); escaped JSON codepoints; source inspection of actual deriver/roundtrip code, no script execution/builds/tests/nativeGUI/git mutation",
+  "candidate_state": "SPEC_CURRENT remains206; resolver/changelog publication still root-owned work in progress, not reviewed as finished",
+  "inspected_file_hashes": {
+    ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+    ".GOV/reference/studio_app_feature_research/_tools/greenroom/spec-derive-microtasks.py": "efb88f4272162dd7201901d2646229f5ea54739c3ab96c74b898c7e8e862c53f",
+    ".GOV/spec/master-spec-v02.207/spec-modules/10-product-surfaces.md": "5c2cebe0527c404ffe98aead7a8d6765818e64f251e990339409b143f1f7ba62",
+    ".GOV/spec/master-spec-v02.207/spec-modules/11-shared-dev-platform-and-oss-foundations.md": "3b5440cde3de6ee68d106e07de81cbf7a15fbad55eceddd914cc7dd7cf9c538e",
+    ".GOV/codex/Handshake_Codex_v1.4.md": "9c7b316cd2827c94d33d658834120f848d0c2f34d1f7f7b8320236ab9b37d023",
+    ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b"
+  },
+  "findings": [
+    {
+      "id": "SPEC207-R-001",
+      "priority": "P1",
+      "title": "Earlier architecture list retains kernel-owned domain logic",
+      "classification": "CONFIRMED_SOURCE_FINDING",
+      "observed": "The original architecture list still explicitly puts raster/vector/layout domain logic under src/studio/<domain>, contradicting ARC001 leaf implementation ownership.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "line_start": 130,
+          "line_end": 136,
+          "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+          "exact_text": "Studio is the Handshake-native unified creative suite. It is a kernel-attached creative module in the same architectural position as the atelier module and the Tailor module: a domain subdirectory under `handshake_core` that receives `AppState` by reference, emits `KernelEventType` variants to the EventLedger, operates through the kernel sandbox and `PromotionGate`, persists authority records to Handshake-managed SurrealDB through the official SurrealDB Rust SDK and the kernel's typed authority-store abstraction, and exposes both a native operator UI (egui/wgpu/AccessKit per the canonical native-Rust shell) and a typed model-steerable command/MCP surface.\n\nStudio consists of the following compile units, shared by every creative domain:\n\n1. **`handshake_core::studio`** (`src/studio/`) \u2014 the kernel-bound creative module: authority storage, EventLedger emission, CRDT collaborative editing, sandbox dispatch, promotion-gate integration, model-lane binding, and REST/MCP API surface (`src/api/studio.rs`). Per-domain domain logic lives under `src/studio/<domain>/` (e.g. `src/studio/raster/`, `src/studio/vector/`, `src/studio/layout/`).\n\n2. **Independently selectable asset crates** own UI-agnostic domain engines and shared contracts, document graphs, reusable controls, diagnostics and provider adapters. A single engine crate owning all compute is prohibited. Integrated kernel binding consumes typed ports and preserves authority/privacy/promotion/CRDT; GPU/codec dependencies remain selected providers outside handshake_core."
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "line_start": 185,
+          "line_end": 185,
+          "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+          "exact_text": "[STU-ARC-001] `handshake_core::studio` is the integrated authority binding, not the owner of compute/domain implementations. It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure. Independently selectable asset leaf crates own domain algorithms, shared document/contracts, reusable controls and provider adapters through typed ports. Their immutable inputs and proposed outputs carry canonical schemas, IDs, units and resource context; only the kernel binding may persist accepted integrated authority through the existing governed lifecycle. Concrete source paths and crate owners MUST be declared in the activated contracts rather than inferred from legacy `src/studio/<domain>/` examples. The existing `StudioEngineError` identifier and typed error semantics, `event_family` constants and canonical event-family values MUST be preserved at the named kernel-binding contract owner. Moving files or splitting providers MUST NOT silently remove or rename these contracts. The activated module/MT map MUST explicitly locate their definitions and API registration consumer, while retaining `storage_glue` responsibility at the binding without forcing legacy directory topology."
+        }
+      ],
+      "remediation": "Replace list item1 with authority-binding-only responsibilities and named existing route/storage/error/event owners. Domain algorithms belong in declared asset modules; preserve binding infrastructure and error/event semantics.",
+      "proof_required": "Fresh canonical source read and scoped source comparison; no runtime proof claimed."
+    },
+    {
+      "id": "SPEC207-R-002",
+      "priority": "P1",
+      "title": "New interop anchors lack normative derivation reconciliation",
+      "classification": "CONFIRMED_SOURCE_FINDING",
+      "observed": "IO168 enumerates the only allowed unit anchors and says no other unit yields an MT. New IO186\u2013189 are outside that closed set and physically appear in14.2.1. The actual deriver recognizes all STU anchors independent of physical prefix sections, so it may emit new units that the spec rule forbids.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "line_start": 211,
+          "line_end": 213,
+          "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+          "exact_text": "[STU-IO-186] NATIVE EDITABILITY SCOPE. Native editable INDD, PRPROJ, AEP and local FIG imports remain explicit requested scope in addition to existing interchange rows; INDD binary import is not satisfied by IDML, PRPROJ/AEP are not satisfied by rendered media, and FIG is not satisfied by SVG or preview extraction. Every format MUST report supported version and per-object/property editable mapping, preserved opaque data, unsupported/loss decisions, provenance and round-trip disposition. Missing decoders/fixtures are blocking scope gaps, never silent exclusions. Parser success, self-render or original-byte preservation is not editable-parity proof.\n\n[STU-CON-008] CANONICAL PORT AND SERIALIZATION LAW. Every asset module MUST use the canonical Studio schema IDs, prefixed domain IDs, field types and units without reminting/forking them. Sequence storage preserves 254016000000 integer ticks per second, frame_rate.ticks_per_frame:u64 and the normative broadcast table/normalization receipts [STU-VID-011\u2013013a]. Intermediate arithmetic MUST be checked; widening stored types or changing schema meaning requires explicit versioned spec enrichment, not an invented i128 replacement. Rational/float time is interchange/display only. Typed importer outputs are proposals; CRDT is draft state and SurrealDB/EventLedger remains promotion/replay authority."
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "line_start": 231,
+          "line_end": 235,
+          "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+          "exact_text": "[STU-IO-187] CONTAINER SAFETY. Native snapshots MUST stream ZIP64 through granted ArtifactService provider ports with bounded index/entry/count/compressed/inflated/aggregate limits, duplicate-name/key rejection, traversal/cycle/overflow checks, canonical known-field serialization and explicit unknown-version behavior. Safely retained unknown records preserve verbatim bytes and provenance in quarantine and MUST NOT execute. Known semantic roundtrip and verbatim opaque preservation are distinct checks. Save MUST validate a complete temporary artifact and atomically replace while retaining last-good on failure; deleting the destination before rename is forbidden. Artifact completion is not authority publication: EventLedger/CKC promotion has its own transaction and idempotent orphan/crash reconciliation.\n\n[STU-IO-188] PRESERVATION AND SANITIZED DELIVERY. Preservation snapshots and sanitized deliverables MUST use distinct explicit export policies. Sanitized output MUST exclude disallowed originals, opaque records, thumbnails, history, attachments and metadata from the full reachable payload set; preserving an input file MUST NOT reintroduce removed content. Imports/render/read/retry/export/delivery MUST resolve fresh recipient grants, including linked files and explicitly selected WAL bytes; serialized permission tokens are provenance only. Independent saved/decompressed-byte inspection, fault/revocation and twice-roundtrip edited fixtures are required.\n\n[STU-IO-189] NATIVE AUDIO AND CATALOG INTEROP. `.sesx` editable session transport and Lightroom catalog/develop/WAL provenance MUST have explicit versioned per-entity mapping/loss outcomes alongside INDD/PRPROJ/AEP/FIG requirements [STU-IO-186]. Unsupported process-version/Enable flags, smart rules, archive entities or plugin/effect graphs MUST be retained/translated/approximate/unsupported/missing explicitly; successful parser/count is not full conversion. The .lrcat decoder public API is fixed-format semantic extraction from bounded immutable granted bytes, never a generic table/query/database API."
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "line_start": 21188,
+          "line_end": 21200,
+          "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+          "exact_text": "**[STU-IO-168] Derivation rule (NORMATIVE).** The interoperability microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else:\n\n1. Each numbered clause that states a **parameter-model rule** ([STU-IO-101], [STU-IO-102], [STU-IO-103], [STU-IO-106], [STU-IO-107], [STU-IO-108], [STU-IO-109], [STU-IO-110], [STU-IO-144], [STU-IO-145]), a **closed enumeration or value domain** ([STU-IO-104], [STU-IO-105], [STU-IO-128], [STU-IO-136], [STU-IO-150], [STU-IO-151]), a **settings record shape** ([STU-IO-111], [STU-IO-112], [STU-IO-113], [STU-IO-114], [STU-IO-115], [STU-IO-116], [STU-IO-117], [STU-IO-127], [STU-IO-130], [STU-IO-131], [STU-IO-132], [STU-IO-133], [STU-IO-139], [STU-IO-141], [STU-IO-143], [STU-IO-146], [STU-IO-147], [STU-IO-148]), a **numeric contract table** ([STU-IO-129], [STU-IO-137], [STU-IO-138]), a **preset or group contract** ([STU-IO-125], [STU-IO-126], [STU-IO-134], [STU-IO-135]), an **encoding contract** ([STU-IO-142]), a **scale contract** ([STU-IO-140], [STU-IO-152], [STU-IO-153], [STU-IO-154]), or an **execution guarantee** ([STU-IO-162], [STU-IO-163]), where that clause can be implemented and proven independently of its siblings.\n2. Each **validation-descriptor clause** in sub-section 9, [STU-IO-173] through [STU-IO-185]. Each of the 13 descriptors named in [STU-IO-165] is stated as its own clause precisely so it yields its own microtask: a check is a unit of implementable, independently provable work, and one microtask reading \"implement 13 checks\" is not implementable by the small models these contracts are sized for. A descriptor list inside a single clause, whether as prose or as a table, is one unit to any derivation tool and therefore loses 12 units of real work.\n\nNo other unit yields a microtask. Exactly 6 clauses in this module yield nothing, and they are:\n\n- **Baseline, scope-fence and supersession clauses** \u2014 [STU-IO-100], which sits under the bookkeeping heading `0. Baseline, supersession and disposition`. These are discharged when the v02.206 bundle lands, not by a work packet.\n- **This derivation sub-section itself** \u2014 its five clauses yield nothing.\n\nEvery other clause yields at least one unit. This list is the module's declared non-yielding set and is the authority a derivation tool reconciles against.\n\n**[STU-IO-169] Open items and blocked dependencies.** This module declares no BLOCKED dependency. It does declare a large number of UNKNOWN bounds \u2014 every `hard_min` or `hard_max` marked `unknown` in [STU-IO-129], [STU-IO-137] and [STU-IO-143]. An unknown bound is NOT an open item: [STU-IO-103] settles it normatively by requiring the parameter be passed unclamped and the encoder's own error surfaced. Those clauses therefore yield ordinary microtasks. Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency \u2014 reading the named surface, obtaining the named decision, or raising a BLOCKED record with the exact blocker. A declared gap MUST NOT be dropped from the yields index."
+        },
+        {
+          "path": ".GOV/reference/studio_app_feature_research/_tools/greenroom/spec-derive-microtasks.py",
+          "line_start": 246,
+          "line_end": 278,
+          "sha256": "efb88f4272162dd7201901d2646229f5ea54739c3ab96c74b898c7e8e862c53f",
+          "exact_text": "    \"\"\"Read every module into clauses, each carrying its owning heading and body.\"\"\"\n    out = []\n    for p in sorted(mod_dir.glob(\"*.md\")):\n        lines = p.read_text(encoding=\"utf-8\", errors=\"replace\").split(\"\\n\")\n        marks, fence, heading, headings = [], False, \"\", {}\n        for i, ln in enumerate(lines):\n            if ln.lstrip().startswith(\"```\"):\n                fence = not fence\n                continue\n            if fence:\n                continue\n            h = HEADING.match(ln)\n            if h:\n                heading = h.group(2)\n            m = DEF_LINE.match(ln)\n            if m and (i == 0 or not lines[i - 1].strip()):\n                marks.append((i, m.group(1)))\n                headings[i] = heading\n        prefixes = collections.Counter(a.rsplit(\"-\", 1)[0] for _, a in marks)\n        prefix = prefixes.most_common(1)[0][0] if prefixes else \"\"\n        clauses = []\n        for j, (ln_no, anchor) in enumerate(marks):\n            end = marks[j + 1][0] if j + 1 < len(marks) else len(lines)\n            body = \"\\n\".join(lines[ln_no:end]).strip()\n            tm = TITLE.match(lines[ln_no])\n            clauses.append({\n                \"anchor\": anchor, \"module\": p.name, \"line\": ln_no + 1,\n                \"heading\": headings.get(ln_no, \"\"),\n                \"title\": clip(tm.group(1).strip().rstrip(\".\") if tm else \"\", 200),\n                \"body\": body,\n            })\n        out.append({\"module\": p.name, \"clauses\": clauses,\n                    \"declared_no_yield\": declared_no_yield(\"\\n\".join(lines), prefix)})"
+        }
+      ],
+      "remediation": "Declare the v207 extension/supersession of the exact derivation rule and yields index, with stable unit keys and explicit unit/no-yield disposition for each new IO/ARC/CON/PDF clause. Update IO172 allowed ranges. Preserve old IDs/history; prove extraction roundtrip through the authoritative agreed migration surface rather than generic heuristic output.",
+      "proof_required": "Fresh canonical source read and scoped source comparison; no runtime proof claimed."
+    },
+    {
+      "id": "SPEC207-R-003",
+      "priority": "P1",
+      "title": "34 module foundations not yet 34 spec-derived units",
+      "classification": "UNRESOLVED_DERIVATION_CONTRACT_GAP_SOURCE_EVIDENCED",
+      "observed": "ARC010 contains a single inline brace list. The actual deriver identifies clause/table/row units; this inline list is one clause, not34 module foundation units. ARC016 requires all34 foundations before feature MTs, but no explicit per-root unit declaration maps them to stable foundation units.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "line_start": 215,
+          "line_end": 215,
+          "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+          "exact_text": "[STU-ARC-010] MODULE CATALOG. The canonical asset module roots are `handshake-studio-assets/crates/hsk-studio-{accord,observe,folio,chronicle,prism,pigment,nib,type,layout,develop,components,pulse,score,reel,motion,composite,render-cpu,render-gpu,package,interop-psd,interop-vector,interop-fig,interop-layout,interop-media,controls,session,harness,kernel-bindings,press,web,score-device,score-plugin,reel-native,interop-lrcat}`. The workspace owner coordinates manifests, lockfile, toolchain, closure and mirror provenance; it is not Accord. Every root MUST have its declared semantic owner and public contracts. The asset kernel-bindings root owns host-neutral bridge contracts/consumers; actual AppState/native/SurrealDB consumers live later in the Handshake integration target outside this isolated workspace. No optional path dependency to missing Handshake source may make the mirrored workspace unresolved."
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "line_start": 227,
+          "line_end": 229,
+          "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+          "exact_text": "[STU-ARC-016] FOUNDATION PROOF AND BUILD. All 34 module foundations and workspace coordination MUST precede any feature MT. A foundation implements a narrow real bounded capability with a real consumer and failure path; a missing proprietary decoder MAY expose actual container/opaque/loss validation, while the editable decoder feature remains explicitly blocked. Hollow registries, canned responses, no-op sinks and empty tests do not satisfy foundations. Locked selected-package dependency/feature closure and actual compiler evidence MUST distinguish pure leaves, optional native providers and later embedding. Measured rebuild fanout at a stable source path, external owner-specific artifact root and exact candidate identity are required before claiming compile improvement. ARM-host and x64-product proof remain separate; neither silently substitutes for the other.\n\n[STU-ARC-017] MT PRESERVATION. Architecture migration MUST preserve every prior MT ID, original scope, acceptance payload, rationale and proof obligation with baseline identity and explicit fulfillment mapping to asset-local work plus separately retained kernel embedding. Compound scopes MUST name contributing module owners. Every current HBR rule MUST carry per-MT applicability trigger/reason and proof destination; shared proof is reusable only with unchanged input identity. Foundation completion does not mark old vendor-parity or kernel acceptance complete."
+        },
+        {
+          "path": ".GOV/reference/studio_app_feature_research/_tools/greenroom/spec-derive-microtasks.py",
+          "line_start": 381,
+          "line_end": 406,
+          "sha256": "efb88f4272162dd7201901d2646229f5ea54739c3ab96c74b898c7e8e862c53f",
+          "exact_text": "            kind = \"clause\"\n            if \"valid\" in head or \"validator\" in head:\n                kind = \"validator\"\n            elif \"golden\" in head or \"corpus\" in head:\n                kind = \"golden_case\"\n            units.append({\"kind\": kind, \"anchor\": c[\"anchor\"], \"module\": c[\"module\"],\n                          \"title\": c[\"title\"], \"heading\": c[\"heading\"], \"line\": c[\"line\"],\n                          \"body\": c[\"body\"], \"index\": 0})\n        for n, t in enumerate(params):\n            lbl = (t.get(\"label\") or \"\").strip()\n            units.append({\"kind\": \"parameter_table\", \"anchor\": c[\"anchor\"], \"module\": c[\"module\"],\n                          \"title\": (f\"{c['title']} - {lbl} parameter bounds\" if lbl\n                                    else f\"{c['title']} - parameter bounds\"), \"heading\": c[\"heading\"],\n                          \"line\": c[\"line\"], \"body\": c[\"body\"], \"table\": t, \"index\": n})\n        for n, t in enumerate(cmds):\n            units.append({\"kind\": \"command_table\", \"anchor\": c[\"anchor\"], \"module\": c[\"module\"],\n                          \"title\": f\"{c['title']} - command and binding set\", \"heading\": c[\"heading\"],\n                          \"line\": c[\"line\"], \"body\": c[\"body\"], \"table\": t, \"index\": n})\n        for n, t in enumerate(enums):\n            lbl = (t.get(\"label\") or \"\").strip()\n            units.append({\"kind\": \"enumeration\", \"anchor\": c[\"anchor\"], \"module\": c[\"module\"],\n                          \"title\": (f\"{c['title']} - {lbl} enumeration\" if lbl\n                                    else f\"{c['title']} - enumeration\"), \"heading\": c[\"heading\"],\n                          \"line\": c[\"line\"], \"body\": c[\"body\"], \"table\": t, \"index\": n})\n        # A catalogue row is its own subject, so it is its own microtask. One microtask covering\n        # \"17 tools\" is not implementable by the small models these contracts are sized for."
+        }
+      ],
+      "remediation": "Define a canonical typed catalog projection or exact table with one stable module/root/owner/API/closure/foundation proof record per foundation; explicitly mark34 foundation yields plus separate workspace coordination and laterembedding units. Shared universal rules should attach to those units rather than accidentally create35+ duplicate feature MTs. Map all new IDs to stable derivation keys without renumbering5484 retained IDs.",
+      "proof_required": "Fresh canonical source read and scoped source comparison; no runtime proof claimed."
+    },
+    {
+      "id": "SPEC207-R-004",
+      "priority": "P1",
+      "title": "Product-surface override still permits DuckDB without approval",
+      "classification": "CONFIRMED_SOURCE_FINDING",
+      "observed": "SURF-SDB001 line20 independently authorizes retaining bounded DuckDB projections, while OSS-SDB001 and current CX503R require prior explicit approval for any additional DB. The surface override says it is current product law.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/10-product-surfaces.md",
+          "line_start": 16,
+          "line_end": 20,
+          "sha256": "5c2cebe0527c404ffe98aead7a8d6765818e64f251e990339409b143f1f7ba62",
+          "exact_text": "## 10.0 SurrealDB Authority Override (v02.205) [SURF-SDB-001]\n\nThis override is current product law and takes precedence over all later Calendar, Catalog, Dev Command Center, Notes, Settings, and other product-surface storage text. All durable surface state and EventLedger persistence use Handshake-managed SurrealDB through typed stores. PostgreSQL and SQLite connectivity, dependencies, configuration, credentials, local authority databases, caches, fallbacks, SQL/database importers, reconciliation, fixtures, mocks, tests, and proof paths are forbidden. Existing product features, fields, filters, recovery behavior, offline UX, exports, and operator workflows survive; their storage implementation is translated to `SCHEMAFULL` SurrealQL, authenticated record-user permissions plus ResourceBroker, and SurrealKit rollouts. The external Studio `.lrcat` file-byte decoder is the narrowly bounded exception defined by [STU-OVR-003]; no SQLite engine/database/import-connectivity path is authorized. Fresh SurrealDB/EventLedger cold genesis remains independent of imports.\n\nThe later Calendar SQLite DDL, `.hs.catalog.db`, `.handshake/devcc.db`, `devcc.db` migrations, SQL up/down files, and SQLite recovery instructions are non-executable historical semantic inventories. Calendar records, catalog records, DCC projects/sessions/anchors/handoffs/approvals/conversation state, and their EventLedger links are SurrealDB records. ArtifactStore owns materialized artifacts. DuckDB may be retained only as a bounded rebuildable diagnostic/analytics projection with no authority or fallback role. A clean environment initializes SurrealDB and EventLedger genesis without reading or contacting PostgreSQL or SQLite."
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/11-shared-dev-platform-and-oss-foundations.md",
+          "line_start": 18,
+          "line_end": 18,
+          "sha256": "3b5440cde3de6ee68d106e07de81cbf7a15fbad55eceddd914cc7dd7cf9c538e",
+          "exact_text": "Shared development-platform state follows the v02.205 exclusive database law. Handshake-managed SurrealDB is the only durable database authority and persists EventLedger semantics; PostgreSQL and SQLite are forbidden as MCP targets, transactional state, schema tools, caches, fallbacks, SQL/database imports, reconciliation, fixtures, tests, and proof paths. Later PostgreSQL/SQLite/sqlite-utils material is comparative research or non-executable historical inventory only. Implementations use the official SurrealDB Rust SDK, typed store boundaries, `SCHEMAFULL` SurrealQL, authenticated record-user permissions plus ResourceBroker, and SurrealKit rollouts. Any additional database, including DuckDB projections, requires prior explicit Operator approval explaining necessity, preferred database and alternatives; historical comparative inventory is not authorization. The external Studio `.lrcat` file-byte decoder is the narrowly bounded exception defined by [STU-OVR-003]; no SQLite engine/database/import-connectivity path is authorized. Fresh SurrealDB/EventLedger cold genesis remains independent of imports."
+        },
+        {
+          "path": ".GOV/codex/Handshake_Codex_v1.4.md",
+          "line_start": 45,
+          "line_end": 45,
+          "sha256": "9c7b316cd2827c94d33d658834120f848d0c2f34d1f7f7b8320236ab9b37d023",
+          "exact_text": "[CX-503R] SurrealDB/EventLedger is the exclusive Handshake database authority, including runtime, tests, proof and future self-governance. Do not introduce or preserve SQLite/PostgreSQL connectivity, database-engine import, reconciliation, dual authority, fallback, cache, fixture, compatibility or temporary-adapter paths. Use fresh Handshake-managed SurrealDB state and SurrealKit rollouts. The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof. Any proposed additional database requires prior explicit Operator approval with concrete necessity, preferred database and alternatives."
+        }
+      ],
+      "remediation": "Qualify the DuckDB allowance by prior explicit Operator approval with necessity/preferredDB/alternatives; keep non-executable historical inventory and Surreal soleauthority.",
+      "proof_required": "Fresh canonical source read and scoped source comparison; no runtime proof claimed."
+    },
+    {
+      "id": "SPEC207-R-005",
+      "priority": "P2",
+      "title": "Actual candidate SHL007 has mojibake",
+      "classification": "CONFIRMED_SOURCE_FINDING",
+      "observed": "Direct raw read_bytes().decode(utf-8-sig) gives two U+00E2 U+20AC U+201D sequences in candidate SHL007 where original206 contains U+2014. This is candidate byte content, not stdout glyph inference or the retracted206 claim.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "line_start": 30868,
+          "line_end": 30868,
+          "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+          "exact_text": "**[STU-SHL-007] Storage law.** Every durable artefact this sub-section introduces \u00e2\u20ac\u201d dock layouts, Layout Presets, panel registry rows, descriptor sets, manual seed rows, shortcut sets \u00e2\u20ac\u201d MUST persist through Handshake-managed SurrealDB with the EventLedger as sole durable authority, embedded (no separate database process), per [STU-SDB-002]. SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. Operator-scoped preference layers persist through the shell preference client; document-scoped layers persist as a Studio-owned sibling schema discriminated by `schema_id`, never by extending the shell's own layout schema."
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+          "line_start": 30814,
+          "line_end": 30814,
+          "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+          "exact_text": "**[STU-SHL-007] Storage law.** Every durable artefact this sub-section introduces \u2014 dock layouts, Layout Presets, panel registry rows, descriptor sets, manual seed rows, shortcut sets \u2014 MUST persist through Handshake-managed SurrealDB with the EventLedger as sole durable authority, embedded (no separate database process), per [STU-SDB-002]. SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. Operator-scoped preference layers persist through the shell preference client; document-scoped layers persist as a Studio-owned sibling schema discriminated by `schema_id`, never by extending the shell's own layout schema."
+        }
+      ],
+      "remediation": "Replace only the two verified candidate mojibake sequences with original emdash, preserve all clauses/exception. Compare raw codepoints/hash after update. No canonical206 edit.",
+      "proof_required": "Fresh canonical source read and scoped source comparison; no runtime proof claimed."
+    },
+    {
+      "id": "SPEC207-R-006",
+      "priority": "P2",
+      "title": "Changed native-format clause is labeled unchanged",
+      "classification": "CONFIRMED_SOURCE_FINDING",
+      "observed": "IO001 is rewritten but retained beneath heading/text claiming these clauses were not redefined and remain exactly as written.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "line_start": 21255,
+          "line_end": 21259,
+          "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+          "exact_text": "### 14.13.CARRIED Clauses carried forward unchanged from v02.205\n\nThese clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written. They are gathered here rather than left in place so that the rebuilt text reads in one sequence and nothing is lost in the merge.\n\n[STU-IO-001] NATIVE-FORMAT DECLARATION. Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs. It MUST preserve canonical IDs, schemas, units, integer timebase, color and provenance without workflow-switch flattening. The container is import/export/recovery transport; integrated durable and collaborative authority remains SurrealDB/EventLedger/CRDT, never a second database or catalog. Saving/loading MUST validate versions, graph/blob references and integrity, preserve originals and unknown safely retained semantics with explicit loss receipts, bound all untrusted materialization and perform crash-safe copy-first publication. Fresh permissions MUST be resolved on import; serialized grants never confer authority. Existing PSD/AI/INDD/IDML/Affinity/Figma/media interchange/edit-preserve/export/round-trip obligations survive; a native snapshot does not replace them or introduce vendor runtime dependencies. Integrated artifact bytes, caches and placed assets use existing ArtifactService/ArtifactManifest and CKC owners. The portable extension is `.handshake`; its bounded streaming ZIP64 transport carries a versioned typed manifest, Studio graph, content-hash asset references, optional granted packed payloads, previews and preservation records. Exact field/schema and migration contracts MUST be executable before container feature activation."
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+          "line_start": 21209,
+          "line_end": 21209,
+          "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+          "exact_text": "[STU-IO-001] NATIVE-FORMAT DECLARATION. Studio MUST NOT invent a new interchange document format to replace the existing creative formats. The native Studio document is the unified `StudioDocument` (14.3) persisted through Handshake document/project storage under SurrealDB/EventLedger authority ([STU-ARC-003]/[STU-ARC-004]) with CRDT live state; it is not a new file-on-disk interchange format competing with PSD/AI/IDML/`.af`/`.fig`. This restates and is bound by [STU-OVR-002]: interoperability with the source formats is in scope as import / edit-preserve / export / round-trip; a replacement interchange format and any runtime dependency on the source applications are out of scope. Where a deliverable file must leave Studio, it leaves through a `StudioExportRecipe` into one of the matrix formats below, never through a bespoke Studio-only container."
+        }
+      ],
+      "remediation": "Rename carryforward heading/text to distinguish revised IO001 from unchanged clauses while preserving identifiers and legacy provenance.",
+      "proof_required": "Fresh canonical source read and scoped source comparison; no runtime proof claimed."
+    },
+    {
+      "id": "SPEC207-R-007",
+      "priority": "P1",
+      "title": "Required on-device Adobe ML scope conflicts with current non-AI activation",
+      "classification": "OPERATOR_SCOPE_RECONCILIATION_REQUIRED",
+      "observed": "RAS044 still mandates native on-device implementation of all ML-backed raster primitives and declares inference core. Current assignment preserves non-AI professional scope and excludes Adobe AI reimplementation; retaining old scope is required but it cannot silently become active implementation.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "line_start": 1787,
+          "line_end": 1791,
+          "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+          "exact_text": "**[STU-RAS-044]** Studio's raster domain is local-first: every raster primitive named in 14.4 \u2014 including\nthe ML-backed ones (object select, subject select, sky select, sky replacement, inpaint/remove,\ncontent-aware fill/scale, HDR merge, noise/stack reduction, denoise, upscale) \u2014 MUST have a native,\non-device implementation in the owning modular Studio asset crate that runs offline with no account, sign-in, or cloud call,\nper [STU-OVR-002]. On-device inference is a core Studio capability, not a provider dependency."
+        }
+      ],
+      "remediation": "Record explicit activation disposition for retained AI/ML requirement IDs and history, distinguishing any currently approved non-AI algorithmic operations from Adobe AI reimplementation. Do not delete old scope or mark unmet ML capabilities complete.",
+      "proof_required": "Fresh canonical source read and scoped source comparison; no runtime proof claimed."
+    },
+    {
+      "id": "SPEC207-R-008",
+      "priority": "P2",
+      "title": "MAN003 still names deferred tiers without acceptance qualification",
+      "classification": "AMBIGUITY_NOT_AUTOMATIC_REQUIRED_BEHAVIOR_GAP",
+      "observed": "MAN003 permits DEFERRED-with-reason; newer VAL002/MAN118 require unresolved mandatory tiers to block acceptance. These can coexist if DEFERRED describes honest diagnostic absence, but MAN003 alone can be misread as accepting deferred wiring.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "line_start": 22383,
+          "line_end": 22383,
+          "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+          "exact_text": "[STU-MAN-003] SAME-CHANGE CURRENCY. Every implementation MT that adds, changes, wires, exposes, deprecates, or removes a Studio behavior MUST update the UserManual in the SAME change (HBR-MAN-001, CX-982-002), with self-consistency verification (HBR-MAN-003), the no-context operation harness (HBR-MAN-002), and the HBR-INT-009 diagnostic-posture linkage per entry (HBR-MAN-004; internal_diagnostics/Palmistry absence recorded DEFERRED-with-reason, never silently skipped)."
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "line_start": 22428,
+          "line_end": 22428,
+          "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+          "exact_text": "[STU-VAL-002] THREE-TIER DIAGNOSTICS (HBR-INT-009). Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners. Asset-only proof exercises the port and bounded telemetry/error/cancellation behavior; separately scheduled native embedding proof exercises real host diagnostics and the watcher. No global DEFERRED-until-shipped status may substitute for required production integration. Legitimate non-applicability and unresolved host dependencies MUST have typed per-behavior reasons and block corresponding required acceptance. Telemetry MUST preserve privacy, bounded buffers/drop counters and realtime safety; no engine may create a separate recorder/database/watcher authority."
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "line_start": 32957,
+          "line_end": 32957,
+          "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+          "exact_text": "**[STU-MAN-118] Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory."
+        }
+      ],
+      "remediation": "Add concise cross-reference that DEFERRED is typed reporting only and does not satisfy any required HBR/embedding acceptance. Do not delete honest posture states.",
+      "proof_required": "Fresh canonical source read and scoped source comparison; no runtime proof claimed."
+    }
+  ],
+  "anchor_comparison": {
+    "paragraph_definition_count206": 2345,
+    "paragraph_definition_count207": 2364,
+    "new_definitions": [
+      "STU-ARC-007",
+      "STU-ARC-008",
+      "STU-ARC-009",
+      "STU-ARC-010",
+      "STU-ARC-011",
+      "STU-ARC-012",
+      "STU-ARC-013",
+      "STU-ARC-014",
+      "STU-ARC-015",
+      "STU-ARC-016",
+      "STU-ARC-017",
+      "STU-ARC-018",
+      "STU-CON-008",
+      "STU-IO-186",
+      "STU-IO-187",
+      "STU-IO-188",
+      "STU-IO-189",
+      "STU-PDF-001",
+      "STU-PDF-002"
+    ],
+    "missing_old_paragraph_definitions": [],
+    "limitations": "Table/heading anchor definitions remain separate; this structural scan is not wholebundle roundtrip proof."
+  },
+  "preserved_positive_source_observations": [
+    "ARC011 preserves object/property revision semantics and DS163 disjoint component edits, not whole-document CAS.",
+    "ARC012/013 bound producer/results/snapshot bytes, reserved control completion paths and realtime callbacks.",
+    "ARC010 expressly keeps concrete AppState/native/Surreal consumers outside isolated assetworkspace.",
+    "ARC015 binds visual evidence to exact revision/renderer/color/proxy/grants; unsupported fallback cannot prove edits.",
+    "IO187/188 separate artifact completion from authoritypublication and opaque preservation from sanitized payload.",
+    "CON008 preserves254016000000 ticks/second and u64 ticks_per_frame without inventing i128 storage.",
+    "PDF001/002 require independent destructive/conformance checks rather than exporter selfapproval."
+  ],
+  "unreviewed_publication_surface": [
+    "Manifest/resolver/changelog final state; root is editing them",
+    "Canonical module registry34 full perMT mapping; root/team owner",
+    "No runtime/native/editable-format/HBR PASS offered"
+  ]
+}

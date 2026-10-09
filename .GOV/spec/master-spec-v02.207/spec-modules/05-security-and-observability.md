@@ -8,7 +8,7 @@ title: "5. Security & Observability"
 source_baseline_version: "v02.182"
 source_baseline_path: ".GOV/spec/Handshake_Master_Spec_v02.182.md"
 source_body_original_sha256: "e3019d9565e98421293edf35dda918ea27e94fd61f7906aac758d8373948763c"
-body_sha256: "a8b65cf85a560bac246e837e0b0658e8d596a6f0428c0f4d0002c72760121c87"
+body_sha256: "000df3751f995392f194338bbfe3bd87c1e58f3b19aef72afd8ea6192575aa0e"
 metadata_rule: "frontmatter is machine metadata; body follows after this block"
 ---
 # 5. Security & Observability
@@ -360,6 +360,48 @@ api.workspace.onDidChange((change) => {
 - API design: explicit registration, namespaced commands, promise-based, observable, permission-gated.
 
 ---
+
+### 5.1.6 Shared plugin platform and portable module adapters
+
+[HSK-PLG-001] Platform ownership. Handshake owns one plugin manifest, registration, distribution, lifecycle and consent platform across product modules. Studio contributes typed domain adapters and UI projections to that platform; it MUST NOT create a second plugin registry, marketplace, permission engine, sandbox, scheduler, database or private document authority. The inspected MEX registry/adapter and capability/tool gates in 11.8 are integration owners, not proof that plugin install/update/uninstall already exists. The missing lifecycle is an explicit shared-platform implementation prerequisite.
+
+[HSK-PLG-002] Provider boundaries. Same-build Rust integrations use typed trait ports. Rust struct layout and trait objects MUST NOT be advertised as a stable dynamic-library ABI. Independently distributed non-realtime guests use versioned interface contracts, with Component Model/WIT as the selected contract form and a separately selected bounded runtime provider. Existing core-Wasm extensions use explicit compatibility adapters; a core-Wasm binary is not a Component/WIT implementation. Native CLAP/VST3 audio integrations remain specialized isolated providers with explicit OS, architecture, ABI, thread and lifecycle matrices. Selecting an interface does not select or prove an execution engine.
+
+[HSK-PLG-003] Manifest binding. Identity, version, installed-content digest, supported host/interface versions, permissions and typed contributions MUST bind the executable package. Quarantine untrusted packages; executable probing requires an authorized bounded isolation provider. The manifest examples above remain descriptive compatibility input, not permission grants or an exhaustive native-provider schema.
+
+[HSK-PLG-004] Lifecycle. The shared owner MUST implement install, verify, activate with current consent, invoke, revoke, drain, update/rollback and uninstall. Lease epochs fence stale completions; accepted durable outcomes reconcile before retirement. Package or scope changes MUST NOT automatically inherit old grants.
+
+[HSK-PLG-005] Current authority. Invocation and restricted receipt lookup MUST recheck authenticated principal, resource, action and revocation epoch. Manifest declarations, copied grants and caller-authored approval fields are insufficient. Mutations enter the existing host proposal/validation/promotion owner, including the authenticated evidence requirements of [STU-CON-011].
+
+[HSK-PLG-006] Aggregate admission. Charge executable/module bytes, workers/processes/stores/instances, waiting producers, queued bytes, retained generations, device use and reclamation capacity before admission. Reserve cancellation/completion service. Retain permits until actual retirement, not merely request cancellation.
+
+[HSK-PLG-007] Durable state. Mutations MUST use payload/precondition-bound idempotency and atomic host event/receipt commit. Plugin document data obeys existing undo, export and privacy rules. Scoped KV state uses canonical host authority; it MUST NOT contain secrets, shadow document state or an additional database.
+
+[HSK-PLG-008] Portable ports. Versioned host-neutral interfaces cover capabilities, jobs/resources, artifacts, document proposals/snapshots, typed errors, UI contributions, observations and manual/recovery help. No Handshake storage, GUI, implementation or live-grant types cross that seam. A second host supplies equivalent authority and enforcement or reports unsupported; it MUST NOT copy grants or embed a hidden Handshake database. Portability proof does not replace actual Handshake production acceptance.
+
+[HSK-PLG-009] Shared UI and model surface. Isolated typed contributions use stable namespaced controls and bounded messages. Extend existing shared controls before adding near-identical assets. Argus exposes identity/version, state, budget and errors under current grants, without secret payloads. The product manual exposes discovery, invocation, cancellation and recovery through the same command owner.
+
+[HSK-PLG-010] Native discovery. Vendor probing executes code; it is not passive metadata reading. Separate bounded isolated discovery from activation, record crash/hang containment and architecture/ABI negotiation, and reject when isolation is unavailable. Ambient directory scans or silent in-process fallback are prohibited.
+
+[HSK-PLG-011] Realtime boundary. Realtime callbacks MUST NOT block, allocate, drain unbounded commands, log through general recorders, save foreign state or destroy thread-affine resources. Off-callback state capture is versioned, deadline/byte bounded and reports complete/partial/unavailable. Reserve reclamation before transfer.
+
+[HSK-PLG-012] Quiescent retirement. Update/uninstall stops admission, revokes/fences, resolves accepted outcomes and retires instances on permitted threads. Borrowed code/snapshots remain valid until actual quiescence; libraries, stores and processes release only then. Shared global registries require bounded explicit ownership.
+
+[HSK-PLG-013] Pool isolation. Partition guest instances/state by principal, resource, grant, artifact and state version. Use fresh instances across trust boundaries unless complete reset is independently proved. Retained buffers remain classified and charged; reauthorize dispatch and promotion. Revoked output cannot become durable authority.
+
+[HSK-PLG-014] Failed spawn ownership. Failure to register an actually created child, record its ledger START, or update decorator state MUST retain cleanup ownership or compensate by bounded stop/reap with a typed cleanup failure. An error response does not prove absence of a live child. The shared sandbox owner reconciles process lifetime.
+
+[HSK-PLG-015] Host-call limits. Host imports have independently enforced deadlines, cancellation and byte limits. VM fuel/epoch interruption cannot preempt blocking host code. Use bounded chunks or opaque resources; unsupported thread/shared-memory/import profiles reject before execution.
+
+[HSK-PLG-016] Event dispatch. Preserve exact closed contribution/event enums and negotiate schemas. Bound asynchronous subscription dispatch, causal depth, replay deduplication and output proposals. Never synchronously reenter while host locks are held. Coalesce only replaceable uncommitted previews; accepted edits and exports remain lossless.
+
+[HSK-PLG-017] Native execution matrix. Native discovery and untrusted execution require supported OS isolation and approved content-hashed resource paths. A preallocated audio bridge declares measured latency, ahead-of-time buffers, deadline bypass/silence policy and quiet UI/headless support. Unsupported foreign UI is explicit; automated invocation MUST NOT raise vendor windows. Native editor embedding, accessibility and Argus inspection are separate proof rows from DSP/headless operation.
+
+[HSK-PLG-018] State completeness. Capture/restore reports each instance and component/controller phase. Empty defaults or ignored errors MUST NOT assert completeness. Preserve prior required state on capture failure; validate artifact/schema/version and aggregate bytes before promotion.
+
+[HSK-PLG-019] Revoked private data. Destroy or make retained private buffers/state inaccessible within a bounded retirement deadline, including idle pools. Changing a capability list does not revoke already copied bytes. Permits remain charged until retirement is confirmed.
+
+[HSK-PLG-020] Foundation and consumer proof. Every Studio asset module and its portable platform adapter MUST expose a meaningful executable minimum, rejected/unsupported paths, resource bounds and asset-local inspection/manual consumer before domain asset features begin. This does not require the entire Handshake platform or WP-KERNEL-012 implementation to precede isolated asset development. Actual shared lifecycle, authorization, sandbox, canonical-state, Argus and UserManual consumers remain mandatory separate acceptance before dependent plugin activation or Handshake embedding; portable adapter proof cannot fulfill them. A second-host harness proves portability only.
 
 ## 5.2 Sandboxing & Security
 

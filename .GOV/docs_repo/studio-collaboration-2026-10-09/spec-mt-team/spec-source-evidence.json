@@ -1,0 +1,1302 @@
+{
+  "schema_id": "hsk.studio_spec_source_evidence@1",
+  "file_id": "STUDIO-SPEC-EVIDENCE-20261009",
+  "updated_at": "2026-10-09T17:58:56.878849+00:00",
+  "status": "SOURCE_INSPECTED_NOT_RUNTIME_PROOF",
+  "spec_version": "v02.206",
+  "clauses": [
+    {
+      "anchor": "STU-OVR-001",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 136,
+      "line_end": 136,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-OVR-001] Studio MUST be a Cargo workspace member set in the Handshake monorepo, not a separately versioned external crate, so the engines and the kernel binding are always tested together (mirrors [TAI-OVR-010]).",
+      "text_sha256_lf": "8cd8dc75dba4b5e1e901528050f8b7360d3f17566813e44a422481fbc4d37787"
+    },
+    {
+      "anchor": "STU-OVR-003",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 142,
+      "line_end": 142,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-OVR-003] Studio MUST NOT introduce a SQLite dependency anywhere (not in `studio-engine`, not in tests, not as a development cache). The `no_sqlite_tripwire` and SurrealDB-only startup tripwire in [STU-SDB-002] apply to Studio without exception. Durable Studio authority is SurrealDB/EventLedger only; live collaborative document state is CRDT; neither is SQLite-backed.",
+      "text_sha256_lf": "da04ced979fef9f02502c59354ed0c9b1d9ea91c11c4cdd53f2a906b496973ac"
+    },
+    {
+      "anchor": "STU-OVR-015",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 140,
+      "line_end": 140,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-OVR-015] [ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motion surface (14.11) is keyframe animation + motion export (video/GIF/animated-SVG) and placing/rendering media; footage-clip non-linear editing is a separate Handshake concern (the `engine.director` mechanical engine, Spec \u00a711.8). Studio MAY place and render video media (14.6/14.11) but does not own footage clip-editing. This is recorded as an explicit, intentional scope edge, not an omission.",
+      "text_sha256_lf": "0335ded62ab01916dd7c4bc5d5b299b040f66161459d857d9eeb8b001aa8fa61"
+    },
+    {
+      "anchor": "STU-ARC-001",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 179,
+      "line_end": 179,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-ARC-001] `handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`. All module files receive `AppState` (and thus the shared SurrealDB authority client, `LlmClient`, `SandboxRunner`, `PromotionGate`, and CRDT infrastructure) by reference; no separate initialization is permitted.",
+      "text_sha256_lf": "6cf7cf5ab2089defdf14c0c1799ea9c30c54cb4913e171ab09fabcfbb7ae15a5"
+    },
+    {
+      "anchor": "STU-ARC-002",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 181,
+      "line_end": 181,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-ARC-002] `handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. All GPU/compute code is isolated in the `studio-engine` workspace crate and reached through the `RasterEngine`/`VectorEngine`/`LayoutEngine`/`TextEngine`/`ColorEngine`/`RenderEngine: Send + Sync` trait boundaries defined in `studio-engine/src/lib.rs` (mirrors [TAI-OVR-009]).",
+      "text_sha256_lf": "c73dc0b67557ea449652a049ce058a9b20d9d7dfd9a0c29688973d52dd1a1f50"
+    },
+    {
+      "anchor": "STU-ARC-006",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 189,
+      "line_end": 189,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-ARC-006] Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change. Individual `studio-engine` crates (raster compositor, vector geometry, text shaping, color) MAY be prototyped in isolation before the kernel binding is authored, because they have no `handshake_core` dependency.",
+      "text_sha256_lf": "f8fa685d52ebb1e583748a70c8df167f74c5857320a3e59fd62831f01519e2c6"
+    },
+    {
+      "anchor": "STU-IO-001",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 21209,
+      "line_end": 21209,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-IO-001] NATIVE-FORMAT DECLARATION. Studio MUST NOT invent a new interchange document format to replace the existing creative formats. The native Studio document is the unified `StudioDocument` (14.3) persisted through Handshake document/project storage under SurrealDB/EventLedger authority ([STU-ARC-003]/[STU-ARC-004]) with CRDT live state; it is not a new file-on-disk interchange format competing with PSD/AI/IDML/`.af`/`.fig`. This restates and is bound by [STU-OVR-002]: interoperability with the source formats is in scope as import / edit-preserve / export / round-trip; a replacement interchange format and any runtime dependency on the source applications are out of scope. Where a deliverable file must leave Studio, it leaves through a `StudioExportRecipe` into one of the matrix formats below, never through a bespoke Studio-only container.",
+      "text_sha256_lf": "c96caff8b3e8d1b39b734ef485e5d3790269ee4cc5673da33a7378b805489b7a"
+    },
+    {
+      "anchor": "STU-IO-166",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 21130,
+      "line_end": 21130,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-IO-166] Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]).",
+      "text_sha256_lf": "530aa627cf6f23fb712c75190ba7be332de056ddc3dc1375bdf2e3865324d266"
+    },
+    {
+      "anchor": "STU-SDB-002",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 36,
+      "line_end": 45,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-SDB-002] Runtime authority.** Studio durable authority MUST use the Handshake-managed\nSurrealDB service through the official SurrealDB Rust SDK and the kernel's typed authority-store\nabstraction. `AppState` supplies that shared SurrealDB authority client; Studio and its standalone\nengine crates MUST NOT create a private authority database, use `PgPool`, issue `sqlx` queries,\naccept a PostgreSQL connection URL, or attempt PostgreSQL connectivity for migration or\nverification. PostgreSQL drivers, runtime lifecycle code, environment variables, configuration\nkeys, startup modes, provisioning scripts, health checks, and proof fixtures MUST be retired from\nthe active Studio dependency and acceptance surface. SQLite remains prohibited for authority,\ncaches, fixtures offered as runtime proof, and tests that claim production-storage equivalence.\nThere is no PostgreSQL fallback, dual authority, import lane, or transitional runtime.",
+      "text_sha256_lf": "621fd2cdd2f689ae33217ec8979b873d51c9be2654858d43545e144891066779"
+    },
+    {
+      "anchor": "STU-VAL-002",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22378,
+      "line_end": 22378,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-VAL-002] THREE-TIER DIAGNOSTICS (HBR-INT-009). Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events \u2014 WIRED at build); Tier 2 internal_diagnostics (frame-time on canvas/viewport renders, panic hooks in `studio-engine`, UI-thread heartbeat for Studio panes, GPU/CPU/RSS counters during render/filter jobs, diagnostic-event API for render-cache/GPU-device-lost/readback failures \u2014 DEFERRED-until-shipped per WP-KERNEL-012/016); Tier 3 Palmistry (external watcher over freeze/crash during heavy render \u2014 DEFERRED-until-shipped). Deferral is typed, never silent.",
+      "text_sha256_lf": "d35d64a6f8916e6b262b1e54b12e8bd550e55fef5234202ce30648a7db276566"
+    },
+    {
+      "anchor": "STU-VAL-005",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22384,
+      "line_end": 22384,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-VAL-005] NATIVE-RUNTIME + SURREALDB/CRDT DUTY. Studio durable authority is Handshake-managed SurrealDB/EventLedger; live collaborative state is CRDT with persistence/reconnect/replay/conflict-visibility and promotion into authority. No PostgreSQL fallback or dual authority, no SQLite, no SQL-portability shim, no mock-only resource as default proof, and no Docker/third-party-daemon/outside-app as a core-operation dependency or acceptance shortcut. Test-only/fixture-only proof cannot satisfy a runtime/storage/EventLedger/UI/replay MUST; storage and privacy proof MUST meet [STU-SDB-008].",
+      "text_sha256_lf": "436861277f66ac32e18711093347b1b6cf2ddceb0150c59b13b43e40dd3c94a1"
+    },
+    {
+      "anchor": "STU-VAL-006",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22386,
+      "line_end": 22386,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-VAL-006] HBR MATRIX. Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause; PASS closure is illegal while any required HBR row is PENDING/STEER/BLOCKED.",
+      "text_sha256_lf": "a646cdf4f36c28f813805f61019720dded22cd4d3b8fb481d335b7280bdcd4e9"
+    },
+    {
+      "anchor": "STU-SHL-007",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 30814,
+      "line_end": 30814,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-SHL-007] Storage law.** Every durable artefact this sub-section introduces \u2014 dock layouts, Layout Presets, panel registry rows, descriptor sets, manual seed rows, shortcut sets \u2014 MUST persist through Handshake-managed SurrealDB with the EventLedger as sole durable authority, embedded (no separate database process), per [STU-SDB-002]. SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. Operator-scoped preference layers persist through the shell preference client; document-scoped layers persist as a Studio-owned sibling schema discriminated by `schema_id`, never by extending the shell's own layout schema.",
+      "text_sha256_lf": "fc795de5ed4d834332bc0db0eeebaed733bc1ba1c75a1ff4c907962fe11857f4"
+    },
+    {
+      "anchor": "STU-ASSET-004",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 30625,
+      "line_end": 30625,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-ASSET-004] Prohibition \u2014 no parallel library.** Studio MUST NOT implement, and MUST NOT ship, any of the following: a second asset catalog; a second media or file browser rooted outside CKC; a second thumbnail or preview cache keyed independently of CKC's; a second metadata, keyword, rating, label or flag store; a second collection or smart-collection mechanism over assets; a second duplicate-detection index; a second folder-synchronisation watcher; or a second content-addressed blob tier. Each of these already exists in CKC, and duplicating one is a `[STU-SECTION-003]` violation, not an optimisation.",
+      "text_sha256_lf": "073c0eac3290c669a5e3c4f5e97f6c8eb853c6067091b50718983ce20305bbb8"
+    },
+    {
+      "anchor": "STU-VID-001",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22398,
+      "line_end": 22405,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-VID-001] [STU-OVR-015] IS SUPERSEDED AND INVERTED.** That clause, added at v02.200, reads\nthat editing imported video footage as a clip timeline -- \"trimming/sequencing/encoding video clips\nas raster-video layers, i.e. a non-linear video editor\" -- is OUT of Studio scope, and routes\nfootage clip editing to a separate mechanical engine. That is no longer true. The operator's\ninstruction of 2026-09-04 is recorded verbatim: *\"full blown video capabilitie for profesional\neditors and vfx artists.\"* Timeline clip editing is IN scope at professional depth. Compositing and\nvisual effects are IN scope at professional depth (14.27). Nothing from the video-editing or\ncompositing capability surface is excluded on scope grounds.",
+      "text_sha256_lf": "30a38fb394a103c9b412ad4f302cf3f1da19fe447c20c38d3b23705d8f9d6847"
+    },
+    {
+      "anchor": "STU-VID-011",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22454,
+      "line_end": 22478,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-VID-011] The normative sequence settings record.** Every field below is required. Values\nmarked \"Studio default\" are Studio's own choice from the evidence; values marked \"declared\" are read\nfrom shipped configurations.\n\n*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*\n\n| Field | Type | Contract |\n|---|---|---|\n| `frame_size` | `{width: u32, height: u32}` | Composition raster size in pixels. 37 distinct sizes appear across the shipped configurations, from 512x256 to 8192x8192. Studio default 1920x1080 (the most common, 89 of 392). |\n| `pixel_aspect_ratio` | `{numerator: u32, denominator: u32}` | A RATIONAL, never a float. Eight distinct ratios are declared: 1:1 (332 configurations), 1920:1440, 1920:1920, 10:11, 40:33, 768:702, 1024:702, 3:2. Studio default 1:1. Storing a float loses exactness and breaks round-trip. |\n| `frame_rate` | `{ticks_per_frame: u64}` | See [STU-VID-012]. Stored as ticks, never as a float. |\n| `field_order` | enum | `progressive`, `upper_field_first`, `lower_field_first`. Declared distribution: 346 progressive, 34 upper-first, 12 lower-first. Studio default `progressive`. |\n| `video_time_display` | enum | See [STU-VID-012]. |\n| `audio_time_display` | enum | `audio_samples` or `milliseconds`; independent of the video display. All 392 shipped configurations declare `audio_samples`. |\n| `audio_sample_rate_hz` | u32 | 386 of 392 declare 48000; 6 declare 32000. Studio default 48000. |\n| `audio_master_channel_type` | enum | See [STU-FX-137]. |\n| `working_color_space` | `StudioColorProfile` ref | Declared values in the shipped set: `BT.709 RGB Full` (22 configurations) and `BT.2100 HLG RGB Full` (5). Studio default `BT.709 RGB Full`. Carries a `is_linearized` boolean, declared 0 in every shipped configuration read. |\n| `auto_tone_map` | bool | Declared true in the shipped HDR-capable configurations. Governs automatic tone-mapping of out-of-gamut source media into the working space. |\n| `use_maximum_bit_depth` | bool | Studio default false. When true the render pipeline runs at the document's maximum channel depth rather than the preview depth. |\n| `use_maximum_render_quality` | bool | Studio default false. Selects the higher-cost scaling and resampling path. |\n| `allow_linear_compositing` | bool | Studio default true in the shipped configurations read. Selects linear-light blending for the sequence's composite ([STU-CMP-020]). |\n| `initial_video_track_count` | u8 | Studio default 3. |\n| `initial_audio_track_count` | u8 | Studio default 4, matching the shipped stereo configurations. |\n| `preview_render_format` | record | See [STU-VID-019]. |\n| `immersive` | record | See [STU-VID-018]. |",
+      "text_sha256_lf": "eeba34ec4d77dbbffc0942c944b5ff75f7c638e4744824da4bb77b638a7e35a6"
+    },
+    {
+      "anchor": "STU-VID-012",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22482,
+      "line_end": 22489,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-VID-012] Time is integer ticks, and the tick rate is a constant.** A sequence's time base is\n`254016000000` ticks per second. Every time value in a sequence -- clip in and out points, edit\npoints, marker positions, the playhead, work-area bounds, keyframe times on clip effects -- is\nstored as an integer tick count. Floating-point seconds are a display and API convenience only and\nMUST NOT be the stored form: at 254016000000 ticks per second, a 64-bit integer represents just over\ntwo years of media exactly, while a float loses frame-accuracy inside an hour. This constant is\nchosen precisely because it divides evenly by every common frame rate and audio sample rate, which\nis what makes 23.976, 29.97 and 48000 Hz exact rather than approximate.",
+      "text_sha256_lf": "ab91f80c6988dbca7cdc88d0434e308b0ce34481ed0a0a499e4b95862827a48a"
+    },
+    {
+      "anchor": "STU-VID-013",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22491,
+      "line_end": 22507,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-VID-013] The frame-rate table is normative and is expressed in ticks per frame.**\n\n*Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.*\n\n| ticks_per_frame | fps | Notes |\n|---|---|---|\n| 10594584000 | 23.976024 | 24000/1001. 75 shipped configurations. |\n| 10584000000 | 24 | 43 shipped configurations. |\n| 10160640000 | 25 | 85 shipped configurations. |\n| 8475667200 | 29.97003 | 30000/1001. 103 shipped configurations; the most common. |\n| 8467200000 | 30 | 6 shipped configurations. |\n| 5292000000 | 48 | 5 shipped configurations. |\n| 5080320000 | 50 | 35 shipped configurations. |\n| 4237833600 | 59.94006 | 60000/1001. 34 shipped configurations. |\n| 4233600000 | 60 | 5 shipped configurations. |\n| 20321280000 | 12.5 | declared by the decode table; not used by the shipped configurations. |\n| 16934400000 | 15 | declared by the decode table; not used by the shipped configurations. |",
+      "text_sha256_lf": "fcdb20c21a38459f6e9d67b95ff70f52e960fa712bad26e63f92438cc2f5c652"
+    },
+    {
+      "anchor": "STU-VID-013a",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22509,
+      "line_end": 22514,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-VID-013a]** Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than\nas the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator\nvalues as canonical and the exact-decimal values as a legacy import shape that is normalised on\nimport, because only the ratio form keeps timecode drift correct. The composition-settings surface\nadditionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97,\n30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999.",
+      "text_sha256_lf": "8da64c5f44c376ad38cf39e0098dc7c6d321ac579bff9d86dd38cc4d81dc1699"
+    },
+    {
+      "anchor": "STU-CON-001",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22349,
+      "line_end": 22349,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-CON-001] CANONICAL PRIMITIVES. The canonical Studio primitive set is defined in 14.3 [STU-DOC-002]. Each primitive's field-level struct is authored here as implementation lands; the per-domain catalogs (14.4-14.15) reference these primitives and MUST NOT fork them. Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
+      "text_sha256_lf": "e70ce37df761a56626d4911fcc5830e675ed94f178be3f918a479f1bc74c7d84"
+    },
+    {
+      "anchor": "STU-CON-002",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22351,
+      "line_end": 22351,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-CON-002] SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`.",
+      "text_sha256_lf": "0b5060d31940d70b1247f3c34413306d7c2ed73859b6bf3dd8a47a84168fb7fa"
+    },
+    {
+      "anchor": "STU-CON-003",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22353,
+      "line_end": 22353,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-CON-003] EVENT VARIANTS. Canonical `KernelEventType` additions (wire `STUDIO_*` SCREAMING_SNAKE_CASE): `STUDIO_DOCUMENT_CREATED`, `STUDIO_DOCUMENT_PROMOTED`, `STUDIO_LAYER_CREATED`, `STUDIO_LAYER_MUTATED`, `STUDIO_SELECTION_CHANGED`, `STUDIO_MASK_APPLIED`, `STUDIO_ADJUSTMENT_APPLIED`, `STUDIO_EFFECT_APPLIED`, `STUDIO_VECTOR_PATH_EDITED`, `STUDIO_TEXT_EDITED`, `STUDIO_STYLE_APPLIED`, `STUDIO_COMPONENT_PUBLISHED`, `STUDIO_VARIABLE_SET`, `STUDIO_PROTOTYPE_EDITED`, `STUDIO_RAW_DEVELOPED`, `STUDIO_EXPORT_RENDERED`, `STUDIO_IMPORT_COMPLETED`, `STUDIO_EDIT_PROPOSAL_RECORDED`, `STUDIO_EDIT_PROMOTED`, `STUDIO_EDIT_REJECTED`, `STUDIO_HISTORY_UNDONE`, `STUDIO_HISTORY_REDONE`. The Flight Recorder business-event family is `FR-EVT-STUDIO-*` (14.24). Every variant registers in `required_first_slice_events()`.",
+      "text_sha256_lf": "73dcb2c415a41d0161168bbfe4fc15ddfd80f8a71edfcd74061bb270af0ae082"
+    },
+    {
+      "anchor": "STU-CON-004",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22355,
+      "line_end": 22355,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-CON-004] TABLES. Canonical `studio_*` SurrealDB `SCHEMAFULL` tables (all preserving the specified prefixed domain ids, all with a required typed `event_ledger_event_id` record reference, all protected by authenticated record-user and field permissions plus `ResourceBroker`, and all evolved through SurrealKit): `studio_documents` (SDOC-), `studio_layers` (SLYR-), `studio_artboards` (SART-), `studio_page_spreads` (SPGS-), `studio_masks` (SMSK-), `studio_vector_paths` (SVPT-), `studio_text_stories` (STXT-), `studio_type_styles` (STYS-), `studio_color_profiles` (SCPF-), `studio_swatches` (SSWT-), `studio_effect_stacks` (SEFX-), `studio_components` (SCMP-), `studio_component_instances` (SCIN-), `studio_variables` (SVAR-), `studio_variable_collections` (SVCL-), `studio_style_registries` (SSTY-), `studio_prototype_flows` (SPTF-), `studio_motion_timelines` (SMTL-), `studio_export_recipes` (SXPR-), `studio_import_profiles` (SIMP-), `studio_history_entries` (SHIS-), `studio_edit_proposals` (SEPR-). Typed field definitions, assertions, indexes, permissions, and rollout manifests are authored here as each table's implementing MT lands.",
+      "text_sha256_lf": "ad6918ee86c5cb5a5674c2f13651a3504c874bb36ef8361fd7623eadc2a91afa"
+    },
+    {
+      "anchor": "STU-CON-005",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22357,
+      "line_end": 22357,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-CON-005] UNITS & DETERMINISM. Unit law per [STU-DOC-003]. Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).",
+      "text_sha256_lf": "9fffd0c2db50518b572c05974084e90bc5eeab69f4cb11ccdf7129251314dd6c"
+    },
+    {
+      "anchor": "STU-CON-006",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22359,
+      "line_end": 22359,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-CON-006] OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+      "text_sha256_lf": "612a88bc1a30b12166feed14d6a816104be1e31f71306f1d4f781a3c91792cd2"
+    },
+    {
+      "anchor": "STU-CON-007",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 22361,
+      "line_end": 22368,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "[STU-CON-007] [ADD v02.200] UNIVERSAL COMMAND CONTRACT (HARD). Every Studio command, tool, and primitive defined in sub-sections 14.4-14.15 \u2014 without exception and regardless of domain \u2014 MUST satisfy ALL FOUR of the following properties. A per-domain obligation clause MUST enumerate all four; omission of any one for a shipped command is a spec-conformance defect, not domain discretion; and each domain's acceptance surface MUST carry a conformance check proving all four hold for that domain's commands.\n\n- (a) MODEL-INVOKABLE (14.16): reachable through the typed model command API with `command_id`, auto-generated input/output schema, `dry_run`, a `SimulationReceipt`-class receipt, and undo semantics. Operator-only/headless is allowed only with a typed reason ([STU-MDL-006]).\n- (b) PARALLEL-SAFE (14.17, 14.18): every document-state mutation routes through the per-file CRDT document + file-scoped lease + EventLedger-idempotent promotion path, so multiple model agents editing multiple files, AND multiple model agents editing one file, cannot corrupt, race, or silently overwrite each other, and never interfere with concurrent operator work on other projects/modules (14.20). No editing command may mutate authority outside this path.\n- (c) DETERMINISTIC ([STU-CON-005]): the same command with the same inputs produces byte-stable output on a given backend and output within the declared tolerance across GPU backends/drivers, so a parallel agent's edit is reproducible and fully replayable from EventLedger receipts alone. Non-deterministic behavior (e.g. an unseeded stochastic filter) MUST expose an explicit seed making it deterministic.\n- (d) VISUALLY-VERIFIABLE (14.20, 14.24 [STU-VAL-004]): any command producing visual output MUST be inspectable through the headless `StudioRenderHarness` render capture + Argus, so a model can deterministically edit a photo, a raster or vector mask, a layout, or any visual surface, and then verify the rendered result \u2014 capturing before/after evidence \u2014 without foreground UI or focus steal.\n\nThis clause makes the entire Studio tool/primitive surface usable by parallel model agents on multiple files simultaneously, editing deterministically in conjunction with the visual tools, as a HARD product invariant rather than a per-tool option.",
+      "text_sha256_lf": "c262b06762fafe5ad5f2867311127f185177bac17914a29fd36e917f576b72de"
+    },
+    {
+      "anchor": "STU-MAN-118",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 32901,
+      "line_end": 32901,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-MAN-118] Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped.",
+      "text_sha256_lf": "49f7f6e60b343ca0c439e9a2034bfe0fb60ff5554b86e2af9e1deaf3fdeaff39"
+    },
+    {
+      "anchor": "STU-SHL-221",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 32668,
+      "line_end": 32668,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-SHL-221] Parallel-safety granularity.** Concurrent parameter writes MUST use the expected-revision precondition of [STU-SDB-004] at the granularity of the individual PROPERTY, not the whole document. Two model lanes scrubbing two different parameters of one document MUST both succeed; two lanes writing the same property at the same time MUST produce exactly one success and one typed conflict carrying `LEASE_HELD_BY_OTHER_ACTOR`.",
+      "text_sha256_lf": "7dadada8d43768b5c59e3a4b2803a67d1f141eb876c5692435157eaa4e77f8cf"
+    },
+    {
+      "anchor": "STU-SDB-004",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 58,
+      "line_end": 67,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-SDB-004] EventLedger atomicity and concurrency.** The EventLedger remains the semantic\nmutation authority and replay source, and its event records, idempotency records, stream heads,\nand replay metadata MUST be persisted in SurrealDB. Every accepted Studio mutation MUST execute\nits document or component changes, SurrealDB-persisted EventLedger append, idempotency-key claim,\nrevision/precondition check, and any projection-head update in one SurrealDB transaction. Duplicate\nidempotency keys return the prior receipt without a second mutation or event. Concurrent writes\nMUST use an expected-revision or equivalent compare-and-set precondition and fail closed on\nconflict. Replay from an empty SurrealDB namespace/database MUST reconstruct the same authoritative\ndocument state, ordering, stable IDs, privacy scope, history, and terminal receipt outcomes\nrequired by the existing clauses.",
+      "text_sha256_lf": "7b91af46e3a6d4f91aac1a1404a0483c8cc6d856a5440a09a6a23cf8ce8ff47b"
+    },
+    {
+      "anchor": "STU-SDB-005",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 69,
+      "line_end": 77,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-SDB-005] Privacy and resource scope.** Every authority table defaults to `PERMISSIONS NONE`\nand grants only explicit authenticated record-user `SELECT`, `CREATE`, `UPDATE`, and `DELETE`\nexpressions for the owning account, project, role, and resource scope. Sensitive fields additionally\nuse field-level permissions where visibility is narrower than the record. The kernel\n`ResourceBroker` remains the required application-layer authorization gate for artifacts, placed\nassets, derived previews, model contexts, exports, logs, and live-query subscriptions. Root, system,\nnamespace, or database-owner credentials bypass record permissions and therefore MUST NOT be used\nas privacy, tenant-isolation, or least-privilege proof; those proofs MUST execute with authenticated\nrecord-user sessions and adversarial cross-account/project cases.",
+      "text_sha256_lf": "0a54c1362fdd2e5481dbe305a74218f190197fbe1ffeed90675b8310c4cf5be3"
+    },
+    {
+      "anchor": "STU-SDB-007",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 87,
+      "line_end": 97,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-SDB-007] Fresh schema initialization and activation.** Studio MUST initialize its\nSurrealDB `SCHEMAFULL` tables, typed fields, assertions, indexes, permissions, EventLedger records,\nand projection heads from a clean SurrealDB namespace/database. The initialization ships as a\nSurrealKit rollout with explicit `start`, initialize, verify, cold-authority activation,\n`complete`, and `rollback` stages. Activation MUST occur only after the empty authority passes the\nschema, transaction, EventLedger, privacy, index, and restart checks in [STU-SDB-008]. The dated\n`.sql`/`.down.sql` names and fenced PostgreSQL DDL retained below are non-executable semantic\ninventories and historical provenance only; they MUST NOT be executed, connected to, parsed as\nmigration input, or used as a data-import source. No PostgreSQL data migration, reconciliation,\ndual read, dual write, compatibility bridge, or authority cutover exists. Rollback returns to an\nunactivated or prior SurrealDB schema state and MUST NOT select or contact PostgreSQL.",
+      "text_sha256_lf": "9119e12e9d881c23637f8dee0621c09296d1a3f34c8d3240ac6b0c3376d042d8"
+    },
+    {
+      "anchor": "STU-SDB-008",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 99,
+      "line_end": 106,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-SDB-008] Test and acceptance proof.** Studio storage acceptance MUST provision an isolated\nSurrealDB namespace/database, apply the SurrealKit rollout, execute real official-SDK calls, and\nprove create/read/update/delete, transaction rollback, idempotent retry, optimistic conflict,\nEventLedger append/replay, restart recovery, live-query reconnect, index behavior, retention, and\nauthenticated record-user privacy. Mock repositories, translated SQL text, root-authenticated\nqueries, PostgreSQL fixtures, or inspection of a retired PostgreSQL schema cannot substitute for\nthis runtime proof. Acceptance MUST also prove that active Studio startup, configuration, and tests\ncontain no PostgreSQL connection attempt or runtime dependency.",
+      "text_sha256_lf": "67afee5ab15065dffe59c07918ec852a4212a7804cb26039b22de333b1a71dce"
+    },
+    {
+      "anchor": "STU-ASSET-003",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 30614,
+      "line_end": 30623,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-ASSET-003] Primitive reuse, not redefinition.** The binding reuses existing canonical primitives and MUST NOT redefine them:\n\n*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*\n| Primitive | Role in the binding |\n|---|---|\n| `PRIM-Asset` | the catalog identity of an asset; the thing a Studio placed-asset link points at |\n| `PRIM-ArtifactService` | the content-addressed artifact store that holds the actual bytes |\n| `PRIM-ArtifactManifest` | the manifest that makes a stored byte stream addressable and receipted |\n| `PRIM-AiJob` | the governed job model any derived-asset generation runs under |\n| `PRIM-CapabilityProfile` | the capability gate every cross-module asset read and write passes |",
+      "text_sha256_lf": "98bbad1c21bff330879e019240265c4e8f3cea8fc4590acba0a15e3f42519924"
+    },
+    {
+      "anchor": "STU-ASSET-021",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 30705,
+      "line_end": 30705,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-ASSET-021] Cross-module authorization.** Every cross-module asset read and write passes the kernel `ResourceBroker` and the record-level SurrealDB permissions of [STU-SDB-005]. Studio holding a link does not grant Studio's actor access to the asset; the broker decides per actor per read. A denied read produces the `unauthorized` state of [STU-ASSET-007], and the denial itself MUST be receipted.",
+      "text_sha256_lf": "b0fc83f968b23ba96c0f1c135910c504cb91ee2364528639d04be9686a688080"
+    },
+    {
+      "anchor": "STU-ASSET-023",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "line_start": 30709,
+      "line_end": 30709,
+      "file_sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "exact_old_text": "**[STU-ASSET-023] Parallel safety.** Two Studio documents, or two model lanes in one document, may place the same asset concurrently; placement creates independent link records and MUST NOT contend. Mutating the CKC asset record itself (retag, rate, move, delete) uses the expected-revision precondition of [STU-SDB-004] at asset granularity. Deleting a catalog asset that has live placements MUST be refused with a typed error listing the referring documents, unless the operator explicitly forces it, in which case every referring link transitions to `missing` and each transition is receipted.",
+      "text_sha256_lf": "5331650efaef46587750d3316930aa9eb2be015fa3d066e225fbe73e7212e239"
+    }
+  ],
+  "obsolete_owner_occurrences": [
+    {
+      "line": 132,
+      "exact_line": "1. **`handshake_core::studio`** (`src/studio/`) \u2014 the kernel-bound creative module: authority storage, EventLedger emission, CRDT collaborative editing, sandbox dispatch, promotion-gate integration, model-lane binding, and REST/MCP API surface (`src/api/studio.rs`). Per-domain domain logic lives under `src/studio/<domain>/` (e.g. `src/studio/raster/`, `src/studio/vector/`, `src/studio/layout/`).",
+      "owning_anchor": "STU-SECTION-003",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "1. **`handshake_core::studio`** (`src/studio/`) \u2014 the kernel-bound creative module: authority storage, EventLedger emission, CRDT collaborative editing, sandbox dispatch, promotion-gate integration, model-lane binding, and REST/MCP API surface (`src/api/studio.rs`). Per-domain domain logic lives under `src/studio/<domain>/` (e.g. `src/studio/raster/`, `src/studio/vector/`, `src/studio/layout/`).",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 134,
+      "exact_line": "2. **`studio-engine`** \u2014 a standalone Rust workspace crate (no `handshake_core` dependency) that owns the compute-heavy, UI-agnostic engines: the raster compositor and pixel pipeline, the vector/path geometry and tessellation engine, the layout/reflow engine, the text-shaping/typography engine, the color-management engine, and the GPU render path (wgpu/WGSL). `handshake_core::studio` calls into `studio-engine` only through typed traits (`RasterEngine`, `VectorEngine`, `LayoutEngine`, `TextEngine`, `ColorEngine`, `RenderEngine`). Studio MUST NOT put `wgpu`/WGSL/GPU dependencies into `handshake_core`'s `Cargo.toml`; all GPU code is isolated in `studio-engine`, exactly as Tailor isolates GPU code in `tailor-solver` ([TAI-OVR-009]).",
+      "owning_anchor": "STU-SECTION-003",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "2. **selected independently buildable provider set** \u2014 a standalone Rust workspace crate (no `handshake_core` dependency) that owns the compute-heavy, UI-agnostic engines: the raster compositor and pixel pipeline, the vector/path geometry and tessellation engine, the layout/reflow engine, the text-shaping/typography engine, the color-management engine, and the GPU render path (wgpu/WGSL). `handshake_core::studio` calls into selected independently buildable provider set only through typed traits (`RasterEngine`, `VectorEngine`, `LayoutEngine`, `TextEngine`, `ColorEngine`, `RenderEngine`). Studio MUST NOT put `wgpu`/WGSL/GPU dependencies into `handshake_core`'s `Cargo.toml`; all GPU code is isolated in selected independently buildable provider set, exactly as Tailor isolates GPU code in `tailor-solver` ([TAI-OVR-009]).",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 142,
+      "exact_line": "[STU-OVR-003] Studio MUST NOT introduce a SQLite dependency anywhere (not in `studio-engine`, not in tests, not as a development cache). The `no_sqlite_tripwire` and SurrealDB-only startup tripwire in [STU-SDB-002] apply to Studio without exception. Durable Studio authority is SurrealDB/EventLedger only; live collaborative document state is CRDT; neither is SQLite-backed.",
+      "owning_anchor": "STU-OVR-003",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "[STU-OVR-003] Studio MUST NOT introduce a SQLite dependency anywhere (not in selected independently buildable provider set, not in tests, not as a development cache). The `no_sqlite_tripwire` and SurrealDB-only startup tripwire in [STU-SDB-002] apply to Studio without exception. Durable Studio authority is SurrealDB/EventLedger only; live collaborative document state is CRDT; neither is SQLite-backed.",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 179,
+      "exact_line": "[STU-ARC-001] `handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`. All module files receive `AppState` (and thus the shared SurrealDB authority client, `LlmClient`, `SandboxRunner`, `PromotionGate`, and CRDT infrastructure) by reference; no separate initialization is permitted.",
+      "owning_anchor": "STU-ARC-001",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "[STU-ARC-001] `handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`. All module files receive `AppState` (and thus the shared SurrealDB authority client, `LlmClient`, `SandboxRunner`, `PromotionGate`, and CRDT infrastructure) by reference; no separate initialization is permitted.",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 181,
+      "exact_line": "[STU-ARC-002] `handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. All GPU/compute code is isolated in the `studio-engine` workspace crate and reached through the `RasterEngine`/`VectorEngine`/`LayoutEngine`/`TextEngine`/`ColorEngine`/`RenderEngine: Send + Sync` trait boundaries defined in `studio-engine/src/lib.rs` (mirrors [TAI-OVR-009]).",
+      "owning_anchor": "STU-ARC-002",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "[STU-ARC-002] `handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. All GPU/compute code is isolated in the selected independently buildable provider set workspace crate and reached through the `RasterEngine`/`VectorEngine`/`LayoutEngine`/`TextEngine`/`ColorEngine`/`RenderEngine: Send + Sync` trait boundaries defined in the lightweight canonical contract crate (mirrors [TAI-OVR-009]).",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 189,
+      "exact_line": "[STU-ARC-006] Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change. Individual `studio-engine` crates (raster compositor, vector geometry, text shaping, color) MAY be prototyped in isolation before the kernel binding is authored, because they have no `handshake_core` dependency.",
+      "owning_anchor": "STU-ARC-006",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "[STU-ARC-006] Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change. Individual selected independently buildable provider set crates (raster compositor, vector geometry, text shaping, color) MAY be prototyped in isolation before the kernel binding is authored, because they have no `handshake_core` dependency.",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 468,
+      "exact_line": "filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine`",
+      "owning_anchor": "STU-RAS-004",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "filtering, transform resampling, ML selection/inpaint inference) MUST execute in the raster provider",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 775,
+      "exact_line": "implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every",
+      "owning_anchor": "STU-RAS-125",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "implement exactly one native brush engine, in raster provider behind `RasterEngine`, driving every",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 1532,
+      "exact_line": "implementation in `studio-engine`. Any generative/provider-model variant is an optional adapter lane",
+      "owning_anchor": "STU-RAS-143",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "implementation in raster provider. Any generative/provider-model variant is an optional adapter lane",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 1742,
+      "exact_line": "on-device implementation in `studio-engine` that runs offline with no account, sign-in, or cloud call,",
+      "owning_anchor": "STU-RAS-044",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "on-device implementation in raster provider that runs offline with no account, sign-in, or cloud call,",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 2027,
+      "exact_line": "them through a native deterministic engine in `studio-engine` (the `RasterEngine`/`RenderEngine`",
+      "owning_anchor": "STU-RAW-003",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "them through a native deterministic engine in RAW provider (the `RasterEngine`/`RenderEngine`",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 2571,
+      "exact_line": "integer/linear super-resolution upscale MUST run on the deterministic `studio-engine` path and MUST",
+      "owning_anchor": "STU-RAW-130",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "integer/linear super-resolution upscale MUST run on the deterministic RAW provider path and MUST",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 2899,
+      "exact_line": "the `VectorEngine` trait in the `studio-engine` crate (14.2); `handshake_core::studio::vector`",
+      "owning_anchor": "STU-RAS-179",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "the `VectorEngine` trait in the raster provider crate (14.2); `handshake_core::studio::vector`",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 5033,
+      "exact_line": "`studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter",
+      "owning_anchor": "STU-VEC-179",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "vector provider crate and MUST be deterministic: identical inputs (geometry, z-order, parameter",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 5037,
+      "exact_line": "inside `studio-engine` and only where it preserves byte-identical results, otherwise the CPU path is",
+      "owning_anchor": "STU-VEC-179",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "inside vector provider and only where it preserves byte-identical results, otherwise the CPU path is",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 7513,
+      "exact_line": "`studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a",
+      "owning_anchor": "STU-LAY-167",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "layout provider crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 7979,
+      "exact_line": "cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the",
+      "owning_anchor": "STU-TYP-126",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "cosmic-text / rustybuzz / swash class, owned by the text provider crate behind the",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 9027,
+      "exact_line": "fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links",
+      "owning_anchor": "STU-TYP-231",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "fails the build if any crate in the text provider or `handshake_core` dependency graph links",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 9357,
+      "exact_line": "[STU-TYP-008] Native-Rust shaping mandate. The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on a platform text engine (DirectWrite, Core Text, Pango) or any external/subscription-gated shaping service at runtime ([STU-OVR-002]). Shaping, line-breaking, justification, and glyph selection are deterministic given identical inputs so that model-authored and operator-authored layout produce byte-identical results across hosts (a promotion-equivalence requirement of 14.24).",
+      "owning_anchor": "STU-TYP-008",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "[STU-TYP-008] Native-Rust shaping mandate. The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the text provider crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on a platform text engine (DirectWrite, Core Text, Pango) or any external/subscription-gated shaping service at runtime ([STU-OVR-002]). Shaping, line-breaking, justification, and glyph selection are deterministic given identical inputs so that model-authored and operator-authored layout produce byte-identical results across hosts (a promotion-equivalence requirement of 14.24).",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 10083,
+      "exact_line": "evaluation, ink and separation mathematics, and grading mathematics are owned by the `studio-engine`",
+      "owning_anchor": "STU-COL-140",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "evaluation, ink and separation mathematics, and grading mathematics are owned by the color provider",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 11107,
+      "exact_line": "**[STU-COL-261] No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine`",
+      "owning_anchor": "STU-COL-261",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "**[STU-COL-261] No-platform-CMM tripwire.** The build MUST fail if any crate in the color provider",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 11642,
+      "exact_line": "lane. Studio links no instrument library into `studio-engine` or `handshake_core`; the no-platform-CMM",
+      "owning_anchor": "STU-COL-308",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "lane. Studio links no instrument library into color provider or `handshake_core`; the no-platform-CMM",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 11664,
+      "exact_line": "closed-source incorporation, so linking it into `studio-engine` would be a licensing decision",
+      "owning_anchor": "STU-COL-308",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "closed-source incorporation, so linking it into color provider would be a licensing decision",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 12300,
+      "exact_line": "[STU-COL-006] Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation math are owned by the `studio-engine` crate behind the `ColorEngine: Send + Sync` trait ([STU-ARC-002]); Studio MUST NOT depend on a platform CMM or subscription color service ([STU-OVR-002]). Transforms are deterministic given identical profiles and intents (a promotion-equivalence requirement of 14.24).",
+      "owning_anchor": "STU-COL-006",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "[STU-COL-006] Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation math are owned by the color provider crate behind the `ColorEngine: Send + Sync` trait ([STU-ARC-002]); Studio MUST NOT depend on a platform CMM or subscription color service ([STU-OVR-002]). Transforms are deterministic given identical profiles and intents (a promotion-equivalence requirement of 14.24).",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 19168,
+      "exact_line": "[STU-FX-013] The blur family is a set of `StudioLiveFilter` kinds sharing a common blur-core in `studio-engine`. Field/iris/tilt-shift/path/spin blurs expose on-canvas pin/handle controls and are GPU-accelerated; all blur kinds are re-editable stack entries. Bokeh/motion/noise styling controls (light bokeh, bokeh color, light range, strobe, restored grain) are shared parameters on the pin-based blurs, recorded as one styling row.",
+      "owning_anchor": "STU-FX-013",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "[STU-FX-013] The blur family is a set of `StudioLiveFilter` kinds sharing a common blur-core in effects/render provider. Field/iris/tilt-shift/path/spin blurs expose on-canvas pin/handle controls and are GPU-accelerated; all blur kinds are re-editable stack entries. Bokeh/motion/noise styling controls (light bokeh, bokeh color, light range, strobe, restored grain) are shared parameters on the pin-based blurs, recorded as one styling row.",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 19243,
+      "exact_line": "[STU-FX-016a] Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology.",
+      "owning_anchor": "STU-FX-016a",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "[STU-FX-016a] Cell-mosaic effects reuse the effects/render provider tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology.",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 19594,
+      "exact_line": "[STU-FX-036] Every filter/effect evaluates through the `studio-engine` `RenderEngine` (wgpu/WGSL), driven by the `StudioRenderHarness` primitive. Rows marked GPU `Req` MUST run on a supported GPU backend; when none is available the effect returns a determinate `EFFECT_GPU_UNAVAILABLE` state ([STU-FX-018]) rather than a silent empty result, and the harness records the shortfall. Rows marked `Opt` have a CPU fallback path in `studio-engine` that produces promotion-equivalent output. GPU dependencies stay isolated in `studio-engine` and never enter `handshake_core`'s `Cargo.toml` ([STU-ARC-002]).",
+      "owning_anchor": "STU-FX-036",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "[STU-FX-036] Every filter/effect evaluates through the effects/render provider `RenderEngine` (wgpu/WGSL), driven by the `StudioRenderHarness` primitive. Rows marked GPU `Req` MUST run on a supported GPU backend; when none is available the effect returns a determinate `EFFECT_GPU_UNAVAILABLE` state ([STU-FX-018]) rather than a silent empty result, and the harness records the shortfall. Rows marked `Opt` have a CPU fallback path in effects/render provider that produces promotion-equivalent output. GPU dependencies stay isolated in effects/render provider and never enter `handshake_core`'s `Cargo.toml` ([STU-ARC-002]).",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 22378,
+      "exact_line": "[STU-VAL-002] THREE-TIER DIAGNOSTICS (HBR-INT-009). Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events \u2014 WIRED at build); Tier 2 internal_diagnostics (frame-time on canvas/viewport renders, panic hooks in `studio-engine`, UI-thread heartbeat for Studio panes, GPU/CPU/RSS counters during render/filter jobs, diagnostic-event API for render-cache/GPU-device-lost/readback failures \u2014 DEFERRED-until-shipped per WP-KERNEL-012/016); Tier 3 Palmistry (external watcher over freeze/crash during heavy render \u2014 DEFERRED-until-shipped). Deferral is typed, never silent.",
+      "owning_anchor": "STU-VAL-002",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "[STU-VAL-002] THREE-TIER DIAGNOSTICS (HBR-INT-009). Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events \u2014 WIRED at build); Tier 2 internal_diagnostics (frame-time on canvas/viewport renders, panic hooks in every owning module and selected render provider, UI-thread heartbeat for Studio panes, GPU/CPU/RSS counters during render/filter jobs, diagnostic-event API for render-cache/GPU-device-lost/readback failures \u2014 DEFERRED-until-shipped per WP-KERNEL-012/016); Tier 3 Palmistry (external watcher over freeze/crash during heavy render \u2014 DEFERRED-until-shipped). Deferral is typed, never silent.",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 27641,
+      "exact_line": "**[STU-MOT-104]** The shape geometry engine is `studio-engine`'s vector engine (14.5), reached through",
+      "owning_anchor": "STU-MOT-104",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "**[STU-MOT-104]** The shape geometry engine is motion/vector provider's vector engine (14.5), reached through",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 29364,
+      "exact_line": "5. Every renderer runs behind the `RenderEngine` trait in `studio-engine`; no renderer implementation",
+      "owning_anchor": "STU-CMP-060",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "5. Every renderer runs behind the `RenderEngine` trait in composition/render provider; no renderer implementation",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    },
+    {
+      "line": 30818,
+      "exact_line": "**[STU-SHL-009] Observability and quiet operation.** Every surface specified here MUST be discoverable, inspectable and steerable out of process through the AccessKit tree by stable `author_id` per [STU-MDL-002] and [STU-MDL-004], and MUST satisfy [STU-QUIET-001] through [STU-QUIET-005]: no foreground window, no focus steal, no OS-level input injection, no cursor warping, no pane popping while an operator or another agent works elsewhere. `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`.",
+      "owning_anchor": "STU-SHL-009",
+      "classification": "REQUIRES_ACTIVE_OWNERSHIP_RECONCILIATION_UNLESS_CONFIRMED_QUOTED_PROVENANCE",
+      "action": "Replace obsolete studio-engine ownership/path with independently selectable asset leaf/port owner; preserve trait, deterministic, privacy, storage and proof constraints. Never replace with a mandatory mega facade.",
+      "proposed_line": "**[STU-SHL-009] Observability and quiet operation.** Every surface specified here MUST be discoverable, inspectable and steerable out of process through the AccessKit tree by stable `author_id` per [STU-MDL-002] and [STU-MDL-004], and MUST satisfy [STU-QUIET-001] through [STU-QUIET-005]: no foreground window, no focus steal, no OS-level input injection, no cursor warping, no pane popping while an operator or another agent works elsewhere. `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in selected render provider.",
+      "replacement_review": "Full ARC/OVR replacements win; spans across multiple domains resolve approved module map, not a mandatory facade."
+    }
+  ],
+  "hbr_rule_ids": [
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-003",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005",
+    "HBR-PRIV-006",
+    "HBR-PRIV-007",
+    "HBR-PRIV-008",
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-003",
+    "HBR-INT-004",
+    "HBR-INT-005",
+    "HBR-INT-006",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004",
+    "HBR-SWARM-005",
+    "HBR-SWARM-006",
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-QUIET-004",
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005",
+    "HBR-COMPART-001",
+    "HBR-COMPART-002",
+    "HBR-COMPONENT-001",
+    "HBR-COMPONENT-002"
+  ],
+  "proposed_crate_nodes_reference_only": [
+    {
+      "id": "ENG-CRATE-ACCORD",
+      "key": "accord",
+      "proposed_name": "hsk-studio-accord",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [],
+      "responsibility": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies."
+    },
+    {
+      "id": "ENG-CRATE-OBSERVE",
+      "key": "observe",
+      "proposed_name": "hsk-studio-observe",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord"
+      ],
+      "responsibility": "Typed diagnostic sink/progress and correlation ports; do not copy authority/FlightRecorder into each engine."
+    },
+    {
+      "id": "ENG-CRATE-FOLIO",
+      "key": "folio",
+      "proposed_name": "hsk-studio-folio",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord"
+      ],
+      "responsibility": "One StudioDocument graph/schema and immutable snapshots shared by all domains, not per-vendor models. Photo virtual-copy/develop recipe links reference CKC asset identities; catalog keywords/collections/relink authority is CKC, never a Folio-private catalog."
+    },
+    {
+      "id": "ENG-CRATE-CHRONICLE",
+      "key": "chronicle",
+      "proposed_name": "hsk-studio-chronicle",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "observe"
+      ],
+      "responsibility": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner."
+    },
+    {
+      "id": "ENG-CRATE-PRISM",
+      "key": "prism",
+      "proposed_name": "hsk-studio-prism",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "observe"
+      ],
+      "responsibility": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version."
+    },
+    {
+      "id": "ENG-CRATE-PIGMENT",
+      "key": "pigment",
+      "proposed_name": "hsk-studio-pigment",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "prism",
+        "observe"
+      ],
+      "responsibility": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency."
+    },
+    {
+      "id": "ENG-CRATE-NIB",
+      "key": "nib",
+      "proposed_name": "hsk-studio-nib",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "observe"
+      ],
+      "responsibility": "Vector geometry/path operations, live geometry validation; no raster editor dependency."
+    },
+    {
+      "id": "ENG-CRATE-TYPE",
+      "key": "type",
+      "proposed_name": "hsk-studio-type",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "observe"
+      ],
+      "responsibility": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains."
+    },
+    {
+      "id": "ENG-CRATE-LAYOUT",
+      "key": "layout",
+      "proposed_name": "hsk-studio-layout",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "type",
+        "nib",
+        "observe"
+      ],
+      "responsibility": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms."
+    },
+    {
+      "id": "ENG-CRATE-DEVELOP",
+      "key": "develop",
+      "proposed_name": "hsk-studio-develop",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "pigment",
+        "prism",
+        "observe"
+      ],
+      "responsibility": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog."
+    },
+    {
+      "id": "ENG-CRATE-COMPONENTS",
+      "key": "components",
+      "proposed_name": "hsk-studio-components",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "layout",
+        "observe"
+      ],
+      "responsibility": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app."
+    },
+    {
+      "id": "ENG-CRATE-PULSE",
+      "key": "pulse",
+      "proposed_name": "hsk-studio-pulse",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "observe"
+      ],
+      "responsibility": "Canonical integer-tick sequence time at 254016000000 ticks/second per STU-VID-012 and normalized broadcast ticks/frame per STU-VID-013. Preserve declared field types with checked arithmetic/range; rational time is for interchange adapters, never a competing stored authority. Own edit/trim/ripple/multicam references and scheduling; media decoder behind typed port."
+    },
+    {
+      "id": "ENG-CRATE-SCORE",
+      "key": "score",
+      "proposed_name": "hsk-studio-score",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "observe"
+      ],
+      "responsibility": "Audio integer sample/channel/timing, DSP, spectral selection/repair/restoration, mix/routing/streaming/latency and waveform/loudness semantics for picture-post workflows. Device I/O such as CPAL, native codecs and plug-in hosting are separate optional provider leaves, not implied pure DSP support."
+    },
+    {
+      "id": "ENG-CRATE-REEL",
+      "key": "reel",
+      "proposed_name": "hsk-studio-reel",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "observe"
+      ],
+      "responsibility": "Decode/encode media/proxy-provider adapters; native codec bindings opt-in, never reachable from raster/type default closure."
+    },
+    {
+      "id": "ENG-CRATE-MOTION",
+      "key": "motion",
+      "proposed_name": "hsk-studio-motion",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "nib",
+        "type",
+        "observe"
+      ],
+      "responsibility": "Keyframes/easing, compositing/effect graph semantics and expressions policy; shared exact time/schema comes from Accord/Folio. Sequence/media references use provider contracts, so composition/keyframe math does not unconditionally pull NLE edit algorithms. No vendor runtime."
+    },
+    {
+      "id": "ENG-CRATE-COMPOSITE",
+      "key": "composite",
+      "proposed_name": "hsk-studio-composite",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "prism",
+        "pigment",
+        "nib",
+        "type",
+        "observe"
+      ],
+      "responsibility": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure."
+    },
+    {
+      "id": "ENG-CRATE-RENDER_CPU",
+      "key": "render_cpu",
+      "proposed_name": "hsk-studio-render-cpu",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "prism",
+        "pigment",
+        "nib",
+        "type",
+        "observe"
+      ],
+      "responsibility": "CPU render backend/reference; opt-in professional reference cases require external independent oracles."
+    },
+    {
+      "id": "ENG-CRATE-RENDER_GPU",
+      "key": "render_gpu",
+      "proposed_name": "hsk-studio-render-gpu",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "prism",
+        "pigment",
+        "nib",
+        "type",
+        "observe"
+      ],
+      "responsibility": "wgpu backend/device lifecycle, residency and budgets; GPU API types hidden from document/contracts."
+    },
+    {
+      "id": "ENG-CRATE-PACKAGE",
+      "key": "package",
+      "proposed_name": "hsk-studio-package",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "observe"
+      ],
+      "responsibility": "Native document container serialization, manifest/hash references, atomic recovery and bounded loading. Stream asset bytes through CKC/PRIM-ArtifactService provider ports; no private catalog, preview cache, metadata store, watcher or second CAS under STU-ASSET-004/009/010. Standalone fixtures supply scoped in-memory resolver inputs rather than kernel imports."
+    },
+    {
+      "id": "ENG-CRATE-INTEROP_PSD",
+      "key": "interop_psd",
+      "proposed_name": "hsk-studio-interop-psd",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "pigment",
+        "prism",
+        "type",
+        "observe"
+      ],
+      "responsibility": "PSD/PSB conversion with provenance and structured unsupported/loss report; preserve originals/unknown bytes."
+    },
+    {
+      "id": "ENG-CRATE-INTEROP_VECTOR",
+      "key": "interop_vector",
+      "proposed_name": "hsk-studio-interop-vector",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "nib",
+        "type",
+        "prism",
+        "observe"
+      ],
+      "responsibility": "SVG/AI/PDF adapter family; split heavy PDF parser out of default SVG closure when graph evidence warrants."
+    },
+    {
+      "id": "ENG-CRATE-INTEROP_FIG",
+      "key": "interop_fig",
+      "proposed_name": "hsk-studio-interop-fig",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "components",
+        "type",
+        "observe"
+      ],
+      "responsibility": "Offline .fig proprietary-version decoder and conversion adapter owner; decoder availability NOT_PROVEN. Preserve original/source-qualified IDs and map components/variants/variables/modes/auto-layout/prototypes with loss receipts. SVG/PNG/token/API interchange does not replace required editable .fig import."
+    },
+    {
+      "id": "ENG-CRATE-INTEROP_LAYOUT",
+      "key": "interop_layout",
+      "proposed_name": "hsk-studio-interop-layout",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "layout",
+        "type",
+        "prism",
+        "observe"
+      ],
+      "responsibility": "IDML/INDD/print interchange conversion; no claim INDD readable without actual decoder proof."
+    },
+    {
+      "id": "ENG-CRATE-INTEROP_MEDIA",
+      "key": "interop_media",
+      "proposed_name": "hsk-studio-interop-media",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "pulse",
+        "motion",
+        "score",
+        "observe"
+      ],
+      "responsibility": "Native video/motion/catalog interchange; loss-aware typed graph adapters, licensed format support remains evidenced per fixture."
+    },
+    {
+      "id": "ENG-CRATE-CONTROLS",
+      "key": "controls",
+      "proposed_name": "hsk-studio-controls",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "observe"
+      ],
+      "responsibility": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app."
+    },
+    {
+      "id": "ENG-CRATE-SESSION",
+      "key": "session",
+      "proposed_name": "hsk-studio-session",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "chronicle",
+        "package",
+        "observe"
+      ],
+      "responsibility": "Headless single-document operation orchestration, provider registration and test ports. Multi-output delivery captures immutable revision/presets/output verification and uses existing Job Runtime via a port for queue/watchfolder/cancel/retry, without a second job database or queue authority. No built-in all-engine mega dependency."
+    },
+    {
+      "id": "ENG-CRATE-HARNESS",
+      "key": "harness",
+      "proposed_name": "hsk-studio-harness",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "session",
+        "controls",
+        "render_cpu",
+        "observe"
+      ],
+      "responsibility": "Standalone Studio asset desktop/CLI harness; domain engines/renderer loaded through explicit feature/member selections."
+    },
+    {
+      "id": "ENG-CRATE-KERNEL_BINDINGS",
+      "key": "kernel_bindings",
+      "proposed_name": "hsk-studio-kernel-bindings",
+      "naming_status": "PROPOSED_NON_AUTHORITATIVE_USER_REQUESTED",
+      "depends_on": [
+        "accord",
+        "folio",
+        "session",
+        "observe"
+      ],
+      "responsibility": "Later owned adapter for AppState/EventLedger/SurrealDB/PromotionGate/Argus/manual. Only this integration target may depend on handshake_core/native integration surfaces."
+    }
+  ],
+  "scope": "All occurrences of studio-engine and src/studio/ in active Studio module inventoried. Crosscut owners preserved, no implementation or parity verdict.",
+  "direct_source_owner_inspection": [
+    {
+      "id": "HS-OWNER-COMMANDS",
+      "capability": "Shell command descriptors and enablement",
+      "lowest_existing_owner": "src/frontend/handshake_native/src/command_registry.rs:57",
+      "visibility": "public AppCommand/CommandKind; shell dispatch private in app.rs",
+      "consumer": "src/frontend/handshake_native/src/app.rs:14432",
+      "studio_disposition": "Consume/extend central descriptors; no new command-palette/menu dispatch owner.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "9623d25b7b6271101213b9bc3a7f3d69ea6ee64452570a0dead6e0d5807570ce",
+      "excerpt_start": 56,
+      "excerpt_end": 67,
+      "exact_excerpt": "#[derive(Debug, Clone, Copy)]\npub struct AppCommand {\n    /// Stable command id the dispatcher matches on (e.g. `\"usermanual.open\"`, `\"editor.format.bold\"`).\n    pub id: &'static str,\n    /// Whether this is a shell (App) or editor (Editor) command.\n    pub kind: CommandKind,\n    /// Operator/model-facing label shown as the row's bold title.\n    pub label: &'static str,\n    /// Muted secondary description shown on the right of the row.\n    pub description: &'static str,\n    /// Search keywords folded into the `matches_query` haystack alongside label + description.\n    pub keywords: &'static [&'static str],",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-INTERACTION",
+      "capability": "Workspace-scoped ephemeral focus, selection, clipboard, cross-pane command and history",
+      "lowest_existing_owner": "src/frontend/handshake_native/src/interop/interaction_bus.rs:525",
+      "visibility": "public API; fields private",
+      "consumer": "src/frontend/handshake_native/src/app.rs:14873",
+      "studio_disposition": "Add published Studio selection/domain contracts to existing owner; introduce explicit per-agent scoped contexts instead of one invisible global selection per engine.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "e7dd3626f3b36354a052e4f3cdace287bd1a4ddd907b1e94d07219f96acc2685",
+      "excerpt_start": 524,
+      "excerpt_end": 535,
+      "exact_excerpt": "/// retrieved by every pane via [`Self::get_or_init`].\npub struct InteractionBus {\n    /// Workspace identity for all ephemeral focus/selection state carried by this bus. Rebinding bumps\n    /// `workspace_generation` and clears the old workspace's selection before any consumer can reuse it.\n    workspace_id: String,\n    workspace_generation: u64,\n    /// The single shared selection model (the focused pane owns the active variant).\n    selection: SharedSelection,\n    /// The pane that currently owns focus (so a selection publish from a non-focused pane is ignored \u2014\n    /// the focused pane is the selection authority).\n    focus_owner: Option<PaneId>,\n    /// True when the focused pane's active surface owns only cross-pane history (currently the",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-UNDO",
+      "capability": "Local and compensating cross-pane session undo",
+      "lowest_existing_owner": "src/frontend/handshake_native/src/undo_stack.rs:437",
+      "visibility": "public UnifiedUndoScope",
+      "consumer": "src/frontend/handshake_native/src/interop/interaction_bus.rs:592",
+      "studio_disposition": "Register operations into canonical undo authority, preserving engine-local transactions; do not serialize this session ring as durable history or assume it is CRDT undo.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "90f11c410dbad412bdb18550fcb57981043fbb6e36af6dc68ccdba0391f872bf",
+      "excerpt_start": 436,
+      "excerpt_end": 447,
+      "exact_excerpt": "#[derive(Debug, Default)]\npub struct UnifiedUndoScope {\n    /// One bounded undo ring per pane (POLICY-1 local-first).\n    pane_rings: HashMap<PaneId, PaneUndoRing>,\n    /// The single cross-pane ring (POLICY-2).\n    cross_pane_ring: CrossPaneUndoRing,\n    pending_cross_pane: HashMap<String, PendingCrossPaneAction>,\n}\n\n#[derive(Debug, Clone, Copy, PartialEq, Eq)]\npub enum AsyncUndoDirection {\n    Undo,",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-PANES",
+      "capability": "Pane identity/state/factory interface",
+      "lowest_existing_owner": "src/frontend/handshake_native/src/pane_registry.rs:166",
+      "visibility": "public PaneRecord/PaneRegistry/PaneRenderContext/PaneFactory",
+      "consumer": "src/frontend/handshake_native/src/editor_pane_factories.rs:188",
+      "studio_disposition": "One reusable panel mechanic with bound instances; instance IDs include view/doc/scope; multiple instances can show different semantic tools simultaneously.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "c58393e52047d37ee26df84d08cfb0187c7a7b1cbc4c041353325938ae59c167",
+      "excerpt_start": 165,
+      "excerpt_end": 176,
+      "exact_excerpt": "#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct PaneRecord {\n    pub pane_id: PaneId,\n    pub pane_type: PaneType,\n    /// Workspace/project identifier this pane belongs to.\n    pub project_id: String,\n    /// The content this pane shows (document_id / canvas_id / block_id, etc.), when applicable.\n    pub content_id: Option<String>,\n    pub lock_state: LockState,\n    pub dirty: DirtyState,\n    pub authority: PaneAuthority,\n    /// In-memory last-touch marker; never serialized (see struct docs).",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-HEADER",
+      "capability": "Pane header and stable header/title/lock identities",
+      "lowest_existing_owner": "src/frontend/handshake_native/src/pane_header.rs:228",
+      "visibility": "public PaneHeader::show",
+      "studio_disposition": "Consume existing header mechanic; extend state contract once.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "5425c6d98da481a79609b7e5d7846bc3e30aa157c6c294556ca36571912cf99f",
+      "excerpt_start": 227,
+      "excerpt_end": 238,
+      "exact_excerpt": "/// and owns nothing (mirrors [`crate::tab_bar::TabBar`] / [`crate::split_layout::SplitLayoutWidget`]).\npub struct PaneHeader;\n\nimpl PaneHeader {\n    /// Render the pane header into `ui` and return the interactions it produced.\n    ///\n    /// - `pane_id`: the kebab-case pane key (drives the lock button's stable id).\n    /// - `active_tab_label`: the label of the pane's ACTIVE tab, read from the live tab-bar state by\n    ///   the caller every frame (so the title binding is never stale). Empty for a pane with no tabs.\n    /// - `locked`: whether the pane record is currently locked (drives the Lock/Unlock label + accent).\n    /// - `is_last_pane`: whether this is the only pane (drives the header context menu's `Close Pane`\n    ///   disable reason; red-team: never offer to close the only pane).",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-LAYOUT",
+      "capability": "Native split/tab layout geometry and divider interaction",
+      "lowest_existing_owner": "src/frontend/handshake_native/src/split_layout.rs:322",
+      "visibility": "public geometry/Clamp/Widget functions",
+      "studio_disposition": "Use host layout owner; Studio engine cannot own panes or persist a second layout authority.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "1b28dfbfb4d9760d3752234c1705fa34bee4f497d073d7dda7d1df0bfdc9dcd7",
+      "excerpt_start": 321,
+      "excerpt_end": 332,
+      "exact_excerpt": "/// owns nothing, so it is safe to construct per frame (mirrors [`crate::pane_registry::PaneHostWidget`]).\npub struct SplitLayoutWidget;\n\n/// Tab-close intent emitted by the stateless split host for the app to reconcile. The app owns\n/// dirty confirmation, save/discard, editor-panel lifetime, and LSP `didClose`; removing the tab in\n/// this layout widget would bypass those document responsibilities.\n#[derive(Debug, Clone, PartialEq, Eq)]\npub struct TabCloseRequest {\n    pub pane_id: PaneId,\n    pub tab_index: usize,\n}\n",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-POPUP",
+      "capability": "Context menu item/submenu/disabled state and popup open/dismiss",
+      "lowest_existing_owner": "src/frontend/handshake_native/src/context_menu.rs:98",
+      "visibility": "public ContextMenu/ContextMenuItem",
+      "studio_disposition": "Extend generic metadata/instances for tools/swatch/slider menus; use common popup projection.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "c4f5897ee6db9cd965c0a2f548ffada004b8231721063af3dca439ad31ad246f",
+      "excerpt_start": 97,
+      "excerpt_end": 108,
+      "exact_excerpt": "#[derive(Debug, Clone, PartialEq, Eq)]\npub struct ContextMenuItem {\n    /// Stable author id the caller maps to an action; also the AccessKit address (`ctx-menu.{id}`).\n    pub id: &'static str,\n    /// Human/model-readable display label.\n    pub label: &'static str,\n    /// Optional right-aligned shortcut hint (e.g. `\"Ctrl+W\"`); rendered dimmed, purely informational.\n    pub shortcut_hint: Option<&'static str>,\n    /// When false the item renders greyed and cannot be confirmed.\n    pub enabled: bool,\n    /// Disclosed reason shown on disabled-hover (no silent dead controls). Ignored when `enabled`.\n    pub disabled_reason: Option<&'static str>,",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-THEME",
+      "capability": "Semantic palette/theme application",
+      "lowest_existing_owner": "src/frontend/handshake_native/src/theme/mod.rs:14",
+      "visibility": "public HsPalette/HsTheme reexports",
+      "studio_disposition": "Use shared tokens; no Adobe clone CSS or per-engine palettes.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "f93f625b1afecce8e30efacc5c4f901ff1977d2b2c938ace811bd87deffc2fe6",
+      "excerpt_start": 13,
+      "excerpt_end": 22,
+      "exact_excerpt": "\npub mod egui_apply;\npub mod palette;\npub mod syntax;\n\npub use egui_apply::apply_to_ctx;\npub use palette::{parse_color, HsPalette, HsTheme};\npub use syntax::{\n    HsDiagnosticTokens, HsSyntaxTokens, SyntaxPaletteEntry, MUTED_PALETTE, STANDARD_PALETTE,\n};",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-ACCESSIBILITY",
+      "capability": "Live AccessKit nodes and structured snapshot projection",
+      "lowest_existing_owner": "src/frontend/handshake_native/src/accessibility/mod.rs:41",
+      "visibility": "public emit_interactive_node, snapshots; live.rs private module with reexports",
+      "studio_disposition": "Expose control semantics at owning asset; add numeric ParamSpec/time/color/provenance using canonical schema.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "42683c4015de11530ab0d6751728e541bd9af3dbe0ff87265c171a0f291191d6",
+      "excerpt_start": 40,
+      "excerpt_end": 51,
+      "exact_excerpt": "mod live;\npub mod popup_projection;\nmod registry;\nmod snapshot;\n\npub use editor_action_registry::{\n    AxRole, EditorActionNode, EditorActionRegistry, EditorActionState, PaneType,\n    RegistrationHandle, HEALTH_CANARY_AUTHOR_ID,\n};\n// MT-042 (E7) knowledge-surface action registry. Re-exported under disambiguated names where they would\n// otherwise shadow the MT-041 `editor_action_registry` re-exports (`AxRole`,\n// `HEALTH_CANARY_AUTHOR_ID`); those two stay module-qualified",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-ARGUS",
+      "capability": "UI tool names, token, leases, queue and observed completion",
+      "lowest_existing_owner": "src/frontend/handshake_native/src/mcp/argus.rs:8",
+      "visibility": "public methods and server facade; dispatch functions own wire mechanics",
+      "studio_disposition": "One shipped canonical Argus surface; engine command adapters + image provenance extensions, not a new unrelated automation daemon.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "1b6b5705b8063096287da35691a96c2a05d7998c0995098e1215da8661ed166c",
+      "excerpt_start": 7,
+      "excerpt_end": 18,
+      "exact_excerpt": "/// Canonical read-the-live-AccessKit-tree method.\npub const ARGUS_INSPECT_METHOD: &str = \"argus.inspect\";\n/// Canonical activate-an-addressed-control method.\npub const ARGUS_CLICK_METHOD: &str = \"argus.click\";\n/// Canonical replace-an-addressed-control's whole value method.\npub const ARGUS_SET_VALUE_METHOD: &str = \"argus.set_value\";\n/// Canonical focus-safe pixel capture method.\npub const ARGUS_SCREENSHOT_METHOD: &str = \"argus.screenshot\";\n\n/// Legacy aliases retained only at the compatibility boundary.\npub const LEGACY_INSPECT_METHOD: &str = \"list_widgets\";\npub const LEGACY_CLICK_METHOD: &str = \"click_widget\";",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-DOCUMENT",
+      "capability": "RichDocument validation/projection/create/save flow",
+      "lowest_existing_owner": "src/backend/handshake_document/src/operations.rs:13",
+      "visibility": "public DocumentStore/DocumentHost and model; concrete mutation private core SQL helper",
+      "studio_disposition": "Reuse host boundary pattern, validation/shared identity/helpers. Native Studio graph is separate approved domain model within a unified Handshake document, not a forked RichDocument persistence service.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "fa59ad287912b9dc99dc3f3df9f90b564daaa2c1ed5ad9cd88649db81d428fc2",
+      "excerpt_start": 12,
+      "excerpt_end": 23,
+      "exact_excerpt": "#[async_trait::async_trait]\npub trait DocumentStore: Send + Sync {\n    async fn create_knowledge_rich_document(\n        &self,\n        value: NewKnowledgeRichDocument,\n    ) -> Result<KnowledgeRichDocument, StorageError>;\n    async fn create_knowledge_rich_document_with_profile_read(\n        &self,\n        value: NewKnowledgeRichDocument,\n        _profile_can_read_fs: Option<bool>,\n    ) -> Result<KnowledgeRichDocument, StorageError> {\n        self.create_knowledge_rich_document(value).await",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-AUTHORITY",
+      "capability": "Account/resource authorization and record-user query scoping",
+      "lowest_existing_owner": "src/backend/handshake_core/src/api/authority.rs:5",
+      "visibility": "core public authority module; middleware grants task-scoped auth",
+      "consumer": "src/backend/handshake_core/src/api/knowledge_documents.rs:284",
+      "studio_disposition": "Host integrates resource permission checks before edits/import/export; do not grant authority from Argus session labels or UI visibility.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "f1a434c71d3d71150c99ecf9bea75ab2e2f524f6fda72bde668d054f28a41274",
+      "excerpt_start": 4,
+      "excerpt_end": 15,
+      "exact_excerpt": "//! session, access-space, capability, and ResourceGrant state are resolved independently by the\n//! Surreal-backed ResourceBroker before any protected product query is allowed.\n\nuse axum::{\n    extract::State,\n    http::{HeaderMap, StatusCode},\n    routing::{get, post},\n    Json, Router,\n};\nuse chrono::Duration;\nuse serde::{Deserialize, Serialize};\nuse serde_json::{json, Value};",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-STORAGE-SUPPORT",
+      "capability": "Errors, keyed locks, replay-safe retry and timing",
+      "lowest_existing_owner": "src/backend/handshake_storage_support/src/lib.rs:1",
+      "visibility": "public independent package APIs",
+      "studio_disposition": "Reuse where needed; algorithms do not pull database engine. Keyed locks shape contention but atomic DB guards own correctness.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "aeac9a69da9fbd8dac54bc635878708aff2bd2eafbfc6aaefb59da11e7debf9b",
+      "excerpt_start": 1,
+      "excerpt_end": 8,
+      "exact_excerpt": "//! Shared storage error, keyed lock and bounded retry contracts.\nmod error;\npub use error::{StorageError, StorageResult};\npub mod canonical_json;\npub mod keyed_lock;\npub mod retry;\n\npub mod diagnostics;",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-LEDGER",
+      "capability": "Durable kernel events and native event/FR mirror",
+      "lowest_existing_owner": "src/backend/handshake_core/src/kernel/mod.rs:547",
+      "visibility": "NewKernelEvent public; event_ledger storage module pub(crate)",
+      "consumer": "src/backend/handshake_core/src/api/flight_recorder.rs:1581",
+      "studio_disposition": "Extend typed event registration/validation and adapter sinks; preserve pending/completed idempotency sequencing.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "b7b707f86e30b7509dc073da32593feba5c5a1e9d998e27832137df10989fc8a",
+      "excerpt_start": 546,
+      "excerpt_end": 557,
+      "exact_excerpt": "#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]\npub struct NewKernelEvent {\n    pub event_version: String,\n    pub kernel_task_run_id: String,\n    pub session_run_id: String,\n    pub aggregate_type: String,\n    pub aggregate_id: String,\n    pub idempotency_key: String,\n    pub event_type: KernelEventType,\n    pub actor: KernelActor,\n    pub causation_id: Option<String>,\n    pub correlation_id: Option<String>,",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-DIAG-SCHEMA",
+      "capability": "Privacy-safe bounded POD telemetry and shared-memory ring",
+      "lowest_existing_owner": "src/frontend/handshake_native/diag_ring/src/schema.rs:158",
+      "visibility": "public separate package, no strings/pointers",
+      "studio_disposition": "Common diagnostics contract for all leaf crates. Allocate audited module/category numeric IDs rather than hidden free-text payloads.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "d10f36b9ef1613189d04d7c6a8eaf614eb2a8b910b55f1bbe3416eafc438cf7b",
+      "excerpt_start": 157,
+      "excerpt_end": 168,
+      "exact_excerpt": "#[repr(C)]\npub struct DiagEvent {\n    /// Numeric event kind \u2014 a [`DiagEventCode`] discriminant.\n    pub event_code: u16,\n    /// Coarse phase \u2014 a [`DiagPhase`] discriminant.\n    pub phase_marker: u8,\n    /// Severity \u2014 a [`DiagSeverity`] discriminant.\n    pub severity: u8,\n    /// Explicit padding so the struct has ZERO implicit padding (required for `bytemuck::Pod` and\n    /// for a stable cross-process ABI). NOT a content field; always zero.\n    pub _reserved: [u8; 4],\n    /// Opaque numeric producer thread identifier.",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-DIAG-RECORDER",
+      "capability": "Multiproducer admission to SPSC ring + in-app buffer",
+      "lowest_existing_owner": "src/frontend/handshake_native/src/diagnostics/recorder.rs:113",
+      "visibility": "public global facade, recorder private state",
+      "studio_disposition": "Existing mutex serializes worker producers. Do not call this allocating/locking path on realtime audio callback; aggregate bounded telemetry off callback; only UI thread heartbeat.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "1eebcb2988cebad584a58958e7f856b075f6e855d972f6e6a0473bb68e3e18c7",
+      "excerpt_start": 112,
+      "excerpt_end": 123,
+      "exact_excerpt": "    /// UI thread.\n    pub fn record(&self, event: DiagEvent) {\n        // In-process buffer (what the panel reads). Recover a poisoned lock instead of panicking.\n        let mut guard = match self.buffer.lock() {\n            Ok(g) => g,\n            Err(poisoned) => poisoned.into_inner(),\n        };\n        if guard.len() >= BUFFER_CAP {\n            guard.pop_front();\n            self.dropped.fetch_add(1, Ordering::Relaxed);\n        }\n        guard.push_back(event);",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-PALMISTRY",
+      "capability": "Out-of-process freeze/crash/child-stall diagnosis",
+      "lowest_existing_owner": "src/frontend/palmistry/src/lib.rs:22",
+      "visibility": "public library plus external binary",
+      "consumer": "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs:237",
+      "studio_disposition": "Register long-lived media/plugin children through existing host watcher; no watcher per leaf crate; preserve explicit clean shutdown.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "cb7402d8d8d1ca980b41e017dbb4b6b6b49ba4eddb8451bde1ec97e9b9e258ca",
+      "excerpt_start": 21,
+      "excerpt_end": 32,
+      "exact_excerpt": "\npub mod child_registry;\npub mod child_stall;\npub mod cli;\npub mod control;\npub mod crash_capture;\npub mod fr_forward;\npub mod freeze_detect;\npub mod hung_window_probe;\npub mod lifecycle;\npub mod ring_reader;\npub mod survivor_store;",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "id": "HS-OWNER-MANUAL",
+      "capability": "Authoritative product manual and native presentation",
+      "lowest_existing_owner": "src/backend/handshake_core/src/user_manual/mod.rs:40",
+      "visibility": "core UserManual registry/store/seed; native ManualRegistry::register_section",
+      "consumer": "src/frontend/handshake_native/src/manual_pane.rs:231",
+      "studio_disposition": "Extend authoritative pages/tools/features/diagnostic recovery rows and generate native projection. Avoid maintaining divergent parallel static manuals.",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "7dc28352c965e77f1226bb49aefec29f667d50a6f81e8b4978525f7105540548",
+      "excerpt_start": 39,
+      "excerpt_end": 50,
+      "exact_excerpt": "\npub mod bundle_bridge;\npub mod fixtures;\npub mod freshness;\npub mod migration_plan;\npub mod projection;\npub mod registry;\npub mod seed;\npub mod spec_seed;\npub mod store;\n\npub use migration_plan::{",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "lowest_existing_owner": "src/backend/handshake_core/src/kernel/crdt/mod.rs:1",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "56a2f4440abfe3d5cd0eb476b2ec36f822905dcdea921e14977d4dcf547e0ff3",
+      "excerpt_start": 1,
+      "excerpt_end": 11,
+      "exact_excerpt": "pub mod actor_site;\npub mod agent_lease;\npub mod ai_edit_proposal;\npub mod claim_promotion;\npub mod conflict_presence;\npub mod conflict_ui;\npub mod context_slice;\npub mod graph_proposal;\npub mod identity;\npub mod index_run_guard;\npub mod offline_boundary;",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "lowest_existing_owner": "src/backend/handshake_core/src/kernel/promotion.rs:1",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "d7fb25724ce0f23978eef879bbf9b128a7a919199b4d7fdca814f6f6cca2c647",
+      "excerpt_start": 1,
+      "excerpt_end": 11,
+      "exact_excerpt": "use chrono::{DateTime, Utc};\nuse serde::{Deserialize, Serialize};\nuse serde_json::Value;\nuse std::path::Path;\nuse uuid::Uuid;\n\nuse super::context_bundle::canonical_json_bytes;\nuse super::model_adapter::ModelAdapterOutput;\nuse super::{KernelError, KernelEventType, KernelResult};\nuse crate::storage::EntityRef;\nuse crate::storage::artifacts::{",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "lowest_existing_owner": "src/backend/handshake_core/src/kernel/kb003_promotion/gate.rs:1",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "7c1c3e33fb4cefb68d84168441a13abdc4654bbef7d9f6861253972a44df6002",
+      "excerpt_start": 1,
+      "excerpt_end": 11,
+      "exact_excerpt": "//! MT-045/046/047/048: `PromotionGate` \u2014 the single `evaluate(...)` entry\n//! point that produces a typed `PromotionDecisionV1` and persists the\n//! corresponding `PromotionReceiptV1` through `Kb003Storage`.\n//!\n//! Acceptance composite:\n//! - MT-045 \"Deterministic Check Batch: blocking check failure prevents\n//!   promotion\" \u2014 `ValidationReport::aggregate_blocks_promotion()` short-\n//!   circuits to `PromotionRejectionReason::ValidationFailure` before any\n//!   approval or artifact check runs.\n//! - MT-046 \"Validation Evidence Bundle: validation report can be inspected\n//!   offline\" \u2014 the gate carries `report_artifact_ref` into the rejection",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "lowest_existing_owner": "src/backend/handshake_core/src/sandbox/mod.rs:1",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "8d93f3c9036f5b6990df1adc270928e787bc3e16cb6bb836feba6ef1463e5cc4",
+      "excerpt_start": 1,
+      "excerpt_end": 11,
+      "exact_excerpt": "//! Adapter-neutral sandbox contracts for KERNEL-004.\n\npub mod adapter;\npub mod bootstrap;\npub mod cloud_hypervisor;\npub mod docker;\npub mod guest_channel;\npub mod gvisor;\npub mod ledger_decorator;\npub mod promotion_binding;\npub mod registry;",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    },
+    {
+      "lowest_existing_owner": "src/backend/handshake_core/src/atelier/mod.rs:1",
+      "observed_product_worktree": "wtc-native-editors-v1",
+      "file_sha256": "99b81e0c97a6ab647cdc86511264ac29753fedb2d8b443c4532966c0c50d98ea",
+      "excerpt_start": 1,
+      "excerpt_end": 11,
+      "exact_excerpt": "//! Atelier/Lens domain (WP-KERNEL-005 legacy source fold-in).\n//!\n//! Storage authority is Handshake's single embedded SurrealDB store (RocksDB\n//! engine, in-process, namespace `handshake`, database `primary`) plus the\n//! EventLedger + ArtifactStore + CRDT. SQLite and PostgreSQL are FORBIDDEN in\n//! any form (runtime, tests, fixtures, cache, fallback); see\n//! [`assert_embedded_store_backend`] (MT-004, MT-138) and the kernel\n//! `no_sqlite_tripwire`.\n//!\n//! SURREALDB PORT (WP-KERNEL-012 MT-138). This file owns the domain SEAM \u2014 the\n//! store handle, the schema-readiness gate, and the event-recording path that",
+      "proof": "SOURCE_ONLY_NOT_RUNTIME"
+    }
+  ]
+}

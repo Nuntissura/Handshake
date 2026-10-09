@@ -1,0 +1,3082 @@
+{
+  "schema": "handshake.studio.root_independent_review@1",
+  "file_id": "STUDIO-ROOT-INDEPENDENT-REVIEW-2026-10-09",
+  "file_kind": "non_authoritative_design_review",
+  "updated_at": "2026-10-09T20:54:40.5102191Z",
+  "owner": "root/kernel_root_drill",
+  "status": "SOURCE_DESIGN_SCOPED_MT_AND_CONSUMER_PHASE_CORRECTIONS_ACCEPTED_NONEXEC",
+  "scope": {
+    "risk": "HIGH",
+    "skill": "C:/Users/Ilja Smets/.codex/skills/adversarial-code-review/SKILL.md",
+    "kind": "Design and source inspection, no implementation verdict",
+    "written_files": [
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/root-independent-review.json"
+    ],
+    "prohibited_actions_taken": [],
+    "builds_tests_runtime_gui": "NONE",
+    "spec_pointer_catalog": "Root owns; reviewer reads only",
+    "user_signature": "ilja091020261912",
+    "read_only_lrcat": "User approves bounded byte-only .lrcat parser; no SQL engine/query, writable catalog or second DB",
+    "assets_mirror": "Nuntissura/assets/handshake-studio-assets; docs governance-only"
+  },
+  "baselines": {
+    "WP012": {
+      "worktree": "../wtc-native-editors-v1",
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6"
+    },
+    "PHOTOCRAFT": {
+      "root": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "commit": "175603a644f10d2e8c61f82a63f7c2659c71dc47",
+      "archive_sha256": "e65a54d560d9075366b812778a59084665a064fdc8c47d8022ed6348b3919df3"
+    }
+  },
+  "DIFF_ATTACK_SURFACES": [
+    "Strict native load/save and opaque preservation",
+    "Atomic artifact and ledger/catalog publication",
+    "Streaming/admission/reference closure",
+    "Revoked grants and parallel views",
+    "Causal visual receipts",
+    "RT/SPSC diagnostics/privacy/cancellation",
+    "Feature closure and module owner",
+    "Descriptor/manual freshness",
+    "Bounded non-SQL catalog source decoder"
+  ],
+  "INDEPENDENT_CHECKS_RUN": [
+    {
+      "id": "CHECK-01",
+      "kind": "DIRECT_SOURCE",
+      "result": "Canonical JSON character escaping/key recursion opened."
+    },
+    {
+      "id": "CHECK-02",
+      "kind": "DIRECT_SOURCE",
+      "result": "Inline storage/mod.rs canonical artifact writer and sequential publication opened."
+    },
+    {
+      "id": "CHECK-03",
+      "kind": "DIRECT_UPSTREAM_SOURCE",
+      "result": "PhotoCraft manifest/store/load/atomic functions opened at pinned commit."
+    },
+    {
+      "id": "CHECK-04",
+      "kind": "DIRECT_SOURCE",
+      "result": "MCP capture, attribution, receipt and shared focus/selection opened."
+    },
+    {
+      "id": "CHECK-05",
+      "kind": "DIRECT_SOURCE",
+      "result": "Recorder serialization and Palmistry faithful-forwarding blocker opened."
+    },
+    {
+      "id": "CHECK-06",
+      "kind": "AUTHORITY_MANIFEST",
+      "result": "Current v206/HBR clauses and core unconditional RocksDB dependency inspected."
+    },
+    {
+      "id": "CHECK-07",
+      "kind": "CANDIDATE_SOURCE_RECONCILIATION",
+      "result": "v207 relevant normative changes and catalog opened; scoped source controls acceptable. Wholefile/body digests freshly match stored candidate identity; no implementation/parity verdict."
+    },
+    {
+      "id": "CHECK-08",
+      "kind": "PINNED_SOURCE_IDENTITY",
+      "result": "Fresh WP012 HEAD292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4 and empty git status; all32 source records rehashed. Five root-authored governance changes explicitly retained as prior identity history and current relevant projections reopened; all product/upstream proof-source hashes unchanged."
+    },
+    {
+      "id": "CHECK-09",
+      "kind": "SAMPLED_NONEXECUTABLE_CONTRACTS",
+      "result": "MT-001/MT-35428 authority migration and owner scope reopened; dispatchfalse, all-foundations predecessor and later original embedding acceptance retained. Full contract-batch review pending."
+    },
+    {
+      "id": "CHECK-10",
+      "kind": "BOUNDED_FINAL_SOURCE_DESIGN_DELTA",
+      "result": "Final MOT258 fresh-sample reset/AST owner, CON013 separate durable audits, IO190 identity modes, PLG020 asset-vs-host qualification and canonical owner/build boundaries reopened. Three candidate/catalog hashes match root targets; all18 product/upstream sources unchanged. No concrete design blocker in reviewed scope; runtime and whole MT corpus verdict not issued."
+    }
+  ],
+  "COUNTERFACTUAL_CHECKS": [
+    {
+      "finding_id": "STUDIO-ROOT-REV-001",
+      "scenario": "If a layer name/key contains U+0000/U+0008/U+000C, canonical_json_bytes hashes bytes which are invalid JSON."
+    },
+    {
+      "finding_id": "STUDIO-ROOT-REV-002",
+      "scenario": "If migrated Value includes a future optional field absent from Manifest/DocM, the inspected typed conversion has no extension storage for preserving it on save."
+    },
+    {
+      "finding_id": "STUDIO-ROOT-REV-003",
+      "scenario": "If remove_file succeeds and rename fails or the process dies, last-good has gone and error cleanup can remove the temporary replacement too."
+    },
+    {
+      "finding_id": "STUDIO-ROOT-REV-004",
+      "scenario": "If payload succeeds and manifest or later authority registration fails, bytes remain without complete provenance; regenerated retry identities can duplicate delivery."
+    },
+    {
+      "finding_id": "STUDIO-ROOT-REV-005",
+      "scenario": "If a multi-hour source passes through ArtifactWriteEntry.bytes Vec or payload &[u8] or PhotoCraft load_path, entry count limits do not prevent full-file allocation before storage."
+    },
+    {
+      "finding_id": "STUDIO-ROOT-REV-006",
+      "scenario": "If source permission is revoked after admission but before cached preview/export delivery, a reused admission decision or manifest grant could expose denied pixels/original bytes."
+    },
+    {
+      "finding_id": "STUDIO-ROOT-REV-007",
+      "scenario": "If distinct client_session_id clients use InteractionBus.selection/focus_owner, one reveal/selection can move another agent/operator despite widget leases."
+    },
+    {
+      "finding_id": "STUDIO-ROOT-REV-008",
+      "scenario": "If a second command or late render changes content before capture completion, a fresh timestamp/Applied receipt may pair with the wrong document/frame."
+    },
+    {
+      "finding_id": "STUDIO-ROOT-REV-009",
+      "scenario": "If audio callback calls record during reader contention it waits; if lock is deleted concurrent producers can tear non-atomic SPSC payload, as existing remediation explains."
+    },
+    {
+      "finding_id": "STUDIO-ROOT-REV-010",
+      "scenario": "If codec/GPU/FFI job outlives caller timeout and its budget is returned immediately, retries can exceed actual running-resource limits."
+    },
+    {
+      "finding_id": "STUDIO-ROOT-REV-011",
+      "scenario": "If host-neutral package imports core merely for storage or diagnostics, unconditional RocksDB remains even with no-default-features; separately implemented UI/import validation can diverge."
+    },
+    {
+      "finding_id": "STUDIO-ROOT-REV-012",
+      "scenario": "If standalone diagnostics are labelled embedded WIRED, consumers assume survivor ingestion exists while actual for_existing_fr rejects SchemaIncompatible before network."
+    },
+    {
+      "finding_id": "STUDIO-ROOT-REV-013",
+      "scenario": "If identical snapshot opens twice or external files reuse document/object IDs, unconditional preservation can alias unrelated live authority or replay stale edits."
+    }
+  ],
+  "BOUNDARY_PROBES": {
+    "execution": "SOURCE_ONLY",
+    "required_runtime_probes": [
+      {
+        "finding_id": "STUDIO-ROOT-REV-001",
+        "tests": [
+          "All control characters in values/keys, independent parser, Unicode, duplicate keys/trailing bytes, insertion-order hash determinism."
+        ]
+      },
+      {
+        "finding_id": "STUDIO-ROOT-REV-002",
+        "tests": [
+          "Nested unknown fields/tags/collisions; known edit plus two save/reopen cycles; unknown-preservation hashes; sanitized export excludes retained originals."
+        ]
+      },
+      {
+        "finding_id": "STUDIO-ROOT-REV-003",
+        "tests": [
+          "Windows locked destination/rename failure/disk full/crash before and after replace; restart recovery selects verified last-good or new file; no false promoted revision."
+        ]
+      },
+      {
+        "finding_id": "STUDIO-ROOT-REV-004",
+        "tests": [
+          "Crash after payload, manifest, CKC, pending/completed ledger; same-key retry, stale export, cancel before/after committed publication; no duplicate authority."
+        ]
+      },
+      {
+        "finding_id": "STUDIO-ROOT-REV-005",
+        "tests": [
+          "Larger-than-budget files, seek/range decoding, compression bombs, resolver changes during export, cancel during hashing/writing, measured bounded allocations."
+        ]
+      },
+      {
+        "finding_id": "STUDIO-ROOT-REV-006",
+        "tests": [
+          "Revoke nested graph/blob/original/cached preview mid-job, forged serialized grants, cross-account same IDs, stale cache, no denied bytes."
+        ]
+      },
+      {
+        "finding_id": "STUDIO-ROOT-REV-007",
+        "tests": [
+          "Two agents plus operator, same token distinct labels, disjoint/conflicting edits, independent frame/zoom/pane, reveal, disconnect/reconnect/lease expiry, cross-file and revoked views."
+        ]
+      },
+      {
+        "finding_id": "STUDIO-ROOT-REV-008",
+        "tests": [
+          "Delayed/reordered render, stale proxy, device loss, profile change, revoked view, concurrent commands/resize; open exact matched pixels and independently decode exported artifact."
+        ]
+      },
+      {
+        "finding_id": "STUDIO-ROOT-REV-009",
+        "tests": [
+          "Contended observer, telemetry flood/overflow/two producers, real callback deadlines, no torn ring entries, truthful drop counters, worker freeze/device loss."
+        ]
+      },
+      {
+        "finding_id": "STUDIO-ROOT-REV-010",
+        "tests": [
+          "Cancel queued/running/completing, timeout/retry storm, non-cooperative worker, resource release accounting, shutdown/owner death/restart, partial outputs never authority."
+        ]
+      },
+      {
+        "finding_id": "STUDIO-ROOT-REV-011",
+        "tests": [
+          "Exact package/features/target metadata/tree, control edit rebuilt list, foundation/harness exclude core/native/database/codecs, duplicate capability ownership rejected."
+        ]
+      },
+      {
+        "finding_id": "STUDIO-ROOT-REV-012",
+        "tests": [
+          "Owned worker freeze/crash, faithful authorized FR path or explicit blocker, resource-filtering, no project data in ring/extras, manual/command references match executable registry."
+        ]
+      },
+      {
+        "finding_id": "STUDIO-ROOT-REV-013",
+        "tests": [
+          "Same native package twice, stale revision, explicit copy, conflicting external IDs, cross-account identity, shared linked assets; no silent alias/remint."
+        ]
+      }
+    ]
+  },
+  "NEGATIVE_PATH_CHECKS": {
+    "observed": [
+      "Raw JSON control character fallthrough",
+      "Destination deletion before rename",
+      "Payload-before-manifest write ordering",
+      "Actual authorization separates session/channel/resource from provenance",
+      "Survivor forward schema incompatibility before network",
+      "OS capture guard stays held until worker completion"
+    ],
+    "not_run": [
+      "fault injection",
+      "revocation/redaction",
+      "hostile archive corpus",
+      "RT deadlines",
+      "swarm runtime",
+      "visual export fidelity"
+    ]
+  },
+  "INDEPENDENT_FINDINGS": [
+    {
+      "id": "STUDIO-ROOT-REV-001",
+      "severity": "HIGH",
+      "issue": "Existing canonical JSON helper emits raw control characters for U+0000..001F except newline/CR/tab, including map keys.",
+      "spec_ids": [
+        "STU-IO-001",
+        "STU-PW-004",
+        "STU-HIS-004"
+      ],
+      "proposal_ids": [
+        "STUDIO-DOC-PROP-002",
+        "STUDIO-DOC-PROP-005"
+      ],
+      "source": [
+        "WP012:src/backend/handshake_storage_support/src/canonical_json.rs:23",
+        "WP012:src/backend/handshake_storage_support/src/canonical_json.rs:30",
+        "WP012:src/backend/handshake_storage_support/src/canonical_json.rs:53"
+      ],
+      "counterfactual": "If a layer name/key contains U+0000/U+0008/U+000C, canonical_json_bytes hashes bytes which are invalid JSON.",
+      "mitigation": "Standards-valid canonical serializer at existing shared owner; define numeric/Unicode/key rules and duplicate-key rejection, no duplicate Studio helper.",
+      "tests": [
+        "All control characters in values/keys, independent parser, Unicode, duplicate keys/trailing bytes, insertion-order hash determinism."
+      ],
+      "status": "SOURCE_HAZARD_OR_DESIGN_PROOF_GATE; NOT_RUNTIME_VERDICT",
+      "candidate_resolution": {
+        "status": "DESIGN_CONTROL_PRESENT_IMPLEMENTATION_PROOF_REMAINS",
+        "spec_ids": [
+          "STU-IO-187",
+          "STU-ARC-018"
+        ]
+      }
+    },
+    {
+      "id": "STUDIO-ROOT-REV-002",
+      "severity": "HIGH",
+      "issue": "Inspected upstream typed manifest is insufficient for exact unknown optional-field preservation.",
+      "spec_ids": [
+        "STU-IO-001",
+        "STU-IO-100"
+      ],
+      "proposal_ids": [
+        "STUDIO-DOC-PROP-002",
+        "STUDIO-DOC-PROP-005"
+      ],
+      "source": [
+        "PHOTOCRAFT:crates/format/src/manifest.rs:24",
+        "PHOTOCRAFT:crates/format/src/manifest.rs:37",
+        "PHOTOCRAFT:crates/format/src/store.rs:136",
+        "PHOTOCRAFT:crates/format/src/store.rs:140"
+      ],
+      "counterfactual": "If migrated Value includes a future optional field absent from Manifest/DocM, the inspected typed conversion has no extension storage for preserving it on save.",
+      "mitigation": "Strict known semantic model plus bounded quarantined opaque/original bytes; specify byte identity vs canonical semantic identity; unknown mandatory rejects and unknown content never executes. This is an adoption barrier, not an upstream specification verdict.",
+      "tests": [
+        "Nested unknown fields/tags/collisions; known edit plus two save/reopen cycles; unknown-preservation hashes; sanitized export excludes retained originals."
+      ],
+      "status": "SOURCE_HAZARD_OR_DESIGN_PROOF_GATE; NOT_RUNTIME_VERDICT",
+      "candidate_resolution": {
+        "status": "DESIGN_CONTROL_PRESENT_IMPLEMENTATION_PROOF_REMAINS",
+        "spec_ids": [
+          "STU-IO-187",
+          "STU-IO-188"
+        ]
+      }
+    },
+    {
+      "id": "STUDIO-ROOT-REV-003",
+      "severity": "HIGH",
+      "issue": "Canonical overwrite helper deletes the last-good target before rename.",
+      "spec_ids": [
+        "STU-IO-001",
+        "STU-ASSET-009",
+        "STU-ASSET-012",
+        "STU-HIS-004"
+      ],
+      "proposal_ids": [
+        "STUDIO-DOC-PROP-003"
+      ],
+      "source": [
+        "WP012:src/backend/handshake_core/src/storage/mod.rs:745",
+        "WP012:src/backend/handshake_core/src/storage/mod.rs:785",
+        "WP012:src/backend/handshake_core/src/storage/mod.rs:788",
+        "WP012:src/backend/handshake_core/src/storage/mod.rs:789"
+      ],
+      "counterfactual": "If remove_file succeeds and rename fails or the process dies, last-good has gone and error cleanup can remove the temporary replacement too.",
+      "mitigation": "Do not reuse overwrite branch unchanged for native save. Later authorized implementation repairs canonical ArtifactService owner with atomic replacement plus retained last-good recovery; Studio consumes its port.",
+      "tests": [
+        "Windows locked destination/rename failure/disk full/crash before and after replace; restart recovery selects verified last-good or new file; no false promoted revision."
+      ],
+      "status": "SOURCE_HAZARD_OR_DESIGN_PROOF_GATE; NOT_RUNTIME_VERDICT",
+      "candidate_resolution": {
+        "status": "DESIGN_CONTROL_PRESENT_IMPLEMENTATION_PROOF_REMAINS",
+        "spec_ids": [
+          "STU-IO-187"
+        ]
+      }
+    },
+    {
+      "id": "STUDIO-ROOT-REV-004",
+      "severity": "HIGH",
+      "issue": "File, artifact manifest, CKC and EventLedger completion are separate effects.",
+      "spec_ids": [
+        "STU-ASSET-012",
+        "STU-ASSET-013",
+        "STU-PW-003",
+        "STU-PW-004"
+      ],
+      "proposal_ids": [
+        "STUDIO-DOC-PROP-003",
+        "STUDIO-DOC-PROP-009"
+      ],
+      "source": [
+        "WP012:src/backend/handshake_core/src/storage/mod.rs:939",
+        "WP012:src/backend/handshake_core/src/storage/mod.rs:940"
+      ],
+      "counterfactual": "If payload succeeds and manifest or later authority registration fails, bytes remain without complete provenance; regenerated retry identities can duplicate delivery.",
+      "mitigation": "Staged immutable artifact/source-revision identity, idempotent publication through existing owners and explicit orphan reconciliation at every crash boundary; no second job/history authority.",
+      "tests": [
+        "Crash after payload, manifest, CKC, pending/completed ledger; same-key retry, stale export, cancel before/after committed publication; no duplicate authority."
+      ],
+      "status": "SOURCE_HAZARD_OR_DESIGN_PROOF_GATE; NOT_RUNTIME_VERDICT",
+      "candidate_resolution": {
+        "status": "DESIGN_CONTROL_PRESENT_IMPLEMENTATION_PROOF_REMAINS",
+        "spec_ids": [
+          "STU-IO-187",
+          "STU-ARC-011",
+          "STU-ARC-020",
+          "STU-CON-013"
+        ]
+      }
+    },
+    {
+      "id": "STUDIO-ROOT-REV-005",
+      "severity": "HIGH",
+      "issue": "Proposed large-media streaming requires extending a real canonical owner API; inspected APIs materialize bytes.",
+      "spec_ids": [
+        "STU-ASSET-008",
+        "STU-ASSET-025",
+        "STU-ASSET-030",
+        "STU-IO-161"
+      ],
+      "proposal_ids": [
+        "ENG-CRATE-PACKAGE",
+        "STUDIO-DOC-PROP-004"
+      ],
+      "source": [
+        "WP012:src/backend/handshake_core/src/storage/mod.rs:653",
+        "WP012:src/backend/handshake_core/src/storage/mod.rs:655",
+        "WP012:src/backend/handshake_core/src/storage/mod.rs:911",
+        "PHOTOCRAFT:crates/format/src/lib.rs:147"
+      ],
+      "counterfactual": "If a multi-hour source passes through ArtifactWriteEntry.bytes Vec or payload &[u8] or PhotoCraft load_path, entry count limits do not prevent full-file allocation before storage.",
+      "mitigation": "Canonical streaming/random-access ArtifactService port with bytes-in-flight quotas, validation, cancellation and immutable reference closure; no Studio CAS or acceptance of fixture ports as production proof.",
+      "tests": [
+        "Larger-than-budget files, seek/range decoding, compression bombs, resolver changes during export, cancel during hashing/writing, measured bounded allocations."
+      ],
+      "status": "SOURCE_HAZARD_OR_DESIGN_PROOF_GATE; NOT_RUNTIME_VERDICT",
+      "candidate_resolution": {
+        "status": "DESIGN_CONTROL_PRESENT_IMPLEMENTATION_PROOF_REMAINS",
+        "spec_ids": [
+          "STU-IO-187",
+          "STU-ARC-012",
+          "STU-ARC-018"
+        ]
+      }
+    },
+    {
+      "id": "STUDIO-ROOT-REV-006",
+      "severity": "HIGH",
+      "issue": "Initial fresh grants do not alone define authorized delivery after mid-job revocation.",
+      "spec_ids": [
+        "STU-ASSET-009",
+        "STU-ASSET-013",
+        "STU-PAR-004"
+      ],
+      "proposal_ids": [
+        "STUDIO-DOC-PROP-008",
+        "STUDIO-DOC-PROP-009",
+        "STUI-ARGUS-001"
+      ],
+      "source": [
+        "WP012:src/backend/handshake_core/src/api/authority.rs:1322",
+        "WP012:src/backend/handshake_core/src/api/authority.rs:1342",
+        "WP012:src/backend/handshake_core/src/api/authority.rs:1347"
+      ],
+      "counterfactual": "If source permission is revoked after admission but before cached preview/export delivery, a reused admission decision or manifest grant could expose denied pixels/original bytes.",
+      "mitigation": "Current authenticated resource decisions at materialization/publication/delivery; explicit revocation behaviour, no labels/existence leaks through findings or previews. Manifest permission fields remain provenance only.",
+      "tests": [
+        "Revoke nested graph/blob/original/cached preview mid-job, forged serialized grants, cross-account same IDs, stale cache, no denied bytes."
+      ],
+      "status": "SOURCE_HAZARD_OR_DESIGN_PROOF_GATE; NOT_RUNTIME_VERDICT",
+      "candidate_resolution": {
+        "status": "DESIGN_CONTROL_PRESENT_IMPLEMENTATION_PROOF_REMAINS",
+        "spec_ids": [
+          "STU-IO-188",
+          "STU-ARC-020",
+          "STU-CON-011"
+        ]
+      }
+    },
+    {
+      "id": "STUDIO-ROOT-REV-007",
+      "severity": "HIGH",
+      "issue": "Shared operator selection/focus state is not an actor-owned view model; attribution is not authentication.",
+      "spec_ids": [
+        "STU-PAR-002",
+        "STU-PAR-004"
+      ],
+      "proposal_ids": [
+        "ENG-SWARM-C-002",
+        "STUI-ARGUS-001"
+      ],
+      "source": [
+        "WP012:src/frontend/handshake_native/src/interop/interaction_bus.rs:525",
+        "WP012:src/frontend/handshake_native/src/interop/interaction_bus.rs:531",
+        "WP012:src/frontend/handshake_native/src/interop/interaction_bus.rs:534",
+        "WP012:src/frontend/handshake_native/src/mcp/server.rs:457"
+      ],
+      "counterfactual": "If distinct client_session_id clients use InteractionBus.selection/focus_owner, one reveal/selection can move another agent/operator despite widget leases.",
+      "mitigation": "Authenticated per-actor view/selection contexts over shared authority; retain operator context; HBR agent_label vs live client_session_id needs explicit tested adapter, no new identity owner.",
+      "tests": [
+        "Two agents plus operator, same token distinct labels, disjoint/conflicting edits, independent frame/zoom/pane, reveal, disconnect/reconnect/lease expiry, cross-file and revoked views."
+      ],
+      "status": "SOURCE_HAZARD_OR_DESIGN_PROOF_GATE; NOT_RUNTIME_VERDICT",
+      "candidate_resolution": {
+        "status": "DESIGN_CONTROL_PRESENT_IMPLEMENTATION_PROOF_REMAINS",
+        "spec_ids": [
+          "STU-ARC-011",
+          "STU-ARC-014"
+        ]
+      }
+    },
+    {
+      "id": "STUDIO-ROOT-REV-008",
+      "severity": "HIGH",
+      "issue": "Current screenshot timestamp and widget generation cannot alone certify the rendered Studio revision.",
+      "spec_ids": [
+        "STU-MDL-001",
+        "STU-PW-002",
+        "STU-PAR-002"
+      ],
+      "proposal_ids": [
+        "ENG-SWARM-C-005",
+        "STUI-ARGUS-001"
+      ],
+      "source": [
+        "WP012:src/frontend/handshake_native/src/mcp/screenshot.rs:30",
+        "WP012:src/frontend/handshake_native/src/mcp/action.rs:800",
+        "WP012:src/frontend/handshake_native/src/mcp/action.rs:806"
+      ],
+      "counterfactual": "If a second command or late render changes content before capture completion, a fresh timestamp/Applied receipt may pair with the wrong document/frame.",
+      "mitigation": "Causal mutation/promotion->render receipt including authenticated view, document/revision/epoch, output digest, time/sample, color/proxy/provider; preserve Indeterminate if exact effect unproven.",
+      "tests": [
+        "Delayed/reordered render, stale proxy, device loss, profile change, revoked view, concurrent commands/resize; open exact matched pixels and independently decode exported artifact."
+      ],
+      "status": "SOURCE_HAZARD_OR_DESIGN_PROOF_GATE; NOT_RUNTIME_VERDICT",
+      "candidate_resolution": {
+        "status": "DESIGN_CONTROL_PRESENT_IMPLEMENTATION_PROOF_REMAINS",
+        "spec_ids": [
+          "STU-ARC-015"
+        ]
+      }
+    },
+    {
+      "id": "STUDIO-ROOT-REV-009",
+      "severity": "HIGH",
+      "issue": "Current recorder locks its buffer and must serialize writes into SPSC ring; direct RT use or removing lock is unsafe.",
+      "spec_ids": [
+        "STU-PAR-001",
+        "STU-PAR-005"
+      ],
+      "proposal_ids": [
+        "ENG-DIAG-C-001",
+        "ENG-DIAG-C-002"
+      ],
+      "source": [
+        "WP012:src/frontend/handshake_native/src/diagnostics/recorder.rs:115",
+        "WP012:src/frontend/handshake_native/src/diagnostics/recorder.rs:127",
+        "WP012:src/frontend/handshake_native/src/diagnostics/recorder.rs:134",
+        "WP012:src/frontend/handshake_native/src/diagnostics/recorder.rs:138"
+      ],
+      "counterfactual": "If audio callback calls record during reader contention it waits; if lock is deleted concurrent producers can tear non-atomic SPSC payload, as existing remediation explains.",
+      "mitigation": "Bounded preallocated nonblocking per-producer ingress plus one canonical writer; explicit drop/coalescing counters and priority; no RT allocations/blocking, schema cloning or uncoordinated ring writes.",
+      "tests": [
+        "Contended observer, telemetry flood/overflow/two producers, real callback deadlines, no torn ring entries, truthful drop counters, worker freeze/device loss."
+      ],
+      "status": "SOURCE_HAZARD_OR_DESIGN_PROOF_GATE; NOT_RUNTIME_VERDICT",
+      "candidate_resolution": {
+        "status": "DESIGN_CONTROL_PRESENT_IMPLEMENTATION_PROOF_REMAINS",
+        "spec_ids": [
+          "STU-ARC-013",
+          "STU-CON-013"
+        ]
+      }
+    },
+    {
+      "id": "STUDIO-ROOT-REV-010",
+      "severity": "HIGH",
+      "issue": "Timed-out or cancelled non-cooperative work must keep its reservation until actual termination.",
+      "spec_ids": [
+        "STU-PAR-001",
+        "STU-PAR-003",
+        "STU-PAR-005"
+      ],
+      "proposal_ids": [
+        "ENG-SWARM-C-006",
+        "ENG-DIAG-C-003"
+      ],
+      "source": [
+        "WP012:src/frontend/handshake_native/src/mcp/session.rs:293",
+        "WP012:src/frontend/handshake_native/src/mcp/session.rs:295",
+        "WP012:src/frontend/handshake_native/src/mcp/screenshot.rs:133",
+        "WP012:src/frontend/handshake_native/src/mcp/screenshot.rs:137"
+      ],
+      "counterfactual": "If codec/GPU/FFI job outlives caller timeout and its budget is returned immediately, retries can exceed actual running-resource limits.",
+      "mitigation": "Keep admission credit/owned-process identity until completion or authorized owned-worker reclamation; bounded cancellable units and non-cooperative isolation. Actual Windows CAPTURE_IN_FLIGHT guard is positive evidence preventing accumulation of live OS captures after timeout.",
+      "tests": [
+        "Cancel queued/running/completing, timeout/retry storm, non-cooperative worker, resource release accounting, shutdown/owner death/restart, partial outputs never authority."
+      ],
+      "status": "SOURCE_HAZARD_OR_DESIGN_PROOF_GATE; NOT_RUNTIME_VERDICT",
+      "candidate_resolution": {
+        "status": "DESIGN_CONTROL_PRESENT_IMPLEMENTATION_PROOF_REMAINS",
+        "spec_ids": [
+          "STU-ARC-012",
+          "STU-ARC-020"
+        ]
+      }
+    },
+    {
+      "id": "STUDIO-ROOT-REV-011",
+      "severity": "HIGH",
+      "issue": "A named modular DAG does not establish dependency closure isolation or unique semantic ownership.",
+      "spec_ids": [
+        "STU-CON-006",
+        "STU-ASSET-004"
+      ],
+      "proposal_ids": [
+        "ENG-DAG-001",
+        "ENG-BUILD-C-002",
+        "ENG-BUILD-C-004"
+      ],
+      "source": [
+        "WP012:src/backend/handshake_core/Cargo.toml:162",
+        "WP012:src/backend/handshake_core/Cargo.toml:178",
+        "WP012:src/backend/handshake_core/Cargo.toml:275"
+      ],
+      "counterfactual": "If host-neutral package imports core merely for storage or diagnostics, unconditional RocksDB remains even with no-default-features; separately implemented UI/import validation can diverge.",
+      "mitigation": "Pure contracts/ports, later host bridge consumer, one validation/conversion owner across UI/model/import; actual normal/build/dev feature closure and rebuild list, not source size/package count speed promises.",
+      "tests": [
+        "Exact package/features/target metadata/tree, control edit rebuilt list, foundation/harness exclude core/native/database/codecs, duplicate capability ownership rejected."
+      ],
+      "status": "SOURCE_HAZARD_OR_DESIGN_PROOF_GATE; NOT_RUNTIME_VERDICT",
+      "candidate_resolution": {
+        "status": "DESIGN_CONTROL_PRESENT_IMPLEMENTATION_PROOF_REMAINS",
+        "spec_ids": [
+          "STU-ARC-010",
+          "STU-ARC-016",
+          "STU-ARC-018"
+        ]
+      }
+    },
+    {
+      "id": "STUDIO-ROOT-REV-012",
+      "severity": "MEDIUM",
+      "issue": "Memory sink or diagnostic posture does not establish production FR/Palmistry/manual binding.",
+      "spec_ids": [
+        "STU-MAN-003",
+        "STU-WEB-138",
+        "STU-ASSET-023"
+      ],
+      "proposal_ids": [
+        "ENG-DIAG-C-004",
+        "ENG-DIAG-C-005",
+        "STUI-MAN-001"
+      ],
+      "source": [
+        "WP012:src/frontend/palmistry/src/fr_forward.rs:292",
+        "WP012:src/frontend/palmistry/src/fr_forward.rs:351",
+        "WP012:src/frontend/palmistry/src/fr_forward.rs:359"
+      ],
+      "counterfactual": "If standalone diagnostics are labelled embedded WIRED, consumers assume survivor ingestion exists while actual for_existing_fr rejects SchemaIncompatible before network.",
+      "mitigation": "Real per-tier evidence/reason/integration follow-up preserving mandatory future acceptance; internal/external numeric mechanisms only unless explicit schema/privacy authority; generated descriptor/manual digests and visible fixture posture, single authority store.",
+      "tests": [
+        "Owned worker freeze/crash, faithful authorized FR path or explicit blocker, resource-filtering, no project data in ring/extras, manual/command references match executable registry."
+      ],
+      "status": "SOURCE_HAZARD_OR_DESIGN_PROOF_GATE; NOT_RUNTIME_VERDICT",
+      "candidate_resolution": {
+        "status": "DESIGN_CONTROL_PRESENT_IMPLEMENTATION_PROOF_REMAINS",
+        "spec_ids": [
+          "STU-VAL-002",
+          "STU-MAN-003",
+          "STU-MAN-118",
+          "STU-CON-013"
+        ]
+      }
+    },
+    {
+      "id": "STUDIO-ROOT-REV-013",
+      "severity": "MEDIUM",
+      "issue": "Native identity preservation needs explicit reopen/import/copy/fork collision semantics.",
+      "spec_ids": [
+        "STU-ARC-004",
+        "STU-CON-004",
+        "STU-PW-003"
+      ],
+      "proposal_ids": [
+        "STUDIO-DOC-PROP-001",
+        "STUDIO-DOC-PROP-009"
+      ],
+      "source": [
+        "PROPOSAL:native-document-and-interop.json:/container/identity"
+      ],
+      "counterfactual": "If identical snapshot opens twice or external files reuse document/object IDs, unconditional preservation can alias unrelated live authority or replay stale edits.",
+      "mitigation": "Explicit reopen vs merge/import proposal vs fork/copy modes; preserve native reopen IDs and source provenance, deterministic receipt-approved remapping for new authority where required; hash is not mutable semantic identity.",
+      "tests": [
+        "Same native package twice, stale revision, explicit copy, conflicting external IDs, cross-account identity, shared linked assets; no silent alias/remint."
+      ],
+      "status": "SOURCE_HAZARD_OR_DESIGN_PROOF_GATE; NOT_RUNTIME_VERDICT",
+      "candidate_resolution": {
+        "status": "DESIGN_CONTROL_PRESENT_IMPLEMENTATION_PROOF_REMAINS",
+        "spec_ids": [
+          "STU-IO-190",
+          "STU-CON-008"
+        ]
+      }
+    }
+  ],
+  "RESIDUAL_UNCERTAINTY": [
+    "Final full MT rewrite and exact source/acceptance preservation audit await root final contract signal. MT-001 and MT-35428 active authority, execution, closure, acceptance mapping and activation fields were sampled directly; this is not whole-batch readiness proof.",
+    "SPEC_CURRENT remains v02.206 at this read. Candidate v02.207 is source-reviewed but publication/resolver/current-pointer proof belongs to root.",
+    "No Adobe parity/runtime/x64/ARM/build-performance verdict.",
+    "Files are hashed; relevant source ranges and field projections only were opened. Engineering/UI reports and sampled MTs are not claimed fully read; truncated output was bounded and reopened.",
+    "No source-level evidence replaces natural implementation boundary proof."
+  ],
+  "candidate_reconciliation": {
+    "status": "REVIEWED_SOURCE_CONTROLS_ACCEPTABLE_NO_IMPLEMENTATION_VERDICT",
+    "artifacts": [
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json"
+    ],
+    "inspected_ranges": [
+      "Studio module183-249 including ARC01635-module correction",
+      "STU-IO-001 native-format declaration and187-190 controls",
+      "STU-CON-005/006/009-014 including22 business-event table",
+      "STU-VAL-002/005/006 and STU-MAN-003/118",
+      "STU-MOT-255..259 complete scoped additions",
+      "HSK-PLG-001..020 complete scoped diff including404 asset/host qualification",
+      "All35 catalog module responsibility/dependency fields; selected foundation records including host-neutral kernel_bindings and MotionJS",
+      "MT-001 and MT-35428 active execution/closure/authority_migration/fulfillment/activation fields; full preservation-batch audit pending"
+    ],
+    "preservation": "Full non-AI professional scope, video/audio/lightroom/native INDD/PRPROJ/AEP/FIG, canonical typed events/errors and later integration remain explicit. Root actively authors full MT fulfillment; no complete contract-lineage verdict yet.",
+    "catalog_census": {
+      "modules": 35,
+      "unique_keys": 35,
+      "unique_roots": 35,
+      "foundation_members": 36,
+      "missing_edge_targets": []
+    },
+    "remaining_issues": [
+      {
+        "id": "STUDIO-CANDIDATE-REV-003",
+        "severity": "PENDING_AUTHORING",
+        "anchor": "STU-ARC-017/022",
+        "finding": "Final rewritten MT contracts and exact preservation/fulfillment mapping await root signal. No full contract readiness verdict.",
+        "mitigation": "Read actual rewritten owner/acceptance fields and preserved exact originals on stable candidate."
+      }
+    ],
+    "artifact_hashes": [
+      {
+        "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+        "sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "bytes": 2907691,
+        "lines": 33001,
+        "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+      },
+      {
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+        "sha256": "df923cb68267d2c42dcfc3588255c35e82680a11a06dcccfe1e4ad3723e0b82a",
+        "bytes": 64605,
+        "lines": 1068,
+        "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.207/spec-modules/05-security-and-observability.md",
+        "sha256": "5e6947f665b59ab656d8de7e3f2cf56975d85f5d0effd728726731e0e0da0161",
+        "bytes": 135707,
+        "lines": 1978,
+        "inspection": "mod05 complete scoped diff; recorder enum46 and native event handler1590..1619 only"
+      }
+    ],
+    "resolved_source_findings": [
+      {
+        "id": "STUDIO-CANDIDATE-REV-001",
+        "resolution": "CON005 now preserves cross-host byte integrity hashes and restricts only render-equivalence hash substitution."
+      },
+      {
+        "id": "STUDIO-CANDIDATE-REV-002",
+        "resolution": "IO190 specifies explicit authorized reopen vs new-ID import/fork/copy and collision handling, grants/provenance and required executable proof."
+      },
+      {
+        "id": "STUDIO-CANDIDATE-REV-004",
+        "resolution": "HSKPLG020 now separates executable portable asset minimum from mandatory actual platform consumers before dependent plugin activation/embedding."
+      },
+      {
+        "id": "STUDIO-CANDIDATE-REV-005",
+        "resolution": "ARC01635 modules+workspace agrees with35 catalog rows/36 barrier members."
+      }
+    ],
+    "additional_scope_review": {
+      "new_clauses": [
+        "STU-CON-009..014",
+        "STU-IO-190",
+        "STU-MOT-255..259",
+        "HSK-PLG-001..020"
+      ],
+      "findings": "Exact22 planned business mappings retain family/wire identity; no existing Studio recorder category claim. Optional MotionJS C/FFI provider remains outside pure Motion and uses current host sandbox/aggregate quotas/quiescence; no imported executable bytecode. Deterministic Date/seed/profile/source-map/budget gates are explicit planned compatibility, not validated vendor parity. Shared plugin lifecycle is named missing prerequisite, not existing MEX lifecycle capability.",
+      "adversarial_probes": [
+        "Denied receipt retry after revocation; committed event before mirror outage; poison/fair backlog; wrong immutable FR envelope",
+        "Unknown editable ID reference at explicit fork; same-ID/different-content collision; opaque source cannot be reauthorized",
+        "JS constructor/getter/proxy bypass, untrusted cached bytecode, parser/native builtin uninterruptibility, nested fuel and unsafe result coercion",
+        "Plugin update/revoke while instances idle/busy; native probe hangs after spawn but before ledger registration; host callback stalls while VM cancellation expires"
+      ],
+      "scope_limits": "No selected engine source adoption, benchmark, actual plugin runtime or semantic expression differential validation performed by this reviewer."
+    },
+    "body_binding": [
+      {
+        "module": "14",
+        "sha256": "050fef420d1a950663bfe4964cfb122141063520308d572975e886ce3695adb3"
+      },
+      {
+        "module": "05",
+        "sha256": "000df3751f995392f194338bbfe3bd87c1e58f3b19aef72afd8ea6192575aa0e"
+      }
+    ],
+    "sampled_contract_observation": {
+      "ids": [
+        "MT-001",
+        "MT-35428"
+      ],
+      "active_authority": [
+        "identity",
+        "context_capsule",
+        "closure_unit",
+        "execution",
+        "proof",
+        "fulfillment",
+        "activation"
+      ],
+      "legacy_fields": "Historical preserved scope/acceptance/source placement is explicitly non-dispatchable, not a live single-crate instruction.",
+      "compound_scope": "One primary owner per execution claim; additional owner slices independently claimed/proven. Parent cannot complete until all asset slices and later original kernel acceptance complete.",
+      "current_dispatch": "False in both sampled contracts; publication, new implementation session, proof commands/timeouts, independent contract review and all36 foundations are required.",
+      "commands": "Expected legacy acceptance strings retained; executable commands/timeouts and exact capability contributions still materialize before dispatch. No implementation has run.",
+      "limit": "Does not establish correctness of every HBR trigger, clause derivation, original payload hash or remaining MT in the full rewrite."
+    }
+  },
+  "source_identity_records": [
+    {
+      "path": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/native-document-and-interop.json",
+      "sha256": "21214cea78002ca76f2b97caf6ce75b511cc6451c5a263b8d690cdc6b91674b7",
+      "bytes": 16957,
+      "lines": 246,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/build-policy-and-next-session.json",
+      "sha256": "7c4396e6a371e2a2a95777e105a8b2402362905fe7204e87c3d46512504160c3",
+      "bytes": 19183,
+      "lines": 276,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/engineering.json",
+      "sha256": "36ccd57ce0afafcc68eee9f4e96eb848c7fe8f397f1a60500660c1cc1d1cbf32",
+      "bytes": 161428,
+      "lines": 3417,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/ui-and-design-workflows.json",
+      "sha256": "c66a37c9fd959d800c11322fe1a4416efa9d963215ac4fc7e1c9125cc43749e5",
+      "bytes": 82396,
+      "lines": 225,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/source-cache-manifest.json",
+      "sha256": "92de55b6c8394505ea5806c3efffac8428fdb66f51e20a07f86c7d695a3b247d",
+      "bytes": 9657,
+      "lines": 162,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": ".GOV/spec/SPEC_CURRENT.md",
+      "sha256": "918f8e4ed12ec7b1b72ece03012dc5cfa4e6a4f20d9146131f8136d897245d79",
+      "bytes": 1258,
+      "lines": 29,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "bytes": 2865651,
+      "lines": 32959,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+      "bytes": 2907691,
+      "lines": 33001,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+      "sha256": "df923cb68267d2c42dcfc3588255c35e82680a11a06dcccfe1e4ad3723e0b82a",
+      "bytes": 64605,
+      "lines": 1068,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": ".GOV/codex/Handshake_Codex_v1.4.md",
+      "sha256": "280af631575e25add9f682808a38468131c3534f9470d956234da219e1d33b9b",
+      "bytes": 40622,
+      "lines": 257,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      "sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+      "bytes": 89562,
+      "lines": 1830,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_storage_support/src/canonical_json.rs",
+      "sha256": "4499066370e08774f441600d0d857b8045640b47c05bd1124fcad3441b9e35fe",
+      "bytes": 2062,
+      "lines": 62,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/storage/mod.rs",
+      "sha256": "fd32d786a8badceb2f419b6f216944a3cce49f604a020e9e4d625375374a9d9b",
+      "bytes": 126095,
+      "lines": 3560,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/api/authority.rs",
+      "sha256": "f1a434c71d3d71150c99ecf9bea75ab2e2f524f6fda72bde668d054f28a41274",
+      "bytes": 60332,
+      "lines": 1625,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/Cargo.toml",
+      "sha256": "68dee1852524c5b2daaa7620c1dbd7ad4ccbdddad1dddb97e991f60ad2993981",
+      "bytes": 27461,
+      "lines": 802,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/mcp/screenshot.rs",
+      "sha256": "d230ed59e7f809d63dafe1953cef0b9f00fba2f572e7f5ca8d97d031a025ffe1",
+      "bytes": 16608,
+      "lines": 375,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/mcp/session.rs",
+      "sha256": "52d0722c3ce802e74bc54a68bbcbf921f29bc5da154a46406f4058f28c213075",
+      "bytes": 43101,
+      "lines": 918,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/mcp/action.rs",
+      "sha256": "fc867d6c557562e2909127c19709af99d066f20df654a94fe14dc804d85bb723",
+      "bytes": 195544,
+      "lines": 4971,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/mcp/server.rs",
+      "sha256": "f06247d5c87f6a2b2e9cb66199953fba31e7b6f11af40068129310d6603aaf10",
+      "bytes": 33026,
+      "lines": 791,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/interop/interaction_bus.rs",
+      "sha256": "e7dd3626f3b36354a052e4f3cdace287bd1a4ddd907b1e94d07219f96acc2685",
+      "bytes": 131420,
+      "lines": 2718,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "sha256": "1eebcb2988cebad584a58958e7f856b075f6e855d972f6e6a0473bb68e3e18c7",
+      "bytes": 17908,
+      "lines": 359,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/frontend/palmistry/src/fr_forward.rs",
+      "sha256": "71feccd7d80ef3917ab7783dcd3626fe0bca0fd14bcb0720320e4793810bd3b9",
+      "bytes": 32371,
+      "lines": 601,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/format/src/manifest.rs",
+      "sha256": "6e63103b46c5b765008a5bbf117a42025a61d0ac3be5f76f282a8ebdbddd9a91",
+      "bytes": 11210,
+      "lines": 371,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/format/src/store.rs",
+      "sha256": "2deef580e53127807cf504796c65c22d6b422d76764fc172adab13d90f31e6a8",
+      "bytes": 28754,
+      "lines": 720,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/format/src/atomic.rs",
+      "sha256": "2ab4fc895f573632997bcfe6cee77a5bc975a0515b685df58de9be980a5c01e8",
+      "bytes": 11053,
+      "lines": 255,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/format/src/lib.rs",
+      "sha256": "0e3660fcf0bf2537b092c651184828199095a23dd67e2aa4a27b83fc08b971e2",
+      "bytes": 5928,
+      "lines": 166,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/format/src/zip.rs",
+      "sha256": "0a2e4545502ba747e3529a7817333acb45593ec84bc36613ef28b816ca80a93f",
+      "bytes": 11968,
+      "lines": 279,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-001.json",
+      "sha256": "19c0f4627c4566d27c2033986375ef1be73d387c823047fb395c61f0ba3da109",
+      "bytes": 106406,
+      "lines": 1960,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35428.json",
+      "sha256": "068a56ef4d89126f23af81624ac898de4a77a26f84590689a8e17c94293899f8",
+      "bytes": 88098,
+      "lines": 1559,
+      "inspection": "Relevant function/field ranges only; hashing is not full read or runtime proof"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.207/spec-modules/05-security-and-observability.md",
+      "sha256": "5e6947f665b59ab656d8de7e3f2cf56975d85f5d0effd728726731e0e0da0161",
+      "bytes": 135707,
+      "lines": 1978,
+      "inspection": "mod05 complete scoped diff; recorder enum46 and native event handler1590..1619 only"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/flight_recorder/mod.rs",
+      "sha256": "3864a66337e2510498e68638cc3acf4ea5e0e8c4cd903505509384cefa2ce497",
+      "bytes": 271582,
+      "lines": 7475,
+      "inspection": "mod05 complete scoped diff; recorder enum46 and native event handler1590..1619 only"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/api/flight_recorder.rs",
+      "sha256": "ac4cf9e013b9921f73e9fd099e496ccb7de952115aba6241a833fb34aa0642b5",
+      "bytes": 235200,
+      "lines": 5559,
+      "inspection": "mod05 complete scoped diff; recorder enum46 and native event handler1590..1619 only"
+    }
+  ],
+  "inspection_corrections": [
+    {
+      "id": "CORRECTION-01",
+      "cause": "Guessed artifacts.rs/storage-artifacts path absent.",
+      "resolution": "rg declaration found real inline storage/mod.rs canonical owner; no claim relies on guesses."
+    },
+    {
+      "id": "CORRECTION-02",
+      "cause": "Broad output truncation.",
+      "resolution": "Bounded necessary ranges/field projections reopened; no whole-source-read claim."
+    },
+    {
+      "id": "CORRECTION-03",
+      "cause": "Capture timeout could suggest worker accumulation.",
+      "resolution": "Actual CAPTURE_IN_FLIGHT source narrows concern; live OS captures bounded even when caller timeout expires."
+    },
+    {
+      "id": "CORRECTION-04",
+      "cause": "functions store/load returned undefined during first report composition.",
+      "resolution": "No file mutated by failed call; composed report within one call and wrote exact owned artifact."
+    },
+    {
+      "id": "CORRECTION-05",
+      "cause": "Shared YAML gameplan initially read with ConvertFrom-Json; parse failed before mutation.",
+      "resolution": "Read actual YAML/plain text then canonical gameplan show/check. Root recorded GP047; no shared plan or other file written. Later combined output truncated unrelated clauses; only reopened complete target clauses and selected rows support this delta."
+    },
+    {
+      "id": "ROOT-INSPECTION-CORRECTION-006",
+      "cause": "Null-index/property projections and oversized index output yielded incomplete observations; optional null array counts initially appeared as one and one early message used a placeholder hash.",
+      "recovery": "Read actual entries/schema keys, narrow exact fields and actual source bodies, filter null optional arrays, and rehash selected artifacts. MT34070 hash corrected immediately to a2e4371fc6d4d7a817ed0c457003534db19eee5b3e489c386c32651756571218. Truncated output is not treated as a complete corpus read.",
+      "files_changed": "Only this owned review artifact; no MT/index/spec/product changes."
+    }
+  ],
+  "final_review": {
+    "status": "SCOPED_SOURCE_REVIEW_COMPLETE_NO_RUNTIME_CORPUS_OR_PUBLICATION_VERDICT",
+    "artifact_read_back": true,
+    "source_hashes_rechecked": true,
+    "source_identity_count": 32,
+    "unchanged_product_and_upstream": "All pinned product/upstream source records unchanged",
+    "candidate_body_hashes_match": true,
+    "whole_contract_bundle_verdict": "NOT_ISSUED",
+    "implementation_verdict": "NOT_RUN",
+    "accepted_scope": "Prior stable design/source and ten scoped corrected contracts, plus this independently bound MT34070 single-reason clarification.",
+    "remaining_root_gate": "Independent corrected full-corpus preservation review and root publication/resolver proof; executable implementation is a separately authorized session.",
+    "numeric_source_anchors_verified": 41,
+    "source_hashes_changed_since_final_read": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35428.json"
+    ],
+    "changed_mt_posture": "Historical sampled contracts and old frozen findings remain scoped snapshots; current ten-contract corrective evidence is bound in corrected_mt_incremental_review. No whole-corpus claim."
+  },
+  "upstream_archive_limit": {
+    "id": "STUDIO-ROOT-REV-014",
+    "severity": "HIGH_ADOPTION_LIMIT",
+    "source": "PhotoCraft crates/format/src/zip.rs:3,50,54,57,58,97,122",
+    "finding": "No ZIP64, max65535 entries and4GiB count/offset checks, in-memory writer/reader. Not a production streaming ZIP64 provider unchanged.",
+    "candidate_control": "STU-IO-187",
+    "proof": "ZIP64 size/count/offset boundaries, cumulative limits, reader independent fixtures, bounded-memory random access, cancelled partial save recovery; not run"
+  },
+  "source_revision_history": [
+    {
+      "path": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/build-policy-and-next-session.json",
+      "prior_sha256": "4d046fd51f5280fe48f299e3290ce9167bbbe57e73dc7b71f08d57ac9a4f3675",
+      "prior_bytes": 15716,
+      "prior_lines": 222,
+      "current_sha256": "7c4396e6a371e2a2a95777e105a8b2402362905fe7204e87c3d46512504160c3",
+      "reason": "Root authored candidate/catalog binding and non-executable MT authority migration; current relevant fields directly reread, historical findings remain bound to unchanged product/upstream source."
+    },
+    {
+      "path": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/engineering.json",
+      "prior_sha256": "db989e99ed60bc8a32b03fed2820ada431000bb33111fa07acb160280df63724",
+      "prior_bytes": 160742,
+      "prior_lines": 3407,
+      "current_sha256": "36ccd57ce0afafcc68eee9f4e96eb848c7fe8f397f1a60500660c1cc1d1cbf32",
+      "reason": "Root authored candidate/catalog binding and non-executable MT authority migration; current relevant fields directly reread, historical findings remain bound to unchanged product/upstream source."
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/source-cache-manifest.json",
+      "prior_sha256": "f4040f1b034c7db0e4c379818cd237c8e327c1e2e58c874eaf55019992b69ecb",
+      "prior_bytes": 9591,
+      "prior_lines": 160,
+      "current_sha256": "92de55b6c8394505ea5806c3efffac8428fdb66f51e20a07f86c7d695a3b247d",
+      "reason": "Root authored candidate/catalog binding and non-executable MT authority migration; current relevant fields directly reread, historical findings remain bound to unchanged product/upstream source."
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-001.json",
+      "prior_sha256": "3e4aac9a5231baf9b68d77327d183101930aac2c310275a2ac0a03abe09bf2d1",
+      "prior_bytes": 9313,
+      "prior_lines": 185,
+      "current_sha256": "19c0f4627c4566d27c2033986375ef1be73d387c823047fb395c61f0ba3da109",
+      "reason": "Root authored candidate/catalog binding and non-executable MT authority migration; current relevant fields directly reread, historical findings remain bound to unchanged product/upstream source."
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35428.json",
+      "prior_sha256": "3b1a8f5ee68d35bfc22052492183a1ecaf4ce6bde8cb7fb263612534a2902add",
+      "prior_bytes": 6456,
+      "prior_lines": 100,
+      "current_sha256": "068a56ef4d89126f23af81624ac898de4a77a26f84590689a8e17c94293899f8",
+      "reason": "Root authored candidate/catalog binding and non-executable MT authority migration; current relevant fields directly reread, historical findings remain bound to unchanged product/upstream source."
+    }
+  ],
+  "final_delta_review": {
+    "kind": "BOUNDED_FINAL_SOURCE_DESIGN_DELTA",
+    "status": "REVIEWED_CONTROLS_ACCEPTED_NO_RUNTIME_OR_MT_CORPUS_VERDICT",
+    "reviewed_at": "2026-10-09T19:35:04.5834827Z",
+    "hashes": [
+      {
+        "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+        "sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "bytes": 2907691,
+        "lines": 33001
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.207/spec-modules/05-security-and-observability.md",
+        "sha256": "5e6947f665b59ab656d8de7e3f2cf56975d85f5d0effd728726731e0e0da0161",
+        "bytes": 135707,
+        "lines": 1978
+      },
+      {
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+        "sha256": "df923cb68267d2c42dcfc3588255c35e82680a11a06dcccfe1e4ad3723e0b82a",
+        "bytes": 64605,
+        "lines": 1068
+      }
+    ],
+    "source_baseline": "WP012292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4; fresh HEAD exact and git status empty",
+    "closed_vs_future": [
+      {
+        "id": "FINAL-DELTA-001",
+        "anchor": "05-security-and-observability.md:404",
+        "spec_ids": [
+          "HSK-PLG-020"
+        ],
+        "closed": "Portable executable adapter minimum is asset-local; full WP012/shared host lifecycle does not gate isolated asset development. Actual lifecycle/authorization/sandbox/canonical-state/Argus/UserManual remains mandatory before dependent plugin activation or embedding.",
+        "counterexample": "An in-memory adapter passing rejected-grant proof is presented as an installed plugin with current host lifecycle authority.",
+        "future_proof": "Separate actual host production consumers plus unsupported/revoke/install/update/cancel/retirement paths; portable source or fixture cannot close them."
+      },
+      {
+        "id": "FINAL-DELTA-002",
+        "anchor": "14-studio-creative-suite.md:28989",
+        "spec_ids": [
+          "STU-MOT-258",
+          "STU-MOT-259"
+        ],
+        "closed": "Fresh realm or independently proved complete reset is required for EACH independent evaluation/sample, including the same principal/document. MotionJS explicitly owns executable parser/AST/lowering/checkpoint prerequisite; pure Motion owns policy and optional provider seam.",
+        "counterexample": "A script mutates globals/prototypes/closures/host memo on one sample and changes a repeated sample despite identical snapshot/tick/seed; resetting only across principals misses it.",
+        "future_proof": "Admitted mutation and rejected prototype/getter/constructor programs across repeated/reordered same-principal samples; reset covers closures/global/prototype/host state; trusted immutable compiled-cache identities; all admitted control-flow/function/callback checkpoint charging and aggregate retry allowance; non-cooperative parser/native/host work separately bounded. No selected-engine source adoption or performance proof performed."
+      },
+      {
+        "id": "FINAL-DELTA-003",
+        "anchor": "14-studio-creative-suite.md:22417",
+        "spec_ids": [
+          "STU-CON-013",
+          "STU-CON-014"
+        ],
+        "closed": "Document authority mutation mirrors only after canonical promotion. Required selection/proposal/rejection audits instead wait for their own typed canonical durable ledger acceptance, without claiming a document edit; transient replaceable previews are not durable business events.",
+        "counterexample": "A rejected edit never reaches promotion and disappears from audit, or a selection event incorrectly increments the promoted document revision.",
+        "future_proof": "Actual typed canonical ledger and exact Studio business-category ingestion, distinct event schemas/revisions/current grants, durable intent in same accepted transaction, crash before mirror/restart retry, immutable-envelope collision and poison/fair backlog. Existing recorder has no Studio category at pinned baseline; planned registration stays unimplemented."
+      },
+      {
+        "id": "FINAL-DELTA-004",
+        "anchor": "14-studio-creative-suite.md:238",
+        "spec_ids": [
+          "STU-IO-190"
+        ],
+        "closed": "Authorized exact-head reopen preserves IDs; divergent reopen becomes proposal. Default import/copy/fork remints canonical destination IDs and rewrites the reachable known graph atomically; original IDs/digests are provenance. Required unknown editable reference remapping failure blocks promotion and keeps opaque original mapping.",
+        "counterexample": "Two external snapshots sharing IDs collide with live destination authority, or copied permission receipts confer access under a new principal.",
+        "future_proof": "Same package twice, same-ID/different-content, cross-principal import, complete reference/history/private-artifact traversal, forged grants, missing/external/ambiguous references and partial save/recovery; host without ports is inspection/proposals only."
+      },
+      {
+        "id": "FINAL-DELTA-005",
+        "anchor": "STUDIO_MODULES.json:/modules controls,motion,composite,motion_js",
+        "spec_ids": [
+          "STU-ARC-007",
+          "STU-ARC-010",
+          "STU-ARC-018",
+          "STU-MOT-142",
+          "STU-MOT-258",
+          "STU-MOT-259"
+        ],
+        "closed": "Controls owns reused configured mechanics, Motion owns temporal/property/time/seed/dependency policy, Composite owns static render plan, MotionJS owns optional executable JS implementation. No mandatory MotionJS/native provider in pure Motion/Folio/Controls/static render closure.",
+        "counterexample": "A static preview imports optional JS/NLE/audio dependencies, or a domain creates another slider/panel/AST evaluator with divergent command semantics.",
+        "future_proof": "Actual selected-package normal/build/dev/features/target closures, shared command/validation/descriptor consumers, preview/export same static semantics and measured rebuild fanout. Named DAG alone does not prove closure or compilation speed."
+      },
+      {
+        "id": "FINAL-DELTA-006",
+        "anchor": "STUDIO_MODULES.json:/shared_owners,/plugin_owner,/forbidden_edges,/modules kernel_bindings",
+        "spec_ids": [
+          "STU-ARC-010",
+          "STU-ARC-018",
+          "HSK-PLG-008",
+          "HSK-PLG-020"
+        ],
+        "closed": "One host-wide plugin/lifecycle authority, one JobRuntime/ResourceBroker, CKC/ArtifactService, UserManual, Argus and diagnostic owners; portable asset ports exclude concrete core/native/SurrealDB types and missing optional path dependencies. No Studio DB/catalog/CAS or private scheduler authority.",
+        "counterexample": "Importing handshake_core merely for storage/diagnostics pulls its unconditional RocksDB into the standalone mirror, or standalone granted fixture state becomes a second persistent authority.",
+        "future_proof": "Real isolated workspace compiler/feature evidence and mirror destination equality, host-neutral rejected-grant/minimum consumer, later actual canonical integration. Read-only LRCAT remains fixed semantic byte decoder with granted stable main/WAL sources, never SQL/query/writable catalog."
+      },
+      {
+        "id": "FINAL-DELTA-007",
+        "anchor": "14-studio-creative-suite.md:221 and STU-CON-013",
+        "spec_ids": [
+          "STU-ARC-012",
+          "STU-ARC-013",
+          "STU-ARC-020",
+          "STU-CON-013"
+        ],
+        "closed": "Existing recorder lock is not removed; preallocated bounded callback ingress reaches one off-thread writer. Only uncommitted replaceable previews may coalesce; accepted outcomes survive backlog and cancel cannot erase a committed result.",
+        "counterexample": "Repeated timeouts return quota while non-cooperative work still runs, or uncoordinated producers tear the existing SPSC payload after a cosmetic mutex deletion.",
+        "future_proof": "Measured RT/decode/resource/cancellation/retirement/fairness/restart probes, truthful overflow/discontinuity and current-grant delivery; no runtime proof performed."
+      }
+    ],
+    "unresolved_concrete_design_blockers": [],
+    "limits": [
+      "No new surveys, external source acquisition, builds, tests, native GUI or product/source changes.",
+      "Final MT corpus still authored by Vector and will be reviewed by Photo; this delta does not validate it.",
+      "All18 product/upstream source records rehashed unchanged. Two previously sampled MT hashes have changed under root authoring and were not reread or accepted as final contracts in this bounded delta."
+    ],
+    "gameplan": "Existing shared YAML resume and before_dispatch steps shown; check --role kernel_builder --at before_dispatch PASS25/25. Root records GP047 YAML/JSON parser mismatch; reviewer did not alter shared plan."
+  },
+  "frozen_mt_semantic_spots": {
+    "review_id": "STUDIO-ROOT-INDEPENDENT-FROZEN-MT-SPOTS-2026-10-09",
+    "status": "NON_EXECUTION_SEMANTIC_CORRECTIONS_REQUIRED",
+    "scope": "Only the 13 parent-requested semantic samples. Photo owns the independent full preservation/corpus audit; no whole-corpus, runtime, publication or integration verdict is issued here.",
+    "index_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json",
+    "index_sha256": "df15279894f9ec9e488d684343c095d9f37d955f2b5f6253b59eb4c4afac00d9",
+    "ordered_mt_sha256_declared_by_index": "6fa3eb59bc75e38a57af88df1496aadd36597745cd857e6f411409ca93a00c60",
+    "ordered_mt_hash_independently_recomputed": false,
+    "reviewed_source_snapshots": [
+      {
+        "ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+        "sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3"
+      },
+      {
+        "ref": ".GOV/spec/master-spec-v02.207/spec-modules/05-security-and-observability.md",
+        "sha256": "5e6947f665b59ab656d8de7e3f2cf56975d85f5d0effd728726731e0e0da0161"
+      },
+      {
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+        "sha256": "df923cb68267d2c42dcfc3588255c35e82680a11a06dcccfe1e4ad3723e0b82a"
+      }
+    ],
+    "direct_check_limits": {
+      "contracts_opened": 13,
+      "verified_source_ranges_rehashed": 50,
+      "source_range_result": "All 50 inspected specification_anchor_refs.verified_source_ranges match actual UTF8 line text joined LF without final LF; this proves binding only, not complete semantic ownership.",
+      "selected_required_capability_registry_refs_opened": 14,
+      "capability_registry_result": "MT-188 and MT-200 selected registry references resolve to declared canonical owners and asset roots, with PENDING proof. No executed dependency capability is claimed.",
+      "hbr_result": "All selected contracts carry 45 HBR rows. Count proves coverage shape only; two selected foundation owned_gui assessments need route/trigger reconciliation.",
+      "runtime": "NOT_RUN",
+      "product_mutations": "NONE",
+      "contract_index_or_source_mutations": "NONE",
+      "only_write": ".GOV/docs_repo/studio-collaboration-2026-10-09/root-independent-review.json"
+    },
+    "prior_spot_findings_disposition": [
+      {
+        "id": "MT-SPOT-001",
+        "status": "CORRECTED_IN_SELECTED_MT001",
+        "evidence": "Active behavior now names current workspace and owner contributions; original monolithic wording remains historical. Manifest-only primary writes do not authorize companion owner writes."
+      },
+      {
+        "id": "MT-SPOT-002",
+        "status": "PARTLY_CORRECTED_FURTHER_OWNER_GAPS_REMAIN",
+        "evidence": "MT001 has distinct per-AC owner contributions, but MT017 GPU and MT34070 composition/sequence active mappings remain too narrow; MT200 contains an obsolete active required_behavior."
+      },
+      {
+        "id": "MT-SPOT-003",
+        "status": "CORRECTED_ACCEPTANCE_SHAPE_PROOF_PENDING",
+        "evidence": "MT33848 and MT34070 retain original empty acceptance arrays and each adds one full-scope active criterion with a corresponding proof check. Their methods have not executed."
+      },
+      {
+        "id": "MT-SPOT-004",
+        "status": "CORRECTED_CONFIGURATION_BINDING_PENDING",
+        "evidence": "Artifact policy anchors to verified HANDSHAKE_GOV_ROOT and configured CX-984 root, with owner slug and absolute root still pending before any run. Asset cwd is not the locator base."
+      },
+      {
+        "id": "MT-SPOT-005",
+        "status": "CORRECTED_BOOTSTRAP_DESIGN_UNIMPLEMENTED",
+        "evidence": "MT35528 allows tools/workspace-probe.rs and requires a real standalone selection/provenance probe before dependent foundations; all-package compilation stays at final 36-foundation barrier."
+      },
+      {
+        "id": "MT-SPOT-006",
+        "status": "WORKSPACE_ACCORD_CONTROLLED_OTHER_FOUNDATION_FLAGS_REMAIN",
+        "evidence": "Accord declares no owned GUI and conditional later shared consumer proof; Controls has an actual configured-control slice. KernelBindings and MotionJS still declare owned_gui without an actual owned/shared GUI route."
+      },
+      {
+        "id": "MT-SPOT-007",
+        "status": "SELECTED_RANGE_HASHES_CORRECT_SOURCE_CLOSURE_INCOMPLETE",
+        "evidence": "50 selected full range bindings match actual bytes; wildcard closure for MT017/018/188 is expressly pending and MT188 omits the current LAY160 successor."
+      },
+      {
+        "id": "MT-SPOT-008",
+        "status": "SELECTED_MT188_MT200_PHASE_REFS_CORRECT_PROOF_PENDING",
+        "evidence": "Original feature dependencies now require ASSET_CAPABILITY_ACCEPTED phase independently of foundations. MT34070 still lacks compound capability prerequisites."
+      },
+      {
+        "id": "MT-SPOT-009",
+        "status": "CORRECTED_NO_BLANKET_PERMISSION",
+        "evidence": "All selected contracts forbid blanket new canonical owner creation, require exact scoped reuse search and bind parent writes to its owner root; companion claims are independent."
+      }
+    ],
+    "findings": [
+      {
+        "id": "ROOT-MT-SEM-001",
+        "severity": "HIGH",
+        "status": "NONEXEC_OWNER_PROOF_RECONCILIATION_REQUIRED",
+        "contracts": [
+          "MT-017"
+        ],
+        "spec_ids": [
+          "STU-ARC-002",
+          "STU-CON-005",
+          "STU-RAS-*",
+          "STU-FX-*"
+        ],
+        "contract_pointers": [
+          "#/fulfillment/legacy_acceptance_map/2/owner_contributions",
+          "#/fulfillment/legacy_acceptance_map/2/asset_proof_recipe/selected_packages",
+          "#/fulfillment/legacy_acceptance_map/3",
+          "#/fulfillment/asset_slices"
+        ],
+        "observed": "GPU path AC003 and deterministic cross-backend AC004 are mapped solely to Composite and select only hsk-studio-composite. Asset slices do not name RenderCPU or RenderGPU; supporting Pigment/Accord/Folio/KernelBindings/Motion slices have empty acceptance refs. Canonical Composite owns static evaluation, while renderer backend/device and CPU reference are separate owners.",
+        "counterexample": "A Composite consumer using only CPU or a mock RenderProvider can satisfy the written package closure without proving actual GPU execution or CPU/GPU equivalence. MT001 port compilation is not compositor-specific backend proof.",
+        "mitigation": "Before dispatch, bind each affected AC to exact Composite, Pigment, RenderCPU and RenderGPU contributions as appropriate, named provider consumers and an independent cross-backend oracle. Companion owners retain independent claims; preserve pure static closure and optional provider selection.",
+        "proof_required": "Actual selected CPU/GPU provider consumer output on identical immutable input, typed unavailable-provider outcome, independent comparison under declared GPU tolerance, cancellation and backend-loss paths. No runtime verdict is issued."
+      },
+      {
+        "id": "ROOT-MT-SEM-002",
+        "severity": "HIGH",
+        "status": "NONEXEC_SOURCE_OWNER_RECONCILIATION_REQUIRED",
+        "contracts": [
+          "MT-200"
+        ],
+        "spec_ids": [
+          "STU-TYP-135",
+          "STU-TYP-136",
+          "STU-TYP-137",
+          "STU-TYP-138",
+          "STU-TYP-139",
+          "STU-TYP-140"
+        ],
+        "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:8115",
+        "contract_pointers": [
+          "#/fulfillment/legacy_acceptance_map/0/owner_contributions/0/required_behavior",
+          "#/fulfillment/legacy_acceptance_map/2/owner_contributions",
+          "#/fulfillment/legacy_acceptance_map/3/owner_contributions",
+          "#/fulfillment/asset_slices"
+        ],
+        "observed": "Active semantic_fulfillment and recipes correctly require two independent scope values by three engine values, all six combinations and extensible composer_name. Active owner required_behavior still says '4 Studio-native composers selectable per paragraph'. GUI AC003 and Model surface AC004 name Type alone; Controls/Layout slices and selected packages exist but exact acceptance maps still reference only Type.",
+        "counterexample": "An implementer can follow the active Type owner behavior and implement four closed composers, or mark GUI/model criteria fulfilled by the headless Type result while actual shared Controls/Layout consumer behavior remains unproven.",
+        "mitigation": "Preserve original text as historical; reconcile every active owner behavior to TYP135..140 and name exact Type/Controls/Layout contributions for actual GUI and model assertions with independent owner claims and their proof phases.",
+        "proof_required": "Six scope/engine combinations, registry extension and explicit override, CJK constraints, deterministic invalid cases, real shared control changes and typed model-facing descriptors bound to the same immutable state."
+      },
+      {
+        "id": "ROOT-MT-SEM-003",
+        "severity": "MEDIUM",
+        "status": "NONEXEC_HBR_TRIGGER_ROUTE_MATERIALIZATION_REQUIRED",
+        "contracts": [
+          "MT-35556",
+          "MT-35563"
+        ],
+        "spec_ids": [
+          "HBR-VIS-003",
+          "STU-MOT-255",
+          "STU-MOT-258",
+          "STU-MOT-259"
+        ],
+        "contract_pointers": [
+          "#/activation/semantic_trigger_flags/owned_gui",
+          "#/context_capsule/inspection_route_refs",
+          "#/context_capsule/read_context",
+          "#/foundation_contract/minimum_meaningful_slice"
+        ],
+        "observed": "KernelBindings and MotionJS foundation flags set owned_gui true and apply the generic viewport capture matrix. Their actual minimum slices are a host-neutral transient bridge and bounded JS expression provider. The inspected route references do not identify a concrete owned or shared GUI consumer/version for those minimum slices.",
+        "counterexample": "A headless adapter author is forced to invent a duplicate GUI merely to satisfy the capture matrix, or can submit generic Argus screenshots unrelated to the actual affected consumer.",
+        "mitigation": "Reconcile headless/TraceProjection inspection against direct owned GUI and named shared Controls/Harness GUI consumer obligations. Retain later actual host viewport evidence wherever triggered, and bind captures to the actual route rather than inventing new panels.",
+        "proof_required": "Trigger rationale tied to real feature visibility; exact Argus route and affected GUI state when a consumer exists, with normal/constrained/edge-state evidence. No generic no-op or unrelated screenshots satisfy the criterion."
+      },
+      {
+        "id": "ROOT-MT-SEM-004",
+        "severity": "HIGH",
+        "status": "NONEXEC_COMPOUND_CAPABILITY_PHASE_RECONCILIATION_REQUIRED",
+        "contracts": [
+          "MT-34070"
+        ],
+        "spec_ids": [
+          "STU-CMP-004"
+        ],
+        "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:29021",
+        "contract_pointers": [
+          "#/fulfillment/legacy_acceptance_map/0",
+          "#/fulfillment/asset_slices",
+          "#/fulfillment/dependency_reconciliation",
+          "#/execution/depends_on"
+        ],
+        "observed": "The complete active criterion preserves bidirectional composition/sequence embedding, mutual editing opacity and explicit navigation without making either primitive a wrapper for the other. Its owner/selected-package/slice map names Composite alone and has no required capability dependencies beyond the 36 foundations. Catalog assigns sequence editing/scheduling to Pulse, temporal policy to Motion, unified graph to Folio, orchestration to Session and reusable navigation to shared controls/harness.",
+        "counterexample": "A static Composite render-plan foundation can pass while sequence-to-composition editing and reverse navigation do not exist. Foundation-only dependencies cannot prove the compound workflow.",
+        "mitigation": "Bind exact published Pulse/Motion/Folio/Session and shared navigation contributions with their actual capability acceptance phases and independent owner claims. Keep pure static Composite free of unconditional optional engine dependencies by proving compound behavior at the correct consumer.",
+        "proof_required": "Real bidirectional cross-view same-document consumer preserving stable IDs and revisions, edits and navigation through typed ports, opaque/loss disposition and model outcome inspection; independent phase receipts before dependent proof."
+      },
+      {
+        "id": "ROOT-MT-SEM-005",
+        "severity": "HIGH",
+        "status": "NONEXEC_CURRENT_SOURCE_SUCCESSOR_BINDING_REQUIRED",
+        "contracts": [
+          "MT-188"
+        ],
+        "spec_ids": [
+          "STU-LAY-062",
+          "STU-LAY-160",
+          "STU-LAY-067"
+        ],
+        "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:7178",
+        "contract_pointers": [
+          "#/context_capsule/specification_anchor_refs",
+          "#/fulfillment/legacy_acceptance_map",
+          "#/fulfillment/unresolved_source_anchors"
+        ],
+        "observed": "Current capsule binds only LAY062 lines7176..7177 and LAY067 lines7592..7603. Immediately following LAY160 supersedes the earlier PDF/X minimum with six exact standards values and complete ink bounds/types, alias errors, mixed-ink limits, overprint and typed separations. Active PDF/X behavior remains generic and does not bind that successor. The explicit pending COL wildcard is not a LAY160 successor binding.",
+        "counterexample": "The historical three-family minimum can be implemented while x1a_2003/x3_2003 or pdfx.none and the current typed ink/alias/separation contracts are omitted, yet the generic PDF/X intent criterion is marked done.",
+        "mitigation": "Preserve original acceptance; explicitly bind the active prepress owner behavior and proof to current LAY160 and relevant exact typed color/control contributions. Resolve wildcard closure before dispatch rather than treating historical snippets as complete current source.",
+        "proof_required": "All six current PDF/X values plus independent exact ink bound and error fixtures, process-alias rejection, mixed-ink/group limits, overprint and typed separation readouts through canonical Prism and shared controls without a parallel math owner."
+      }
+    ],
+    "positive_controls": [
+      "MT001 current workspace topology, per-AC contributing owners and standalone/later-host separation are explicit; primary manifest writes do not grant companion writes.",
+      "MT35528 Workspace bootstrap has a real standalone manifest/toolchain/selection/provenance consumer, valid and invalid outcomes, an allowed probe source and a final separately mandatory 36-foundation package compiler barrier.",
+      "MT35529 Accord minimum parses actual typed IDs/units/revision/capability envelopes, including nonfinite and unknown-required rejection; it correctly marks owned GUI false and later GUI conditional.",
+      "MT35553 Controls minimum uses one configured reusable control with actual typed edit plus shared manual/model/accessibility descriptors; no fresh domain panel is required.",
+      "MT35556 minimum requires a proposal/authorization/cancel/diagnostic round trip rejecting a bad grant; it does not claim durable production host authority.",
+      "MT35563 minimum requires a real selected JS engine, deterministic bounded expression, hostile/budget rejection and runtime retirement. MOT255..259 remain mandatory; an empty adapter is insufficient.",
+      "MT33848 and MT34070 each append one real full-scope acceptance and proof mapping without overwriting the original empty arrays.",
+      "MT188 and MT200 selected original feature dependencies retain ASSET_CAPABILITY_ACCEPTED phase requirements rather than foundation-only completion.",
+      "HSK-PLG-020 amendment maps to MT35618 Harness and retains portable asset adapter foundations before features plus real shared-platform consumers before dependent activation/embedding; no current host implementation claim."
+    ],
+    "remaining_pre_dispatch_materialization": [
+      "All 13 inspected contracts are blocked with dispatch_allowed false, methods and bounded timeouts not selected, executable outputs unproduced; this is NONEXEC and not fake acceptance.",
+      "Before coding approve focused natural methods and exact owning package/provider features and timeouts. Foundations may create owned targets during coding; executable real output is mandatory before handoff.",
+      "Bind actual verified owner slug, absolute configured artifact root, cache/tmp/log segregation and source identity before any run; portable ../Handshake_Artifacts is not proof of a configured root.",
+      "Resolve exact STU-RAS/STU-FX wildcard closure for MT017, STU-TYP for MT018 and STU-COL for MT188 before dispatch.",
+      "Canonical owner search and exact capability binding remain required; candidates are not evidence of owner absence and no blanket new owner permission is authorized.",
+      "Independent companion asset claims and actual original feature phase proofs remain mandatory. Passing a narrow meaningful foundation never proves full parity or later durable host behavior.",
+      "All five scoped findings require owner/source/trigger/proof reconciliation before these affected contracts execute; no product test or runtime defect is alleged by this source-only review."
+    ],
+    "artifact_read_back": true,
+    "whole_corpus_verdict": "NOT_ISSUED",
+    "runtime_verdict": "NOT_RUN",
+    "reviewed_at_utc": "2026-10-09T20:10:14.1780941Z",
+    "hskplg_mapping_note": "HSK-PLG-020 maps to MT-35618 in the inspected actual index; selected amendment owner is Harness.",
+    "contract_snapshots": [
+      {
+        "mt": "MT-001",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-001.json",
+        "sha256": "a68ece2e5fbfa7c1e9b44ef6e894d802112ea3fd1e0e2a8c041be7065109483c",
+        "bytes": 232166,
+        "lines": 3672,
+        "module_ref": "STUDIO-WORKSPACE",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "hbr_rows": 45,
+        "may_create_canonical_capability": false,
+        "allowed_write_paths": [
+          "handshake-studio-assets/Cargo.toml",
+          "handshake-studio-assets/Cargo.lock",
+          "handshake-studio-assets/rust-toolchain.toml"
+        ],
+        "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+        "checks": [
+          {
+            "check_id": "MT-001-ASSET-AC-001",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-001-ASSET-AC-002",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-001-ASSET-AC-003",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-001-ASSET-AC-004",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          }
+        ]
+      },
+      {
+        "mt": "MT-017",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-017.json",
+        "sha256": "85787dac9cb12704ca1b93cbe42261334e33f9f1e7bf8ce9906e0f8822c23044",
+        "bytes": 188648,
+        "lines": 3627,
+        "module_ref": "STUDIO-MODULE-COMPOSITE",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "hbr_rows": 45,
+        "may_create_canonical_capability": false,
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-composite/**"
+        ],
+        "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+        "checks": [
+          {
+            "check_id": "MT-017-ASSET-AC-001",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-017-ASSET-AC-002",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-017-ASSET-AC-003",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-017-ASSET-AC-004",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          }
+        ]
+      },
+      {
+        "mt": "MT-018",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-018.json",
+        "sha256": "200e362ca84dbbf44121690f4cd35cebd76879037138b7a8ac136277ca380c34",
+        "bytes": 167578,
+        "lines": 3118,
+        "module_ref": "STUDIO-MODULE-TYPE",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "hbr_rows": 45,
+        "may_create_canonical_capability": false,
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-type/**"
+        ],
+        "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+        "checks": [
+          {
+            "check_id": "MT-018-ASSET-AC-001",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-018-ASSET-AC-002",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-018-ASSET-AC-003",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          }
+        ]
+      },
+      {
+        "mt": "MT-188",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-188.json",
+        "sha256": "5da126183fbe6ee7d3b8909f9d8fce4ea385b708ccfe2ab271deb0d047202abf",
+        "bytes": 193836,
+        "lines": 3709,
+        "module_ref": "STUDIO-MODULE-PRESS",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "hbr_rows": 45,
+        "may_create_canonical_capability": false,
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-press/**"
+        ],
+        "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+        "checks": [
+          {
+            "check_id": "MT-188-ASSET-AC-001",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-188-ASSET-AC-002",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-188-ASSET-AC-003",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-188-ASSET-AC-004",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-188-ASSET-AC-005",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-188-ASSET-AC-006",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          }
+        ]
+      },
+      {
+        "mt": "MT-200",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-200.json",
+        "sha256": "db700b8313ca2602a01bb054c06e2ea67c70d62e76f738115eed777c7a74f1dd",
+        "bytes": 180954,
+        "lines": 3083,
+        "module_ref": "STUDIO-MODULE-TYPE",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "hbr_rows": 45,
+        "may_create_canonical_capability": false,
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-type/**"
+        ],
+        "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+        "checks": [
+          {
+            "check_id": "MT-200-ASSET-AC-001",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-200-ASSET-AC-002",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-200-ASSET-AC-003",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-200-ASSET-AC-004",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          }
+        ]
+      },
+      {
+        "mt": "MT-33848",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33848.json",
+        "sha256": "c704d6c9f938dd6836f40d020ae457fd79081466e16fed36111976042f3575d5",
+        "bytes": 129767,
+        "lines": 2030,
+        "module_ref": "STUDIO-MODULE-MOTION",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "hbr_rows": 45,
+        "may_create_canonical_capability": false,
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-motion/**"
+        ],
+        "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+        "checks": [
+          {
+            "check_id": "MT-33848-ASSET-ASSET-AC-001",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          }
+        ]
+      },
+      {
+        "mt": "MT-34070",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34070.json",
+        "sha256": "a2e4371fc6d4d7a817ed0c457003534db19eee5b3e489c386c32651756571218",
+        "bytes": 130605,
+        "lines": 2035,
+        "module_ref": "STUDIO-MODULE-COMPOSITE",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "hbr_rows": 45,
+        "may_create_canonical_capability": false,
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-composite/**"
+        ],
+        "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+        "checks": [
+          {
+            "check_id": "MT-34070-ASSET-ASSET-AC-001",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          }
+        ]
+      },
+      {
+        "mt": "MT-35528",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json",
+        "sha256": "70be487edb8659775af3f283c879b6fb2d95f693d6767eed711653871272c754",
+        "bytes": 119723,
+        "lines": 1902,
+        "module_ref": "STUDIO-WORKSPACE",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "hbr_rows": 45,
+        "may_create_canonical_capability": false,
+        "allowed_write_paths": [
+          "handshake-studio-assets/Cargo.toml",
+          "handshake-studio-assets/Cargo.lock",
+          "handshake-studio-assets/rust-toolchain.toml",
+          "handshake-studio-assets/tools/workspace-probe.rs"
+        ],
+        "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+        "checks": [
+          {
+            "check_id": "MT-35528-ASSET-AC-001",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35528-ASSET-AC-002",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35528-ASSET-AC-003",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35528-ASSET-AC-004",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35528-ASSET-AC-005",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          }
+        ]
+      },
+      {
+        "mt": "MT-35529",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35529.json",
+        "sha256": "32ad6c9b0d811f21b602ba32d7cc474b7213b04804133ac1fcd788d03f639626",
+        "bytes": 119007,
+        "lines": 1896,
+        "module_ref": "STUDIO-MODULE-ACCORD",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "hbr_rows": 45,
+        "may_create_canonical_capability": false,
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-accord/**"
+        ],
+        "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+        "checks": [
+          {
+            "check_id": "MT-35529-ASSET-AC-001",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35529-ASSET-AC-002",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35529-ASSET-AC-003",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35529-ASSET-AC-004",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35529-ASSET-AC-005",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          }
+        ]
+      },
+      {
+        "mt": "MT-35553",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35553.json",
+        "sha256": "c578fe66e7427ee8813e7c1a3c9de10c328e67af114898588157f92936815f2c",
+        "bytes": 119571,
+        "lines": 1903,
+        "module_ref": "STUDIO-MODULE-CONTROLS",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "hbr_rows": 45,
+        "may_create_canonical_capability": false,
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-controls/**"
+        ],
+        "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+        "checks": [
+          {
+            "check_id": "MT-35553-ASSET-AC-001",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35553-ASSET-AC-002",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35553-ASSET-AC-003",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35553-ASSET-AC-004",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35553-ASSET-AC-005",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          }
+        ]
+      },
+      {
+        "mt": "MT-35556",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35556.json",
+        "sha256": "92daa072da2b4a00792024e438b9c44bc9929d10848d961554f26dd870453250",
+        "bytes": 120679,
+        "lines": 1915,
+        "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "hbr_rows": 45,
+        "may_create_canonical_capability": false,
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-kernel-bindings/**"
+        ],
+        "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+        "checks": [
+          {
+            "check_id": "MT-35556-ASSET-AC-001",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35556-ASSET-AC-002",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35556-ASSET-AC-003",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35556-ASSET-AC-004",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35556-ASSET-AC-005",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          }
+        ]
+      },
+      {
+        "mt": "MT-35563",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35563.json",
+        "sha256": "4676bcc0ff9215b188dbb85b7527cabbb77487f29418251d5f5ed55b140e58f0",
+        "bytes": 132630,
+        "lines": 2016,
+        "module_ref": "STUDIO-MODULE-MOTION_JS",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "hbr_rows": 45,
+        "may_create_canonical_capability": false,
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-motion-js/**"
+        ],
+        "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+        "checks": [
+          {
+            "check_id": "MT-35563-ASSET-AC-001",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35563-ASSET-AC-002",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35563-ASSET-AC-003",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35563-ASSET-AC-004",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          },
+          {
+            "check_id": "MT-35563-ASSET-AC-005",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          }
+        ]
+      },
+      {
+        "mt": "MT-35618",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35618.json",
+        "sha256": "cbcf29140e0e1baf075d96128ca0dde38fec2cd1152705b333ad7a2400e4265a",
+        "bytes": 106353,
+        "lines": 1756,
+        "module_ref": "STUDIO-MODULE-HARNESS",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "hbr_rows": 45,
+        "may_create_canonical_capability": false,
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-harness/**"
+        ],
+        "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+        "checks": [
+          {
+            "check_id": "MT-35618-ASSET-AC-001",
+            "command_or_method": null,
+            "timeout_seconds": null,
+            "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET"
+          }
+        ]
+      }
+    ],
+    "final_snapshot_recheck": {
+      "at_utc": "2026-10-09T20:11:26.1835397Z",
+      "sources": [
+        {
+          "ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "actual_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/spec/master-spec-v02.207/spec-modules/05-security-and-observability.md",
+          "actual_sha256": "5e6947f665b59ab656d8de7e3f2cf56975d85f5d0effd728726731e0e0da0161",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+          "actual_sha256": "df923cb68267d2c42dcfc3588255c35e82680a11a06dcccfe1e4ad3723e0b82a",
+          "matches_snapshot": true
+        }
+      ],
+      "contracts": [
+        {
+          "mt": "MT-001",
+          "matches_snapshot": true
+        },
+        {
+          "mt": "MT-017",
+          "matches_snapshot": true
+        },
+        {
+          "mt": "MT-018",
+          "matches_snapshot": true
+        },
+        {
+          "mt": "MT-188",
+          "matches_snapshot": true
+        },
+        {
+          "mt": "MT-200",
+          "matches_snapshot": true
+        },
+        {
+          "mt": "MT-33848",
+          "matches_snapshot": true
+        },
+        {
+          "mt": "MT-34070",
+          "matches_snapshot": true
+        },
+        {
+          "mt": "MT-35528",
+          "matches_snapshot": true
+        },
+        {
+          "mt": "MT-35529",
+          "matches_snapshot": true
+        },
+        {
+          "mt": "MT-35553",
+          "matches_snapshot": true
+        },
+        {
+          "mt": "MT-35556",
+          "matches_snapshot": true
+        },
+        {
+          "mt": "MT-35563",
+          "matches_snapshot": true
+        },
+        {
+          "mt": "MT-35618",
+          "matches_snapshot": true
+        }
+      ],
+      "index_matches_snapshot": true
+    },
+    "current_resolution_ref": "#/corrected_mt_incremental_review/source_findings_dispositions",
+    "historical_snapshot_note": "Five findings were open at the prior digest; current disposition is the corrected incremental review. Preserve old observations/hashes as lineage."
+  },
+  "packet_group_delta_review": {
+    "review_id": "STUDIO-ROOT-INDEPENDENT-PACKET-GROUPS-2026-10-09",
+    "status": "SOURCE_GROUP_CONTROLS_ACCEPTED_NONEXEC_MT_RECONCILIATION_PENDING",
+    "scope": "Only packet.json#/microtask_graph/source_materialization_groups plus its direct current parent gates, canonical Layout/Components catalog rows and KB-IMPL-001/005 authority. No new MT corpus audit or product execution.",
+    "source_refs": [
+      {
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json:426",
+        "sha256": "8a33fde542c5186ec539e2597149f6794e6f7e1db3d102b78490a18b66011d3f",
+        "binding": "#/microtask_graph/source_materialization_groups"
+      },
+      {
+        "ref": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md:41",
+        "sha256": "b3fffc137dbd12096775bf9cc9d65b6f7acff88e872861e17bf6591861db7674",
+        "binding": "KB-IMPL-001; KB-IMPL-005 line53"
+      },
+      {
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+        "sha256": "df923cb68267d2c42dcfc3588255c35e82680a11a06dcccfe1e4ad3723e0b82a",
+        "binding": "modules with id STUDIO-MODULE-LAYOUT and STUDIO-MODULE-COMPONENTS; exact source_root/responsibility/ports"
+      }
+    ],
+    "authority_assessment": "KB-IMPL-001 explicitly allows a packet-authorized grouped slice and requires SESSION_MT_BATCH plus batch_owner/covered_mts in each covered remediation record and covers[] in shared proof. Group declarations are explicitly PREPARATION_NOT_EXECUTABLE with dispatch_allowed false, and parent execution_authority remains NON_EXECUTION_STUB with unbound activation. Their addition does not authorize product writes, builds or launch in this session.",
+    "proof_assessment": "Both group control002 clauses retain all parent activation conditions, all36 independently accepted foundations, external capability proofs, each individual acceptance and independently inspected shared behavior. Control001 classifies only mutual internal source-materialization edges as pending and expressly forbids treating them as accepted dependency capabilities. Control003 preserves one canonical source owner and one verified batch artifact owner, without sibling or new canonical capability permissions, and retains separately claimed consumer and later host proofs.",
+    "negative_scenarios": [
+      {
+        "scenario": "Batch owner labels its peer's source-materialization edge accepted and lets an unrelated downstream task consume it.",
+        "control": "Control001 retains pending classification; control002 prohibits unvalidated external dependencies; KB-IMPL-005 independently retains the same ban.",
+        "remaining_proof": "New frozen affected MT records must actually retain both original edges and classify only those specific mutual edges; declaration alone is not source reconciliation proof."
+      },
+      {
+        "scenario": "One green shared package or variant test masks an unproved peer criterion.",
+        "control": "Ordered source steps and control002 require each individual MT criterion and immutable-candidate shared behavior; KB-IMPL-001 requires exact per-record batch_owner/covered_mts and shared covers[].",
+        "remaining_proof": "Actual per-AC evidence and validator assessment remain required for all covered members; a blanket batch status is insufficient."
+      },
+      {
+        "scenario": "Grouped author writes Package/Controls/Session or another sibling root while implementing a Layout/Components feature.",
+        "control": "Control003 confines canonical owner and owned root; companion consumers retain separate write/proof claims. Current catalog roots match declarations.",
+        "remaining_proof": "Actual later selected owner claims and scoped diffs must respect those boundaries; no writes were performed."
+      },
+      {
+        "scenario": "A build-only foundation or unvalidated external capability lets the group launch early.",
+        "control": "Control002 requires independently accepted36 foundations and external proofs, while parent activation remains unbound/non-executable.",
+        "remaining_proof": "New affected MT capability phase rows, exact external refs and candidate-bound proof receipts must be reconciled before dispatch."
+      }
+    ],
+    "findings": [],
+    "concrete_design_blocker_in_inspected_addition": "NONE_FOUND_WITHIN_STATED_SOURCE_SCOPE",
+    "pending_conditions": [
+      "Wait for parent new frozen index/ordered-MT digest; do not accept in-flight batch bytes.",
+      "Incrementally inspect actual corrected selected MT semantics and affected group-edge/phase bindings only when authorized against the new snapshot.",
+      "Group source_refs and listed external MTs are declarations; this pass has not independently judged every clause body or prerequisite proof.",
+      "Current source grouping is not capability acceptance, a cycle bypass, runtime proof, executable admission or a whole-corpus verdict.",
+      "Preserve all five earlier frozen semantic findings as open until actual corrective bytes are independently reread."
+    ],
+    "runtime_verdict": "NOT_RUN",
+    "whole_corpus_verdict": "NOT_ISSUED",
+    "artifact_read_back": true,
+    "at_utc": "2026-10-09T20:20:19.283058Z",
+    "group_source_checks": [
+      {
+        "group_id": "STUDIO-GROUP-BOOK-PACKAGE",
+        "state": "PREPARATION_NOT_EXECUTABLE",
+        "dispatch_allowed": false,
+        "batch_owner": "MT-172",
+        "covered_mts": [
+          "MT-172",
+          "MT-184"
+        ],
+        "batch_owner_is_member": true,
+        "members_unique": true,
+        "source_owner": "STUDIO-MODULE-LAYOUT",
+        "owned_root": "handshake-studio-assets/crates/hsk-studio-layout/",
+        "catalog_root": "handshake-studio-assets/crates/hsk-studio-layout",
+        "root_matches_canonical_owner": true,
+        "external_refs": [
+          "MT-150",
+          "MT-168",
+          "MT-183",
+          "MT-181",
+          "MT-163"
+        ],
+        "external_refs_disjoint_from_members": true,
+        "controls": [
+          {
+            "id": "STUDIO-GROUP-BOOK-PACKAGE-001",
+            "requirement": "Retain both original dependency edges and complete original acceptance; classify only the mutual source-materialization edges as GROUP_INTERNAL_SOURCE_MATERIALIZATION_PENDING, never as accepted dependency capability."
+          },
+          {
+            "id": "STUDIO-GROUP-BOOK-PACKAGE-002",
+            "requirement": "Before dispatch, satisfy all parent activation conditions, all 36 independently accepted foundations and the external capability proofs. A shared batch proof names batch_owner, covered_mts and covers[], retains each MT acceptance and cannot use unvalidated work as a validated external dependency."
+          },
+          {
+            "id": "STUDIO-GROUP-BOOK-PACKAGE-003",
+            "requirement": "Keep one Layout source owner and one verified batch artifact owner. Group membership grants no sibling root, publisher or new canonical capability permission; separately claimed consumers retain their own write/proof boundaries and later host acceptance."
+          }
+        ]
+      },
+      {
+        "group_id": "STUDIO-GROUP-VARIANT-OVERRIDES",
+        "state": "PREPARATION_NOT_EXECUTABLE",
+        "dispatch_allowed": false,
+        "batch_owner": "MT-332",
+        "covered_mts": [
+          "MT-332",
+          "MT-340"
+        ],
+        "batch_owner_is_member": true,
+        "members_unique": true,
+        "source_owner": "STUDIO-MODULE-COMPONENTS",
+        "owned_root": "handshake-studio-assets/crates/hsk-studio-components/",
+        "catalog_root": "handshake-studio-assets/crates/hsk-studio-components",
+        "root_matches_canonical_owner": true,
+        "external_refs": [
+          "MT-329",
+          "MT-339",
+          "MT-009",
+          "MT-556",
+          "MT-557",
+          "MT-558",
+          "MT-559",
+          "MT-560"
+        ],
+        "external_refs_disjoint_from_members": true,
+        "controls": [
+          {
+            "id": "STUDIO-GROUP-VARIANT-OVERRIDES-001",
+            "requirement": "Retain both original dependency edges and complete original acceptance; classify only the mutual source-materialization edges as GROUP_INTERNAL_SOURCE_MATERIALIZATION_PENDING, never as accepted dependency capability."
+          },
+          {
+            "id": "STUDIO-GROUP-VARIANT-OVERRIDES-002",
+            "requirement": "Before dispatch, satisfy all parent activation conditions, all 36 independently accepted foundations and the external capability proofs. A shared batch proof names batch_owner, covered_mts and covers[], retains each MT acceptance and cannot use unvalidated work as a validated external dependency."
+          },
+          {
+            "id": "STUDIO-GROUP-VARIANT-OVERRIDES-003",
+            "requirement": "Keep one Components source owner and one verified batch artifact owner. Group membership grants no sibling root or new canonical capability permission; separately claimed consumers retain their own write/proof boundaries and later host acceptance."
+          }
+        ]
+      }
+    ],
+    "final_source_recheck": [
+      {
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
+        "sha256": "8a33fde542c5186ec539e2597149f6794e6f7e1db3d102b78490a18b66011d3f",
+        "matches_snapshot": true
+      },
+      {
+        "ref": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+        "sha256": "b3fffc137dbd12096775bf9cc9d65b6f7acff88e872861e17bf6591861db7674",
+        "matches_snapshot": true
+      },
+      {
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+        "sha256": "df923cb68267d2c42dcfc3588255c35e82680a11a06dcccfe1e4ad3723e0b82a",
+        "matches_snapshot": true
+      }
+    ]
+  },
+  "corrected_mt_incremental_review": {
+    "review_id": "STUDIO-ROOT-INDEPENDENT-CORRECTED-MT-INCREMENTAL-2026-10-09",
+    "status": "RECORDED_SOURCE_FINDINGS_RESOLVED_NONEXEC_IMPLEMENTATION_PROOF_PENDING",
+    "scope": "Five recorded ROOT-MT-SEM findings across six affected contracts, plus only the four packet-authorized grouped source-materialization contracts. No new survey or full-corpus audit.",
+    "index_sha256": "c3df9e9fab9fbbc316be2f007a9eb9b5287b5f493670efa0b844b7250afa3fa6",
+    "ordered_corpus_sha256_declared_by_index": "1060970bc38404ac29327b27b83e3a606daf304bc6d93a1c5d414790aa146f2f",
+    "ordered_corpus_independently_recomputed": false,
+    "previous_snapshot_ref": "#/frozen_mt_semantic_spots",
+    "source_findings_dispositions": [
+      {
+        "finding_id": "ROOT-MT-SEM-001",
+        "status": "RESOLVED_IN_SOURCE_CONTRACT_RUNTIME_NOT_PROVEN",
+        "mts": [
+          "MT-017"
+        ],
+        "evidence": "AC001/002 explicitly bind Composite and Pigment. AC003 binds actual Composite plan and RenderGPU execution/readback; AC004 binds Composite identical immutable inputs and separate RenderCPU/RenderGPU pixel outputs. Proof checks select the same provider packages, retain neutral ports, device-loss/unavailable/cancel handling, independent output inspection and later host proof. Current FX148 full source range is bound. The active oracle explicitly requires authored tolerances/goldens before equivalent-output PASS; unavailable/skipped GPU is NOT_PROVEN.",
+        "counterexample_control": "CPU-only or mock-provider work cannot satisfy actual GPU/readback criteria; byte equality cannot replace cross-backend epsilon, and epsilon cannot replace artifact byte integrity.",
+        "remaining_obligation": "NONEXEC: STU-FX-148 lines19001..19005 explicitly say the per-effect tolerance/golden set does not yet exist. Author exact per-effect/profile tolerances and independent goldens before equivalent-output acceptance; no numeric epsilon or present oracle is inferred. Pigment's older empty per-slice acceptance_refs is not the sole acceptance authority: current explicit per-AC references and required original full-scope contribution remain mandatory before its separate dispatch."
+      },
+      {
+        "finding_id": "ROOT-MT-SEM-002",
+        "status": "RESOLVED_IN_SOURCE_CONTRACT_RUNTIME_NOT_PROVEN",
+        "mts": [
+          "MT-200"
+        ],
+        "evidence": "The old four-composer string survives only as original captured text. Active Type required_behavior now requires all six independent scope/engine combinations with extensible registry and deterministic errors. AC001/002 name Type plus actual Layout paragraph/reflow consumer. GUI AC003 and Model surface AC004 explicitly name Type/Layout/Controls, distinct shared control/typed command/Argus/manual/accessibility behavior and matching selected packages/proof expectations.",
+        "counterexample_control": "A headless Type result cannot stand in for the shared GUI/model surface or Layout reflow; four closed composers cannot satisfy current active behavior.",
+        "remaining_obligation": "Implement and independently inspect six combinations, registry/override failures, CJK constraints, shared configured GUI/model outcomes and exact-revision paragraph/reflow output. Exact source/feature/method/timeouts and separate owner claims are still pending."
+      },
+      {
+        "finding_id": "ROOT-MT-SEM-003",
+        "status": "RESOLVED_IN_SOURCE_CONTRACT_RUNTIME_NOT_PROVEN",
+        "mts": [
+          "MT-35556",
+          "MT-35563"
+        ],
+        "evidence": "Both foundations now set owned_gui false, assess HBR-VIS-003 CONDITIONAL and distinguish bounded nonUI TraceProjection from a separately selected visible Controls/Harness consumer. Actual nonUI endpoint must materialize before foundation handoff. A visible consumer requires its actual named route and viewport/state matrix; Observe alone is expressly insufficient. Real bridge roundtrip/rejected grant and actual bounded JS engine hostile-input/retirement minima are preserved.",
+        "counterexample_control": "The contracts do not require a new duplicate panel to prove a headless foundation and do not let unrelated Argus screenshots certify a real visible consumer.",
+        "remaining_obligation": "Materialize and run real nonUI routes. Where a visible shared consumer is selected, independently inspect the named route and normal/constrained/edge states with revision/current-grant binding. No existing endpoint or GUI behavior is claimed."
+      },
+      {
+        "finding_id": "ROOT-MT-SEM-004",
+        "status": "RESOLVED_IN_SOURCE_CONTRACT_RUNTIME_NOT_PROVEN",
+        "mts": [
+          "MT-34070"
+        ],
+        "evidence": "Current criterion and exact owner contributions name Composite/Pulse/Motion/Folio/Session/Controls. They preserve composition-as-sequence-clip and sequence-as-composition-layer, foreign-edit opacity, integer-tick versus overlapping-layer models, declared time mapping and actor-local enter/return. Selected proof consumer uses injected providers; Composite keeps no unconditional Pulse/Motion/device dependency. Fourteen added capability refs resolve in the actual frozen registry to ASSET_CAPABILITY_ACCEPTED with PENDING_NOT_RUN and all36 parent foundation preconditions.",
+        "counterexample_control": "A static graph/probe compile cannot satisfy actual nested rendered output, time/revision receipt and navigation state; deleted/cyclic/stale/time-map failures and other-actor view preservation are explicit.",
+        "remaining_obligation": "Independently accept referenced runtime/navigation capabilities, execute actual two-direction consumer plus negative paths and actor-local view proof, then separately validate actual Handshake host embedding."
+      },
+      {
+        "finding_id": "ROOT-MT-SEM-005",
+        "status": "RESOLVED_IN_SOURCE_CONTRACT_RUNTIME_NOT_PROVEN",
+        "mts": [
+          "MT-188"
+        ],
+        "evidence": "Current capsule explicitly binds full LAY160 and relevant exact successor ranges. AC001 requires all six current PDF/X values; AC002 explicitly covers four ink types, bounds, process alias error and mixed-ink budgets. AC003 preserves object versus document overprint and AC005 requires visible and typed plate/coverage findings. Canonical Press/Prism/Layout/Controls contributions and selected packages replace the generic historical-only mapping; current trap/flattener source bindings are also explicit.",
+        "counterexample_control": "Historical three-family PDF/X controls cannot satisfy the active six-value criterion; self-labelled preview/foundation compilation cannot prove actual emitted prepress output or typed plate findings. No second color-math owner is authorized.",
+        "remaining_obligation": "Execute independent six-value output/readback, exact ink bounds/errors, mixed-ink/group limits, overprint and typed/visible separations. Original feature capabilities, current wildcard closure, owner claims and real later host acceptance remain required."
+      }
+    ],
+    "grouped_source_assessment": "All four corrected records bind the exact previously reviewed packet group identity/hash, canonical single-owner root and batch artifact owner. Only the mutual peer edge becomes GROUP_INTERNAL_SOURCE_MATERIALIZATION_PENDING with GROUP_SOURCE_MATERIALIZATION_THEN_INDEPENDENT_SHARED_PROOF. Every original edge remains captured and independently classified. Each member execution graph requires the full group union of external capability references in addition to all36 foundations; no peer pending source is claimed accepted or exposed as a validated external dependency. Shared covers enumerate all three plus two Book/Package criteria and all two plus five Variant/Overrides criteria. Actual methods and shared output have not executed.",
+    "negative_group_scenarios": [
+      {
+        "scenario": "Start a Book member after only its own external dependencies pass.",
+        "source_control": "Each corrected execution.depends_on contains the full group external union (9 capability refs) and the packet still requires validated group external proofs."
+      },
+      {
+        "scenario": "Treat a Variant peer edge as accepted or hide an override reset/author/manual criterion behind one batch status.",
+        "source_control": "Internal edge phase remains pending shared proof; exact per-member covers retain both Variant and all five Overrides criteria. All25 external capability refs are required in both member graphs."
+      },
+      {
+        "scenario": "Write a consumer sibling root or use a prior candidate's shared success.",
+        "source_control": "Only canonical Layout or Components root is writable; batch_owner and covered_mts bind shared proof to the same immutable candidate. Separate owner claims and later host proof remain mandatory."
+      }
+    ],
+    "scoped_independent_checks": {
+      "changed_contracts_opened": 10,
+      "current_spec_capsule_ranges_rehashed": 72,
+      "range_result": "72 exact source ranges match actual UTF8 line text joined LF without final LF. Source binding is distinct from semantic/full-runtime proof.",
+      "composition_capability_registry_rows_opened": 14,
+      "composition_registry_result": "All selected references resolve; each requires ASSET_CAPABILITY_ACCEPTED, PENDING_NOT_RUN and36 parent foundation prerequisites. These are source metadata, not executed capability acceptance.",
+      "whole_corpus_hash": "Only frozen declared index metadata compared; no independent5575 corpus hash recomputation or preservation verdict in this pass.",
+      "product_mutations": "NONE",
+      "mt_index_source_mutations": "NONE",
+      "only_write": ".GOV/docs_repo/studio-collaboration-2026-10-09/root-independent-review.json"
+    },
+    "remaining_nonexecution_prerequisites": [
+      "No Studio product source, owned executable target or runtime capability is claimed materialized by this review.",
+      "All selected records remain blocked with current dispatch false and methods/timeouts/evidence pending. Parent activation/new-session authorization, independent foundations and required external capability proofs still precede execution.",
+      "FX148 tolerance/golden authoring is a real missing equivalence-proof prerequisite. Existing source declarations are not an available numeric comparator or oracle.",
+      "Where current wildcard navigation remains, exact functional source closure/owner binding must be reconciled before dispatch; declared navigation gives no scope/write permission.",
+      "Verified absolute configured artifact root and owner slug, provider features/targets, actual Argus routes/current grants, candidate identity and independent output proofs remain to be materialized at the declared phase.",
+      "Grouped source materialization is not accepted capability; shared proof must retain every individual criterion and match the exact candidate. No unvalidated downstream dependency is permitted.",
+      "Actual native/authority/permission/EventLedger/diagnostic embedding proof is separately required; asset source acceptance and meaningful foundations cannot certify it."
+    ],
+    "remaining_source_findings": [],
+    "concrete_remaining_design_blocker_within_reviewed_corrections": "NONE_FOUND",
+    "current_admission": "NON_EXECUTABLE_PREPARATION",
+    "runtime_verdict": "NOT_RUN",
+    "whole_corpus_verdict": "NOT_ISSUED",
+    "publication_verdict": "NOT_ISSUED",
+    "artifact_read_back": true,
+    "reviewed_at_utc": "2026-10-09T20:44:30.43897Z",
+    "contract_snapshots": [
+      {
+        "mt": "MT-017",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-017.json",
+        "sha256": "e0b6be281bfb12f81600ae6a8f6a7f77b547c3bae8a98aaa541eea78b405052c",
+        "bytes": 243493,
+        "lines": 4436,
+        "module_ref": "STUDIO-MODULE-COMPOSITE",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-composite/**"
+        ],
+        "may_create_canonical_capability": false,
+        "proof_methods_pending": 4,
+        "proof_timeouts_pending": 4
+      },
+      {
+        "mt": "MT-188",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-188.json",
+        "sha256": "1a66d580758ffc0eb7f715643354cf2db57b979506774abd22c366b7d0905f40",
+        "bytes": 275978,
+        "lines": 5022,
+        "module_ref": "STUDIO-MODULE-PRESS",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-press/**"
+        ],
+        "may_create_canonical_capability": false,
+        "proof_methods_pending": 6,
+        "proof_timeouts_pending": 6
+      },
+      {
+        "mt": "MT-200",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-200.json",
+        "sha256": "372ad5c34472c02afb1c5ba50b8135f5d8d3859c28cd38d059a2a763ccbcb599",
+        "bytes": 220737,
+        "lines": 3722,
+        "module_ref": "STUDIO-MODULE-TYPE",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-type/**"
+        ],
+        "may_create_canonical_capability": false,
+        "proof_methods_pending": 4,
+        "proof_timeouts_pending": 4
+      },
+      {
+        "mt": "MT-34070",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34070.json",
+        "sha256": "312969f0c76b897f86ae2a14aac9ce18a1afdfbbe33c8a3d104d922b8d68ebbf",
+        "bytes": 259045,
+        "lines": 4252,
+        "module_ref": "STUDIO-MODULE-COMPOSITE",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-composite/**"
+        ],
+        "may_create_canonical_capability": false,
+        "proof_methods_pending": 1,
+        "proof_timeouts_pending": 1
+      },
+      {
+        "mt": "MT-35556",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35556.json",
+        "sha256": "279b647aea275dcc2d5e127267bf9a733b98d18ea52c3549850d42c15ff7ac55",
+        "bytes": 120889,
+        "lines": 1916,
+        "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-kernel-bindings/**"
+        ],
+        "may_create_canonical_capability": false,
+        "proof_methods_pending": 5,
+        "proof_timeouts_pending": 5
+      },
+      {
+        "mt": "MT-35563",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35563.json",
+        "sha256": "ac9e1c9b64790a399ead2994f102819fbef559010ff04b6527207718c94205ac",
+        "bytes": 132846,
+        "lines": 2017,
+        "module_ref": "STUDIO-MODULE-MOTION_JS",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-motion-js/**"
+        ],
+        "may_create_canonical_capability": false,
+        "proof_methods_pending": 5,
+        "proof_timeouts_pending": 5
+      },
+      {
+        "mt": "MT-172",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-172.json",
+        "sha256": "c4e21698e7c14ae4a1753b5076d93e74a7a09c9cf13bd0c453e685c46068637b",
+        "bytes": 156131,
+        "lines": 2731,
+        "module_ref": "STUDIO-MODULE-LAYOUT",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-layout/**"
+        ],
+        "may_create_canonical_capability": false,
+        "proof_methods_pending": 3,
+        "proof_timeouts_pending": 3
+      },
+      {
+        "mt": "MT-184",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-184.json",
+        "sha256": "f9754135ac4892993914ba9b2390ff019c48414b4bd2b2c2ac64e5af725cc46e",
+        "bytes": 146097,
+        "lines": 2569,
+        "module_ref": "STUDIO-MODULE-LAYOUT",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-layout/**"
+        ],
+        "may_create_canonical_capability": false,
+        "proof_methods_pending": 2,
+        "proof_timeouts_pending": 2
+      },
+      {
+        "mt": "MT-332",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-332.json",
+        "sha256": "331e1496b4ad69f6ae8cc246cb2c58764e758f6a1e419d6559071baaddf04d14",
+        "bytes": 142692,
+        "lines": 2528,
+        "module_ref": "STUDIO-MODULE-COMPONENTS",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-components/**"
+        ],
+        "may_create_canonical_capability": false,
+        "proof_methods_pending": 2,
+        "proof_timeouts_pending": 2
+      },
+      {
+        "mt": "MT-340",
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-340.json",
+        "sha256": "a5ff0066f9f99366be68a8957a1100d08851de11c20eaacc509152f0d2d87a0f",
+        "bytes": 166886,
+        "lines": 3017,
+        "module_ref": "STUDIO-MODULE-COMPONENTS",
+        "dispatch_allowed": false,
+        "phase": "blocked",
+        "allowed_write_paths": [
+          "handshake-studio-assets/crates/hsk-studio-components/**"
+        ],
+        "may_create_canonical_capability": false,
+        "proof_methods_pending": 5,
+        "proof_timeouts_pending": 5
+      }
+    ],
+    "source_snapshots": [
+      {
+        "ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+        "sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3"
+      },
+      {
+        "ref": ".GOV/spec/master-spec-v02.207/spec-modules/05-security-and-observability.md",
+        "sha256": "5e6947f665b59ab656d8de7e3f2cf56975d85f5d0effd728726731e0e0da0161"
+      },
+      {
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+        "sha256": "df923cb68267d2c42dcfc3588255c35e82680a11a06dcccfe1e4ad3723e0b82a"
+      },
+      {
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
+        "sha256": "8a33fde542c5186ec539e2597149f6794e6f7e1db3d102b78490a18b66011d3f"
+      }
+    ],
+    "group_reconciliation_checks": [
+      {
+        "mt": "MT-172",
+        "group_id": "STUDIO-GROUP-BOOK-PACKAGE",
+        "packet_hash_bound": "8a33fde542c5186ec539e2597149f6794e6f7e1db3d102b78490a18b66011d3f",
+        "packet_hash_matches": true,
+        "covered_mts": [
+          "MT-172",
+          "MT-184"
+        ],
+        "batch_owner": "MT-172",
+        "root": "handshake-studio-assets/crates/hsk-studio-layout/",
+        "matches_packet_owner": true,
+        "original_edges": [
+          "MT-150",
+          "MT-168",
+          "MT-183",
+          "MT-184"
+        ],
+        "original_edges_exactly_classified": true,
+        "classified_edges": [
+          {
+            "original_dependency_ref": "MT-150",
+            "kind": "asset_capability",
+            "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "BLOCKING_UNTIL_REQUIRED_ASSET_SLICES_PROVEN; LATER_HOST_ONLY_ACCEPTANCE_SEPARATE"
+          },
+          {
+            "original_dependency_ref": "MT-168",
+            "kind": "asset_capability",
+            "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "BLOCKING_UNTIL_REQUIRED_ASSET_SLICES_PROVEN; LATER_HOST_ONLY_ACCEPTANCE_SEPARATE"
+          },
+          {
+            "original_dependency_ref": "MT-183",
+            "kind": "asset_capability",
+            "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "BLOCKING_UNTIL_REQUIRED_ASSET_SLICES_PROVEN; LATER_HOST_ONLY_ACCEPTANCE_SEPARATE"
+          },
+          {
+            "original_dependency_ref": "MT-184",
+            "kind": "group_internal_source_materialization",
+            "required_phase": "GROUP_SOURCE_MATERIALIZATION_THEN_INDEPENDENT_SHARED_PROOF",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "GROUP_INTERNAL_SOURCE_MATERIALIZATION_PENDING"
+          }
+        ],
+        "external_capability_union_count": 9,
+        "missing_external_dependencies": [],
+        "shared_covers": [
+          {
+            "mt_id": "MT-172",
+            "acceptance_ids": [
+              "AC-001",
+              "AC-002",
+              "AC-003"
+            ],
+            "source_ref": "MT-172#/fulfillment/legacy_acceptance_map"
+          },
+          {
+            "mt_id": "MT-184",
+            "acceptance_ids": [
+              "AC-001",
+              "AC-002"
+            ],
+            "source_ref": "MT-184#/fulfillment/legacy_acceptance_map"
+          }
+        ],
+        "shared_proof_status": "PENDING_NOT_RUN",
+        "source_is_not_accepted_capability": true,
+        "artifact_owner_template": "WP-KERNEL-STUDIO/MT-172/{VERIFIED_OWNER_SLUG}/",
+        "current_dispatch": false
+      },
+      {
+        "mt": "MT-184",
+        "group_id": "STUDIO-GROUP-BOOK-PACKAGE",
+        "packet_hash_bound": "8a33fde542c5186ec539e2597149f6794e6f7e1db3d102b78490a18b66011d3f",
+        "packet_hash_matches": true,
+        "covered_mts": [
+          "MT-172",
+          "MT-184"
+        ],
+        "batch_owner": "MT-172",
+        "root": "handshake-studio-assets/crates/hsk-studio-layout/",
+        "matches_packet_owner": true,
+        "original_edges": [
+          "MT-181",
+          "MT-163",
+          "MT-172"
+        ],
+        "original_edges_exactly_classified": true,
+        "classified_edges": [
+          {
+            "original_dependency_ref": "MT-181",
+            "kind": "asset_capability",
+            "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "BLOCKING_UNTIL_REQUIRED_ASSET_SLICES_PROVEN; LATER_HOST_ONLY_ACCEPTANCE_SEPARATE"
+          },
+          {
+            "original_dependency_ref": "MT-163",
+            "kind": "asset_capability",
+            "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "BLOCKING_UNTIL_REQUIRED_ASSET_SLICES_PROVEN; LATER_HOST_ONLY_ACCEPTANCE_SEPARATE"
+          },
+          {
+            "original_dependency_ref": "MT-172",
+            "kind": "group_internal_source_materialization",
+            "required_phase": "GROUP_SOURCE_MATERIALIZATION_THEN_INDEPENDENT_SHARED_PROOF",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "GROUP_INTERNAL_SOURCE_MATERIALIZATION_PENDING"
+          }
+        ],
+        "external_capability_union_count": 9,
+        "missing_external_dependencies": [],
+        "shared_covers": [
+          {
+            "mt_id": "MT-172",
+            "acceptance_ids": [
+              "AC-001",
+              "AC-002",
+              "AC-003"
+            ],
+            "source_ref": "MT-172#/fulfillment/legacy_acceptance_map"
+          },
+          {
+            "mt_id": "MT-184",
+            "acceptance_ids": [
+              "AC-001",
+              "AC-002"
+            ],
+            "source_ref": "MT-184#/fulfillment/legacy_acceptance_map"
+          }
+        ],
+        "shared_proof_status": "PENDING_NOT_RUN",
+        "source_is_not_accepted_capability": true,
+        "artifact_owner_template": "WP-KERNEL-STUDIO/MT-172/{VERIFIED_OWNER_SLUG}/",
+        "current_dispatch": false
+      },
+      {
+        "mt": "MT-332",
+        "group_id": "STUDIO-GROUP-VARIANT-OVERRIDES",
+        "packet_hash_bound": "8a33fde542c5186ec539e2597149f6794e6f7e1db3d102b78490a18b66011d3f",
+        "packet_hash_matches": true,
+        "covered_mts": [
+          "MT-332",
+          "MT-340"
+        ],
+        "batch_owner": "MT-332",
+        "root": "handshake-studio-assets/crates/hsk-studio-components/",
+        "matches_packet_owner": true,
+        "original_edges": [
+          "MT-329",
+          "MT-340",
+          "MT-009"
+        ],
+        "original_edges_exactly_classified": true,
+        "classified_edges": [
+          {
+            "original_dependency_ref": "MT-329",
+            "kind": "asset_capability",
+            "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "BLOCKING_UNTIL_REQUIRED_ASSET_SLICES_PROVEN; LATER_HOST_ONLY_ACCEPTANCE_SEPARATE"
+          },
+          {
+            "original_dependency_ref": "MT-340",
+            "kind": "group_internal_source_materialization",
+            "required_phase": "GROUP_SOURCE_MATERIALIZATION_THEN_INDEPENDENT_SHARED_PROOF",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "GROUP_INTERNAL_SOURCE_MATERIALIZATION_PENDING"
+          },
+          {
+            "original_dependency_ref": "MT-009",
+            "kind": "asset_capability",
+            "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "BLOCKING_UNTIL_REQUIRED_ASSET_SLICES_PROVEN; LATER_HOST_ONLY_ACCEPTANCE_SEPARATE"
+          }
+        ],
+        "external_capability_union_count": 25,
+        "missing_external_dependencies": [],
+        "shared_covers": [
+          {
+            "mt_id": "MT-332",
+            "acceptance_ids": [
+              "AC-001",
+              "AC-002"
+            ],
+            "source_ref": "MT-332#/fulfillment/legacy_acceptance_map"
+          },
+          {
+            "mt_id": "MT-340",
+            "acceptance_ids": [
+              "AC-001",
+              "AC-002",
+              "AC-003",
+              "AC-004",
+              "AC-005"
+            ],
+            "source_ref": "MT-340#/fulfillment/legacy_acceptance_map"
+          }
+        ],
+        "shared_proof_status": "PENDING_NOT_RUN",
+        "source_is_not_accepted_capability": true,
+        "artifact_owner_template": "WP-KERNEL-STUDIO/MT-332/{VERIFIED_OWNER_SLUG}/",
+        "current_dispatch": false
+      },
+      {
+        "mt": "MT-340",
+        "group_id": "STUDIO-GROUP-VARIANT-OVERRIDES",
+        "packet_hash_bound": "8a33fde542c5186ec539e2597149f6794e6f7e1db3d102b78490a18b66011d3f",
+        "packet_hash_matches": true,
+        "covered_mts": [
+          "MT-332",
+          "MT-340"
+        ],
+        "batch_owner": "MT-332",
+        "root": "handshake-studio-assets/crates/hsk-studio-components/",
+        "matches_packet_owner": true,
+        "original_edges": [
+          "MT-339",
+          "MT-332",
+          "MT-556",
+          "MT-557",
+          "MT-558",
+          "MT-559",
+          "MT-560"
+        ],
+        "original_edges_exactly_classified": true,
+        "classified_edges": [
+          {
+            "original_dependency_ref": "MT-339",
+            "kind": "asset_capability",
+            "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "BLOCKING_UNTIL_REQUIRED_ASSET_SLICES_PROVEN; LATER_HOST_ONLY_ACCEPTANCE_SEPARATE"
+          },
+          {
+            "original_dependency_ref": "MT-332",
+            "kind": "group_internal_source_materialization",
+            "required_phase": "GROUP_SOURCE_MATERIALIZATION_THEN_INDEPENDENT_SHARED_PROOF",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "GROUP_INTERNAL_SOURCE_MATERIALIZATION_PENDING"
+          },
+          {
+            "original_dependency_ref": "MT-556",
+            "kind": "asset_capability",
+            "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "BLOCKING_UNTIL_REQUIRED_ASSET_SLICES_PROVEN; LATER_HOST_ONLY_ACCEPTANCE_SEPARATE"
+          },
+          {
+            "original_dependency_ref": "MT-557",
+            "kind": "asset_capability",
+            "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "BLOCKING_UNTIL_REQUIRED_ASSET_SLICES_PROVEN; LATER_HOST_ONLY_ACCEPTANCE_SEPARATE"
+          },
+          {
+            "original_dependency_ref": "MT-558",
+            "kind": "asset_capability",
+            "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "BLOCKING_UNTIL_REQUIRED_ASSET_SLICES_PROVEN; LATER_HOST_ONLY_ACCEPTANCE_SEPARATE"
+          },
+          {
+            "original_dependency_ref": "MT-559",
+            "kind": "asset_capability",
+            "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "BLOCKING_UNTIL_REQUIRED_ASSET_SLICES_PROVEN; LATER_HOST_ONLY_ACCEPTANCE_SEPARATE"
+          },
+          {
+            "original_dependency_ref": "MT-560",
+            "kind": "asset_capability",
+            "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+            "proof_status": "PENDING_NOT_RUN",
+            "blocking_disposition": "BLOCKING_UNTIL_REQUIRED_ASSET_SLICES_PROVEN; LATER_HOST_ONLY_ACCEPTANCE_SEPARATE"
+          }
+        ],
+        "external_capability_union_count": 25,
+        "missing_external_dependencies": [],
+        "shared_covers": [
+          {
+            "mt_id": "MT-332",
+            "acceptance_ids": [
+              "AC-001",
+              "AC-002"
+            ],
+            "source_ref": "MT-332#/fulfillment/legacy_acceptance_map"
+          },
+          {
+            "mt_id": "MT-340",
+            "acceptance_ids": [
+              "AC-001",
+              "AC-002",
+              "AC-003",
+              "AC-004",
+              "AC-005"
+            ],
+            "source_ref": "MT-340#/fulfillment/legacy_acceptance_map"
+          }
+        ],
+        "shared_proof_status": "PENDING_NOT_RUN",
+        "source_is_not_accepted_capability": true,
+        "artifact_owner_template": "WP-KERNEL-STUDIO/MT-332/{VERIFIED_OWNER_SLUG}/",
+        "current_dispatch": false
+      }
+    ],
+    "composition_registry_checks": [
+      {
+        "ref": "MT-009-ASSET-CONTROLS",
+        "owner": "STUDIO-MODULE-CONTROLS",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-009#/execution/start_precondition"
+      },
+      {
+        "ref": "MT-009-ASSET-FOLIO",
+        "owner": "STUDIO-MODULE-FOLIO",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-009#/execution/start_precondition"
+      },
+      {
+        "ref": "MT-009-ASSET-HARNESS",
+        "owner": "STUDIO-MODULE-HARNESS",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-009#/execution/start_precondition"
+      },
+      {
+        "ref": "MT-009-ASSET-SESSION",
+        "owner": "STUDIO-MODULE-SESSION",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-009#/execution/start_precondition"
+      },
+      {
+        "ref": "MT-30020-ASSET-ACCORD",
+        "owner": "STUDIO-MODULE-ACCORD",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-30020#/execution/start_precondition"
+      },
+      {
+        "ref": "MT-30020-ASSET-FOLIO",
+        "owner": "STUDIO-MODULE-FOLIO",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-30020#/execution/start_precondition"
+      },
+      {
+        "ref": "MT-30020-ASSET-KERNEL_BINDINGS",
+        "owner": "STUDIO-MODULE-KERNEL_BINDINGS",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-30020#/execution/start_precondition"
+      },
+      {
+        "ref": "MT-33686-ASSET-PULSE",
+        "owner": "STUDIO-MODULE-PULSE",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-33686#/execution/start_precondition"
+      },
+      {
+        "ref": "MT-33687-ASSET-PULSE",
+        "owner": "STUDIO-MODULE-PULSE",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-33687#/execution/start_precondition"
+      },
+      {
+        "ref": "MT-33704-ASSET-PULSE",
+        "owner": "STUDIO-MODULE-PULSE",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-33704#/execution/start_precondition"
+      },
+      {
+        "ref": "MT-33707-ASSET-PULSE",
+        "owner": "STUDIO-MODULE-PULSE",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-33707#/execution/start_precondition"
+      },
+      {
+        "ref": "MT-33848-ASSET-MOTION",
+        "owner": "STUDIO-MODULE-MOTION",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-33848#/execution/start_precondition"
+      },
+      {
+        "ref": "MT-33867-ASSET-MOTION",
+        "owner": "STUDIO-MODULE-MOTION",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-33867#/execution/start_precondition"
+      },
+      {
+        "ref": "MT-34427-ASSET-CONTROLS",
+        "owner": "STUDIO-MODULE-CONTROLS",
+        "required_phase": "ASSET_CAPABILITY_ACCEPTED",
+        "proof_status": "PENDING_NOT_RUN",
+        "foundation_count": 36,
+        "mandatory_parent_precondition_ref": "MT-34427#/execution/start_precondition"
+      }
+    ],
+    "final_snapshot_recheck": {
+      "at_utc": "2026-10-09T20:46:19.6801548Z",
+      "refs": [
+        {
+          "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-017.json",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-188.json",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-200.json",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34070.json",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35556.json",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35563.json",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-172.json",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-184.json",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-332.json",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-340.json",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/spec/master-spec-v02.207/spec-modules/05-security-and-observability.md",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+          "matches_snapshot": true
+        },
+        {
+          "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
+          "matches_snapshot": true
+        }
+      ],
+      "index_matches": true,
+      "declared_corpus_matches": true
+    },
+    "consumer_phase_obligation": {
+      "id": "ROOT-MT-SEM-004-CONSUMER-PHASE-OBLIGATION",
+      "status": "RESIDUAL_NONEXEC_TRIGGER_MATERIALIZATION_OBLIGATION",
+      "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34070.json:1062",
+      "source_sha256": "312969f0c76b897f86ae2a14aac9ce18a1afdfbbe33c8a3d104d922b8d68ebbf",
+      "observed": "HBR-VIS-003 is CONDITIONAL because Composite owns no GUI and refers to a later visible shared consuming integration. Active asset proof now includes Controls and rendered/Argus navigation output. A Controls package selection alone does not establish a materialized GUI route.",
+      "required_interpretation": "If the selected asset consumer is visibly interactive, its named route and viewport/state matrix belong to that asset consumer acceptance phase; never defer applicable GUI proof solely until Handshake embedding. A purely typed nonUI consumer may retain conditional GUI posture, but cannot certify visible navigation behavior.",
+      "mitigation": "During exact method/route selection bind conditional applicability to the actual consumer and current proof phase; clarify later wording if it is interpreted as embedding-only. No new panel or private Argus route is required.",
+      "verdict_limit": "No actual consumer exists or executes here; this is a bounded source timing clarification and future materialization obligation, not a runtime defect or a new architecture blocker.",
+      "current_resolution_ref": "#/mt34070_phase_narrow_review",
+      "current_status": "RESOLVED_BY_EXACT_ONE_REASON_CLARIFICATION"
+    }
+  },
+  "mt34070_phase_narrow_review": {
+    "review_id": "STUDIO-ROOT-INDEPENDENT-MT34070-HBR-PHASE-NARROW-2026-10-09",
+    "reviewed_at_utc": "2026-10-09T20:54:40.4437416Z",
+    "status": "ONE_REASON_CLARIFICATION_ACCEPTED_NO_REMAINING_PHASE_AMBIGUITY",
+    "scope": "Only MT34070#/context_capsule/pillar_refs/25/reason and frozen narrow index metadata; reuse unchanged detailed five-finding,72range and grouped source/phase review.",
+    "changed_pointer": "/context_capsule/pillar_refs/25/reason",
+    "old_reason": "STUDIO-MODULE-COMPOSITE owns no GUI. Verify negative owned-GUI scope; any visible shared consuming integration requires later viewport/state matrix, never an invented module panel.",
+    "new_reason": "STUDIO-MODULE-COMPOSITE owns no GUI. Verify negative owned-GUI scope. Any actual visible shared consumer must provide the viewport/state capture matrix at that consumer's own asset acceptance phase or later embedding acceptance phase, according to its claim; pure typed nonUI navigation does not invent a module GUI. Actual visible asset proof cannot defer the matrix to embedding.",
+    "rule_id": "HBR-VIS-003",
+    "assessment": "CONDITIONAL",
+    "owned_gui": false,
+    "prior_mt_sha256": "312969f0c76b897f86ae2a14aac9ce18a1afdfbbe33c8a3d104d922b8d68ebbf",
+    "current_mt_sha256": "b8cba58ae9c4702eeada2f9d7e25f632b48031726c60cedfb3e01bb62b5171c7",
+    "current_index_sha256": "e91b68b06cfdb209b57dac790cad07484c5654084685b1618c4c977660bc4596",
+    "current_ordered_corpus_sha256_declared_by_index": "ed58a91b4def08aa68d32f5cf0cbc4b4a3c5a93c061c167700cddd42ec187621",
+    "corpus_hash_independently_recomputed": false,
+    "independent_one_field_proof": {
+      "method": "In memory, replace the one exact JSON-encoded new reason token with the prior independently observed reason and hash resulting UTF8 raw bytes. No reconstructed file is written.",
+      "new_reason_occurrences": 1,
+      "reconstructed_prior_raw_sha256": "312969f0c76b897f86ae2a14aac9ce18a1afdfbbe33c8a3d104d922b8d68ebbf",
+      "matches_prior_independently_reviewed_raw_snapshot": true,
+      "prior_reason_matches_index_delta": true,
+      "new_reason_matches_index_delta": true
+    },
+    "assessment_basis": "Actual visible shared consumer must prove viewport/state matrix at its own asset or embedding acceptance phase according to its claim. The final sentence expressly prohibits visible asset proof deferring the matrix to embedding. Pure typed nonUI navigation retains conditional GUI applicability without inventing a module panel.",
+    "prior_advisory_resolved": "ROOT-MT-SEM-004-CONSUMER-PHASE-OBLIGATION",
+    "reuse_justification": "Exact reconstructed prior raw identity proves every other field in MT34070 is unchanged, including current recipe,source ranges,graph,owners,group and status. The previously inspected detailed evidence remains historical and applies to unchanged inputs; no72range or full-corpus proof is rerun.",
+    "other_mt_preservation_verdict": "NOT_ISSUED_IN_THIS_NARROW_PASS; independent corpus review remains with Photo/root",
+    "remaining_source_findings": [],
+    "remaining_phase_ambiguity": "NONE_IN_INSPECTED_REASON",
+    "execution_posture": "NON_EXECUTABLE_PREPARATION",
+    "runtime_verdict": "NOT_RUN",
+    "whole_corpus_verdict": "NOT_ISSUED",
+    "publication_verdict": "NOT_ISSUED",
+    "only_write": ".GOV/docs_repo/studio-collaboration-2026-10-09/root-independent-review.json",
+    "artifact_read_back": true,
+    "final_identity_recheck": {
+      "at_utc": "2026-10-09T20:55:04.6940544Z",
+      "mt_hash": "b8cba58ae9c4702eeada2f9d7e25f632b48031726c60cedfb3e01bb62b5171c7",
+      "index_hash": "e91b68b06cfdb209b57dac790cad07484c5654084685b1618c4c977660bc4596",
+      "mt_matches": true,
+      "index_matches": true
+    }
+  }
+}
