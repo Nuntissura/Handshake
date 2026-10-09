@@ -234,6 +234,8 @@
 
 [CX-DIAG-TOOL-003] Verified Windows diagnostic availability, 2026-10-09 MT-168 host: PowerShell 7.6.5; Windows Task Scheduler service `Schedule` Running/Automatic; `ScheduledTasks` module 1.0 exposes register/action/principal/settings/start/query/info cmdlets. Per-user registration and detached execution require their own observed probe; availability alone proves neither. These are optional execution/diagnostic tools, with no product runtime dependency.
 
+[CX-DIAG-TOOL-004] Verified existing MT-168 private SDK diagnostic availability, 2026-10-09: external RecordUser/Mem probe source, seed and native capture adapter; pinned Rust1.97.1 and retained SurrealDB3.2.0/Tokio/serde_json libraries are available. Reuse only as optional component diagnostics; no product dependency or acceptance substitution. The original probe executes EXPLAIN and must never run unchanged after its single allowance was consumed; the bounded-link remediation removes it entirely. Provenance: MT-168.json#operator_decision_20261009_bounded_link_verification.
+
 ## Authority maintenance
 
 [CX-105] Change Codex, build rules or Master Spec only on explicit Operator instruction and within the assigned role's authority; the owning role protocol defines the publishing procedure. Present material changes for review; an approved concrete edit needs no repeated approval.

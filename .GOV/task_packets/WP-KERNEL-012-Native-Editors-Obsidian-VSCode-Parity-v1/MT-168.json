@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-09T00:51:39.746532+00:00",
+  "updated_at_utc": "2026-10-09T17:53:37.394344+00:00",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -92,7 +92,8 @@
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-153.json#analysis_20261001_step1_w_scans_ownership",
-      "MT-167.json#diagnosis_20261002_dbdae422_grant_table_scan"
+      "MT-167.json#diagnosis_20261002_dbdae422_grant_table_scan",
+      "diagnosis_20261009_292d_r14"
     ],
     "no_counter_reset": true
   },
@@ -111,7 +112,8 @@
       "src/backend/handshake_core/src/knowledge_code_index/engine.rs (only the three verification SELECT sources in PERSIST_CLEAN_CODE_BATCH at :573; exact approved patch a73f29c817734f8ffee687b6ec804309357045948980a459db4574b0ca5cfad1)",
       "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs (only existing statement timing activation: shared tracing/task-local helper and two test-router calls; exact approved patch 6e822060c36a1f4b2e9c7197a69c2e94d5048d0cfb039f14751cf697a3824b1d)",
       "src/backend/handshake_core/src/knowledge_code_index/engine.rs (only link-verification FOR statements at :574-575, LET aliases and existing span-index hints; exact approved combined patch 70042102087ca5508c79c37809a0e89f61d5d50c165631f0f7255475503f4658)",
-      "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs (only exact removal of approved diagnostic helper/router calls to original d4b bytes; exact approved combined patch 70042102087ca5508c79c37809a0e89f61d5d50c165631f0f7255475503f4658)"
+      "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs (only exact removal of approved diagnostic helper/router calls to original d4b bytes; exact approved combined patch 70042102087ca5508c79c37809a0e89f61d5d50c165631f0f7255475503f4658)",
+      "src/backend/handshake_core/src/knowledge_code_index/engine.rs (only bounded link-verification loops at :574-575; exact a41a24ed60d87311c6aa616241b3cdb370a20eacae8a6750359536959cb685c1 under operator_decision_20261009_bounded_link_verification)"
     ],
     "forbidden_write_paths": [
       "app/src/**",
@@ -120,7 +122,7 @@
       "src/backend/handshake_document/**",
       "any other schema.surql/schema.rs statement (table PERMISSIONS clauses stay as written)",
       "src/backend/handshake_core/src/knowledge_ingestion/** (MT-154)",
-      "src/backend/handshake_core/src/knowledge_code_index/** (MT-167; sole exceptions are the exact engine.rs:573 patch and engine.rs:574-575 patch approved in operator_decision_20261009_engine_v3 and operator_decision_20261009_link_verification)",
+      "src/backend/handshake_core/src/knowledge_code_index/** (MT-167; sole exceptions are the exact engine.rs:573 patch and engine.rs:574-575 patch approved in operator_decision_20261009_engine_v3 and operator_decision_20261009_link_verification and operator_decision_20261009_bounded_link_verification)",
       "any SQLite/PostgreSQL path (CX-503R)"
     ],
     "stop_conditions": [
@@ -302,7 +304,8 @@
       "src/backend/handshake_core/src/knowledge_code_index/engine.rs (only the three verification SELECT sources in PERSIST_CLEAN_CODE_BATCH at :573; exact approved patch a73f29c817734f8ffee687b6ec804309357045948980a459db4574b0ca5cfad1)",
       "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs (only existing statement timing activation: shared tracing/task-local helper and two test-router calls; exact approved patch 6e822060c36a1f4b2e9c7197a69c2e94d5048d0cfb039f14751cf697a3824b1d)",
       "src/backend/handshake_core/src/knowledge_code_index/engine.rs (only link-verification FOR statements at :574-575, LET aliases and existing span-index hints; exact approved combined patch 70042102087ca5508c79c37809a0e89f61d5d50c165631f0f7255475503f4658)",
-      "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs (only exact removal of approved diagnostic helper/router calls to original d4b bytes; exact approved combined patch 70042102087ca5508c79c37809a0e89f61d5d50c165631f0f7255475503f4658)"
+      "src/backend/handshake_core/tests/mt167_code_nav_index_cost_tests.rs (only exact removal of approved diagnostic helper/router calls to original d4b bytes; exact approved combined patch 70042102087ca5508c79c37809a0e89f61d5d50c165631f0f7255475503f4658)",
+      "src/backend/handshake_core/src/knowledge_code_index/engine.rs (only bounded link-verification loops at :574-575; exact a41a24ed60d87311c6aa616241b3cdb370a20eacae8a6750359536959cb685c1 under operator_decision_20261009_bounded_link_verification)"
     ],
     "forbidden_paths": [
       "app/src/**",
@@ -311,7 +314,7 @@
       "src/backend/handshake_document/**",
       "any other schema.surql/schema.rs statement (table PERMISSIONS clauses stay as written)",
       "src/backend/handshake_core/src/knowledge_ingestion/** (MT-154)",
-      "src/backend/handshake_core/src/knowledge_code_index/** (MT-167; sole exceptions are the exact engine.rs:573 patch and engine.rs:574-575 patch approved in operator_decision_20261009_engine_v3 and operator_decision_20261009_link_verification)",
+      "src/backend/handshake_core/src/knowledge_code_index/** (MT-167; sole exceptions are the exact engine.rs:573 patch and engine.rs:574-575 patch approved in operator_decision_20261009_engine_v3 and operator_decision_20261009_link_verification and operator_decision_20261009_bounded_link_verification)",
       "any SQLite/PostgreSQL path (CX-503R)"
     ],
     "acceptance_criteria": [
@@ -1316,6 +1319,127 @@
         "runtime_executed": false,
         "root_readback": "Exact native0/Finished13m20s, outer0/failure null/observer ended opened;6 input hashes and35 original/copy pairs matched; fresh owned/global compiler inventory empty",
         "status_effect": "NONE; independent original affected3 acceptance still required; r13UNKNOWN and historical verdicts retained"
+      },
+      {
+        "id": "PR-WP012-MT168-WPV-ORIGINAL-AFFECTED-20261009-292D-R14",
+        "check_id": "MT-168-DOWNSTREAM",
+        "executor": "WP_VALIDATOR-20261009-retained-wpv",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+        "tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6",
+        "result": "FAIL_REQUIRED_TIMING_FLOOR",
+        "exit_code": 100,
+        "phase_exit_codes": {
+          "core": 100,
+          "wrapper": 0,
+          "native": "skipped",
+          "backend": "skipped"
+        },
+        "started_at_utc": "2026-10-09T14:20:40.1094913Z",
+        "completed_at_utc": "2026-10-09T17:29:02.5347116Z",
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt168-original-affected-292d-r14.json",
+        "proof_sha256": "fc58f7185c5f4c76ffefe7699f6e502c1f9f6e29a3336916745883d617f3c01e",
+        "junit": {
+          "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\junit-292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4-core-targeted-mt168-link-r14.xml",
+          "sha256": "b6d597b901e73fafe4d9d6402c52516d3606aff8af897d616a4b43bb578c91b1",
+          "tests": 3,
+          "passed": 2,
+          "failures": 1,
+          "errors": 0,
+          "seconds": 163.971,
+          "run_id": "85fc2125-d643-49f9-ae06-c659a1b9cfd0",
+          "cases": [
+            {
+              "name": "api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete",
+              "seconds": 23.913,
+              "result": "PASS"
+            },
+            {
+              "name": "mt167_batch_and_per_file_writer_produce_equal_rows",
+              "seconds": 68.2,
+              "result": "PASS"
+            },
+            {
+              "name": "mt167_code_nav_index_median_within_spec_baseline",
+              "seconds": 71.837,
+              "result": "FAIL"
+            }
+          ]
+        },
+        "preservation": {
+          "manifest_path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\frozen-inputs\\mt168-292d7a1-link-r14-closed\\manifest.json",
+          "manifest_sha256": "b379c4cee6350e61e1a32c58244725002f4d95fb27bed1be6b769fc15d832490",
+          "file_count": 37,
+          "bytes": 526423337,
+          "all_original_copy_hashes_match": true
+        },
+        "producing_binaries": [
+          {
+            "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\target\\debug\\deps\\handshake_core-8054d5a25b5a1b5b.exe",
+            "copy": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\frozen-inputs\\mt168-292d7a1-link-r14-closed\\15-handshake_core-8054d5a25b5a1b5b.exe",
+            "sha256": "5a6fb667b31bd6f66e2f9eb5bcd97ca10ce6b50321cedc4f74eb2d1aa45449f0",
+            "bytes": 322202624,
+            "matches": true
+          },
+          {
+            "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\target\\debug\\deps\\mt167_code_nav_index_cost_tests-676af61d0fdd0c84.exe",
+            "copy": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\frozen-inputs\\mt168-292d7a1-link-r14-closed\\16-mt167_code_nav_index_cost_tests-676af61d0fdd0c84.exe",
+            "sha256": "e5fc623d23a16632e6bd118236951b5b69fe15c1a16f2468b5e9eb71d465000d",
+            "bytes": 202769920,
+            "matches": true
+          }
+        ],
+        "input_integrity": {
+          "total": 13,
+          "same": 13,
+          "original_copy_count": 37,
+          "verified_before_canonical_write": true
+        },
+        "mt168_downstream": {
+          "expected": "recorded medians; MT-167 projection no longer grows per sample",
+          "observed": true,
+          "timing_acceptance_pass": false,
+          "mt008_samples_seconds": [
+            5.4325916,
+            5.568564,
+            5.4730481,
+            5.8574585,
+            5.4940202
+          ],
+          "mt008_median_seconds": 5.4940202,
+          "mt008_limit_seconds": 5,
+          "fems_samples_ms": [
+            5150,
+            5793,
+            5498,
+            5462,
+            5549
+          ],
+          "fems_median_ms": 5498,
+          "projection_mt008_ms_including_warmup": [
+            4199,
+            4141,
+            4274,
+            4182,
+            4249,
+            4077
+          ],
+          "projection_fems_ms_including_warmup": [
+            3171,
+            3054,
+            3388,
+            3191,
+            3191,
+            3198
+          ],
+          "equal_rows": "All three shapes, both passes canonical nonempty entities/spans/edges/link rowsets equal; stable repeat counts and file parity assertions PASS",
+          "internal_residual_cost": "UNVERIFIED; no per-statement diagnostic instrumentation in original restored test",
+          "causality": "No row-growth, exact residual query, or host causal claim"
+        },
+        "root_readback": "Opened exact native exits/logs/JUnit; all37 original/copy hashes and13 frozen inputs matched before mutation",
+        "status_effect": "MT168 remains unpassed; historical MT111/136/170 and MT167 own verdicts unchanged"
       }
     ],
     "running_record_ready13_20261008": {
@@ -2074,7 +2198,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "ORIGINAL_AFFECTED_RUNTIME_PREPARING",
+    "state": "BOUNDED_LINK_COMPONENT_CONTROLS_PREPARING",
     "candidate_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
     "candidate_tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -2108,7 +2232,7 @@
     "preserved_verdict": "FAIL_V1",
     "unclosed": [
       "Historical PRE162 reconstruction static gap retained; no historical repin",
-      "MT168-DOWNSTREAM observation remains false: MT167 equal-row case times out before full equality proof; median14.4494677s exceeds5s and measured code-index projection elapsed time grows across samples; residual cause UNVERIFIED, no MT167 verdict rewrite"
+      "MT168-DOWNSTREAM original3: account/full parity PASS; timing5.4940202s>5s FAIL; growth removed; residual attribution unmeasured"
     ],
     "next_actor": "WP_VALIDATOR",
     "preservation_checkpoints": [
@@ -2282,7 +2406,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Mandatory292d compile r15 numeric0 with6 unchanged input hashes; observed diagnostic Scheduler capture closed and warm target explicitly released. Root publishes this predecessor and closes all canonical/controller/export/profile/selector writes before one original affected account plus both MT167 acceptance cases through reviewed runtime host8f7dae6d; no new probe, green rerun, EXPLAIN, criteria/profile change or resource refusal.",
+    "next_dependency": "Reviewed zero-EXPLAIN bounded-loop private controls, then Builder exact patch compile/push and independent original3",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
@@ -2426,6 +2550,127 @@
       "resource_released": true,
       "preserved_verdict": "FAIL_V1",
       "unchanged_green_reuse": "Only with original51c candidate/backend/config bindings plus inspected34aa changed-input reconciliation; exact163 and both failed downstream observations are not green reuse"
+    },
+    "original_affected_runtime_r14": {
+      "id": "PR-WP012-MT168-WPV-ORIGINAL-AFFECTED-20261009-292D-R14",
+      "check_id": "MT-168-DOWNSTREAM",
+      "executor": "WP_VALIDATOR-20261009-retained-wpv",
+      "covers": [
+        "MT-168"
+      ],
+      "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6",
+      "result": "FAIL_REQUIRED_TIMING_FLOOR",
+      "exit_code": 100,
+      "phase_exit_codes": {
+        "core": 100,
+        "wrapper": 0,
+        "native": "skipped",
+        "backend": "skipped"
+      },
+      "started_at_utc": "2026-10-09T14:20:40.1094913Z",
+      "completed_at_utc": "2026-10-09T17:29:02.5347116Z",
+      "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt168-original-affected-292d-r14.json",
+      "proof_sha256": "fc58f7185c5f4c76ffefe7699f6e502c1f9f6e29a3336916745883d617f3c01e",
+      "junit": {
+        "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\junit-292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4-core-targeted-mt168-link-r14.xml",
+        "sha256": "b6d597b901e73fafe4d9d6402c52516d3606aff8af897d616a4b43bb578c91b1",
+        "tests": 3,
+        "passed": 2,
+        "failures": 1,
+        "errors": 0,
+        "seconds": 163.971,
+        "run_id": "85fc2125-d643-49f9-ae06-c659a1b9cfd0",
+        "cases": [
+          {
+            "name": "api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete",
+            "seconds": 23.913,
+            "result": "PASS"
+          },
+          {
+            "name": "mt167_batch_and_per_file_writer_produce_equal_rows",
+            "seconds": 68.2,
+            "result": "PASS"
+          },
+          {
+            "name": "mt167_code_nav_index_median_within_spec_baseline",
+            "seconds": 71.837,
+            "result": "FAIL"
+          }
+        ]
+      },
+      "preservation": {
+        "manifest_path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\frozen-inputs\\mt168-292d7a1-link-r14-closed\\manifest.json",
+        "manifest_sha256": "b379c4cee6350e61e1a32c58244725002f4d95fb27bed1be6b769fc15d832490",
+        "file_count": 37,
+        "bytes": 526423337,
+        "all_original_copy_hashes_match": true
+      },
+      "producing_binaries": [
+        {
+          "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\target\\debug\\deps\\handshake_core-8054d5a25b5a1b5b.exe",
+          "copy": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\frozen-inputs\\mt168-292d7a1-link-r14-closed\\15-handshake_core-8054d5a25b5a1b5b.exe",
+          "sha256": "5a6fb667b31bd6f66e2f9eb5bcd97ca10ce6b50321cedc4f74eb2d1aa45449f0",
+          "bytes": 322202624,
+          "matches": true
+        },
+        {
+          "source": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\target\\debug\\deps\\mt167_code_nav_index_cost_tests-676af61d0fdd0c84.exe",
+          "copy": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\frozen-inputs\\mt168-292d7a1-link-r14-closed\\16-mt167_code_nav_index_cost_tests-676af61d0fdd0c84.exe",
+          "sha256": "e5fc623d23a16632e6bd118236951b5b69fe15c1a16f2468b5e9eb71d465000d",
+          "bytes": 202769920,
+          "matches": true
+        }
+      ],
+      "input_integrity": {
+        "total": 13,
+        "same": 13,
+        "original_copy_count": 37,
+        "verified_before_canonical_write": true
+      },
+      "mt168_downstream": {
+        "expected": "recorded medians; MT-167 projection no longer grows per sample",
+        "observed": true,
+        "timing_acceptance_pass": false,
+        "mt008_samples_seconds": [
+          5.4325916,
+          5.568564,
+          5.4730481,
+          5.8574585,
+          5.4940202
+        ],
+        "mt008_median_seconds": 5.4940202,
+        "mt008_limit_seconds": 5,
+        "fems_samples_ms": [
+          5150,
+          5793,
+          5498,
+          5462,
+          5549
+        ],
+        "fems_median_ms": 5498,
+        "projection_mt008_ms_including_warmup": [
+          4199,
+          4141,
+          4274,
+          4182,
+          4249,
+          4077
+        ],
+        "projection_fems_ms_including_warmup": [
+          3171,
+          3054,
+          3388,
+          3191,
+          3191,
+          3198
+        ],
+        "equal_rows": "All three shapes, both passes canonical nonempty entities/spans/edges/link rowsets equal; stable repeat counts and file parity assertions PASS",
+        "internal_residual_cost": "UNVERIFIED; no per-statement diagnostic instrumentation in original restored test",
+        "causality": "No row-growth, exact residual query, or host causal claim"
+      },
+      "root_readback": "Opened exact native exits/logs/JUnit; all37 original/copy hashes and13 frozen inputs matched before mutation",
+      "status_effect": "MT168 remains unpassed; historical MT111/136/170 and MT167 own verdicts unchanged"
     }
   },
   "mt168_private_query_probe_20261009": {
@@ -2687,5 +2932,132 @@
       "both MT167 acceptance cases"
     ],
     "status_effect": "NONE; fresh original3 still required"
+  },
+  "diagnosis_20261009_292d_r14": {
+    "diagnosis_id": "MT168-R14-FLAT-PROJECTION-TIMING-FLOOR",
+    "recorded_at_utc": "2026-10-09T17:53:37.394344+00:00",
+    "cause": "Original timing median5.4940202s exceeds5s; per-statement residual attribution unmeasured",
+    "failure_kind": "product",
+    "failure_class": "MT167_ORIGINAL_TIMING_FLOOR",
+    "evidence_refs": [
+      "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt168-original-affected-292d-r14.json",
+      "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\junit-292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4-core-targeted-mt168-link-r14.xml"
+    ],
+    "distinct_from": [
+      "diagnosis_20261009_128f_r12"
+    ],
+    "observed": {
+      "expected": "recorded medians; MT-167 projection no longer grows per sample",
+      "observed": true,
+      "timing_acceptance_pass": false,
+      "mt008_samples_seconds": [
+        5.4325916,
+        5.568564,
+        5.4730481,
+        5.8574585,
+        5.4940202
+      ],
+      "mt008_median_seconds": 5.4940202,
+      "mt008_limit_seconds": 5,
+      "fems_samples_ms": [
+        5150,
+        5793,
+        5498,
+        5462,
+        5549
+      ],
+      "fems_median_ms": 5498,
+      "projection_mt008_ms_including_warmup": [
+        4199,
+        4141,
+        4274,
+        4182,
+        4249,
+        4077
+      ],
+      "projection_fems_ms_including_warmup": [
+        3171,
+        3054,
+        3388,
+        3191,
+        3191,
+        3198
+      ],
+      "equal_rows": "All three shapes, both passes canonical nonempty entities/spans/edges/link rowsets equal; stable repeat counts and file parity assertions PASS",
+      "internal_residual_cost": "UNVERIFIED; no per-statement diagnostic instrumentation in original restored test",
+      "causality": "No row-growth, exact residual query, or host causal claim"
+    },
+    "selected_hypothesis": "Batch natural-key SELECT dispatch into <=32 distinct-span chunks; retain exact raw-pair count1",
+    "performance_proven": false,
+    "rejected_grouped_span": {
+      "patch_sha256": "f33030a181d4fd2038e463a1bfbbc0f20d7ae01cad28baa2fedf2196c9cf220d",
+      "reason": "Each failing fixture uses distinct span per link: grouped single-span lookup saves zero queries",
+      "fixture_counts": {
+        "MT008": {
+          "entity_links": 3,
+          "distinct_entity_spans": 3,
+          "edge_links": 4,
+          "distinct_edge_spans": 4
+        },
+        "FEMS": {
+          "entity_links": 2,
+          "distinct_entity_spans": 2,
+          "edge_links": 2,
+          "distinct_edge_spans": 2
+        }
+      }
+    },
+    "source_basis": [
+      "engine.rs:574-575 typed per-pair verification",
+      "surrealdb-core3.2.0 planner tree/executor IN Union and <=32 streaming expansion",
+      "val/array.rs:252-266 clump empty/32/33"
+    ],
+    "gameplan_steps": [
+      "GP-410",
+      "GP-411"
+    ]
+  },
+  "operator_decision_20261009_bounded_link_verification": {
+    "decision_id": "MT168-BOUNDED-LINK-REPAIR-20261009",
+    "state": "APPROVED_BY_STANDING_SESSION_WAIVER",
+    "authorization_ref": "operator_decision_20261009_session_scope_waiver",
+    "recorded_at_utc": "2026-10-09T17:53:37.394344+00:00",
+    "patch": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-link-verification-bounded-batch.proposed.patch",
+    "patch_sha256": "a41a24ed60d87311c6aa616241b3cdb370a20eacae8a6750359536959cb685c1",
+    "changed_paths": [
+      "src/backend/handshake_core/src/knowledge_code_index/engine.rs:574-575"
+    ],
+    "repair": "Two link loops: <=32 distinct-span IN SELECTs with existing indexes; exact pair count1/THROW unchanged",
+    "predecessor": "One reviewed private SDK component equivalence/denial/rollback run, zero EXPLAIN, unchanged warm dependencies",
+    "controls": [
+      "Both tables original versus proposed with identical typed bindings",
+      "Empty and duplicate pair acceptance",
+      "Missing, denied and crossed pair exact HSK403 rejection",
+      "Valid32/33 chunks and missing/denied last singleton",
+      "Denied-pair transaction sentinel canonical postread empty"
+    ],
+    "query_counts": {
+      "MT008": [
+        7,
+        2
+      ],
+      "FEMS": [
+        4,
+        2
+      ]
+    },
+    "review": "Retained Buddy independently opened a41 exact patch and planner/permission/fence source; no blocking static finding",
+    "validation": [
+      "Mandatory Builder compile on changed pushed candidate",
+      "Independent affected mounted account and both original MT167 acceptance cases",
+      "Unchanged own greens only after source/config reconciliation retaining original input/binary bindings"
+    ],
+    "preserved": [
+      "Predicates/permissions/fences/transaction",
+      "Original d4b MT167 bytes/assertions/timeouts/5s criteria",
+      "Schema/pins/compiler/profile",
+      "All historical successful/failed/UNKNOWN proof artifacts"
+    ],
+    "status_effect": "NONE; component diagnostics cannot substitute original acceptance"
   }
 }
