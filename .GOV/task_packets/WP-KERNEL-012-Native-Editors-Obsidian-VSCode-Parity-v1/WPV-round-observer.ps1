@@ -209,7 +209,8 @@ while ($true) {
         $bytes = [int64](Get-ChildItem -LiteralPath $Target -File -Recurse -Force -ErrorAction SilentlyContinue -ErrorVariable gciErr | Measure-Object -Property Length -Sum).Sum
         $logs = @('stdout', 'stderr', 'tests' | ForEach-Object { $file = "$prefix.$_.log"; if (Test-Path -LiteralPath $file) { $i = Get-Item -LiteralPath $file; [ordered]@{ path = $file; bytes = $i.Length; mtime_utc = $i.LastWriteTimeUtc.ToString('o') } } })
         $exceeded = ($bytes -gt $StopBytes)
-        $resourceStopDisabled = $mt168ResourceOverride -and $identity -and $identity.work_owner_mt -eq 'MT-168' -and $identity.candidate -eq $Sha
+        $identityCoverage = if ($identity.covers) { $identity.covers } else { $identity.covered_mts }
+        $resourceStopDisabled = $mt168ResourceOverride -and $identity -and $identity.work_owner_mt -eq 'MT-168' -and $identity.candidate -eq $Sha -and ($identityCoverage -join ',') -eq 'MT-168'
         $commitSampleAvailable = $false
         $commitSampleErrorType = $null
         $commitLimitBytes = $null

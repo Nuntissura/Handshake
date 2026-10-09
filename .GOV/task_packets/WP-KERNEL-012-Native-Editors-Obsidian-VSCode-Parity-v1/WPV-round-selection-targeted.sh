@@ -1,7 +1,7 @@
 # MT168 CURRENT catalog measurement: five direct checks; no runtime acceptance
 ROUND_SELECTION_SHA=92841e94ba2fad87f7c9980098c2dfab10106f74
 ROUND_SELECTION_MODE=targeted
-ROUND_SELECTION_OUTPUT_SUFFIX=-mt168-pinmeasure
+ROUND_SELECTION_OUTPUT_SUFFIX=-mt168-pinmeasure-r2
 CORE_SKIP=0
 CORE_CHECK_LIB=0
 CORE_LIB=1

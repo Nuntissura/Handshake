@@ -889,6 +889,59 @@
           "GP-397"
         ],
         "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
+      },
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-20261009-92841-R2",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261009-retained-builder",
+        "artifact_owner_mt": "MT-170",
+        "work_owner_mt": "MT-168",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
+        "tree": "6e699788f7e4ec44f827243c18d0dadbe6b72302",
+        "command": [
+          "C:/Users/iljas/.rustup/toolchains/1.97.1-x86_64-pc-windows-msvc/bin/cargo.exe",
+          "check",
+          "--locked",
+          "-j",
+          "1",
+          "--config",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml",
+          "--lib",
+          "--tests",
+          "--features",
+          "app-runtime,surreal-test-support,test-utils"
+        ],
+        "cwd": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current\\src\\backend\\handshake_core",
+        "started_at_utc": "2026-10-09T01:39:31.9241389Z",
+        "completed_at_utc": "2026-10-09T01:57:57.0897058Z",
+        "exit_code": 0,
+        "result": "COMPILE_PASS",
+        "source_verdict": null,
+        "runtime_executed": false,
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-builder-compile-92841-r2.json",
+        "proof_sha256": "4c1ae808b716deb51e9141d683cd42596e0169cd0539412a51d9a37ceb02f0b4",
+        "inputs": {
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-168\\kb\\compile-92841-r2.ps1": "8362cf02c78188e8ade96a584f971ca96c2987a1091776f5994d1daffb949415",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "22cb6df61a11ec5ab12f84583ea62e5424db9c99c35100d2b45b98aca0c62df9",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current.identity": "f5cefc63caf1ca46063ed5876cafbf5027bef11516bcae49139a489570fa5b49",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current\\src\\backend\\handshake_core\\Cargo.lock": "3d0975fc130133c665930e9cf77e7f4bdcfe16e926535ea2762158023b7be801",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-observer.ps1": "07f8f6322a51ef899566f0e32b9777309ae3715f45a2f19dc40bca6b4017b47e"
+        },
+        "gates": {
+          "before_round": "PASS44/44"
+        },
+        "operator_decision": "MT168-OPERATOR-RESOURCE-OVERRIDE-20261009",
+        "release": {
+          "owned_processes_ended": true,
+          "global_compiler_inventory_empty": true,
+          "cache_servers_preserved": true,
+          "exclusive_target_released_to": "WP_VALIDATOR"
+        },
+        "next_dependency": "WP_VALIDATOR CURRENT catalog measurement then authorized pin-only update and required independent MT168 proof bundle"
       }
     ],
     "running_record_ready13_20261008": {
@@ -1647,7 +1700,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "SOURCE_CHECKPOINT_PRESERVED_OPERATOR_CONTINUATION_AUTHORIZED",
+    "state": "COMPILE_PASS_AWAITING_CURRENT_CATALOG_MEASUREMENT",
     "candidate_commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
     "candidate_tree": "6e699788f7e4ec44f827243c18d0dadbe6b72302",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -1684,7 +1737,7 @@
       "Historical PRE162 reconstruction static gap retained; no historical repin",
       "MT167 downstream median failure remains distinct; no causal fix claimed"
     ],
-    "next_actor": "KERNEL_BUILDER for exclusive warm check under MT168-OPERATOR-RESOURCE-OVERRIDE-20261009",
+    "next_actor": "WP_VALIDATOR for five direct CURRENT catalog measurements, then builder CURRENT pin handoff",
     "preservation_checkpoints": [
       {
         "commit": "817bd35cfae235e754e0d6e447fda2cf137578ab",
@@ -1856,7 +1909,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Resource refusal superseded by MT168-OPERATOR-RESOURCE-OVERRIDE-20261009; compile and independent proof remain required",
+    "next_dependency": "WP_VALIDATOR CURRENT catalog measurement then authorized pin-only update and required independent MT168 proof bundle",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
@@ -1913,6 +1966,17 @@
       ],
       "source_change": "NONE",
       "warm_target": "Retained same MT170/wpv owner; builder exclusive resource released; no cleanup or profile change"
+    },
+    "builder_compile_r2_20261009": {
+      "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-builder-compile-92841-r2.json",
+      "proof_sha256": "4c1ae808b716deb51e9141d683cd42596e0169cd0539412a51d9a37ceb02f0b4",
+      "result": "COMPILE_PASS",
+      "exit_code": 0,
+      "candidate_commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
+      "completed_at_utc": "2026-10-09T01:57:57.0897058Z",
+      "runtime_executed": false,
+      "resource_owner": "WP_VALIDATOR",
+      "independent_root_readback": "Exact native exit0 and all six input hashes unchanged; historical failure and independent acceptance retained"
     }
   },
   "operator_decision_20261009_resource_override": {
@@ -1921,7 +1985,9 @@
     "authorized_by": "OPERATOR",
     "mt_id": "MT-168",
     "work_owner_mt": "MT-168",
-    "covered_mts": ["MT-168"],
+    "covered_mts": [
+      "MT-168"
+    ],
     "candidate_commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
     "operator_quotes": [
       "rip out those restrictions asap in parallel",
