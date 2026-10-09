@@ -55,6 +55,19 @@ OUT_SUFFIX="$OUT_SUFFIX$ROUND_OUTPUT_SUFFIX"
 [[ "$LANE" == "$ARTIFACT_ROOT/WP-KERNEL-012/MT-170/"* && "$TARGET" == "$LANE/target" ]] \
   || { echo "[run-round] FATAL: host output is outside assigned MT owner"; exit 2; }
 EXPORT_ROOT="$LANE"
+MT168_RESOURCE_OVERRIDE="$(python - "$SCRIPT_DIR" "$SHA" <<'PY_OVERRIDE'
+import json, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+decision = json.loads((root / 'MT-168.json').read_text(encoding='utf-8-sig')).get('operator_decision_20261009_resource_override', {})
+selection = json.loads((root / 'WPV-round-selection.json').read_text(encoding='utf-8-sig'))
+enabled = (decision.get('state') == 'APPROVED' and decision.get('mt_id') == 'MT-168'
+           and decision.get('candidate_commit') == sys.argv[2]
+           and decision.get('resource_refusal_enabled') is False and decision.get('resource_stopping_enabled') is False
+           and selection.get('candidate') == sys.argv[2] and selection.get('work_owner_mt') == 'MT-168'
+           and selection.get('covers') == ['MT-168'])
+print('1' if enabled else '0')
+PY_OVERRIDE
+)"
 
 check_target_cap() {
   local bytes free_kib
@@ -76,12 +89,14 @@ for directory, _, files in os.walk(root, followlinks=False, onerror=fail):
             total += entry.st_size
 print(total)
 PY_CAP
-)"
-  free_kib="$(df -Pk "$TARGET" | awk 'NR == 2 {print $4}')"
+)" || bytes=""
+  free_kib="$(df -Pk "$TARGET" | awk 'NR == 2 {print $4}')" || free_kib=""
   [[ "$bytes" =~ ^[0-9]+$ && "$free_kib" =~ ^[0-9]+$ ]] || {
+    if [[ "$MT168_RESOURCE_OVERRIDE" = 1 ]]; then echo "[run-round] MT168 resource diagnostics unavailable; Operator resource override active"; return 0; fi
     echo "[run-round] FATAL: cannot measure WP size or free space"; exit 2;
   }
   echo "[run-round] WP bytes=$bytes cap=$WP_CAP_BYTES free_kib=$free_kib floor_kib=52428800"
+  if [[ "$MT168_RESOURCE_OVERRIDE" = 1 ]]; then echo "[run-round] MT168 Operator resource override: inventory diagnostic only"; return 0; fi
   (( bytes <= WP_CAP_BYTES && free_kib >= 52428800 )) || {
     echo "[run-round] FATAL: WP cap or free-space floor exceeded"; exit 2;
   }

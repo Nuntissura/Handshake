@@ -1647,7 +1647,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "SOURCE_CHECKPOINT_PRESERVED_COMPILE_RESOURCE_BLOCKED",
+    "state": "SOURCE_CHECKPOINT_PRESERVED_OPERATOR_CONTINUATION_AUTHORIZED",
     "candidate_commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
     "candidate_tree": "6e699788f7e4ec44f827243c18d0dadbe6b72302",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -1684,7 +1684,7 @@
       "Historical PRE162 reconstruction static gap retained; no historical repin",
       "MT167 downstream median failure remains distinct; no causal fix claimed"
     ],
-    "next_actor": "KERNEL_BUILDER for exclusive warm check after WPV export preparation",
+    "next_actor": "KERNEL_BUILDER for exclusive warm check under MT168-OPERATOR-RESOURCE-OVERRIDE-20261009",
     "preservation_checkpoints": [
       {
         "commit": "817bd35cfae235e754e0d6e447fda2cf137578ab",
@@ -1856,7 +1856,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized",
+    "next_dependency": "Resource refusal superseded by MT168-OPERATOR-RESOURCE-OVERRIDE-20261009; compile and independent proof remain required",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
@@ -1914,6 +1914,35 @@
       "source_change": "NONE",
       "warm_target": "Retained same MT170/wpv owner; builder exclusive resource released; no cleanup or profile change"
     }
+  },
+  "operator_decision_20261009_resource_override": {
+    "decision_id": "MT168-OPERATOR-RESOURCE-OVERRIDE-20261009",
+    "state": "APPROVED",
+    "authorized_by": "OPERATOR",
+    "mt_id": "MT-168",
+    "work_owner_mt": "MT-168",
+    "covered_mts": ["MT-168"],
+    "candidate_commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
+    "operator_quotes": [
+      "rip out those restrictions asap in parallel",
+      "start fucking working and do not stop untill the mt gets validated pass.",
+      "i tell you to work not the fucking gates"
+    ],
+    "resource_refusal_enabled": false,
+    "resource_stopping_enabled": false,
+    "scope": "Current MT168 compile, pin measurement and independent acceptance; no baseline, reserve, disk-floor, WP-cap or resource-stopped retry refusal",
+    "supersedes": [
+      "remediation_20261009_mt168.next_dependency resource refusal",
+      "remediation_20261009_mt168.wpv_independent_resource_blocker_20261009 retry/external dependency",
+      "gameplan GP396 and GP397; MT168 resource clauses in GP004/111/331/348/353"
+    ],
+    "preserved": [
+      "Historical failed compile proof, resource observations and stop chronology unchanged",
+      "Other MT resource policies unchanged",
+      "Independent acceptance, required proof, source scope and historical pins/verdicts unchanged",
+      "Single owned job, fixed warm target, process protection and observation retained"
+    ],
+    "status_effect": "NONE; FAIL_V1 retained until independent verdict"
   },
   "operator_decision_request_20261009_exact163_proof": {
     "state": "APPROVED",

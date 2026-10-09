@@ -19,7 +19,8 @@
 param(
     [string]$Sha = '',
     [ValidateSet('union', 'pin-measure', 'backend-opt-diag', 'targeted')][string]$Kind = 'union',
-    [string]$ReplayFile = ''
+    [string]$ReplayFile = '',
+    [string]$OutputSuffix = ''
 )
 $ErrorActionPreference = 'Stop'
 
@@ -27,10 +28,13 @@ $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../..'))
 $hostProfile = Get-Content -LiteralPath (Join-Path $projectRoot 'gov-runtime/host-profile-wp012.json') -Raw | ConvertFrom-Json
 $Lane = $hostProfile.LANE
 $roundOutputSuffix = [string]$hostProfile.ROUND_OUTPUT_SUFFIX
+if ($OutputSuffix) { $roundOutputSuffix = $OutputSuffix }
 if ($roundOutputSuffix -notmatch '^(-[a-z0-9]+)*$') { throw 'unsafe round output suffix' }
 $Target = Join-Path $hostProfile.ARTIFACT_ROOT 'WP-KERNEL-012'
 $ProcDump = Join-Path $projectRoot 'gov-runtime/tools/sysinternals/procdump/procdump64.exe'
 $StopBytes = [int64]$hostProfile.WP_CAP_BYTES - 2000000000
+$mt168Decision = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'MT-168.json') -Raw | ConvertFrom-Json).operator_decision_20261009_resource_override
+$mt168ResourceOverride = $mt168Decision.state -eq 'APPROVED' -and $mt168Decision.mt_id -eq 'MT-168' -and $mt168Decision.candidate_commit -eq $Sha -and $mt168Decision.resource_refusal_enabled -eq $false -and $mt168Decision.resource_stopping_enabled -eq $false
 $SpinCpuRatio = 0.8
 $SpinTestCpuMaxS = 1.0
 $SpinWriteMaxBytes = 20KB
@@ -205,6 +209,7 @@ while ($true) {
         $bytes = [int64](Get-ChildItem -LiteralPath $Target -File -Recurse -Force -ErrorAction SilentlyContinue -ErrorVariable gciErr | Measure-Object -Property Length -Sum).Sum
         $logs = @('stdout', 'stderr', 'tests' | ForEach-Object { $file = "$prefix.$_.log"; if (Test-Path -LiteralPath $file) { $i = Get-Item -LiteralPath $file; [ordered]@{ path = $file; bytes = $i.Length; mtime_utc = $i.LastWriteTimeUtc.ToString('o') } } })
         $exceeded = ($bytes -gt $StopBytes)
+        $resourceStopDisabled = $mt168ResourceOverride -and $identity -and $identity.work_owner_mt -eq 'MT-168' -and $identity.candidate -eq $Sha
         $commitSampleAvailable = $false
         $commitSampleErrorType = $null
         $commitLimitBytes = $null
@@ -233,12 +238,12 @@ while ($true) {
         }
         $commitSampleUtc = [DateTime]::UtcNow.ToString('o')
         Write-Obs ([ordered]@{ utc = $now.ToString('o'); poll = $poll; candidate = $Sha; C_bytes = $bytes; gci_errors = @($gciErr).Count; stop_bytes = $StopBytes; cap_bytes = [int64]$hostProfile.WP_CAP_BYTES
-                headroom_to_stop = $StopBytes - $bytes; stop_exceeded = $exceeded; processes = $processes; logs = $logs; exit_record_present = $done
+                headroom_to_stop = $StopBytes - $bytes; stop_exceeded = $exceeded; resource_stop_disabled = [bool]$resourceStopDisabled; processes = $processes; logs = $logs; exit_record_present = $done
                 commit_sample_utc = $commitSampleUtc; commit_sample_available = $commitSampleAvailable; commit_sample_error_type = $commitSampleErrorType
                 commit_limit_bytes = $commitLimitBytes; committed_bytes = $committedBytes; free_commit_bytes = $freeCommitBytes
                 baseline_committed_bytes = $commitBaselineBytes; max_sampled_committed_bytes = $commitMaxSampledBytes
                 min_sampled_free_commit_bytes = $freeCommitMinSampledBytes })
-        if ($exceeded -and $owned.Count -gt 0 -and -not $done) {
+        if ($exceeded -and $owned.Count -gt 0 -and -not $done -and -not $resourceStopDisabled) {
             foreach ($p in ($owned | Select-Object -Skip 1 | Sort-Object -Descending)) { try { Stop-Process -Id $p -Force -ErrorAction Stop } catch {} }
             [ordered]@{ utc = [DateTime]::UtcNow.ToString('o'); C_bytes = $bytes; stopped = $owned } | ConvertTo-Json -Compress | Set-Content -LiteralPath "$prefix.protective-stop.json" -Encoding utf8NoBOM
         }
