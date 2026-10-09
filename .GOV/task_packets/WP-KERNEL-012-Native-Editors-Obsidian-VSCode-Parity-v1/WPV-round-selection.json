@@ -1,35 +1,45 @@
 {
   "schema": "hsk.validator_round_selection@1",
-  "candidate": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
+  "candidate": "92841e94ba2fad87f7c9980098c2dfab10106f74",
   "mode": "targeted",
   "selection_file": "WPV-round-selection-targeted.sh",
-  "output_suffix": "-mt136",
-  "runner_output_suffix": "-targeted-mt136",
+  "output_suffix": "-mt168-pinmeasure",
+  "runner_output_suffix": "-targeted-mt168-pinmeasure",
   "covers": [
-    "MT-136"
+    "MT-168"
   ],
   "owning_mt": "MT-170",
   "core_skip": false,
   "core_lib": true,
-  "core_targets": [
-    "memory_capsule_recorder_surreal_tests"
-  ],
-  "core_filter": "(binary_id(=handshake_core) & test(/^(storage::surreal::mt136_database_surface_proof_a::mt136_database_surface_proof_a|storage::surreal::mt136_database_surface_proof_b::mt136_database_surface_proof_b|storage::surreal::mt136_database_surface_proof_c::tests::uncovered_database_methods_use_real_durable_surreal_state|storage::surreal::database::not_implemented_surface::not_implemented_surface_is_declared|storage::surreal::mt136_kernel_action_submitter_proof::tests::submitter_contract)$/)) | binary_id(=handshake_core::memory_capsule_recorder_surreal_tests)",
+  "core_targets": [],
+  "core_filter": "binary_id(=handshake_core) & test(/^(storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive|storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog|storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic|storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin|storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic)$/)",
   "native_lib": false,
   "native_targets": [],
   "native_filter": "",
   "extracted_crates": [],
-  "named_case_count": 11,
-  "proof_basis": "Fresh complete own MT136: six real embedded capsule cases (original three suppression REDs included), five exact library A/B/C/declaration/submitter proofs, and literal PT1361 cargo check --lib; independent WPV owns acceptance",
+  "named_case_count": 5,
+  "proof_basis": "Five direct CURRENT catalog measurements; pending pin assertion mismatch is measurement only, not runtime verdict; printed observed digests required",
   "backend_required": false,
   "prior_proof_reuse": {
-    "runtime": "NONE for MT136 own eleven cases; all execute fresh on0c63e656 candidate",
-    "prior_frozen_inputs": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt111-6fc38af7-before-mt136-0c63e656/manifest.json",
-    "retained_passes": "Earlier MT111/MT170 candidate proof and history remain retained; this selection credits no new cross-candidate runtime reuse"
+    "runtime": "NONE; direct measurement92841",
+    "prior_frozen_inputs": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt136-0c63e656-before-mt168/manifest.json",
+    "retained_passes": "MT111PASS_V4/MT136PASS_V8/MT170PASS_V2 remain exact original bindings"
   },
   "profile": "Existing x64 MSVC Rust1.97.1 jobs1/incremental0/line-tables-only/Surreal allow-list O2/GPU1 and native integration,integration_tests,wgpu_screenshots unchanged",
   "artifact_owner": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv",
   "cap_bytes": 160000000000,
-  "core_check_lib": true,
-  "native_skip": true
+  "core_check_lib": false,
+  "native_skip": true,
+  "work_owner_mt": "MT-168",
+  "measurement_tests": [
+    "storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive",
+    "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+    "storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic",
+    "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin",
+    "storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic"
+  ],
+  "deferred_consumers": [
+    "storage::surreal::schema::tests::mt138_full_schema_atelier_noop_matches_bounded_projection"
+  ],
+  "phase_predecessor": "Exclusive builder check and resource return required; profile suffix intentionally unchanged until return"
 }

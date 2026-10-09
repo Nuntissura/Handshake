@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 502
+generation: 506
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -412,3 +412,7 @@ steps:
 - {id: GP-391, role: builder, at: before_round, do: verify Git tree refs with braces are quoted in PowerShell commands, check: {type: confirm}, source: 'infra: unquoted HEAD tree braces parsed as ScriptBlock after successful checkpoint push', state: active}
 - {id: GP-392, role: builder, at: before_round, do: verify touched Python file reads and writes specify UTF-8 explicitly, check: {type: confirm}, source: 'infra: default Windows Python decoding corrupted unrelated schema comment during helper edit', state: active}
 - {id: GP-393, role: builder, at: before_round, do: verify predecessor reconstruction against immutable baseline before asserting historical hashes, check: {type: confirm}, source: 'static: unchanged0c63 identity-only reversal differs from fixedPRE162 hash; preserve baseline gap', state: active}
+- {id: GP-394, role: wp_validator, at: before_round, do: verify WP capacity inventory uses Windows extended root and raises path errors, check: {type: confirm}, source: 'infra: relative Python capacity traversal hit WinError3 on retained long generated artifact', state: active}
+- {id: GP-395, role: wp_validator, at: before_round, do: verify inline Python with quote nesting uses literal here-string and controller notes fit120chars, check: {type: confirm}, source: 'infra: inline selection Python quote nesting rejected before edits; long controller note rejected', state: active}
+- {id: GP-396, role: builder, at: before_round, do: require changed resource inputs or Operator decision before retry after MT168 hard10GB compile stop, check: {type: confirm}, source: 'infra: 92841 libtests check hit hard10GB reserve; owned rustc10432 stopped; Cargo101; no source verdict', state: active}
+- {id: GP-397, role: builder, at: before_round, do: verify cumulative observer commit samples control hard reserve; forbid tail-only manual reserve control, check: {type: confirm}, source: 'infra: observer00:48:02 free8.79GB dip missed by manual samples; stop occurred00:49:22 free9.95GB', state: active}

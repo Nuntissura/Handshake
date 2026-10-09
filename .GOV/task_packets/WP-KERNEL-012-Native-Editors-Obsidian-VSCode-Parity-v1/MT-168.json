@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-09T00:11:19.766959+00:00",
+  "updated_at_utc": "2026-10-09T00:51:39.746532+00:00",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -822,6 +822,73 @@
           ]
         },
         "scope_limit": "Closed CORE JUnit only; NATIVE/current union still running; no live final-stream hash, no inferred failure cause, no whole-WP verdict"
+      },
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-20261009-92841",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261009-retained-builder",
+        "artifact_owner_mt": "MT-170",
+        "work_owner_mt": "MT-168",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
+        "tree": "6e699788f7e4ec44f827243c18d0dadbe6b72302",
+        "command": [
+          "C:/Users/iljas/.rustup/toolchains/1.97.1-x86_64-pc-windows-msvc/bin/cargo.exe",
+          "check",
+          "--locked",
+          "-j",
+          "1",
+          "--config",
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml",
+          "--lib",
+          "--tests",
+          "--features",
+          "app-runtime,surreal-test-support,test-utils"
+        ],
+        "cwd": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current\\src\\backend\\handshake_core",
+        "started_at_utc": "2026-10-09T00:22:40.9183957Z",
+        "completed_at_utc": "2026-10-09T00:49:27.6912019Z",
+        "exit_code": 101,
+        "result": "INCOMPLETE_RESOURCE_BLOCKED",
+        "source_verdict": null,
+        "runtime_executed": false,
+        "proof": "..\\Handshake_Artifacts\\WP-KERNEL-012\\MT-168\\kb\\mt168-builder-compile-92841.json",
+        "proof_sha256": "3c03b44e80c53d6645ca5f101e4fd0ea5e1c8d77f42e4cebcd306176f1bd4790",
+        "monitoring_gap": {
+          "earliest_observer_below10GB": [
+            {
+              "sample_utc": "2026-10-09T00:48:02.5001417Z",
+              "free_commit_bytes": 8792817664,
+              "poll": 43
+            }
+          ],
+          "minimum_observed_free_commit_bytes": 8792817664,
+          "finding": "manual samples missed earlier transient dip; owned rustc stop delayed until own00:49:22 sample; no continuous reserve preservation claim"
+        },
+        "stop": {
+          "utc": "2026-10-09T00:49:22.0995738Z",
+          "free_commit": 9946390528,
+          "rust": [
+            {
+              "Id": 10432,
+              "CPU": 251.515625,
+              "PrivateMemorySize64": 7462305792
+            }
+          ],
+          "reason": "hard10GB commit control reached; only owned rustc stopped",
+          "stopped_pid": 10432
+        },
+        "gates": {
+          "before_round": "PASS44/44",
+          "before_submit": "PASS11/11"
+        },
+        "cause_steps": [
+          "GP-396",
+          "GP-397"
+        ],
+        "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
       }
     ],
     "running_record_ready13_20261008": {
@@ -1580,7 +1647,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "UNCOMPILED_UNVALIDATED_FULL_SOURCE_CHECKPOINT",
+    "state": "SOURCE_CHECKPOINT_PRESERVED_COMPILE_RESOURCE_BLOCKED",
     "candidate_commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
     "candidate_tree": "6e699788f7e4ec44f827243c18d0dadbe6b72302",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -1636,9 +1703,11 @@
       "baseline_commit": "0c63e656c96c75fefbea00eb776c9cf1cc2d0f76",
       "observed_identity_only_reversal_sha256": "54f2ee89c8988dcf1a149549b00d21017eabc384de6e0348d5285f43a00db851",
       "fixed_pre162_expected": "a0b177fe32c68a5b17813dede906f83877241532c3c8996e2a3c3fd124c6fbb5",
-      "cause": "UNVERIFIED",
+      "cause": "be6695201 changed knowledge_document_backlinks select/create bytes; old identity-only helper does not reverse them",
       "new_helper_effect": "byte-identical old163->old162 reversal; existing gap unchanged",
-      "status_effect": "NONE; accepted historical MT170 verdict preserved; no runtime proof claimed"
+      "status_effect": "NONE; accepted historical MT170 verdict preserved; no runtime proof claimed",
+      "source_evidence": "Inspected be6695201eedb4536291a1609945981b55d94d8f schema.surql diff; buddy independently reconciled d6ed538cf a0b vs be669/0c63 54f2 hashes",
+      "scope_limit": "No historical repin/restoration change; outside selected lookup delta, accepted proof remains at its own inputs"
     },
     "wpv_preparation": {
       "artifact_owner_mt": "MT-170",
@@ -1668,7 +1737,182 @@
       "adjacent_verdict_authority": "NONE",
       "admission_reserve_bytes": 10000000000,
       "wp_cap_bytes": 160000000000,
-      "observer_stop_bytes": 158000000000
+      "observer_stop_bytes": 158000000000,
+      "prepared_utc": "2026-10-09T00:15:29.977713+00:00",
+      "candidate": "92841e94ba2fad87f7c9980098c2dfab10106f74",
+      "tree": "6e699788f7e4ec44f827243c18d0dadbe6b72302",
+      "export_identity_sha256": "f5cefc63caf1ca46063ed5876cafbf5027bef11516bcae49139a489570fa5b49",
+      "export_manifest_sha256": "3f694b3f6aaa6f37449d30c1c65fb968530b8458883717e7e49bbac81c51f108",
+      "export_files": 7167,
+      "refresh_counts": {
+        "modified": 3,
+        "deleted": 0,
+        "unchanged": 7164
+      },
+      "metadata_comparison": {
+        "result": "PASS",
+        "failures": 0,
+        "path": "..\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\logs\\mt168-92841-preparation-compare.json",
+        "sha256": "12bb5c87e7f3f2fd7f4238c4c75fe1011833ab408f7e98ea7f90faa407a419a7"
+      },
+      "accepted_freeze": {
+        "path": "..\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\frozen-inputs\\mt136-0c63e656-before-mt168\\manifest.json",
+        "sha256": "55bffa9af3f3a162a2e36c7dd28ffedbfc1263ab5920f8666bed4a5503d2f1a8",
+        "new_runtime_claim": false
+      },
+      "builder_transfer": {
+        "state": "RETURNED_AFTER_INCOMPLETE_RESOURCE_BLOCKED",
+        "executor_session": "KERNEL_BUILDER-20261009-retained-builder",
+        "artifact_owner_mt": "MT-170",
+        "work_owner_mt": "MT-168",
+        "covered_mts": [
+          "MT-168"
+        ],
+        "wpv_live_job": false,
+        "command": "cargo check --locked -j 1 --config <kernel packet>/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "cwd": "<owner>/export-current/src/backend/handshake_core",
+        "profile_sha256": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c",
+        "fresh_builder_gates_required": true,
+        "runtime_authorized": false,
+        "numeric_exit": 101,
+        "owned_processes_ended": true
+      },
+      "preflight_observation": {
+        "wp_bytes": 104456095020,
+        "wp_files": 86706,
+        "scan_errors": 0,
+        "free_disk_bytes": 503565320192,
+        "available_commit_bytes": 19624222720,
+        "compiler_process_count": 0,
+        "rustc_host": "x86_64-pc-windows-msvc",
+        "rustc_version": "1.97.1",
+        "not_launch_admission": true
+      }
+    },
+    "builder_compile_20261009": {
+      "id": "PR-WP012-MT168-KB-CHECK-20261009-92841",
+      "check_id": "MT-168-BUILDER-COMPILE",
+      "executor": "KERNEL_BUILDER-20261009-retained-builder",
+      "artifact_owner_mt": "MT-170",
+      "work_owner_mt": "MT-168",
+      "covers": [
+        "MT-168"
+      ],
+      "commit": "92841e94ba2fad87f7c9980098c2dfab10106f74",
+      "tree": "6e699788f7e4ec44f827243c18d0dadbe6b72302",
+      "command": [
+        "C:/Users/iljas/.rustup/toolchains/1.97.1-x86_64-pc-windows-msvc/bin/cargo.exe",
+        "check",
+        "--locked",
+        "-j",
+        "1",
+        "--config",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml",
+        "--lib",
+        "--tests",
+        "--features",
+        "app-runtime,surreal-test-support,test-utils"
+      ],
+      "cwd": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\export-current\\src\\backend\\handshake_core",
+      "started_at_utc": "2026-10-09T00:22:40.9183957Z",
+      "completed_at_utc": "2026-10-09T00:49:27.6912019Z",
+      "exit_code": 101,
+      "result": "INCOMPLETE_RESOURCE_BLOCKED",
+      "source_verdict": null,
+      "runtime_executed": false,
+      "proof": "..\\Handshake_Artifacts\\WP-KERNEL-012\\MT-168\\kb\\mt168-builder-compile-92841.json",
+      "proof_sha256": "3c03b44e80c53d6645ca5f101e4fd0ea5e1c8d77f42e4cebcd306176f1bd4790",
+      "monitoring_gap": {
+        "earliest_observer_below10GB": [
+          {
+            "sample_utc": "2026-10-09T00:48:02.5001417Z",
+            "free_commit_bytes": 8792817664,
+            "poll": 43
+          }
+        ],
+        "minimum_observed_free_commit_bytes": 8792817664,
+        "finding": "manual samples missed earlier transient dip; owned rustc stop delayed until own00:49:22 sample; no continuous reserve preservation claim"
+      },
+      "stop": {
+        "utc": "2026-10-09T00:49:22.0995738Z",
+        "free_commit": 9946390528,
+        "rust": [
+          {
+            "Id": 10432,
+            "CPU": 251.515625,
+            "PrivateMemorySize64": 7462305792
+          }
+        ],
+        "reason": "hard10GB commit control reached; only owned rustc stopped",
+        "stopped_pid": 10432
+      },
+      "gates": {
+        "before_round": "PASS44/44",
+        "before_submit": "PASS11/11"
+      },
+      "cause_steps": [
+        "GP-396",
+        "GP-397"
+      ],
+      "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
+    },
+    "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized",
+    "wpv_independent_resource_blocker_20261009": {
+      "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
+      "executor_role": "WP_VALIDATOR",
+      "executor_session": "WP_VALIDATOR-20261009-retained-wpv",
+      "candidate": "92841e94ba2fad87f7c9980098c2dfab10106f74",
+      "tree": "6e699788f7e4ec44f827243c18d0dadbe6b72302",
+      "result": "INCOMPLETE_RESOURCE_BLOCKED",
+      "required_predecessor": "MT-168-BUILDER-COMPILE",
+      "predecessor_proven": false,
+      "independently_inspected": [
+        "builder compile proof",
+        "numeric Cargo exit101",
+        "owned rustc10432 stop record",
+        "46 closed observer records",
+        "retained stderr failure tail",
+        "actual launcher admission controls",
+        "canonical clean source HEAD and export identity"
+      ],
+      "builder_proof": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-builder-compile-92841.json",
+        "sha256": "3c03b44e80c53d6645ca5f101e4fd0ea5e1c8d77f42e4cebcd306176f1bd4790",
+        "exit_code": 101,
+        "source_verdict": null
+      },
+      "monitoring_gap": {
+        "first_observer_below_reserve_utc": "2026-10-09T00:48:02.5001417Z",
+        "minimum_sampled_free_commit_bytes": 8792817664,
+        "owned_stop_utc": "2026-10-09T00:49:22.0995738Z",
+        "owned_stop_free_commit_bytes": 9946390528,
+        "finding": "Earlier sampled dip preceded manual stop; continuous10GB reserve preservation was not proven"
+      },
+      "independent_post_exit_observation": {
+        "commit_limit_bytes": 68191776768,
+        "committed_bytes": 50598137856,
+        "free_commit_bytes": 17593638912,
+        "compiler_processes": 0,
+        "command": "Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory; separate Win32_Process compiler inventory",
+        "launch_admission_claim": false
+      },
+      "failed_launch_baseline": {
+        "committed_bytes": 45035991040,
+        "free_commit_bytes": 23155785728
+      },
+      "retry_decision": "No identical retry: independently sampled post-exit baseline is worse than failed launch baseline;10GB admission alone does not provide a distinct changed resource hypothesis",
+      "external_dependency": "Real host baseline reduction or added commit capacity under Operator control, followed by fresh existing role/resource gates and explicit scoped retry assignment",
+      "runtime_executed": false,
+      "catalog_measurement_executed": false,
+      "acceptance_change": "NONE",
+      "preserved_verdict": "FAIL_V1",
+      "preserved_historical_verdicts": [
+        "MT111PASS_V4 at6fc38af7",
+        "MT136PASS_V8 at0c63e656",
+        "MT170PASS_V2 at1ad04e43"
+      ],
+      "source_change": "NONE",
+      "warm_target": "Retained same MT170/wpv owner; builder exclusive resource released; no cleanup or profile change"
     }
   },
   "operator_decision_request_20261009_exact163_proof": {
