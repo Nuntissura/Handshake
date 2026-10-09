@@ -143,31 +143,6 @@ fn nav_headers(client: reqwest::RequestBuilder, label: &str) -> reqwest::Request
         .header("x-hsk-correlation-id", format!("CORR-MT167-{label}"))
 }
 
-/// Enable existing request-scoped SDK statement timings for this test router.
-fn diagnostic_index_routes(app: axum::Router) -> axum::Router {
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(
-            "handshake_core::code_nav_index=info,handshake_core::knowledge_documents_api=info",
-        )
-        .with_test_writer()
-        .try_init();
-    app.layer(axum::middleware::from_fn(
-        |request: axum::extract::Request, next: axum::middleware::Next| async move {
-            use handshake_storage_support::diagnostics::{observe, DOCUMENT_REQUEST_ID};
-            // Generate correlation locally; never copy request headers or SQL values.
-            let request_id = format!("mt167-index-{}", Uuid::now_v7().simple());
-            DOCUMENT_REQUEST_ID
-                .scope(
-                    request_id,
-                    observe("mt167_index_request", 0, next.run(request), |response| {
-                        !response.status().is_success()
-                    }),
-                )
-                .await
-        },
-    ))
-}
-
 /// POST the full code-nav index request; returns the elapsed wall time and the body.
 async fn index_route(
     http: &reqwest::Client,
@@ -220,12 +195,16 @@ fn median(samples: &[Duration]) -> Duration {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn mt167_code_nav_index_median_within_spec_baseline() {
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter("handshake_core::code_nav_index=info")
+        .with_test_writer()
+        .try_init();
     let backend = manual_test_backend()
         .await
         .expect("open embedded backend for MT-167 timing");
     let account = AccountFixture::install(backend.db.storage()).await;
     let state = app_state_for(&backend.db).await;
-    let (base, server) = start_server(diagnostic_index_routes(index_api::routes(state.clone()))).await;
+    let (base, server) = start_server(index_api::routes(state.clone())).await;
     let http = reqwest::Client::builder()
         .default_headers(account.owner.headers())
         .timeout(MAXIMUM_SAMPLE + Duration::from_secs(15))
@@ -465,7 +444,7 @@ async fn mt167_batch_and_per_file_writer_produce_equal_rows() {
         .expect("open embedded backend for MT-167 parity");
     let account = AccountFixture::install(backend.db.storage()).await;
     let state = app_state_for(&backend.db).await;
-    let (base, server) = start_server(diagnostic_index_routes(index_api::routes(state.clone()))).await;
+    let (base, server) = start_server(index_api::routes(state.clone())).await;
     let http = reqwest::Client::builder()
         .default_headers(account.owner.headers())
         .timeout(MAXIMUM_SAMPLE + Duration::from_secs(15))
