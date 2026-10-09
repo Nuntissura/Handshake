@@ -953,6 +953,27 @@
         "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt168-catalog-measurement-92841-r2.json",
         "proof_sha256": "37222d308cf5753bb95aeac87b8eed1530eb97e479fc978dd3ccfadd01b0eec6",
         "runtime_verdict": null
+      },
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-20261009-51C-R3",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261009-retained-builder",
+        "artifact_owner_mt": "MT-170",
+        "work_owner_mt": "MT-168",
+        "covers": ["MT-168"],
+        "commit": "51c53290264618cbd4e85825ef43d72aba5ef12a",
+        "tree": "324d1154270e7b82c0132d4ab8c7d74669665c86",
+        "command": "cargo check --locked -j1 --config <kernel packet>/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "started_at_utc": "2026-10-09T02:32:41.8170904Z",
+        "completed_at_utc": "2026-10-09T02:47:20.3268023Z",
+        "exit_code": 0,
+        "result": "COMPILE_PASS",
+        "runtime_executed": false,
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-builder-compile-51c5329-r3.json",
+        "proof_sha256": "a531eab9c6b9de93c819675e9eb2acc51d05e10980cc75d19dbb349d2920dda0",
+        "input_binding": "Exact six inputs in retained proof; root independently rehashed6/6 unchanged before WPV suffix update",
+        "gates": {"before_round": "PASS44/44", "before_submit": "PASS11/11"},
+        "exclusive_target_released_to": "WP_VALIDATOR"
       }
     ],
     "running_record_ready13_20261008": {
@@ -1711,7 +1732,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "MEASURED_CURRENT_PIN_PUSHED_AWAITING_FRESH_COMPILE",
+    "state": "COMPILE_PASS_AWAITING_FINAL_ACCEPTANCE",
     "candidate_commit": "51c53290264618cbd4e85825ef43d72aba5ef12a",
     "candidate_tree": "324d1154270e7b82c0132d4ab8c7d74669665c86",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -1742,13 +1763,11 @@
     "current_info": "UNMEASURED; existing constant unchanged until independent measurement",
     "preserved_verdict": "FAIL_V1",
     "unclosed": [
-      "Mandatory builder compile pending fixedexport exclusive handoff",
-      "Independent CURRENT runtime pin measurement",
-      "Required own authority/timing/downstream acceptance",
+      "Final independent authority/timing, CURRENT catalogs, exact163 durable upgrade and downstream acceptance on51c53290",
       "Historical PRE162 reconstruction static gap retained; no historical repin",
       "MT167 downstream median failure remains distinct; no causal fix claimed"
     ],
-    "next_actor": "WP_VALIDATOR for five direct CURRENT catalog measurements, then builder CURRENT pin handoff",
+    "next_actor": "WP_VALIDATOR final independent MT168 acceptance on pushed compiled51c53290",
     "preservation_checkpoints": [
       {
         "commit": "817bd35cfae235e754e0d6e447fda2cf137578ab",
@@ -1920,7 +1939,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "WP_VALIDATOR CURRENT catalog measurement then authorized pin-only update and required independent MT168 proof bundle",
+    "next_dependency": "WP_VALIDATOR final independent MT168 acceptance on pushed compiled51c53290",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
