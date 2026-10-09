@@ -1263,6 +1263,59 @@
           "limitation": "Temporal correlation with capture loss; exact process-kill mechanism is unproven"
         },
         "status_effect": "NONE; FAIL_V1 and all historical results retained; no runtime before numeric compile PASS"
+      },
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-20261009-292D-R15",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261009-retained-builder",
+        "independent_observer": "WP_VALIDATOR-20261009-retained-wpv",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+        "tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6",
+        "result": "COMPILE_PASS",
+        "exit_code": 0,
+        "started_at_utc": "2026-10-09T13:58:49.6896301Z",
+        "completed_at_utc": "2026-10-09T14:12:15.6334964Z",
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-builder-compile-292d7a1-r15.json",
+        "proof_sha256": "3e2b48cef4cac1192d384ddea82709e970b56b6489846630526a66d403f1a7b0",
+        "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/r15-closed-preservation/manifest.json",
+        "preservation_manifest_sha256": "638518069870bad3b0b72e91b48808102065e4e942e7efff87e4401a624828a7",
+        "preserved_file_count": 35,
+        "preserved_bytes": 396624,
+        "input_integrity": {
+          "total": 6,
+          "same": 6,
+          "verified_before_release": true
+        },
+        "diagnostic_host": {
+          "crash_survival_tested": false,
+          "probe_exit": 7,
+          "host_pid": 46808,
+          "host_result": {
+            "observer_pid": 7064,
+            "failure": null,
+            "utc": "2026-10-09T14:12:48.3093636Z",
+            "observer_ended": true,
+            "mode": "Compile",
+            "child_exit_code": 0,
+            "host_pid": 46808,
+            "child_pid": 41964
+          },
+          "service_pid": 3212,
+          "scheduler_task": "Handshake-MT168-292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4-Compile-r15",
+          "observer_pid": 7064,
+          "probe_exit_sha256": "ae5461b869d5b71e1344e96d5fe66d32ddd9a43246f1df24d6352b0471867376",
+          "cargo_pid": 39584,
+          "capture_pid": 41964,
+          "helper_sha256": "f8f9253d3785d24135013fab94317bb471945b72df432947ea83d7a852653f70",
+          "task_result": 0
+        },
+        "exclusive_target_released_to": "WP_VALIDATOR",
+        "runtime_executed": false,
+        "root_readback": "Exact native0/Finished13m20s, outer0/failure null/observer ended opened;6 input hashes and35 original/copy pairs matched; fresh owned/global compiler inventory empty",
+        "status_effect": "NONE; independent original affected3 acceptance still required; r13UNKNOWN and historical verdicts retained"
       }
     ],
     "running_record_ready13_20261008": {
@@ -2021,7 +2074,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "COMPILE_R13_INTERRUPTED_DURABLE_HOST_PREPARING",
+    "state": "ORIGINAL_AFFECTED_RUNTIME_PREPARING",
     "candidate_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
     "candidate_tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -2057,7 +2110,7 @@
       "Historical PRE162 reconstruction static gap retained; no historical repin",
       "MT168-DOWNSTREAM observation remains false: MT167 equal-row case times out before full equality proof; median14.4494677s exceeds5s and measured code-index projection elapsed time grows across samples; residual cause UNVERIFIED, no MT167 verdict rewrite"
     ],
-    "next_actor": "KERNEL_BUILDER",
+    "next_actor": "WP_VALIDATOR",
     "preservation_checkpoints": [
       {
         "commit": "817bd35cfae235e754e0d6e447fda2cf137578ab",
@@ -2229,7 +2282,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Preserved r13 numericUNKNOWN after capture loss correlated with Codex MoAppHang. Same candidate/compiler/profile/cache retained. Prepare and independently observe a diagnostic-only execution host detached from Codex-parent lifecycle before one corrected mandatory compile; record tool availability in Codex and use in gameplan. No unchanged app-hosted retry, runtime, EXPLAIN, resource refusal or app dependency.",
+    "next_dependency": "Mandatory292d compile r15 numeric0 with6 unchanged input hashes; observed diagnostic Scheduler capture closed and warm target explicitly released. Root publishes this predecessor and closes all canonical/controller/export/profile/selector writes before one original affected account plus both MT167 acceptance cases through reviewed runtime host8f7dae6d; no new probe, green rerun, EXPLAIN, criteria/profile change or resource refusal.",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
@@ -2620,7 +2673,19 @@
       "https://surrealdb.com/releases/3.2"
     ],
     "limits": "Current docs do not prove pinned3.2 planner choice or repaired performance; independent production-boundary proof remains required",
-    "adopted_builtin_tool": "Existing Windows Task Scheduler/ScheduledTasks1.0 and PowerShell7.6.5 for optional diagnostic execution hosting only; service/cmdlet availability verified, registration/execution ownership remains unproven until bounded infrastructure probe",
+    "adopted_builtin_tool": "Existing Windows Task Scheduler/ScheduledTasks1.0 and PowerShell7.6.5 diagnostic-only host; bounded20sec probe observed Schedule ancestry and expected numeric7 after registration caller exited; same compiler/profile r15 captured native0/outer0. No Desktop crash-survival claim or product runtime dependency.",
     "excluded_optional_tool": "Operator declined GPT-Reboot inquiry; omit it from MT168 work and do not pursue repository/app recovery"
+  },
+  "wpv_reuse_reconciliation_20261009_292d": {
+    "executor": "WP_VALIDATOR-20261009-retained-wpv",
+    "candidate": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "source_inspected": "34aa-to292d only engine.rs;51c-to292d engine.rs plus approved exact163 whole-function test-helper slice; schema DDL/catalog/pins/permissions/native assertions unchanged",
+    "preserved_originals": "Original34aa exact163 and original51c unaffected authority/timing/catalog/native greens retain original producing binary/input bindings;30 copied hashes independently matched; shared configuration deep-equal excluding output suffix",
+    "original_mt167_test_raw_sha256": "f61f2a7c947997804b34f5ea001cdbf9bd53eafead30c2603380aaf0ee733212",
+    "excluded_from_reuse": [
+      "mounted account boundary",
+      "both MT167 acceptance cases"
+    ],
+    "status_effect": "NONE; fresh original3 still required"
   }
 }
