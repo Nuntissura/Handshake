@@ -1,31 +1,33 @@
 {
   "schema": "hsk.validator_round_selection@1",
-  "candidate": "34aa1a4ddf9830a88ab75c358d51b864ebdee6d7",
+  "candidate": "d4b630a4f4ae3e3f3cedf179bbf637ffb8c29e08",
   "mode": "targeted",
   "selection_file": "WPV-round-selection-targeted.sh",
-  "output_suffix": "-mt168-exact163-r7",
-  "runner_output_suffix": "-targeted-mt168-exact163-r7",
+  "output_suffix": "-mt168-engine-r9",
+  "runner_output_suffix": "-targeted-mt168-engine-r9",
   "covers": [
     "MT-168"
   ],
   "owning_mt": "MT-170",
   "core_skip": false,
   "core_lib": true,
-  "core_targets": [],
-  "core_filter": "(binary_id(=handshake_core) & test(=storage::surreal::schema::tests::mt168_revision_163_upgrade_preserves_data_and_restarts_current))",
+  "core_targets": [
+    "mt167_code_nav_index_cost_tests"
+  ],
+  "core_filter": "(binary_id(=handshake_core) & test(=api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete)) | binary_id(=mt167_code_nav_index_cost_tests)",
   "native_lib": false,
   "native_targets": [],
   "native_filter": "none()",
   "extracted_crates": [],
-  "named_case_count": 1,
-  "proof_basis": "Focused reproduction of actual51c exact163 upgrade SQL failure after forced163-only complete-function extraction repair; no catalog repin",
+  "named_case_count": 3,
+  "proof_basis": "Exact approved three verification SELECT source repair: affected mounted account revocation/delete boundary and both MT167 production downstream observations",
   "backend_required": false,
   "prior_proof_reuse": {
-    "runtime": "Closed51c required green authority/timing/six CURRENT catalog/native cases retain original candidate/backend/config bindings after inspected34aa caller-only delta; exact163 and both failed MT167 observations excluded from green reuse",
+    "runtime": "Original34aa exact163 PASS retained with original input/binary bindings; exact engine-only diff leaves schema/helper/DDL/SDK/config/env/asserted bootstrap behavior unchanged. Original51c unrelated green authority/timing/catalog/native evidence retains original bindings; affected mounted account+MT167 cases require fresh proof.",
     "prior_frozen_inputs": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-51c5329-before-exact163-repair/manifest.json",
     "retained_passes": "MT111PASS_V4/MT136PASS_V8/MT170PASS_V2 remain exact original bindings"
   },
-  "profile": "Existing x64 MSVC Rust1.97.1 jobs1/incremental0/line-tables-only/Surreal allow-list O2 unchanged; core-only focused proof",
+  "profile": "Existing x64 MSVC Rust1.97.1 jobs1/incremental0/line-tables-only/Surreal allow-list O2 unchanged; affected corelib+MT167 only, embedded AppState/axum harness no externalbackend",
   "artifact_owner": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv",
   "cap_bytes": 160000000000,
   "core_check_lib": false,
@@ -33,5 +35,5 @@
   "work_owner_mt": "MT-168",
   "measurement_tests": [],
   "deferred_consumers": [],
-  "phase_predecessor": "Fresh34aa mandatory builder check numeric0 and explicit exclusive warm target return before focused exact163 runtime; current MT168 resource override continues"
+  "phase_predecessor": "Freshd4b630 mandatory builder check numeric0 and explicit exclusive warm target return before affected independent runtime; GP402 all authoritative writes closed before wrapper freeze"
 }
