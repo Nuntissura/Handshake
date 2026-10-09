@@ -2966,8 +2966,102 @@ fn indexed_grant_upgrade_statements() -> String {
     statements
 }
 
+/// Exact revision-164 to accepted revision-163 W lookup reversal for predecessor proof only.
+#[cfg(test)]
+const MT168_LOOKUP_REPAIR_DELTAS: [(&str, &str); 2] = [
+    (r###"FOR $document IN $workspace_delete_rows_1 {
+    LET $document_id = $document.rich_document_id;
+    LET $document_resources = SELECT * FROM protected_resources WHERE resource_kind = 'rich_document'
+        AND external_resource_id = $document_id;
+    IF array::len($document_resources[WHERE parent_resource_id = $resource
+        AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active']) != 1 {
+        RETURN false;
+    };
+};
+LET $workspace_delete_rows_2 = SELECT block_id, source_rich_document_id, content_type, content_hash FROM loom_blocks WHERE workspace_id = $workspace;
+FOR $block IN $workspace_delete_rows_2 {
+    LET $block_id = $block.block_id;
+    IF $block.source_rich_document_id != NONE {
+        LET $block_resources = SELECT * FROM protected_resources WHERE resource_kind = 'rich_document'
+            AND external_resource_id = $block_id;
+        IF record::id($block.source_rich_document_id) != $block.block_id OR $block.content_type != 'note'
+            OR $block.source_rich_document_id.workspace_id != $workspace
+            OR $block.content_hash != $block.source_rich_document_id.content_sha256
+            OR array::len($block_resources[WHERE parent_resource_id = $resource
+                AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active']) != 1 {
+            RETURN false;
+        };
+    } ELSE IF $block.content_type != 'view_def' {
+        LET $block_resources = SELECT * FROM protected_resources WHERE resource_kind = 'loom_block'
+            AND external_resource_id = $block_id;
+        IF array::len($block_resources[WHERE id IN $resources.id AND owner_account_id = $account
+            AND access_space_id = $space AND lifecycle_state = 'active']) != 1 {
+            RETURN false;
+        };
+    };
+};
+"###, r###"FOR $document IN $workspace_delete_rows_1 {
+    IF array::len(SELECT id FROM protected_resources WHERE resource_kind = 'rich_document'
+        AND external_resource_id = $document.rich_document_id AND parent_resource_id = $resource
+        AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active') != 1 {
+        RETURN false;
+    };
+};
+LET $workspace_delete_rows_2 = SELECT block_id, source_rich_document_id, content_type, content_hash FROM loom_blocks WHERE workspace_id = $workspace;
+FOR $block IN $workspace_delete_rows_2 {
+    IF $block.source_rich_document_id != NONE {
+        IF record::id($block.source_rich_document_id) != $block.block_id OR $block.content_type != 'note'
+            OR $block.source_rich_document_id.workspace_id != $workspace
+            OR $block.content_hash != $block.source_rich_document_id.content_sha256
+            OR array::len(SELECT id FROM protected_resources WHERE resource_kind = 'rich_document'
+                AND external_resource_id = $block.block_id AND parent_resource_id = $resource
+                AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active') != 1 {
+            RETURN false;
+        };
+    } ELSE IF $block.content_type != 'view_def' {
+        IF array::len(SELECT id FROM protected_resources WHERE resource_kind = 'loom_block' AND external_resource_id = $block.block_id
+            AND id IN $resources.id AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active') != 1 {
+            RETURN false;
+        };
+    };
+};
+"###),
+    (r###"        IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {
+            LET $entity_key = $entity.entity_key;
+            LET $entity_block = type::record('loom_blocks', $entity_key);
+            LET $entity_loom_resources = SELECT * FROM protected_resources WHERE resource_kind = 'loom_block' AND external_resource_id = $entity_key;
+            LET $entity_document_resources = SELECT * FROM protected_resources WHERE resource_kind = 'rich_document' AND external_resource_id = $entity_key;
+            LET $entity_resources = array::concat($entity_loom_resources, $entity_document_resources);
+            LET $view_entity = IF record::exists($entity_block) { $entity_block.content_type = 'view_def' AND $entity_block.workspace_id = $workspace } ELSE { $entity.detection_provenance.content_type = 'view_def' AND array::len($entity_resources) = 0 };
+            IF !$view_entity AND array::len($entity_resources[WHERE id IN $resources.id AND lifecycle_state = 'active']) != 1 { RETURN false; };
+"###, r###"        IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {
+            LET $entity_block = type::record('loom_blocks', $entity.entity_key);
+            LET $view_entity = IF record::exists($entity_block) { $entity_block.content_type = 'view_def' AND $entity_block.workspace_id = $workspace } ELSE { $entity.detection_provenance.content_type = 'view_def' AND array::len(SELECT id FROM protected_resources WHERE resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key) = 0 };
+            IF !$view_entity AND array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };
+"###),
+];
+
+#[cfg(test)]
+fn restore_pre_mt168_lookup_schema(mut source: String) -> String {
+    for (current, previous) in MT168_LOOKUP_REPAIR_DELTAS {
+        assert_eq!(
+            source.matches(current).count(),
+            1,
+            "MT-168 lookup repair delta must occur exactly once"
+        );
+        source = source.replacen(current, previous, 1);
+    }
+    assert_eq!(
+        sha256_hex(source.as_bytes()),
+        PRE_MT168_LOOKUP_GENERATED_SHA256,
+        "restored schema must be the exact accepted revision-163 artifact"
+    );
+    source
+}
+
 #[cfg(test)]
 fn restore_pre_mt170_identity_schema(mut source: String) -> String {
+    source = restore_pre_mt168_lookup_schema(source);
     let identity_pin =
         " AND string::starts_with(edge_id, 'KDLNK-') AND edit_event_id = '00000000-0000-0000-0000-000000000000'";
     assert_eq!(
@@ -11454,6 +11548,234 @@ mod tests {
             SchemaBootstrapOutcome::ReusedExactCurrent
         );
         reopened.shutdown().await.expect("close restarted store");
+    }
+
+    #[tokio::test]
+    async fn mt168_revision_163_upgrade_preserves_data_and_restarts_current() {
+        const WRONG_PRE_MT168_LOOKUP_GENERATED_SHA256: &str =
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let previous_schema = restore_pre_mt168_lookup_schema(SCHEMA.to_owned());
+        assert_eq!(
+            sha256_hex(previous_schema.as_bytes()),
+            PRE_MT168_LOOKUP_GENERATED_SHA256,
+            "the revision-163 predecessor must be exactly the current schema before the bare-key workspace-delete repair"
+        );
+        let directory = tempfile::tempdir().expect("temporary MT-168 lookup predecessor");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open exact revision-163 predecessor store");
+        storage
+            .with_admin_operation(move |database| {
+                Box::pin(async move {
+                    let script = fresh_bootstrap_script(&previous_schema)
+                        .expect("split exact revision-163 bootstrap");
+                    let bindings = || BootstrapBindings {
+                        schema_version: SCHEMA_VERSION.to_owned(),
+                        schema_revision: PRE_MT168_LOOKUP_REVISION,
+                        namespace: DEFAULT_NAMESPACE.to_owned(),
+                        database: DEFAULT_DATABASE.to_owned(),
+                        source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                        generated_surql_sha256: PRE_MT168_LOOKUP_GENERATED_SHA256.to_owned(),
+                    };
+                    database.query_bound(script.definitions, bindings()).await?;
+                    database.query_bound(script.indexes_and_rest, bindings()).await?;
+                    ensure_knowledge_schema_registry(&database).await?;
+                    assert_eq!(
+                        read_schema_catalog(&database).await?.info_fingerprint_sha256,
+                        PRE_MT168_LOOKUP_INFO_SHA256,
+                        "the seeded predecessor must carry its observed catalog fingerprint"
+                    );
+                    database
+                        .query(format!(
+                            "UPDATE ONLY {BOOTSTRAP_STATE_ID} SET apply_state = 'complete', info_fingerprint_sha256 = '{PRE_MT168_LOOKUP_INFO_SHA256}';                              CREATE workspaces:revision163_sentinel CONTENT {{ name: 'revision163-sentinel' }};"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("seed exact complete revision-163 predecessor");
+
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query(format!(
+                            "UPDATE ONLY handshake_schema_state:primary SET generated_surql_sha256 = '{WRONG_PRE_MT168_LOOKUP_GENERATED_SHA256}';"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("tamper predecessor state for rejection proof");
+        let state_rejection = bootstrap_schema(&storage)
+            .await
+            .expect_err("wrong revision-163 state must fail before DDL");
+        assert!(state_rejection
+            .to_string()
+            .contains("HANDSHAKE_SURREAL_SCHEMA_UNSUPPORTED_LINEAGE"));
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("rejected revision-163 state remains present");
+                    assert_eq!(state.revision, PRE_MT168_LOOKUP_REVISION);
+                    assert_eq!(
+                        state.generated_surql_sha256,
+                        WRONG_PRE_MT168_LOOKUP_GENERATED_SHA256
+                    );
+                    assert_eq!(
+                        read_schema_catalog(&database)
+                            .await?
+                            .info_fingerprint_sha256,
+                        PRE_MT168_LOOKUP_INFO_SHA256,
+                        "wrong state rejection must not alter the predecessor catalog"
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("reread unchanged state rejection");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query(format!(
+                            "UPDATE ONLY handshake_schema_state:primary SET generated_surql_sha256 = '{PRE_MT168_LOOKUP_GENERATED_SHA256}'; \
+                             DEFINE TABLE mt168_lookup_revision_163_unknown_overlay SCHEMAFULL PERMISSIONS NONE;"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("restore predecessor state and introduce catalog drift");
+        let rejected_catalog = storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    Ok(read_schema_catalog(&database)
+                        .await?
+                        .info_fingerprint_sha256)
+                })
+            })
+            .await
+            .expect("read catalog before rejection");
+        let catalog_rejection = bootstrap_schema(&storage)
+            .await
+            .expect_err("unknown revision-163 catalog drift must fail before lookup DDL");
+        assert!(catalog_rejection
+            .to_string()
+            .contains("HANDSHAKE_SURREAL_PRE_MT168_LOOKUP_CATALOG_MISMATCH"));
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("catalog-rejected revision-163 state remains present");
+                    assert_eq!(state.revision, PRE_MT168_LOOKUP_REVISION);
+                    assert_eq!(
+                        state.generated_surql_sha256,
+                        PRE_MT168_LOOKUP_GENERATED_SHA256
+                    );
+                    assert_eq!(
+                        read_schema_catalog(&database)
+                            .await?
+                            .info_fingerprint_sha256,
+                        rejected_catalog,
+                        "catalog rejection must not alter the predecessor catalog"
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("reread unchanged catalog rejection");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query("REMOVE TABLE mt168_lookup_revision_163_unknown_overlay;")
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("restore exact revision-163 catalog");
+
+        storage.shutdown().await.expect("close exact revision-163 predecessor");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("reopen exact revision-163 predecessor before upgrade");
+
+        let upgraded = bootstrap_schema(&storage)
+            .await
+            .expect("upgrade exact revision-163 lookup predecessor");
+        assert_eq!(
+            upgraded.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        assert_eq!(
+            upgraded.outcome,
+            SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+        );
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("revision-164 state after exact upgrade");
+                    assert_eq!(state.revision, SCHEMA_REVISION);
+                    assert!(state.is_exact_current());
+                    let mut sentinel = database
+                        .query("RETURN workspaces:revision163_sentinel.name;")
+                        .await?;
+                    assert_eq!(
+                        sentinel.take::<Option<String>>(0)?.as_deref(),
+                        Some("revision163-sentinel")
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("verify revision-164 current state after upgrade");
+        storage
+            .shutdown()
+            .await
+            .expect("close upgraded MT-168 lookup predecessor store");
+        let reopened = open_test_storage(&directory)
+            .await
+            .expect("reopen upgraded MT-168 lookup store");
+        let restarted = bootstrap_schema(&reopened)
+            .await
+            .expect("reuse current MT-168 lookup schema after restart");
+        assert_eq!(
+            restarted.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        assert_eq!(
+            restarted.outcome,
+            SchemaBootstrapOutcome::ReusedExactCurrent
+        );
+        reopened
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut sentinel = database
+                        .query("RETURN workspaces:revision163_sentinel.name;")
+                        .await?;
+                    assert_eq!(
+                        sentinel.take::<Option<String>>(0)?.as_deref(),
+                        Some("revision163-sentinel")
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("sentinel survives current-schema restart");
+        reopened
+            .shutdown()
+            .await
+            .expect("close restarted MT-168 lookup store");
     }
 
     #[tokio::test]
