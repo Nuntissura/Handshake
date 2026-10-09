@@ -1878,9 +1878,9 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "STATEMENT_TIMING_PATCH_APPROVED_BUILDER_NEXT",
-    "candidate_commit": "d4b630a4f4ae3e3f3cedf179bbf637ffb8c29e08",
-    "candidate_tree": "775ee5ba4f2862b66e585c5eeea8207e04946cc3",
+    "state": "STATEMENT_TIMING_PATCH_APPLIED_COMPILE_PENDING",
+    "candidate_commit": "128fce5d7b6f8079796901cdfa619fc47b1709c4",
+    "candidate_tree": "ff61cea74669c7892f48f53847bc0dd43a429b5b",
     "product_worktree": "wtc-WP-KERNEL-012",
     "branch": "feat/WP-KERNEL-012",
     "failure_refs": [
@@ -2086,7 +2086,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Operator approved exact test-only patch6e822060 and one independent focused diagnostic run. Retained builder applies only reviewed test instrumentation, compiles/pushes changed candidate; then retained WPV attributes existing SurrealQL statement timings. Required no-growth/full equal-row proof remains false; diagnostic overhead is not unchanged acceptance timing. No additional EXPLAIN or unrelated product edit; original green proofs retain original input/binary bindings.",
+    "next_dependency": "Exact approved test-only patch6e822060 applied and pushed as clean128fce5/treeff61cea. Mandatory unchanged-profile builder compile must pass before one independent focused diagnostic runtime of both MT167 tests. Required no-growth/full equal-row proof remains false; diagnostic overhead is not unchanged acceptance timing. No additional EXPLAIN or unrelated product edit; original green proofs retain original input/binary bindings.",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
@@ -2255,6 +2255,10 @@
     "base_raw_source_sha256": "f61f2a7c947997804b34f5ea001cdbf9bd53eafead30c2603380aaf0ee733212",
     "patch": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-test-statement-timing.proposed.patch",
     "patch_sha256": "6e822060c36a1f4b2e9c7197a69c2e94d5048d0cfb039f14751cf697a3824b1d",
+    "product_patch_applied": true,
+    "candidate_commit": "128fce5d7b6f8079796901cdfa619fc47b1709c4",
+    "candidate_tree": "ff61cea74669c7892f48f53847bc0dd43a429b5b",
+    "root_source_readback": "Actual d4b-to128fce5 diff opened: exactly one MT167 test file27+/6-, clean tree and matching remote branch re-read; source queries/assertions/timeouts unchanged",
     "scope": "Only shared test tracing/task-local helper, moving existing subscriber initialization and wrapping both existing test Routers; mandatory changed-candidate compile and one independent focused diagnostic runtime",
     "review": "Builder apply-check and retained Buddy source review found no static blocker; root opened exact patch and existing capture/observe source. No compile or runtime claim yet.",
     "preserved": ["Database queries/bindings, permissions, assertions, timeouts and acceptance criteria", "Compiler/profile, warm caches and sequential exclusive ownership", "All prior proof artifacts, pins and historical verdicts", "Zero remaining EXPLAIN allowance; other knowledge_code_index changes remain forbidden"],
@@ -2300,7 +2304,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "candidate_commit": "d4b630a4f4ae3e3f3cedf179bbf637ffb8c29e08",
+    "candidate_commit": "128fce5d7b6f8079796901cdfa619fc47b1709c4",
     "operator_quotes": [
       "rip out those restrictions asap in parallel",
       "start fucking working and do not stop untill the mt gets validated pass.",
