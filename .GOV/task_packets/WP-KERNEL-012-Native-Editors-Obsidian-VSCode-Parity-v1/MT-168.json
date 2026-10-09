@@ -1040,6 +1040,30 @@
         "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-34aa1a4-exact163-r7-closed/manifest.json",
         "preservation_manifest_sha256": "3fc463e216e376c229b9cb5f3a59efe9c9740d160b8e665f03fdf2205f63a315",
         "status_effect": "NONE; MT168-DOWNSTREAM remains unresolved and lifecycle FAIL_V1 retained"
+      },
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-20261009-D4B-R8",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261009-retained-builder",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "d4b630a4f4ae3e3f3cedf179bbf637ffb8c29e08",
+        "tree": "775ee5ba4f2862b66e585c5eeea8207e04946cc3",
+        "command": "cargo check --locked -j1 --config <kernel packet>/WPV-backend-profile.toml --lib --tests --features app-runtime,surreal-test-support,test-utils",
+        "started_at_utc": "2026-10-09T09:57:42.1792416Z",
+        "completed_at_utc": "2026-10-09T10:23:27.6127566Z",
+        "exit_code": 0,
+        "result": "COMPILE_PASS",
+        "runtime_executed": false,
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-builder-compile-d4b630a-r8.json",
+        "proof_sha256": "e94249e31cf499e38098cef3ddce497142d2fb32489a8678e688b5a7bdc3fe6f",
+        "input_binding": "Root independently opened native exit0, Finished25m42s, final observer processes[]; all6 frozen input and all12 output artifact hashes matched. Clean d4b source/tree and matching remote branch re-read after closure.",
+        "gates": {
+          "before_round": "PASS46/46",
+          "before_submit": "PASS11/11"
+        },
+        "exclusive_target_released_to": "WP_VALIDATOR"
       }
     ],
     "running_record_ready13_20261008": {
@@ -1798,7 +1822,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "ENGINE_V3_PUSHED_BUILDER_COMPILE_PENDING",
+    "state": "ENGINE_V3_COMPILE_PASS_AFFECTED_RUNTIME_PENDING",
     "candidate_commit": "d4b630a4f4ae3e3f3cedf179bbf637ffb8c29e08",
     "candidate_tree": "775ee5ba4f2862b66e585c5eeea8207e04946cc3",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -1834,7 +1858,7 @@
       "Historical PRE162 reconstruction static gap retained; no historical repin",
       "MT168-DOWNSTREAM observation remains false: MT167 equal-row case times out before full equality proof; median14.4494677s exceeds5s and measured code-index projection elapsed time grows across samples; residual cause UNVERIFIED, no MT167 verdict rewrite"
     ],
-    "next_actor": "Retained builder owns fresh d4b630 mandatory compile; numeric0 and explicit target release precede retained WPV affected mounted account and both MT167 runtime cases",
+    "next_actor": "Retained WPV owns exclusive warm target for affected mounted account and both MT167 runtime cases; fresh d4b mandatory compile numeric0 and target release closed",
     "preservation_checkpoints": [
       {
         "commit": "817bd35cfae235e754e0d6e447fda2cf137578ab",
@@ -2006,7 +2030,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Exact approved engine patch applied and pushed d4b630; verified fixed export and affected selection prepared. Fresh mandatory builder compile numeric0, exclusive target return, then independent mounted account and both MT167 production tests. Original34aa exact163 and original51c greens retain their original bindings after WPV reconciliation; private controls remain diagnostic only.",
+    "next_dependency": "Fresh d4b mandatory builder compile PASS numeric0, all6 frozen inputs unchanged and target released. Prepared affected3 selection must produce independent mounted account and both MT167 runtime proof, including complete equal rows and recorded non-growing projection medians. Original34aa exact163 and original51c unaffected greens retain original bindings after completed WPV reconciliation; private controls remain diagnostic only.",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
