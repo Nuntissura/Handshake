@@ -1120,6 +1120,25 @@
         "preservation_manifest_sha256": "fbd2d51f9ebba29d057d94f319fede86e65861abad59b0df09dc8cbd76a9fcce",
         "resource_released": true,
         "status_effect": "NONE; lifecycle FAIL_V1 and historical MT111/136/170 verdicts retained; MT167 own verdict unchanged"
+      },
+      {
+        "id": "PR-WP012-MT168-KB-CHECK-20261009-128F-R11",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261009-retained-builder",
+        "covers": ["MT-168"],
+        "commit": "128fce5d7b6f8079796901cdfa619fc47b1709c4",
+        "tree": "ff61cea74669c7892f48f53847bc0dd43a429b5b",
+        "started_at_utc": "2026-10-09T12:26:22.2795830Z",
+        "completed_at_utc": "2026-10-09T12:27:19.2626254Z",
+        "exit_code": 0,
+        "result": "COMPILE_PASS",
+        "runtime_executed": false,
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-builder-compile-128fce5-r11.json",
+        "proof_sha256": "2d852849a7df64b77edc73aa3b750110a944b557805a96afbe0041ba77ae00bd",
+        "input_binding": "Root opened nativeexit0/Finished51.84s/finalobserverprocesses[]; all6 frozen input and12 artifact hashes independently matched. Owned wrapper27380/observer44912/compiler21228 absent in fresh inventory; clean128f source/tree re-read.",
+        "gates": {"before_round": "PASS47/47", "before_submit": "PASS11/11"},
+        "exclusive_target_released_to": "WP_VALIDATOR",
+        "status_effect": "NONE; diagnostic runtime pending and lifecycle FAIL_V1 retained"
       }
     ],
     "running_record_ready13_20261008": {
@@ -1878,7 +1897,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "STATEMENT_TIMING_PATCH_APPLIED_COMPILE_PENDING",
+    "state": "STATEMENT_TIMING_COMPILE_PASS_DIAGNOSTIC_R12_PREPARED",
     "candidate_commit": "128fce5d7b6f8079796901cdfa619fc47b1709c4",
     "candidate_tree": "ff61cea74669c7892f48f53847bc0dd43a429b5b",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -2086,7 +2105,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Exact approved test-only patch6e822060 applied and pushed as clean128fce5/treeff61cea. Mandatory unchanged-profile builder compile must pass before one independent focused diagnostic runtime of both MT167 tests. Required no-growth/full equal-row proof remains false; diagnostic overhead is not unchanged acceptance timing. No additional EXPLAIN or unrelated product edit; original green proofs retain original input/binary bindings.",
+    "next_dependency": "Mandatory128f compile r11 PASS0 independently read by root; exact approved patch6e822060 and changed candidate/source/profile/export bindings stable. Retained WPV owns one prepared r12 diagnostic run of both MT167 tests only after all execution-input writes close. Identify actual SurrealQL slot cost using request/query/projection scope; nested operations aggregate into outer slots. Required no-growth/full equal-row proof remains false; diagnostic overhead is not unchanged acceptance timing. No additional EXPLAIN or unrelated product edit; original green proofs retain original input/binary bindings.",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
