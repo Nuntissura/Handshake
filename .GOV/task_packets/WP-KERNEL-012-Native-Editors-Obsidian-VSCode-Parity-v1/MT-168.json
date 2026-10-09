@@ -2221,9 +2221,9 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "BOUNDED_LINK_COMPONENT_PASS_BUILDER_APPLY_PENDING",
-    "candidate_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
-    "candidate_tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6",
+    "state": "BOUNDED_LINK_APPLIED_MANDATORY_COMPILE_PREPARING",
+    "candidate_commit": "85f45913a0c11019b3a49c9f213356d73495e765",
+    "candidate_tree": "3d6119409baeff624ff988475ad04606f1bc1fd7",
     "product_worktree": "wtc-WP-KERNEL-012",
     "branch": "feat/WP-KERNEL-012",
     "failure_refs": [
@@ -2776,6 +2776,53 @@
       },
       "gameplan_step": "GP-415",
       "status_effect": "MT168 retains FAIL_V1; only component equivalence and rollback proved; fresh original acceptance pending"
+    },
+    "bounded_link_applied_20261009": {
+      "candidate": "85f45913a0c11019b3a49c9f213356d73495e765",
+      "tree": "3d6119409baeff624ff988475ad04606f1bc1fd7",
+      "parent": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "pushed": true,
+      "clean": true,
+      "patch_sha256": "a41a24ed60d87311c6aa616241b3cdb370a20eacae8a6750359536959cb685c1",
+      "changed_paths": [
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs"
+      ],
+      "changed_lines": [
+        574,
+        575
+      ],
+      "diff": "2 insertions/2 deletions only",
+      "root_and_buddy_review": "Actual applied diff matches reviewed two-line patch; raw endpoint AND span exact1 checks/HSK403, permissions, write fences and COMMIT preserved",
+      "mt167_original_raw_sha256": "f61f2a7c947997804b34f5ea001cdbf9bd53eafead30c2603380aaf0ee733212",
+      "source_acceptance_only": true,
+      "runtime_acceptance_pass": false,
+      "compile_predecessor": "Fresh mandatory Builder compile with unchanged compiler/profile",
+      "affected_runtime": "Fresh mounted account and both exact original MT167 acceptance cases after compile closure",
+      "independent_input_reconciliation": {
+        "reviewer": "retained WP_VALIDATOR",
+        "candidate": "85f45913a0c11019b3a49c9f213356d73495e765",
+        "applied_loop_match": "2/2 exact R17 bounded loops after Rust continuation/terminal newline removal",
+        "reusable_exact163": "Original34aa proof6249ffeb schema/helper/DDL unchanged; original producing binary retained",
+        "reusable_unaffected": "Original51c catalog/authority/timing/native greens unchanged against85f except engine and independently proven exact163 helper; original bindings retained",
+        "fresh_required": [
+          "mounted_index_account_source_witness_revocation_and_workspace_delete",
+          "mt167_batch_and_per_file_writer_produce_equal_rows",
+          "mt167_code_nav_index_median_within_spec_baseline"
+        ],
+        "no_prior_green_rebound_to_candidate": true
+      }
+    },
+    "mandatory_compile_r18_20261009": {
+      "candidate": "85f45913a0c11019b3a49c9f213356d73495e765",
+      "capture": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/compile-85f4591-r18.ps1",
+      "capture_sha256": "84d7d2f89ebad5328ea9a4064f9d91c9cc46a26294412db72ecb2036a5565613",
+      "host": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/scheduled-compile-host-r18.ps1",
+      "host_sha256": "981a90ba4e4e2752dc0365ea8fe2094c207888adc2453786c4f7fdc21fda2465",
+      "review": "Root and Buddy opened actual source; AST0; r15 derivative only candidate/suffix/capturefilename/round identities",
+      "compiler_profile_command_unchanged": true,
+      "status": "PREPARING_NOT_STARTED",
+      "exclusive_target_owner": "KERNEL_BUILDER",
+      "precompile_export_delegate": "WP_VALIDATOR only source export preparation; no runtime or target job"
     }
   },
   "mt168_private_query_probe_20261009": {
