@@ -1,29 +1,29 @@
 {
   "schema": "hsk.validator_round_selection@1",
-  "candidate": "128fce5d7b6f8079796901cdfa619fc47b1709c4",
+  "candidate": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
   "mode": "targeted",
   "selection_file": "WPV-round-selection-targeted.sh",
-  "output_suffix": "-mt168-statement-r12",
-  "runner_output_suffix": "-targeted-mt168-statement-r12",
+  "output_suffix": "-mt168-link-r14",
+  "runner_output_suffix": "-targeted-mt168-link-r14",
   "covers": [
     "MT-168"
   ],
   "owning_mt": "MT-170",
   "core_skip": false,
-  "core_lib": false,
+  "core_lib": true,
   "core_targets": [
     "mt167_code_nav_index_cost_tests"
   ],
-  "core_filter": "binary_id(=handshake_core::mt167_code_nav_index_cost_tests)",
+  "core_filter": "(binary_id(=handshake_core) & test(=api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete)) | binary_id(=handshake_core::mt167_code_nav_index_cost_tests)",
   "native_lib": false,
   "native_targets": [],
   "native_filter": "none()",
   "extracted_crates": [],
-  "named_case_count": 2,
-  "proof_basis": "Exact Operator-approved test-only statement-timing diagnostic: both existing MT167 cases only; instrumentation overhead is diagnostic and does not close unchanged acceptance",
+  "named_case_count": 3,
+  "proof_basis": "Operator-approved declared-span-index link verification repair with byte-exact original MT167 test restored; independent original acceptance mounted-account boundary plus both MT167 cases",
   "backend_required": false,
   "prior_proof_reuse": {
-    "runtime": "Original34aa exact163 and original51c unaffected greens retain original input/binary bindings; originald4 account18.578sPASS retained with producing9e274007/input13 bindings. Only MT167 test helper changed; no account/native/schema behavior change. Diagnostic run is not unchanged acceptance proof.",
+    "runtime": "Original34aa exact163 and original51c unaffected authority/timing/catalog/native greens retain original input/binary bindings after engine-only asserted-behavior reconciliation. Originald4 account result retained historically; repaired link queries affect its producer and require fresh case. Instrumented128f diagnostic output supports diagnosis only; original MT167 tests restored byte-exact and require fresh parity/timing.",
     "prior_frozen_inputs": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-51c5329-before-exact163-repair/manifest.json",
     "retained_passes": "MT111PASS_V4/MT136PASS_V8/MT170PASS_V2 remain exact original bindings"
   },
@@ -35,5 +35,5 @@
   "work_owner_mt": "MT-168",
   "measurement_tests": [],
   "deferred_consumers": [],
-  "phase_predecessor": "Fresh128f mandatory builder check numeric0 plus explicit exclusive target return; root/all execution-input writes closed before freeze"
+  "phase_predecessor": "Fresh292d mandatory builder compile numeric0, pushed/clean source and explicit warm target return; root/all execution-input writes closed before freeze"
 }

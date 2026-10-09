@@ -1227,6 +1227,42 @@
         },
         "input_binding": "Root opened exact closed wrapper exit/JUnit failure/summary and query197 timing records; independently matched13 frozen inputs,7 artifacts and15 original/copy pairs before write",
         "status_effect": "NONE; FAIL_V1 and historical verdicts retained"
+      },
+      {
+        "id": "PR-WP012-MT168-WPV-INTERRUPTED-20261009-292D-R13",
+        "check_id": "MT-168-BUILDER-COMPILE",
+        "executor": "KERNEL_BUILDER-20261009-retained-builder",
+        "independent_observer": "WP_VALIDATOR-20261009-retained-wpv",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+        "tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6",
+        "started_at_utc": "2026-10-09T13:17:06.8222564Z",
+        "exit_code": null,
+        "result": "INCOMPLETE_INTERRUPTED_UNKNOWN",
+        "compile_predecessor_proven": false,
+        "runtime_executed": false,
+        "exit_artifact_present": false,
+        "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-292d7a1-compile-r13-interrupted/manifest.json",
+        "preservation_manifest_sha256": "3d04a408c2222686266e691f4eddda7ef6665221083db09658677b99ad894cd3",
+        "preserved_file_count": 16,
+        "preserved_bytes": 331430,
+        "root_readback": "Actual helper capture path and missing exit opened; six frozen inputs plus16 original/copy hashes matched; owned51520/6232/41672/25508/39348 and shared14320 absent in fresh inventory; no Finished/result. Native handle2380 is not a tool session ID.",
+        "observed_capture_end": "Observer13:28:32Z; stderr40960 bytes13:28:41Z ends mid-warning; no source failure inferred",
+        "windows_evidence": {
+          "provider": "Windows Error Reporting",
+          "event_id": 1001,
+          "event_name": "MoAppHang",
+          "reported_at_utc": [
+            "2026-10-09T13:29:03.0377498Z",
+            "2026-10-09T13:29:06.0804782Z"
+          ],
+          "report_id": "5e963e38-c9d5-4432-87cd-7f229a1eb128",
+          "package": "OpenAI.Codex_26.1002.7124.0_arm64__2p2nqsd0c76g0",
+          "limitation": "Temporal correlation with capture loss; exact process-kill mechanism is unproven"
+        },
+        "status_effect": "NONE; FAIL_V1 and all historical results retained; no runtime before numeric compile PASS"
       }
     ],
     "running_record_ready13_20261008": {
@@ -1985,7 +2021,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "LINK_VERIFICATION_COMPILE_PREPARING",
+    "state": "COMPILE_R13_INTERRUPTED_DURABLE_HOST_PREPARING",
     "candidate_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
     "candidate_tree": "402fc40efcbedfc88e047447c6fc380ef94bf2d6",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -2193,7 +2229,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Pushed clean292d exact two-file repair and original test bytes verified. Root canonical/controller writes close before WPV fixed-export/profile/selector preparation returns warm target to builder for one mandatory r13 compile. After numeric compile PASS and target release, root reads exact proof and closes all input writes before independent original-acceptance3 runtime r14.",
+    "next_dependency": "Preserved r13 numericUNKNOWN after capture loss correlated with Codex MoAppHang. Same candidate/compiler/profile/cache retained. Prepare and independently observe a diagnostic-only execution host detached from Codex-parent lifecycle before one corrected mandatory compile; record tool availability in Codex and use in gameplan. No unchanged app-hosted retry, runtime, EXPLAIN, resource refusal or app dependency.",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
@@ -2583,6 +2619,8 @@
       "https://surrealdb.com/docs/reference/query-language/statements/let",
       "https://surrealdb.com/releases/3.2"
     ],
-    "limits": "Current docs do not prove pinned3.2 planner choice or repaired performance; independent production-boundary proof remains required"
+    "limits": "Current docs do not prove pinned3.2 planner choice or repaired performance; independent production-boundary proof remains required",
+    "adopted_builtin_tool": "Existing Windows Task Scheduler/ScheduledTasks1.0 and PowerShell7.6.5 for optional diagnostic execution hosting only; service/cmdlet availability verified, registration/execution ownership remains unproven until bounded infrastructure probe",
+    "excluded_optional_tool": "Operator declined GPT-Reboot inquiry; omit it from MT168 work and do not pursue repository/app recovery"
   }
 }

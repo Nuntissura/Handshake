@@ -226,6 +226,14 @@
 
 [CX-984-010] These root, hierarchy and cleanup rules supersede conflicting HBR, role-protocol, startup and helper instructions. Existing scripts cannot authorize working-directory-dependent resolution, automatic root creation or a fallback root. All other HBR isolation and provenance obligations remain mandatory.
 
+## Diagnostic and validation tools
+
+[CX-DIAG-TOOL-001] Operator-authorized additional software and tools support diagnosis, lint and checks only; they must never become dependencies required for the Handshake app, feature or module to work.
+
+[CX-DIAG-TOOL-002] Record adopted or installed diagnostic software/tool availability in this Codex and its usage in the assignment gameplan before use.
+
+[CX-DIAG-TOOL-003] Verified Windows diagnostic availability, 2026-10-09 MT-168 host: PowerShell 7.6.5; Windows Task Scheduler service `Schedule` Running/Automatic; `ScheduledTasks` module 1.0 exposes register/action/principal/settings/start/query/info cmdlets. Per-user registration and detached execution require their own observed probe; availability alone proves neither. These are optional execution/diagnostic tools, with no product runtime dependency.
+
 ## Authority maintenance
 
 [CX-105] Change Codex, build rules or Master Spec only on explicit Operator instruction and within the assigned role's authority; the owning role protocol defines the publishing procedure. Present material changes for review; an approved concrete edit needs no repeated approval.

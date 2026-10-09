@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 519
+generation: 520
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -427,3 +427,4 @@ steps:
 - {id: GP-406, role: any, at: before_round, do: verify approved test router supplies request and parent scopes plus both timing targets before query capture, check: {type: confirm}, source: 'fail:r10 projection timings grew; parity lacked subscriber and inner statement capture scopes', state: retired}
 - {id: GP-407, role: any, at: before_round, do: verify approved link-loop repair and original MT167 test bytes before affected acceptance, check: {type: confirm}, source: 'fail:r12 link verification grew; diagnostic timing cannot replace original acceptance', state: active}
 - {id: GP-408, role: orchestrator, at: before_round, do: record existing online research usage; added tools diagnose lint check only and never app dependencies, check: {type: confirm}, source: 'Operator20261009: record tool availability in Codex and usage in gameplan; runtime dependencies forbidden', state: active}
+- {id: GP-409, role: any, at: before_round, do: verify diagnostic execution host ownership and numeric capture survive parent exit; keep compiler/profile fixed, check: {type: confirm}, source: 'infra:r13 UNKNOWN after Codex hang; use recorded diagnostic-only Task Scheduler host, not app dependencies', state: active}
