@@ -1015,6 +1015,29 @@
         "input_binding": "Root independently opened numeric exit0, Finished14m57s, all6 unchanged input hashes and closed observer with processes[]",
         "gates": {"before_round": "PASS45/45", "before_submit": "PASS11/11"},
         "exclusive_target_released_to": "WP_VALIDATOR"
+      },
+      {
+        "id": "PR-WP012-MT168-WPV-EXACT163-20261009-34AA-R7",
+        "check_id": "MT-168-EXACT163-UPGRADE",
+        "executor": "WP_VALIDATOR-retained-wpv-WP-KERNEL-012",
+        "covers": ["MT-168"],
+        "commit": "34aa1a4ddf9830a88ab75c358d51b864ebdee6d7",
+        "tree": "961422b711b087fe14ed859696404e9726fad42a",
+        "completed_at_utc": "2026-10-09T05:49:25.9789458Z",
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/mt168-exact163-34aa-r7.json",
+        "proof_sha256": "6249ffeb93ad8fea76762d503e337d5c4c179fb8b8e7a60811da153af7bf902c",
+        "result": "PASS_FOCUSED_EXACT163_ONLY",
+        "core_nextest_exit_code": 0,
+        "wrapper_exit_code": 0,
+        "selected": 1,
+        "passed": 1,
+        "seconds": 6.723,
+        "junit_sha256": "7f91b23d6ee6cdfba57af84670e12e3c6beae40627ef6ab868a8f60e542e5010",
+        "test_binary_sha256": "3a258ae70fac0454826a4fe465ac48935ecbf5ed9d543e1945d7f6905c367713",
+        "input_binding": "Root opened actual JUnit, numeric exits, exact source assertions and verified all13 unchanged inputs; original15 input/identity/binary copies retained",
+        "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-34aa1a4-exact163-r7-closed/manifest.json",
+        "preservation_manifest_sha256": "3fc463e216e376c229b9cb5f3a59efe9c9740d160b8e665f03fdf2205f63a315",
+        "status_effect": "NONE; MT168-DOWNSTREAM remains unresolved and lifecycle FAIL_V1 retained"
       }
     ],
     "running_record_ready13_20261008": {
@@ -1773,7 +1796,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "state": "EXACT163_REPAIR_COMPILE_PASS_RUNTIME_PENDING",
+    "state": "EXACT163_PROOF_PASS_DOWNSTREAM_SCOPE_PENDING",
     "candidate_commit": "34aa1a4ddf9830a88ab75c358d51b864ebdee6d7",
     "candidate_tree": "961422b711b087fe14ed859696404e9726fad42a",
     "product_worktree": "wtc-WP-KERNEL-012",
@@ -1805,11 +1828,10 @@
     "current_info": "3d761f8df95c2869e5bb8a3b656f5f96a02a5cb863b2bb1f1d30306beff98ff7; independently measured then pinned51c; all six CURRENT consumers PASS in closed51c acceptance",
     "preserved_verdict": "FAIL_V1",
     "unclosed": [
-      "Closed51c exact163 FAIL from truncated function; scoped34aa full-function repair compiled0 with unchanged inputs; focused durable exact163 runtime proof pending",
       "Historical PRE162 reconstruction static gap retained; no historical repin",
       "MT168-DOWNSTREAM observation remains false: MT167 equal-row case times out before full equality proof; median14.4494677s exceeds5s and measured code-index projection elapsed time grows across samples; residual cause UNVERIFIED, no MT167 verdict rewrite"
     ],
-    "next_actor": "WP_VALIDATOR private owned query-plan probe then missing exact163/downstream runtime proof; conditional engine scope addition awaits Operator",
+    "next_actor": "Operator exact v3 engine scope decision; retained builder then WPV affected proof upon approval",
     "preservation_checkpoints": [
       {
         "commit": "817bd35cfae235e754e0d6e447fda2cf137578ab",
@@ -1981,7 +2003,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Missing exact163 runtime proof and measured downstream growth; exact v3 engine proposal stays unapplied pending Operator scope approval; private entity controls passed, production transaction and downstream cost remain unproven; verified original51c greens retain original bindings",
+    "next_dependency": "Exact163 compile/runtime proof closed on34aa; measured downstream growth remains unresolved; exact v3 engine proposal stays unapplied pending Operator scope approval; private entity controls passed, production transaction and downstream cost remain unproven; verified original greens retain original bindings",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",

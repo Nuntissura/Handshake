@@ -3,8 +3,8 @@
   "candidate": "34aa1a4ddf9830a88ab75c358d51b864ebdee6d7",
   "mode": "targeted",
   "selection_file": "WPV-round-selection-targeted.sh",
-  "output_suffix": "-mt168-exact163-r6",
-  "runner_output_suffix": "-targeted-mt168-exact163-r6",
+  "output_suffix": "-mt168-exact163-r7",
+  "runner_output_suffix": "-targeted-mt168-exact163-r7",
   "covers": [
     "MT-168"
   ],
