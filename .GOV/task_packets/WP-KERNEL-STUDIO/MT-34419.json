@@ -144,7 +144,7 @@
     "title": "DECLARED GAP — catalog scale is unverified",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "parent": {
     "wp_contract_revision": null,
@@ -1569,6 +1569,13 @@
       "prior_acceptance_wording_retained": true,
       "source_capability_ref": "MT-34419#/execution",
       "host_proof_pending": true
+    },
+    "source_host_prerequisite_disposition": {
+      "source_authoring_and_typed_port_development": "Operator-authorized standalone source contracts,selected compile and typed portable consumers proceed independently; no concrete host tier or CKC runtime is required to compile the ports.",
+      "host_binding": "Preserve full ASSET025 host binding activation obligation plus ASSET030 named byte consumers; concrete tier API/addressing/limits/eviction/SurrealDB relationship must be independently bound before host activation. Source proof cannot discharge it.",
+      "catalog_scale": "MT34419 measurement is its own deliverable,not a prior measured-number gate on authoring or implementing the measurement.",
+      "operator_direction": "Root instruction 2026-10-10; narrow existing affected MT/context fields only",
+      "proof_status": "PENDING_NOT_RUN"
     }
   },
   "closure_unit": {
@@ -1719,7 +1726,7 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Measure catalog search/preview/duplicate/smart-collection interactive ceiling with explicit corpus and runtime configuration."
+        "step": "Implement the catalog measurement cases and measure search,preview,duplicate and smart-collection ceiling with explicit corpus/runtime configuration; no prior measured ceiling gates this MT authoring or measurement implementation."
       },
       {
         "n": 2,

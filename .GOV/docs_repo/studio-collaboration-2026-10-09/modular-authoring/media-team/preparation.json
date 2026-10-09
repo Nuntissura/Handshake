@@ -1,9 +1,9 @@
 {
   "schema_id": "hsk.studio_modular_authoring_preparation@1",
   "file_id": "STUDIO-MODULAR-AUTHORING-MEDIA-20261009",
-  "updated_at": "2026-10-09T23:18:02.190794+00:00",
+  "updated_at": "2026-10-09T23:29:10.644895+00:00",
   "authority": "BOUNDED_ASSIGNED_MT_PREPARATION_ONLY_NONEXECUTION",
-  "status": "AUTHORING_IN_PROGRESS_209_ORIGINAL_CHECKPOINT_369ORIGINAL74SPLIT_PENDING",
+  "status": "AUTHORING_IN_PROGRESS_256_ORIGINAL_CHECKPOINT_322ORIGINAL74SPLIT_PENDING",
   "scope": {
     "Handshake (Product)": "NONE: no implementation/build/runtime/parity verdict",
     "Repo Governance": "Assigned original and split MT contract preparation only"
@@ -9688,6 +9688,429 @@
         "status": "PENDING",
         "inspection": "SOURCE_SPECIFIC_PARAMETER_PAIR_OR_WORKFLOW_METHOD_PARENT_READ_BACK_PRESERVATION_HBR52_PASS",
         "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35270",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35270.json",
+        "sha256": "b715f791e31684b3b16ff473e58f5844c3d9108f1728a1f08a7f38c99d1abe9c",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35271",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35271.json",
+        "sha256": "131afd5da746c8fad7d022026bb147812f9321c9a6c9552185285a16a20f1be0",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35272",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35272.json",
+        "sha256": "eed6ede96c7889e9d5b092539098bd43f134faa8b2df5572289e1e44d2979c1f",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35273",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35273.json",
+        "sha256": "6238f13190032306ccd2505df7744872284bc1d717edfa9f776cf5f43921ee15",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35274",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35274.json",
+        "sha256": "a1c0947acbea9785eb9855fea86ff445cf7d9815994533396ec166b3d6424290",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35275",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35275.json",
+        "sha256": "89c023ab017d5907e255059e0b3bacb057e312c35ddd4da3270ed24c7d3b8912",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35276",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35276.json",
+        "sha256": "f58f5131958a9ba0b2e66afeed0db948530a1224bdc6c7cd2872dfb6bc646eca",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35277",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35277.json",
+        "sha256": "54064bf4c81afdae345c019eb02b5a98bb06c684b9cd6f6b8e6bb8a449af80b2",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35278",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35278.json",
+        "sha256": "662cf9dbc94861ea66c10e994c5bf02a79ada54f6e60e9a0467228ef04a776ae",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35279",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35279.json",
+        "sha256": "5d2fde4a24c8d265590f10a31000124de9e301934eb0b661cd9a524fd10c10fa",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35280",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35280.json",
+        "sha256": "173ac82e9d3e47b82dc97e2033c99f3b0ae0bdae2304bc75f002477e86fb85c4",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35281",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35281.json",
+        "sha256": "b5a48be96389dccc39f68855fc18e428afea8e175e66b54e76ab92131d449b68",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35282",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35282.json",
+        "sha256": "4778853f7e0527ba0df1bcbb23e3688eadcb0f7208badd7f41a0b5f2c2bee379",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35283",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35283.json",
+        "sha256": "dabf1fae506e3c9a222d830a09980b46667a65f548829e00679aeb95f8a861bb",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35284",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35284.json",
+        "sha256": "31418ce605b83d7e8aeb1f3c174d56b3323745cbf9ad8e908076fd95cbeb6e03",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35285",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35285.json",
+        "sha256": "ef98fb2d42bfa176b61f86336661587c58ad1e5957d258085a7d838360c764dc",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35286",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35286.json",
+        "sha256": "8c31c265acbf7f39aace46e0e7bc46f34cbaba6f2f102c1e544b4e67a39e8c9c",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35287",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35287.json",
+        "sha256": "68bf8c1497dd65d0417e230de12203829a419993cde5c44bee05e59f2f3056e1",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35288",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35288.json",
+        "sha256": "450af3f9edde9df2dce51124712459b5e05bf2b3ab98b6a42a0318635354edf7",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35289",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35289.json",
+        "sha256": "73a423811f4a9c1921e27437e067b02cc7aa584abcd752a670f243784853e3f5",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35290",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35290.json",
+        "sha256": "7addc3457256eec45dd8f1b97558d8938c2a0604a9d99687151c599e9a8e0b87",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35291",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35291.json",
+        "sha256": "00bea1558b94b757344063313e35d05949fe265307a88f7384c4088d4aa51249",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35292",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35292.json",
+        "sha256": "e36aef070783bbd03b062d18b1a89b829878961242fd75d4d3ab08307a707e21",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35293",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35293.json",
+        "sha256": "2b24219ed309a882c421094bde2925bdca7d4004b8bd0f3e901431818719cc09",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35294",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35294.json",
+        "sha256": "6e8f39d037c509c7356a5edd0a03ae9e10ec26444257658b0d0d08bc6c166487",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35295",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35295.json",
+        "sha256": "190ecd37d52233f3d517d3febd044a3ff05c9e74b8d29efe086ccad47f3fcc4c",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35366",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35366.json",
+        "sha256": "fb310b1e532c0fecd08cd024359f20bbc5826a4c71e01b5ccf8290b503ceccec",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35367",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35367.json",
+        "sha256": "accbb7970571a4c39124bcc43a5729f812c90ffdec05919c2dedd3d7b16a9f97",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35368",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35368.json",
+        "sha256": "5c33fa6542ec3610d6a7c6b884c2751ba32d1304862f58b07ac889e0d220c726",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35540",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35540.json",
+        "sha256": "425e2c4a470e515312700445d89cd04677be126cfdadb101c77ab8100ca79350",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35542",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35542.json",
+        "sha256": "a8d68b1d06b72b4b975f7b5b7f32a26a23e5012d04d485536493a903beb27858",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35552",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35552.json",
+        "sha256": "65d04908199f89b5de45baf8154987efcf12a32e78891c1d209acead346ac52d",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35559",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35559.json",
+        "sha256": "a7168dccf78b0e2e77d3c98519d045c867aca6dbbea490b73d4bcc9f743763eb",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35560",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35560.json",
+        "sha256": "201d4ec6ee0ce4d35d5c33e836c26e13a2f5df5ac7a18ffb656168a57195978d",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35561",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35561.json",
+        "sha256": "4f7f4056da3a2bcdc9bb68129378eb0a8da97152511ca253cb5424376b7aca20",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35563",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35563.json",
+        "sha256": "1308e83963989a784a22f857bcb7dbeb656d1768d30f89ec8e83c549fc994abc",
+        "contract_revision": 3,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35570",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35570.json",
+        "sha256": "7ac4899af2692dd8a622edc0b04f2e79af6cd415599245b524c1ba23a4dcb2f2",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35578",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35578.json",
+        "sha256": "2fab135e263269016be146bfbd923869ed1479f25d586fb3f6b2b0961c49a341",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35590",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35590.json",
+        "sha256": "67a736f73d203f6a8a49b5a2e7bdcde3d560f8b2da39090cbf84dd1fe082f607",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35594",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35594.json",
+        "sha256": "6dd0829000ea6d827ab175603482db7aa2cd8196c5dd885433073646e8e29254",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35596",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35596.json",
+        "sha256": "60c6ef85dde715a610ad27d5d9ed886cb74a6b186b8c2fb28d1d1eda3a923a72",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35597",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35597.json",
+        "sha256": "40d6c406f3cbd04575e814cb29ad8cf0f157572f03f648e1c560fb0a01559d20",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35608",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35608.json",
+        "sha256": "6d913b25cdb08d8801a939a610c5d1f5c2f91d75f197226dfd21c1e4c9c5ba2f",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35609",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35609.json",
+        "sha256": "223bf2b6f7845c250dbffff5109dc4c19110e2c6b5490caaf49791acc447c2c1",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35610",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35610.json",
+        "sha256": "bb33562ef71f1d6ae09c64c4ce95830b43dcba390b09931aca8d7b01a668f16b",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35615",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35615.json",
+        "sha256": "58a1ed9423f15ad6e5a2deac4fee09e21c55e5a904c6093ee4adf20553ccfdc6",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
+      },
+      {
+        "mt_id": "MT-35616",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35616.json",
+        "sha256": "e3f6ffe41cd1e5967e810f8b7ce3de90eb0407a2956b79b36347f4dffa9fdf55",
+        "contract_revision": 2,
+        "status": "PENDING",
+        "inspection": "TASK_SPECIFIC_METHODS_CURRENT_SOURCE_RECONCILED_ORIGINAL_PRESERVATION_PASS",
+        "runtime_proof": "NOT_RUN"
       }
     ],
     "score_frozen": true,
@@ -11197,15 +11620,21 @@
         "runtime_proof": "NOT_RUN"
       }
     ],
-    "prepared_frozen_count": 209,
+    "prepared_frozen_count": 256,
     "motion_state": "229_AUTHORED_NOT_FROZEN_TASK_SPECIFIC_REMEDIATION_PENDING",
     "remaining_original_scope": {
       "pulse_remediation": 93,
       "motion_remediation": 229,
-      "additional_originals": 47
+      "additional_originals": 0
     },
     "original_total_required": 578,
     "split_total_required": 74,
-    "snapshot_sha256": "a5692a73c29c05c89d4729ecb8e0abe9cf455330c87cd5e41ae5d614c444e1fa"
+    "snapshot_sha256": "cc2c7dd2765bdf234707a4f2a4cc18ec98e33195cc0193ea0ece976910aed87f",
+    "additional_originals_frozen": {
+      "count": 47,
+      "aggregate_mt_id_hash_sha256": "566f6be24db9c7885a3c07f651bc1a13c6c25582b0cc832e65727c912bd57e87",
+      "status": "PENDING_NONEXECUTION",
+      "aggregate_encoding": "sorted mt_id space raw_file_sha256 LF"
+    }
   }
 }

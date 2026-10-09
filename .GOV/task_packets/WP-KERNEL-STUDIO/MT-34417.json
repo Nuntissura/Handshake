@@ -144,7 +144,7 @@
     "title": "DECLARED GAP — the artifact tier binding is named but not verified in the target tree",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "parent": {
     "wp_contract_revision": null,
@@ -1575,6 +1575,37 @@
       "prior_acceptance_wording_retained": true,
       "source_capability_ref": "MT-34417#/execution",
       "host_proof_pending": true
+    },
+    "source_host_prerequisite_disposition": {
+      "source_authoring_and_typed_port_development": "Operator-authorized standalone source contracts,selected compile and typed portable consumers proceed independently; no concrete host tier or CKC runtime is required to compile the ports.",
+      "host_binding": "Preserve full ASSET025 host binding activation obligation plus ASSET030 named byte consumers; concrete tier API/addressing/limits/eviction/SurrealDB relationship must be independently bound before host activation. Source proof cannot discharge it.",
+      "catalog_scale": "MT34419 measurement is its own deliverable,not a prior measured-number gate on authoring or implementing the measurement.",
+      "operator_direction": "Root instruction 2026-10-10; narrow existing affected MT/context fields only",
+      "proof_status": "PENDING_NOT_RUN"
+    },
+    "artifact_tier_observed_context": {
+      "target_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "evidence_provider": "Independent host-author read-only target inspection supplied to root/shared",
+      "target_role": "WP012 target read-only context; no writes authorized",
+      "store_ref": "src/backend/handshake_core/src/storage/mod.rs::artifacts",
+      "manifest_lines": "615-643",
+      "apis": {
+        "write_file_artifact": 911,
+        "write_dir_artifact": 944,
+        "read_artifact_manifest": 988,
+        "validate_artifact_content_hash": 1000,
+        "write_file_atomic": 745
+      },
+      "addressing": "workspace-root .handshake/artifacts/<L1..L4>/<UUID>/{payload,artifact.json}; SHA256 integrity,not hash-keyed path",
+      "retention_ref": "src/backend/handshake_core/src/storage/retention.rs::Janitor",
+      "retention": "L3 TTL collection skips pinned/no-TTL/unexpired; defaults3600s,batch1000",
+      "observed_missing_in_inspected_apis": [
+        "No named ArtifactService struct/trait/impl found",
+        "No store max-byte/quota/streaming admission",
+        "No whole payload+manifest/Surreal atomic transaction or retention fencing"
+      ],
+      "transaction_context": "Individual filesystem fsync/rename; Atelier inserts domain+manifest+ledger/event in one Surreal statement after materialization; byte store remains outside transaction",
+      "not_runtime_proof": true
     }
   },
   "closure_unit": {
@@ -1725,15 +1756,15 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Inspect the actual assigned artifact-tier implementation and capture API,addressing,limits,eviction and SurrealDB transaction relationship before byte-dependent activation."
+        "step": "Develop independently selectable source typed ArtifactService/Manifest ports and portable consumers; retain the actual existing tier context without inventing a named service implementation."
       },
       {
         "n": 2,
-        "step": "Reconcile PRIM-ArtifactService/Manifest ports with canonical target-tree evidence and amend via authorized spec owner,or name exact absence as BLOCKED."
+        "step": "For full host binding activation,reconcile actual tier API,addressing,limits,eviction and SurrealDB relationship through authorized existing owner; preserve ASSET025 full obligation and ASSET030 byte consumers separately from source compilation."
       },
       {
         "n": 3,
-        "step": "Do not invent a tier or activate dependent link/export MTs while canonical contract proof is absent."
+        "step": "Absent canonical host binding evidence remains exact pending/BLOCKED host condition; source compile/portable output cannot mark it passed or create a second tier/database."
       },
       {
         "n": 4,
@@ -1741,10 +1772,11 @@
       }
     ],
     "expected_outputs": [
-      "Inspect the actual assigned artifact-tier implementation and capture API,addressing,limits,eviction and SurrealDB transaction relationship before byte-dependent activation.",
-      "Reconcile PRIM-ArtifactService/Manifest ports with canonical target-tree evidence and amend via authorized spec owner,or name exact absence as BLOCKED.",
-      "Do not invent a tier or activate dependent link/export MTs while canonical contract proof is absent.",
-      "Canonical source-only evidence and same-change manual/inspection; host adoption remains PENDING"
+      "Develop independently selectable source typed ArtifactService/Manifest ports and portable consumers; retain the actual existing tier context without inventing a named service implementation.",
+      "For full host binding activation,reconcile actual tier API,addressing,limits,eviction and SurrealDB relationship through authorized existing owner; preserve ASSET025 full obligation and ASSET030 byte consumers separately from source compilation.",
+      "Absent canonical host binding evidence remains exact pending/BLOCKED host condition; source compile/portable output cannot mark it passed or create a second tier/database.",
+      "Publish owned canonical source candidate first with same-change descriptor/manual; independent remote read pins later host adoption. Existing authority/spec edits remain with authorized owner.",
+      "Source proof and full actual host binding fulfillment independently PENDING"
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1797,7 +1829,7 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "Independent canonical target-tree/corpus/measurement inspection of the exact named prerequisite; report actual binding or exact BLOCKED dependency before downstream dispatch.",
+        "command_or_method": "Independent canonical target-tree contract reconciliation for full host binding; portable typed port compilation/development remains independently permitted and proves no host outcome.",
         "expected": "Before any microtask derived from this module is activated, the 012 tree MUST be read and one of two things done: (a) this module amended with the real tier's contract, or (b) an explicit BLOCKED record raised if no such tier exists.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
@@ -1810,8 +1842,8 @@
           "selected_packages": [],
           "features": [],
           "feature_policy": "Source-only selected dependency closure; existing authority/spec decisions remain with their owner.",
-          "consumer_assertion": "Reconcile PRIM-ArtifactService/Manifest ports with canonical target-tree evidence and amend via authorized spec owner,or name exact absence as BLOCKED. Original acceptance retained: Before any microtask derived from this module is activated, the 012 tree MUST be read and one of two things done: (a) this module amended with the real tier's contract, or (b) an explicit BLOCKED record raised if no such tier exists.",
-          "negative_path": "Do not invent a tier or activate dependent link/export MTs while canonical contract proof is absent.",
+          "consumer_assertion": "For full host binding activation,reconcile actual tier API,addressing,limits,eviction and SurrealDB relationship through authorized existing owner; preserve ASSET025 full obligation and ASSET030 byte consumers separately from source compilation. Original claim retained: Before any microtask derived from this module is activated, the 012 tree MUST be read and one of two things done: (a) this module amended with the real tier's contract, or (b) an explicit BLOCKED record raised if no such tier exists.",
+          "negative_path": "Absent canonical host binding evidence remains exact pending/BLOCKED host condition; source compile/portable output cannot mark it passed or create a second tier/database.",
           "oracle": "Independent canonical evidence reconciliation and actual consumer output inspection; source status, mocks, counts and self-authored receipts alone do not prove host outcomes.",
           "hbr_test_entrypoint_binding": "For any runtime proof bind HBR test_entrypoint/config before activation; REPLACE_ME remains NON_EXECUTABLE."
         },

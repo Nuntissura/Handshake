@@ -170,6 +170,9 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/11/maintenance"
+    ],
     "specification_anchor_refs": [
       {
         "id": "STU-VID-062",
@@ -202,7 +205,7 @@
       {
         "rule_id": "HBR-PRIV-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/0",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope.",
@@ -228,7 +231,7 @@
       {
         "rule_id": "HBR-PRIV-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/1",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any resource authorization or discovery boundary",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove default deny for missing, invalid, stale, revoked, ambiguous, and mismatched account, Principal, session, AccessSpace, project, tenant, resource, and delegation context at every touched boundary. UI filtering alone cannot satisfy this rule.",
@@ -254,7 +257,7 @@
       {
         "rule_id": "HBR-PRIV-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/2",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Concurrent runtime tests use at least two accounts in the same project plus one unrelated account and prove that private resources and their existence metadata, names, counts, thumbnails, search hits, activity, logs, and traces remain invisible without explicit resource grants while intentionally shared resources remain usable.",
@@ -280,7 +283,7 @@
       {
         "rule_id": "HBR-PRIV-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/3",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; The derived object inherits an access scope no broader than all contributing source scopes unless an explicit authorized share or promotion event records the widening. Negative tests cover mixed-scope inputs and prove caches, indexes, summaries, embeddings, thumbnails, logs, traces, model contexts, exports, and sync mirrors cannot leak restricted source existence or content.",
@@ -306,7 +309,7 @@
       {
         "rule_id": "HBR-PRIV-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/4",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client (required_if the action runs for a delegated client). The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
@@ -332,7 +335,7 @@
       {
         "rule_id": "HBR-PRIV-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/5",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove logout, disablement, role change, AccessSpace switch, project removal, resource revocation, pass expiry, token rotation, and disconnect stop future access promptly and invalidate or re-evaluate affected caches, contexts, previews, downloads, and in-flight work. Existing runs stay pinned to immutable original context and are never silently retargeted.",
@@ -358,7 +361,7 @@
       {
         "rule_id": "HBR-PRIV-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/6",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; The remote operation carries stable local account/Principal identity, remote tenant and resource identity, audience-bound delegation, explicit resource scope, authorization receipt, content hash, provenance, expiry/revocation state, and resulting local owner/AccessSpace. Tests prove remote linking cannot merge accounts, reuse a token for another resource audience, or widen local visibility.",
@@ -384,7 +387,7 @@
       {
         "rule_id": "HBR-PRIV-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/7",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Argus or typed headless proof shows the active account, AccessSpace, relevant sharing/visibility state, and denial reason without revealing restricted resource metadata. Destructive sharing or widening actions require an explicit preview of affected resources and recipients; the visible state must match backend authorization under concurrent account/Space changes.",
@@ -410,7 +413,7 @@
       {
         "rule_id": "HBR-INT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/8",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any product behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior.",
@@ -436,7 +439,7 @@
       {
         "rule_id": "HBR-INT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/9",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model invocation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves a stored ContextBundle is dispatched through ModelAdapter, tool requests pass through ToolGate, and model outputs land in ArtifactStore. No model invocation may bypass these primitives.",
@@ -462,7 +465,7 @@
       {
         "rule_id": "HBR-INT-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/10",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP produces any artifact intended for authority state",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the artifact reaches authority state ONLY via PromotionGate event; negative test proves direct mutation paths fail closed.",
@@ -488,7 +491,7 @@
       {
         "rule_id": "HBR-INT-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/11",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any collaborative state surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves CRDT updates persist, replay correctly after reconnect, and promote through ValidationRunner before reaching authority state.",
@@ -514,7 +517,7 @@
       {
         "rule_id": "HBR-INT-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/12",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the lane normalizes into the same SessionRun event stream as every other lane; no lane-specific authority leak; the TraceProjection cannot tell which lane ran beyond a lane label.",
@@ -540,7 +543,7 @@
       {
         "rule_id": "HBR-INT-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/13",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PULSE assess actual product role/agent/FEMS boundary only; do not revive retired repo memory rituals.",
@@ -566,7 +569,7 @@
       {
         "rule_id": "HBR-INT-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/14",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior is reconstructable from the Operator Surface TraceProjection using durable state alone (no chat history, no terminal scrollback, no provider memory).",
@@ -592,7 +595,7 @@
       {
         "rule_id": "HBR-INT-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/15",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates or modifies any UUID generation site in product code",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order).",
@@ -618,7 +621,7 @@
       {
         "rule_id": "HBR-INT-009",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/16",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
@@ -644,7 +647,7 @@
       {
         "rule_id": "HBR-SWARM-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/17",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any shared state surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Test runs at least two concurrent agent sessions plus simulated operator edits against the touched state. Passes only when there is no silent last-writer-wins, no lease starvation, no deadlock, and all conflicts surface as deterministic conflict reports or revision rejections.",
@@ -670,7 +673,7 @@
       {
         "rule_id": "HBR-SWARM-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/18",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Test proves leases expire correctly, stale sessions are recoverable, backpressure works under load, cancellation is honored within a bounded time, and loop counters prevent runaway.",
@@ -696,7 +699,7 @@
       {
         "rule_id": "HBR-SWARM-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/19",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any operator-facing surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Test proves the operator can keep editing CRDT-backed surfaces while an agent session is active on adjacent state. Presence and conflict state must be visible in the UI.",
@@ -722,7 +725,7 @@
       {
         "rule_id": "HBR-SWARM-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/20",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Every cross-agent message carries typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for); narrative-only routing is forbidden. Test proves a receiving agent can act from typed fields without parsing prose.",
@@ -748,7 +751,7 @@
       {
         "rule_id": "HBR-SWARM-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/21",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any cargo build, test, lint, benchmark, coverage, or tooling run by any worktree, role session, or sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped SurrealDB namespace/database, because divergent SurrealKit rollout sets across worktrees cannot share authority state safely.",
@@ -774,7 +777,7 @@
       {
         "rule_id": "HBR-SWARM-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/22",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Completion of any build, test, or tooling run, and completion of any sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (kernel-owned governance state, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not.",
@@ -800,7 +803,7 @@
       {
         "rule_id": "HBR-VIS-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/23",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
@@ -826,7 +829,7 @@
       {
         "rule_id": "HBR-VIS-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/24",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any captured frame produced for HBR-VIS-001",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
@@ -852,7 +855,7 @@
       {
         "rule_id": "HBR-VIS-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/25",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any feature visible at multiple viewports or states",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PULSE owns no GUI. Verify negative owned-GUI scope; any visible shared consuming integration requires later viewport/state matrix, never an invented module panel.",
@@ -878,7 +881,7 @@
       {
         "rule_id": "HBR-VIS-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/26",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches a non-UI behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
@@ -904,7 +907,7 @@
       {
         "rule_id": "HBR-VIS-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/27",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Treat the missing Argus path as HBR-VIS technical debt. If the missing visibility/steering path blocks proof of the implemented surface, it is an allowed same-MT/WP scope increase: remediate the minimum stable author_id, snapshot state, steering hook, or headless capture path before claiming DONE/PASS. If the role cannot remediate within authority, record a blocking HBR-VIS gap with the exact surface, missing Argus capability, affected proof, and recommended remediation.",
@@ -930,7 +933,7 @@
       {
         "rule_id": "HBR-QUIET-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/28",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automated test or agent run",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
@@ -956,7 +959,7 @@
       {
         "rule_id": "HBR-QUIET-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/29",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automation surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
@@ -982,7 +985,7 @@
       {
         "rule_id": "HBR-QUIET-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/30",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Every background launch records ownership metadata (owner_session, owner_wp, owner_role, started_at) and is reclaimed at session close, failure, staleness, or operator cancel. Test proves no blank terminal windows and no orphan processes after a run, failure, or kill.",
@@ -1008,7 +1011,7 @@
       {
         "rule_id": "HBR-QUIET-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/31",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP requires foreground interaction that cannot be eliminated",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Declare the foreground requirement in the WP before any run. Use a bounded controlled test window or documented manual step. Surface an operator-visible warning before launch. The default is forbidden; exceptions must be justified and time-bounded.",
@@ -1034,7 +1037,7 @@
       {
         "rule_id": "HBR-MAN-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/32",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
@@ -1060,7 +1063,7 @@
       {
         "rule_id": "HBR-MAN-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/33",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any change to UserManual content",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
@@ -1086,7 +1089,7 @@
       {
         "rule_id": "HBR-MAN-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/34",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any UserManual entry that describes a wired code surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
@@ -1112,7 +1115,7 @@
       {
         "rule_id": "HBR-MAN-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/35",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
@@ -1138,7 +1141,7 @@
       {
         "rule_id": "HBR-STOP-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/36",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.",
@@ -1164,7 +1167,7 @@
       {
         "rule_id": "HBR-STOP-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/37",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Speculative capacity reasons do not justify dropping scope. Continue through justified actions under Codex CX-EXEC-003/004; never override the two-attempt approach-change or escalation threshold merely to keep running.",
@@ -1190,7 +1193,7 @@
       {
         "rule_id": "HBR-STOP-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/38",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer considers stopping work on an MT, WP, or session",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Claim completion only when required runtime proof establishes it. An explicit Operator stop or incomplete escalation under Codex CX-EXEC-003 permits ending the current execution loop without PASS or dropping scope; preserve work and report the exact blocker and needed decision/dependency.",
@@ -1216,7 +1219,7 @@
       {
         "rule_id": "HBR-STOP-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/39",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters a dependency that blocks completion of the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Perform justified dependency work within authority, then return to the outstanding work. Apply Codex CX-EXEC-003/004 to repeated failures; when no justified next action remains, report the exact dependency and preserve incomplete state instead of continuing diagnostics or builds indefinitely.",
@@ -1242,7 +1245,7 @@
       {
         "rule_id": "HBR-STOP-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/40",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
@@ -1268,7 +1271,7 @@
       {
         "rule_id": "HBR-COMPART-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/41",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches or creates more than one product module, or any MT is scaffolded for a product WP",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; The WP contract declares every touched and created module and a boundary_change disposition. Every MT binds exactly one owning module in execution.module_ref and its write scope derives from that module's declared roots. Until the compartment refactor lands crates, module refs are logical module paths; when crates exist they resolve to build units. Activation rejects dependency-direction violations and unsettled build-budget reviews.",
@@ -1294,7 +1297,7 @@
       {
         "rule_id": "HBR-COMPART-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/42",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any validation round of a product WP once build units exist",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; A change confined to one module must not rebuild the whole product. Each validation round measures warm incremental rebuild time and the count of relinked test binaries for the candidate commit and records them against the project build budgets; a budget breach opens a boundary review before the next activation touching that module.",
@@ -1320,7 +1323,7 @@
       {
         "rule_id": "HBR-COMPONENT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/43",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail.",
@@ -1346,7 +1349,7 @@
       {
         "rule_id": "HBR-COMPONENT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/44",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP declares a new canonical mechanic or capability owner",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-PULSE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; A new canonical mechanic is allowed only when no existing owner exists and the mechanic has a Master Spec primitive id; activation refuses a new capability that lacks its spec primitive or duplicates an existing owner.",
@@ -1368,6 +1371,125 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/45",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_created_or_materially_modified",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "MT-35273 Use exact pair (PMXF,MXF) as catalog key; preserve case/space/punctuation and exporterclass provenance. Container alone cannot merge pairings (e.g. mbd AME11 versus LORI9); ???? remains unresolvedclass metadata. As a mandatory baseline for future Handshake-governed modules and reusable assets, give every module and reusable asset an accountable owner and independently selectable source, dependency, build, test and artifact closure in its existing manifest. Provide a standalone library, executable or asset harness with public contract proof, manual, model tools, inspection, diagnostics and recovery routes; no full host build is required for a module-only patch unless its declared dependency closure requires it.",
+        "scope_evidence_refs": [
+          "MT-35273#/execution/inputs",
+          "MT-35273#/execution/implementation_steps"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-001",
+        "proof_destination_base": "Configured external CX-984 root; runtime owner/absolute root binding pending"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/46",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "MT-35273 Use exact pair (PMXF,MXF) as catalog key; preserve case/space/punctuation and exporterclass provenance. Container alone cannot merge pairings (e.g. mbd AME11 versus LORI9); ???? remains unresolvedclass metadata. Declare errors, concurrency and queue bounds, admission, backpressure, overflow, cancellation, drain, shutdown and recovery through public contracts. Reusable GUI/control assets declare inputs, events, styling, accessibility and headless inspection contracts; compose them without copying private implementation.",
+        "scope_evidence_refs": [
+          "MT-35273#/execution/inputs",
+          "MT-35273#/execution/implementation_steps"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-002",
+        "proof_destination_base": "Configured external CX-984 root; runtime owner/absolute root binding pending"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/47",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_released_or_consumed",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "MT-35273 Use exact pair (PMXF,MXF) as catalog key; preserve case/space/punctuation and exporterclass provenance. Container alone cannot merge pairings (e.g. mbd AME11 versus LORI9); ???? remains unresolvedclass metadata. Publish immutable versioned artifacts with canonical source revision, build inputs, toolchain and artifact digests, dependency closure, public API versioning, compatibility and deprecation policy. Consume exact pinned releases through existing bindings and lock; a version label alone never proves compatibility.",
+        "scope_evidence_refs": [
+          "MT-35273#/execution/inputs",
+          "MT-35273#/execution/implementation_steps"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-003",
+        "proof_destination_base": "Configured external CX-984 root; runtime owner/absolute root binding pending"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/48",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_embedded_in_a_host",
+        "assessment": "APPLIES_IN_DISTINCT_HOST_ADOPTION",
+        "reason": "Standalone source MT; versionedembedding adapter/currenthostservices/policy and compatibility belong to exact separately mapped hostMTs.",
+        "scope_evidence_refs": [
+          "MT-35273#/execution/inputs",
+          "MT-35273#/execution/implementation_steps"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-004",
+        "proof_destination_base": "Configured external CX-984 root; runtime owner/absolute root binding pending"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/49",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_upgraded_or_moved",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "MT-35273 Use exact pair (PMXF,MXF) as catalog key; preserve case/space/punctuation and exporterclass provenance. Container alone cannot merge pairings (e.g. mbd AME11 versus LORI9); ???? remains unresolvedclass metadata. Separate private state, credentials and machine-local configuration from publishable source/assets with an explicit publication allowlist and exclusion contract. Declare portable roots and state owners, upgrade prerequisites, migration versions and rollback reversibility, in-flight settlement and recovery boundary; prove standalone and affected host compatibility before integration.",
+        "scope_evidence_refs": [
+          "MT-35273#/execution/inputs",
+          "MT-35273#/execution/implementation_steps"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-005",
+        "proof_destination_base": "Configured external CX-984 root; runtime owner/absolute root binding pending"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/50",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_or_mirrored",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "MT-35273 Use exact pair (PMXF,MXF) as catalog key; preserve case/space/punctuation and exporterclass provenance. Container alone cannot merge pairings (e.g. mbd AME11 versus LORI9); ???? remains unresolvedclass metadata. Publish and mirror from one canonical source with provenance and base/source/target digests checked at planning and commit. Reject concurrent drift, preserve customized destinations and provide recoverable publication; do not silently overwrite edits or substitute an installed copy for its source owner.",
+        "scope_evidence_refs": [
+          "MT-35273#/execution/inputs",
+          "MT-35273#/execution/implementation_steps"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-006",
+        "proof_destination_base": "Configured external CX-984 root; runtime owner/absolute root binding pending"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/51",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "MT-35273 Use exact pair (PMXF,MXF) as catalog key; preserve case/space/punctuation and exporterclass provenance. Container alone cannot merge pairings (e.g. mbd AME11 versus LORI9); ???? remains unresolvedclass metadata. Land every module or reusable asset change first in its declared canonical module GitHub repository through a standalone_source MT. Independently re-read the canonical remote revision and verify the source contract proof before a distinct host_adoption MT changes a host. The adoption MT consumes an explicit immutable source revision and artifact/dependency pins through existing bindings, declares the exact embedding adapter, and proves compatibility and integration. A local commit, copied source, test fixture or self-authored receipt never substitutes for canonical GitHub landing. Preserve host-specific law in the host adaptation; do not implement standalone module changes inside the host first.",
+        "scope_evidence_refs": [
+          "MT-35273#/execution/inputs",
+          "MT-35273#/execution/implementation_steps"
+        ],
+        "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35273/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-007",
+        "proof_destination_base": "Configured external CX-984 root; runtime owner/absolute root binding pending"
       }
     ],
     "runtime_lane_refs": [
@@ -1444,6 +1566,7 @@
   },
   "execution": {
     "lane": "implementation",
+    "module_change_stage": "standalone_source",
     "module_ref": "STUDIO-MODULE-PULSE",
     "build_unit_ref": "STUDIO-MODULE-PULSE",
     "write_scope_source": "allowed_write_paths",
@@ -1552,34 +1675,129 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "scope": "Current STUDIO-MODULE-PULSE asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
-        "fulfillment_ref": "MT-35273#/fulfillment",
-        "module_catalog_ref": "STUDIO-MODULE-PULSE",
+        "scope": "Exact immutable source row: | `PMXF` | `MXF` | 8 | premiere, media_encoder |",
         "immutable_input_and_revision_required": true
+      },
+      {
+        "scope": "Requested PMXF/MXF container-exporter pairing,codec/depth/chroma/transfer,colourmetadata/caption/timecode and selectedadapter capability; sequence source/workarea tick spans",
+        "immutable_input_and_revision_required": true
+      },
+      {
+        "kind": "verified_canonical_source",
+        "rows": [
+          {
+            "id": "STU-VID-062",
+            "range": {
+              "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+              "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+              "start_line": 25053,
+              "end_line": 25103,
+              "body_sha256": "456977547fd920038762ac9b070c715d2013028750afa23d6aadee6375388a8b",
+              "hash_encoding": "UTF8 line text joined LF, no final LF",
+              "range_kind": "normative_clause"
+            },
+            "body": "**[STU-VID-062] Container formats.** 40 distinct container/exporter pairings carry shipped recipes.\nThe table below is the coverage target, with the shipped recipe count as the weight of each. Studio's\nown shipped container set is a dependency decision under [STU-VID-051]; the contract is that each\nsupported container declares which codecs, colour metadata, caption streams and timecode tracks it\ncan carry, and that an unsupported combination is refused with a determinate result before encoding\nstarts rather than failing partway.\n\n*Derivation: catalogue table, splits per row; yields 34 microtasks, one per container.*\n\n| Container fourcc | Exporter class | Shipped presets | Present in |\n|---|---|---|---|\n| `DMXF` | `MXF` | 152 | premiere, media_encoder |\n| `MXFX` | `XDCA` | 117 | premiere, media_encoder |\n| `H264` | `NICK` | 43 | premiere, media_encoder |\n| `MooV` | `????` | 35 | premiere, media_encoder |\n| `MXF` | `P2MX` | 23 | premiere, media_encoder |\n| `mpg2` | `LORI` | 18 | premiere, media_encoder |\n| `WMV` | `????` | 15 | premiere, media_encoder |\n| `mpg2` | `AME` | 14 | premiere, media_encoder |\n| `dvd` | `AME` | 12 | premiere, media_encoder |\n| `mbd` | `AME` | 11 | premiere, media_encoder |\n| `HEVC` | `JEFF` | 10 | premiere, media_encoder |\n| `dvd` | `LORI` | 9 | premiere, media_encoder |\n| `mbd` | `LORI` | 9 | premiere, media_encoder |\n| `H26B` | `NICK` | 9 | premiere, media_encoder |\n| `PMXF` | `MXF` | 8 | premiere, media_encoder |\n| `AVIV` | `????` | 6 | premiere, media_encoder |\n| `flv` | `VLAD` | 6 | premiere, media_encoder |\n| `DPX` | `????` | 4 | premiere, media_encoder |\n| `oEXR` | `eEXR` | 4 | premiere, media_encoder |\n| `MP3` | `????` | 3 | premiere, media_encoder |\n| `JMXF` | `MXF` | 3 | premiere, media_encoder |\n| `PNG` | `????` | 2 | premiere, media_encoder |\n| `hbd` | `AME` | 2 | premiere, media_encoder |\n| `MX11` | `AS11` | 2 | premiere, media_encoder |\n| `DCP_` | `DTEK` | 2 | premiere, media_encoder |\n| `GIFf` | `GIFS` | 2 | premiere, media_encoder |\n| `GIFf` | `GIFf` | 2 | premiere, media_encoder |\n| `AAC` | `NICK` | 2 | premiere, media_encoder |\n| `MP4` | `NICK` | 2 | premiere, media_encoder |\n| `AIFF` | `????` | 1 | premiere, media_encoder |\n| `DIBB` | `????` | 1 | premiere, media_encoder |\n| `JPEG` | `????` | 1 | premiere, media_encoder |\n| `TIFF` | `????` | 1 | premiere, media_encoder |\n| `TPIC` | `????` | 1 | premiere, media_encoder |\n| `WAVE` | `????` | 1 | premiere, media_encoder |\n| `MX10` | `AS10` | 1 | premiere, media_encoder |\n| `PCM` | `RAWP` | 1 | premiere, media_encoder |\n| `AVIV` | `Ucmp` | 1 | premiere, media_encoder |\n| `_unresolved_` | `????` | 1 | premiere, media_encoder |\n"
+          }
+        ],
+        "status": "INSPECTED_NOT_EXECUTED"
+      },
+      {
+        "kind": "planned_source_selection",
+        "status": "NOT_IMPLEMENTED",
+        "canonical_repository_url": "https://github.com/Nuntissura/assets",
+        "source_root": "handshake-studio-assets/crates/hsk-studio-pulse",
+        "package": "hsk-studio-pulse",
+        "default_features": false,
+        "dependency_module_keys": [
+          "accord",
+          "folio",
+          "observe"
+        ],
+        "features": "Exact optional native/provider feature names, toolchain,lock and isolation pins must resolve under source implementation before run."
+      },
+      {
+        "kind": "exact_blocker",
+        "status": "PENDING",
+        "diagnosis": "STU-VID-062 supplies pair/count/provenance only,not codec/settings/defaults/8actualrecipeIDs; named codec selection,exact preset corpus and real output fixtures are pending."
+      },
+      {
+        "kind": "verified_time_codec_basis",
+        "ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 22541,
+            "end_line": 22608,
+            "body_sha256": "f744d25836852e4ead1ba4bfb54f400baef13187366136710b7719ae1ee7ea6d",
+            "body": "**[STU-VID-011] The normative sequence settings record.** Every field below is required. Values\nmarked \"Studio default\" are Studio's own choice from the evidence; values marked \"declared\" are read\nfrom shipped configurations.\n\n*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*\n\n| Field | Type | Contract |\n|---|---|---|\n| `frame_size` | `{width: u32, height: u32}` | Composition raster size in pixels. 37 distinct sizes appear across the shipped configurations, from 512x256 to 8192x8192. Studio default 1920x1080 (the most common, 89 of 392). |\n| `pixel_aspect_ratio` | `{numerator: u32, denominator: u32}` | A RATIONAL, never a float. Eight distinct ratios are declared: 1:1 (332 configurations), 1920:1440, 1920:1920, 10:11, 40:33, 768:702, 1024:702, 3:2. Studio default 1:1. Storing a float loses exactness and breaks round-trip. |\n| `frame_rate` | `{ticks_per_frame: u64}` | See [STU-VID-012]. Stored as ticks, never as a float. |\n| `field_order` | enum | `progressive`, `upper_field_first`, `lower_field_first`. Declared distribution: 346 progressive, 34 upper-first, 12 lower-first. Studio default `progressive`. |\n| `video_time_display` | enum | See [STU-VID-012]. |\n| `audio_time_display` | enum | `audio_samples` or `milliseconds`; independent of the video display. All 392 shipped configurations declare `audio_samples`. |\n| `audio_sample_rate_hz` | u32 | 386 of 392 declare 48000; 6 declare 32000. Studio default 48000. |\n| `audio_master_channel_type` | enum | See [STU-FX-137]. |\n| `working_color_space` | `StudioColorProfile` ref | Declared values in the shipped set: `BT.709 RGB Full` (22 configurations) and `BT.2100 HLG RGB Full` (5). Studio default `BT.709 RGB Full`. Carries a `is_linearized` boolean, declared 0 in every shipped configuration read. |\n| `auto_tone_map` | bool | Declared true in the shipped HDR-capable configurations. Governs automatic tone-mapping of out-of-gamut source media into the working space. |\n| `use_maximum_bit_depth` | bool | Studio default false. When true the render pipeline runs at the document's maximum channel depth rather than the preview depth. |\n| `use_maximum_render_quality` | bool | Studio default false. Selects the higher-cost scaling and resampling path. |\n| `allow_linear_compositing` | bool | Studio default true in the shipped configurations read. Selects linear-light blending for the sequence's composite ([STU-CMP-020]). |\n| `initial_video_track_count` | u8 | Studio default 3. |\n| `initial_audio_track_count` | u8 | Studio default 4, matching the shipped stereo configurations. |\n| `preview_render_format` | record | See [STU-VID-019]. |\n| `immersive` | record | See [STU-VID-018]. |\n\n### The time model\n\n**[STU-VID-012] Time is integer ticks, and the tick rate is a constant.** A sequence's time base is\n`254016000000` ticks per second. Every time value in a sequence -- clip in and out points, edit\npoints, marker positions, the playhead, work-area bounds, keyframe times on clip effects -- is\nstored as an integer tick count. Floating-point seconds are a display and API convenience only and\nMUST NOT be the stored form: at 254016000000 ticks per second, a 64-bit integer represents just over\ntwo years of media exactly, while a float loses frame-accuracy inside an hour. This constant is\nchosen precisely because it divides evenly by every common frame rate and audio sample rate, which\nis what makes 23.976, 29.97 and 48000 Hz exact rather than approximate.\n\n**[STU-VID-013] The frame-rate table is normative and is expressed in ticks per frame.**\n\n*Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.*\n\n| ticks_per_frame | fps | Notes |\n|---|---|---|\n| 10594584000 | 23.976024 | 24000/1001. 75 shipped configurations. |\n| 10584000000 | 24 | 43 shipped configurations. |\n| 10160640000 | 25 | 85 shipped configurations. |\n| 8475667200 | 29.97003 | 30000/1001. 103 shipped configurations; the most common. |\n| 8467200000 | 30 | 6 shipped configurations. |\n| 5292000000 | 48 | 5 shipped configurations. |\n| 5080320000 | 50 | 35 shipped configurations. |\n| 4237833600 | 59.94006 | 60000/1001. 34 shipped configurations. |\n| 4233600000 | 60 | 5 shipped configurations. |\n| 20321280000 | 12.5 | declared by the decode table; not used by the shipped configurations. |\n| 16934400000 | 15 | declared by the decode table; not used by the shipped configurations. |\n\n**[STU-VID-013a]** Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than\nas the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator\nvalues as canonical and the exact-decimal values as a legacy import shape that is normalised on\nimport, because only the ratio form keeps timecode drift correct. The composition-settings surface\nadditionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97,\n30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999.\n\n**[STU-VID-012a] The video time-display enumeration is normative.** It selects how a tick position\nis rendered to the operator and how typed timecode entry is parsed. It is INDEPENDENT of the frame\nrate: a 25 fps sequence may legally display 24 fps timecode, and a sequence may display frames or\nfilm footage instead of timecode.\n\n*Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.*"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 24340,
+            "end_line": 24372,
+            "body_sha256": "6765902b68be1290770aee38211d796e62d432c40a23174edb25c17b6f10e019",
+            "body": "[STU-VID-051] **Codec and container support is a declared\ninventory with vendor and role, and it is an ADAPTER boundary.** 58 codec and container modules\nacross 17 vendors are recovered, in roles `decode` (19), `encode` (12), `decode/encode` (9),\n`demux` (3), `mux` (2), `demux/mux` (1), `interchange` (3), `metadata` (3), `accelerate` (2),\n`support` (2) and `transform` (1). Studio's contract:\n\n1. Studio's own crates own the timeline, the compositor and the parameter surfaces. Codec\n   implementation is NOT reimplemented natively; it is reached through a declared adapter with a\n   typed capability descriptor stating which containers, codecs, bit depths, chroma subsamplings\n   and colour transfer functions it can decode and encode.\n2. Every adapter is enumerable at runtime, so a headless run and a model can both ask what is\n   supported before attempting an operation ([STU-FX-038] posture).\n3. An absent adapter yields a determinate `MEDIA_CODEC_UNAVAILABLE` result naming the codec, never\n   a silent empty render.\n4. No codec adapter may pull a GPU dependency into `handshake_core` ([STU-ARC-002]).\n5. Which specific codecs Studio ships is a licensing and dependency decision outside this\n   sub-section's authority; what this sub-section requires is the descriptor, the enumeration and\n   the determinate failure.\n\n*Derivation: preset/command table, taken whole; yields 1 microtask. Its rows are acceptance criteria and MUST NOT become one microtask each.*\n\n| Module | Vendor | Role |\n|---|---|---|\n| `AAFCOAPI.dll` | AMWA | interchange |\n| `ArriImageSdk.8.dll` | ARRI | decode |\n| `AVCIntraEncoder.dll` | Adobe | encode |\n| `AdobePDFL.dll` | Adobe | decode |\n| `AdobeSVGAGM.dll` | Adobe | decode |\n| `AdobeXMP.dll` | Adobe | metadata |\n| `AdobeXMPFiles.dll` | Adobe | metadata |\n| `JP2KLib.dll` | Adobe | decode/encode |\n| `SVGExport.dll` | Adobe | encode |\n| `SVGRE.dll` | Adobe | decode |"
+          }
+        ]
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "Use exact pair (PMXF,MXF) as catalog key; preserve case/space/punctuation and exporterclass provenance. Container alone cannot merge pairings (e.g. mbd AME11 versus LORI9); ???? remains unresolvedclass metadata."
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "Build PMXF/MXF selection and preflight plan: intersect requested codec/depth/chroma/transfer/metadata/caption/timecode with actual enumerable typed adapter descriptor before any encodejob/resource reservation. Refuse unsupported combination or MEDIA_CODEC_UNAVAILABLE; class tags never select a vendorDLL or require vendorapp."
       },
       {
         "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
+        "step": "Reconcile 8 source presets with independent recovered stable recipeID/settings corpus for this exactpair. Preserve individual fullparameter records,sourceIDs and originatinginstalls; absence of settings/IDcorpus cannot be replaced by 8 fabricated presets."
       },
       {
         "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "For selected actual supported pair produce revision-bound timeline export request with requested integer tick/sample/frame spans and inspectedproviderpin. Compare independentlydecoded actualcontainer/fourcc/count/metadata and loss; missing PMXF/MXF provider or fixture keeps encodeparity PENDING."
+      },
+      {
+        "n": 5,
+        "step": "Expose this exactpair and declared support/failure through the existing headless control/inspection/manualdescriptor; actual operatortooltip/navigation/UI and host publication are distinct mappedhostproof,not Pulse-only acceptance."
       }
     ],
     "expected_outputs": [
-      "Owned real capability and failure path",
-      "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      {
+        "description": "Exact PMXF/MXF descriptor and 8-preset reconciliation or explicitmissingcorpus/settings outcome",
+        "status": "NOT_IMPLEMENTED"
+      },
+      {
+        "description": "Typed unsupported-combination/MEDIA_CODEC_UNAVAILABLE beforeencoding; selected request and actualcount/metadata/loss receipt when provider proof exists",
+        "status": "NOT_IMPLEMENTED"
+      },
+      {
+        "original_acceptance_retained": [
+          {
+            "id": "AC-001",
+            "text": "`PMXF` satisfies the spec's stated container fourcc: `PMXF`"
+          },
+          {
+            "id": "AC-002",
+            "text": "`PMXF` satisfies the spec's stated exporter class: `MXF`"
+          },
+          {
+            "id": "AC-003",
+            "text": "`PMXF` satisfies the spec's stated shipped presets: 8"
+          },
+          {
+            "id": "AC-004",
+            "text": "`PMXF` satisfies the spec's stated present in: premiere, media_encoder"
+          },
+          {
+            "id": "AC-005",
+            "text": "`PMXF` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product."
+          }
+        ],
+        "owner_proof_boundary": "Only selected standalone source contribution; mapped host/operator/native/parity boundary requires its own actual proof."
+      }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1631,28 +1849,70 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": null,
-        "expected": "`PMXF` satisfies the spec's stated container fourcc: `PMXF`",
-        "timeout_seconds": null,
+        "command_or_method": {
+          "status": "NOT_IMPLEMENTED_PLANNED",
+          "cwd": "verified canonical assets checkout",
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-pulse",
+            "--no-default-features",
+            "--lib",
+            "export_preflight::pmxf_mxf_contract",
+            "--",
+            "--exact"
+          ],
+          "config_binding": "Resolve actual natural library test symbol and selectedprovider/features/toolchain/lock before dispatch; target does not exist by declaration and no suite is created."
+        },
+        "expected": "`PMXF` satisfies the spec's stated container fourcc: `PMXF` Scoped proof: Compare requested/returnedfourcc exactly PMXF,case/punctuation preserved; wrongfourcc refuses.",
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
-          "Exact owned candidate/input closure",
-          "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
+          "Exact actualcandidate/source/manifest/lock/toolchain/feature pins",
+          "Independent inputs/expected/output oracle and scoped negative trace",
+          "Actualprovider/device/plugin/codec/originalfixture where relevant; absentprerequisite remains NOT_PROVEN",
+          "Exact count/version/revision/loss/cancel/retirement and manual/inspection outputs"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pulse"
+          "selected_package": "hsk-studio-pulse",
+          "feature_policy": "Locked exact selected closure; puremodules exclude native/device/JS/codec unless declaredoptionalprovider",
+          "operation": "Use exact pair (PMXF,MXF) as catalog key; preserve case/space/punctuation and exporterclass provenance. Container alone cannot merge pairings (e.g. mbd AME11 versus LORI9); ???? remains unresolvedclass metadata.",
+          "inputs": [
+            "Exact immutable source row: | `PMXF` | `MXF` | 8 | premiere, media_encoder |",
+            "Requested PMXF/MXF container-exporter pairing,codec/depth/chroma/transfer,colourmetadata/caption/timecode and selectedadapter capability; sequence source/workarea tick spans"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`PMXF` satisfies the spec's stated container fourcc: `PMXF`",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "scoped_claim_method": "Compare requested/returnedfourcc exactly PMXF,case/punctuation preserved; wrongfourcc refuses.",
+          "outputs": [
+            "Exact PMXF/MXF descriptor and 8-preset reconciliation or explicitmissingcorpus/settings outcome",
+            "Typed unsupported-combination/MEDIA_CODEC_UNAVAILABLE beforeencoding; selected request and actualcount/metadata/loss receipt when provider proof exists"
+          ],
+          "negative_path": "Wrongpair/case,unknownclass,unsupportedcodec/depth/chroma/transfer/caption/timecode,missingpresetsettings,missingadapter,staleinput,cancelbeforeencode",
+          "independent_oracle": "Independent exact table row (PMXF,MXF,8) plus recovered recipeID/settings census and actual output inspected by independent decoder/metadata reader; catalogidentity does not prove codecbehavior.",
+          "spec_gap": "STU-VID-062 supplies pair/count/provenance only,not codec/settings/defaults/8actualrecipeIDs; named codec selection,exact preset corpus and real output fixtures are pending.",
+          "planned_compile_argv": [
+            "cargo",
+            "check",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-pulse",
+            "--no-default-features"
+          ],
+          "compile_timeout_seconds": 300,
+          "canonical_source_before_host": "Fresh independent canonical assets GitHub revision/tree and standalone proof; no localcommit,fixture or selfreceipt substitutes",
+          "host_mt_refs": [
+            "MT-36200"
+          ]
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "NOT_IMPLEMENTED_NOT_RUN",
         "materialization_timing": {
-          "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
-          "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
+          "before_coding": "Bind actual callable ports,natural target/provider/features/toolchain,resourceidentity/oracle and bounded timeout",
+          "before_handoff": "Existing actualtarget executes nonzero relevanttestcases on exactcandidate with independentbehavior proof",
           "existing_target_claimed": false
         }
       },
@@ -1662,28 +1922,70 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": null,
-        "expected": "`PMXF` satisfies the spec's stated exporter class: `MXF`",
-        "timeout_seconds": null,
+        "command_or_method": {
+          "status": "NOT_IMPLEMENTED_PLANNED",
+          "cwd": "verified canonical assets checkout",
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-pulse",
+            "--no-default-features",
+            "--lib",
+            "export_preflight::pmxf_mxf_contract",
+            "--",
+            "--exact"
+          ],
+          "config_binding": "Resolve actual natural library test symbol and selectedprovider/features/toolchain/lock before dispatch; target does not exist by declaration and no suite is created."
+        },
+        "expected": "`PMXF` satisfies the spec's stated exporter class: `MXF` Scoped proof: Compare pair class MXF to exactsource; alternate exporter class must not collide and unresolvedclass cannot activate guessedprovider.",
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
-          "Exact owned candidate/input closure",
-          "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
+          "Exact actualcandidate/source/manifest/lock/toolchain/feature pins",
+          "Independent inputs/expected/output oracle and scoped negative trace",
+          "Actualprovider/device/plugin/codec/originalfixture where relevant; absentprerequisite remains NOT_PROVEN",
+          "Exact count/version/revision/loss/cancel/retirement and manual/inspection outputs"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pulse"
+          "selected_package": "hsk-studio-pulse",
+          "feature_policy": "Locked exact selected closure; puremodules exclude native/device/JS/codec unless declaredoptionalprovider",
+          "operation": "Use exact pair (PMXF,MXF) as catalog key; preserve case/space/punctuation and exporterclass provenance. Container alone cannot merge pairings (e.g. mbd AME11 versus LORI9); ???? remains unresolvedclass metadata.",
+          "inputs": [
+            "Exact immutable source row: | `PMXF` | `MXF` | 8 | premiere, media_encoder |",
+            "Requested PMXF/MXF container-exporter pairing,codec/depth/chroma/transfer,colourmetadata/caption/timecode and selectedadapter capability; sequence source/workarea tick spans"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`PMXF` satisfies the spec's stated exporter class: `MXF`",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "scoped_claim_method": "Compare pair class MXF to exactsource; alternate exporter class must not collide and unresolvedclass cannot activate guessedprovider.",
+          "outputs": [
+            "Exact PMXF/MXF descriptor and 8-preset reconciliation or explicitmissingcorpus/settings outcome",
+            "Typed unsupported-combination/MEDIA_CODEC_UNAVAILABLE beforeencoding; selected request and actualcount/metadata/loss receipt when provider proof exists"
+          ],
+          "negative_path": "Wrongpair/case,unknownclass,unsupportedcodec/depth/chroma/transfer/caption/timecode,missingpresetsettings,missingadapter,staleinput,cancelbeforeencode",
+          "independent_oracle": "Independent exact table row (PMXF,MXF,8) plus recovered recipeID/settings census and actual output inspected by independent decoder/metadata reader; catalogidentity does not prove codecbehavior.",
+          "spec_gap": "STU-VID-062 supplies pair/count/provenance only,not codec/settings/defaults/8actualrecipeIDs; named codec selection,exact preset corpus and real output fixtures are pending.",
+          "planned_compile_argv": [
+            "cargo",
+            "check",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-pulse",
+            "--no-default-features"
+          ],
+          "compile_timeout_seconds": 300,
+          "canonical_source_before_host": "Fresh independent canonical assets GitHub revision/tree and standalone proof; no localcommit,fixture or selfreceipt substitutes",
+          "host_mt_refs": [
+            "MT-36200"
+          ]
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "NOT_IMPLEMENTED_NOT_RUN",
         "materialization_timing": {
-          "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
-          "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
+          "before_coding": "Bind actual callable ports,natural target/provider/features/toolchain,resourceidentity/oracle and bounded timeout",
+          "before_handoff": "Existing actualtarget executes nonzero relevanttestcases on exactcandidate with independentbehavior proof",
           "existing_target_claimed": false
         }
       },
@@ -1693,28 +1995,70 @@
         "claim_refs": [
           "AC-003"
         ],
-        "command_or_method": null,
-        "expected": "`PMXF` satisfies the spec's stated shipped presets: 8",
-        "timeout_seconds": null,
+        "command_or_method": {
+          "status": "NOT_IMPLEMENTED_PLANNED",
+          "cwd": "verified canonical assets checkout",
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-pulse",
+            "--no-default-features",
+            "--lib",
+            "export_preflight::pmxf_mxf_contract",
+            "--",
+            "--exact"
+          ],
+          "config_binding": "Resolve actual natural library test symbol and selectedprovider/features/toolchain/lock before dispatch; target does not exist by declaration and no suite is created."
+        },
+        "expected": "`PMXF` satisfies the spec's stated shipped presets: 8 Scoped proof: Independently reconcile exactly 8 stableIDs/fullsettings from recoveredsource for this pair; corpus missing stays NOT_PROVEN.",
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
-          "Exact owned candidate/input closure",
-          "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
+          "Exact actualcandidate/source/manifest/lock/toolchain/feature pins",
+          "Independent inputs/expected/output oracle and scoped negative trace",
+          "Actualprovider/device/plugin/codec/originalfixture where relevant; absentprerequisite remains NOT_PROVEN",
+          "Exact count/version/revision/loss/cancel/retirement and manual/inspection outputs"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pulse"
+          "selected_package": "hsk-studio-pulse",
+          "feature_policy": "Locked exact selected closure; puremodules exclude native/device/JS/codec unless declaredoptionalprovider",
+          "operation": "Use exact pair (PMXF,MXF) as catalog key; preserve case/space/punctuation and exporterclass provenance. Container alone cannot merge pairings (e.g. mbd AME11 versus LORI9); ???? remains unresolvedclass metadata.",
+          "inputs": [
+            "Exact immutable source row: | `PMXF` | `MXF` | 8 | premiere, media_encoder |",
+            "Requested PMXF/MXF container-exporter pairing,codec/depth/chroma/transfer,colourmetadata/caption/timecode and selectedadapter capability; sequence source/workarea tick spans"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`PMXF` satisfies the spec's stated shipped presets: 8",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "scoped_claim_method": "Independently reconcile exactly 8 stableIDs/fullsettings from recoveredsource for this pair; corpus missing stays NOT_PROVEN.",
+          "outputs": [
+            "Exact PMXF/MXF descriptor and 8-preset reconciliation or explicitmissingcorpus/settings outcome",
+            "Typed unsupported-combination/MEDIA_CODEC_UNAVAILABLE beforeencoding; selected request and actualcount/metadata/loss receipt when provider proof exists"
+          ],
+          "negative_path": "Wrongpair/case,unknownclass,unsupportedcodec/depth/chroma/transfer/caption/timecode,missingpresetsettings,missingadapter,staleinput,cancelbeforeencode",
+          "independent_oracle": "Independent exact table row (PMXF,MXF,8) plus recovered recipeID/settings census and actual output inspected by independent decoder/metadata reader; catalogidentity does not prove codecbehavior.",
+          "spec_gap": "STU-VID-062 supplies pair/count/provenance only,not codec/settings/defaults/8actualrecipeIDs; named codec selection,exact preset corpus and real output fixtures are pending.",
+          "planned_compile_argv": [
+            "cargo",
+            "check",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-pulse",
+            "--no-default-features"
+          ],
+          "compile_timeout_seconds": 300,
+          "canonical_source_before_host": "Fresh independent canonical assets GitHub revision/tree and standalone proof; no localcommit,fixture or selfreceipt substitutes",
+          "host_mt_refs": [
+            "MT-36200"
+          ]
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "NOT_IMPLEMENTED_NOT_RUN",
         "materialization_timing": {
-          "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
-          "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
+          "before_coding": "Bind actual callable ports,natural target/provider/features/toolchain,resourceidentity/oracle and bounded timeout",
+          "before_handoff": "Existing actualtarget executes nonzero relevanttestcases on exactcandidate with independentbehavior proof",
           "existing_target_claimed": false
         }
       },
@@ -1724,28 +2068,70 @@
         "claim_refs": [
           "AC-004"
         ],
-        "command_or_method": null,
-        "expected": "`PMXF` satisfies the spec's stated present in: premiere, media_encoder",
-        "timeout_seconds": null,
+        "command_or_method": {
+          "status": "NOT_IMPLEMENTED_PLANNED",
+          "cwd": "verified canonical assets checkout",
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-pulse",
+            "--no-default-features",
+            "--lib",
+            "export_preflight::pmxf_mxf_contract",
+            "--",
+            "--exact"
+          ],
+          "config_binding": "Resolve actual natural library test symbol and selectedprovider/features/toolchain/lock before dispatch; target does not exist by declaration and no suite is created."
+        },
+        "expected": "`PMXF` satisfies the spec's stated present in: premiere, media_encoder Scoped proof: Preserve premiere/media_encoder occurrence provenance only; no vendor runtime dependency or sourceappavailability claim.",
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
-          "Exact owned candidate/input closure",
-          "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
+          "Exact actualcandidate/source/manifest/lock/toolchain/feature pins",
+          "Independent inputs/expected/output oracle and scoped negative trace",
+          "Actualprovider/device/plugin/codec/originalfixture where relevant; absentprerequisite remains NOT_PROVEN",
+          "Exact count/version/revision/loss/cancel/retirement and manual/inspection outputs"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pulse"
+          "selected_package": "hsk-studio-pulse",
+          "feature_policy": "Locked exact selected closure; puremodules exclude native/device/JS/codec unless declaredoptionalprovider",
+          "operation": "Use exact pair (PMXF,MXF) as catalog key; preserve case/space/punctuation and exporterclass provenance. Container alone cannot merge pairings (e.g. mbd AME11 versus LORI9); ???? remains unresolvedclass metadata.",
+          "inputs": [
+            "Exact immutable source row: | `PMXF` | `MXF` | 8 | premiere, media_encoder |",
+            "Requested PMXF/MXF container-exporter pairing,codec/depth/chroma/transfer,colourmetadata/caption/timecode and selectedadapter capability; sequence source/workarea tick spans"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`PMXF` satisfies the spec's stated present in: premiere, media_encoder",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "scoped_claim_method": "Preserve premiere/media_encoder occurrence provenance only; no vendor runtime dependency or sourceappavailability claim.",
+          "outputs": [
+            "Exact PMXF/MXF descriptor and 8-preset reconciliation or explicitmissingcorpus/settings outcome",
+            "Typed unsupported-combination/MEDIA_CODEC_UNAVAILABLE beforeencoding; selected request and actualcount/metadata/loss receipt when provider proof exists"
+          ],
+          "negative_path": "Wrongpair/case,unknownclass,unsupportedcodec/depth/chroma/transfer/caption/timecode,missingpresetsettings,missingadapter,staleinput,cancelbeforeencode",
+          "independent_oracle": "Independent exact table row (PMXF,MXF,8) plus recovered recipeID/settings census and actual output inspected by independent decoder/metadata reader; catalogidentity does not prove codecbehavior.",
+          "spec_gap": "STU-VID-062 supplies pair/count/provenance only,not codec/settings/defaults/8actualrecipeIDs; named codec selection,exact preset corpus and real output fixtures are pending.",
+          "planned_compile_argv": [
+            "cargo",
+            "check",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-pulse",
+            "--no-default-features"
+          ],
+          "compile_timeout_seconds": 300,
+          "canonical_source_before_host": "Fresh independent canonical assets GitHub revision/tree and standalone proof; no localcommit,fixture or selfreceipt substitutes",
+          "host_mt_refs": [
+            "MT-36200"
+          ]
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "NOT_IMPLEMENTED_NOT_RUN",
         "materialization_timing": {
-          "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
-          "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
+          "before_coding": "Bind actual callable ports,natural target/provider/features/toolchain,resourceidentity/oracle and bounded timeout",
+          "before_handoff": "Existing actualtarget executes nonzero relevanttestcases on exactcandidate with independentbehavior proof",
           "existing_target_claimed": false
         }
       },
@@ -1755,28 +2141,70 @@
         "claim_refs": [
           "AC-005"
         ],
-        "command_or_method": null,
-        "expected": "`PMXF` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
-        "timeout_seconds": null,
+        "command_or_method": {
+          "status": "NOT_IMPLEMENTED_PLANNED",
+          "cwd": "verified canonical assets checkout",
+          "argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-pulse",
+            "--no-default-features",
+            "--lib",
+            "export_preflight::pmxf_mxf_contract",
+            "--",
+            "--exact"
+          ],
+          "config_binding": "Resolve actual natural library test symbol and selectedprovider/features/toolchain/lock before dispatch; target does not exist by declaration and no suite is created."
+        },
+        "expected": "`PMXF` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product. Scoped proof: Invoke exact headless descriptor then independently verify native tooltip/navigation via mappedactualhostconsumer; source-only descriptor is incomplete UI proof.",
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
-          "Exact owned candidate/input closure",
-          "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
+          "Exact actualcandidate/source/manifest/lock/toolchain/feature pins",
+          "Independent inputs/expected/output oracle and scoped negative trace",
+          "Actualprovider/device/plugin/codec/originalfixture where relevant; absentprerequisite remains NOT_PROVEN",
+          "Exact count/version/revision/loss/cancel/retirement and manual/inspection outputs"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-pulse"
+          "selected_package": "hsk-studio-pulse",
+          "feature_policy": "Locked exact selected closure; puremodules exclude native/device/JS/codec unless declaredoptionalprovider",
+          "operation": "Use exact pair (PMXF,MXF) as catalog key; preserve case/space/punctuation and exporterclass provenance. Container alone cannot merge pairings (e.g. mbd AME11 versus LORI9); ???? remains unresolvedclass metadata.",
+          "inputs": [
+            "Exact immutable source row: | `PMXF` | `MXF` | 8 | premiere, media_encoder |",
+            "Requested PMXF/MXF container-exporter pairing,codec/depth/chroma/transfer,colourmetadata/caption/timecode and selectedadapter capability; sequence source/workarea tick spans"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`PMXF` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "scoped_claim_method": "Invoke exact headless descriptor then independently verify native tooltip/navigation via mappedactualhostconsumer; source-only descriptor is incomplete UI proof.",
+          "outputs": [
+            "Exact PMXF/MXF descriptor and 8-preset reconciliation or explicitmissingcorpus/settings outcome",
+            "Typed unsupported-combination/MEDIA_CODEC_UNAVAILABLE beforeencoding; selected request and actualcount/metadata/loss receipt when provider proof exists"
+          ],
+          "negative_path": "Wrongpair/case,unknownclass,unsupportedcodec/depth/chroma/transfer/caption/timecode,missingpresetsettings,missingadapter,staleinput,cancelbeforeencode",
+          "independent_oracle": "Independent exact table row (PMXF,MXF,8) plus recovered recipeID/settings census and actual output inspected by independent decoder/metadata reader; catalogidentity does not prove codecbehavior.",
+          "spec_gap": "STU-VID-062 supplies pair/count/provenance only,not codec/settings/defaults/8actualrecipeIDs; named codec selection,exact preset corpus and real output fixtures are pending.",
+          "planned_compile_argv": [
+            "cargo",
+            "check",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-pulse",
+            "--no-default-features"
+          ],
+          "compile_timeout_seconds": 300,
+          "canonical_source_before_host": "Fresh independent canonical assets GitHub revision/tree and standalone proof; no localcommit,fixture or selfreceipt substitutes",
+          "host_mt_refs": [
+            "MT-36200"
+          ]
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "NOT_IMPLEMENTED_NOT_RUN",
         "materialization_timing": {
-          "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
-          "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
+          "before_coding": "Bind actual callable ports,natural target/provider/features/toolchain,resourceidentity/oracle and bounded timeout",
+          "before_handoff": "Existing actualtarget executes nonzero relevanttestcases on exactcandidate with independentbehavior proof",
           "existing_target_claimed": false
         }
       }
@@ -2292,6 +2720,24 @@
       }
     ],
     "later_kernel": {
+      "qualified_ac_to_host_adoption_mts": {
+        "MT-35273/AC-001": [
+          "MT-36200"
+        ],
+        "MT-35273/AC-002": [
+          "MT-36200"
+        ],
+        "MT-35273/AC-003": [
+          "MT-36200"
+        ],
+        "MT-35273/AC-004": [
+          "MT-36200"
+        ],
+        "MT-35273/AC-005": [
+          "MT-36200"
+        ]
+      },
+      "source_requirement": "Canonical assets remote landing+independent standalone proof precede distinct exactpinned host_adoption; host proof/status remains PENDING.",
       "phase": "SEPARATE_LATER_EMBEDDING",
       "status": "PENDING",
       "all_original_acceptance_refs": [
@@ -2524,5 +2970,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T23:18:37Z"
 }
