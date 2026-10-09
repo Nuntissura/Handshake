@@ -1981,7 +1981,7 @@
       ],
       "next_dependency": "changed admitted resource inputs or explicit Operator decision; no identical retry or runtime authorized"
     },
-    "next_dependency": "Missing exact163 runtime proof and measured downstream growth; engine proposal stays unapplied pending query probe and exact Operator scope; verified original51c greens retain original bindings",
+    "next_dependency": "Missing exact163 runtime proof and measured downstream growth; exact v3 engine proposal stays unapplied pending Operator scope approval; private entity controls passed, production transaction and downstream cost remain unproven; verified original51c greens retain original bindings",
     "wpv_independent_resource_blocker_20261009": {
       "recorded_utc": "2026-10-09T00:53:05.714299+00:00",
       "executor_role": "WP_VALIDATOR",
@@ -2100,6 +2100,43 @@
       "preserved_verdict": "FAIL_V1",
       "unchanged_green_reuse": "Only with original51c candidate/backend/config bindings plus inspected34aa changed-input reconciliation; exact163 and both failed downstream observations are not green reuse"
     }
+  },
+  "mt168_private_query_probe_20261009": {
+    "state": "CLOSED_DIAGNOSTIC_PASS",
+    "candidate_commit": "34aa1a4ddf9830a88ab75c358d51b864ebdee6d7",
+    "executor_role": "WP_VALIDATOR",
+    "artifact_owner_mt": "MT-170",
+    "work_owner_mt": "MT-168",
+    "covers": ["MT-168"],
+    "diagnostic_only": true,
+    "exit_artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/backend-opt-diag-34aa1a4ddf9830a88ab75c358d51b864ebdee6d7-mt168-private-probe-r3.exit.json",
+    "exit_sha256": "0f927bcba7e967b293deb7fc56a93035a046d86e2212e1ad5d8623078a218236",
+    "stdout_artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/logs/backend-opt-diag-34aa1a4ddf9830a88ab75c358d51b864ebdee6d7-mt168-private-probe-r3.query.stdout.log",
+    "stdout_sha256": "4e69565218eccdf0a3491fce94e23c44677340182908efe5a4778ee0d955333c",
+    "compile_exit": 0,
+    "probe_exit": 0,
+    "completed_at_utc": "2026-10-09T05:21:34.9631377Z",
+    "controls": "PASS7/7: nonempty, empty, duplicate, missing, unreadable, readable foreign-table exclusion, mixed; authenticated record session; exact v3 entity SELECT",
+    "recorded_explain_invocations": 1,
+    "remaining_explain_allowance": 0,
+    "explain_observed": "Original standalone entity SELECT: ProjectValue over TableScan, context Db, pre_decode_filter no (unsupported predicate), output_rows1; scanned/read count not exposed",
+    "limitations": "Standalone entity context only; nested IF planner, span/edge behavior, transaction rollback and MT167 cost causality remain unproven; never acceptance substitute",
+    "root_readback": "Actual exit/stdout/final observer opened; all10 execution input hashes independently matched; owned PIDs22188/11432/30284/22268 absent; clean34aa source/tree verified",
+    "preserved_failed_attempts": "r1 failed SDK result extraction/exit capture before query; r2 compile0/probe1 missing-row record::table(NONE) before EXPLAIN; exact inputs and outputs retained; v2 not applied",
+    "status_effect": "NONE; canonical FAIL_V1 retained"
+  },
+  "operator_decision_request_20261009_engine_v3": {
+    "state": "PENDING",
+    "path": "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+    "line": 573,
+    "requested_scope": "Only three verification SELECT sources in PERSIST_CLEAN_CODE_BATCH: distinct typed record IDs filtered by expected table before fetch; retain WHERE, raw counts, denial error and transaction",
+    "patch": "../Handshake_Artifacts/WP-KERNEL-012/MT-168/kb/mt168-clean-code-verification-recordset-prefilter.proposed.patch",
+    "patch_sha256": "a73f29c817734f8ffee687b6ec804309357045948980a459db4574b0ca5cfad1",
+    "reason": "Required MT168 downstream projection still grows; private controls and original TableScan support a focused candidate repair, but current MT168 expressly forbids this file",
+    "supersedes_proposal": "Earlier v2 table guard is defective for missing records and must not be applied",
+    "approval_received": false,
+    "product_patch_applied": false,
+    "proof_required_after_approval": "Fresh candidate-bound mandatory compile and affected independent runtime, including exact163 and MT167 downstream acceptance; no criteria weakening or adjacent verdict rewrite"
   },
   "operator_decision_20261009_resource_override": {
     "decision_id": "MT168-OPERATOR-RESOURCE-OVERRIDE-20261009",
