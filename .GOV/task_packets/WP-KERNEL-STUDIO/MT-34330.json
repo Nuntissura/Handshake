@@ -113,7 +113,14 @@
     "HBR-COMPART-001",
     "HBR-COMPART-002",
     "HBR-COMPONENT-001",
-    "HBR-COMPONENT-002"
+    "HBR-COMPONENT-002",
+    "HBR-MODULE-LIFECYCLE-001",
+    "HBR-MODULE-LIFECYCLE-002",
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-005",
+    "HBR-MODULE-LIFECYCLE-006",
+    "HBR-MODULE-LIFECYCLE-007"
   ],
   "validator_focus": [
     "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
@@ -137,7 +144,7 @@
     "wp_contract_digest": null,
     "binding_status": "ROOT_FINALIZATION_REQUIRED"
   },
-  "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
+  "gameplan_ref": ".GOV/docs_repo/tmp/studio-modular-authoring-gameplan.yaml",
   "context_capsule": {
     "specification_anchor_refs": [
       {
@@ -1214,7 +1221,7 @@
         "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-WEB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-WEB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1363,7 +1370,10 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "3a85db8ef27c56dec438397b3d2da3da47ae448368b989b9c248ee924fc737a7"
+    "context_digest": "3a85db8ef27c56dec438397b3d2da3da47ae448368b989b9c248ee924fc737a7",
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
+    ]
   },
   "closure_unit": {
     "outcome": "Deliver STUDIO-MODULE-WEB asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
@@ -1501,30 +1511,59 @@
         "fulfillment_ref": "MT-34330#/fulfillment",
         "module_catalog_ref": "STUDIO-MODULE-WEB",
         "immutable_input_and_revision_required": true
+      },
+      {
+        "requirement_ref": "STU-WEB-102",
+        "definition_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 30426,
+            "end_line": 30427,
+            "body_sha256": "c26093c18bbac8c925fa7154dd9cd73b670ca1d38662fb768bc7c73eea099abd",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "complete_clause_body": "**[STU-WEB-102] Object implementation record (normative shape).** `{object_id, folder, display_title, requires_document_model (boolean), inserts, dialog_controls[], api_hooks[], window_dimensions?}` where `inserts` is exactly one of: `literal_markup` (a verbatim string, optionally with named substitution points), `framework_component` (a key resolved against the pinned framework's component table), or `command_only` (the object performs an edit rather than inserting markup).\n",
+        "method_operands": "Exact fields, tables, ordered vocabularies and defaults in complete_clause_body; missing pinned assets remain prerequisites",
+        "source_revision_precondition": "One immutable document/configuration/source revision; external authority accessed only through published granted ports",
+        "unit_kind": "clause",
+        "derivation_key": "STU-WEB-102#clause#0"
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "Implement the full object descriptor with document-model requirement, parameter controls/hooks/window dimensions and literal/framework/command-only insertion alternatives.",
+        "requirement_ref": "STU-WEB-102"
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Invoke each insertion alternative against immutable document revision; compare literal substitutions, framework lookup and command-only edits; unavailable model or missing framework key fails typed without mutation.",
+        "requirement_ref": "STU-WEB-102"
       },
       {
         "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
+        "step": "Publish source-owned command/state/control and failure/recovery descriptors from this implementation through existing shared Controls, inspection, manual and diagnostic ports. Do not copy widgets or implement Handshake native storage/telemetry in the engine.",
+        "module_maintenance_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
       },
       {
         "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "Bind changed module source to independently selectable hsk-studio-web plus catalogued accord/folio/observe closure. Publish first to assets GitHub; independent remote read and standalone proof precede exact existing host adoption. No executable target or release revision is claimed in preparation.",
+        "module_maintenance_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
       }
     ],
     "expected_outputs": [
       "Owned real capability and failure path",
       "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      "Candidate-bound loss/cancel/revision and closure evidence",
+      {
+        "requirement_ref": "STU-WEB-102",
+        "behavior": "Implement the full object descriptor with document-model requirement, parameter controls/hooks/window dimensions and literal/framework/command-only insertion alternatives.",
+        "state_and_recovery_contract": "Invoke each insertion alternative against immutable document revision; compare literal substitutions, framework lookup and command-only edits; unavailable model or missing framework key fails typed without mutation.",
+        "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34330.json#/execution/inputs/1/complete_clause_body"
+      }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1565,6 +1604,29 @@
       "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
       "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/29",
       "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
+    },
+    "module_change_stage": "standalone_source",
+    "planned_build_closure": {
+      "catalog_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
+      "selected_package": "hsk-studio-web",
+      "dependency_module_refs": [
+        "accord",
+        "folio",
+        "observe",
+        "web"
+      ],
+      "existing_manifests_or_test_targets_claimed": false,
+      "full_host_build_required": false,
+      "provider_features_and_timeout": "Resolve actual provider/target and approved bounded timeout before dispatch; missing values block runtime dispatch"
+    },
+    "hbr_stage_binding": {
+      "source_method_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34330.json#/proof/checks",
+      "host_adoption_mt_refs": [
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
+      ],
+      "source_expectation": "Owned portable text/DOM/control/receipt/grant/diagnostic ports and selected module closure only; native authority and telemetry stay host-owned",
+      "host_expectation_registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules",
+      "proof_reuse": "Reuse unchanged affected consumer/batch evidence across bound HBR rows; no52-rule suite. Source observations never substitute for actual host wire proof."
     }
   },
   "proof": {
@@ -1576,13 +1638,14 @@
         "claim_refs": [
           "ASSET-AC-001"
         ],
-        "command_or_method": null,
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Invoke each insertion alternative against immutable document revision; compare literal substitutions, framework lookup and command-only edits; unavailable model or missing framework key fails typed without mutation. Check this original claim explicitly: Object implementation record (normative shape).** `{object_id, folder, display_title, requires_document_model (boolean), inserts, dialog_controls[], api_hooks[], window_dimensions?}` where `inserts` is exactly one of: `literal_markup` (a verbatim string, optionally with named substitution points), `framework_component` (a key resolved against the pinned framework's component table), or `command_only` (the object performs an edit rather than inserting markup).",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Every full-scope requirement and governing source range",
           "Actual owner consumer plus negative path",
-          "Independent actual output"
+          "Independent actual output",
+          "Complete STU-WEB-102 clause/table versus actual consumer; original claims ASSET-AC-001"
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "expected": "Object implementation record (normative shape).** `{object_id, folder, display_title, requires_document_model (boolean), inserts, dialog_controls[], api_hooks[], window_dimensions?}` where `inserts` is exactly one of: `literal_markup` (a verbatim string, optionally with named substitution points), `framework_component` (a key resolved against the pinned framework's component table), or `command_only` (the object performs an edit rather than inserting markup).",
@@ -1591,15 +1654,20 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Object implementation record (normative shape).** `{object_id, folder, display_title, requires_document_model (boolean), inserts, dialog_controls[], api_hooks[], window_dimensions?}` where `inserts` is exactly one of: `literal_markup` (a verbatim string, optionally with named substitution points), `framework_component` (a key resolved against the pinned framework's component table), or `command_only` (the object performs an edit rather than inserting markup).",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "consumer_assertion": "Implement the full object descriptor with document-model requirement, parameter controls/hooks/window dimensions and literal/framework/command-only insertion alternatives.",
+          "negative_path": "Invoke each insertion alternative against immutable document revision; compare literal substitutions, framework lookup and command-only edits; unavailable model or missing framework key fails typed without mutation.",
+          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
+          "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
+          "same_unchanged_input_shared_proof": true
         },
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
-        }
+        },
+        "planned_source_requirement_ref": "STU-WEB-102",
+        "timeout_resolution": "PENDING_ACTUAL_TARGET_AND_APPROVED_BOUNDED_TIMEOUT_BEFORE_DISPATCH",
+        "status": "PENDING_NOT_RUN"
       }
     ],
     "independent_review_required": true,
@@ -1931,14 +1999,19 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Object implementation record (normative shape).** `{object_id, folder, display_title, requires_document_model (boolean), inserts, dialog_controls[], api_hooks[], window_dimensions?}` where `inserts` is exactly one of: `literal_markup` (a verbatim string, optionally with named substitution points), `framework_component` (a key resolved against the pinned framework's component table), or `command_only` (the object performs an edit rather than inserting markup).",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
+          "consumer_assertion": "Implement the full object descriptor with document-model requirement, parameter controls/hooks/window dimensions and literal/framework/command-only insertion alternatives.",
+          "negative_path": "Invoke each insertion alternative against immutable document revision; compare literal substitutions, framework lookup and command-only edits; unavailable model or missing framework key fails typed without mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
-        "later_embedding_ref": "MT-34330-KERNEL-ASSET-AC-001",
+        "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
         "later_embedding_assertion": "Object implementation record (normative shape).** `{object_id, folder, display_title, requires_document_model (boolean), inserts, dialog_controls[], api_hooks[], window_dimensions?}` where `inserts` is exactly one of: `literal_markup` (a verbatim string, optionally with named substitution points), `framework_component` (a key resolved against the pinned framework's component table), or `command_only` (the object performs an edit rather than inserting markup). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
+        ],
+        "qualified_ac_ref": "MT-34330/ASSET-AC-001",
+        "host_binding_authority_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/qualified_ac_to_host_adoption_mts/MT-34330/ASSET-AC-001"
       }
     ],
     "later_kernel": {
@@ -1981,14 +2054,19 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Object implementation record (normative shape).** `{object_id, folder, display_title, requires_document_model (boolean), inserts, dialog_controls[], api_hooks[], window_dimensions?}` where `inserts` is exactly one of: `literal_markup` (a verbatim string, optionally with named substitution points), `framework_component` (a key resolved against the pinned framework's component table), or `command_only` (the object performs an edit rather than inserting markup).",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
+            "consumer_assertion": "Implement the full object descriptor with document-model requirement, parameter controls/hooks/window dimensions and literal/framework/command-only insertion alternatives.",
+            "negative_path": "Invoke each insertion alternative against immutable document revision; compare literal substitutions, framework lookup and command-only edits; unavailable model or missing framework key fails typed without mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-34330-KERNEL-ASSET-AC-001",
+          "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
           "later_embedding_assertion": "Object implementation record (normative shape).** `{object_id, folder, display_title, requires_document_model (boolean), inserts, dialog_controls[], api_hooks[], window_dimensions?}` where `inserts` is exactly one of: `literal_markup` (a verbatim string, optionally with named substitution points), `framework_component` (a key resolved against the pinned framework's component table), or `command_only` (the object performs an edit rather than inserting markup). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
+          ],
+          "qualified_ac_ref": "MT-34330/ASSET-AC-001",
+          "host_binding_authority_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/qualified_ac_to_host_adoption_mts/MT-34330/ASSET-AC-001"
         }
       ],
       "additional_acceptance_from_empty_original": [
@@ -2017,14 +2095,19 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Object implementation record (normative shape).** `{object_id, folder, display_title, requires_document_model (boolean), inserts, dialog_controls[], api_hooks[], window_dimensions?}` where `inserts` is exactly one of: `literal_markup` (a verbatim string, optionally with named substitution points), `framework_component` (a key resolved against the pinned framework's component table), or `command_only` (the object performs an edit rather than inserting markup).",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
+            "consumer_assertion": "Implement the full object descriptor with document-model requirement, parameter controls/hooks/window dimensions and literal/framework/command-only insertion alternatives.",
+            "negative_path": "Invoke each insertion alternative against immutable document revision; compare literal substitutions, framework lookup and command-only edits; unavailable model or missing framework key fails typed without mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-34330-KERNEL-ASSET-AC-001",
+          "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
           "later_embedding_assertion": "Object implementation record (normative shape).** `{object_id, folder, display_title, requires_document_model (boolean), inserts, dialog_controls[], api_hooks[], window_dimensions?}` where `inserts` is exactly one of: `literal_markup` (a verbatim string, optionally with named substitution points), `framework_component` (a key resolved against the pinned framework's component table), or `command_only` (the object performs an edit rather than inserting markup). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
+          ],
+          "qualified_ac_ref": "MT-34330/ASSET-AC-001",
+          "host_binding_authority_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/qualified_ac_to_host_adoption_mts/MT-34330/ASSET-AC-001"
         }
       ]
     },
@@ -2037,7 +2120,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-10-10T02:25:39.579877+00:00",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",

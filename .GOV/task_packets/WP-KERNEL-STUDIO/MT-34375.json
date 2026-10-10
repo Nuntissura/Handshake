@@ -126,7 +126,14 @@
     "HBR-COMPART-001",
     "HBR-COMPART-002",
     "HBR-COMPONENT-001",
-    "HBR-COMPONENT-002"
+    "HBR-COMPONENT-002",
+    "HBR-MODULE-LIFECYCLE-001",
+    "HBR-MODULE-LIFECYCLE-002",
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-005",
+    "HBR-MODULE-LIFECYCLE-006",
+    "HBR-MODULE-LIFECYCLE-007"
   ],
   "validator_focus": [
     "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
@@ -150,7 +157,7 @@
     "wp_contract_digest": null,
     "binding_status": "ROOT_FINALIZATION_REQUIRED"
   },
-  "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
+  "gameplan_ref": ".GOV/docs_repo/tmp/studio-modular-authoring-gameplan.yaml",
   "context_capsule": {
     "specification_anchor_refs": [
       {
@@ -1227,7 +1234,7 @@
         "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-WEB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-WEB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1376,7 +1383,10 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "2331f39cb44105b5ff0e7a79e2a6ff10331870617208c5b891c08d14062d6349"
+    "context_digest": "2331f39cb44105b5ff0e7a79e2a6ff10331870617208c5b891c08d14062d6349",
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
+    ]
   },
   "closure_unit": {
     "outcome": "Deliver STUDIO-MODULE-WEB asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
@@ -1520,30 +1530,59 @@
         "fulfillment_ref": "MT-34375#/fulfillment",
         "module_catalog_ref": "STUDIO-MODULE-WEB",
         "immutable_input_and_revision_required": true
+      },
+      {
+        "requirement_ref": "STU-WEB-151",
+        "definition_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 30600,
+            "end_line": 30601,
+            "body_sha256": "6d39e844d6aa434868068b09da1c9002934132d05dcdcf89dcb6329b8a2b4005",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "complete_clause_body": "**[STU-WEB-151] `tag_context_violation`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a tag appears in a parent or ancestor context its rule set forbids, enforcing [STU-WEB-053]. The diagnostic MUST name the tag, its context and the rule.\n",
+        "method_operands": "Exact fields, tables, ordered vocabularies and defaults in complete_clause_body; missing pinned assets remain prerequisites",
+        "source_revision_precondition": "One immutable document/configuration/source revision; external authority accessed only through published granted ports",
+        "unit_kind": "validator",
+        "derivation_key": "STU-WEB-151#validator#0"
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "Implement tag_context_violation at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
+        "requirement_ref": "STU-WEB-151"
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Drive actual consumer where a tag is placed under a forbidden parent/ancestor context, then a nearest valid/control case; assert error tag_context_violation fires only on violation and names tag/context/rule; compare source bytes/receipts for forbidden silent mutation.",
+        "requirement_ref": "STU-WEB-151"
       },
       {
         "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
+        "step": "Publish source-owned command/state/control and failure/recovery descriptors from this implementation through existing shared Controls, inspection, manual and diagnostic ports. Do not copy widgets or implement Handshake native storage/telemetry in the engine.",
+        "module_maintenance_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
       },
       {
         "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "Bind changed module source to independently selectable hsk-studio-web plus catalogued accord/folio/observe closure. Publish first to assets GitHub; independent remote read and standalone proof precede exact existing host adoption. No executable target or release revision is claimed in preparation.",
+        "module_maintenance_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
       }
     ],
     "expected_outputs": [
       "Owned real capability and failure path",
       "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      "Candidate-bound loss/cancel/revision and closure evidence",
+      {
+        "requirement_ref": "STU-WEB-151",
+        "behavior": "Implement tag_context_violation at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
+        "state_and_recovery_contract": "Drive actual consumer where a tag is placed under a forbidden parent/ancestor context, then a nearest valid/control case; assert error tag_context_violation fires only on violation and names tag/context/rule; compare source bytes/receipts for forbidden silent mutation.",
+        "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34375.json#/execution/inputs/1/complete_clause_body"
+      }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1584,6 +1623,29 @@
       "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
       "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/29",
       "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
+    },
+    "module_change_stage": "standalone_source",
+    "planned_build_closure": {
+      "catalog_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
+      "selected_package": "hsk-studio-web",
+      "dependency_module_refs": [
+        "accord",
+        "folio",
+        "observe",
+        "web"
+      ],
+      "existing_manifests_or_test_targets_claimed": false,
+      "full_host_build_required": false,
+      "provider_features_and_timeout": "Resolve actual provider/target and approved bounded timeout before dispatch; missing values block runtime dispatch"
+    },
+    "hbr_stage_binding": {
+      "source_method_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34375.json#/proof/checks",
+      "host_adoption_mt_refs": [
+        ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
+      ],
+      "source_expectation": "Owned portable text/DOM/control/receipt/grant/diagnostic ports and selected module closure only; native authority and telemetry stay host-owned",
+      "host_expectation_registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules",
+      "proof_reuse": "Reuse unchanged affected consumer/batch evidence across bound HBR rows; no52-rule suite. Source observations never substitute for actual host wire proof."
     }
   },
   "proof": {
@@ -1595,30 +1657,36 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": null,
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Drive actual consumer where a tag is placed under a forbidden parent/ancestor context, then a nearest valid/control case; assert error tag_context_violation fires only on violation and names tag/context/rule; compare source bytes/receipts for forbidden silent mutation. Check this original claim explicitly: `tag_context_violation`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a tag appears in a parent or ancestor context its rule set forbids, enforcing [STU-WEB-053].",
         "expected": "`tag_context_violation`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a tag appears in a parent or ancestor context its rule set forbids, enforcing [STU-WEB-053].",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
           "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
+          "Independent assessment of actual output",
+          "Complete STU-WEB-151 clause/table versus actual consumer; original claims AC-001"
         ],
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`tag_context_violation`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a tag appears in a parent or ancestor context its rule set forbids, enforcing [STU-WEB-053].",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "consumer_assertion": "Implement tag_context_violation at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
+          "negative_path": "Drive actual consumer where a tag is placed under a forbidden parent/ancestor context, then a nearest valid/control case; assert error tag_context_violation fires only on violation and names tag/context/rule; compare source bytes/receipts for forbidden silent mutation.",
+          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
+          "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
+          "same_unchanged_input_shared_proof": true
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
-        }
+        },
+        "planned_source_requirement_ref": "STU-WEB-151",
+        "timeout_resolution": "PENDING_ACTUAL_TARGET_AND_APPROVED_BOUNDED_TIMEOUT_BEFORE_DISPATCH",
+        "status": "PENDING_NOT_RUN"
       },
       {
         "check_id": "MT-34375-ASSET-AC-002",
@@ -1626,30 +1694,36 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": null,
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Drive actual consumer where a tag is placed under a forbidden parent/ancestor context, then a nearest valid/control case; assert error tag_context_violation fires only on violation and names tag/context/rule; compare source bytes/receipts for forbidden silent mutation. Check this original claim explicitly: The diagnostic MUST name the tag, its context and the rule.",
         "expected": "The diagnostic MUST name the tag, its context and the rule.",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
           "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
+          "Independent assessment of actual output",
+          "Complete STU-WEB-151 clause/table versus actual consumer; original claims AC-002"
         ],
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The diagnostic MUST name the tag, its context and the rule.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "consumer_assertion": "Implement tag_context_violation at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
+          "negative_path": "Drive actual consumer where a tag is placed under a forbidden parent/ancestor context, then a nearest valid/control case; assert error tag_context_violation fires only on violation and names tag/context/rule; compare source bytes/receipts for forbidden silent mutation.",
+          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
+          "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
+          "same_unchanged_input_shared_proof": true
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
-        }
+        },
+        "planned_source_requirement_ref": "STU-WEB-151",
+        "timeout_resolution": "PENDING_ACTUAL_TARGET_AND_APPROVED_BOUNDED_TIMEOUT_BEFORE_DISPATCH",
+        "status": "PENDING_NOT_RUN"
       }
     ],
     "independent_review_required": true,
@@ -1995,14 +2069,19 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`tag_context_violation`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a tag appears in a parent or ancestor context its rule set forbids, enforcing [STU-WEB-053].",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
+          "consumer_assertion": "Implement tag_context_violation at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
+          "negative_path": "Drive actual consumer where a tag is placed under a forbidden parent/ancestor context, then a nearest valid/control case; assert error tag_context_violation fires only on violation and names tag/context/rule; compare source bytes/receipts for forbidden silent mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
-        "later_embedding_ref": "MT-34375-KERNEL-AC-001",
+        "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
         "later_embedding_assertion": "`tag_context_violation`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a tag appears in a parent or ancestor context its rule set forbids, enforcing [STU-WEB-053]. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
+        ],
+        "qualified_ac_ref": "MT-34375/AC-001",
+        "host_binding_authority_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/qualified_ac_to_host_adoption_mts/MT-34375/AC-001"
       },
       {
         "acceptance_id": "AC-002",
@@ -2029,14 +2108,19 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The diagnostic MUST name the tag, its context and the rule.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
+          "consumer_assertion": "Implement tag_context_violation at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
+          "negative_path": "Drive actual consumer where a tag is placed under a forbidden parent/ancestor context, then a nearest valid/control case; assert error tag_context_violation fires only on violation and names tag/context/rule; compare source bytes/receipts for forbidden silent mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
-        "later_embedding_ref": "MT-34375-KERNEL-AC-002",
+        "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
         "later_embedding_assertion": "The diagnostic MUST name the tag, its context and the rule. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
+        ],
+        "qualified_ac_ref": "MT-34375/AC-002",
+        "host_binding_authority_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/qualified_ac_to_host_adoption_mts/MT-34375/AC-002"
       }
     ],
     "later_kernel": {
@@ -2095,14 +2179,19 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "`tag_context_violation`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a tag appears in a parent or ancestor context its rule set forbids, enforcing [STU-WEB-053].",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
+            "consumer_assertion": "Implement tag_context_violation at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
+            "negative_path": "Drive actual consumer where a tag is placed under a forbidden parent/ancestor context, then a nearest valid/control case; assert error tag_context_violation fires only on violation and names tag/context/rule; compare source bytes/receipts for forbidden silent mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-34375-KERNEL-AC-001",
+          "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
           "later_embedding_assertion": "`tag_context_violation`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a tag appears in a parent or ancestor context its rule set forbids, enforcing [STU-WEB-053]. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
+          ],
+          "qualified_ac_ref": "MT-34375/AC-001",
+          "host_binding_authority_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/qualified_ac_to_host_adoption_mts/MT-34375/AC-001"
         },
         {
           "acceptance_id": "AC-002",
@@ -2129,14 +2218,19 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "The diagnostic MUST name the tag, its context and the rule.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
+            "consumer_assertion": "Implement tag_context_violation at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
+            "negative_path": "Drive actual consumer where a tag is placed under a forbidden parent/ancestor context, then a nearest valid/control case; assert error tag_context_violation fires only on violation and names tag/context/rule; compare source bytes/receipts for forbidden silent mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-34375-KERNEL-AC-002",
+          "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
           "later_embedding_assertion": "The diagnostic MUST name the tag, its context and the rule. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
+          ],
+          "qualified_ac_ref": "MT-34375/AC-002",
+          "host_binding_authority_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/qualified_ac_to_host_adoption_mts/MT-34375/AC-002"
         }
       ]
     },
@@ -2149,5 +2243,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-10T02:25:39.579877+00:00"
 }
