@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 29
+generation: 37
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -49,3 +49,11 @@ steps:
 - {id: GP-032, role: builder, at: before_submit, do: require bounded scalar summaries and explicit UTF8 for large JSON inspection, check: {type: confirm}, source: 'infra: whole index metadata print exceeded output bound and default cp1252 failed', state: active}
 - {id: GP-034, role: builder, at: before_submit, do: verify active step IDs unique and serialize shared gameplan writes, check: {type: confirm}, source: 'infra: concurrent writers allocated GP031 twice; coordinator alone writes step list', state: active}
 - {id: GP-035, role: builder, at: before_submit, do: verify each source range against its own source_ref and file hash, check: {type: confirm}, source: 'infra: reused Studio buffer for security source range; capsule correct, actual source reread required', state: active}
+- {id: GP-036, role: orchestrator, at: on_resume, do: require matching --by role for role-scoped confirmations, check: {type: confirm}, source: 'infra: root resume confirm omitted --by orchestrator; controller refused mixed role IDs', state: active}
+- {id: GP-037, role: builder, at: before_submit, do: require explicit Studio GAMEPLAN_PATH and GAMEPLAN_ROLE before affected source author retries, check: {type: confirm}, source: 'infra: proof argv serialization selected default WP012 gate; source patch held until correct Studio gate', state: active}
+- {id: GP-038, role: builder, at: before_submit, do: verify lifecycle and activation field presence before schema-specific assertions, check: {type: confirm}, source: 'infra: generated35753 lacks lifecycle.active; use its actual activation and dispatch fields', state: active}
+- {id: GP-039, role: builder, at: before_submit, do: require complete bounded patch content before parse and apply, check: {type: confirm}, source: 'infra: additional Prism single-file patch exceeded16k output; truncated before parse and no files changed', state: active}
+- {id: GP-040, role: builder, at: before_submit, do: verify failed-write target intact before distinct structured patch retry, check: {type: confirm}, source: 'infra: Controls34496 write_text Errno22; intact parse/hash readback, root cause unverified', state: active}
+- {id: GP-041, role: builder, at: before_submit, do: verify future proof argv and paired recipe use intended current task selectors, check: {type: confirm}, source: 'infra: inherited mt_31320 remained in43 Prism planned targets; no runtime executed', state: active}
+- {id: GP-042, role: builder, at: before_submit, do: verify intact target JSON and filesystem or sharing evidence before failed patch retry, check: {type: confirm}, source: 'infra: apply_patch30318 write failed; no partial file, ample free space, root cause unverified', state: active}
+- {id: GP-043, role: builder, at: before_submit, do: require observed tool result before filesystem attribute claims, check: {type: confirm}, source: 'infra: attrib8224 mislabeled Offline before result; GetItem confirms NotContentIndexed', state: active}
