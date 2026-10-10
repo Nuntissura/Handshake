@@ -2068,17 +2068,26 @@
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
         "derivation_key": "STU-WEB-020#clause#0"
+      },
+      {
+        "requirement_ref": "STU-WEB-020",
+        "input_kind": "approved_preparation_resolution",
+        "decision": "All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
+        "authorization_source": "Primary root scoped instruction after publication7024568",
+        "original_source_and_claims_retained": true,
+        "runtime_proof_claimed": false,
+        "installation_path_required_at_runtime": false
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case.",
+        "step": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case. Approved resolution: All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
         "requirement_ref": "STU-WEB-020"
       },
       {
         "n": 2,
-        "step": "Exercise the owned behavior and its natural failure/recovery cases: Format protected content and namespaced attributes, compare their bytes; exercise table domains while retaining the ten-versus-eleven-key spec ambiguity as a dispatch blocker.",
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key.",
         "requirement_ref": "STU-WEB-020"
       },
       {
@@ -2098,15 +2107,14 @@
       "Candidate-bound loss/cancel/revision and closure evidence",
       {
         "requirement_ref": "STU-WEB-020",
-        "behavior": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case.",
-        "state_and_recovery_contract": "Format protected content and namespaced attributes, compare their bytes; exercise table domains while retaining the ten-versus-eleven-key spec ambiguity as a dispatch blocker.",
+        "behavior": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case. Approved resolution: All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
+        "state_and_recovery_contract": "Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key.",
         "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json#/execution/inputs/1/complete_clause_body"
       }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
-      "Scope expansion requires owning contract; no capacity stopping",
-      "Header declares ten keys; table contains eleven, including preserveattrcase. Require owner decision before closed-shape implementation."
+      "Scope expansion requires owning contract; no capacity stopping"
     ],
     "may_create_canonical_capability": false,
     "contract_dependency_kind": "depends_on_completion",
@@ -2177,7 +2185,7 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Format protected content and namespaced attributes, compare their bytes; exercise table domains while retaining the ten-versus-eleven-key spec ambiguity as a dispatch blocker. Check this claim explicitly: Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key. Check this claim explicitly: Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
         "expected": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
@@ -2192,8 +2200,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case.",
-          "negative_path": "Format protected content and namespaced attributes, compare their bytes; exercise table domains while retaining the ten-versus-eleven-key spec ambiguity as a dispatch blocker.",
+          "consumer_assertion": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case. Approved resolution: All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
+          "negative_path": "Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2547,8 +2555,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case.",
-          "negative_path": "Format protected content and namespaced attributes, compare their bytes; exercise table domains while retaining the ten-versus-eleven-key spec ambiguity as a dispatch blocker.",
+          "consumer_assertion": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case. Approved resolution: All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
+          "negative_path": "Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2611,8 +2619,8 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case.",
-            "negative_path": "Format protected content and namespaced attributes, compare their bytes; exercise table domains while retaining the ten-versus-eleven-key spec ambiguity as a dispatch blocker.",
+            "consumer_assertion": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case. Approved resolution: All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
+            "negative_path": "Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2636,5 +2644,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T01:30:49.066879+00:00"
+  "updated_at_utc": "2026-10-10T02:01:07.203547+00:00"
 }

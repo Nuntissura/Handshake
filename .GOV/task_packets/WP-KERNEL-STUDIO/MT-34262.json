@@ -2086,17 +2086,26 @@
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
         "derivation_key": "STU-WEB-044#clause#0"
+      },
+      {
+        "requirement_ref": "STU-WEB-044",
+        "input_kind": "approved_preparation_resolution",
+        "decision": "Four allowed hook names; inspect/apply mandatory, can_claim/initialize_ui optional. Never invoke missing optional hooks or fake no-ops; shared Controls initialization explicit.",
+        "authorization_source": "Primary root scoped instruction after publication7024568",
+        "original_source_and_claims_retained": true,
+        "runtime_proof_claimed": false,
+        "installation_path_required_at_runtime": false
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand.",
+        "step": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand. Approved resolution: Four allowed hook names; inspect/apply mandatory, can_claim/initialize_ui optional. Never invoke missing optional hooks or fake no-ops; shared Controls initialization explicit.",
         "requirement_ref": "STU-WEB-044"
       },
       {
         "n": 2,
-        "step": "Exercise the owned behavior and its natural failure/recovery cases: Exercise inspect/apply without direct authority mutation and ensure can_claim cannot replace declarative eligibility; optional-versus-required hook contradiction remains explicit blocker.",
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Exercise inspect/apply-only and all-four-hook panels; optional hooks invoked only when present, declarative matching before can_claim, shared Controls explicitly initialized, apply through StudioCommand.",
         "requirement_ref": "STU-WEB-044"
       },
       {
@@ -2116,15 +2125,14 @@
       "Candidate-bound loss/cancel/revision and closure evidence",
       {
         "requirement_ref": "STU-WEB-044",
-        "behavior": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand.",
-        "state_and_recovery_contract": "Exercise inspect/apply without direct authority mutation and ensure can_claim cannot replace declarative eligibility; optional-versus-required hook contradiction remains explicit blocker.",
+        "behavior": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand. Approved resolution: Four allowed hook names; inspect/apply mandatory, can_claim/initialize_ui optional. Never invoke missing optional hooks or fake no-ops; shared Controls initialization explicit.",
+        "state_and_recovery_contract": "Exercise inspect/apply-only and all-four-hook panels; optional hooks invoked only when present, declarative matching before can_claim, shared Controls explicitly initialized, apply through StudioCommand.",
         "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34262.json#/execution/inputs/1/complete_clause_body"
       }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
-      "Scope expansion requires owning contract; no capacity stopping",
-      "Exactly four hooks mandatory wording conflicts with final optional can_claim/initialize_ui statement; settle required-hook contract."
+      "Scope expansion requires owning contract; no capacity stopping"
     ],
     "may_create_canonical_capability": false,
     "contract_dependency_kind": "depends_on_completion",
@@ -2195,7 +2203,7 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Exercise inspect/apply without direct authority mutation and ensure can_claim cannot replace declarative eligibility; optional-versus-required hook contradiction remains explicit blocker. Check this claim explicitly: Panel lifecycle hooks (normative, closed set of four).** A panel implementation declares exactly four hooks, and the shell MUST NOT call anything else on it: `can_claim(selection) -> bool` (a cheap refinement AFTER declarative matching, never a replacement for it \u2014 a panel that claims nothing declaratively and everything in `can_claim` defeats [STU-WEB-042] and is a defect);",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Exercise inspect/apply-only and all-four-hook panels; optional hooks invoked only when present, declarative matching before can_claim, shared Controls explicitly initialized, apply through StudioCommand. Check this claim explicitly: Panel lifecycle hooks (normative, closed set of four).** A panel implementation declares exactly four hooks, and the shell MUST NOT call anything else on it: `can_claim(selection) -> bool` (a cheap refinement AFTER declarative matching, never a replacement for it \u2014 a panel that claims nothing declaratively and everything in `can_claim` defeats [STU-WEB-042] and is a defect);",
         "expected": "Panel lifecycle hooks (normative, closed set of four).** A panel implementation declares exactly four hooks, and the shell MUST NOT call anything else on it: `can_claim(selection) -> bool` (a cheap refinement AFTER declarative matching, never a replacement for it \u2014 a panel that claims nothing declaratively and everything in `can_claim` defeats [STU-WEB-042] and is a defect);",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
@@ -2210,8 +2218,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand.",
-          "negative_path": "Exercise inspect/apply without direct authority mutation and ensure can_claim cannot replace declarative eligibility; optional-versus-required hook contradiction remains explicit blocker.",
+          "consumer_assertion": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand. Approved resolution: Four allowed hook names; inspect/apply mandatory, can_claim/initialize_ui optional. Never invoke missing optional hooks or fake no-ops; shared Controls initialization explicit.",
+          "negative_path": "Exercise inspect/apply-only and all-four-hook panels; optional hooks invoked only when present, declarative matching before can_claim, shared Controls explicitly initialized, apply through StudioCommand.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2232,7 +2240,7 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Exercise inspect/apply without direct authority mutation and ensure can_claim cannot replace declarative eligibility; optional-versus-required hook contradiction remains explicit blocker. Check this claim explicitly: `apply` MUST NOT write authority directly; it emits a command that carries the receipt, undo entry and promotion path of [STU-AUT-002].",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Exercise inspect/apply-only and all-four-hook panels; optional hooks invoked only when present, declarative matching before can_claim, shared Controls explicitly initialized, apply through StudioCommand. Check this claim explicitly: `apply` MUST NOT write authority directly; it emits a command that carries the receipt, undo entry and promotion path of [STU-AUT-002].",
         "expected": "`apply` MUST NOT write authority directly; it emits a command that carries the receipt, undo entry and promotion path of [STU-AUT-002].",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
@@ -2247,8 +2255,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand.",
-          "negative_path": "Exercise inspect/apply without direct authority mutation and ensure can_claim cannot replace declarative eligibility; optional-versus-required hook contradiction remains explicit blocker.",
+          "consumer_assertion": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand. Approved resolution: Four allowed hook names; inspect/apply mandatory, can_claim/initialize_ui optional. Never invoke missing optional hooks or fake no-ops; shared Controls initialization explicit.",
+          "negative_path": "Exercise inspect/apply-only and all-four-hook panels; optional hooks invoked only when present, declarative matching before can_claim, shared Controls explicitly initialized, apply through StudioCommand.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2609,8 +2617,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand.",
-          "negative_path": "Exercise inspect/apply without direct authority mutation and ensure can_claim cannot replace declarative eligibility; optional-versus-required hook contradiction remains explicit blocker.",
+          "consumer_assertion": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand. Approved resolution: Four allowed hook names; inspect/apply mandatory, can_claim/initialize_ui optional. Never invoke missing optional hooks or fake no-ops; shared Controls initialization explicit.",
+          "negative_path": "Exercise inspect/apply-only and all-four-hook panels; optional hooks invoked only when present, declarative matching before can_claim, shared Controls explicitly initialized, apply through StudioCommand.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2648,8 +2656,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand.",
-          "negative_path": "Exercise inspect/apply without direct authority mutation and ensure can_claim cannot replace declarative eligibility; optional-versus-required hook contradiction remains explicit blocker.",
+          "consumer_assertion": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand. Approved resolution: Four allowed hook names; inspect/apply mandatory, can_claim/initialize_ui optional. Never invoke missing optional hooks or fake no-ops; shared Controls initialization explicit.",
+          "negative_path": "Exercise inspect/apply-only and all-four-hook panels; optional hooks invoked only when present, declarative matching before can_claim, shared Controls explicitly initialized, apply through StudioCommand.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2719,8 +2727,8 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand.",
-            "negative_path": "Exercise inspect/apply without direct authority mutation and ensure can_claim cannot replace declarative eligibility; optional-versus-required hook contradiction remains explicit blocker.",
+            "consumer_assertion": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand. Approved resolution: Four allowed hook names; inspect/apply mandatory, can_claim/initialize_ui optional. Never invoke missing optional hooks or fake no-ops; shared Controls initialization explicit.",
+            "negative_path": "Exercise inspect/apply-only and all-four-hook panels; optional hooks invoked only when present, declarative matching before can_claim, shared Controls explicitly initialized, apply through StudioCommand.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2758,8 +2766,8 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand.",
-            "negative_path": "Exercise inspect/apply without direct authority mutation and ensure can_claim cannot replace declarative eligibility; optional-versus-required hook contradiction remains explicit blocker.",
+            "consumer_assertion": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand. Approved resolution: Four allowed hook names; inspect/apply mandatory, can_claim/initialize_ui optional. Never invoke missing optional hooks or fake no-ops; shared Controls initialization explicit.",
+            "negative_path": "Exercise inspect/apply-only and all-four-hook panels; optional hooks invoked only when present, declarative matching before can_claim, shared Controls explicitly initialized, apply through StudioCommand.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2783,5 +2791,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T01:30:49.066879+00:00"
+  "updated_at_utc": "2026-10-10T02:01:07.203547+00:00"
 }

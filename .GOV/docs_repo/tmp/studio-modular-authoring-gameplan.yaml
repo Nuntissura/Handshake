@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 46
+generation: 52
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -66,3 +66,9 @@ steps:
 - {id: GP-050, role: builder, at: before_submit, do: compare primary and nested semantic acceptance host bindings against qualified canonical host map, check: {type: confirm}, source: 'infra:52Nib nested semantic maps kept synthetic kernel refs after primary genuine host update', state: active}
 - {id: GP-051, role: builder, at: before_submit, do: require successful controller exit before every dependent PowerShell metadata mutation, check: {type: confirm}, source: 'infra: report327 write continued after rejected note and GP050 FAIL without PowerShell exit guard', state: active}
 - {id: GP-052, role: builder, at: before_submit, do: verify actual asset proof recipe keys before updates and preserve its existing typed shape, check: {type: confirm}, source: 'infra:35571 generator assumed consumer_assertion key; intact target, recipe shape differs', state: active}
+- {id: GP-053, role: builder, at: before_submit, do: require one intended producer patch match and generated active recipe mirror equality before file mutation, check: {type: confirm}, source: 'media writer: insertion missed actual return d;} closing text; next56 mirror update absent', state: active}
+- {id: GP-054, role: builder, at: before_submit, do: verify actual vendor XML element namespace and expected cardinality before extracting literal source data, check: {type: confirm}, source: 'Web writer: assumed documentTypeDeclaration tag extracted0; assertion stopped before mutation', state: active}
+- {id: GP-055, role: builder, at: before_submit, do: verify actual vendor config quoted keys and expected literal cardinality before bounded extraction, check: {type: confirm}, source: 'Web writer: unquoted ecmaVersion/jquery regex mismatched quoted config keys; stopped before writes', state: active}
+- {id: GP-056, role: builder, at: before_submit, do: verify exact frozen report field names before selecting owner-declared row lists, check: {type: confirm}, source: 'coordinator: shorthand additional_first100_files lookup failed; actual key prefix requires inspection', state: active}
+- {id: GP-057, role: builder, at: before_submit, do: verify intended transient generator binding before storage and reject stray undefined identifiers, check: {type: confirm}, source: 'Shared writer: stray JS assert assignment raised ReferenceError before generator storage or mutation', state: active}
+- {id: GP-058, role: builder, at: before_submit, do: verify next source file from canonical allocation rows instead of assuming contiguous numeric IDs, check: {type: confirm}, source: 'Visual writer:30374..30377 NOT_FOUND after last Develop30373; no mutation, allocation lookup required', state: active}

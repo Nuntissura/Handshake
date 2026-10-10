@@ -2,8 +2,8 @@
   "schema_id": "hsk.studio_web_preparation@1",
   "file_id": "STUDIO-WEB-PREPARATION-20261010",
   "owner_chat": "01a1235c-aa2e-7dc1-869d-35d620a0cbb1",
-  "updated_at": "2026-10-10T01:34:08.710688+00:00",
-  "status": "AUTHORED_FROZEN_PENDING_COORDINATOR_PUBLICATION",
+  "updated_at": "2026-10-10T02:01:07.203547+00:00",
+  "status": "AUTHORED_NARROW_RESOLUTION_DELTA_FROZEN_PENDING_COORDINATOR_PUBLICATION",
   "grant_commit": "3204afc136f605fa6dfef859f57d42b2bd07d2a3",
   "scope_lanes": {
     "Handshake (Product)": "NONE",
@@ -65,8 +65,8 @@
       "planned_proof_cases": "Select html/xml/svg/wml/xslt/jsp_tag_library/none; reject unknown context, then inspect tag/rule resolution for each legal context."
     },
     "STU-WEB-015": {
-      "method": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion.",
-      "planned_proof_cases": "Create default HTML and convert each supported declaration, compare literal emitted bytes; missing literal source is a recorded gap, never reconstructed from a name."
+      "method": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
+      "planned_proof_cases": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path."
     },
     "STU-WEB-016": {
       "method": "Resolve referenced non-source MIME by exact thirteen-extension table; unlisted extension uses application/octet-stream and receipt warning.",
@@ -85,8 +85,8 @@
       "planned_proof_cases": "Round-trip yes/no/xml end modes and empty/nonempty/null tag kinds; invalid token reports load error with source bytes retained."
     },
     "STU-WEB-020": {
-      "method": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case.",
-      "planned_proof_cases": "Format protected content and namespaced attributes, compare their bytes; exercise table domains while retaining the ten-versus-eleven-key spec ambiguity as a dispatch blocker."
+      "method": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case. Approved resolution: All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
+      "planned_proof_cases": "Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key."
     },
     "STU-WEB-021": {
       "method": "Decode attribute name/type/case flag and ordered value/caption entries; attach allowed_values only to enumerated type.",
@@ -181,8 +181,8 @@
       "planned_proof_cases": "Read and set each control headlessly using stable namespace; disabled or invalid-domain setter reports denial and retains prior value."
     },
     "STU-WEB-044": {
-      "method": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand.",
-      "planned_proof_cases": "Exercise inspect/apply without direct authority mutation and ensure can_claim cannot replace declarative eligibility; optional-versus-required hook contradiction remains explicit blocker."
+      "method": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand. Approved resolution: Four allowed hook names; inspect/apply mandatory, can_claim/initialize_ui optional. Never invoke missing optional hooks or fake no-ops; shared Controls initialization explicit.",
+      "planned_proof_cases": "Exercise inspect/apply-only and all-four-hook panels; optional hooks invoked only when present, declarative matching before can_claim, shared Controls explicitly initialized, apply through StudioCommand."
     },
     "STU-WEB-045": {
       "method": "Decode colouring scheme identity/applicability/priority/case/tag flags, keyword lists, delimiters, embedded delimiters, tag specs and sample text.",
@@ -229,12 +229,12 @@
       "planned_proof_cases": "Validate known-invalid and valid markup then read typed diagnostics via command surface; compare byte ranges to unchanged bytes and reject stale diagnostic revision."
     },
     "STU-WEB-056": {
-      "method": "Load CSS/markup/script default records and resolve document override above site override above shipped values; represent unset limits distinctly from0.",
-      "planned_proof_cases": "Exercise enabled/disabled rules, maxerr50/indent4 and absent versuszero limit; retain markup list/count and unnamed library environment gaps before dispatch."
+      "method": "Load CSS/markup/script default records and resolve document override above site override above shipped values; represent unset limits distinctly from0. Approved resolution: Explicit markup nine enabled/fourteen disabled govern over8/15 labels; exact69-option script data binds jquery/mocha. Five nativefalse limit sentinels map to Studio unset/no-limit, neverzero.",
+      "planned_proof_cases": "Exercise all explicit markup9/14 and CSS3/32 members plus all69 script keys/defaults; jquery/mocha/browser/devel/worker true, maxerr50/indent4; distinguish unset fromzero for five limits."
     },
     "STU-WEB-057": {
-      "method": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides.",
-      "planned_proof_cases": "Import site and inspect constructor-super error plus other rules default-off; missing current-level or baseline library identity is reported, never guessed."
+      "method": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides. Approved resolution: Pinned levels3/5/6 use module/JSX/browser/jquery. Studio constructor-super-only and every-other-rule-off govern over45 vendor error rules. Current numeric level/provider compatibility remain pending.",
+      "planned_proof_cases": "Select levels3/5/6 and inspect module/JSX/browser/jquery and constructor-super error with every-other-rule-off; current numeric level requires actual provider pin and may not be guessed."
     },
     "STU-WEB-058": {
       "method": "Run linter over selection/document/site through shared batch port and return WEB055 diagnostics using language and rule IDs.",
@@ -4853,14 +4853,10 @@
     "canonical_sha256": "dea425cbd597d3b6e5d7aba5840117aca728ef925a03bea94bef6b1a4afea00d"
   },
   "open_source_decisions": {
-    "STU-WEB-015": "Ten doctype IDs are given but literal declaration strings are not in this clause; bind exact asset bytes before dispatch, never invent strings.",
-    "STU-WEB-020": "Header declares ten keys; table contains eleven, including preserveattrcase. Require owner decision before closed-shape implementation.",
     "STU-WEB-036": "Lower-wins priorities and reserved5/6 bands conflict with WEB037/089 band6 pre-emption; exact ordering decision required.",
     "STU-WEB-037": "Lower-winning priority contradicts typical6 over5 example and WEB036 ascending order; do not invert comparator.",
-    "STU-WEB-044": "Exactly four hooks mandatory wording conflicts with final optional can_claim/initialize_ui statement; settle required-hook contract.",
     "STU-WEB-046": "Relative scheme-priority direction/tie policy is not fully stated; require exact owning colouring contract before overlapping-region dispatch.",
-    "STU-WEB-056": "Markup says23 rules,8 enabled,15 disabled; literal lists contain9 enabled and14 disabled. Script two library environments unnamed; full69-option vocabulary not enumerated here.",
-    "STU-WEB-057": "Current language level and enabled library identity are unnamed; require pinned provider configuration, not inferred current semantics.",
+    "STU-WEB-057": "Current numeric level/provider compatibility remain pending; pinned3/5/6 module/JSX/browser/jquery literal data resolved.",
     "STU-WEB-089": "Band6 viewport refinement cannot pre-empt band5 under WEB036 lower-wins comparator; owner decision required."
   },
   "runtime_or_parity_claim": "NONE; planned methods only; unresolved provider/assets/features/timeouts block dispatch",
@@ -5000,5 +4996,146 @@
     "canonical_output_commit": null,
     "canonical_output_blob_sha256": null,
     "excluded": "Other80Web originals, all companions/foundation/hostmaps/retained refs and other workers; no writes to umbrella/index/catalog/allocation/spec/root/product"
+  },
+  "approved_resolution_delta": {
+    "base_publication_commit": "7024568f60d47dd32b583eef59b6e30d7c6d1daf",
+    "base_report_sha256": "df9a2220e1633a1ffadd5eb03070ca28baf778349382645201de649fbb89ae1f",
+    "prior_open_decisions": {
+      "STU-WEB-015": "Ten doctype IDs are given but literal declaration strings are not in this clause; bind exact asset bytes before dispatch, never invent strings.",
+      "STU-WEB-020": "Header declares ten keys; table contains eleven, including preserveattrcase. Require owner decision before closed-shape implementation.",
+      "STU-WEB-036": "Lower-wins priorities and reserved5/6 bands conflict with WEB037/089 band6 pre-emption; exact ordering decision required.",
+      "STU-WEB-037": "Lower-winning priority contradicts typical6 over5 example and WEB036 ascending order; do not invert comparator.",
+      "STU-WEB-044": "Exactly four hooks mandatory wording conflicts with final optional can_claim/initialize_ui statement; settle required-hook contract.",
+      "STU-WEB-046": "Relative scheme-priority direction/tie policy is not fully stated; require exact owning colouring contract before overlapping-region dispatch.",
+      "STU-WEB-056": "Markup says23 rules,8 enabled,15 disabled; literal lists contain9 enabled and14 disabled. Script two library environments unnamed; full69-option vocabulary not enumerated here.",
+      "STU-WEB-057": "Current language level and enabled library identity are unnamed; require pinned provider configuration, not inferred current semantics.",
+      "STU-WEB-089": "Band6 viewport refinement cannot pre-empt band5 under WEB036 lower-wins comparator; owner decision required."
+    },
+    "resolutions": {
+      "STU-WEB-015": "Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
+      "STU-WEB-020": "All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
+      "STU-WEB-044": "Four allowed hook names; inspect/apply mandatory, can_claim/initialize_ui optional. Never invoke missing optional hooks or fake no-ops; shared Controls initialization explicit.",
+      "STU-WEB-056": "Explicit markup nine enabled/fourteen disabled govern over8/15 labels; exact69-option script data binds jquery/mocha. Five nativefalse limit sentinels map to Studio unset/no-limit, neverzero.",
+      "STU-WEB-057": "Pinned levels3/5/6 use module/JSX/browser/jquery. Studio constructor-super-only and every-other-rule-off govern over45 vendor error rules. Current numeric level/provider compatibility remain pending."
+    },
+    "frozen_rows": [
+      {
+        "mt_id": "MT-34232",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json",
+        "preimage_raw_sha256": "ee31518efb36c496b61f9546c9c6870df4d4f9c405b40f229823bb04682fa583",
+        "raw_sha256": "8e2895ea1fc4e2023dbd783e0e25bb1bc6745aaac2b23cd7f2e1f7ddf13fddbe",
+        "byte_count": 183886,
+        "changed_top_level_keys": [
+          "execution",
+          "proof",
+          "fulfillment",
+          "updated_at_utc"
+        ],
+        "recipe_changed_paths": [
+          "/legacy_acceptance_map/0/asset_proof_recipe/consumer_assertion",
+          "/legacy_acceptance_map/0/asset_proof_recipe/negative_path",
+          "/legacy_acceptance_map/1/asset_proof_recipe/consumer_assertion",
+          "/legacy_acceptance_map/1/asset_proof_recipe/negative_path",
+          "/later_kernel/semantic_acceptance_map/0/asset_proof_recipe/consumer_assertion",
+          "/later_kernel/semantic_acceptance_map/0/asset_proof_recipe/negative_path",
+          "/later_kernel/semantic_acceptance_map/1/asset_proof_recipe/consumer_assertion",
+          "/later_kernel/semantic_acceptance_map/1/asset_proof_recipe/negative_path"
+        ],
+        "preservation_verified": true
+      },
+      {
+        "mt_id": "MT-34237",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json",
+        "preimage_raw_sha256": "f3160939764086be6b51234df3a52180066ec05a076aed97ac90bfaa5cacab11",
+        "raw_sha256": "d0921592d8263d9cbe5776c01eff8edb06155fe33428a6d03a425b21e64b9b60",
+        "byte_count": 175943,
+        "changed_top_level_keys": [
+          "execution",
+          "proof",
+          "fulfillment",
+          "updated_at_utc"
+        ],
+        "recipe_changed_paths": [
+          "/legacy_acceptance_map/0/asset_proof_recipe/consumer_assertion",
+          "/legacy_acceptance_map/0/asset_proof_recipe/negative_path",
+          "/later_kernel/semantic_acceptance_map/0/asset_proof_recipe/consumer_assertion",
+          "/later_kernel/semantic_acceptance_map/0/asset_proof_recipe/negative_path"
+        ],
+        "preservation_verified": true
+      },
+      {
+        "mt_id": "MT-34262",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34262.json",
+        "preimage_raw_sha256": "7006c338b076c4384f9509363ff2343b18bfd81c7f32f57bab698414e7f5a7bf",
+        "raw_sha256": "da99e2b6945d31e550da3f5bd0d2892cc29c23755d792b35d4d26bba5a5fcd8c",
+        "byte_count": 185230,
+        "changed_top_level_keys": [
+          "execution",
+          "proof",
+          "fulfillment",
+          "updated_at_utc"
+        ],
+        "recipe_changed_paths": [
+          "/legacy_acceptance_map/0/asset_proof_recipe/consumer_assertion",
+          "/legacy_acceptance_map/0/asset_proof_recipe/negative_path",
+          "/legacy_acceptance_map/1/asset_proof_recipe/consumer_assertion",
+          "/legacy_acceptance_map/1/asset_proof_recipe/negative_path",
+          "/later_kernel/semantic_acceptance_map/0/asset_proof_recipe/consumer_assertion",
+          "/later_kernel/semantic_acceptance_map/0/asset_proof_recipe/negative_path",
+          "/later_kernel/semantic_acceptance_map/1/asset_proof_recipe/consumer_assertion",
+          "/later_kernel/semantic_acceptance_map/1/asset_proof_recipe/negative_path"
+        ],
+        "preservation_verified": true
+      },
+      {
+        "mt_id": "MT-34275",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34275.json",
+        "preimage_raw_sha256": "073c0ece4be14e36f662b62ff90f4b2fee15de1b717055e48ecb377a950feefc",
+        "raw_sha256": "855fd83982f3f9627aa4d6decde05ff6addac61e61a19598fb9aeb5c3ca2094e",
+        "byte_count": 176133,
+        "changed_top_level_keys": [
+          "execution",
+          "proof",
+          "fulfillment",
+          "updated_at_utc"
+        ],
+        "recipe_changed_paths": [
+          "/legacy_acceptance_map/0/asset_proof_recipe/consumer_assertion",
+          "/legacy_acceptance_map/0/asset_proof_recipe/negative_path",
+          "/later_kernel/semantic_acceptance_map/0/asset_proof_recipe/consumer_assertion",
+          "/later_kernel/semantic_acceptance_map/0/asset_proof_recipe/negative_path"
+        ],
+        "preservation_verified": true
+      },
+      {
+        "mt_id": "MT-34276",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34276.json",
+        "preimage_raw_sha256": "3f4f257cccb645cc9a0dd84d9ba6e604e20e6a23529c9fe00d0eec4ecb7b33af",
+        "raw_sha256": "5a25ad7ad01c98bfa7bfbe6f922665139a977855874033509ff84a1f0218b7dd",
+        "byte_count": 182051,
+        "changed_top_level_keys": [
+          "execution",
+          "proof",
+          "fulfillment",
+          "updated_at_utc"
+        ],
+        "recipe_changed_paths": [
+          "/legacy_acceptance_map/0/asset_proof_recipe/consumer_assertion",
+          "/legacy_acceptance_map/0/asset_proof_recipe/negative_path",
+          "/legacy_acceptance_map/1/asset_proof_recipe/consumer_assertion",
+          "/legacy_acceptance_map/1/asset_proof_recipe/negative_path",
+          "/later_kernel/semantic_acceptance_map/0/asset_proof_recipe/consumer_assertion",
+          "/later_kernel/semantic_acceptance_map/0/asset_proof_recipe/negative_path",
+          "/later_kernel/semantic_acceptance_map/1/asset_proof_recipe/consumer_assertion",
+          "/later_kernel/semantic_acceptance_map/1/asset_proof_recipe/negative_path"
+        ],
+        "preservation_verified": true
+      }
+    ],
+    "runtime_executed": false,
+    "dispatch_authorized": false,
+    "preserved_original_and_history_unchanged": true,
+    "status": "FROZEN_PENDING_COORDINATOR_PUBLICATION",
+    "original_frozen_rows_are_published_base_evidence": true
   }
 }

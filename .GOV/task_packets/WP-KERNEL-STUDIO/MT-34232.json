@@ -2080,17 +2080,103 @@
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
         "derivation_key": "STU-WEB-015#clause#0"
+      },
+      {
+        "requirement_ref": "STU-WEB-015",
+        "input_kind": "approved_preparation_resolution",
+        "decision": "Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
+        "authorization_source": "Primary root scoped instruction after publication7024568",
+        "original_source_and_claims_retained": true,
+        "runtime_proof_claimed": false,
+        "installation_path_required_at_runtime": false,
+        "pinned_literal_data": {
+          "relative_vendor_path": "Configuration/DocumentTypes/MMDocumentTypeDeclarations.xml",
+          "source_sha256": "2d4932d262b41f61cebe990fdad12d1e308a27c1ab5981991c1f34ed2666bd39",
+          "payload_encoding": "Exact UTF8 CDATA; no case/whitespace normalization",
+          "rows": [
+            {
+              "vendor_id": "mm_html_401_transitional",
+              "id": "html_401_transitional",
+              "literal_utf8": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">",
+              "literal_sha256": "038bc3463fde72fe84400b49b5d260eb78faece26ad85d7ec9fa7133b3b72669",
+              "byte_count": 102
+            },
+            {
+              "vendor_id": "mm_html_401",
+              "id": "html_401_strict",
+              "literal_utf8": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">",
+              "literal_sha256": "f746845be5f58de20e676b7bb4aae3438ed8055f48daca7eadf986206da75c8d",
+              "byte_count": 90
+            },
+            {
+              "vendor_id": "mm_html_401_frameset",
+              "id": "html_401_frameset",
+              "literal_utf8": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Frameset//EN\" \"http://www.w3.org/TR/html4/frameset.dtd\">",
+              "literal_sha256": "5c7f995549049033718141e3658f635f3b4bd7ba15fa3b89c90f6eeb10544ae9",
+              "byte_count": 101
+            },
+            {
+              "vendor_id": "mm_html_5",
+              "id": "html_5",
+              "literal_utf8": "<!doctype html>",
+              "literal_sha256": "fe26c59e91ac8de694b2531dc3bdc1b7faf471d3d7e4e00870af60f5f22897cb",
+              "byte_count": 15
+            },
+            {
+              "vendor_id": "mm_xhtml_1_transitional",
+              "id": "xhtml_1_transitional",
+              "literal_utf8": "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">",
+              "literal_sha256": "7f3c0066fcfae37e040afe3c1f769d0100cff916b62ceaa0f4030d455807ac12",
+              "byte_count": 121
+            },
+            {
+              "vendor_id": "mm_xhtml_1_strict",
+              "id": "xhtml_1_strict",
+              "literal_utf8": "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">",
+              "literal_sha256": "cf72f33d973cce2de3d1dfd34fc95951a4bb4a866785f18a56e25a56fd484eed",
+              "byte_count": 109
+            },
+            {
+              "vendor_id": "mm_xhtml_11",
+              "id": "xhtml_11",
+              "literal_utf8": "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">",
+              "literal_sha256": "eda292944b8af7ac65569a2a06741a646b72e62cc68ae15621d536b98f173025",
+              "byte_count": 97
+            },
+            {
+              "vendor_id": "mm_xhtml_1_frameset",
+              "id": "xhtml_1_frameset",
+              "literal_utf8": "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Frameset//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd\">",
+              "literal_sha256": "9b62ccbf25cd4870301dad586c7df6276e14de0ad872758e48aed0053664c404",
+              "byte_count": 113
+            },
+            {
+              "vendor_id": "mm_xhtml_mobile_1",
+              "id": "xhtml_mobile_1",
+              "literal_utf8": "<!DOCTYPE html PUBLIC \"-//WAPFORUM//DTD XHTML Mobile 1.0//EN\" \"http://www.wapforum.org/DTD/xhtml-mobile10.dtd\">",
+              "literal_sha256": "3a10e18d5f391ce8ad702429dd6c751e9454de0b63127f200d3242feafa5f29c",
+              "byte_count": 111
+            },
+            {
+              "vendor_id": "mm_xslt_1",
+              "id": "xslt_1",
+              "literal_utf8": "<!DOCTYPE xsl:stylesheet  [\n\t<!ENTITY nbsp   \"&#160;\">\n\t<!ENTITY copy   \"&#169;\">\n\t<!ENTITY reg    \"&#174;\">\n\t<!ENTITY trade  \"&#8482;\">\n\t<!ENTITY mdash  \"&#8212;\">\n\t<!ENTITY ldquo  \"&#8220;\">\n\t<!ENTITY rdquo  \"&#8221;\"> \n\t<!ENTITY pound  \"&#163;\">\n\t<!ENTITY yen    \"&#165;\">\n\t<!ENTITY euro   \"&#8364;\">\n]>\n\t\t\t",
+              "literal_sha256": "26aff3d0af763e71c714d330417de2027ec24f02e6e980b22f60fcf7f1f8bbef",
+              "byte_count": 310
+            }
+          ]
+        }
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion.",
+        "step": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
         "requirement_ref": "STU-WEB-015"
       },
       {
         "n": 2,
-        "step": "Exercise the owned behavior and its natural failure/recovery cases: Create default HTML and convert each supported declaration, compare literal emitted bytes; missing literal source is a recorded gap, never reconstructed from a name.",
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
         "requirement_ref": "STU-WEB-015"
       },
       {
@@ -2110,15 +2196,14 @@
       "Candidate-bound loss/cancel/revision and closure evidence",
       {
         "requirement_ref": "STU-WEB-015",
-        "behavior": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion.",
-        "state_and_recovery_contract": "Create default HTML and convert each supported declaration, compare literal emitted bytes; missing literal source is a recorded gap, never reconstructed from a name.",
+        "behavior": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
+        "state_and_recovery_contract": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
         "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body"
       }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
-      "Scope expansion requires owning contract; no capacity stopping",
-      "Ten doctype IDs are given but literal declaration strings are not in this clause; bind exact asset bytes before dispatch, never invent strings."
+      "Scope expansion requires owning contract; no capacity stopping"
     ],
     "may_create_canonical_capability": false,
     "contract_dependency_kind": "depends_on_completion",
@@ -2189,7 +2274,7 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Create default HTML and convert each supported declaration, compare literal emitted bytes; missing literal source is a recorded gap, never reconstructed from a name. Check this claim explicitly: Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`.",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path. Check this claim explicitly: Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`.",
         "expected": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`.",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
@@ -2204,8 +2289,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion.",
-          "negative_path": "Create default HTML and convert each supported declaration, compare literal emitted bytes; missing literal source is a recorded gap, never reconstructed from a name.",
+          "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
+          "negative_path": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2226,7 +2311,7 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Create default HTML and convert each supported declaration, compare literal emitted bytes; missing literal source is a recorded gap, never reconstructed from a name. Check this claim explicitly: Each carries its literal declaration string, which MUST be emitted verbatim.",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path. Check this claim explicitly: Each carries its literal declaration string, which MUST be emitted verbatim.",
         "expected": "Each carries its literal declaration string, which MUST be emitted verbatim.",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
@@ -2241,8 +2326,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion.",
-          "negative_path": "Create default HTML and convert each supported declaration, compare literal emitted bytes; missing literal source is a recorded gap, never reconstructed from a name.",
+          "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
+          "negative_path": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2603,8 +2688,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion.",
-          "negative_path": "Create default HTML and convert each supported declaration, compare literal emitted bytes; missing literal source is a recorded gap, never reconstructed from a name.",
+          "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
+          "negative_path": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2642,8 +2727,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion.",
-          "negative_path": "Create default HTML and convert each supported declaration, compare literal emitted bytes; missing literal source is a recorded gap, never reconstructed from a name.",
+          "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
+          "negative_path": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2713,8 +2798,8 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion.",
-            "negative_path": "Create default HTML and convert each supported declaration, compare literal emitted bytes; missing literal source is a recorded gap, never reconstructed from a name.",
+            "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
+            "negative_path": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2752,8 +2837,8 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion.",
-            "negative_path": "Create default HTML and convert each supported declaration, compare literal emitted bytes; missing literal source is a recorded gap, never reconstructed from a name.",
+            "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
+            "negative_path": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2777,5 +2862,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T01:30:49.066879+00:00"
+  "updated_at_utc": "2026-10-10T02:01:07.203547+00:00"
 }

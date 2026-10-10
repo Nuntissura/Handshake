@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-STUDIO",
   "base_wp_id": "WP-KERNEL-STUDIO",
   "created_at_utc": "2026-10-09T19:03:43.989264+00:00",
-  "updated_at_utc": "2026-10-10T01:43:01.500879+00:00",
+  "updated_at_utc": "2026-10-10T02:05:59.516637+00:00",
   "source_control": {
     "merge_base_sha": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
     "canonical_branch": "codex/handshake-studio-assets",
@@ -48203,7 +48203,7 @@
         },
         {
           "rule_id": "STUDIO-REFERENCE-HOST-002",
-          "requirement": "A synthetic later_embedding_ref of form MT-id-KERNEL-AC-id is retained historical/non-executable alias only when canonical host refs resolve to the complete required host set; resolve it through that set, never through the synthetic string."
+          "requirement": "A synthetic later_embedding_ref of form MT-id-KERNEL-<acceptance_id>, using the actual acceptance ID including ASSET-AC IDs, is retained historical/non-executable alias only when actual host references and the qualified mapping resolve the complete required host set; resolve through that set, never through the synthetic string."
         },
         {
           "rule_id": "STUDIO-REFERENCE-HOST-003",

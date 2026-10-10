@@ -2080,17 +2080,92 @@
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
         "derivation_key": "STU-WEB-057#clause#0"
+      },
+      {
+        "requirement_ref": "STU-WEB-057",
+        "input_kind": "approved_preparation_resolution",
+        "decision": "Pinned levels3/5/6 use module/JSX/browser/jquery. Studio constructor-super-only and every-other-rule-off govern over45 vendor error rules. Current numeric level/provider compatibility remain pending.",
+        "authorization_source": "Primary root scoped instruction after publication7024568",
+        "original_source_and_claims_retained": true,
+        "runtime_proof_claimed": false,
+        "installation_path_required_at_runtime": false,
+        "pinned_literal_data": {
+          "pinned_levels": [
+            {
+              "relative_vendor_path": "Configuration/ESLintrc/3/.eslintrc.js",
+              "source_sha256": "e32312990bba3f33eaba887b69bd8fa413444cdc8bb14bc76fe228824d16718d",
+              "parser_options": {
+                "ecmaVersion": 3,
+                "sourceType": "module",
+                "ecmaFeatures": {
+                  "jsx": true
+                }
+              },
+              "environments": {
+                "browser": true,
+                "jquery": true
+              },
+              "studio_rules": {
+                "constructor-super": "error",
+                "every_other_rule": "off"
+              },
+              "vendor_other_enabled_rules_not_imported": true
+            },
+            {
+              "relative_vendor_path": "Configuration/ESLintrc/5/.eslintrc.js",
+              "source_sha256": "5cd057408ca1038a7da57d0a2a70ece47bcf6ea3cf7cc57a4a5a457eb4a20b85",
+              "parser_options": {
+                "ecmaVersion": 5,
+                "sourceType": "module",
+                "ecmaFeatures": {
+                  "jsx": true
+                }
+              },
+              "environments": {
+                "browser": true,
+                "jquery": true
+              },
+              "studio_rules": {
+                "constructor-super": "error",
+                "every_other_rule": "off"
+              },
+              "vendor_other_enabled_rules_not_imported": true
+            },
+            {
+              "relative_vendor_path": "Configuration/ESLintrc/6/.eslintrc.js",
+              "source_sha256": "135401277dfa43a2fe8b128cf0ad89863fcdbb02649498923f902c3d4abe2641",
+              "parser_options": {
+                "ecmaVersion": 6,
+                "sourceType": "module",
+                "ecmaFeatures": {
+                  "jsx": true
+                }
+              },
+              "environments": {
+                "browser": true,
+                "jquery": true
+              },
+              "studio_rules": {
+                "constructor-super": "error",
+                "every_other_rule": "off"
+              },
+              "vendor_other_enabled_rules_not_imported": true
+            }
+          ],
+          "current_level": null,
+          "current_level_status": "PENDING_PINNED_PROVIDER_COMPATIBILITY"
+        }
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides.",
+        "step": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides. Approved resolution: Pinned levels3/5/6 use module/JSX/browser/jquery. Studio constructor-super-only and every-other-rule-off govern over45 vendor error rules. Current numeric level/provider compatibility remain pending.",
         "requirement_ref": "STU-WEB-057"
       },
       {
         "n": 2,
-        "step": "Exercise the owned behavior and its natural failure/recovery cases: Import site and inspect constructor-super error plus other rules default-off; missing current-level or baseline library identity is reported, never guessed.",
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Select levels3/5/6 and inspect module/JSX/browser/jquery and constructor-super error with every-other-rule-off; current numeric level requires actual provider pin and may not be guessed.",
         "requirement_ref": "STU-WEB-057"
       },
       {
@@ -2110,15 +2185,15 @@
       "Candidate-bound loss/cancel/revision and closure evidence",
       {
         "requirement_ref": "STU-WEB-057",
-        "behavior": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides.",
-        "state_and_recovery_contract": "Import site and inspect constructor-super error plus other rules default-off; missing current-level or baseline library identity is reported, never guessed.",
+        "behavior": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides. Approved resolution: Pinned levels3/5/6 use module/JSX/browser/jquery. Studio constructor-super-only and every-other-rule-off govern over45 vendor error rules. Current numeric level/provider compatibility remain pending.",
+        "state_and_recovery_contract": "Select levels3/5/6 and inspect module/JSX/browser/jquery and constructor-super error with every-other-rule-off; current numeric level requires actual provider pin and may not be guessed.",
         "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34276.json#/execution/inputs/1/complete_clause_body"
       }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
       "Scope expansion requires owning contract; no capacity stopping",
-      "Current language level and enabled library identity are unnamed; require pinned provider configuration, not inferred current semantics."
+      "Current numeric language level and actual provider compatibility must be pinned before dispatch;3/5/6 source data does not prove current."
     ],
     "may_create_canonical_capability": false,
     "contract_dependency_kind": "depends_on_completion",
@@ -2189,7 +2264,7 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Import site and inspect constructor-super error plus other rules default-off; missing current-level or baseline library identity is reported, never guessed. Check this claim explicitly: Script-language level configurations.** Studio MUST ship at least four script-language level configurations selectable per site: language levels 3, 5, 6 and the current level, each declaring `ecma_version`, `source_type` (`module`), and JSX support.",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Select levels3/5/6 and inspect module/JSX/browser/jquery and constructor-super error with every-other-rule-off; current numeric level requires actual provider pin and may not be guessed. Check this claim explicitly: Script-language level configurations.** Studio MUST ship at least four script-language level configurations selectable per site: language levels 3, 5, 6 and the current level, each declaring `ecma_version`, `source_type` (`module`), and JSX support.",
         "expected": "Script-language level configurations.** Studio MUST ship at least four script-language level configurations selectable per site: language levels 3, 5, 6 and the current level, each declaring `ecma_version`, `source_type` (`module`), and JSX support.",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
@@ -2204,8 +2279,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides.",
-          "negative_path": "Import site and inspect constructor-super error plus other rules default-off; missing current-level or baseline library identity is reported, never guessed.",
+          "consumer_assertion": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides. Approved resolution: Pinned levels3/5/6 use module/JSX/browser/jquery. Studio constructor-super-only and every-other-rule-off govern over45 vendor error rules. Current numeric level/provider compatibility remain pending.",
+          "negative_path": "Select levels3/5/6 and inspect module/JSX/browser/jquery and constructor-super error with every-other-rule-off; current numeric level requires actual provider pin and may not be guessed.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2226,7 +2301,7 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Import site and inspect constructor-super error plus other rules default-off; missing current-level or baseline library identity is reported, never guessed. Check this claim explicitly: Studio MUST preserve \"default off, opt in per site\" as the posture so an imported site does not drown in diagnostics.",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Select levels3/5/6 and inspect module/JSX/browser/jquery and constructor-super error with every-other-rule-off; current numeric level requires actual provider pin and may not be guessed. Check this claim explicitly: Studio MUST preserve \"default off, opt in per site\" as the posture so an imported site does not drown in diagnostics.",
         "expected": "Studio MUST preserve \"default off, opt in per site\" as the posture so an imported site does not drown in diagnostics.",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
@@ -2241,8 +2316,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides.",
-          "negative_path": "Import site and inspect constructor-super error plus other rules default-off; missing current-level or baseline library identity is reported, never guessed.",
+          "consumer_assertion": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides. Approved resolution: Pinned levels3/5/6 use module/JSX/browser/jquery. Studio constructor-super-only and every-other-rule-off govern over45 vendor error rules. Current numeric level/provider compatibility remain pending.",
+          "negative_path": "Select levels3/5/6 and inspect module/JSX/browser/jquery and constructor-super error with every-other-rule-off; current numeric level requires actual provider pin and may not be guessed.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2603,8 +2678,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides.",
-          "negative_path": "Import site and inspect constructor-super error plus other rules default-off; missing current-level or baseline library identity is reported, never guessed.",
+          "consumer_assertion": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides. Approved resolution: Pinned levels3/5/6 use module/JSX/browser/jquery. Studio constructor-super-only and every-other-rule-off govern over45 vendor error rules. Current numeric level/provider compatibility remain pending.",
+          "negative_path": "Select levels3/5/6 and inspect module/JSX/browser/jquery and constructor-super error with every-other-rule-off; current numeric level requires actual provider pin and may not be guessed.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2642,8 +2717,8 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides.",
-          "negative_path": "Import site and inspect constructor-super error plus other rules default-off; missing current-level or baseline library identity is reported, never guessed.",
+          "consumer_assertion": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides. Approved resolution: Pinned levels3/5/6 use module/JSX/browser/jquery. Studio constructor-super-only and every-other-rule-off govern over45 vendor error rules. Current numeric level/provider compatibility remain pending.",
+          "negative_path": "Select levels3/5/6 and inspect module/JSX/browser/jquery and constructor-super error with every-other-rule-off; current numeric level requires actual provider pin and may not be guessed.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2713,8 +2788,8 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides.",
-            "negative_path": "Import site and inspect constructor-super error plus other rules default-off; missing current-level or baseline library identity is reported, never guessed.",
+            "consumer_assertion": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides. Approved resolution: Pinned levels3/5/6 use module/JSX/browser/jquery. Studio constructor-super-only and every-other-rule-off govern over45 vendor error rules. Current numeric level/provider compatibility remain pending.",
+            "negative_path": "Select levels3/5/6 and inspect module/JSX/browser/jquery and constructor-super error with every-other-rule-off; current numeric level requires actual provider pin and may not be guessed.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2752,8 +2827,8 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides.",
-            "negative_path": "Import site and inspect constructor-super error plus other rules default-off; missing current-level or baseline library identity is reported, never guessed.",
+            "consumer_assertion": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides. Approved resolution: Pinned levels3/5/6 use module/JSX/browser/jquery. Studio constructor-super-only and every-other-rule-off govern over45 vendor error rules. Current numeric level/provider compatibility remain pending.",
+            "negative_path": "Select levels3/5/6 and inspect module/JSX/browser/jquery and constructor-super error with every-other-rule-off; current numeric level requires actual provider pin and may not be guessed.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
@@ -2777,5 +2852,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T01:30:49.066879+00:00"
+  "updated_at_utc": "2026-10-10T02:01:07.203547+00:00"
 }
