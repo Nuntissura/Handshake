@@ -1515,6 +1515,88 @@
       "prior_acceptance_wording_retained": true,
       "source_capability_ref": "MT-35531#/execution",
       "host_proof_pending": true
+    },
+    "folio_current_field_binding": {
+      "publication_commit": "cfcb4b9a5781db9d4762bf7f0a16cc8bc8dd6ec2",
+      "pointer_ref": ".GOV/spec/SPEC_CURRENT.md",
+      "pointer_sha256": "b182fe6f65412bc298151d6fab7d1776433a7fdf8bd3f53e3c5d8182d0a8420b",
+      "version": "v02.210",
+      "approved_signature": "ilja091020261912",
+      "clauses": [
+        {
+          "id": "STU-CON-015",
+          "source_ref": ".GOV/spec/master-spec-v02.210/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22424,
+          "end_line": 22425,
+          "source_sha256": "bbf54e7c138c98770808081860b3c4e26d02bc12f649daa63dd7738c5a98b507",
+          "body_sha256": "93d499415c76d7de0909c2bc8b188cfde9f0be518d86050b003fe79ed36794fe",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-016",
+          "source_ref": ".GOV/spec/master-spec-v02.210/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22426,
+          "end_line": 22444,
+          "source_sha256": "bbf54e7c138c98770808081860b3c4e26d02bc12f649daa63dd7738c5a98b507",
+          "body_sha256": "e186fc3ea0b831dfc538835c7ef84f4dd5534d0634ef4e112142a6099ddab838",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-017",
+          "source_ref": ".GOV/spec/master-spec-v02.210/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22445,
+          "end_line": 22446,
+          "source_sha256": "bbf54e7c138c98770808081860b3c4e26d02bc12f649daa63dd7738c5a98b507",
+          "body_sha256": "4f9e0dc82b150bddf78b4ed2351ad67dfddd458d5e331388a1a56270602dffb3",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-018",
+          "source_ref": ".GOV/spec/master-spec-v02.210/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22447,
+          "end_line": 22452,
+          "source_sha256": "bbf54e7c138c98770808081860b3c4e26d02bc12f649daa63dd7738c5a98b507",
+          "body_sha256": "8f1b42e0edbb7058723f97364714540008cacbbd70182df9ea437f3805fc1f7f",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-019",
+          "source_ref": ".GOV/spec/master-spec-v02.210/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22453,
+          "end_line": 22458,
+          "source_sha256": "bbf54e7c138c98770808081860b3c4e26d02bc12f649daa63dd7738c5a98b507",
+          "body_sha256": "d48a30030ac7c4a3601a86775b816b577ccec82538a9b740a467c45d243636d2",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-020",
+          "source_ref": ".GOV/spec/master-spec-v02.210/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22459,
+          "end_line": 22460,
+          "source_sha256": "bbf54e7c138c98770808081860b3c4e26d02bc12f649daa63dd7738c5a98b507",
+          "body_sha256": "85d0b0bc51250fbc8a211f38840b789afe6cea3a32209dfebed9daca3f46911e",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-021",
+          "source_ref": ".GOV/spec/master-spec-v02.210/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22461,
+          "end_line": 22464,
+          "source_sha256": "bbf54e7c138c98770808081860b3c4e26d02bc12f649daa63dd7738c5a98b507",
+          "body_sha256": "2a0f5c470fb2793ce4ccfe02e12854797b623f960787fc53892fab778ddbc909",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-002",
+          "source_ref": ".GOV/spec/master-spec-v02.210/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22465,
+          "end_line": 22466,
+          "source_sha256": "bbf54e7c138c98770808081860b3c4e26d02bc12f649daa63dd7738c5a98b507",
+          "body_sha256": "b78de08703b93b4be98cb6f8696ac7b8c2484529227c44098a32be01618a6e85",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        }
+      ],
+      "preservation": "Existing207 anchor lineage/AC IDs/catalog owner retained; only selected Folio field obligations extended"
     }
   },
   "closure_unit": {
@@ -1945,7 +2027,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-09T19:43:36.132296+00:00",
+  "updated_at_utc": "2026-10-10T08:22:11.870251+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35531.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2087,7 +2169,75 @@
       }
     ],
     "proof_target_materialization_required": true,
-    "proof_target_materialization_timing": "Recipe/selected owner/feature policy approved before coding; targets created during coding and must execute before handoff."
+    "proof_target_materialization_timing": "Recipe/selected owner/feature policy approved before coding; targets created during coding and must execute before handoff.",
+    "current_field_acceptance_mapping": {
+      "AC-001": [
+        "STU-CON-015",
+        "STU-CON-016",
+        "STU-CON-017",
+        "STU-CON-018",
+        "STU-CON-019",
+        "STU-CON-021"
+      ],
+      "AC-002": [
+        "STU-CON-018",
+        "STU-CON-021"
+      ],
+      "AC-003": [
+        "STU-CON-015",
+        "STU-CON-002"
+      ],
+      "AC-004": [
+        "STU-CON-020",
+        "STU-CON-021"
+      ],
+      "AC-005": [
+        "STU-CON-021"
+      ],
+      "proof": "Actual generated JsonSchema and mixed immutable graph; successful successor edit/ordered image composite; duplicate/dangling/containment+rendercycle/unit/payload/type/cardinality/stale/overflow/cancel/budget rejection;unsupported bytes retained with dependent mutation refusal",
+      "host": "PENDING; source proof never fulfills integrated authority or later domain features"
+    },
+    "serialization_pin_research": {
+      "checked_at": "2026-10-10T08:22:11.870251+00:00",
+      "sources": [
+        "https://docs.rs/schemars/1.2.2/schemars/",
+        "https://docs.rs/serde/1.0.229/serde/",
+        "https://docs.rs/serde_json/1.0.151/serde_json/",
+        "https://serde.rs/derive.html",
+        "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html"
+      ],
+      "patterns": [
+        "Derive JsonSchema with Serialize/Deserialize on typed wire records; serde attributes reflected in schema",
+        "Schema output may change between versions: exact direct pins plus checksummed lock",
+        "Required explicit nullable fields cannot silently default through Option; enforce presence/schema required",
+        "Unknown fields/schema retain complete immutable encoded input read-only; no generic editable JSON authority"
+      ],
+      "reuse": "Existing Accord IDs/units/cancellation; existing workspace manifest DAG/provenance owner; root published broader Studio research",
+      "rejected": [
+        "Handwritten fake JsonSchema",
+        "Value-derived example schema",
+        "Kernel/database/GPU/codec dependencies",
+        "Unpinned registry/default features",
+        "Partially editable unknown-field data"
+      ],
+      "selected": "Pure typed serde/schemars; exact selected std/derive features; no optional native provider",
+      "pin_candidates": {
+        "schemars": "=1.2.2",
+        "serde": "=1.0.229",
+        "serde_json": "=1.0.151"
+      },
+      "risks": [
+        "Schema/wire drift",
+        "Allocation before limits",
+        "Unknown-field loss"
+      ],
+      "mitigations": [
+        "Pinned checksummed closure",
+        "Input/node/edge/payload byte limits and traversal cancellation",
+        "Read-only encoded retention and mutation refusal"
+      ],
+      "validation": "Owning workspace policy rejects pin/feature/registry drift; independent generated schema +actual mixed consumer cases mapped to CON021"
+    }
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
