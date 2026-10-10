@@ -1768,7 +1768,7 @@
           "negative_path": "Stale revision, overlapping changed property, malformed reference and precommit cancel cannot partially mutate base; postcommit cancel cannot erase accepted edit",
           "oracle": "Apply/invert semantic equality, two-property concurrency and deterministic stale rejection"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "REAL_TARGET_COMPILED_RUNTIME_PENDING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1799,7 +1799,7 @@
           "negative_path": "Stale revision, overlapping changed property, malformed reference and precommit cancel cannot partially mutate base; postcommit cancel cannot erase accepted edit",
           "oracle": "Apply/invert semantic equality, two-property concurrency and deterministic stale rejection"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "REAL_TARGET_COMPILED_RUNTIME_PENDING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1830,7 +1830,7 @@
           "negative_path": "Stale revision, overlapping changed property, malformed reference and precommit cancel cannot partially mutate base; postcommit cancel cannot erase accepted edit",
           "oracle": "Apply/invert semantic equality, two-property concurrency and deterministic stale rejection"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "REAL_TARGET_COMPILED_RUNTIME_PENDING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1861,7 +1861,7 @@
           "negative_path": "Stale revision, overlapping changed property, malformed reference and precommit cancel cannot partially mutate base; postcommit cancel cannot erase accepted edit",
           "oracle": "Apply/invert semantic equality, two-property concurrency and deterministic stale rejection"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "REAL_TARGET_COMPILED_RUNTIME_PENDING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1892,7 +1892,7 @@
           "negative_path": "Stale revision, overlapping changed property, malformed reference and precommit cancel cannot partially mutate base; postcommit cancel cannot erase accepted edit",
           "oracle": "Apply/invert semantic equality, two-property concurrency and deterministic stale rejection"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "REAL_TARGET_COMPILED_RUNTIME_PENDING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1902,10 +1902,22 @@
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-chronicle/**"
+      "handshake-studio-assets/Cargo.toml",
+      "handshake-studio-assets/Cargo.lock",
+      "handshake-studio-assets/rust-toolchain.toml",
+      "handshake-studio-assets/crates/hsk-studio-chronicle/Cargo.toml",
+      "handshake-studio-assets/crates/hsk-studio-chronicle/examples/chronicle-consumer.rs",
+      "handshake-studio-assets/crates/hsk-studio-chronicle/src/lib.rs",
+      "handshake-studio-assets/crates/hsk-studio-chronicle/tests/foundation_contract.rs",
+      "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml",
+      "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs",
+      "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml",
+      "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs",
+      "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml",
+      "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs"
     ],
     "extra_build_proofs": [],
-    "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
+    "proof_materialization_status": "REAL_TARGET_COMPILED_RUNTIME_PENDING"
   },
   "user_manual_obligation": {
     "required": true,
@@ -2012,15 +2024,15 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T09:42:02.802281+00:00",
+  "updated_at_utc": "2026-10-10T10:07:55.703410+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35532.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json"
   },
   "lifecycle": {
-    "phase": "implementation",
-    "status": "PENDING",
+    "phase": "validation",
+    "status": "READY_FOR_INDEPENDENT_VALIDATION",
     "active": true,
     "validator_verdict": "PENDING",
     "contract_preparation_only": false,
@@ -2236,8 +2248,8 @@
     "selected_mt": "MT-35532",
     "lease_commit": "c66eddd44fe222509063df1ee4f0eee4e57ece8a",
     "runtime": "NOT_RUN",
-    "compile": "PASS_DEPENDENCY_TARGET_ONLY_NOT_FOUNDATION",
-    "next_actor": "folio scoped real Chronicle source implementation; parent compiler after frozen ownedfiles",
+    "compile": "PASS_CHECK_AND_CLIPPY",
+    "next_actor": "foundation_validator independent Chronicle source runtime",
     "authority_blocker": {
       "id": "MT-35532-CANONICAL-PATCH-FIELDS",
       "status": "RESOLVED_CANONICAL_FIELDS",
@@ -2275,7 +2287,9 @@
     "prerequisite_proof_refs": [
       "MT-35528-INDEPENDENT-CHRONICLE-REGISTRY-EXTENSION-V5",
       "MT-35531-INDEPENDENT-FOLIO-SOURCE-PROOF-V1"
-    ]
+    ],
+    "candidate_commit": "fb185b2580d4e2745fc3d789487ac3e979f062f1",
+    "candidate_tree": "4612f72d83a1d9ec4cde906334a720847ad8cb9d"
   },
   "validation": {
     "proof_records": [
@@ -2330,6 +2344,129 @@
         },
         "runtime": "NOT_RUN",
         "reuse_basis": "Exact prior compiler input hashes unchanged and Gitfiltered identities reconcile current pushed candidate"
+      },
+      {
+        "proof_id": "MT-35532-BUILDER-COMPILER-STATIC-V1",
+        "executor_role": "kernel_builder",
+        "covers": [
+          "MT-35532"
+        ],
+        "scope": "compiler_static_only",
+        "candidate_commit": "fb185b2580d4e2745fc3d789487ac3e979f062f1",
+        "candidate_tree": "4612f72d83a1d9ec4cde906334a720847ad8cb9d",
+        "command": [
+          "cargo",
+          "+1.97.1",
+          "check",
+          "--manifest-path",
+          "handshake-studio-assets/Cargo.toml",
+          "--locked",
+          "-p",
+          "hsk-studio-chronicle",
+          "--no-default-features",
+          "--tests",
+          "--example",
+          "chronicle-consumer",
+          "--jobs",
+          "4"
+        ],
+        "exit_code": 0,
+        "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-kernel-builder\\logs\\foundation-check-v3-evidence.json",
+        "input_hashes": {
+          "handshake-studio-assets/Cargo.toml": "8c31107a13f48e548e5419b734712bd6924499fe965a18142bf9a60f4972501e",
+          "handshake-studio-assets/Cargo.lock": "446d50d0ffa6d72228adfebeaba391ba56d0f12d27dd1da73f9b967d9b3780b1",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/Cargo.toml": "a211bcd170eb0622ebfe905aab5024f09f36b2921b38bfdc6dd8406bfd03f2c7",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/examples/chronicle-consumer.rs": "bb4455355d08cb144ec3883b16ed5e038136b4371935ad37c4f1e9badaebf6e4",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/src/lib.rs": "4b06bc6e64b0ca9127720ec87e14ed291b3990f5267f6575707d97ccce233f2e",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/tests/foundation_contract.rs": "3633e11bc870751587f5dde9d51438ee1ee562c4fda27337b0ac08492f21dc0c",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "5cc510352a27d0a6d0f629a6e47be6ad04c4c8dec661c434e4dc2f710e4c67a6",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "6c37f2f2ec7718efc9510b9d5a91e152bdce080e6777de9d6dba514362a14dd4"
+        },
+        "git_input_blobs": {
+          "handshake-studio-assets/Cargo.toml": "b86594639cac5b2ad7f925ad2b924aaf54ba48c6",
+          "handshake-studio-assets/Cargo.lock": "6a77ace6f8e27ed295c496e4babda2f159174ec9",
+          "handshake-studio-assets/rust-toolchain.toml": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/Cargo.toml": "01b290fb843d4f2d23477b1602a8216c5326cc9c",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/examples/chronicle-consumer.rs": "16c09ea6d834f178a9f1e90339275f5229c089e0",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/src/lib.rs": "653e4fc4a4b578193b1e4b2addec738fb44ad8c5",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/tests/foundation_contract.rs": "59abd2773867c626aea5f8ee4bf447d5b18f0585",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "450c83eb64bf73c73cf02743c3d1237e21e25d8a",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a",
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "6ac479ca23509bf97df71f1e7c5969285dcf7e61",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "067b65b90922c41a8b4a48d8519ab4bcd5da6571",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "4a2c63933777fc707a3deeb8ce2f116cfdded72a",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "c5450a6e7a3babbf47c7ce5525bdb0ea6212c5c4"
+        },
+        "runtime": "NOT_RUN",
+        "candidate_binding": "Native hashes unchanged; Git clean-filter blobs reconcile exact pushed candidate"
+      },
+      {
+        "proof_id": "MT-35532-BUILDER-CLIPPY-STATIC-V1",
+        "executor_role": "kernel_builder",
+        "covers": [
+          "MT-35532"
+        ],
+        "scope": "compiler_static_only",
+        "candidate_commit": "fb185b2580d4e2745fc3d789487ac3e979f062f1",
+        "candidate_tree": "4612f72d83a1d9ec4cde906334a720847ad8cb9d",
+        "command": [
+          "cargo",
+          "+1.97.1",
+          "clippy",
+          "--manifest-path",
+          "handshake-studio-assets/Cargo.toml",
+          "--locked",
+          "-p",
+          "hsk-studio-chronicle",
+          "--no-default-features",
+          "--tests",
+          "--example",
+          "chronicle-consumer",
+          "--jobs",
+          "4",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exit_code": 0,
+        "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-kernel-builder\\logs\\foundation-clippy-v3-evidence.json",
+        "input_hashes": {
+          "handshake-studio-assets/Cargo.toml": "8c31107a13f48e548e5419b734712bd6924499fe965a18142bf9a60f4972501e",
+          "handshake-studio-assets/Cargo.lock": "446d50d0ffa6d72228adfebeaba391ba56d0f12d27dd1da73f9b967d9b3780b1",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/Cargo.toml": "a211bcd170eb0622ebfe905aab5024f09f36b2921b38bfdc6dd8406bfd03f2c7",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/examples/chronicle-consumer.rs": "bb4455355d08cb144ec3883b16ed5e038136b4371935ad37c4f1e9badaebf6e4",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/src/lib.rs": "4b06bc6e64b0ca9127720ec87e14ed291b3990f5267f6575707d97ccce233f2e",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/tests/foundation_contract.rs": "3633e11bc870751587f5dde9d51438ee1ee562c4fda27337b0ac08492f21dc0c",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "5cc510352a27d0a6d0f629a6e47be6ad04c4c8dec661c434e4dc2f710e4c67a6",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "6c37f2f2ec7718efc9510b9d5a91e152bdce080e6777de9d6dba514362a14dd4"
+        },
+        "git_input_blobs": {
+          "handshake-studio-assets/Cargo.toml": "b86594639cac5b2ad7f925ad2b924aaf54ba48c6",
+          "handshake-studio-assets/Cargo.lock": "6a77ace6f8e27ed295c496e4babda2f159174ec9",
+          "handshake-studio-assets/rust-toolchain.toml": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/Cargo.toml": "01b290fb843d4f2d23477b1602a8216c5326cc9c",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/examples/chronicle-consumer.rs": "16c09ea6d834f178a9f1e90339275f5229c089e0",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/src/lib.rs": "653e4fc4a4b578193b1e4b2addec738fb44ad8c5",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/tests/foundation_contract.rs": "59abd2773867c626aea5f8ee4bf447d5b18f0585",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "450c83eb64bf73c73cf02743c3d1237e21e25d8a",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a",
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "6ac479ca23509bf97df71f1e7c5969285dcf7e61",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "067b65b90922c41a8b4a48d8519ab4bcd5da6571",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "4a2c63933777fc707a3deeb8ce2f116cfdded72a",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "c5450a6e7a3babbf47c7ce5525bdb0ea6212c5c4"
+        },
+        "runtime": "NOT_RUN",
+        "candidate_binding": "Native hashes unchanged; Git clean-filter blobs reconcile exact pushed candidate"
       }
     ]
   }

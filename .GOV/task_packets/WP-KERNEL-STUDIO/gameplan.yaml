@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 28
+generation: 31
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -50,3 +50,6 @@ steps:
 - {id: GP-032, role: builder, at: before_dispatch, do: require spec publication file-count scope from committed diff, check: {type: confirm}, source: 'prep:43publication paths include archive; current211bundle alone has21files', state: active}
 - {id: GP-033, role: builder, at: before_dispatch, do: require typed JSON reads explicit UTF8 encoding, check: {type: confirm}, source: 'prep: Windows defaultcp1252 decode rejected MTverdict Unicode; noGitaction started', state: active}
 - {id: GP-034, role: builder, at: before_dispatch, do: require scoped source diff-check zero before checkpoint, check: {type: confirm}, source: 'prep: copied ownerpolicy trailingblankline rejected scoped Git diff-check beforecheckpoint', state: active}
+- {id: GP-035, role: builder, at: before_dispatch, do: require reported full Git identity copied from actual command output, check: {type: confirm}, source: 'coordination: incorrect manually expanded Git SHA suffix retracted before further action', state: active}
+- {id: GP-036, role: builder, at: before_dispatch, do: require Chronicle result indirection preserves canonical successor wire, check: {type: confirm}, source: 'lint: Chronicle SourceResult changed640bytes versus no_change208 triggers large_enum_variant', state: active}
+- {id: GP-037, role: builder, at: before_dispatch, do: require Chronicle terminal sink uses is_empty frame check, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-chronicle/tests/foundation_contract.rs, contains: '!self.frames.is_empty()'}, source: 'lint: Chronicle test terminal sink len>=1 triggers len_zero after library lint cleared', state: active}

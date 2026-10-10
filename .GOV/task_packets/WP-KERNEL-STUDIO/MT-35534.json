@@ -1517,6 +1517,60 @@
       "prior_acceptance_wording_retained": true,
       "source_capability_ref": "MT-35534#/execution",
       "host_proof_pending": true
+    },
+    "pigment_current_field_binding": {
+      "publication_commit": "5ed3911b09f2d789f81ca70b76d8fe2592539652",
+      "version": "v02.212",
+      "pointer_ref": ".GOV/spec/SPEC_CURRENT.md",
+      "pointer_sha256": "601365c825de078faa9871f0de269a85b5613b8d47dbc9923c36ac7422e9699c",
+      "clauses": [
+        {
+          "id": "STU-CON-027",
+          "source_ref": ".GOV/spec/master-spec-v02.212/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22500,
+          "end_line": 22501,
+          "source_sha256": "370ae7c37aefff1bc30d72cd2bfce601b86fdff5dddaf03a9c3b4b1078e44cf4",
+          "body_sha256": "f0d9908fe08897e9488d3501fa365cd0ab852f2acb1388e8dc60982e5d460655",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-028",
+          "source_ref": ".GOV/spec/master-spec-v02.212/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22502,
+          "end_line": 22509,
+          "source_sha256": "370ae7c37aefff1bc30d72cd2bfce601b86fdff5dddaf03a9c3b4b1078e44cf4",
+          "body_sha256": "747eb3179f1d96aa7e60fae67e057e119ecfde35814b483c53c0dab673788808",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-029",
+          "source_ref": ".GOV/spec/master-spec-v02.212/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22510,
+          "end_line": 22517,
+          "source_sha256": "370ae7c37aefff1bc30d72cd2bfce601b86fdff5dddaf03a9c3b4b1078e44cf4",
+          "body_sha256": "a3ef9a8087f9a3bdef1279aeda147c4e0c102fc307b79f4b26737a9c9af35b08",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-030",
+          "source_ref": ".GOV/spec/master-spec-v02.212/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22518,
+          "end_line": 22523,
+          "source_sha256": "370ae7c37aefff1bc30d72cd2bfce601b86fdff5dddaf03a9c3b4b1078e44cf4",
+          "body_sha256": "2996430f5f83f369fed99770e356e05ef7c827015831b858fde3ae5917696aec",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-031",
+          "source_ref": ".GOV/spec/master-spec-v02.212/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22524,
+          "end_line": 22527,
+          "source_sha256": "370ae7c37aefff1bc30d72cd2bfce601b86fdff5dddaf03a9c3b4b1078e44cf4",
+          "body_sha256": "9e777f2c3858e4fd6b2932c8862c427f4e040ee3411027241a0ac219ffc24491",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        }
+      ],
+      "preservation": "Original207 lineage/AC/HBR/catalogowner retained; exact supporting CON027-031; no persistedprimitive/hostactivation"
     }
   },
   "closure_unit": {
@@ -1573,7 +1627,8 @@
       "MT-35528",
       "MT-35529",
       "MT-35533",
-      "MT-35530"
+      "MT-35530",
+      "MT-35531"
     ],
     "start_precondition": {
       "dispatch_allowed": false,
@@ -2030,19 +2085,19 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T21:14:47.14107+02:00",
-  "updated_at_utc": "2026-10-09T22:47:18.072Z",
+  "updated_at_utc": "2026-10-10T10:03:53.594132+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35534.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json"
   },
   "lifecycle": {
-    "phase": "blocked",
+    "phase": "preparation",
     "status": "PENDING",
     "active": false,
     "validator_verdict": "PENDING",
     "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "blocked_on": "INDEPENDENT_PRISM_LINEAR_PROFILE_INSPECTION_EXTENSION"
   },
   "scope": {
     "summary": "Execute masked tile mutation with deterministic damaged region and immutable preimage.",
@@ -2119,7 +2174,8 @@
     "declared_dependencies": [
       "STUDIO-MODULE-ACCORD",
       "STUDIO-MODULE-PRISM",
-      "STUDIO-MODULE-OBSERVE"
+      "STUDIO-MODULE-OBSERVE",
+      "STUDIO-MODULE-FOLIO"
     ],
     "minimum_meaningful_slice": "Execute masked tile mutation with deterministic damaged region and immutable preimage.",
     "full_vendor_parity_required_for_foundation": false,
@@ -2167,7 +2223,83 @@
       }
     ],
     "proof_target_materialization_required": true,
-    "proof_target_materialization_timing": "Recipe/selected owner/feature policy approved before coding; targets created during coding and must execute before handoff."
+    "proof_target_materialization_timing": "Recipe/selected owner/feature policy approved before coding; targets created during coding and must execute before handoff.",
+    "current_field_acceptance_mapping": {
+      "STU-CON-027": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "STU-CON-028": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "STU-CON-029": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "STU-CON-030": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "STU-CON-031": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ]
+    },
+    "dependency_enrichment": {
+      "source": "STU-CON-027",
+      "scope": "Pure hsk-studio-folio::TileRef reuse only",
+      "preserved_catalog_baseline": "Original Accord/Prism/Observe retained; explicit canonical field edge appended"
+    },
+    "source_research_basis": {
+      "sources_checked": [
+        "https://github.com/storytold/photocraft/tree/175603a644f10d2e8c61f82a63f7c2659c71dc47",
+        "https://github.com/linebender/tiny-skia/blob/master/tests/integration/mask.rs",
+        "https://github.com/google/skia/blob/main/src/opts/SkRasterPipeline_opts.h",
+        "Krita tiles3 kis_tile/kis_tile_data primary source",
+        "Current CON027-031 and actual Folio/Prism/Accord/Observe APIs"
+      ],
+      "patterns_found": [
+        "Sparse immutable Arc COW tile sharing",
+        "Explicit masks/layout/alpha arithmetic and actual changed-content bounds"
+      ],
+      "reuse": [
+        "Pinned Photocraft leaf COW pattern with provenance",
+        "Folio sole TileRef",
+        "Prism sole validated ICC parser/transform",
+        "Accord identity/cancellation and Observe ports"
+      ],
+      "rejected_options": [
+        "Upstream native-endian/unchecked mask decoding/default white copied as authority",
+        "Tiny-skia premultiplied format replacing Photocraft",
+        "Private tile/catalog/history/queue or Pigment ICC parser",
+        "Foundation claiming source-over/brush fidelity"
+      ],
+      "selected_approach": "Exact derived masked_replace supporting transport under CON027-031; no code until independent Prism linear-inspection prerequisite",
+      "risks_mitigations": [
+        "Packing/stride: explicit LE planes, checked exact dimensions/hashes",
+        "Omitted tiles: exact grid coverage and overlap refusal",
+        "Unverified linear label: opaque Prism profile inspection bound to exact ID/hash",
+        "Partial mutation/stale callback: immutable COW and caller atomic finalization",
+        "Lease leak/double charge: explicit output/scratch/preimage reservation and retained indeterminate token"
+      ],
+      "validation_plan": "Preserved four masked_patch exactfilters,20s each; independent tiny fractional matrix/byte/padding/damage oracle, actual linear Prism conversion, revision/epoch/lease/delivery negatives; original upstream produced brush/blend corpus retained for later fidelity"
+    }
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2225,5 +2357,27 @@
     "CX-VERIFY-001",
     "CX-VERIFY-002",
     "CX-VERIFY-003"
-  ]
+  ],
+  "implementation_state": {
+    "scope": "standalone_source",
+    "selected_mt": "MT-35534",
+    "lease_commit": "c66eddd44fe222509063df1ee4f0eee4e57ece8a",
+    "runtime": "NOT_RUN",
+    "compile": "NOT_RUN",
+    "authority_blocker": {
+      "id": "MT-35534-RESOLVED-BUFFER-FIELDS",
+      "status": "RESOLVED_CANONICAL_FIELDS",
+      "resolution_commit": "5ed3911b09f2d789f81ca70b76d8fe2592539652"
+    },
+    "predecessor_verdicts": [
+      "MT-35528-SOURCE-CHRONICLE-REGISTRY-EXTENSION-V5",
+      "MT-35529-SOURCE-V210-SCHEMA-EXTENSION-V2",
+      "MT-35530-SOURCE-FOUNDATION-V1",
+      "MT-35531-SOURCE-FOUNDATION-V1",
+      "MT-35533-SOURCE-FOUNDATION-V1"
+    ],
+    "next_actor": "Prism owner inspection/linear fixture extension then independent proof before Pigment coding",
+    "source_feature_policy": "No default features; Accord/Folio/Prism/Observe pure closure; no GPU/codec/host/provider added",
+    "per_test_timeout": "Four existing masked_patch exact filters; checked-in20s percase before handoff; no outer timeout"
+  }
 }
