@@ -2106,5 +2106,67 @@
       "status": "PENDING",
       "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
     }
+  },
+  "implementation_state": {
+    "scope": "standalone_source_preparation_only",
+    "selected_mt": "MT-35536",
+    "session": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
+    "batch_owner": "MT-35536",
+    "covered_mts": [
+      "MT-35536"
+    ],
+    "runtime": "NOT_RUN",
+    "compile": "NOT_RUN",
+    "preparation_status": "CURRENT_PROVIDER_FONT_BOUND_ORACLE_RESEARCH_PENDING",
+    "next_actor": "Coordinator publishes corrected canonical Type transport; read-only provider and exact oracle research resolves bounded recipe before implementation dispatch; Nib source remains independently frozen",
+    "authorized_scope": "Existing live coordinator all36 continuation; c66eddd4 research lineage retained, not execution lease producer",
+    "source_base": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+    "source_change_allowed_now": false,
+    "source_frozen_for_other_owner": "Nib validator owns immutable8a3eebf and physicaldisk Cargo proof; Type research changes no product input",
+    "artifact_owner_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536/studio-assets-kernel-builder",
+    "preserved_acceptance": "Original Latin/Arabic/CJK/mixedbidi, ligaturetoggle/variableaxes/tworundet, source/full laterHBR and vendor/native scopes unchanged",
+    "research_basis": {
+      "artifacts": [
+        {
+          "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35536\\studio-assets-kernel-builder\\research\\type-provider-source-evidence.json",
+          "sha256": "5cda83bde5d6af4c2e57153ee21aed5bccf4d3a8ed5e72838314a233853d838d"
+        },
+        {
+          "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35536\\studio-assets-kernel-builder\\research\\provider-allocation-review-sites.json",
+          "sha256": "55672d4165f938ffb09bb388eb701bfacb641d52a7bd13d891d2417aa569d108"
+        },
+        {
+          "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35536\\studio-assets-kernel-builder\\research\\type-variable-fixture-and-oracle.json",
+          "sha256": "34f5c533029c6541f405c3d77a53b5002930768ef653c0a9ec928d8f8facab8b"
+        }
+      ],
+      "disposition": "SOURCE_RESEARCH_ONLY_NO_PROVIDER_BOUND_OR_RUNTIME_VERDICT",
+      "reuse": "Existing STXT/story/style authority, Accord/Observe owners and explicit caller-granted hashed font resources; no font primitive/schema",
+      "candidate": "Harfrust0.14 current candidate; archived Rustybuzz0.20.1 reference-only candidate; production selection unresolved",
+      "fixture": "Pinned OFL Inter variable bytes verified against release archive; exact selected-font oracle still unexecuted"
+    },
+    "preparation_blockers": [
+      "Canonical Type transport draft CON037-041 awaiting coordinator publication; TYP113 distinct story/paragraph/character directions flagged for repair",
+      "Reachable provider/font/cache/plan/bidi allocation and work/cancel recipe unresolved; buffer-only patch insufficient; no guessed bounds",
+      "Exact four-font shaping oracle plus scalar-to-original-UTF8 cluster mapping and independent bidi visual-run oracle pending"
+    ],
+    "independent_field_review": {
+      "executor": "workspace",
+      "result": "DRAFT_BLOCKING_DIRECTION_AND_ORACLE_BINDINGS",
+      "basis": "Actual v213 TYP113/172/176/179 and external v214 draft; no new font UUID/schema found",
+      "proof_filters_proposed": [
+        {
+          "target": "foundation_contract",
+          "filter": "mixed_script_bidi_font_runs",
+          "timeout_seconds": 60
+        },
+        {
+          "target": "foundation_contract",
+          "filter": "font_axis_missing_cancel_stale",
+          "timeout_seconds": 60
+        }
+      ],
+      "original_acceptance": "All five original ACs and full later-feature scope retained; filters not published authority yet"
+    }
   }
 }
