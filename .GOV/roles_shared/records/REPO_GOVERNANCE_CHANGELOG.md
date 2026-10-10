@@ -1,4 +1,4 @@
-﻿# Repo Governance Changelog
+# Repo Governance Changelog
 
 ## Metadata
 
@@ -5486,4 +5486,4 @@
 - CHANGESET_ID: CS-20261010-COMPILER-SCHEDULING
 - CHANGESET_VERSION: 2026.10.10.1
 - AUDIT_ID: AUDIT-20261010-COMPILER-SCHEDULING
-- RGF-331: local compilation scheduling policy/helper/profile applied; version-only launch smoke PASS with Cargo1.97.1 and CPU32/MEM5/IO2. Independent review/publication pending. Machine authority: .GOV/Audits/AUDIT-20261010-COMPILER-SCHEDULING.json. Product NONE.
+- RGF-331: local compilation scheduling policy/helper/profile applied; version-only launch smoke PASS with Cargo1.97.1 and CPU32/MEM5/IO2. Independent static review PASS; publication pending. Machine authority: .GOV/Audits/AUDIT-20261010-COMPILER-SCHEDULING.json. Product NONE.
