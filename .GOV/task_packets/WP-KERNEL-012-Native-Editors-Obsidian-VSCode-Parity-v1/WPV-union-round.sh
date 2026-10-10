@@ -69,6 +69,151 @@ print('1' if enabled else '0')
 PY_OVERRIDE
 )"
 
+# Own child only: compilation scheduling preserves this shell and test launch.
+compile_cargo() {
+  MT168_RESOURCE_OVERRIDE="$MT168_RESOURCE_OVERRIDE" HANDSHAKE_COMPILER_HOST_PROFILE="$HOST_PROFILE" python - "$@" <<'PY_COMPILER_PRIORITY'
+import ctypes as c
+from ctypes import wintypes as w
+import datetime, json, os, pathlib, shutil, subprocess, sys
+
+if os.name != 'nt':
+    raise RuntimeError('Declared Windows compiler scheduling requires Windows Python')
+with open(os.environ['HANDSHAKE_COMPILER_HOST_PROFILE'], encoding='utf-8') as profile_file:
+    scheduling = json.load(profile_file)['compilation_scheduling']
+if (scheduling['cpu_class'], scheduling['memory_priority'], scheduling['effective_io_priority']) != (32, 5, 2):
+    raise RuntimeError('Declared compilation scheduling must match Normal policy')
+print('[run-round] compiler_scheduling_declared ' + json.dumps(scheduling), flush=True)
+k = c.WinDLL('kernel32', use_last_error=True)
+n = c.WinDLL('ntdll')
+k.OpenProcess.argtypes = [w.DWORD, w.BOOL, w.DWORD]
+k.OpenProcess.restype = w.HANDLE
+k.CloseHandle.argtypes = [w.HANDLE]
+k.GetPriorityClass.argtypes = [w.HANDLE]
+k.GetPriorityClass.restype = w.DWORD
+k.SetPriorityClass.argtypes = [w.HANDLE, w.DWORD]
+k.GetProcessInformation.argtypes = [w.HANDLE, c.c_int, c.c_void_p, w.DWORD]
+k.SetProcessInformation.argtypes = [w.HANDLE, c.c_int, c.c_void_p, w.DWORD]
+k.GetProcessTimes.argtypes = [w.HANDLE] + [c.POINTER(w.FILETIME)] * 4
+k.QueryFullProcessImageNameW.argtypes = [w.HANDLE, w.DWORD, w.LPWSTR, c.POINTER(w.DWORD)]
+for api in (n.NtQueryInformationProcess, n.NtSetInformationProcess):
+    api.restype = c.c_long
+n.NtQueryInformationProcess.argtypes = [w.HANDLE, c.c_int, c.c_void_p, w.ULONG, c.POINTER(w.ULONG)]
+n.NtSetInformationProcess.argtypes = [w.HANDLE, c.c_int, c.c_void_p, w.ULONG]
+
+def check(ok):
+    if not ok:
+        raise c.WinError(c.get_last_error())
+
+def ntcheck(status):
+    if status != 0:
+        raise RuntimeError('Priority NTSTATUS ' + hex(status & 0xffffffff))
+
+def normalized(path):
+    return os.path.normcase(os.path.realpath(path))
+
+def priorities(handle):
+    mem = w.DWORD()
+    check(k.GetProcessInformation(handle, 0, c.byref(mem), 4))
+    out = {'cpu': k.GetPriorityClass(handle), 'memory': mem.value}
+    for cls, key in ((33, 'io_configured'), (110, 'io_effective')):
+        val, length = w.ULONG(), w.ULONG()
+        ntcheck(n.NtQueryInformationProcess(handle, cls, c.byref(val), 4, c.byref(length)))
+        out[key] = val.value
+    return out
+
+def normalize(pid, expected_path, kind, mutate=True, expected_creation_filetime=None):
+    handle = k.OpenProcess(0x600, False, pid)
+    check(handle)
+    try:
+        image, size = c.create_unicode_buffer(32768), w.DWORD(32768)
+        check(k.QueryFullProcessImageNameW(handle, 0, image, c.byref(size)))
+        if normalized(image.value) != normalized(expected_path):
+            raise RuntimeError('Compiler scheduling executable identity mismatch')
+        times = [w.FILETIME() for _ in range(4)]
+        check(k.GetProcessTimes(handle, *[c.byref(v) for v in times]))
+        start = (times[0].dwHighDateTime << 32) | times[0].dwLowDateTime
+        if expected_creation_filetime is not None:
+            if start != expected_creation_filetime:
+                raise RuntimeError('Cache server creation identity changed')
+        before = priorities(handle)
+        if mutate:
+            check(k.SetPriorityClass(handle, 32))
+            val = w.DWORD(5)
+            check(k.SetProcessInformation(handle, 0, c.byref(val), 4))
+            val.value = 2
+            ntcheck(n.NtSetInformationProcess(handle, 33, c.byref(val), 4))
+        after = priorities(handle)
+        record = dict(utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                      kind=kind, pid=pid, start_filetime=start, image=image.value,
+                      before=before, after=after)
+        print('[run-round] compiler_scheduling ' + json.dumps(record), flush=True)
+        if after != dict(cpu=32, memory=5, io_configured=2, io_effective=2):
+            raise RuntimeError('Compiler scheduling readback mismatch')
+    finally:
+        k.CloseHandle(handle)
+
+normalize(os.getpid(), sys.executable, 'owned_compile_launcher')
+wrapper = os.environ.get('RUSTC_WRAPPER', '')
+if pathlib.Path(wrapper).name.lower() == 'sccache.exe':
+    port = os.environ.get('SCCACHE_SERVER_PORT', '')
+    if not port.isdecimal() or not 0 < int(port) < 65536:
+        raise RuntimeError('Exact declared sccache port required')
+    ps = r'''
+$ErrorActionPreference = 'Stop'
+$connections = @(Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object { $_.LocalPort -eq [int]$env:SCCACHE_SERVER_PORT })
+$ids = @($connections.OwningProcess | Select-Object -Unique)
+$me = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$rows = @($ids | ForEach-Object {
+    $p = Get-CimInstance Win32_Process -Filter "ProcessId=$_"
+    if (-not $p) { throw 'Cache endpoint owner disappeared' }
+    $owner = Invoke-CimMethod -InputObject $p -MethodName GetOwnerSid
+    if ($owner.ReturnValue -ne 0 -or $owner.Sid -ne $me) { throw 'Cache endpoint belongs to another principal' }
+    $native = [Diagnostics.Process]::GetProcessById($p.ProcessId)
+    try { $creationFiletime = $native.StartTime.ToUniversalTime().ToFileTimeUtc() } finally { $native.Dispose() }
+    [pscustomobject]@{ pid=$p.ProcessId; path=$p.ExecutablePath; command=$p.CommandLine; creation_filetime=$creationFiletime; sid=$owner.Sid }
+})
+ConvertTo-Json -InputObject $rows -Compress
+'''
+    raw = subprocess.check_output(['powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive',
+                                   '-WindowStyle', 'Hidden', '-Command', ps], text=True)
+    servers = json.loads(raw)
+    if len(servers) > 1:
+        raise RuntimeError('Ambiguous declared cache endpoint')
+    for server in servers:
+        if normalized(server['path']) != normalized(wrapper):
+            raise RuntimeError('Declared cache endpoint executable mismatch')
+        if normalized(server['command'].strip().strip('"')) != normalized(wrapper):
+            raise RuntimeError('Declared cache endpoint is not the bare shared server')
+        print('[run-round] cache_server_identity ' + json.dumps(server), flush=True)
+        normalize(server['pid'], wrapper, 'declared_shared_cache_server', expected_creation_filetime=server['creation_filetime'])
+    if not servers:
+        print('[run-round] cache_server absent; own normalized Cargo ancestry starts it naturally', flush=True)
+
+command = sys.argv[1:]
+if not command or command[0] != 'cargo':
+    raise RuntimeError('Internal compilation launcher accepts Cargo only')
+cargo_path = shutil.which(command[0])
+if not cargo_path:
+    raise RuntimeError('Cargo missing from declared host PATH')
+child = subprocess.Popen(command)
+try:
+    normalize(child.pid, cargo_path, 'owned_cargo_inheritance_and_repair')
+except Exception as error:
+    completed = child.poll()
+    print('[run-round] compiler_scheduling ' + json.dumps(dict(
+        kind='owned_cargo_readback_unavailable', pid=child.pid,
+        utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        error=str(error), observed_priority=False, completed_exit=completed,
+        resource_override=os.environ.get('MT168_RESOURCE_OVERRIDE') == '1',
+        action='retain actual Cargo outcome; do not interrupt compilation')), flush=True)
+    # A successful short-lived child may disappear before its readback. Neither
+    # that race nor failed scheduling inspection authorizes stopping a build.
+    # The launcher was independently normalized; missing child evidence remains
+    # explicit and must be reconciled rather than invented or called PASS.
+raise SystemExit(child.wait())
+PY_COMPILER_PRIORITY
+}
+
 check_target_cap() {
   local bytes free_kib
   bytes="$(python - "$ARTIFACT_ROOT/WP-KERNEL-012" <<'PY_CAP'
@@ -409,7 +554,7 @@ if [[ "$CORE_CHECK_LIB" = 1 ]]; then
 CORE_CHECK_LOG="$LANE/logs/core-check-lib-$SHA$OUT_SUFFIX.log"
 echo "[run-round] core_check_lib config_sha256=$BACKEND_PROFILE_SHA256 log=$CORE_CHECK_LOG"
 ( cd "$EXPORT/src/backend/handshake_core" && \
-  cargo check --locked -j 1 --lib --config "$BACKEND_PROFILE_CONFIG" --features app-runtime,surreal-test-support,test-utils ) 2>&1 | tee "$CORE_CHECK_LOG"
+  compile_cargo cargo check --locked -j 1 --lib --config "$BACKEND_PROFILE_CONFIG" --features app-runtime,surreal-test-support,test-utils ) 2>&1 | tee "$CORE_CHECK_LOG"
 check_target_cap
 fi
 echo "[run-round] building core union"
@@ -418,7 +563,7 @@ echo "[run-round] building core union"
 CORE_BUILD_LOG="$LANE/logs/core-build-v-$SHA$OUT_SUFFIX.log"
 echo "[run-round] build_profile line=core-test config_sha256=$BACKEND_PROFILE_SHA256 (dev/test + 8-crate opt-level 2) log=$CORE_BUILD_LOG"
 ( cd "$EXPORT/src/backend/handshake_core" && \
-  cargo test --locked -j 1 --no-run -v --config "$BACKEND_PROFILE_CONFIG" --features app-runtime,surreal-test-support,test-utils "${core_test_args[@]}" ) 2>&1 | tee "$CORE_BUILD_LOG"
+  compile_cargo cargo test --locked -j 1 --no-run -v --config "$BACKEND_PROFILE_CONFIG" --features app-runtime,surreal-test-support,test-utils "${core_test_args[@]}" ) 2>&1 | tee "$CORE_BUILD_LOG"
 check_test_profile core "$CORE_BUILD_LOG" 1
 check_target_cap
 fi
@@ -428,7 +573,7 @@ echo "[run-round] building native union"
 NATIVE_BUILD_LOG="$LANE/logs/native-build-$SHA$OUT_SUFFIX.log"
 echo "[run-round] build_profile line=native-test config_sha256=$BACKEND_PROFILE_SHA256 (inert: handshake_native graph has no surrealdb crate) log=$NATIVE_BUILD_LOG"
 ( cd "$EXPORT/src/frontend/handshake_native" && \
-  cargo test --locked -j 1 --no-run --config "$BACKEND_PROFILE_CONFIG" --features integration,integration_tests,wgpu_screenshots "${NATIVE_TARGET_ARGS[@]}" ) 2>&1 | tee "$NATIVE_BUILD_LOG"
+  compile_cargo cargo test --locked -j 1 --no-run --config "$BACKEND_PROFILE_CONFIG" --features integration,integration_tests,wgpu_screenshots "${NATIVE_TARGET_ARGS[@]}" ) 2>&1 | tee "$NATIVE_BUILD_LOG"
 if grep -Eq '^ *Compiling (surrealdb|surrealdb-[a-z-]+) v' "$NATIVE_BUILD_LOG"; then
   echo "[run-round] INVALID_CONFIG native build compiled an allow-listed surrealdb crate (expected inert)"; exit 5
 fi
@@ -441,7 +586,7 @@ for crate in "${EXTRACTED_CRATES[@]}"; do
   EXTRACTED_BUILD_LOG="$LANE/logs/extracted-build-v-$crate-$SHA$OUT_SUFFIX.log"
   echo "[run-round] build_profile line=extracted-test:$crate config_sha256=$BACKEND_PROFILE_SHA256 log=$EXTRACTED_BUILD_LOG"
   ( cd "$EXPORT/src/backend/$crate" && \
-    cargo test --locked -j 1 --no-run -v --config "$BACKEND_PROFILE_CONFIG" --lib --features surreal-test-support ) 2>&1 | tee "$EXTRACTED_BUILD_LOG"
+    compile_cargo cargo test --locked -j 1 --no-run -v --config "$BACKEND_PROFILE_CONFIG" --lib --features surreal-test-support ) 2>&1 | tee "$EXTRACTED_BUILD_LOG"
   check_test_profile "extracted:$crate" "$EXTRACTED_BUILD_LOG" 0
   check_target_cap
 done
@@ -450,7 +595,7 @@ if [[ "$NATIVE_SKIP" != 1 ]]; then
 echo "[run-round] building backend binary for HSK_TEST_BACKEND_BIN"
 echo "[run-round] build_profile line=backend config_sha256=$BACKEND_PROFILE_SHA256 (dev + 8-crate opt-level 2, -j 1)"
 ( cd "$EXPORT/src/backend/handshake_core" && \
-  cargo build --locked -j 1 --config "$BACKEND_PROFILE_CONFIG" --target-dir "$HSK_TEST_BACKEND_TARGET_ROOT" --bin handshake_core --features app-runtime,surreal-test-support,test-utils )
+  compile_cargo cargo build --locked -j 1 --config "$BACKEND_PROFILE_CONFIG" --target-dir "$HSK_TEST_BACKEND_TARGET_ROOT" --bin handshake_core --features app-runtime,surreal-test-support,test-utils )
 check_target_cap
 [ -f "$HSK_TEST_BACKEND_BIN" ] || { echo "[run-round] FATAL: backend bin not found at $HSK_TEST_BACKEND_BIN"; exit 3; }
 

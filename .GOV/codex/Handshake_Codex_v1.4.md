@@ -199,6 +199,11 @@
 [CX-GP-007] Paperwork-only work must not assert that product runtime preparation passed.
 
 [CX-HOST-001] Every project declares its test environment in a machine-local host profile outside Codex law: runtime roots, database sync mode, default check timeouts, the hang procedure of dump and stack walk before any kill, and a tools manifest. A check run outside the declared environment is a defect, not a result.
+[CX-HOST-002] Windows compilation uses Normal CPU, Normal memory and Normal effective I/O priority for Cargo, compiler processes and their shared compiler-cache server.
+[CX-HOST-003] Declare compilation scheduling in the machine-local host profile and verify it at the existing compilation launch boundary.
+[CX-HOST-004] Future Windows Task Scheduler compile hosts explicitly use priority 4.
+[CX-HOST-005] Scheduling repairs preserve cache contents, toolchain, build profile and test assertions.
+[CX-HOST-006] Record scheduling interventions in proof conditions; reuse timing proof only after reconciling its scheduling environment.
 
 ## Artifact isolation
 

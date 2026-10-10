@@ -1,0 +1,37 @@
+{
+  "schema_version": "hsk.governance_maintenance_evidence@1",
+  "AUDIT_ID": "AUDIT-20261010-COMPILER-SCHEDULING",
+  "CHANGESET_ID": "CS-20261010-COMPILER-SCHEDULING",
+  "task_id": "RGF-331",
+  "status": "REVIEWED_LOCAL_PUBLICATION_PENDING",
+  "operator_request": "Give compilation higher priority so future builds benefit",
+  "cause": "Scheduler priority7 launches compilation with below-normal CPU and low memory/I/O scheduling",
+  "policy_refs": ["CX-HOST-002", "CX-HOST-003", "CX-HOST-004", "CX-HOST-005", "CX-HOST-006"],
+  "changed_surfaces": [
+    ".GOV/codex/Handshake_Codex_v1.4.md",
+    ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-union-round.sh",
+    "../gov-runtime/host-profile-wp012.json#compilation_scheduling"
+  ],
+  "verification": {
+    "independent_static_review": "PASS; original bytes unchanged except helper and five compile prefixes",
+    "shell_syntax": "PASS",
+    "version_only_smoke_utc": "2026-10-10T01:01:27Z",
+    "cargo_version": "1.97.1",
+    "launcher_cargo_cache_cpu_class": 32,
+    "launcher_cargo_cache_memory_priority": 5,
+    "launcher_cargo_cache_effective_io_priority": 2,
+    "cache_identity": "exact image, endpoint, user SID, bare command and native creation FILETIME",
+    "profile_existing_fields": "unchanged"
+  },
+  "preservation": {
+    "cargo_arguments": "unchanged",
+    "toolchain_build_profile_cache_contents": "unchanged",
+    "test_launch_priority_assertions_timeouts": "unchanged",
+    "original_r19_proof": "preserved; timing FAIL remains canonical"
+  },
+  "limits": [
+    "Version-only smoke proves launch scheduling, not compile throughput",
+    "Current WP compilation boundary implements the policy; other future launchers must implement CX-HOST-003/004",
+    "Kernel publication remains pending; observe actual rustc inheritance at natural compiler arrival"
+  ]
+}
